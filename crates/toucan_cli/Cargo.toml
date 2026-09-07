@@ -1,0 +1,33 @@
+[package]
+name = "toucan_cli"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Command-line C header analysis and Rust binding generation"
+
+[[bin]]
+name = "toucan"
+path = "src/main.rs"
+
+[features]
+performance-allocator = ["dep:tikv-jemallocator", "dep:mimalloc"]
+
+[dependencies]
+anyhow.workspace = true
+clap.workspace = true
+serde_json.workspace = true
+toucan = { path = "../toucan" }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[target.'cfg(all(unix, not(target_os = "openbsd")))'.dependencies]
+tikv-jemallocator = { version = "0.6", optional = true }
+
+[target.'cfg(windows)'.dependencies]
+mimalloc = { version = "0.1", features = ["v2"], optional = true }
+
+[lints]
+workspace = true
