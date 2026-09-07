@@ -1,0 +1,825 @@
+//! Native, bounded C preprocessing for header consumers.
+//!
+//! The caller supplies the target's include paths and predefined macros. No host
+//! compiler is invoked, and missing includes and unsupported directives are errors.
+
+mod expand;
+mod expression;
+mod token;
+
+#[cfg(test)]
+mod tests;
+
+use std::collections::{BTreeMap, BTreeSet};
+use std::fmt;
+use std::fs;
+use std::io::Read;
+use std::path::{Path, PathBuf};
+
+use expand::Expansion;
+use token::{Kind, Token, lex, lex_limited, normalize, render};
+
+/// Include search paths, predefined macros, and per-translation-unit resource limits.
+#[derive(Clone, Debug)]
+pub struct Config {
+    /// Permit filesystem reads for entry points, includes, and include queries.
+    pub allow_filesystem: bool,
+    pub include_dirs: Vec<PathBuf>,
+    /// Resource headers consulted after the caller's include directories.
+    pub virtual_headers: BTreeMap<String, String>,
+    pub defines: BTreeMap<String, String>,
+    pub max_include_depth: usize,
+    pub max_expansion_depth: usize,
+    pub max_tokens: usize,
+    /// Cumulative source, expanded replacement, and output byte budget.
+    pub max_source_bytes: usize,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            allow_filesystem: true,
+            include_dirs: Vec::new(),
+            virtual_headers: BTreeMap::new(),
+            defines: BTreeMap::new(),
+            max_include_depth: 64,
+            max_expansion_depth: 128,
+            max_tokens: 1_000_000,
+            max_source_bytes: 64 * 1024 * 1024,
+        }
+    }
+}
+
+/// A macro definition. Parameters exclude the optional variadic parameter.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Macro {
+    pub parameters: Option<Vec<String>>,
+    pub variadic: bool,
+    pub variadic_parameter: Option<String>,
+    pub replacement: String,
+}
+
+/// Expanded source, final macro definitions, and files read while preprocessing.
+#[derive(Clone, Debug)]
+pub struct Preprocessed {
+    pub source: String,
+    pub macros: BTreeMap<String, Macro>,
+    pub dependencies: Vec<PathBuf>,
+    config: Config,
+    path: PathBuf,
+}
+
+impl Preprocessed {
+    /// Expand an object macro against the final macro environment.
+    ///
+    /// Function macros and undefined names return `None`. An unused macro with an
+    /// invalid replacement can fail here without invalidating the translation unit.
+    pub fn expand_object_macro(&self, name: &str) -> Result<Option<String>, Error> {
+        let Some(definition) = self.macros.get(name) else {
+            return Ok(None);
+        };
+        if definition.parameters.is_some() {
+            return Ok(None);
+        }
+        let mut expansion = Expansion {
+            macros: &self.macros,
+            config: &self.config,
+            file: &self.path,
+            produced: 0,
+            produced_bytes: 0,
+            recursion: 0,
+        };
+        expansion
+            .expand(vec![Token::new(Kind::Identifier, name)])
+            .map(|tokens| Some(render(&tokens)))
+            .map_err(|message| Error::new(&self.path, 1, message))
+    }
+}
+
+/// A preprocessing diagnostic located at a source file and logical line.
+#[derive(Clone, Debug, Eq, PartialEq)]
+pub struct Error {
+    pub path: PathBuf,
+    pub line: usize,
+    pub message: String,
+}
+
+impl Error {
+    fn new(path: &Path, line: usize, message: impl Into<String>) -> Self {
+        Self {
+            path: path.to_owned(),
+            line,
+            message: message.into(),
+        }
+    }
+}
+
+impl fmt::Display for Error {
+    fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            formatter,
+            "{}:{}: {}",
+            self.path.display(),
+            self.line,
+            self.message
+        )
+    }
+}
+
+impl std::error::Error for Error {}
+
+/// Stateful preprocessor. Each entry point starts a fresh translation unit.
+pub struct Preprocessor {
+    config: Config,
+    macros: BTreeMap<String, Macro>,
+    dependencies: BTreeSet<PathBuf>,
+    once: BTreeSet<PathBuf>,
+    tokens: usize,
+    expansion_tokens: usize,
+    source_bytes: usize,
+    expansion_bytes: usize,
+    output_tokens: usize,
+}
+
+#[derive(Debug)]
+struct Conditional {
+    parent_active: bool,
+    active: bool,
+    taken: bool,
+    seen_else: bool,
+}
+
+impl Preprocessor {
+    /// Configure include resolution and macro expansion without invoking a compiler.
+    pub fn new(config: Config) -> Self {
+        Self {
+            config,
+            macros: BTreeMap::new(),
+            dependencies: BTreeSet::new(),
+            once: BTreeSet::new(),
+            tokens: 0,
+            expansion_tokens: 0,
+            source_bytes: 0,
+            expansion_bytes: 0,
+            output_tokens: 0,
+        }
+    }
+
+    /// Read and preprocess a header, resolving includes relative to its directory.
+    pub fn preprocess(&mut self, path: &Path) -> Result<Preprocessed, Error> {
+        if !self.config.allow_filesystem {
+            return Err(Error::new(
+                path,
+                1,
+                "filesystem access is disabled; use preprocess_str with virtual headers",
+            ));
+        }
+        self.reset()?;
+        let mut output = String::new();
+        self.file(path, 0, None, &mut output)?;
+        Ok(self.finish(path, output))
+    }
+
+    /// Preprocess in-memory source. `name` determines diagnostics and quoted includes.
+    pub fn preprocess_str(&mut self, name: &Path, source: &str) -> Result<Preprocessed, Error> {
+        self.reset()?;
+        let mut output = String::new();
+        self.source(name, source, 0, None, &mut output)?;
+        Ok(self.finish(name, output))
+    }
+
+    fn reset(&mut self) -> Result<(), Error> {
+        self.macros.clear();
+        self.dependencies.clear();
+        self.once.clear();
+        self.tokens = 0;
+        self.expansion_tokens = 0;
+        self.source_bytes = 0;
+        self.expansion_bytes = 0;
+        self.output_tokens = 0;
+        self.source_bytes =
+            self.config
+                .defines
+                .iter()
+                .fold(0usize, |bytes, (name, replacement)| {
+                    bytes
+                        .saturating_add(name.len())
+                        .saturating_add(replacement.len())
+                        .saturating_add(1)
+                });
+        if self.source_bytes > self.config.max_source_bytes {
+            return Err(Error::new(
+                Path::new("<predefined>"),
+                1,
+                "source byte limit exceeded",
+            ));
+        }
+        for (name, replacement) in self.config.defines.clone() {
+            let definition = lex_limited(
+                &format!("{name} {replacement}"),
+                self.config.max_tokens.saturating_sub(self.tokens),
+            )
+            .map_err(|message| Error::new(Path::new("<predefined>"), 1, message))?;
+            self.tokens += definition.len();
+            self.define(&definition)
+                .map_err(|message| Error::new(Path::new("<predefined>"), 1, message))?;
+        }
+        Ok(())
+    }
+
+    fn finish(&self, path: &Path, source: String) -> Preprocessed {
+        Preprocessed {
+            source,
+            macros: self.macros.clone(),
+            dependencies: self.dependencies.iter().cloned().collect(),
+            config: self.config.clone(),
+            path: path.to_owned(),
+        }
+    }
+
+    fn file(
+        &mut self,
+        path: &Path,
+        depth: usize,
+        include_origin: Option<usize>,
+        output: &mut String,
+    ) -> Result<(), Error> {
+        if depth >= self.config.max_include_depth {
+            return Err(Error::new(path, 1, "include depth limit exceeded"));
+        }
+        let path = fs::canonicalize(path)
+            .map_err(|error| Error::new(path, 1, format!("cannot open header: {error}")))?;
+        if self.once.contains(&path) {
+            return Ok(());
+        }
+        let limit = self
+            .config
+            .max_source_bytes
+            .saturating_sub(self.source_bytes);
+        let mut source = String::new();
+        fs::File::open(&path)
+            .and_then(|file| {
+                file.take((limit as u64).saturating_add(1))
+                    .read_to_string(&mut source)
+            })
+            .map_err(|error| Error::new(&path, 1, format!("cannot read header: {error}")))?;
+        if source.len() > limit {
+            return Err(Error::new(&path, 1, "source byte limit exceeded"));
+        }
+        self.dependencies.insert(path.clone());
+        self.source(&path, &source, depth, include_origin, output)
+    }
+
+    fn source(
+        &mut self,
+        path: &Path,
+        source: &str,
+        depth: usize,
+        include_origin: Option<usize>,
+        output: &mut String,
+    ) -> Result<(), Error> {
+        self.source_bytes = self.source_bytes.saturating_add(source.len());
+        if self.source_bytes > self.config.max_source_bytes {
+            return Err(Error::new(path, 1, "source byte limit exceeded"));
+        }
+        let source = normalize(source).map_err(|message| Error::new(path, 1, message))?;
+        let mut conditions: Vec<Conditional> = Vec::new();
+        let mut pending = Vec::new();
+        let mut line_adjustment = 0i64;
+        let mut logical_path = path.to_owned();
+        let mut offset = 0;
+        for line in source.source.split_inclusive('\n') {
+            let start = offset;
+            offset += line.len();
+            let logical_line = (source.line_at(start) as i64 + line_adjustment) as usize;
+            let fail = |message| Error::new(&logical_path, logical_line, message);
+            let mut tokens = lex_limited(line, self.config.max_tokens.saturating_sub(self.tokens))
+                .map_err(&fail)?;
+            for token in &mut tokens {
+                token.line =
+                    (source.line_at(start + token.offset) as i64 + line_adjustment) as usize;
+            }
+            self.tokens = self
+                .tokens
+                .checked_add(tokens.len())
+                .ok_or_else(|| fail("input token count overflow".into()))?;
+            if self.tokens > self.config.max_tokens {
+                return Err(fail("input token limit exceeded".into()));
+            }
+            let active = conditions.last().is_none_or(|condition| condition.active);
+            if tokens.first().is_none_or(|token| token.text != "#") {
+                if active {
+                    if let Some(token) = tokens.first_mut() {
+                        token.space = !pending.is_empty();
+                    }
+                    pending.extend(tokens);
+                }
+                continue;
+            }
+            self.flush(&logical_path, &mut pending, output)?;
+            let Some(directive) = tokens.get(1) else {
+                continue;
+            };
+            let rest = &tokens[2..];
+            match directive.text.as_str() {
+                "if" | "ifdef" | "ifndef" => {
+                    if conditions.len() >= self.config.max_include_depth.saturating_mul(4).min(256)
+                    {
+                        return Err(fail("conditional nesting limit exceeded".into()));
+                    }
+                    let matches = if !active {
+                        false
+                    } else if directive.text == "if" {
+                        self.condition(&logical_path, rest).map_err(&fail)?
+                    } else {
+                        let name = identifier(rest).map_err(&fail)?;
+                        let defined = self.macros.contains_key(name) || is_builtin(name);
+                        if directive.text == "ifdef" {
+                            defined
+                        } else {
+                            !defined
+                        }
+                    };
+                    conditions.push(Conditional {
+                        parent_active: active,
+                        active: active && matches,
+                        taken: matches,
+                        seen_else: false,
+                    });
+                }
+                "elif" => {
+                    let condition = conditions
+                        .last_mut()
+                        .ok_or_else(|| fail("#elif without #if".into()))?;
+                    if condition.seen_else {
+                        return Err(fail("#elif after #else".into()));
+                    }
+                    let matches = condition.parent_active
+                        && !condition.taken
+                        && self.condition(&logical_path, rest).map_err(&fail)?;
+                    condition.active = matches;
+                    condition.taken |= matches;
+                }
+                "else" => {
+                    if !rest.is_empty() {
+                        return Err(fail("unexpected tokens after #else".into()));
+                    }
+                    let condition = conditions
+                        .last_mut()
+                        .ok_or_else(|| fail("#else without #if".into()))?;
+                    if condition.seen_else {
+                        return Err(fail("duplicate #else".into()));
+                    }
+                    condition.active = condition.parent_active && !condition.taken;
+                    condition.taken = true;
+                    condition.seen_else = true;
+                }
+                "endif" => {
+                    if !rest.is_empty() {
+                        return Err(fail("unexpected tokens after #endif".into()));
+                    }
+                    if conditions.pop().is_none() {
+                        return Err(fail("#endif without #if".into()));
+                    }
+                }
+                _ if !active => {}
+                "define" => self.define(rest).map_err(&fail)?,
+                "undef" => {
+                    let name = identifier(rest).map_err(&fail)?;
+                    if is_builtin(name) {
+                        return Err(fail("cannot undefine a builtin macro".into()));
+                    }
+                    self.macros.remove(name);
+                }
+                "include" | "include_next" => {
+                    let (name, quoted) = if let Ok(header) = header_name(rest) {
+                        header
+                    } else {
+                        let expanded = self.expand(&logical_path, rest.to_vec()).map_err(&fail)?;
+                        header_name(&expanded).map_err(&fail)?
+                    };
+                    let next = directive.text == "include_next";
+                    let start = if next {
+                        include_origin.map_or(0, |index| index + 1)
+                    } else {
+                        0
+                    };
+                    if let Some((included, origin)) =
+                        self.find_include(path, &name, quoted && !next, start, include_origin)
+                    {
+                        self.file(&included, depth + 1, origin, output)?;
+                    } else if let Some(source) = self
+                        .config
+                        .virtual_headers
+                        .get(&name)
+                        .filter(|_| start <= self.config.include_dirs.len())
+                    {
+                        if source.len()
+                            > self
+                                .config
+                                .max_source_bytes
+                                .saturating_sub(self.source_bytes)
+                        {
+                            return Err(fail("source byte limit exceeded".into()));
+                        }
+                        let source = source.clone();
+                        if depth + 1 >= self.config.max_include_depth {
+                            return Err(fail("include depth limit exceeded".into()));
+                        }
+                        let name = PathBuf::from(format!("<builtin>/{name}"));
+                        if !self.once.contains(&name) {
+                            self.source(
+                                &name,
+                                &source,
+                                depth + 1,
+                                Some(self.config.include_dirs.len()),
+                                output,
+                            )?;
+                        }
+                    } else {
+                        return Err(fail(format!(
+                            "header `{name}` not found; configure the target include paths"
+                        )));
+                    }
+                }
+                "error" => return Err(fail(format!("#error {}", render(rest)))),
+                "pragma" => match rest.first().map(|token| token.text.as_str()) {
+                    Some("once") if rest.len() == 1 => {
+                        let path = if self.config.allow_filesystem {
+                            fs::canonicalize(path).unwrap_or_else(|_| path.to_owned())
+                        } else {
+                            path.to_owned()
+                        };
+                        self.once.insert(path);
+                    }
+                    Some("pack") => {
+                        if output.len().saturating_add(line.len()) > self.config.max_source_bytes {
+                            return Err(fail("output byte limit exceeded".into()));
+                        }
+                        output.push_str("#pragma ");
+                        output.push_str(&render(rest));
+                        output.push('\n');
+                    }
+                    Some("GCC" | "clang")
+                        if rest.get(1).is_some_and(|token| {
+                            matches!(token.text.as_str(), "diagnostic" | "system_header")
+                        }) => {}
+                    Some("message") => {}
+                    _ => return Err(fail(format!("unsupported pragma: {}", render(rest)))),
+                },
+                "line" => {
+                    let expanded = self.expand(&logical_path, rest.to_vec()).map_err(&fail)?;
+                    let Some(number) = expanded.first() else {
+                        return Err(fail("#line requires a line number".into()));
+                    };
+                    let number: usize = number
+                        .text
+                        .parse()
+                        .map_err(|_| fail("invalid #line number".into()))?;
+                    if number == 0 || number > i32::MAX as usize || expanded.len() > 2 {
+                        return Err(fail("invalid #line directive".into()));
+                    }
+                    if let Some(file) = expanded.get(1) {
+                        if file.kind != Kind::String || !file.text.starts_with('"') {
+                            return Err(fail("#line filename must be a string literal".into()));
+                        }
+                        logical_path = PathBuf::from(&file.text[1..file.text.len() - 1]);
+                    }
+                    line_adjustment = number as i64 - source.line_at(offset) as i64;
+                    continue;
+                }
+                _ => {
+                    return Err(fail(format!(
+                        "unsupported preprocessing directive `#{}`",
+                        directive.text
+                    )));
+                }
+            }
+        }
+        if !conditions.is_empty() {
+            let logical_line = (source.line_at(offset) as i64 + line_adjustment) as usize;
+            return Err(Error::new(
+                &logical_path,
+                logical_line,
+                "unterminated #if group",
+            ));
+        }
+        self.flush(&logical_path, &mut pending, output)
+    }
+
+    fn flush(
+        &mut self,
+        path: &Path,
+        pending: &mut Vec<Token>,
+        output: &mut String,
+    ) -> Result<(), Error> {
+        if pending.is_empty() {
+            return Ok(());
+        }
+        let line = pending[0].line;
+        let tokens = self
+            .expand(path, std::mem::take(pending))
+            .map_err(|message| Error::new(path, line, message))?;
+        self.output_tokens = self.output_tokens.saturating_add(tokens.len());
+        if self.output_tokens > self.config.max_tokens {
+            return Err(Error::new(path, line, "output token limit exceeded"));
+        }
+        let bytes = tokens.iter().fold(output.len(), |bytes, token| {
+            bytes.saturating_add(token.text.len()).saturating_add(1)
+        });
+        if bytes > self.config.max_source_bytes {
+            return Err(Error::new(path, line, "output byte limit exceeded"));
+        }
+        output.push_str(&render(&tokens));
+        output.push('\n');
+        Ok(())
+    }
+
+    fn expand(&mut self, path: &Path, tokens: Vec<Token>) -> Result<Vec<Token>, String> {
+        let mut expansion = Expansion {
+            macros: &self.macros,
+            config: &self.config,
+            file: path,
+            produced: self.expansion_tokens,
+            produced_bytes: self.expansion_bytes,
+            recursion: 0,
+        };
+        let result = expansion.expand(tokens);
+        self.expansion_tokens = expansion.produced;
+        self.expansion_bytes = expansion.produced_bytes;
+        result
+    }
+
+    fn condition(&mut self, path: &Path, tokens: &[Token]) -> Result<bool, String> {
+        let mut replaced = Vec::new();
+        let mut position = 0;
+        while position < tokens.len() {
+            if tokens[position].text != "defined" {
+                replaced.push(tokens[position].clone());
+                position += 1;
+                continue;
+            }
+            position += 1;
+            let parenthesized = tokens.get(position).is_some_and(|token| token.text == "(");
+            position += usize::from(parenthesized);
+            let name = tokens
+                .get(position)
+                .filter(|token| token.kind == Kind::Identifier)
+                .ok_or("defined requires an identifier")?;
+            let defined = self.macros.contains_key(&name.text) || is_builtin(&name.text);
+            replaced.push(Token::new(Kind::Number, if defined { "1" } else { "0" }));
+            position += 1;
+            if parenthesized {
+                if tokens.get(position).is_none_or(|token| token.text != ")") {
+                    return Err("missing `)` after defined".into());
+                }
+                position += 1;
+            }
+        }
+        let replaced = self.has_include(path, replaced)?;
+        let expanded = self.expand(path, replaced)?;
+        let wchar_unsigned = self.macros.get("__WCHAR_TYPE__").map(|definition| {
+            self.macros.contains_key("__WCHAR_UNSIGNED__")
+                || definition
+                    .replacement
+                    .split_whitespace()
+                    .any(|token| token == "unsigned")
+        });
+        expression::evaluate(&self.has_include(path, expanded)?, wchar_unsigned)
+    }
+
+    fn has_include(&mut self, path: &Path, expanded: Vec<Token>) -> Result<Vec<Token>, String> {
+        let mut replaced = Vec::new();
+        let mut position = 0;
+        while position < expanded.len() {
+            if expanded[position].text != "__has_include" {
+                replaced.push(expanded[position].clone());
+                position += 1;
+                continue;
+            }
+            position += 1;
+            if expanded.get(position).is_none_or(|token| token.text != "(") {
+                return Err("__has_include requires parenthesized header name".into());
+            }
+            position += 1;
+            let start = position;
+            while expanded
+                .get(position)
+                .is_some_and(|token| token.text != ")")
+            {
+                position += 1;
+            }
+            if position == expanded.len() {
+                return Err("unterminated __has_include expression".into());
+            }
+            let (name, quoted) = if let Ok(header) = header_name(&expanded[start..position]) {
+                header
+            } else {
+                let tokens = self.expand(path, expanded[start..position].to_vec())?;
+                header_name(&tokens)?
+            };
+            let exists = self.find_include(path, &name, quoted, 0, None).is_some()
+                || self.config.virtual_headers.contains_key(&name);
+            replaced.push(Token::new(Kind::Number, if exists { "1" } else { "0" }));
+            position += 1;
+        }
+        Ok(replaced)
+    }
+
+    fn find_include(
+        &self,
+        from: &Path,
+        name: &str,
+        quoted: bool,
+        start: usize,
+        parent_origin: Option<usize>,
+    ) -> Option<(PathBuf, Option<usize>)> {
+        if !self.config.allow_filesystem {
+            return None;
+        }
+        // Clang preserves the parent's search origin for local quoted includes;
+        // GCC restarts include_next at the beginning of its include search list.
+        let local_origin = self
+            .macros
+            .contains_key("__clang__")
+            .then_some(parent_origin)
+            .flatten();
+        let local = quoted.then(|| {
+            (
+                from.parent().unwrap_or(Path::new(".")).join(name),
+                local_origin,
+            )
+        });
+        local
+            .into_iter()
+            .chain(
+                self.config
+                    .include_dirs
+                    .iter()
+                    .enumerate()
+                    .skip(start)
+                    .map(|(index, directory)| (directory.join(name), Some(index))),
+            )
+            .find(|(path, _)| path.is_file())
+    }
+
+    fn define(&mut self, tokens: &[Token]) -> Result<(), String> {
+        let name = tokens
+            .first()
+            .filter(|token| token.kind == Kind::Identifier)
+            .ok_or("#define requires an identifier")?;
+        if name.text == "defined" || is_builtin(&name.text) {
+            return Err(format!("cannot define reserved macro `{}`", name.text));
+        }
+        let mut position = 1;
+        let mut parameters = None;
+        let mut variadic_parameter = None;
+        if tokens
+            .get(position)
+            .is_some_and(|token| token.text == "(" && !token.space)
+        {
+            position += 1;
+            let mut names = Vec::new();
+            if tokens.get(position).is_none_or(|token| token.text != ")") {
+                loop {
+                    let parameter = tokens
+                        .get(position)
+                        .ok_or("unterminated macro parameters")?;
+                    if parameter.text == "..." {
+                        variadic_parameter = Some("__VA_ARGS__".to_string());
+                        position += 1;
+                    } else if parameter.kind == Kind::Identifier {
+                        if names.contains(&parameter.text) {
+                            return Err(format!("duplicate macro parameter `{}`", parameter.text));
+                        }
+                        position += 1;
+                        if tokens
+                            .get(position)
+                            .is_some_and(|token| token.text == "...")
+                        {
+                            variadic_parameter = Some(parameter.text.clone());
+                            position += 1;
+                        } else {
+                            names.push(parameter.text.clone());
+                        }
+                    } else {
+                        return Err("expected macro parameter name".into());
+                    }
+                    let next = tokens
+                        .get(position)
+                        .ok_or("unterminated macro parameters")?;
+                    if next.text == ")" {
+                        break;
+                    }
+                    if next.text != "," || variadic_parameter.is_some() {
+                        return Err("expected `)` or `,` in macro parameters".into());
+                    }
+                    position += 1;
+                }
+            }
+            if tokens.get(position).is_none_or(|token| token.text != ")") {
+                return Err("unterminated macro parameters".into());
+            }
+            position += 1;
+            parameters = Some(names);
+        }
+        let replacement = &tokens[position..];
+        if replacement.first().is_some_and(|token| token.text == "##")
+            || replacement.last().is_some_and(|token| token.text == "##")
+        {
+            return Err("`##` cannot begin or end a macro replacement list".into());
+        }
+        if let Some(parameters) = &parameters {
+            for (index, token) in replacement.iter().enumerate() {
+                if token.text == "#"
+                    && replacement.get(index + 1).is_none_or(|token| {
+                        !parameters.contains(&token.text)
+                            && Some(&token.text) != variadic_parameter.as_ref()
+                    })
+                {
+                    return Err("`#` must precede a macro parameter".into());
+                }
+            }
+        }
+        // Retain whitespace boundaries for later stringification of nested expansions.
+        let mut spelling = String::new();
+        for token in replacement {
+            if token.space && !spelling.is_empty() {
+                spelling.push(' ');
+            }
+            spelling.push_str(token.spelling());
+        }
+        let definition = Macro {
+            parameters,
+            variadic: variadic_parameter.is_some(),
+            variadic_parameter,
+            replacement: spelling,
+        };
+        if let Some(previous) = self.macros.get(&name.text)
+            && !equivalent(previous, &definition)?
+        {
+            return Err(format!(
+                "incompatible redefinition of macro `{}`",
+                name.text
+            ));
+        }
+        self.macros.insert(name.text.clone(), definition);
+        Ok(())
+    }
+}
+
+fn identifier(tokens: &[Token]) -> Result<&str, String> {
+    match tokens {
+        [token] if token.kind == Kind::Identifier => Ok(&token.text),
+        _ => Err("directive requires exactly one identifier".into()),
+    }
+}
+
+fn is_builtin(name: &str) -> bool {
+    matches!(name, "__FILE__" | "__LINE__" | "__has_include")
+}
+
+fn header_name(tokens: &[Token]) -> Result<(String, bool), String> {
+    if let [token] = tokens
+        && token.kind == Kind::String
+        && token.text.starts_with('"')
+    {
+        let name = &token.text[1..token.text.len() - 1];
+        if name.contains('\\') || name.is_empty() {
+            return Err(
+                "empty include names and backslashes in include names are not supported".into(),
+            );
+        }
+        return Ok((name.to_owned(), true));
+    }
+    if tokens.first().is_some_and(|token| token.text == "<")
+        && tokens.last().is_some_and(|token| token.text == ">")
+        && tokens.len() > 2
+    {
+        if tokens[1..].iter().any(|token| token.space) {
+            return Err("whitespace inside angle-bracket include names is not supported".into());
+        }
+        let name = tokens[1..tokens.len() - 1]
+            .iter()
+            .map(|token| token.text.as_str())
+            .collect();
+        return Ok((name, false));
+    }
+    Err("#include requires a quoted or angle-bracket header name".into())
+}
+
+fn equivalent(left: &Macro, right: &Macro) -> Result<bool, String> {
+    if left.parameters != right.parameters || left.variadic_parameter != right.variadic_parameter {
+        return Ok(false);
+    }
+    let left = lex(&left.replacement)?;
+    let right = lex(&right.replacement)?;
+    Ok(left.len() == right.len()
+        && left
+            .iter()
+            .zip(&right)
+            .enumerate()
+            .all(|(index, (left, right))| {
+                left.spelling() == right.spelling() && (index == 0 || left.space == right.space)
+            }))
+}

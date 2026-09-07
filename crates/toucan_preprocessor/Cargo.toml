@@ -1,0 +1,9 @@
+[package]
+name = "toucan_preprocessor"
+version = "0.0.1"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+
+[lints]
+workspace = true

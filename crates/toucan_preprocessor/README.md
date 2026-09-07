@@ -1,0 +1,66 @@
+# toucan_preprocessor
+
+A native C preprocessor for header consumers. The library does not invoke a compiler or
+load libclang. Callers supply the target's include directories, predefined macros, and
+optional fallback resource headers.
+
+```rust
+use std::path::Path;
+use toucan_preprocessor::{Config, Preprocessor};
+
+let mut preprocessor = Preprocessor::new(Config::default());
+let result = preprocessor.preprocess_str(
+    Path::new("example.h"),
+    "#define COUNT 4\nstruct Example { int values[COUNT]; };\n",
+)?;
+assert_eq!(result.expand_object_macro("COUNT")?.as_deref(), Some("4"));
+# Ok::<(), toucan_preprocessor::Error>(())
+```
+
+## Supported preprocessing
+
+- Object and function macros, argument prescanning, recursive expansion suppression,
+  stringification, token pasting, variadics, and GNU comma elision.
+- Conditional groups and `defined`, with checked `intmax_t`/`uintmax_t` arithmetic and
+  short-circuit evaluation. ASCII wide character constants use the explicit target
+  `__WCHAR_TYPE__` and `__WCHAR_UNSIGNED__` profile.
+- Quoted and angle-bracket includes, `include_next`, `__has_include`, and `pragma once`.
+  Explicit filesystem include paths take precedence over virtual resource headers.
+- Escaped newlines, comments, digraphs, `__FILE__`, `__LINE__`, and `line` directives.
+- `pragma pack` preservation for a downstream parser. Diagnostic and message pragmas
+  are accepted without changing the generated source.
+
+The `__clang__` predefined macro selects Clang's `include_next` behavior for quoted
+local helper headers. Otherwise, these headers use GCC's search behavior. Standard
+include directories and compiler feature-query macros are not inferred from the host.
+
+Each call starts a fresh translation unit. The result contains expanded source, final
+macro definitions, and canonical paths of the filesystem dependencies actually read.
+Object macros are expanded on request; an invalid unused macro need not invalidate the
+header.
+
+Set `Config::allow_filesystem` to `false` to restrict an embedded or fuzzed preprocessor
+to in-memory source and virtual headers. Filesystem entry points then return an error,
+and include queries cannot observe local files.
+
+## Limits
+
+Source reads, cumulative included bytes, lexed tokens, replacement work, and generated
+output have configurable budgets. Include and expansion depth are bounded; preprocessing
+expressions additionally reject nesting beyond 128 parser frames. These are work and
+input limits, not a process memory quota.
+
+Unsupported features return diagnostics: trigraphs, non-ASCII identifiers, non-ASCII or
+multicharacter preprocessing character constants, `__VA_OPT__`, `_Pragma`, `__COUNTER__`,
+and unknown active directives or pragmas. Date and time macros must be supplied
+explicitly when required. Include names containing backslashes or whitespace inside
+angle brackets are rejected. This is not yet a complete C preprocessor conformance
+implementation.
+
+## Validation
+
+`cargo test -p toucan_preprocessor` exercises macro rescanning, the recursive macro
+example from the C standard, conditional arithmetic, resource limits, source locations,
+and include search behavior. Differential tests invoke `CC` (default: `cc`) and compare
+preprocessing tokens and filesystem include results. Run with both GCC and Clang when
+changing expansion or include handling.
