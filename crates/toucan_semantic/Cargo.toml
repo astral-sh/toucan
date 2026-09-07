@@ -1,0 +1,16 @@
+[package]
+name = "toucan_semantic"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+lang-c.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+toucan_target = { path = "../toucan_target" }
+
+[lints]
+workspace = true
