@@ -281,7 +281,18 @@ def verify(project: dict, args: argparse.Namespace) -> dict:
             execute(helper_command, directory, "compile-c-ffi", commands, args.timeout)
             rust_command.extend(["-C", f"link-arg={helper_object}"])
         for library in project["libraries"]:
-            rust_command.extend(["-C", f"link-arg={library}"])
+            archive = Path(library)
+            # Let rustc place native archives before their runtime dependencies.
+            # Raw link-args go after libc and lose symbols under --as-needed
+            # (notably AArch64's stack protector runtime).
+            rust_command.extend(
+                [
+                    "-L",
+                    f"native={archive.parent}",
+                    "-l",
+                    f"static:+verbatim={archive.name}",
+                ]
+            )
         if platform.system() == "Linux":
             for library in ["m", "dl", "pthread"]:
                 rust_command.extend(["-l", library])
