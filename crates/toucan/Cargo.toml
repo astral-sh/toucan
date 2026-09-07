@@ -1,0 +1,21 @@
+[package]
+name = "toucan"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A reusable C header frontend without libclang"
+
+[dependencies]
+thiserror.workspace = true
+serde.workspace = true
+toucan_source = { path = "../toucan_source" }
+toucan_target = { path = "../toucan_target" }
+toucan_preprocessor = { path = "../toucan_preprocessor" }
+toucan_semantic = { path = "../toucan_semantic" }
+toucan_bindings = { path = "../toucan_bindings" }
+
+[lints]
+workspace = true
+
