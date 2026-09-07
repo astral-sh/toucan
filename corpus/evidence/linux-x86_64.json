@@ -1,17 +1,17 @@
 {
   "schema_version": 1,
-  "recorded_at": "2026-09-07T23:27:32.607761+00:00",
+  "recorded_at": "2026-09-07T23:39:40.329660+00:00",
   "status": "passed",
   "host": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
   "target": "x86_64-unknown-linux-gnu",
   "sysroot": "/",
   "cc": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
   "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
-  "toucan_sha256": "10558d0f15d1e56437995564361bc32a63ae378456d694988216c4c79a77ced5",
+  "toucan_sha256": "b2cf42429f8c68eb6a8a8165331a4f299669507b73acbbc23c0682fa09358cb1",
   "reproduce": [
     "python3 scripts/prepare_corpus.py --cache corpus/cache",
-    "cargo build -p toucan_cli",
-    "python3 scripts/verify_corpus.py --cache corpus/cache --sysroot / --output corpus/results/linux"
+    "cargo build --release --locked -p toucan_cli",
+    "python3 scripts/verify_corpus.py --cache corpus/cache --toucan target/release/toucan --sysroot / --output corpus/results/linux"
   ],
   "other_native_targets": {
     "macOS": "not run",
@@ -34,7 +34,8 @@
         "integer_constants": 711,
         "string_constants": 3,
         "records": 8,
-        "field_offsets": 26
+        "field_offsets": 26,
+        "ffi_fixture": "/home/dev-user/code/oss/toucan/corpus/ffi/libgit2.rs"
       },
       "declarations": 1138,
       "skipped_declarations": [],
@@ -333,7 +334,8 @@
         "integer_constants": 461,
         "string_constants": 2,
         "records": 4,
-        "field_offsets": 26
+        "field_offsets": 26,
+        "ffi_fixture": "/home/dev-user/code/oss/toucan/corpus/ffi/sqlite.rs"
       },
       "declarations": 326,
       "skipped_declarations": [],
@@ -407,7 +409,8 @@
         "integer_constants": 36,
         "string_constants": 1,
         "records": 2,
-        "field_offsets": 27
+        "field_offsets": 27,
+        "ffi_fixture": "/home/dev-user/code/oss/toucan/corpus/ffi/zlib.rs"
       },
       "declarations": 101,
       "skipped_declarations": [],
@@ -505,7 +508,8 @@
         "integer_constants": 111,
         "string_constants": 1,
         "records": 3,
-        "field_offsets": 9
+        "field_offsets": 9,
+        "ffi_fixture": "/home/dev-user/code/oss/toucan/corpus/ffi/zstd.rs"
       },
       "declarations": 83,
       "skipped_declarations": [],
