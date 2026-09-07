@@ -29,6 +29,17 @@ fn compiled_bindings_preserve_aggregate_and_callback_abi() {
     let header = r#"
         typedef int Option;
         typedef int f64;
+        typedef int self;
+        typedef int __toucan_self;
+        typedef self self_alias;
+        struct Self { int self; int __toucan_self; int __anonymous_3; union { int value; }; };
+        typedef int __toucan_Self;
+        enum super { crate = 3 };
+        typedef int __toucan_super;
+        extern int __toucan_crate;
+        int _(void);
+        extern int __toucan__;
+        int reserved_check(struct Self *value, self a, self_alias b, __toucan_self c);
         struct Clash { int value; };
         typedef int Clash;
         struct Clash *clash(Clash argument);
@@ -46,6 +57,11 @@ fn compiled_bindings_preserve_aggregate_and_callback_abi() {
         struct __attribute__((packed)) PackedFlags { char lead; unsigned a:3; unsigned b:7; char tail; };
         void packed_flags_init(struct PackedFlags *flags);
         int packed_flags_check(const struct PackedFlags *flags);
+        struct __attribute__((packed)) TrailingBits { unsigned a:3; unsigned :20; };
+        unsigned long trailing_size(void);
+        int trailing_check(const struct TrailingBits *flags);
+        struct AccessorNames { unsigned a:1; unsigned a_:1; unsigned set_a:1; };
+        int accessor_check(const struct AccessorNames *flags);
     "#;
     let unit = analyze(header, target).unwrap();
     let bindings = generate(&unit, &Options::default()).unwrap();
@@ -58,6 +74,17 @@ fn compiled_bindings_preserve_aggregate_and_callback_abi() {
         #include <stddef.h>
         #include <stdarg.h>
         #include <string.h>
+        int __toucan_crate = 5;
+        int __toucan__ = 7;
+        int _(void) { return 11; }
+        int reserved_check(struct Self *value, self a, self_alias b, __toucan_self c) {
+            return value->self == a && value->__toucan_self == b && value->__anonymous_3 == c && value->value == crate;
+        }
+        unsigned long trailing_size(void) { return sizeof(struct TrailingBits); }
+        int trailing_check(const struct TrailingBits *flags) { return flags->a == 6; }
+        int accessor_check(const struct AccessorNames *flags) {
+            return flags->a == 1 && flags->a_ == 0 && flags->set_a == 1;
+        }
         Pair transform(Pair input, Callback callback, void *context) {
             return callback(input, context);
         }
@@ -100,6 +127,35 @@ fn compiled_bindings_preserve_aggregate_and_callback_abi() {
         fn main() {
             let mut increment = 7i32;
             unsafe {
+                let mut names: __toucan_Self_ = core::mem::zeroed();
+                names.__toucan_self_ = 1;
+                names.__toucan_self = 2;
+                names.__anonymous_3 = 3;
+                names.__anonymous_3_.value = 3;
+                let a: __toucan_self_ = 1;
+                let b: self_alias = 2;
+                let c: __toucan_self = 3;
+                assert_eq!(reserved_check(&mut names, a, b, c), 1);
+                let tag: __toucan_super_ = __toucan_crate_ as __toucan_super_;
+                assert_eq!(tag, 3);
+                assert_eq!(__toucan___(), 11);
+                let global = __toucan_crate;
+                assert_eq!(global, 5);
+                let global = __toucan__;
+                assert_eq!(global, 7);
+                let mut trailing: TrailingBits = core::mem::zeroed();
+                trailing.set_a(6);
+                assert_eq!(trailing.a(), 6);
+                assert_eq!(trailing_size() as usize, core::mem::size_of::<TrailingBits>());
+                assert_eq!(trailing_check(&trailing), 1);
+                let mut accessors: AccessorNames = core::mem::zeroed();
+                accessors.set_a_(1);
+                accessors.set_a__(0);
+                accessors.set_set_a(1);
+                assert_eq!(accessors.a(), 1);
+                assert_eq!(accessors.a_(), 0);
+                assert_eq!(accessors.set_a(), 1);
+                assert_eq!(accessor_check(&accessors), 1);
                 assert_eq!(pair_size() as usize, core::mem::size_of::<Pair>());
                 assert_eq!(pair_offset() as usize, core::mem::offset_of!(Pair, value));
                 let result = transform(Pair { tag: 3, value: 2.5 }, Some(callback), (&mut increment as *mut i32).cast());

@@ -1,10 +1,11 @@
 //! Deterministic Rust bindings from analyzed C declarations.
 //!
 //! Every emitted record uses its fields' Rust representations. Constructs whose
-//! calling ABI cannot be represented are errors, including bitfields, field-level
-//! alignment, and long double. Incomplete records are available behind pointers.
+//! calling ABI cannot be represented are errors, including bitfields passed by
+//! value, field-level alignment, and long double. Incomplete records and records
+//! containing bitfields are available behind pointers.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 use toucan_semantic::{
@@ -51,6 +52,15 @@ impl From<toucan_semantic::Error> for Error {
 pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, Error> {
     let mut emitter = Emitter {
         unit,
+        names: Names::new(
+            unit.declarations
+                .iter()
+                .map(|item| item.name.as_str())
+                .chain(unit.typedefs.keys().map(String::as_str))
+                .chain(unit.constants.keys().map(String::as_str))
+                .chain(unit.records.iter().filter_map(|item| item.name.as_deref()))
+                .chain(unit.enums.iter().filter_map(|item| item.name.as_deref())),
+        ),
         records: BTreeSet::new(),
         enums: BTreeSet::new(),
         aliases: BTreeSet::new(),
@@ -68,9 +78,10 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
             skipped.push(declaration.name.clone());
             continue;
         }
-        emitter.collect(&declaration.ty)?;
         if declaration.kind == DeclarationKind::Typedef {
-            emitter.aliases.insert(declaration.name.clone());
+            emitter.collect(&Type::new(TypeKind::Typedef(declaration.name.clone())))?;
+        } else {
+            emitter.collect(&declaration.ty)?;
         }
         selected.push(declaration);
     }
@@ -127,7 +138,7 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
             .typedefs
             .get(name)
             .ok_or_else(|| Error(format!("missing typedef `{name}`")))?;
-        let rust_name = identifier(name)?;
+        let rust_name = emitter.names.identifier(name)?;
         let rust_type = if let TypeKind::Function(function) = &unit.resolve(ty)?.kind {
             emitter.check_function(function)?;
             format!("unsafe extern \"C\" fn{}", emitter.signature(function)?)
@@ -140,12 +151,15 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
     }
     for (name, value) in &unit.constants {
         if options.includes(name) {
-            source.push_str(&integer_constant(name, *value)?);
+            source.push_str(&integer_constant_named(
+                &emitter.names.identifier(name)?,
+                *value,
+            )?);
         }
     }
     source.push_str("\nunsafe extern \"C\" {\n");
     for declaration in &selected {
-        let name = identifier(&declaration.name)?;
+        let name = emitter.names.identifier(&declaration.name)?;
         match declaration.kind {
             DeclarationKind::Typedef => {}
             DeclarationKind::Function => {
@@ -188,13 +202,16 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
 
 /// Format a target-typed constant without host-width conversions.
 pub fn integer_constant(name: &str, value: IntegerValue) -> Result<String, Error> {
+    integer_constant_named(&identifier(name)?, value)
+}
+
+fn integer_constant_named(name: &str, value: IntegerValue) -> Result<String, Error> {
     if ![8, 16, 32, 64, 128].contains(&value.bits) {
         return Err(Error("unsupported integer width".into()));
     }
     if value.bits < 128 && value.value >= (1u128 << value.bits) {
         return Err(Error("integer constant exceeds its declared width".into()));
     }
-    let name = identifier(name)?;
     let prefix = if value.signed { 'i' } else { 'u' };
     let literal = if value.signed {
         value.signed_value().to_string()
@@ -209,6 +226,7 @@ pub fn integer_constant(name: &str, value: IntegerValue) -> Result<String, Error
 
 struct Emitter<'a> {
     unit: &'a TranslationUnit,
+    names: Names,
     records: BTreeSet<usize>,
     enums: BTreeSet<usize>,
     aliases: BTreeSet<String>,
@@ -295,7 +313,7 @@ impl Emitter<'_> {
                 .iter()
                 .any(|record| record.name.as_ref() == Some(name));
             if !collision && !repeated {
-                return identifier(name);
+                return self.names.identifier(name);
             }
         }
         self.synthetic_name(&format!("__toucan_record_{id}"))
@@ -319,7 +337,7 @@ impl Emitter<'_> {
                 .iter()
                 .any(|enumeration| enumeration.name.as_ref() == Some(name));
             if !collision && !repeated {
-                return identifier(name);
+                return self.names.identifier(name);
             }
         }
         self.synthetic_name(&format!("__toucan_enum_{id}"))
@@ -385,6 +403,11 @@ impl Emitter<'_> {
     }
 
     fn ty(&self, ty: &Type) -> Result<String, Error> {
+        self.ty_at(ty, 0)
+    }
+
+    fn ty_at(&self, ty: &Type, depth: usize) -> Result<String, Error> {
+        check_depth(depth)?;
         Ok(match &ty.kind {
             TypeKind::Void => "::core::ffi::c_void".into(),
             TypeKind::Bool => "::core::primitive::bool".into(),
@@ -423,10 +446,10 @@ impl Emitter<'_> {
             }
             TypeKind::Pointer(pointee) => {
                 if let TypeKind::Function(function) = &self.unit.resolve(pointee)?.kind {
-                    self.check_function(function)?;
+                    self.check_function_at(function, depth + 1)?;
                     format!(
                         "::core::option::Option<unsafe extern \"C\" fn{}>",
-                        self.signature(function)?
+                        self.signature_at(function, depth + 1)?
                     )
                 } else {
                     format!(
@@ -436,12 +459,16 @@ impl Emitter<'_> {
                         } else {
                             "mut"
                         },
-                        self.ty(pointee)?
+                        self.ty_at(pointee, depth + 1)?
                     )
                 }
             }
             TypeKind::Array { element, length } => {
-                format!("[{}; {}]", self.ty(element)?, length.unwrap_or(0))
+                format!(
+                    "[{}; {}]",
+                    self.ty_at(element, depth + 1)?,
+                    length.unwrap_or(0)
+                )
             }
             TypeKind::Function(_) => {
                 return Err(Error("bare function type requires a pointer".into()));
@@ -451,20 +478,28 @@ impl Emitter<'_> {
             TypeKind::Typedef(name) => {
                 // A C function typedef denotes the function, not a nullable pointer.
                 if let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind {
-                    self.check_function(function)?;
-                    format!("unsafe extern \"C\" fn{}", self.signature(function)?)
+                    self.check_function_at(function, depth + 1)?;
+                    format!(
+                        "unsafe extern \"C\" fn{}",
+                        self.signature_at(function, depth + 1)?
+                    )
                 } else {
-                    identifier(name)?
+                    self.names.identifier(name)?
                 }
             }
         })
     }
 
     fn signature(&self, function: &FunctionType) -> Result<String, Error> {
+        self.signature_at(function, 0)
+    }
+
+    fn signature_at(&self, function: &FunctionType, depth: usize) -> Result<String, Error> {
+        check_depth(depth)?;
         let mut args = Vec::new();
         for (i, parameter) in function.parameters.iter().enumerate() {
             // Position-based names avoid duplicate or Rust-reserved C parameter names.
-            args.push(format!("arg{i}: {}", self.ty(&parameter.ty)?));
+            args.push(format!("arg{i}: {}", self.ty_at(&parameter.ty, depth + 1)?));
         }
         if function.variadic {
             args.push("...".into());
@@ -475,29 +510,44 @@ impl Emitter<'_> {
         ) {
             String::new()
         } else {
-            format!(" -> {}", self.ty(&function.return_type)?)
+            format!(" -> {}", self.ty_at(&function.return_type, depth + 1)?)
         };
         Ok(format!("({}){result}", args.join(", ")))
     }
 
     fn check_function(&self, function: &FunctionType) -> Result<(), Error> {
+        self.check_function_at(function, 0)
+    }
+
+    fn check_function_at(&self, function: &FunctionType, depth: usize) -> Result<(), Error> {
+        check_depth(depth)?;
         if !function.prototype {
             return Err(Error("C function declaration without a prototype cannot be represented by a Rust function signature".into()));
         }
-        self.check_value(&function.return_type, &mut BTreeSet::new())?;
+        self.check_value(&function.return_type, &mut BTreeSet::new(), depth + 1)?;
         for parameter in &function.parameters {
-            self.check_value(&parameter.ty, &mut BTreeSet::new())?;
+            self.check_value(&parameter.ty, &mut BTreeSet::new(), depth + 1)?;
         }
         Ok(())
     }
 
-    fn check_value(&self, ty: &Type, active: &mut BTreeSet<usize>) -> Result<(), Error> {
+    fn check_value(
+        &self,
+        ty: &Type,
+        active: &mut BTreeSet<usize>,
+        depth: usize,
+    ) -> Result<(), Error> {
+        check_depth(depth)?;
         match &self.unit.resolve(ty)?.kind {
             TypeKind::Record(id) => {
                 if !active.insert(*id) {
                     return Err(Error("recursive record by value".into()));
                 }
-                let fields = self.unit.records[*id]
+                let fields = self
+                    .unit
+                    .records
+                    .get(*id)
+                    .ok_or_else(|| Error("invalid record identity".into()))?
                     .fields
                     .as_ref()
                     .ok_or_else(|| Error("incomplete record passed by value".into()))?;
@@ -508,11 +558,11 @@ impl Emitter<'_> {
                                 .into(),
                         ));
                     }
-                    self.check_value(&field.ty, active)?;
+                    self.check_value(&field.ty, active, depth + 1)?;
                 }
                 active.remove(id);
             }
-            TypeKind::Array { element, .. } => self.check_value(element, active)?,
+            TypeKind::Array { element, .. } => self.check_value(element, active, depth + 1)?,
             TypeKind::Float(FloatKind::LongDouble) => {
                 return Err(Error("long double by value is unsupported".into()));
             }
@@ -568,6 +618,25 @@ impl Emitter<'_> {
         let mut index = 0;
         let mut byte_offset = 0;
         let mut accessors = String::new();
+        let names = Names::new(fields.iter().filter_map(|field| field.name.as_deref()));
+        let mut used_methods = fields
+            .iter()
+            .filter_map(|field| field.name.as_deref())
+            .map(|name| names.identifier(name))
+            .collect::<Result<BTreeSet<_>, _>>()?;
+        let mut accessor_names = BTreeMap::new();
+        for (index, field) in fields.iter().enumerate() {
+            if field.bit_width.is_some()
+                && let Some(name) = &field.name
+            {
+                let getter = names.identifier(name)?;
+                let mut setter = format!("set_{name}");
+                while !used_methods.insert(setter.clone()) {
+                    setter.push('_');
+                }
+                accessor_names.insert(index, (getter, identifier(&setter)?));
+            }
+        }
         while index < fields.len() {
             let field = &fields[index];
             if field.bit_width.is_some() {
@@ -626,14 +695,14 @@ impl Emitter<'_> {
                     byte_offset = end;
                     for (field_index, field_layout) in bitfields {
                         let field = &fields[field_index];
-                        if let Some(field_name) = &field.name {
+                        if let Some((getter, setter)) = accessor_names.get(&field_index) {
                             self.bitfield_accessors(
-                                field_name,
+                                getter,
+                                setter,
                                 &field.ty,
                                 field_layout.offset_bits - start * 8,
                                 field.bit_width.unwrap(),
                                 &storage,
-                                fields,
                                 &mut accessors,
                             )?;
                         }
@@ -646,12 +715,10 @@ impl Emitter<'_> {
                     "`{name}` has field-level alignment or packing"
                 )));
             }
-            let field_name = identifier(
-                field
-                    .name
-                    .as_deref()
-                    .unwrap_or(&format!("__anonymous_{index}")),
-            )?;
+            let field_name = match &field.name {
+                Some(name) => names.identifier(name)?,
+                None => helper_field(fields, &format!("__anonymous_{index}")),
+            };
             if has_bitfields {
                 let offset = layout.fields[index]
                     .ok_or_else(|| Error("ordinary field has no layout".into()))?
@@ -674,6 +741,15 @@ impl Emitter<'_> {
             writeln!(source, "    pub {field_name}: {},", self.ty(&field.ty)?).unwrap();
             index += 1;
         }
+        if has_bitfields && byte_offset < layout.size_bytes() {
+            let padding = helper_field(fields, "__toucan_padding_tail");
+            writeln!(
+                source,
+                "    {padding}: ::core::mem::MaybeUninit<[::core::primitive::u8; {}]>,",
+                layout.size_bytes() - byte_offset
+            )
+            .unwrap();
+        }
         if has_bitfields && pack.is_some() {
             let marker = helper_field(fields, "__toucan_alignment");
             writeln!(
@@ -692,12 +768,10 @@ impl Emitter<'_> {
             if field.bit_width.is_some() {
                 continue;
             }
-            let field_name = identifier(
-                field
-                    .name
-                    .as_deref()
-                    .unwrap_or(&format!("__anonymous_{index}")),
-            )?;
+            let field_name = match &field.name {
+                Some(name) => names.identifier(name)?,
+                None => helper_field(fields, &format!("__anonymous_{index}")),
+            };
             if let Some(field_layout) = layout.fields.get(index).and_then(Option::as_ref) {
                 writeln!(
                     source,
@@ -714,19 +788,17 @@ impl Emitter<'_> {
     #[allow(clippy::too_many_arguments)]
     fn bitfield_accessors(
         &self,
-        field_name: &str,
+        getter: &str,
+        setter: &str,
         ty: &Type,
         offset: u64,
         width: u64,
         storage: &str,
-        fields: &[toucan_semantic::Field],
         source: &mut String,
     ) -> Result<(), Error> {
         if !(1..=128).contains(&width) {
             return Err(Error("unsupported bitfield width".into()));
         }
-        let getter = identifier(field_name)?;
-        let setter = identifier(&helper_field(fields, &format!("set_{field_name}")))?;
         let rust_type = self.ty(ty)?;
         let kind = &self.unit.resolve(ty)?.kind;
         let signed = match kind {
@@ -758,6 +830,41 @@ impl Emitter<'_> {
         }
         source.push_str("    }\n");
         writeln!(source, "    pub fn {setter}(&mut self, value: {rust_type}) {{\n        let value = value as ::core::primitive::u128;\n        for bit in 0..{width} {{\n            let position = {offset} + bit;\n            let mask = 1 << (position % 8);\n            self.{storage}[position / 8] = (self.{storage}[position / 8] & !mask) | ((((value >> bit) & 1) as ::core::primitive::u8) << (position % 8));\n        }}\n    }}").unwrap();
+        Ok(())
+    }
+}
+
+/// Names in one Rust scope, used to avoid collisions when C names need rewriting.
+struct Names {
+    original: BTreeSet<String>,
+}
+
+impl Names {
+    fn new<'a>(names: impl IntoIterator<Item = &'a str>) -> Self {
+        Self {
+            original: names.into_iter().map(str::to_owned).collect(),
+        }
+    }
+
+    fn identifier(&self, name: &str) -> Result<String, Error> {
+        if matches!(name, "self" | "Self" | "super" | "crate" | "_") {
+            let mut candidate = format!("__toucan_{name}");
+            while self.original.contains(&candidate) {
+                candidate.push('_');
+            }
+            Ok(candidate)
+        } else {
+            identifier(name)
+        }
+    }
+}
+
+fn check_depth(depth: usize) -> Result<(), Error> {
+    if depth >= 256 {
+        Err(Error(
+            "type nesting exceeds the binding limit of 256".into(),
+        ))
+    } else {
         Ok(())
     }
 }
@@ -837,9 +944,30 @@ mod tests {
     }
 
     #[test]
+    fn recursive_function_alias_returns_an_error() {
+        let mut unit = analyze("typedef int recursive;", Target::X86_64UnknownLinuxGnu).unwrap();
+        unit.typedefs.insert(
+            "recursive".into(),
+            Type::new(TypeKind::Function(Box::new(FunctionType {
+                return_type: Type::new(TypeKind::Typedef("recursive".into())).pointer(),
+                parameters: Vec::new(),
+                variadic: false,
+                prototype: true,
+                calling_convention: toucan_semantic::CallingConvention::C,
+            }))),
+        );
+        let error = generate(&unit, &Options::default()).unwrap_err();
+        assert!(error.0.contains("type nesting"));
+    }
+
+    #[test]
     fn invalid_public_ir_returns_an_error() {
         let mut unit = analyze("int f(void);", Target::X86_64UnknownLinuxGnu).unwrap();
         unit.declarations[0].ty = Type::new(TypeKind::Record(usize::MAX));
+        assert!(generate(&unit, &Options::default()).is_err());
+        let mut unit = analyze("typedef int alias;", Target::X86_64UnknownLinuxGnu).unwrap();
+        unit.typedefs
+            .insert("alias".into(), Type::new(TypeKind::Record(usize::MAX)));
         assert!(generate(&unit, &Options::default()).is_err());
     }
 }
