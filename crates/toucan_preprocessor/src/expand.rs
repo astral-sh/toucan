@@ -11,6 +11,7 @@ pub(crate) struct Expansion<'a> {
     pub produced: usize,
     pub produced_bytes: usize,
     pub recursion: usize,
+    pub location: Option<(usize, usize)>,
 }
 
 impl Expansion<'_> {
@@ -40,6 +41,8 @@ impl Expansion<'_> {
                     Token::new(Kind::String, quote(&self.file.to_string_lossy()))
                 };
                 replacement.line = token.line;
+                replacement.column = token.column;
+                replacement.expanded = true;
                 replacement.space = token.space;
                 output.push(replacement);
                 continue;
@@ -49,6 +52,7 @@ impl Expansion<'_> {
                     token.text.as_str(),
                     "_Pragma" | "__COUNTER__" | "__DATE__" | "__TIME__" | "__TIMESTAMP__"
                 ) {
+                    self.location = Some((token.line, token.column));
                     return Err(format!(
                         "unsupported builtin `{}`; configure deterministic date/time macros explicitly",
                         token.text
@@ -63,6 +67,8 @@ impl Expansion<'_> {
                 output.push(token);
                 continue;
             }
+            let parent_location = self.location;
+            self.location = Some((token.line, token.column));
             if token.depth >= self.config.max_expansion_depth {
                 return Err(format!(
                     "macro expansion depth limit exceeded while expanding `{}`",
@@ -83,6 +89,8 @@ impl Expansion<'_> {
                 replacement.hidden.insert(token.text.clone());
                 replacement.depth = replacement.depth.max(token.depth + 1);
                 replacement.line = token.line;
+                replacement.column = token.column;
+                replacement.expanded = true;
             }
             if let Some(first) = replacement.first_mut() {
                 first.space = token.space;
@@ -90,6 +98,7 @@ impl Expansion<'_> {
             for token in replacement.into_iter().rev() {
                 pending.push_front(token);
             }
+            self.location = parent_location;
         }
         Ok(output)
     }

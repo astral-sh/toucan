@@ -9,6 +9,7 @@ use std::time::{Duration, Instant};
 
 pub use toucan_bindings::{Bindings, Options as BindingOptions};
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
+pub use toucan_preprocessor::{OriginKind, SourceLocation, SourceMapping};
 pub use toucan_semantic::{self as semantic, TranslationUnit};
 pub use toucan_source as source;
 pub use toucan_target::{self as target, Target};
@@ -74,12 +75,53 @@ pub struct Compilation {
     pub timings: Timings,
 }
 
+/// A semantic diagnostic with its original source anchor, when available.
+///
+/// `error.offset` is retained as a byte offset into preprocessed source. An origin
+/// identifies the start of an original token or preserved directive. Macro output
+/// identifies the outer invocation, without implying a definition location or a
+/// complete expansion stack.
+#[derive(Debug)]
+pub struct SemanticError {
+    pub error: semantic::Error,
+    pub origin: Option<SourceLocation>,
+}
+
+impl std::fmt::Display for SemanticError {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        if let Some(origin) = &self.origin {
+            write!(formatter, "{origin}: {}", self.error.message)?;
+            if origin.kind == OriginKind::MacroInvocation {
+                write!(
+                    formatter,
+                    " (macro invocation; preprocessed byte {})",
+                    self.error.offset
+                )
+            } else {
+                write!(formatter, " (preprocessed byte {})", self.error.offset)
+            }
+        } else {
+            write!(
+                formatter,
+                "{} (preprocessed byte {})",
+                self.error.message, self.error.offset
+            )
+        }
+    }
+}
+
+impl std::error::Error for SemanticError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        Some(&self.error)
+    }
+}
+
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
     #[error(transparent)]
     Preprocessor(#[from] toucan_preprocessor::Error),
     #[error(transparent)]
-    Semantic(#[from] toucan_semantic::Error),
+    Semantic(#[from] SemanticError),
     #[error(transparent)]
     Bindings(#[from] toucan_bindings::Error),
 }
@@ -103,7 +145,10 @@ fn finish(
     preprocessing: Duration,
 ) -> Result<Compilation, Error> {
     let start = Instant::now();
-    let unit = semantic::analyze(&preprocessed.source, target)?;
+    let unit = semantic::analyze(&preprocessed.source, target).map_err(|error| SemanticError {
+        origin: preprocessed.resolve_location(error.offset).cloned(),
+        error,
+    })?;
     Ok(Compilation {
         unit,
         preprocessed,

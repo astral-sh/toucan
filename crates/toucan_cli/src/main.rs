@@ -229,7 +229,11 @@ fn main() -> ExitCode {
             {
                 return ExitCode::SUCCESS;
             }
-            eprintln!("error: {error:#}");
+            if let Some(error) = error.downcast_ref::<toucan::Error>() {
+                eprintln!("error: {error}");
+            } else {
+                eprintln!("error: {error:#}");
+            }
             ExitCode::FAILURE
         }
     }

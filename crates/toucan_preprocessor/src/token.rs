@@ -20,6 +20,8 @@ pub(crate) struct Token {
     pub depth: usize,
     pub line: usize,
     pub offset: usize,
+    pub column: usize,
+    pub expanded: bool,
     original: Option<&'static str>,
 }
 
@@ -33,6 +35,8 @@ impl Token {
             depth: 0,
             line: 1,
             offset: 0,
+            column: 1,
+            expanded: false,
             original: None,
         }
     }
@@ -54,6 +58,15 @@ impl Normalized {
             .partition_point(|(start, _)| *start <= offset)
             - 1]
         .1
+    }
+
+    pub(crate) fn column_at(&self, offset: usize) -> usize {
+        let line_start = self.line_changes[self
+            .line_changes
+            .partition_point(|(start, _)| *start <= offset)
+            - 1]
+        .0;
+        offset - line_start + 1
     }
 }
 

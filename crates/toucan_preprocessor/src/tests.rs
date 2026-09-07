@@ -548,3 +548,169 @@ fn filesystem_access_can_be_disabled_for_embedding() {
             .is_err()
     );
 }
+
+#[test]
+fn provenance_distinguishes_source_tokens_from_macro_invocations() {
+    use crate::OriginKind;
+
+    let result = Preprocessor::new(Config::default())
+        .preprocess_str(
+            Path::new("positions.h"),
+            "int first;\n#define DECL(name) unsigned name\n  DECL(value);\n",
+        )
+        .unwrap();
+    let direct = result
+        .resolve_location(result.source.find("first").unwrap())
+        .unwrap();
+    assert_eq!(
+        (
+            direct.path.as_ref(),
+            direct.line,
+            direct.column,
+            direct.kind
+        ),
+        (Path::new("positions.h"), 1, 5, OriginKind::Token)
+    );
+    for generated in ["unsigned", "value"] {
+        let location = result
+            .resolve_location(result.source.find(generated).unwrap())
+            .unwrap();
+        assert_eq!(
+            (location.line, location.column, location.kind),
+            (3, 3, OriginKind::MacroInvocation)
+        );
+    }
+    let semicolon = result
+        .resolve_location(result.source.rfind(';').unwrap())
+        .unwrap();
+    assert_eq!(
+        (semicolon.line, semicolon.column, semicolon.kind),
+        (3, 14, OriginKind::Token)
+    );
+    assert_eq!(result.mappings.first().unwrap().generated.start, 0);
+    assert_eq!(
+        result.mappings.last().unwrap().generated.end,
+        result.source.len()
+    );
+    for pair in result.mappings.windows(2) {
+        assert_eq!(pair[0].generated.end, pair[1].generated.start);
+    }
+    assert_eq!(
+        result.resolve_location(result.source.len()),
+        Some(semicolon)
+    );
+    assert!(result.resolve_location(result.source.len() + 1).is_none());
+}
+
+#[test]
+fn provenance_retains_spliced_columns_and_line_remapping() {
+    use crate::OriginKind;
+
+    let result = Preprocessor::new(Config::default())
+        .preprocess_str(
+            Path::new("physical.h"),
+            "int\n    foo\\\nbar;\n#line 40 \"logical.h\"\n  int remapped;\n",
+        )
+        .unwrap();
+    let joined = result
+        .resolve_location(result.source.find("foobar").unwrap())
+        .unwrap();
+    assert_eq!(
+        (joined.line, joined.column, joined.kind),
+        (2, 5, OriginKind::Token)
+    );
+    let semicolon = result
+        .resolve_location(result.source.find(';').unwrap())
+        .unwrap();
+    assert_eq!((semicolon.line, semicolon.column), (3, 4));
+    let remapped = result
+        .resolve_location(result.source.find("remapped").unwrap())
+        .unwrap();
+    assert_eq!(
+        (remapped.path.as_ref(), remapped.line, remapped.column),
+        (Path::new("logical.h"), 40, 7)
+    );
+}
+
+#[test]
+fn provenance_maps_nested_includes_and_external_macro_definitions() {
+    use crate::OriginKind;
+
+    let config = Config {
+        allow_filesystem: false,
+        virtual_headers: BTreeMap::from([
+            (
+                "outer.h".into(),
+                "#include <inner.h>\n#define DECL(name) unsigned name\n".into(),
+            ),
+            ("inner.h".into(), "\ntypedef int Inner;\n".into()),
+        ]),
+        ..Config::default()
+    };
+    let result = Preprocessor::new(config)
+        .preprocess_str(Path::new("main.h"), "#include <outer.h>\n\nDECL(value);\n")
+        .unwrap();
+    let included = result
+        .resolve_location(result.source.find("Inner").unwrap())
+        .unwrap();
+    assert_eq!(
+        (included.path.as_ref(), included.line, included.column),
+        (Path::new("<builtin>/inner.h"), 2, 13)
+    );
+    let expanded = result
+        .resolve_location(result.source.find("unsigned").unwrap())
+        .unwrap();
+    assert_eq!(
+        (
+            expanded.path.as_ref(),
+            expanded.line,
+            expanded.column,
+            expanded.kind
+        ),
+        (Path::new("main.h"), 3, 1, OriginKind::MacroInvocation)
+    );
+}
+
+#[test]
+fn provenance_covers_directives_empty_expansions_and_utf8_boundaries() {
+    use crate::OriginKind;
+
+    let result = Preprocessor::new(Config::default())
+        .preprocess_str(
+            Path::new("positions.h"),
+            "#pragma pack(1)\n#define EMPTY\nEMPTY\nconst char *s = \"α\";\n",
+        )
+        .unwrap();
+    let pragma = result.resolve_location(0).unwrap();
+    assert_eq!(
+        (pragma.line, pragma.column, pragma.kind),
+        (1, 1, OriginKind::Directive)
+    );
+    let quote = result.source.find('α').unwrap();
+    assert!(result.resolve_location(quote).is_some());
+    assert!(result.resolve_location(quote + 1).is_none());
+    let result = Preprocessor::new(Config::default())
+        .preprocess_str(Path::new("empty.h"), "#define EMPTY\nEMPTY\n")
+        .unwrap();
+    assert_eq!(result.source, "\n");
+    assert_eq!(
+        result.resolve_location(0).unwrap().kind,
+        OriginKind::MacroInvocation
+    );
+    assert_eq!(result.resolve_location(0).unwrap().line, 2);
+}
+
+#[test]
+fn macro_expansion_failures_report_the_invocation_after_prior_declarations() {
+    let error = Preprocessor::new(Config::default())
+        .preprocess_str(
+            Path::new("broken.h"),
+            "#define ONE(x) x\nint good;\n   ONE(1, 2)\n",
+        )
+        .unwrap_err();
+    assert_eq!(
+        (error.path.as_path(), error.line, error.column),
+        (Path::new("broken.h"), 3, 4)
+    );
+    assert!(error.message.contains("expects 1 arguments"));
+}
