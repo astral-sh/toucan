@@ -21,7 +21,10 @@ pub struct Config {
 
 impl Config {
     pub fn new(target: Target) -> Self {
-        let mut preprocessor = PreprocessorConfig { defines: target.predefined_macros(), ..PreprocessorConfig::default() };
+        let mut preprocessor = PreprocessorConfig {
+            defines: target.predefined_macros(),
+            ..PreprocessorConfig::default()
+        };
         // These predicates advertise only implemented syntax/semantics. They are
         // independent of the GNU version used for header compatibility.
         for name in [
