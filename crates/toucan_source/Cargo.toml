@@ -1,0 +1,12 @@
+[package]
+name = "toucan_source"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Source files and byte spans for the Toucan C frontend"
+
+[lints]
+workspace = true
+
