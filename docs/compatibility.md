@@ -20,14 +20,17 @@ compiler ABI is used; flags such as `-fshort-enums` are not implied.
 
 | Target | Layout model | Native validation |
 | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | Implemented; GCC and Clang probes | [Four-library run passed](../corpus/evidence/linux-x86_64.json) |
-| `aarch64-unknown-linux-gnu` | Implemented; Clang cross-target probes | CI matrix configured |
-| `x86_64-apple-darwin` | Implemented; Clang cross-target probes | CI matrix configured |
-| `aarch64-apple-darwin` | Implemented; Clang cross-target probes | CI matrix configured |
+| `x86_64-unknown-linux-gnu` | Implemented; GCC and Clang probes | [Four-library run passed](../corpus/evidence/native-2026-09-08.json) |
+| `aarch64-unknown-linux-gnu` | Implemented; Clang cross-target probes | [Four-library run passed](../corpus/evidence/native-2026-09-08.json) |
+| `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [Four-library run passed](../corpus/evidence/native-2026-09-08.json) |
+| `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [Four-library run passed](../corpus/evidence/native-2026-09-08.json) |
 | `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | Not run; MSVC header syntax is incomplete |
 
-See CI results for the exact commit under review. A configured job is not a passing
-result, and cross-compilation is not native execution.
+The recorded [native run](https://github.com/astral-sh/toucan/actions/runs/34174435203)
+passed on 2026-09-08, using GCC 13.3.0 on Linux and Apple Clang 17.0.0 on macOS.
+The evidence identifies the tested commit and executable for each target. See the CI
+results for the current commit; the historical run does not establish that later
+changes pass.
 
 ## Current gaps
 
@@ -62,10 +65,15 @@ exported symbol; generating bindings for definitions is outside the current scop
 ## Recorded evidence
 
 The [upstream corpus](../corpus/README.md) processes untouched public headers from
-pinned zlib, SQLite, zstd, and libgit2 releases. Its recorded x86_64 Linux run emitted
+pinned zlib, SQLite, zstd, and libgit2 releases. The recorded native run emitted
 1,648 declarations, skipped no selected declarations, and passed 4,086 C/Rust
-comparisons. Actual FFI calls exercised compression, SQLite queries, and libgit2
-operations. The report records 111 omitted macros with their reasons.
+comparisons on each of the four Linux and macOS targets. Actual FFI calls exercised
+compression, SQLite queries, and libgit2 operations. The reports record 111 omitted
+macros on Linux and 110 on macOS, with their reasons.
+
+This run predates the bindgen API comparison and the all-record layout probes. Its
+layout checks cover the 17 records and 88 field offsets named in the corpus probes.
+New validation must be recorded separately against the version that ran it.
 
 The selected API names, independent probe coverage, compiler versions, header
 checksums, and commands are recorded with the result. Successful probes establish

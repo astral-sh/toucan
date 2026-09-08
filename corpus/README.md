@@ -32,16 +32,30 @@ Both directories are ignored by Git. A failed command returns a nonzero exit cod
 its stdout, stderr, and invocation. `evidence.json` reports the status of every requested
 project and names any missing builds.
 
-## Recorded Linux run
+## Recorded native run
 
-The [x86_64 Linux evidence](evidence/linux-x86_64.json) records a passing run with GCC 13.3.0
-and Rust 1.98.1. All four libraries compiled and completed their FFI checks. The run compared
-1,319 integer constants, seven strings, and 17 records with 88 field offsets, for 4,086 checks.
-The generated output contained 1,648 declarations and skipped no selected declarations.
+The [native run on 2026-09-08](https://github.com/astral-sh/toucan/actions/runs/34174435203)
+passed on x86_64 and AArch64 Linux and macOS. Each target compiled all four libraries and
+completed their FFI checks. Each compared 1,319 integer constants, seven strings, and 17
+records with 88 field offsets, for 4,086 checks. Each generated 1,648 declarations and
+skipped no selected declarations.
 
-The report names 111 selected macros that were not emitted, including decoration macros,
-function-like macros, aggregate initializers, and SQLite's destructor sentinels. Native macOS
-and Windows execution was not run in this recorded result.
+| Targets | C compiler | Rust | Omitted macros |
+| --- | --- | --- | --- |
+| x86_64 and AArch64 Linux | GCC 13.3.0 | 1.96.0 | 111 |
+| x86_64 and AArch64 macOS | Apple Clang 17.0.0 | 1.96.0 | 110 |
+
+The [compact evidence](evidence/native-2026-09-08.json) preserves the tested checkout and PR
+head commits, project versions, per-target counts, executable and binding checksums, and
+artifact identifiers and digests. The workflow artifacts retain the complete reports, probe
+sources, commands, and logs for 14 days. The omitted macros include decoration macros,
+function-like macros, aggregate initializers, and SQLite's destructor sentinels. Linux adds
+the empty `Z_LFS64` feature macro to the omitted set. Windows was not run.
+
+This historical run predates enum constant projection, prototype-scope changes, bindgen API
+comparison, and the all-record layout probes. It establishes the recorded C and FFI checks
+for its tested version. Results for later changes and broader comparisons are separate. The
+[earlier local Linux result](evidence/linux-x86_64.json) is retained as a separate snapshot.
 
 ## What is checked
 

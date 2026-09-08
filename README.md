@@ -134,14 +134,16 @@ Unix platforms or mimalloc on Windows.
 ## Validation
 
 The [upstream corpus](corpus/README.md) builds pinned releases of zlib, SQLite, zstd,
-and libgit2 and processes their untouched public headers. The recorded x86_64 Linux
-run generated 1,648 declarations and passed 4,086 independent C/Rust comparisons,
-including constants, layouts, and field offsets. Generated Rust also called the
-built libraries for compression, SQLite queries, and libgit2 operations.
+and libgit2 and processes their untouched public headers. A recorded native run on
+x86_64 and AArch64 Linux and macOS generated 1,648 declarations and passed 4,086
+independent C/Rust comparisons per target, including constants, layouts, and field
+offsets. Generated Rust also called the built libraries for compression, SQLite
+queries, and libgit2 operations.
 
-That run omitted 111 selected macros, with reasons recorded in its report. It is
-evidence for the tested configurations, not complete C conformance. Native Linux
-and macOS CI coverage is described in [compatibility](docs/compatibility.md).
+The [recorded evidence](corpus/evidence/native-2026-09-08.json) identifies the tested
+commit and configurations. It records 111 omitted macros on Linux and 110 on macOS.
+This run covers 17 records and predates the broader API-equivalence and all-record
+layout checks. See [compatibility](docs/compatibility.md) for coverage and gaps.
 [Benchmark methodology](docs/benchmarks.md) and [fuzzing](fuzz/README.md) document
 separate performance and malformed-input checks.
 
