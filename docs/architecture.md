@@ -5,7 +5,8 @@ Toucan separates reusable compiler components from application policy.
 | Crate | Responsibility |
 | --- | --- |
 | `toucan_source` | Immutable source files, checked byte spans, and source locations |
-| `toucan_target` | Explicit target data models and a `repc` layout adapter |
+| `toucan_layout` | Record and bitfield layout rules, derived from `repc` |
+| `toucan_target` | Explicit target data models and a layout adapter |
 | `toucan_preprocessor` | Tokens, macro expansion, conditional expressions, includes, and limits |
 | `toucan_parser` | The C grammar and lexical environments, derived from `lang-c` |
 | `toucan_semantic` | Parser adaptation, target-specific types, constant evaluation, and checked code |
@@ -23,7 +24,12 @@ Capability predicates such as `__has_builtin` currently return zero. Headers may
 therefore select fallback implementations even when some advertised GNU syntax is
 accepted.
 
-`repc` supplies record and bitfield layout rules. The adapter preserves bit offsets,
+`toucan_layout` supplies record and bitfield layout rules through an attributed
+fork of `repc`. The engine accepts an explicit compiler choice, including Clang
+on both Linux targets, while preserving the upstream defaults. Its
+[upstream record](../crates/toucan_layout/UPSTREAM.md) documents the import and
+[comparison evidence](../corpus/evidence/compiler-layout-2026-09-08.json) records
+default compatibility and compiler probes. The adapter preserves bit offsets,
 field alignment, pointer alignment, and MSVC's required alignment separately. It
 rejects unknown targets and unsupported layout inputs. Clang cross-compilation
 probes exercise five target models. Native C/Rust runtime evidence is tracked separately in the

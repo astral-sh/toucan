@@ -452,6 +452,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "toucan_layout"
+version = "0.0.1"
+dependencies = [
+ "repc",
+ "tempfile",
+]
+
+[[package]]
 name = "toucan_parser"
 version = "0.0.1"
 
@@ -479,10 +487,10 @@ version = "0.0.1"
 name = "toucan_target"
 version = "0.0.1"
 dependencies = [
- "repc",
  "serde",
  "tempfile",
  "thiserror",
+ "toucan_layout",
 ]
 
 [[package]]

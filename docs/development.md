@@ -8,9 +8,9 @@ compatibility checks and indexing should use the same semantic representation.
 C++ and machine-code generation are subsequent projects.
 
 Reusable libraries must not run compiler subprocesses, select a global allocator,
-change process state, or hide unsupported ABI semantics. Parsing uses `lang-c`'s
-preprocessed-source API. Layout uses `repc` behind a target adapter. Both dependencies
-are licensed under MIT or Apache-2.0; the separate GPL-licensed `cly` tool is not used.
+change process state, or hide unsupported ABI semantics. The parser and layout
+engine are local, attributed forks of `lang-c` and `repc`, respectively. Both are
+licensed under MIT or Apache-2.0; the separate GPL-licensed `cly` tool is not used.
 
 ## Review stack
 

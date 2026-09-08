@@ -1,0 +1,17 @@
+[package]
+name = "toucan_layout"
+version.workspace = true
+edition = "2018"
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+authors = ["Julian Orth <ju.orth@gmail.com>"]
+description = "C type layout engine used by Toucan, derived from repc"
+include = ["/src/**/*.rs", "/tests/**/*.rs", "/build.rs", "/Cargo.toml", "/LICENSE*", "/README.md", "/UPSTREAM.md"]
+
+[lints.rust]
+unsafe_code = "forbid"
+
+[dev-dependencies]
+upstream_repc = { package = "repc", version = "=0.1.1" }
+tempfile.workspace = true
