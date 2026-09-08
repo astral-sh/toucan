@@ -111,6 +111,38 @@ fn selective_enum_patterns_preserve_other_integer_enum_representations() {
 }
 
 #[test]
+fn derive_options_preserve_eq_dependencies_and_enum_traits() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("traits.h");
+    std::fs::write(&header, "struct Value { int field; }; typedef enum { TWO=2, FOUR=4 } Form; struct Holder { Form value; };\n").unwrap();
+    let builder = Builder::default()
+        .header(header.to_str().unwrap())
+        .rustified_enum("Form")
+        .derive_copy(false)
+        .derive_debug(false)
+        .derive_default(true)
+        .derive_eq(true);
+    let source = builder.clone().generate().unwrap().to_string();
+    assert!(source.contains("#[derive(PartialEq, Eq)]\npub struct Value"));
+    assert!(source.contains("#[derive(Clone, PartialEq, Eq, Hash)]\npub enum Form"));
+    assert!(source.contains("impl ::core::default::Default for Value"));
+    assert!(!source.contains("impl ::core::default::Default for Holder"));
+    let source = builder
+        .clone()
+        .derive_eq(false)
+        .generate()
+        .unwrap()
+        .to_string();
+    assert!(source.contains("#[derive(PartialEq)]\npub struct Value"));
+    let source = builder
+        .derive_partialeq(false)
+        .generate()
+        .unwrap()
+        .to_string();
+    assert!(source.contains("#[repr(C)]\npub struct Value"));
+}
+
+#[test]
 fn musl_sysroots_use_the_selected_libc_include_directory() {
     let directory = tempfile::tempdir().unwrap();
     let header = directory.path().join("api.h");

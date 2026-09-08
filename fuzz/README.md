@@ -39,6 +39,12 @@ checks active in both modes.
 It has no physical target profile. The campaign runner pads each seed with a comment to cover every compiler
 profile in all eight language modes, including all independent preprocessing settings. The
 reported profile count must match the compiled harness's `CompilerProfile::ALL`.
+The binding harness keeps its default generation pass and also requests Rust
+enums with trait selector version 1: `(sum(input bytes) >> 11) & 15` controls
+Copy, Debug, Default, and Eq with bits 0, 1, 2, and 3, respectively. This does not
+consume or rewrite source bytes. Ordinary campaign padding still covers the
+compiler/language pairs; the focused derive-storage replay additionally covers
+all 1,408 compiler/language/trait combinations for that fixture.
 Older archived sources retain their recorded selector contracts. The `checked`
 target compares analysis with and without retained code. Successful results must have
 identical declarations; invalid inputs must produce the same diagnostic, except

@@ -55,6 +55,12 @@ comparison and supported formatter names.
 `parsed`: it does not load libclang or report the emulated Clang semantic profile
 as an installed compiler version.
 
+The `derive_copy`, `derive_debug`, `derive_default`, `derive_eq`, and
+`derive_partialeq` options request traits where the emitted storage supports them.
+Defaults require a valid zero representation; a nonzero Rust enum inside a struct
+prevents a generated Default implementation. See [binding traits](../../docs/binding-derives.md)
+for unions, non-Copy members, callbacks, and the measured bindgen differences.
+
 Toucan additionally provides `dll_import_library(pattern, library)` for checked
 Microsoft DLL imports. It accepts the same exact-name or trailing `.*` patterns
 as the blocklists. Exact names win, then the longest prefix; repeating a pattern

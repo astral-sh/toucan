@@ -165,6 +165,10 @@ def main():
         if args.target == "preprocess"
         else "(sum(input bytes) >> 8) & 7: 0=gnu11, 1=c11, 2=gnu90, 3=c90, 4=gnu99, 5=c99, 6=gnu17, 7=c17",
         "language_mode_selector_version": None if args.target == "preprocess" else 3,
+        "binding_derive_selector_version": 1 if args.target == "bindings" else None,
+        "binding_derive_selector": "(sum(input bytes) >> 11) & 15: bit0=Copy, bit1=Debug, bit2=Default, bit3=Eq; second generation rustifies enums"
+        if args.target == "bindings"
+        else None,
         "query_dialect_selector": "sum(input bytes) & 1: 0=gnu, 1=clang"
         if args.target == "preprocess"
         else None,

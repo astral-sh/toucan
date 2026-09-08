@@ -206,6 +206,42 @@ impl Builder {
         self
     }
 
+    /// Derive Copy and Clone where the generated storage supports copying.
+    pub fn derive_copy(mut self, enabled: bool) -> Self {
+        self.options.derives.copy = enabled;
+        self
+    }
+
+    /// Derive Debug when supported by every generated field.
+    pub fn derive_debug(mut self, enabled: bool) -> Self {
+        self.options.derives.debug = Some(enabled);
+        self
+    }
+
+    /// Provide Default only when zero initializes a valid Rust representation.
+    pub fn derive_default(mut self, enabled: bool) -> Self {
+        self.options.derives.default = enabled;
+        self
+    }
+
+    /// Derive Eq where possible; enabling it also requests PartialEq.
+    pub fn derive_eq(mut self, enabled: bool) -> Self {
+        self.options.derives.eq = enabled;
+        if enabled {
+            self.options.derives.partial_eq = true;
+        }
+        self
+    }
+
+    /// Derive PartialEq where possible; disabling it also disables Eq.
+    pub fn derive_partialeq(mut self, enabled: bool) -> Self {
+        self.options.derives.partial_eq = enabled;
+        if !enabled {
+            self.options.derives.eq = false;
+        }
+        self
+    }
+
     /// Omit functions matching an exact C identifier or a trailing `.*` prefix.
     pub fn blocklist_function(mut self, pattern: impl AsRef<str>) -> Self {
         match identifier_pattern(pattern.as_ref()) {

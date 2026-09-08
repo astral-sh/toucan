@@ -35,5 +35,19 @@ fuzz_target!(|bytes: &[u8]| {
         toucan::parse_source(std::path::Path::new("fuzz-input.h"), data, &config)
     {
         let _ = compilation.bindings(&toucan::BindingOptions::default());
+        // Preserve every input byte and the existing compiler/mode selector.
+        // The next four bits vary trait requests independently of those modes.
+        let derives = (selector >> 11) & 15;
+        let _ = compilation.bindings(&toucan::BindingOptions {
+            rustified_enums: true,
+            derives: toucan::DeriveOptions {
+                copy: derives & 1 != 0,
+                debug: Some(derives & 2 != 0),
+                default: derives & 4 != 0,
+                eq: derives & 8 != 0,
+                ..Default::default()
+            },
+            ..Default::default()
+        });
     }
 });
