@@ -414,6 +414,10 @@ pub struct Declaration {
     /// This is not a function-pointer type qualifier or a retroactive call-site verdict.
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub returns_twice: bool,
+    /// Promise visible in the final file declaration. Earlier declarations and
+    /// calls keep their own facts in checked code; this does not change its type.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub noreturn: bool,
     /// Symbol binding; applies to externally linked functions and objects.
     #[serde(skip_serializing_if = "SymbolBinding::is_strong")]
     pub symbol_binding: SymbolBinding,

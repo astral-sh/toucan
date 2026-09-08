@@ -133,6 +133,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         }
     }
     for (id, entity) in code.entities() {
+        if entity.noreturn() { assert_eq!(entity.kind(), EntityKind::Function); }
         if let Some(declaration) = entity.declaration() {
             let declaration = &unit.declarations[declaration];
             assert_eq!(
@@ -188,6 +189,13 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         }
         if let Some(span) = declaration.weak_attribute() {
             source_span(source, span);
+        }
+        if let Some(span) = declaration.noreturn_source() {
+            source_span(source, span);
+        }
+        if declaration.noreturn() {
+            assert_eq!(entity.kind(), EntityKind::Function);
+            assert!(entity.noreturn());
         }
         if let Some(span) = declaration.returns_twice_attribute() {
             source_span(source, span);
@@ -392,8 +400,16 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 callee,
                 direct_callee,
                 arguments,
+                noreturn,
+                ..
             } => {
                 expression_use(code, callee);
+                let TypeKind::Pointer(pointee) = &unit.resolve(code.ty(callee.effective_type()).unwrap()).unwrap().kind else { panic!("call pointer type") };
+                let TypeKind::Function(function) = &unit.resolve(pointee).unwrap().kind else { panic!("call function type") };
+                assert!(!function.noreturn || *noreturn);
+                if *noreturn && !function.noreturn {
+                    assert!(code.entity(direct_callee.unwrap()).unwrap().noreturn());
+                }
                 if let Some(entity) = direct_callee {
                     assert!(code.entity(*entity).is_some());
                 }

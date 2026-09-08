@@ -1,0 +1,23 @@
+{
+  "status": "passed",
+  "reported_test_counts": {
+    "native": {
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0
+    },
+    "workspace": {
+      "passed": 726,
+      "failed": 0,
+      "ignored": 189
+    }
+  },
+  "checked_seed_pairs": 1804,
+  "accepted": 1273,
+  "matching_diagnostics": 531,
+  "source_manifest_sha256": "33687bb35295d64947559603f17dd5ea46723e4ea48f4640f9f20c3869074990",
+  "original_header_artifacts_equal": 4,
+  "executed_musl_abi_binding_artifacts_equal": 4,
+  "native_syntax_comparisons": 120,
+  "scope": "C11 non-returning declaration integration over musl, alignment ancestry, MS integer/calling keywords and C90 comments. Original generated bindings remain byte-identical."
+}

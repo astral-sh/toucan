@@ -1046,3 +1046,13 @@ ancestry that determines observable result alignment. The owned type API retains
 alignment snapshots and canonical redeclaration links without enlarging `Type`.
 See [typedef alignment](type-alignment.md) for supported conversions, metadata,
 resource limits, and the remaining GNU/floating/pointer-composite boundaries.
+
+### C11 non-return promises
+
+`_Noreturn` now requires a function declaration and is retained independently of
+function type compatibility. Ordinary declarations, retained declaration sites,
+entities, and calls expose their applicable non-return promise; written source
+spans survive macro expansion. Late declarations preserve earlier call facts.
+Generated bindings keep the written C return type. See
+[non-returning declarations](noreturn.md) for lexical inheritance and the
+remaining control-flow diagnostic limits.

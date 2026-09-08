@@ -272,6 +272,8 @@ pub struct Entity {
     pub(crate) alignment: crate::DeclarationAlignment,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub(crate) returns_twice: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) noreturn: bool,
     #[serde(skip_serializing_if = "crate::SymbolBinding::is_strong")]
     pub(crate) symbol_binding: crate::SymbolBinding,
     pub(crate) body: Option<statement::BodyId>,
@@ -312,12 +314,16 @@ pub struct DeclarationSite {
     pub(crate) type_inference: Option<Box<TypeInference>>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub(crate) returns_twice: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) noreturn: bool,
     #[serde(skip_serializing_if = "crate::SymbolBinding::is_strong")]
     pub(crate) symbol_binding: crate::SymbolBinding,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) weak_attribute: Option<SourceSpan>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) returns_twice_attribute: Option<SourceSpan>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) noreturn_source: Option<Box<SourceSpan>>,
     pub(crate) body: Option<statement::BodyId>,
     pub(crate) initializer: Option<InitializerId>,
     pub(crate) type_use: bounds::TypeUseId,
@@ -682,6 +688,7 @@ impl Builder {
         self.code.entities.push(Entity {
             alignment: crate::DeclarationAlignment::default(),
             returns_twice: false,
+            noreturn: false,
             symbol_binding: crate::SymbolBinding::Strong,
             body: None,
             name: name.map(str::to_owned),
@@ -714,6 +721,8 @@ impl Builder {
             alignment: None,
             returns_twice: self.code.entities[entity.index()].returns_twice,
             returns_twice_attribute: None,
+            noreturn: false,
+            noreturn_source: None,
             symbol_binding: self.code.entities[entity.index()].symbol_binding,
             weak_attribute: None,
             body: None,
@@ -872,6 +881,7 @@ impl Builder {
         };
         self.code.entities[entity.index()].linkage = linkage;
         self.code.entities[entity.index()].returns_twice = declaration.returns_twice;
+        self.code.entities[entity.index()].noreturn |= declaration.noreturn;
         self.code.entities[entity.index()].symbol_binding = declaration.symbol_binding;
         let site = self.site(
             entity,
@@ -1080,6 +1090,13 @@ impl Builder {
             });
         }
         for (site, span) in self.code.declarations.iter_mut().zip(self.name_spans) {
+            if let Some(source) = &mut site.noreturn_source {
+                **source = map_span(
+                    offsets,
+                    Span::span(source.range.start, source.range.end),
+                    &mut self.budget,
+                )?;
+            }
             if let Some(attribute) = &site.returns_twice_attribute {
                 site.returns_twice_attribute = Some(map_span(
                     offsets,
@@ -1380,6 +1397,24 @@ impl Builder {
 }
 
 impl Builder {
+    /// Preserve the written promise and the state visible at this declaration.
+    pub(crate) fn attach_noreturn(
+        &mut self,
+        id: SiteId,
+        noreturn: bool,
+        source: Option<Span>,
+    ) -> Result<(), Error> {
+        if let Some(span) = source {
+            self.budget
+                .charge(0, 1, std::mem::size_of::<SourceSpan>(), span.start)?;
+        }
+        let site = &mut self.code.declarations[id.index()];
+        site.noreturn = noreturn;
+        self.code.entities[site.entity.index()].noreturn |= noreturn;
+        site.noreturn_source = source.map(|span| Box::new(unmapped_span(span)));
+        Ok(())
+    }
+
     pub(crate) fn charge_alignment_origin(&mut self, offset: usize) -> Result<(), Error> {
         self.budget
             .charge(1, 3, std::mem::size_of::<crate::AlignmentOrigin>(), offset)

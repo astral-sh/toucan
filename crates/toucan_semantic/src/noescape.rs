@@ -103,17 +103,23 @@ impl TranslationUnit {
             ));
         }
         let mut work = 0;
-        for ty in self
-            .declarations
-            .iter()
-            .map(|d| &d.ty)
-            .chain(self.typedefs.values())
-            .chain(
-                self.records
-                    .iter()
-                    .flat_map(|r| r.fields.iter().flatten().map(|f| &f.ty)),
-            )
-        {
+        for declaration in &self.declarations {
+            if declaration.noreturn
+                && (declaration.kind != crate::DeclarationKind::Function
+                    || !matches!(self.resolve(&declaration.ty)?.kind, TypeKind::Function(_)))
+            {
+                return Err(Error::new(
+                    0,
+                    "noreturn metadata requires a function declaration",
+                ));
+            }
+            self.validate_contract_type(&declaration.ty, 0, &mut work)?;
+        }
+        for ty in self.typedefs.values().chain(
+            self.records
+                .iter()
+                .flat_map(|r| r.fields.iter().flatten().map(|f| &f.ty)),
+        ) {
             self.validate_contract_type(ty, 0, &mut work)?;
         }
         Ok(())

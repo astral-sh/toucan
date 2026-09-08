@@ -33,6 +33,7 @@ mod literals;
 mod narrow_float;
 mod noescape;
 mod nontemporal;
+mod noreturn;
 mod object_alignment;
 mod object_extent;
 mod object_size;

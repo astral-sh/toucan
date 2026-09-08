@@ -528,6 +528,7 @@ pub(crate) struct Attributes {
     pub(crate) weak: Option<lang_c::span::Span>,
     pub(crate) returns_twice: Option<lang_c::span::Span>,
     pub(crate) noreturn: Option<lang_c::span::Span>,
+    pub(crate) c11_noreturn: Option<lang_c::span::Span>,
     pub(crate) diagnostic_attributes: Vec<crate::checked::attributes::ParsedDiagnosticAttribute>,
     pub(crate) type_use: Option<crate::checked::bounds::TypeUseId>,
     type_name_use: bool,
@@ -589,6 +590,12 @@ impl Attributes {
                 "target attribute requires a function declaration",
             ));
         }
+        if !function && let Some(span) = self.c11_noreturn {
+            return Err(Error::new(
+                span.start,
+                "_Noreturn requires a function declaration",
+            ));
+        }
         if !function && let Some(span) = self.returns_twice {
             return Err(Error::new(
                 span.start,
@@ -619,6 +626,7 @@ pub(crate) struct TagBinding {
 
 /// A linked block declaration, also checked against later file declarations.
 pub(crate) struct BlockExtern {
+    pub(crate) noreturn: bool,
     pub(crate) alignment: crate::DeclarationAlignment,
     pub(crate) ty: Type,
     pub(crate) thread_local: bool,
@@ -750,6 +758,7 @@ struct DeclaratorContext<'a> {
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) noreturn_registry: Option<Box<crate::noreturn::Registry>>,
     pub(crate) alignment_registry: Option<Box<crate::type_alignment::Registry>>,
     pub(crate) has_type_noreturn: bool,
     pub(crate) parameter_contract_index: Option<Box<crate::noescape::ContractIndex>>,
@@ -849,6 +858,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            noreturn_registry: None,
             alignment_registry: None,
             has_type_noreturn: crate::noescape::has_type_noreturn(&unit),
             parameter_contract_index: None,
@@ -933,6 +943,7 @@ impl Analyzer {
     }
 
     pub(crate) fn leave_prototype(&mut self) -> Vec<Parameter> {
+        self.leave_noreturn_scope();
         self.lexical_function_options
             .remove(&self.lexical_scopes.len());
         let scope = self
@@ -1132,6 +1143,7 @@ impl Analyzer {
                 ty,
                 kind: DeclarationKind::Typedef,
                 returns_twice: false,
+                noreturn: false,
                 symbol_binding: crate::SymbolBinding::Strong,
                 link_name: None,
                 is_static: false,
@@ -1309,6 +1321,13 @@ impl Analyzer {
             } else {
                 None
             };
+            let noreturn = kind == DeclarationKind::Function
+                && self.declaration_noreturn(
+                    &name,
+                    &ty,
+                    declarator_attributes.noreturn.is_some(),
+                    previous_index,
+                )?;
             let returns_twice = if kind == DeclarationKind::Function {
                 self.check_returns_twice(&name, &declarator_attributes)?
             } else {
@@ -1500,6 +1519,7 @@ impl Analyzer {
                 let previous = &mut self.unit.declarations[previous_index];
                 previous.alignment = alignment;
                 previous.returns_twice = returns_twice;
+                previous.noreturn = noreturn;
                 previous.symbol_binding = symbol_binding;
                 previous.ty = ty;
                 previous.is_definition |= is_definition;
@@ -1524,6 +1544,7 @@ impl Analyzer {
                 self.unit.declarations.push(Declaration {
                     alignment,
                     returns_twice,
+                    noreturn,
                     symbol_binding,
                     name,
                     ty,
@@ -1536,6 +1557,10 @@ impl Analyzer {
                 });
                 index
             };
+            if noreturn {
+                let name = self.unit.declarations[declaration_index].name.clone();
+                self.record_noreturn(&name, true, true, item.span.start)?;
+            }
             if definition {
                 self.save_old_style_definition(declaration_index, item.span.start)?;
             }
@@ -1602,6 +1627,7 @@ impl Analyzer {
                     returns_twice,
                     declarator_attributes.returns_twice,
                 )?;
+                checked.attach_noreturn(site, noreturn, declarator_attributes.noreturn)?;
                 checked.attach_symbol_binding(
                     site,
                     self.unit.declarations[declaration_index].symbol_binding,
@@ -1992,6 +2018,7 @@ impl Analyzer {
                     if specifier.node == ast::FunctionSpecifier::Noreturn =>
                 {
                     attributes.noreturn = Some(specifier.span);
+                    attributes.c11_noreturn = Some(specifier.span);
                 }
                 ast::DeclarationSpecifier::Alignment(alignment) => {
                     let value = self.alignment_operand(|analyzer| match &alignment.node {
@@ -2582,6 +2609,7 @@ impl Analyzer {
         extra.weak = extra.weak.or(attributes.weak);
         extra.returns_twice = extra.returns_twice.or(attributes.returns_twice);
         extra.noreturn = extra.noreturn.or(attributes.noreturn);
+        extra.c11_noreturn = extra.c11_noreturn.or(attributes.c11_noreturn);
         extra.type_noreturn |= attributes.type_noreturn;
         extra.transparent_union = extra.transparent_union.or(attributes.transparent_union);
         if !attributes.diagnostic_attributes.is_empty() {
@@ -3387,6 +3415,7 @@ impl Analyzer {
                 attributes.returns_twice =
                     attributes.returns_twice.or(inner_attributes.returns_twice);
                 attributes.noreturn = attributes.noreturn.or(inner_attributes.noreturn);
+                attributes.c11_noreturn = attributes.c11_noreturn.or(inner_attributes.c11_noreturn);
                 attributes.transparent_union = attributes
                     .transparent_union
                     .or(inner_attributes.transparent_union);

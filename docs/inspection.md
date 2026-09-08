@@ -150,3 +150,12 @@ Declaration schema 3 and checked schema 5 preserve the optional numeric type
 typedef redeclarations and `typeof` layers, including earlier snapshots with no
 alignment override. Empty tables are omitted. See [type alignment](type-alignment.md)
 for lookup, validation, and common-expression semantics.
+
+## Non-return promises
+
+Declaration schema 3 and checked schema 5 add optional `noreturn: true` fields to
+function declarations, entities, declaration sites, and calls. Declaration sites
+can also carry `noreturn_source`. Missing fields mean false or no written marker.
+The existing `FunctionType.noreturn` field is the separate Clang type contract;
+C11 `_Noreturn` does not set it. See [non-returning declarations](noreturn.md) for
+snapshot and lexical-scope semantics.

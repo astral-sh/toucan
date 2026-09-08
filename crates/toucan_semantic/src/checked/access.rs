@@ -53,6 +53,11 @@ impl Scope {
 }
 
 impl Entity {
+    /// Whether any retained declaration promises that this function does not return.
+    /// Earlier sites and calls preserve the promise visible at their source position.
+    pub fn noreturn(&self) -> bool {
+        self.noreturn
+    }
     /// Merged explicit alignment of the object or function.
     pub fn alignment(&self) -> crate::DeclarationAlignment {
         self.alignment
@@ -94,6 +99,14 @@ impl Entity {
 }
 
 impl DeclarationSite {
+    /// Non-return promise visible at this declaration, independently of its C type.
+    pub fn noreturn(&self) -> bool {
+        self.noreturn
+    }
+    /// Written `_Noreturn` specifier or noreturn attribute, absent when inherited.
+    pub fn noreturn_source(&self) -> Option<&SourceSpan> {
+        self.noreturn_source.as_deref()
+    }
     /// Alignment written on this declaration, before inheriting visible requirements.
     pub fn alignment(&self) -> crate::DeclarationAlignment {
         self.alignment

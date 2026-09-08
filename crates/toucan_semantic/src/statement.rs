@@ -742,6 +742,21 @@ impl Analyzer {
             } else {
                 None
             };
+            let noreturn = function
+                && !is_typedef
+                && self.declaration_noreturn(
+                    &name,
+                    &ty,
+                    extra.noreturn.is_some(),
+                    previous_file,
+                )?;
+            if noreturn {
+                let global = self.unit.compiler == toucan_target::Compiler::Gnu;
+                self.record_noreturn(&name, true, global, item.span.start)?;
+                if global && let Some(index) = previous_file {
+                    self.unit.declarations[index].noreturn = true;
+                }
+            }
             let options_affect_entity = self.unit.compiler == toucan_target::Compiler::Gnu
                 || (previous_file.is_none() && !self.block_externs.contains_key(&name));
             let function_options = if function && !is_typedef {
@@ -1000,9 +1015,21 @@ impl Analyzer {
                 } else {
                     alignment
                 };
+                let inherited_noreturn = if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.block_externs
+                        .get(&name)
+                        .map(|previous| previous.noreturn)
+                        .or_else(|| {
+                            previous_file.map(|index| self.unit.declarations[index].noreturn)
+                        })
+                        .unwrap_or(noreturn)
+                } else {
+                    noreturn
+                };
                 self.block_externs.insert(
                     name.clone(),
                     BlockExtern {
+                        noreturn: inherited_noreturn,
                         alignment: inherited_alignment,
                         ty: ty.clone(),
                         thread_local,
@@ -1082,6 +1109,7 @@ impl Analyzer {
                                 extra.no_inline,
                                 options_affect_entity,
                             )?;
+                            checked.attach_noreturn(site, noreturn, extra.noreturn)?;
                             checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                         }
                     }
@@ -1099,9 +1127,14 @@ impl Analyzer {
                         } else {
                             alignment
                         };
+                    let inherited_noreturn = self
+                        .block_externs
+                        .get(&name)
+                        .is_some_and(|prior| prior.noreturn);
                     self.block_externs.insert(
                         name,
                         BlockExtern {
+                            noreturn: inherited_noreturn,
                             alignment: inherited_alignment,
                             ty: composite,
                             thread_local,
@@ -1210,6 +1243,7 @@ impl Analyzer {
                     extra.no_inline,
                     options_affect_entity,
                 )?;
+                checked.attach_noreturn(site, noreturn, extra.noreturn)?;
                 checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                 let allocation = self
                     .lexical_scopes

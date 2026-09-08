@@ -425,6 +425,10 @@ pub enum ExprKind {
     Call {
         callee: ExprUse,
         direct_callee: Option<EntityId>,
+        /// Non-return promise visible through this call's function type or known
+        /// callee declaration. False does not prove that the call can return.
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        noreturn: bool,
         arguments: Vec<ExprUse>,
     },
     BuiltinCall {
@@ -541,6 +545,8 @@ struct ExpressionProperties {
 
 #[derive(Default)]
 pub(super) struct ExpressionBuilder {
+    // Capture lexical promises before later operands introduce declarations.
+    noreturn_names: std::collections::HashSet<OccurrenceId>,
     pub(super) query_summaries: Vec<super::query::QuerySummary>,
     states: HashMap<OccurrenceId, State>,
     assignments: HashMap<(ExprId, TypeId), AssignmentId>,
@@ -995,15 +1001,22 @@ impl Analyzer {
             .ok_or_else(|| Error::new(offset, "checked member has no retained field path"))
     }
 
-    fn retained_direct_callee(&mut self, expression: ExprId) -> Option<EntityId> {
-        let code = &self.code_builder().code;
+    fn retained_direct_callee(&mut self, expression: ExprId) -> Option<(EntityId, bool)> {
+        let builder = self.code_builder();
+        let code = &builder.code;
         let mut id = expression;
         for _ in 0..128 {
             match &code.expressions[id.index()].kind {
                 ExprKind::Name(entity)
                     if code.entities[entity.index()].kind == EntityKind::Function =>
                 {
-                    return Some(*entity);
+                    return Some((
+                        *entity,
+                        builder
+                            .expression_builder
+                            .noreturn_names
+                            .contains(&code.expressions[id.index()].occurrence),
+                    ));
                 }
                 ExprKind::Unary {
                     operator: Unary::Address | Unary::Indirection,
@@ -1128,6 +1141,15 @@ impl Analyzer {
                             ),
                         )
                     })?;
+                if matches!(self.unit.resolve(&info.ty)?.kind, TypeKind::Function(_))
+                    && self.visible_noreturn(&identifier.node.name)
+                {
+                    let builder = self.code_builder();
+                    builder
+                        .budget
+                        .charge(0, 1, std::mem::size_of::<OccurrenceId>(), offset)?;
+                    builder.expression_builder.noreturn_names.insert(occurrence);
+                }
                 ExprKind::Name(entity)
             }
             ast::Expression::UnaryOperator(unary) => {
@@ -1773,7 +1795,8 @@ impl Analyzer {
             });
         }
         let callee = self.retained_value(&call.node.callee)?;
-        let direct_callee = self.retained_direct_callee(callee.expression);
+        let known_callee = self.retained_direct_callee(callee.expression);
+        let direct_callee = known_callee.map(|(entity, _)| entity);
         let ty = self.code_builder().code.types[callee.effective_type.index()].clone();
         let TypeKind::Pointer(pointee) = ty.kind else {
             return Err(Error::new(offset, "retained callee has no pointer type"));
@@ -1842,9 +1865,11 @@ impl Analyzer {
                 Some((destination, conversion)),
             )?);
         }
+        let noreturn = function.noreturn || known_callee.is_some_and(|(_, promise)| promise);
         Ok(ExprKind::Call {
             callee,
             direct_callee,
+            noreturn,
             arguments,
         })
     }
@@ -2373,6 +2398,7 @@ mod tests {
                         callee,
                         direct_callee,
                         arguments,
+                        ..
                     } => Some((callee, direct_callee, arguments)),
                     _ => None,
                 })
