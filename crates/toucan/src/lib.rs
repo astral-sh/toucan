@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions};
+pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions, RustTarget};
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
 pub use toucan_preprocessor::{ForcedInclude, OriginKind, SourceLocation, SourceMapping};
 pub use toucan_semantic::{self as semantic, TranslationUnit};
@@ -170,6 +170,8 @@ fn finish(
 #[derive(Debug, serde::Serialize)]
 pub struct Report {
     pub target: String,
+    /// Minimum Rust version for generated declarations, excluding caller-provided lines.
+    pub rust_target: String,
     pub dependencies: Vec<PathBuf>,
     pub declarations: usize,
     pub integer_macros: usize,
@@ -293,6 +295,7 @@ impl Compilation {
         let source = bindings.source;
         let report = Report {
             target: self.unit.target.triple().into(),
+            rust_target: options.rust_target.to_string(),
             dependencies: self.preprocessed.dependencies.clone(),
             declarations: bindings.declarations,
             integer_macros,

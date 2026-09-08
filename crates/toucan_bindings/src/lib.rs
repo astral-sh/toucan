@@ -34,6 +34,58 @@ pub struct Options {
     pub raw_lines: Vec<String>,
     /// Emit byte string macros as `&core::ffi::CStr`. Interior NUL bytes are errors.
     pub generate_cstr: bool,
+    /// Minimum Rust version for generated declarations. Defaults to Rust 1.96.
+    /// Caller-provided raw lines are outside this contract.
+    pub rust_target: RustTarget,
+}
+
+/// Minimum supported Rust release for generated declarations.
+///
+/// Rust 1.64 is the oldest supported target. Before Rust 1.77, field offsets
+/// are checked by generated `#[test]` functions; size and alignment remain
+/// compile-time assertions. Before Rust 1.82, extern blocks use the syntax
+/// supported by Rust editions 2018 and 2021.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
+pub struct RustTarget {
+    minor: u16,
+}
+
+impl RustTarget {
+    pub const RUST_1_64: Self = Self { minor: 64 };
+
+    /// Select a stable Rust 1.x release by its minor version.
+    pub fn stable(minor: u16) -> Result<Self, Error> {
+        if minor < 64 {
+            return Err(Error(
+                "generated bindings require Rust 1.64 or newer".into(),
+            ));
+        }
+        Ok(Self { minor })
+    }
+}
+
+impl Default for RustTarget {
+    fn default() -> Self {
+        Self { minor: 96 }
+    }
+}
+
+impl std::fmt::Display for RustTarget {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(formatter, "1.{}", self.minor)
+    }
+}
+
+impl std::str::FromStr for RustTarget {
+    type Err = Error;
+
+    fn from_str(value: &str) -> Result<Self, Self::Err> {
+        let minor = value
+            .strip_prefix("1.")
+            .and_then(|value| value.parse().ok())
+            .ok_or_else(|| Error("Rust target must be a version such as 1.64".into()))?;
+        Self::stable(minor)
+    }
 }
 
 /// Integer macro representation policy; evaluation always retains the C type.
@@ -87,7 +139,8 @@ fn matches_name(pattern: &str, name: &str) -> bool {
 pub struct Bindings {
     pub source: String,
     pub declarations: usize,
-    /// Internal-linkage declarations are not callable through external bindings.
+    /// Declarations omitted for internal linkage, or unused compiler integer
+    /// typedefs incompatible with the requested Rust version.
     pub skipped: Vec<String>,
     /// Functions deliberately omitted by the caller's blocklist.
     pub blocked_functions: Vec<String>,
@@ -232,6 +285,17 @@ pub fn generate_with_macros(
         if !options.includes(&declaration.name) || !seen.insert(declaration.name.clone()) {
             continue;
         }
+        // These reserved names are normally compiler aliases injected by the facade.
+        // With an old Rust target, omit them as implicit selection roots. Dependencies
+        // and explicit selections still reach the ABI representation check.
+        if options.rust_target.minor < 78
+            && options.allowlist.is_empty()
+            && declaration.kind == DeclarationKind::Typedef
+            && matches!(declaration.name.as_str(), "__int128_t" | "__uint128_t")
+        {
+            skipped.push(declaration.name.clone());
+            continue;
+        }
         if declaration.kind == DeclarationKind::Function
             && options.blocks_function(&declaration.name)
         {
@@ -362,7 +426,11 @@ pub fn generate_with_macros(
             )?);
         }
     }
-    source.push_str("\nunsafe extern \"C\" {\n");
+    source.push_str(if options.rust_target.minor >= 82 {
+        "\nunsafe extern \"C\" {\n"
+    } else {
+        "\nextern \"C\" {\n"
+    });
     for declaration in &selected {
         let name = emitter.names.identifier(&declaration.name)?;
         match declaration.kind {
@@ -700,6 +768,11 @@ impl Emitter<'_> {
             ));
         }
         let (bits, signed) = self.enum_integer(id)?;
+        if bits == 128 && self.options.rust_target.minor < 89 {
+            return Err(Error(
+                "128-bit Rust enum representations require Rust 1.89 or newer".into(),
+            ));
+        }
         let prefix = if signed { 'i' } else { 'u' };
         writeln!(source, "#[repr({prefix}{bits})]\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\npub enum {name} {{").unwrap();
         let variant_names = Names::new(
@@ -790,6 +863,9 @@ impl Emitter<'_> {
 
     fn enum_type(&self, id: usize) -> Result<String, Error> {
         let (bits, signed) = self.enum_integer(id)?;
+        if bits == 128 {
+            self.check_128_bit_abi()?;
+        }
         Ok(format!(
             "::core::primitive::{}{bits}",
             if signed { 'i' } else { 'u' }
@@ -850,6 +926,15 @@ impl Emitter<'_> {
         }
     }
 
+    fn check_128_bit_abi(&self) -> Result<(), Error> {
+        if self.options.rust_target.minor < 78 {
+            return Err(Error(
+                "128-bit C ABI types require Rust 1.78 or newer with its bundled LLVM".into(),
+            ));
+        }
+        Ok(())
+    }
+
     fn ty(&self, ty: &Type) -> Result<String, Error> {
         self.ty_at(ty, 0)
     }
@@ -859,8 +944,15 @@ impl Emitter<'_> {
         Ok(match &ty.kind {
             TypeKind::Void => "::core::ffi::c_void".into(),
             TypeKind::Bool => "::core::primitive::bool".into(),
-            TypeKind::Integer(IntegerKind::Int128) => "::core::primitive::i128".into(),
-            TypeKind::Integer(IntegerKind::UnsignedInt128) => "::core::primitive::u128".into(),
+            TypeKind::Integer(kind @ (IntegerKind::Int128 | IntegerKind::UnsignedInt128)) => {
+                self.check_128_bit_abi()?;
+                if *kind == IntegerKind::Int128 {
+                    "::core::primitive::i128"
+                } else {
+                    "::core::primitive::u128"
+                }
+                .into()
+            }
             TypeKind::Integer(kind) => format!(
                 "::core::ffi::{}",
                 match kind {
@@ -1217,6 +1309,14 @@ impl Emitter<'_> {
             writeln!(source, "impl {name} {{\n{accessors}}}\n").unwrap();
         }
         writeln!(source, "const _: () = {{\n    assert!(::core::mem::size_of::<{name}>() == {});\n    assert!(::core::mem::align_of::<{name}>() == {});", layout.size_bits / 8, layout.alignment_bits / 8).unwrap();
+        let runtime_offsets = self.options.rust_target.minor < 77;
+        if runtime_offsets {
+            let mut test_name = format!("__toucan_layout_{id}");
+            while self.names.original.contains(&test_name) {
+                test_name.push('_');
+            }
+            writeln!(source, "}};\n#[test]\nfn {test_name}() {{\n    let value = ::core::mem::MaybeUninit::<{name}>::uninit();\n    let _base = value.as_ptr();").unwrap();
+        }
         for (index, field) in fields.iter().enumerate() {
             if field.bit_width.is_some() {
                 continue;
@@ -1226,15 +1326,19 @@ impl Emitter<'_> {
                 None => helper_field(fields, &format!("__anonymous_{index}")),
             };
             if let Some(field_layout) = layout.fields.get(index).and_then(Option::as_ref) {
-                writeln!(
-                    source,
-                    "    assert!(::core::mem::offset_of!({name}, {field_name}) == {});",
-                    field_layout.offset_bits / 8
-                )
-                .unwrap();
+                if runtime_offsets {
+                    writeln!(source, "    assert!(unsafe {{ ::core::ptr::addr_of!((*_base).{field_name}) }} as ::core::primitive::usize - _base as ::core::primitive::usize == {});", field_layout.offset_bits / 8).unwrap();
+                } else {
+                    writeln!(
+                        source,
+                        "    assert!(::core::mem::offset_of!({name}, {field_name}) == {});",
+                        field_layout.offset_bits / 8
+                    )
+                    .unwrap();
+                }
             }
         }
-        source.push_str("};\n\n");
+        source.push_str(if runtime_offsets { "}\n\n" } else { "};\n\n" });
         Ok(())
     }
 

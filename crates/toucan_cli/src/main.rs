@@ -4,7 +4,7 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
-use toucan::{BindingOptions, Config, MacroType, Target};
+use toucan::{BindingOptions, Config, MacroType, RustTarget, Target};
 
 #[cfg(all(feature = "performance-allocator", unix, not(target_os = "openbsd")))]
 #[global_allocator]
@@ -64,6 +64,9 @@ enum Command {
         /// Emit byte string macros as CStr; reject interior NUL bytes.
         #[arg(long)]
         generate_cstr: bool,
+        /// Minimum Rust version for generated declarations (1.64 or newer).
+        #[arg(long, default_value_t = RustTarget::default())]
+        rust_target: RustTarget,
     },
     /// Print native preprocessor output without invoking a C compiler.
     Preprocess {
@@ -221,6 +224,7 @@ fn run(cli: Cli) -> Result<()> {
             blocklist_functions,
             raw_lines_file,
             generate_cstr,
+            rust_target,
         } => {
             let mut macro_type_overrides = std::collections::BTreeMap::new();
             for item in macro_type_for {
@@ -248,6 +252,7 @@ fn run(cli: Cli) -> Result<()> {
                 blocklist_functions,
                 raw_lines,
                 generate_cstr,
+                rust_target,
                 macro_type: if macro_type == "unsigned" {
                     MacroType::Unsigned
                 } else {

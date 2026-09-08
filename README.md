@@ -207,3 +207,25 @@ The CLI exposes these as `--macro-type-for 'SQLITE_TRACE_*=unsigned'`,
 [SQLite consumer validation](tools/sqlite_consumer/README.md) regenerates the
 bindings used by pinned, unmodified rusqlite and libsqlite3-sys code, then executes
 queries, callbacks, and serialization against the bundled C library.
+
+### Generated Rust versions
+
+Use `--rust-target 1.64`, or `BindingOptions { rust_target:
+RustTarget::RUST_1_64, ..Default::default() }`, to select the minimum Rust version
+for generated declarations. The default is Rust 1.96. Before Rust 1.82, output
+uses legacy extern blocks for Rust editions 2018 and 2021. Before Rust 1.77,
+field-offset assertions are generated `#[test]` functions; run `rustc --test`
+on the bindings to execute them. Size and alignment remain compile-time checks.
+
+128-bit ABI types require Rust 1.78 with its bundled LLVM, and rustified 128-bit
+enums require Rust 1.89. Standalone 128-bit constants work on Rust 1.64. For targets
+before 1.78, an empty allowlist omits the reserved `__int128_t` and `__uint128_t`
+alias names as selection roots and lists them in `skipped_declarations`.
+Explicit selection, or a selected declaration depending on those types, produces
+an ABI diagnostic. Reports include `rust_target`; caller-provided raw lines remain
+outside this version contract.
+
+The ABI restriction follows Rust's [128-bit compatibility changes](https://blog.rust-lang.org/2024/03/30/i128-layout-update/).
+The enum restriction follows the [Rust 1.89 stabilization](https://github.com/rust-lang/rust/pull/138285).
+The [zstd fixture](tools/zstd_consumer/README.md) validates both upstream and Toucan
+bindings with Rust 1.64 and a pinned compatible dependency lock.

@@ -2,6 +2,7 @@
 name = "toucan-zstd-consumer"
 version = "0.0.0"
 edition = "2021"
+rust-version = "1.64"
 publish = false
 
 [workspace]

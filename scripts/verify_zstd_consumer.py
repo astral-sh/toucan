@@ -36,6 +36,9 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--target", required=True)
     parser.add_argument("--sysroot", type=Path)
+    parser.add_argument(
+        "--rust-toolchain", help="Installed rustup toolchain to test, such as 1.64.0"
+    )
     args = parser.parse_args()
     output, cache = args.output.resolve(), args.cache.resolve()
     output.mkdir(parents=True, exist_ok=True)
@@ -69,8 +72,19 @@ def main() -> None:
         return stdout.read_text()
 
     try:
-        evidence["rustc"] = run(["rustc", "--version", "--verbose"], "rustc").strip()
-        evidence["cargo"] = run(["cargo", "--version"], "cargo").strip()
+        rustc = (
+            ["rustup", "run", args.rust_toolchain, "rustc"]
+            if args.rust_toolchain
+            else ["rustc"]
+        )
+        cargo = (
+            ["rustup", "run", args.rust_toolchain, "cargo"]
+            if args.rust_toolchain
+            else ["cargo"]
+        )
+        evidence["rust_target"] = "1.64"
+        evidence["rustc"] = run([*rustc, "--version", "--verbose"], "rustc").strip()
+        evidence["cargo"] = run([*cargo, "--version"], "cargo").strip()
         fixture = ROOT / "tools/zstd_consumer"
         metadata = json.loads(
             run(
@@ -102,6 +116,40 @@ def main() -> None:
             dirs_exist_ok=True,
             ignore=shutil.ignore_patterns("target"),
         )
+        if args.rust_toolchain:
+            # Modern Cargo fetches the locked sources. Cargo 1.64 then reads only
+            # the vendored directory, including on hosts using sparse registries.
+            vendor_config = run(
+                [
+                    "cargo",
+                    "vendor",
+                    "--locked",
+                    "--respect-source-config",
+                    "--manifest-path",
+                    str(fixture / "Cargo.toml"),
+                    str(cache / "vendor"),
+                ],
+                "vendor-dependencies",
+            )
+            config = cache / "vendor-config.toml"
+            config.write_text(vendor_config)
+            cargo.extend(["--config", str(config)])
+            evidence["baseline_result"] = run(
+                [
+                    *cargo,
+                    "run",
+                    "--release",
+                    "--locked",
+                    "--offline",
+                    "--manifest-path",
+                    str(consumer / "Cargo.toml"),
+                    "--target-dir",
+                    str(cache / "baseline-target"),
+                    "-j",
+                    "4",
+                ],
+                "run-upstream-consumer",
+            ).strip()
         with (consumer / "Cargo.toml").open("a") as manifest:
             manifest.write(
                 f"\n[patch.crates-io]\nzstd-sys = {{ path = {json.dumps(str(sys_copy))} }}\n"
@@ -127,6 +175,8 @@ def main() -> None:
             "ZSTD*",
             "--allowlist",
             "ZDICT*",
+            "--rust-target",
+            "1.64",
             "--rustified-enums",
             "--size-t-is-usize",
             "--macro-type",
@@ -140,6 +190,27 @@ def main() -> None:
             generate.extend(["--sysroot", str(args.sysroot)])
         run(generate, "generate-bindings")
         shutil.copyfile(bindings, output / "bindings.rs")
+        # Before Rust 1.77 the generated field-offset assertions are tests.
+        # Run every assertion with the same compiler used by the consumer.
+        layout_tests = output / "layout-tests"
+        run(
+            [
+                *rustc,
+                "--edition=2021",
+                "--test",
+                "--crate-name",
+                "bindings_layout",
+                "-A",
+                "warnings",
+                "-D",
+                "improper_ctypes",
+                str(bindings),
+                "-o",
+                str(layout_tests),
+            ],
+            "compile-layout-tests",
+        )
+        evidence["layout_tests"] = run([str(layout_tests)], "run-layout-tests").strip()
         patched = json.loads(
             run(
                 [
@@ -158,9 +229,11 @@ def main() -> None:
         )
         result = run(
             [
-                "cargo",
+                *cargo,
                 "run",
+                "--release",
                 "--locked",
+                "--offline",
                 "--manifest-path",
                 str(consumer / "Cargo.toml"),
                 "--target-dir",

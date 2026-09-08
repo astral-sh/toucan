@@ -29,7 +29,28 @@ integer aliases cannot compile those Rust callers. Toucan exposes the options as
 `--rustified-enums`, `--size-t-is-usize`, and `--macro-type unsigned`; its default
 representation preserves C integer expression types.
 
-This checks current Rust compilation on the native corpus targets. The upstream
-generator also requests Rust 1.64 output; compatibility with that older compiler
-is not established by this harness. Consumer paths using zstd's experimental,
-seekable, or multithreaded features need separate coverage.
+CI checks both the current compiler and Rust 1.64 on the native corpus targets.
+Consumer paths using zstd's experimental, seekable, or multithreaded features need
+separate coverage.
+
+## Rust 1.64
+
+Generation requests `--rust-target 1.64`, matching upstream's build script. Every
+generated field-offset test runs with the compiler used by the consumer; size and
+alignment assertions remain compile-time checks. To use an installed Rust 1.64
+toolchain, add `--rust-toolchain 1.64.0` to the command above. This also builds and
+runs the same optimized consumer with upstream's checked-in bindings as a baseline.
+
+The lock uses Cargo's version 3 format and pins Rust 1.64-compatible build
+dependencies: cc 1.4.2, find-msvc-tools 0.1.10, jobserver 0.1.32, libc 0.2.183,
+pkg-config 0.3.34, and shlex 2.0.1. The three zstd crate versions are unchanged.
+Newer jobserver releases pull target-specific dependencies with newer Rust
+requirements. The harness uses current Cargo to vendor the locked dependencies,
+then runs Cargo 1.64 offline against that directory, so sparse registry settings
+do not require unstable Cargo flags. Source checksums remain checked by Cargo.
+
+CI also runs `scripts/verify_rust_target.py` against all four corpus libraries,
+compiling their generated bindings with Rust 1.64 and executing every generated
+layout test. The standalone Rust regression exercises packed records, unions,
+bitfields, nested records, 128-bit constants, and `core::ffi::CStr`, and proves
+that an incorrect expected field offset fails the test.
