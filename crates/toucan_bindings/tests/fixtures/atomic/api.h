@@ -47,3 +47,6 @@ AtomicBool c_callback_b(AtomicBool(*f)(AtomicBool),AtomicBool x);
 AtomicFloat c_callback_f(AtomicFloat(*f)(AtomicFloat),AtomicFloat x);
 AtomicDouble c_callback_d(AtomicDouble(*f)(AtomicDouble),AtomicDouble x);
 AtomicPointer c_callback_p(AtomicPointer(*f)(AtomicPointer),AtomicPointer x);
+typedef _Atomic(unsigned char) AtomicUChar;
+typedef _Atomic(unsigned short) AtomicUShort;
+int c_narrow_stress(AtomicChar(*)(AtomicChar),AtomicShort(*)(AtomicShort),AtomicUChar(*)(AtomicUChar),AtomicUShort(*)(AtomicUShort));

@@ -9,7 +9,11 @@ toucan inspect api.h --target aarch64-unknown-linux-gnu --compiler clang --check
 
 Toucan does not invoke an installed compiler. `--compiler` selects the frontend's
 implemented semantics, builtin signatures, predefined macros, and layout rules.
-Include paths and sysroots remain explicit inputs.
+Include paths and sysroots remain explicit inputs. Choose the compiler family
+used to build the C library: compiler differences can affect its call ABI as well
+as header acceptance and record layout. For example, narrow atomic calls supported
+by the GNU profile cannot be used with a Clang-built library; see
+[atomic call boundaries](compatibility.md#c11-atomic-types).
 
 | Physical target | Default | Other supported compiler |
 | --- | --- | --- |

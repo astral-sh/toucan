@@ -32,3 +32,10 @@ AtomicBool c_callback_b(AtomicBool(*f)(AtomicBool),AtomicBool x){return f(x);}
 AtomicFloat c_callback_f(AtomicFloat(*f)(AtomicFloat),AtomicFloat x){return f(x);}
 AtomicDouble c_callback_d(AtomicDouble(*f)(AtomicDouble),AtomicDouble x){return f(x);}
 AtomicPointer c_callback_p(AtomicPointer(*f)(AtomicPointer),AtomicPointer x){return f(x);}
+int c_narrow_stress(AtomicChar(*a)(AtomicChar),AtomicShort(*b)(AtomicShort),AtomicUChar(*c)(AtomicUChar),AtomicUShort(*d)(AtomicUShort)){
+    for(int n=-128;n<=127;n++){AtomicChar result=a(n);if(result!=(n<0?n+1:n-1))return 1;}
+    for(int n=-32768;n<=32767;n++){AtomicShort result=b(n);if(result!=(n<0?n+1:n-1))return 2;}
+    for(unsigned n=0;n<=255;n++){AtomicUChar result=c(n);if(result!=(n==0?255:n-1))return 3;}
+    for(unsigned n=0;n<=65535;n++){AtomicUShort result=d(n);if(result!=(n==0?65535:n-1))return 4;}
+    return 0;
+}

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use std::fmt::Write;
 
 use toucan_semantic::{IntegerKind, Qualifiers, Type, TypeKind};
+use toucan_target::Compiler;
 
 use crate::{Emitter, Error, check_depth};
 
@@ -251,15 +252,29 @@ impl Emitter<'_> {
         Ok(())
     }
 
-    /// C atomic scalar values cross calls as ordinary values, independently of
-    /// their Rust storage type. Atomic enums use all compatible integer values,
-    /// even when ordinary enums are emitted as restricted Rust enums.
+    /// Supported atomic scalar values cross calls independently of their Rust
+    /// storage type; narrow Clang values need a separate ABI carrier. Atomic
+    /// enums use all compatible integer values, including with rustified enums.
     pub(super) fn call_value_type(&self, ty: &Type, depth: usize) -> Result<String, Error> {
         check_depth(depth)?;
         let Some(value) = self.unit.atomic_value(ty)? else {
             return self.ty_at(ty, depth);
         };
         let resolved = self.unit.resolve(value)?;
+        if self.unit.compiler == Compiler::Clang
+            && matches!(
+                resolved.kind,
+                TypeKind::Bool | TypeKind::Integer(_) | TypeKind::Enum(_)
+            )
+            && self.unit.layout(value)?.size_bits < 32
+        {
+            // Clang atomic values omit the primitive ABI's integer extension.
+            // This breaks optimized callbacks on x86-64 Linux and Darwin ARM.
+            // A repr(C) wrapper also changes ARM stack argument slots.
+            return Err(Error(
+                "narrow atomic scalar calls under Clang have no supported Rust ABI carrier; use C pointer accessors".into(),
+            ));
+        }
         if matches!(resolved.kind, TypeKind::Integer(_) | TypeKind::Enum(_))
             && self.unit.layout(value)?.size_bits == 128
         {

@@ -1,6 +1,6 @@
 use toucan_bindings::{Options, RustTarget, generate};
 use toucan_semantic::analyze;
-use toucan_target::Target;
+use toucan_target::{Compiler, CompilerProfile, Target};
 
 fn bindings(
     source: &str,
@@ -13,12 +13,18 @@ fn bindings(
 fn atomic_storage_and_scalar_call_boundaries_are_separate() {
     let source = "typedef _Atomic(int) A;typedef _Atomic(_Bool) B;typedef _Atomic(int*) P;typedef _Atomic(float) F;enum E{LOW=-2,HIGH=1};typedef _Atomic(enum E) AE;A f(A);B b(B);P p(P);F g(F);AE e(AE);typedef A(*Callback)(A);void use_callback(Callback);struct S{A a;B b;P p;F f;};";
     for target in Target::ALL {
+        let narrow_calls = CompilerProfile::default_for(target).compiler() == Compiler::Gnu;
         for rustified_enums in [false, true] {
             let source = bindings(
                 source,
                 target,
                 &Options {
                     rustified_enums,
+                    blocklist_functions: if !narrow_calls {
+                        vec!["b".into()]
+                    } else {
+                        vec![]
+                    },
                     ..Options::default()
                 },
             )
@@ -30,10 +36,11 @@ fn atomic_storage_and_scalar_call_boundaries_are_separate() {
                     .contains("pub type P = ::core::sync::atomic::AtomicPtr<::core::ffi::c_int>;")
             );
             assert!(source.contains("pub fn f(arg0: ::core::ffi::c_int) -> ::core::ffi::c_int;"));
-            assert!(
+            assert_eq!(
                 source.contains(
                     "pub fn b(arg0: ::core::primitive::bool) -> ::core::primitive::bool;"
-                )
+                ),
+                narrow_calls,
             );
             assert!(
                 source
@@ -233,18 +240,89 @@ fn shared_atomic_record_subgraphs_are_checked_once() {
     assert!(error.0.contains("atomic storage cannot cross"), "{error}");
 }
 
+#[test]
+fn clang_narrow_atomic_values_reject_calls_but_preserve_storage() {
+    for profile in CompilerProfile::ALL {
+        for value in [
+            "_Bool",
+            "char",
+            "signed char",
+            "unsigned char",
+            "short",
+            "unsigned short",
+        ] {
+            for declaration in [
+                "void f(A);",
+                "A f(void);",
+                "typedef A (*Callback)(A);void f(Callback);",
+                "struct S{A(*callback)(A);};",
+                "typedef _Atomic(A(*)(A)) Callback;Callback f(void);",
+            ] {
+                let source = format!("typedef _Atomic({value}) A;{declaration}");
+                let analysis =
+                    toucan_semantic::analyze_with_profile(&source, profile, &Default::default())
+                        .unwrap();
+                let output = generate(analysis.unit(), &Options::default());
+                if profile.compiler() == Compiler::Clang {
+                    assert!(
+                        output
+                            .unwrap_err()
+                            .0
+                            .contains("narrow atomic scalar calls under Clang"),
+                        "{source}"
+                    );
+                } else {
+                    output.unwrap();
+                }
+            }
+            let source = format!(
+                "typedef _Atomic({value}) A;A global;struct S{{A array[3];}};void access(A*,struct S*);"
+            );
+            let analysis =
+                toucan_semantic::analyze_with_profile(&source, profile, &Default::default())
+                    .unwrap();
+            let output = generate(analysis.unit(), &Options::default())
+                .unwrap()
+                .source;
+            assert!(output.contains("pub fn access("));
+            assert!(output.contains("::core::sync::atomic::Atomic"));
+            assert!(!output.contains("#[derive(Clone, Copy)]\npub struct S"));
+        }
+    }
+}
+
 const API: &str = include_str!("fixtures/atomic/api.h");
-fn fixture(target: Target) -> String {
-    bindings(
-        API,
-        target,
+fn fixture(profile: CompilerProfile) -> String {
+    let analysis =
+        toucan_semantic::analyze_with_profile(API, profile, &Default::default()).unwrap();
+    generate(
+        analysis.unit(),
         &Options {
             rust_target: RustTarget::RUST_1_64,
             rustified_enums: true,
+            // Selection is explicit: the unchanged C fixture still checks these
+            // valid declarations, but their Clang call ABI is rejected above.
+            blocklist_functions: if profile.compiler() == Compiler::Clang {
+                [
+                    "c_i8",
+                    "c_i16",
+                    "c_b",
+                    "c_many",
+                    "c_callback_i8",
+                    "c_callback_i16",
+                    "c_callback_b",
+                    "c_narrow_stress",
+                ]
+                .map(str::to_owned)
+                .to_vec()
+            } else {
+                vec![]
+            },
             ..Options::default()
         },
     )
     .unwrap()
+    .source
 }
 fn rustc() -> String {
     std::env::var("TOUCAN_TEST_RUSTC").unwrap_or_else(|_| "rustc".into())
@@ -274,13 +352,20 @@ fn generated_storage_and_scalar_values_cross_the_c_rust_abi() {
     ] {
         std::fs::write(directory.path().join(name), source).unwrap();
     }
-    std::fs::write(directory.path().join("bindings.rs"), fixture(target)).unwrap();
     let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
     let identity = Command::new(&gcc).arg("--version").output().unwrap();
     assert!(
         identity.status.success() && !String::from_utf8_lossy(&identity.stdout).contains("clang")
     );
     for compiler in [gcc, "clang".into()] {
+        let profile = if compiler == "clang" {
+            CompilerProfile::new(target, Compiler::Clang).unwrap()
+        } else {
+            // GNU Darwin profiles are not provided; exercise the common wider
+            // scalar/storage interface against both installed C compilers.
+            CompilerProfile::default_for(target)
+        };
+        std::fs::write(directory.path().join("bindings.rs"), fixture(profile)).unwrap();
         for opt in ["0", "2"] {
             let out = Command::new(&compiler)
                 .current_dir(directory.path())
@@ -299,30 +384,52 @@ fn generated_storage_and_scalar_values_cross_the_c_rust_abi() {
                 "{compiler}: {}",
                 String::from_utf8_lossy(&out.stderr)
             );
-            let mut command = Command::new(rustc());
-            command.current_dir(directory.path()).args([
-                "--edition=2021",
-                "-C",
-                &format!("opt-level={opt}"),
-                "-C",
-                "link-arg=native.o",
-                "consumer.rs",
-                "-o",
-                "consumer",
-            ]);
-            if cfg!(target_os = "linux") {
-                command.args(["-l", "atomic"]);
-            }
-            let out = command.output().unwrap();
+            // A native archive participates in normal library ordering. A raw
+            // link-arg object appears after libc and can lose its dependencies.
+            let out = Command::new("ar")
+                .current_dir(directory.path())
+                .args(["crs", "libnative.a", "native.o"])
+                .output()
+                .unwrap();
             assert!(
                 out.status.success(),
-                "{compiler}: {}",
+                "{}",
                 String::from_utf8_lossy(&out.stderr)
             );
-            let status = Command::new(directory.path().join("consumer"))
-                .status()
-                .unwrap();
-            assert!(status.success(), "{compiler} -O{opt}: {status}");
+            for rust_opt in ["0", "3"] {
+                let mut command = Command::new(rustc());
+                command.current_dir(directory.path()).args([
+                    "--edition=2021",
+                    "-C",
+                    &format!("opt-level={rust_opt}"),
+                    "-L",
+                    "native=.",
+                    "-l",
+                    "static=native",
+                    "consumer.rs",
+                    "-o",
+                    "consumer",
+                ]);
+                if profile.compiler() == Compiler::Gnu {
+                    command.args(["--cfg", "toucan_atomic_narrow_calls"]);
+                }
+                if cfg!(target_os = "linux") {
+                    command.args(["-l", "atomic"]);
+                }
+                let out = command.output().unwrap();
+                assert!(
+                    out.status.success(),
+                    "{compiler}: {}",
+                    String::from_utf8_lossy(&out.stderr)
+                );
+                let status = Command::new(directory.path().join("consumer"))
+                    .status()
+                    .unwrap();
+                assert!(
+                    status.success(),
+                    "{compiler} -O{opt}, Rust opt-level={rust_opt}: {status}"
+                );
+            }
         }
     }
 }
@@ -342,7 +449,7 @@ fn generated_layouts_match_compiler_targets() {
     let all = std::env::var("TOUCAN_TEST_ALL_RUST_TARGETS").as_deref() == Ok("1");
     let mut rust_targets = 0;
     for target in Target::ALL {
-        let output = fixture(target);
+        let output = fixture(CompilerProfile::default_for(target));
         std::fs::write(
             directory.path().join("bindings.rs"),
             format!("#![allow(non_camel_case_types)]\n{output}"),
@@ -424,7 +531,11 @@ fn generated_atomic_storage_rejects_copy_and_opaque_thread_traits() {
         .find_map(|s| s.strip_prefix("host: "))
         .unwrap();
     let target = Target::parse(host).unwrap();
-    std::fs::write(directory.path().join("bindings.rs"), fixture(target)).unwrap();
+    std::fs::write(
+        directory.path().join("bindings.rs"),
+        fixture(CompilerProfile::default_for(target)),
+    )
+    .unwrap();
     let prelude = "#![allow(non_camel_case_types,dead_code)]\nmod bindings{include!(\"bindings.rs\");}use bindings::*;";
     for (name, body, expected) in [
         (

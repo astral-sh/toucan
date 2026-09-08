@@ -810,8 +810,11 @@ alignment assertions. Atomic enums use their compatible integer storage even
 when `rustified_enums` is enabled, so values outside the named enumerators remain
 representable. Function parameters and results use ordinary scalar carriers,
 including nested callbacks; a pointer to an atomic object still points to atomic
-storage. Altered scalar alignment and 128-bit atomic values require a separate
-call-ABI proof and are currently diagnosed. Their opaque object storage can still
+storage. Clang atomic Boolean and integer values narrower than 32 bits are
+rejected at call boundaries, including callbacks: their ABI differs from the
+ordinary Rust scalar carrier. GNU profiles retain narrow scalar calls. Altered
+scalar alignment and 128-bit atomic values also require a separate call-ABI
+proof and are currently diagnosed. Their opaque object storage can still
 be used through C pointers when its layout is representable.
 
 Atomic floats, records, qualified objects and other storage without a compatible
@@ -835,6 +838,18 @@ by the ignored tests when CI runs them. These checks do not prove every C/Rust
 concurrency interaction, atomic aggregate call ABI, or lock-free implementation.
 Atomic type collection is bounded, and selections without atomics allocate no
 atomic registry or containment cache.
+
+[Atomic call-ABI regression evidence](../corpus/evidence/atomic-call-abi-2026-09-08.json)
+records a native Clang/Rust counterexample: an atomic signed byte containing `-1`
+reaches an optimized Rust callback as `255`. The failure also occurs for narrow
+signed callbacks on Apple ARM. A one-field `repr(C)` wrapper changes ARM stack
+argument slots, so equal storage layout does not repair the call boundary.
+The updated native oracle selects the compiler profile explicitly, tests C
+O0/O2 against Rust O0/O3, and checks every signed and unsigned 8/16-bit value on
+the accepted GNU path. Clang storage and wider scalar calls remain exercised.
+The C object is linked through a static archive so its runtime dependencies
+precede the platform libraries. Native ARM and macOS runs remain CI gates;
+the recorded local executions are x86_64 Linux.
 
 [Atomic type evidence](../corpus/evidence/atomic-types-2026-09-08.json) records
 compiler layout and constraint probes, native operations, retained graph checks,
