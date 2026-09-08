@@ -142,7 +142,12 @@ fn statement_expression_work_is_bounded_and_metadata_does_not_leak() {
 #[test]
 #[ignore = "requires GCC and Clang; run with --include-ignored"]
 fn statement_expression_constraints_match_native_compilers() {
-    for (compiler, target) in [("gcc", GNU), ("clang", CLANG)] {
+    for compiler in ["gcc", "clang"] {
+        let target = if is_gnu_compiler(compiler) {
+            GNU
+        } else {
+            CLANG
+        };
         for (cases, accepted) in [
             (VALID, true),
             (INVALID, false),
@@ -181,4 +186,20 @@ fn statement_expression_constraints_match_native_compilers() {
             }
         }
     }
+}
+
+/// macOS installs Apple Clang under both `clang` and `gcc` command names.
+fn is_gnu_compiler(compiler: &str) -> bool {
+    let output = Command::new(compiler)
+        .arg("--version")
+        .output()
+        .expect("required C compiler");
+    assert!(output.status.success(), "{compiler} --version failed");
+    let version = String::from_utf8(output.stdout).unwrap();
+    let gnu = version.contains("Free Software Foundation");
+    assert!(
+        gnu || version.to_ascii_lowercase().contains("clang"),
+        "unknown compiler: {version}"
+    );
+    gnu
 }

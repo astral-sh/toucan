@@ -369,7 +369,7 @@ fn code_units_and_character_values_match_native_compilers() {
             r"L'\xffffffff'",
             r"U'\U0001f600'",
         ];
-        if compiler == "gcc" {
+        if is_gnu_compiler(compiler) {
             characters.extend(["'é'", "L'ab'", r"u'\U0001f600'"]);
         }
         for character in characters {
@@ -393,7 +393,7 @@ fn code_units_and_character_values_match_native_compilers() {
             Command::new(&executable).status().unwrap().success(),
             "{compiler}: literal values differ"
         );
-        if compiler == "clang" {
+        if !is_gnu_compiler(compiler) {
             for character in ["'é'", "L'ab'", r"u'\U0001f600'"] {
                 assert!(
                     !compile(
@@ -407,4 +407,20 @@ fn code_units_and_character_values_match_native_compilers() {
             }
         }
     }
+}
+
+/// macOS installs Apple Clang under both `clang` and `gcc` command names.
+fn is_gnu_compiler(compiler: &str) -> bool {
+    let output = Command::new(compiler)
+        .arg("--version")
+        .output()
+        .expect("required C compiler");
+    assert!(output.status.success(), "{compiler} --version failed");
+    let version = String::from_utf8(output.stdout).unwrap();
+    let gnu = version.contains("Free Software Foundation");
+    assert!(
+        gnu || version.to_ascii_lowercase().contains("clang"),
+        "unknown compiler: {version}"
+    );
+    gnu
 }

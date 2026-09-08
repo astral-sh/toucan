@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "name": "c-testsuite",
+  "repository": "https://github.com/c-testsuite/c-testsuite",
+  "commit": "5c7275656d751de0e68b2d340a95b5681858ed07",
+  "archive_url": "https://codeload.github.com/c-testsuite/c-testsuite/tar.gz/5c7275656d751de0e68b2d340a95b5681858ed07",
+  "archive_sha256": "010008bf4b5671f947ae7e8d693a1c959a4a4d795fa7227c0abb1f95de45f7e7",
+  "archive_root": "c-testsuite-5c7275656d751de0e68b2d340a95b5681858ed07",
+  "tests_directory": "tests/single-exec",
+  "source_count": 220,
+  "licensing": {
+    "harness": {
+      "license": "MIT",
+      "file": "LICENSE"
+    },
+    "tests_notice": "tests/LICENSE",
+    "note": "The harness license does not apply to all fixtures. tests/LICENSE directs users to per-test .otags origin records. This manifest records upstream repository license files, not a complete per-fixture redistribution audit.",
+    "origins": [
+      {
+        "sidecar_repository": "git://git.simple-cc.org/scc",
+        "commit": "355356a9836e487939cf5e98b5332a63e5264e27",
+        "repository": "https://github.com/k0gaMSX/scc",
+        "repository_license": "ISC",
+        "license_url": "https://github.com/k0gaMSX/scc/blob/355356a9836e487939cf5e98b5332a63e5264e27/LICENSE"
+      },
+      {
+        "sidecar_repository": "git://repo.or.cz/tinycc.git",
+        "commit": "61ba9f229955f105af9d7dcdbfcc9c9effbe8af3",
+        "repository": "https://github.com/TinyCC/tinycc",
+        "repository_license_file": "COPYING (GNU LGPL version 2.1)",
+        "license_url": "https://github.com/TinyCC/tinycc/blob/61ba9f229955f105af9d7dcdbfcc9c9effbe8af3/COPYING"
+      }
+    ],
+    "missing_origin_sidecars": ["00001.c"]
+  }
+}
