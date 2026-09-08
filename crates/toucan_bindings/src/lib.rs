@@ -826,8 +826,9 @@ fn floating_constant_named(
     rust_target: RustTarget,
 ) -> Result<String, Error> {
     let (width, bits) = match value.kind() {
-        FloatKind::Float => (32, value.to_bits()),
-        FloatKind::Double => (64, value.to_bits()),
+        FloatKind::Float | FloatKind::FLOAT32 => (32, value.to_bits()),
+        FloatKind::Double | FloatKind::FLOAT64 | FloatKind::FLOAT32X => (64, value.to_bits()),
+        FloatKind::FLOAT64X => return Err(Error("_Float64x macro constants have no Rust representation; use an explicit float or double cast".into())),
         kind if kind.is_narrow() => return Err(Error(format!("{} macro constants have no Rust representation; use an explicit float or double cast", if kind == FloatKind::BFloat16 {"__bf16"} else {"_Float16"}))),
         _ => return Err(Error("long double macro constants have no Rust representation; use an explicit float or double cast".into())),
     };
@@ -1405,8 +1406,9 @@ impl Emitter<'_> {
                 }
             ),
             TypeKind::Complex(_) => return Err(complex::storage_error()),
-            TypeKind::Float(FloatKind::Float) => "::core::primitive::f32".into(),
-            TypeKind::Float(FloatKind::Double) => "::core::primitive::f64".into(),
+            TypeKind::Float(FloatKind::Float | FloatKind::FLOAT32) => "::core::primitive::f32".into(),
+            TypeKind::Float(FloatKind::Double | FloatKind::FLOAT64 | FloatKind::FLOAT32X) => "::core::primitive::f64".into(),
+            TypeKind::Float(FloatKind::FLOAT64X) => return Err(Error("_Float64x uses target long-double storage and has no supported Rust ABI representation".into())),
             TypeKind::Float(kind) if kind.is_narrow() => {
                 return Err(Error(format!(
                     "{} has no supported Rust scalar ABI representation",

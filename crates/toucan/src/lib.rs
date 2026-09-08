@@ -400,7 +400,11 @@ impl Compilation {
                     Ok(semantic::ArithmeticConstant::Floating(value)) => {
                         if matches!(
                             value.kind(),
-                            semantic::FloatKind::Float | semantic::FloatKind::Double
+                            semantic::FloatKind::Float
+                                | semantic::FloatKind::Double
+                                | semantic::FloatKind::FLOAT32
+                                | semantic::FloatKind::FLOAT64
+                                | semantic::FloatKind::FLOAT32X
                         ) {
                             macros.insert(
                                 name.clone(),
@@ -412,6 +416,8 @@ impl Compilation {
                                 name: name.clone(),
                                 reason: if value.kind().is_narrow() {
                                     format!("{} macro constants have no Rust representation; use an explicit float or double cast", if value.kind() == semantic::FloatKind::BFloat16 {"__bf16"} else {"_Float16"})
+                                } else if value.kind() == semantic::FloatKind::FLOAT64X {
+                                    "_Float64x macro constants have no Rust representation; use an explicit float or double cast".into()
                                 } else if value.kind() == semantic::FloatKind::FLOAT128 {
                                     "binary128 macro constants have no verified Rust representation; use an explicit float or double cast".into()
                                 } else {

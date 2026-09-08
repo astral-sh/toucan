@@ -10126,7 +10126,21 @@ fn __parse_type_specifier_nonunique<'input>(__input: &'input str, __state: &mut 
                                                                                                         res
                                                                                                     };
                                                                                                     match __seq_res {
-                                                                                                        Matched(__pos, t) => Matched(__pos, { TypeSpecifier::TS18661Float(t) }),
+                                                                                                        Matched(__pos, t) => {
+                                                                                                            match {
+                                                                                                                if env.is_ts18661_keyword(&t) {
+                                                                                                                    Ok(TypeSpecifier::TS18661Float(t))
+                                                                                                                } else {
+                                                                                                                    Err("GNU floating type keyword")
+                                                                                                                }
+                                                                                                            } {
+                                                                                                                Ok(res) => Matched(__pos, res),
+                                                                                                                Err(expected) => {
+                                                                                                                    __state.mark_failure(__pos, expected);
+                                                                                                                    Failed
+                                                                                                                }
+                                                                                                            }
+                                                                                                        }
                                                                                                         Failed => Failed,
                                                                                                     }
                                                                                                 };

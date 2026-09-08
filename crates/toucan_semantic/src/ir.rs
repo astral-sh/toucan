@@ -922,10 +922,21 @@ impl TranslationUnit {
                 IntegerKind::Int128 => target::BuiltinType::Int128,
                 IntegerKind::UnsignedInt128 => target::BuiltinType::UnsignedInt128,
             }),
-            TypeKind::Float(kind) => Some(match kind {
-                FloatKind::Float => target::BuiltinType::Float,
-                FloatKind::Double => target::BuiltinType::Double,
+            TypeKind::Float(kind) => Some(match *kind {
+                FloatKind::Float | FloatKind::FLOAT32 => target::BuiltinType::Float,
+                FloatKind::Double | FloatKind::FLOAT64 | FloatKind::FLOAT32X => {
+                    target::BuiltinType::Double
+                }
                 FloatKind::LongDouble => target::BuiltinType::LongDouble,
+                FloatKind::FLOAT64X if self.compiler == toucan_target::Compiler::Gnu => {
+                    target::BuiltinType::LongDouble
+                }
+                FloatKind::FLOAT64X => {
+                    return Err(Error::new(
+                        0,
+                        "_Float64x layout is only defined in the supported GNU profiles",
+                    ));
+                }
                 FloatKind::BFloat16 | FloatKind::Extended { .. } => {
                     return Err(Error::new(
                         0,
@@ -1010,6 +1021,10 @@ impl TranslationUnit {
                         | FloatKind::Double
                         | FloatKind::LongDouble
                         | FloatKind::FLOAT128
+                        | FloatKind::FLOAT32
+                        | FloatKind::FLOAT64
+                        | FloatKind::FLOAT32X
+                        | FloatKind::FLOAT64X
                 ) {
                     return Err(Error::new(0, "extended complex types are unsupported"));
                 }

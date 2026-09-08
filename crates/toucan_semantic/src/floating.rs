@@ -102,8 +102,18 @@ impl Format {
             FloatKind::FLOAT16 => Self::Binary16,
             FloatKind::FLOAT128 => Self::Binary128,
             FloatKind::BFloat16 => Self::BFloat16,
-            FloatKind::Float => Self::Binary32,
-            FloatKind::Double => Self::Binary64,
+            FloatKind::Float | FloatKind::FLOAT32 => Self::Binary32,
+            FloatKind::Double | FloatKind::FLOAT64 | FloatKind::FLOAT32X => Self::Binary64,
+            FloatKind::FLOAT64X => match target {
+                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl => Self::X87,
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => Self::Binary128,
+                _ => {
+                    return Err(Error::new(
+                        offset,
+                        "_Float64x format is unsupported outside GNU Linux targets",
+                    ));
+                }
+            },
             FloatKind::LongDouble => match target {
                 Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl

@@ -2707,6 +2707,20 @@ impl Analyzer {
                             if self.unit.typedefs.contains_key(&name) {
                                 TypeKind::Typedef(name)
                             } else {
+                                if matches!(
+                                    float.format,
+                                    ast::TS18661FloatFormat::BinaryInterchange
+                                        | ast::TS18661FloatFormat::BinaryExtended
+                                ) && matches!(float.width, 32 | 64)
+                                {
+                                    if self.unit.compiler != Compiler::Gnu {
+                                        return Err(Error::new(
+                                            ty.span.start,
+                                            "GNU _Float32/_Float64/_Float32x/_Float64x types are unavailable in the Clang profile",
+                                        ));
+                                    }
+                                    direct_complex_base = true;
+                                }
                                 if float.format == ast::TS18661FloatFormat::BinaryInterchange
                                     && float.width == 128
                                 {

@@ -675,7 +675,10 @@ type_specifier_nonunique -> TypeSpecifier =
     K<"signed" / gnu<"__signed" "__"?>> { TypeSpecifier::Signed } /
     K<"unsigned"> { TypeSpecifier::Unsigned } /
     K<"_Complex" / gnu<"__complex" "__"?>> { TypeSpecifier::Complex } /
-    t:K<ts18661_float_type_specifier> { TypeSpecifier::TS18661Float(t) } /
+    t:K<ts18661_float_type_specifier> {?
+        if env.is_ts18661_keyword(&t) { Ok(TypeSpecifier::TS18661Float(t)) }
+        else { Err("GNU floating type keyword") }
+    } /
     gnu<typeof_specifier>
 
 struct_or_union_specifier -> StructType =

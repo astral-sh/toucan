@@ -71,7 +71,8 @@ arithmetic, comparisons, and boolean conversions are supported. Integer casts of
 either NaN kind report an out-of-range value.
 
 Rust bindings emit `float` and `double` macro values as `f32` and `f64`
-using exact bit patterns. For Rust 1.83 and later, emission uses `from_bits`;
+using exact bit patterns. The same carriers support GNU `_Float32`, `_Float64`,
+and `_Float32x`; their C identities remain distinct during analysis. For Rust 1.83 and later, emission uses `from_bits`;
 Rust 1.64–1.82 uses an equal-width const transmute because `from_bits` was not yet
 const-stable. Every integer bit pattern is valid for the corresponding IEEE float.
 `long double` macro values remain explicitly unsupported in Rust bindings, even
@@ -528,7 +529,9 @@ code for these operations.
   see [half types](half-types.md) for constant-precision and Rust ABI limits.
   [Binary128](binary128.md) has target-aware spelling, literal, machine-mode,
   semantic, layout, constant, and checked-code support. Its Rust storage/call ABI
-  remains unsupported. Other extended floating-point types retain their identity but do not have
+  remains unsupported. [GNU `_Float32`, `_Float64`, `_Float32x`, and `_Float64x`](gnu-float-types.md)
+  have nominal typing, target layout, and exact constants; the first three have
+  verified `f32`/`f64` binding carriers. Other extended floating-point types retain their identity but do not have
   supported layout or binding representations. `long double` has a target layout, but its Rust
   binding representation is not implemented.
 - Large enum constants follow the target's GCC or Clang profile, including their

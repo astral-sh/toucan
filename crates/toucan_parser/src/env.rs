@@ -66,6 +66,12 @@ impl Env {
     }
 
     pub fn with_clang() -> Env {
+        Self::with_clang_profile(false)
+    }
+
+    // GNU also uses the Clang extension grammar, but keeps its own type keywords.
+    // Do not remove and reinsert them: that can grow the keyword hash table.
+    fn with_clang_profile(gnu_types: bool) -> Env {
         let mut symbols = HashMap::default();
         let mut reserved = HashSet::default();
         symbols.insert("__builtin_va_list".to_owned(), Symbol::Typename);
@@ -73,6 +79,11 @@ impl Env {
         reserved.extend(strings::RESERVED_GNU.iter());
         reserved.extend(strings::RESERVED_CLANG.iter());
         reserved.extend(strings::RESERVED_CLANG_CALLING_CONVENTIONS.iter());
+        if !gnu_types {
+            for name in ["_Float32", "_Float64", "_Float32x", "_Float64x"] {
+                reserved.remove(name);
+            }
+        }
         Env {
             definition_scopes: None,
             extensions_gnu: true,
@@ -88,7 +99,7 @@ impl Env {
     }
 
     pub fn with_gnu_and_clang_extensions() -> Env {
-        let mut env = Self::with_clang();
+        let mut env = Self::with_clang_profile(true);
         env.gnu_float128_typedef = true;
         env.reserved.remove("__float128");
         env.clang_calling_conventions = false;
@@ -96,6 +107,20 @@ impl Env {
             env.reserved.remove(name);
         }
         env
+    }
+
+    /// These GNU floating keywords are ordinary identifiers in Clang C.
+    pub fn is_ts18661_keyword(&self, ty: &TS18661FloatType) -> bool {
+        self.gnu_float128_typedef
+            || !self.extensions_clang
+            || !matches!(
+                ty,
+                TS18661FloatType {
+                    format: TS18661FloatFormat::BinaryInterchange
+                        | TS18661FloatFormat::BinaryExtended,
+                    width: 32 | 64,
+                }
+            )
     }
 
     pub fn set_gnu_keywords(&mut self, enabled: bool) {

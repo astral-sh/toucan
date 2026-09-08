@@ -1539,6 +1539,10 @@ impl Analyzer {
                 | crate::FloatKind::Double
                 | crate::FloatKind::LongDouble
                 | crate::FloatKind::FLOAT128
+                | crate::FloatKind::FLOAT32
+                | crate::FloatKind::FLOAT64
+                | crate::FloatKind::FLOAT32X
+                | crate::FloatKind::FLOAT64X
         ) {
             Ok(())
         } else {

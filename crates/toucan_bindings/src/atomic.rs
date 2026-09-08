@@ -267,6 +267,17 @@ impl Emitter<'_> {
             return self.ty_at(ty, depth);
         };
         let resolved = self.unit.resolve(value)?;
+        if matches!(
+            resolved.kind,
+            TypeKind::Float(
+                crate::FloatKind::FLOAT32
+                    | crate::FloatKind::FLOAT64
+                    | crate::FloatKind::FLOAT32X
+                    | crate::FloatKind::FLOAT64X
+            )
+        ) {
+            return Err(Error("atomic GNU interchange/extended floating calls require a separate ABI proof; use C pointer accessors".into()));
+        }
         if matches!(resolved.kind, TypeKind::Complex(_)) {
             return Err(crate::complex::call_abi_error());
         }

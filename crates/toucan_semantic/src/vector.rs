@@ -305,15 +305,16 @@ impl Analyzer {
 
     fn vector_float_precision(&self, kind: FloatKind) -> u32 {
         match kind {
-            FloatKind::Float => 24,
-            FloatKind::Double => 53,
-            FloatKind::LongDouble => match self.unit.target {
+            FloatKind::Float | FloatKind::FLOAT32 => 24,
+            FloatKind::Double | FloatKind::FLOAT64 | FloatKind::FLOAT32X => 53,
+            FloatKind::LongDouble | FloatKind::FLOAT64X => match self.unit.target {
                 Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => 113,
                 Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin => 64,
                 Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc => 53,
             },
+            FloatKind::FLOAT128 => 113,
             FloatKind::FLOAT16 => 11,
             FloatKind::BFloat16 => 8,
             FloatKind::Extended { .. } => 0,
