@@ -208,6 +208,19 @@ pub struct Declaration {
     pub link_name: Option<String>,
     pub is_static: bool,
     pub is_definition: bool,
+    /// Storage allocated by GNU initialization of this object's flexible member.
+    /// This does not change its declared type, record layout, or `sizeof` result.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub flexible_array_storage: Option<FlexibleArrayStorage>,
+}
+
+/// Additional object storage for an initialized flexible array member.
+#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+pub struct FlexibleArrayStorage {
+    pub member_index: usize,
+    pub elements: u64,
+    /// Total allocated storage, including the record prefix and compiler padding.
+    pub size_bits: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]

@@ -380,6 +380,7 @@ pub(crate) struct LexicalScope {
     pub(crate) enum_ids: Vec<usize>,
     pub(crate) typedefs: HashMap<String, Type>,
     pub(crate) static_storage: HashSet<String>,
+    pub(crate) flexible_array_storage: HashMap<String, crate::FlexibleArrayStorage>,
     pub(crate) linked: HashSet<String>,
     pub(crate) register: HashSet<String>,
     pub(crate) tags: Vec<(String, Option<TagBinding>)>,
@@ -749,6 +750,7 @@ impl Analyzer {
                 link_name: None,
                 is_static: false,
                 is_definition: false,
+                flexible_array_storage: None,
             });
             return Ok(());
         }
@@ -906,6 +908,7 @@ impl Analyzer {
                     link_name: declarator_attributes.link_name,
                     is_static,
                     is_definition,
+                    flexible_array_storage: None,
                 });
                 index
             };

@@ -42,6 +42,16 @@ bound. Rust bindings support parameters whose outer array layer adjusts to a
 pointer, and reject remaining runtime-sized array layers. Runtime bound expressions
 and typed bodies are not yet exposed through the public IR.
 
+## Flexible-array initialization
+
+Named static objects may initialize a flexible array under the target compiler's
+GNU extension rules. `Declaration.flexible_array_storage` records the selected
+member, element count, and allocated bits for that object. The declared record
+layout, flexible member type, and `sizeof` remain unchanged. Padding, designators,
+and repeated initializers follow the GCC or Clang profile and are checked against
+C object-symbol sizes. Anonymous compound-literal storage with an initialized
+flexible member remains unsupported.
+
 ## GNU pointer conversions
 
 The supported targets accept GNU conversions between function pointers and

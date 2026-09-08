@@ -700,8 +700,13 @@ impl Analyzer {
                     .insert(name.clone());
             }
             if let Some(initializer) = &item.node.initializer {
-                ty = self.check_initializer(&ty, initializer, is_static)?;
+                let (completed, storage) =
+                    self.check_object_initializer(&ty, initializer, is_static)?;
+                ty = completed;
                 let scope = self.lexical_scopes.last_mut().expect("block scope");
+                if let Some(storage) = storage {
+                    scope.flexible_array_storage.insert(name.clone(), storage);
+                }
                 let index = scope.names[&name].expect("object binding");
                 scope.parameters[index].ty = ty.clone();
             }

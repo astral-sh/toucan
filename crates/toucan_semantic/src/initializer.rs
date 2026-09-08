@@ -1,12 +1,20 @@
 use lang_c::{ast, span::Node};
 
 use crate::analyze::Analyzer;
-use crate::{DeclarationKind, Error, IntegerKind, RecordKind, Type, TypeKind};
+use crate::{
+    DeclarationKind, Error, FlexibleArrayStorage, IntegerKind, RecordKind, Type, TypeKind,
+};
 
 #[derive(Clone, Copy, PartialEq)]
 enum ConstantKind {
     Arithmetic,
     Address,
+}
+
+struct FlexibleState {
+    member_index: usize,
+    elements: Option<u64>,
+    permitted: bool,
 }
 
 impl Analyzer {
@@ -22,7 +30,8 @@ impl Analyzer {
                 "only an object can have an initializer",
             ));
         }
-        let completed = self.check_initializer(original, initializer, true)?;
+        let (completed, storage) = self.check_object_initializer(original, initializer, true)?;
+        self.unit.declarations[index].flexible_array_storage = storage;
         let previous = &self.unit.declarations[index].ty;
         if !self.compatible(previous, &completed)? {
             return Err(Error::new(
@@ -46,9 +55,127 @@ impl Analyzer {
         static_storage: bool,
     ) -> Result<Type, Error> {
         self.enter_expression(initializer.span.start)?;
-        let result = self.initializer_inner(ty, initializer, static_storage);
+        let result = self.initializer_inner(ty, initializer, static_storage, None);
         self.leave_expression();
         result
+    }
+
+    /// A named object's flexible member can own storage beyond its record type.
+    /// Nested initializers and compound literals use `check_initializer` instead.
+    pub(crate) fn check_object_initializer(
+        &mut self,
+        ty: &Type,
+        initializer: &Node<ast::Initializer>,
+        static_storage: bool,
+    ) -> Result<(Type, Option<FlexibleArrayStorage>), Error> {
+        let TypeKind::Record(id) = self.unit.resolve(ty)?.kind else {
+            return self
+                .check_initializer(ty, initializer, static_storage)
+                .map(|ty| (ty, None));
+        };
+        let Some(fields) = self.unit.records[id].fields.as_ref() else {
+            return self
+                .check_initializer(ty, initializer, static_storage)
+                .map(|ty| (ty, None));
+        };
+        let Some((member_index, field)) = fields.iter().enumerate().next_back() else {
+            return self
+                .check_initializer(ty, initializer, static_storage)
+                .map(|ty| (ty, None));
+        };
+        let TypeKind::Array {
+            element,
+            length: None,
+        } = &self.unit.resolve(&field.ty)?.kind
+        else {
+            return self
+                .check_initializer(ty, initializer, static_storage)
+                .map(|ty| (ty, None));
+        };
+        let element = (**element).clone();
+        let mut flexible = FlexibleState {
+            member_index,
+            elements: None,
+            permitted: static_storage,
+        };
+        self.enter_expression(initializer.span.start)?;
+        let result = self.initializer_inner(ty, initializer, static_storage, Some(&mut flexible));
+        self.leave_expression();
+        let ty = result?;
+        let storage = flexible
+            .elements
+            .map(|elements| {
+                let layout = self.unit.layout(&ty)?;
+                let field_offset = layout.fields[member_index]
+                    .as_ref()
+                    .expect("flexible member is addressable")
+                    .offset_bits;
+                let tail_bits = elements
+                    .checked_mul(self.unit.layout(&element)?.size_bits)
+                    .ok_or_else(|| {
+                        Error::new(
+                            initializer.span.start,
+                            "flexible array allocation size overflows",
+                        )
+                    })?;
+                let base = if self.gnu_flexible_arrays() {
+                    layout.size_bits
+                } else {
+                    field_offset
+                };
+                let size_bits = base
+                    .checked_add(tail_bits)
+                    .ok_or_else(|| {
+                        Error::new(
+                            initializer.span.start,
+                            "flexible array allocation size overflows",
+                        )
+                    })?
+                    .max(layout.size_bits);
+                Ok(FlexibleArrayStorage {
+                    member_index,
+                    elements,
+                    size_bits,
+                })
+            })
+            .transpose()?;
+        Ok((ty, storage))
+    }
+
+    fn gnu_flexible_arrays(&self) -> bool {
+        matches!(
+            self.unit.target,
+            toucan_target::Target::X86_64UnknownLinuxGnu
+                | toucan_target::Target::Aarch64UnknownLinuxGnu
+        )
+    }
+
+    fn empty_initializer(&self, initializer: &Node<ast::Initializer>) -> bool {
+        matches!(&initializer.node, ast::Initializer::List(items) if items.is_empty() || (items.len() == 1 && self.empty_initializers.contains(&items[0].span.start)))
+    }
+
+    /// Finds the innermost flexible member crossed by a subobject designator.
+    fn flexible_in_path(
+        &self,
+        root: &Type,
+        path: &[u64],
+        offset: usize,
+    ) -> Result<Option<usize>, Error> {
+        let mut ty = root.clone();
+        let mut flexible = None;
+        for (index, part) in path.iter().enumerate() {
+            let record = matches!(self.unit.resolve(&ty)?.kind, TypeKind::Record(_));
+            ty = self.subobject(&ty, std::slice::from_ref(part), offset)?;
+            if record
+                && matches!(
+                    self.unit.resolve(&ty)?.kind,
+                    TypeKind::Array { length: None, .. }
+                )
+            {
+                flexible = Some(index + 1);
+            }
+        }
+        Ok(flexible)
     }
 
     fn initializer_inner(
@@ -56,6 +183,7 @@ impl Analyzer {
         ty: &Type,
         initializer: &Node<ast::Initializer>,
         static_storage: bool,
+        mut flexible: Option<&mut FlexibleState>,
     ) -> Result<Type, Error> {
         let offset = initializer.span.start;
         let resolved = self.unit.resolve(ty)?.clone();
@@ -136,17 +264,41 @@ impl Analyzer {
                     };
                     loop {
                         let target = self.subobject(ty, &path, item.span.start)?;
-                        // A flexible member has no storage in the enclosing object.
-                        // Initializing one is a separate GNU extension that needs a
-                        // distinct object size; never silently give it the base ABI.
-                        if matches!(
-                            self.unit.resolve(&target)?.kind,
-                            TypeKind::Array { length: None, .. }
-                        ) {
-                            return Err(Error::new(
-                                item.span.start,
-                                "initializing a flexible array member is unsupported",
-                            ));
+                        let member_depth = self.flexible_in_path(ty, &path, item.span.start)?;
+                        if let Some(depth) = member_depth {
+                            let top_level = depth == 1
+                                && flexible
+                                    .as_ref()
+                                    .is_some_and(|state| state.member_index as u64 == path[0]);
+                            let permitted =
+                                top_level && flexible.as_ref().is_some_and(|state| state.permitted);
+                            let empty = depth == path.len()
+                                && self.empty_initializer(&item.node.initializer);
+                            if !permitted
+                                && (!empty || (!static_storage && self.gnu_flexible_arrays()))
+                            {
+                                let message = if !static_storage {
+                                    "flexible array initialization requires static storage on this target"
+                                } else if depth == 1
+                                    && flexible.is_none()
+                                    && static_storage
+                                    && self.gnu_flexible_arrays()
+                                {
+                                    "flexible-array allocation in a compound literal or nested object is unsupported"
+                                } else {
+                                    "nonempty flexible array initialization requires a top-level static object"
+                                };
+                                return Err(Error::new(item.span.start, message));
+                            }
+                            if !self.gnu_flexible_arrays()
+                                && !item.node.designation.is_empty()
+                                && depth < path.len()
+                            {
+                                return Err(Error::new(
+                                    item.span.start,
+                                    "designator into a flexible array member subobject is unsupported by the target",
+                                ));
+                            }
                         }
                         let aggregate = matches!(
                             self.unit.resolve(&target)?.kind,
@@ -158,12 +310,40 @@ impl Analyzer {
                                 !aggregate || self.initializes_whole_object(&target, expression)?
                             }
                         };
+                        if member_depth == Some(path.len())
+                            && !self.gnu_flexible_arrays()
+                            && !item.node.designation.is_empty()
+                            && !whole
+                        {
+                            return Err(Error::new(
+                                item.span.start,
+                                "flexible array designator requires a brace-enclosed or string initializer",
+                            ));
+                        }
                         if whole {
-                            self.check_initializer(
+                            let completed = self.check_initializer(
                                 &target,
                                 &item.node.initializer,
                                 static_storage,
                             )?;
+                            if member_depth == Some(1)
+                                && path.len() == 1
+                                && let Some(state) = flexible.as_deref_mut()
+                            {
+                                let TypeKind::Array {
+                                    length: Some(length),
+                                    ..
+                                } = self.unit.resolve(&completed)?.kind
+                                else {
+                                    unreachable!("completed flexible array")
+                                };
+                                if length != 0
+                                    || !self.gnu_flexible_arrays()
+                                    || state.elements.is_none()
+                                {
+                                    state.elements = Some(length);
+                                }
+                            }
                             break;
                         }
                         let first = self.first_subobject(&target)?.ok_or_else(|| {
@@ -176,6 +356,15 @@ impl Analyzer {
                             ));
                         }
                         path.push(first);
+                    }
+                    if let Some(state) = flexible.as_deref_mut()
+                        && path.len() > 1
+                        && path[0] == state.member_index as u64
+                    {
+                        let length = path[1].checked_add(1).ok_or_else(|| {
+                            Error::new(item.span.start, "flexible array bound overflows")
+                        })?;
+                        state.elements = Some(state.elements.unwrap_or(0).max(length));
                     }
                     bound = bound.max(path[0].checked_add(1).ok_or_else(|| {
                         Error::new(item.span.start, "initializer array bound overflows")

@@ -2,6 +2,7 @@ use toucan_semantic::{analyze, evaluate_integer};
 use toucan_target::Target;
 
 const VALID: &[&str] = &[
+    "struct S { int n; int a[]; }; struct S s = {1, {2}};",
     "int x = 1;",
     "const int x = 1;",
     "double x = 1 + 2.5;",
@@ -78,7 +79,6 @@ const INVALID: &[&str] = &[
     "struct S { int x; }; struct S s = {.y = 1};",
     "struct S { int x; }; struct S s = {[0] = 1};",
     "struct S { int x; }; struct S s = {1, 2};",
-    "struct S { int n; int a[]; }; struct S s = {1, {2}};",
     "union U { int x, y; }; union U u = {1, 2};",
     "extern int a[3]; int a[] = {1, 2, 3, 4};",
     "const int x = 1; int *p = &x;",
