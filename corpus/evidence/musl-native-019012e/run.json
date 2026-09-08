@@ -1,0 +1,190 @@
+{
+  "conclusion": "success",
+  "databaseId": 34246121203,
+  "headSha": "019012ec3036da129d054f0a35ce15b3aee5ba13",
+  "jobs": [
+    {
+      "completedAt": "2026-09-08T15:43:41Z",
+      "conclusion": "success",
+      "databaseId": 102128431364,
+      "name": "native (ubuntu-24.04, x86_64-unknown-linux-musl, x86_64)",
+      "startedAt": "2026-09-08T15:39:13Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-08T15:39:15Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-08T15:39:14Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:39:18Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 2,
+          "startedAt": "2026-09-08T15:39:16Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:39:32Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0",
+          "number": 3,
+          "startedAt": "2026-09-08T15:39:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:39:54Z",
+          "conclusion": "success",
+          "name": "Install native musl compilers and generated-code MSRV",
+          "number": 4,
+          "startedAt": "2026-09-08T15:39:32Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:40:20Z",
+          "conclusion": "success",
+          "name": "Build the frontend",
+          "number": 5,
+          "startedAt": "2026-09-08T15:39:54Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:40:31Z",
+          "conclusion": "success",
+          "name": "Run C and Rust ABI combinations",
+          "number": 6,
+          "startedAt": "2026-09-08T15:40:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:43:37Z",
+          "conclusion": "success",
+          "name": "Run unchanged zstd-sys build scripts and zstd consumers",
+          "number": 7,
+          "startedAt": "2026-09-08T15:40:31Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:43:39Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+          "number": 8,
+          "startedAt": "2026-09-08T15:43:37Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:43:39Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 16,
+          "startedAt": "2026-09-08T15:43:39Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:43:39Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-09-08T15:43:39Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/astral-sh/toucan/actions/runs/34246121203/job/102128431364"
+    },
+    {
+      "completedAt": "2026-09-08T15:43:03Z",
+      "conclusion": "success",
+      "databaseId": 102128431581,
+      "name": "native (ubuntu-24.04-arm, aarch64-unknown-linux-musl, aarch64)",
+      "startedAt": "2026-09-08T15:39:16Z",
+      "status": "completed",
+      "steps": [
+        {
+          "completedAt": "2026-09-08T15:39:18Z",
+          "conclusion": "success",
+          "name": "Set up job",
+          "number": 1,
+          "startedAt": "2026-09-08T15:39:17Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:39:20Z",
+          "conclusion": "success",
+          "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 2,
+          "startedAt": "2026-09-08T15:39:18Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:39:23Z",
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0",
+          "number": 3,
+          "startedAt": "2026-09-08T15:39:20Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:39:49Z",
+          "conclusion": "success",
+          "name": "Install native musl compilers and generated-code MSRV",
+          "number": 4,
+          "startedAt": "2026-09-08T15:39:23Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:40:30Z",
+          "conclusion": "success",
+          "name": "Build the frontend",
+          "number": 5,
+          "startedAt": "2026-09-08T15:39:49Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:40:48Z",
+          "conclusion": "success",
+          "name": "Run C and Rust ABI combinations",
+          "number": 6,
+          "startedAt": "2026-09-08T15:40:30Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:42:58Z",
+          "conclusion": "success",
+          "name": "Run unchanged zstd-sys build scripts and zstd consumers",
+          "number": 7,
+          "startedAt": "2026-09-08T15:40:48Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:43:00Z",
+          "conclusion": "success",
+          "name": "Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02",
+          "number": 8,
+          "startedAt": "2026-09-08T15:42:58Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:43:00Z",
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+          "number": 16,
+          "startedAt": "2026-09-08T15:43:00Z",
+          "status": "completed"
+        },
+        {
+          "completedAt": "2026-09-08T15:43:01Z",
+          "conclusion": "success",
+          "name": "Complete job",
+          "number": 17,
+          "startedAt": "2026-09-08T15:43:00Z",
+          "status": "completed"
+        }
+      ],
+      "url": "https://github.com/astral-sh/toucan/actions/runs/34246121203/job/102128431581"
+    }
+  ],
+  "url": "https://github.com/astral-sh/toucan/actions/runs/34246121203"
+}

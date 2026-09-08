@@ -59,5 +59,10 @@ consumer artifacts.
 
 Existing unsupported Rust call ABIs remain errors, including bitfield records,
 vectors, `long double`, and atomic aggregates passed by value. Narrow Clang atomic
-scalars also remain unsupported. These additions do not establish native AArch64
-musl runtime evidence, complete libc coverage, or the rest of uv's release matrix.
+scalars also remain unsupported. These checks do not establish complete libc coverage or the rest of uv's release matrix.
+
+## Native CI evidence
+
+At commit `019012e`, the [native musl workflow](https://github.com/astral-sh/toucan/actions/runs/34246121203) passed on x86-64 and AArch64. The two architectures ran 32 C↔Rust executables across GCC, Clang, current Rust, Rust 1.64, and both optimization settings. Each executable checks 49 ABI properties and runs 1,000 call rounds.
+
+The same jobs consumed eight generated zstd binding files across the four Builder configurations on each architecture. The [saved artifacts](../corpus/evidence/musl-native-019012e/summary.json) include the workflow metadata, file hashes, raw commands, generated source, and consumer comparisons. This closes the native AArch64 execution gap in the earlier local QEMU evidence. The result applies to the recorded revision and configurations.
