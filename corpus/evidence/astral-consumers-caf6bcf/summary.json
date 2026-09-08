@@ -1,0 +1,46 @@
+{
+  "schema_version": 1,
+  "source_commit": "caf6bcfe470b9ad9d836b110b6f008b43470a904",
+  "source_archive_sha256": "a9fc0724470ee409b2239e15b6458cbaf6b6c1a53284daeabf21589f3a93b87a",
+  "toucan_sha256": "adade54583f8b4f281650fe3378f6387f825e295aee0b94b79e8288f6f224a31",
+  "reports_sha256": {
+    "report.json": "29e178a28593813d782c8fee75d86eaad904b296dd7286370ab59c1201a09833",
+    "zstd.json": "5e7749128335eadb08ff8f11149bad5b190e530305f1893d6505731214ad17b1"
+  },
+  "status": "passed",
+  "scope": [
+    "Pinned ty and uv locked builds with original versus newly generated zstd-sys bindings.",
+    "ty compressed-typeshed valid/invalid diagnostics; uv zstd HTTP wheel install/import and truncated-frame rejection.",
+    "Default zstd Rust consumer, dictionary and layout checks.",
+    "All 211 strict-C11 eligible c-testsuite inputs accepted; no strict acceptance differences."
+  ],
+  "limitations": [
+    "Native x86-64 Linux only; these are focused integration scenarios, not the complete ty/uv test suites.",
+    "No end-to-end ty/uv performance comparison.",
+    "Subsequent frontend changes require fresh generation or proof of identical tested binding outputs."
+  ],
+  "external_conformance": {
+    "raw_report_sha256": "0322bf2380f93509e26137924b160ca21b020a57ba36b84714829e38e8c8812c",
+    "ci_run": "https://github.com/astral-sh/toucan/actions/runs/34201855856",
+    "summary": {
+      "source_count": 220,
+      "both_accept": {
+        "c11": 220,
+        "gnu11": 220,
+        "strict_c11": 211
+      },
+      "eligible_count": 220,
+      "toucan_checked": 220,
+      "toucan_accepted": 219,
+      "differences": [
+        "00144.c"
+      ],
+      "strict_eligible_count": 211,
+      "strict_toucan_accepted": 211,
+      "strict_differences": [],
+      "tool_failures": [],
+      "oracle_pipeline_failures": [],
+      "changed_tools": []
+    }
+  }
+}
