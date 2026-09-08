@@ -5,6 +5,20 @@ profiles select a compiler family and target, without identifying a particular
 compiler version or optimization level. These records distinguish native oracle
 behavior from the checked graph's source semantics.
 
+## Apple Clang atomic-copy crash
+
+Apple Clang 17.0.0 (`clang-1700.0.13.5`) crashed while syntax-checking the combined
+atomic-copy fixture in the [Intel macOS run](https://github.com/astral-sh/toucan/actions/runs/34215630050/job/102026583137).
+The driver reported a frontend segmentation fault. GCC 13 and upstream Clang 18
+accept that source locally, and its runtime checks pass at O0 and O2.
+
+The native oracle checks separate scalar, pointer, record, assignment, and inferred
+initialization cases before the combined fixture. It collects all failures before
+reporting them, so one compiler crash does not hide the other cases. A crash or
+abnormal driver exit cannot satisfy an expected rejection. The Apple failure
+remains a failing gate pending isolation; it is not recorded as C rejection or
+successful conformance.
+
 ## Apple Clang SVE feature diagnostics
 
 Apple Clang 17.0.0 (`clang-1700.0.13.5`) diagnoses an SVE value in the discarded

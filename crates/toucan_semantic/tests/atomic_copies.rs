@@ -102,26 +102,72 @@ fn atomic_pointer_rvalues_do_not_gain_ordinary_pointer_conversions() {
 fn copy_constraints_and_values_match_native_compilers() {
     use std::process::Command;
     let temp = tempfile::tempdir().unwrap();
+    let mut failures = Vec::new();
     for compiler in ["gcc", "clang"] {
         let version = Command::new(compiler).arg("--version").output().unwrap();
         assert!(version.status.success());
         let is_gnu = !String::from_utf8_lossy(&version.stdout)
             .to_ascii_lowercase()
             .contains("clang");
-        for (index, (source, accept)) in [
-            (SOURCE, true),
-            ("void f(void){int *p=(_Atomic(int*))0;}", is_gnu),
+        for (name, source, accept) in [
             (
+                "scalar-init",
+                "void f(void){_Atomic int x=(_Atomic(int))1;}",
+                true,
+            ),
+            (
+                "pointer-init",
+                "void f(int n){_Atomic(int*) p=(_Atomic(int*))&n;}",
+                true,
+            ),
+            (
+                "record-init",
+                "struct S{int x;};_Atomic(struct S) make(void){return (struct S){7};}void f(void){_Atomic(struct S) x=make();}",
+                true,
+            ),
+            (
+                "pointer-assignment",
+                "void f(int n){_Atomic(int*) p=0;p=(_Atomic(int*))&n;}",
+                true,
+            ),
+            (
+                "record-assignment",
+                "struct S{int x;};_Atomic(struct S) make(void){return (struct S){7};}void f(void){_Atomic(struct S) x;x=make();}",
+                true,
+            ),
+            (
+                "inferred-scalar",
+                "void f(void){__auto_type x=(_Atomic(int))1;}",
+                true,
+            ),
+            (
+                "inferred-pointer",
+                "void f(int n){__auto_type p=(_Atomic(int*))&n;}",
+                true,
+            ),
+            ("combined", SOURCE, true),
+            (
+                "ordinary-pointer",
+                "void f(void){int *p=(_Atomic(int*))0;}",
+                is_gnu,
+            ),
+            (
+                "qualified-pointer",
                 "void f(void){_Atomic(const int*) p=(_Atomic(int*))0;}",
                 is_gnu,
             ),
-            ("void f(void){_Atomic int value={(_Atomic(int))1};}", is_gnu),
-            ("void f(void){_Atomic(double*) p=(_Atomic(int*))0;}", false),
-        ]
-        .into_iter()
-        .enumerate()
-        {
-            let path = temp.path().join(format!("case-{index}.c"));
+            (
+                "scalar-braces",
+                "void f(void){_Atomic int value={(_Atomic(int))1};}",
+                is_gnu,
+            ),
+            (
+                "incompatible-pointer",
+                "void f(void){_Atomic(double*) p=(_Atomic(int*))0;}",
+                false,
+            ),
+        ] {
+            let path = temp.path().join(format!("{name}.c"));
             std::fs::write(&path, source).unwrap();
             let output = Command::new(compiler)
                 .args([
@@ -132,12 +178,16 @@ fn copy_constraints_and_values_match_native_compilers() {
                 .arg(path)
                 .output()
                 .unwrap();
-            assert_eq!(
-                output.status.success(),
-                accept,
-                "{compiler}: {source}: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            let tool_failure = !matches!(output.status.code(), Some(0 | 1))
+                || stderr.contains("frontend command failed due to signal")
+                || stderr.contains("internal compiler error:");
+            if tool_failure || output.status.success() != accept {
+                failures.push(format!(
+                    "{compiler} {name}: expected acceptance={accept}, status={}, tool_failure={tool_failure}\n{source}\n{stderr}",
+                    output.status
+                ));
+            }
         }
         let source = r#"struct S{int x;};_Atomic(struct S) make(void){return (struct S){7};}
 int main(void){int n=3;_Atomic int scalar=(_Atomic(int))1;_Atomic(int*) pointer=(_Atomic(int*))&n;_Atomic(struct S) record=make();__auto_type inferred=(_Atomic(int*))&n;struct S result=record;return scalar!=1||*pointer!=3||result.x!=7||*inferred!=3;}"#;
@@ -152,12 +202,19 @@ int main(void){int n=3;_Atomic int scalar=(_Atomic(int))1;_Atomic(int*) pointer=
                 .arg(&exe)
                 .output()
                 .unwrap();
-            assert!(
-                output.status.success(),
-                "{compiler}: {}",
-                String::from_utf8_lossy(&output.stderr)
-            );
-            assert!(Command::new(exe).status().unwrap().success());
+            if !output.status.success() {
+                failures.push(format!(
+                    "{compiler} runtime {opt}: {}\n{source}\n{}",
+                    output.status,
+                    String::from_utf8_lossy(&output.stderr)
+                ));
+                continue;
+            }
+            let status = Command::new(exe).status().unwrap();
+            if !status.success() {
+                failures.push(format!("{compiler} runtime {opt}: {status}"));
+            }
         }
     }
+    assert!(failures.is_empty(), "{}", failures.join("\n\n"));
 }
