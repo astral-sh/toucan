@@ -231,3 +231,36 @@ fn block_aliases_cannot_conflict_with_later_source_names() {
         .is_err()
     );
 }
+
+#[test]
+fn repeated_record_members_do_not_expand_const_checks() {
+    let mut source = "struct S0 { int value; };\n".to_owned();
+    for index in 1..=32 {
+        source.push_str(&format!(
+            "struct S{index} {{ struct S{} a, b; }};\n",
+            index - 1
+        ));
+    }
+    analyze(
+        &format!("{source} void assign(struct S32 *a, struct S32 *b) {{ *a = *b; }}"),
+        TARGET,
+    )
+    .unwrap();
+    // A repeated record must not hide qualifiers on a later use, including
+    // aliases and array elements. Const pointer targets do not qualify a field.
+    for member in ["const struct S32 b", "const struct S32 b[2]", "Const b"] {
+        let error = analyze(
+            &format!(
+                "{source} typedef const struct S32 Const; struct T {{ struct S32 a; {member}; }}; void assign(struct T *a, struct T *b) {{ *a = *b; }}"
+            ),
+            TARGET,
+        )
+        .unwrap_err();
+        assert!(error.message.contains("modifiable lvalue"), "{error}");
+    }
+    analyze(
+        &format!("{source} struct T {{ struct S32 a; const struct S32 *b; }}; void assign(struct T *a, struct T *b) {{ *a = *b; }}"),
+        TARGET,
+    )
+    .unwrap();
+}

@@ -1,3 +1,5 @@
+use std::collections::HashSet;
+
 use lang_c::{ast, span::Node};
 
 use crate::analyze::Analyzer;
@@ -896,6 +898,18 @@ impl Analyzer {
     }
 
     pub(crate) fn contains_const(&self, ty: &Type, depth: usize) -> Result<bool, Error> {
+        self.contains_const_inner(ty, depth, &mut HashSet::new())
+    }
+
+    // A record may occur in many fields of an aggregate DAG. Its unqualified
+    // members only need checking once per query; qualifiers on each use are
+    // checked before consulting this set.
+    fn contains_const_inner(
+        &self,
+        ty: &Type,
+        depth: usize,
+        visited: &mut HashSet<usize>,
+    ) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
                 0,
@@ -907,12 +921,15 @@ impl Analyzer {
         }
         match &self.unit.resolve(ty)?.kind {
             TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
-                self.contains_const(element, depth + 1)
+                self.contains_const_inner(element, depth + 1, visited)
             }
             TypeKind::Record(id) => {
+                if !visited.insert(*id) {
+                    return Ok(false);
+                }
                 if let Some(fields) = &self.unit.records[*id].fields {
                     for field in fields {
-                        if self.contains_const(&field.ty, depth + 1)? {
+                        if self.contains_const_inner(&field.ty, depth + 1, visited)? {
                             return Ok(true);
                         }
                     }
