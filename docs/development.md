@@ -78,3 +78,12 @@ normal package verification includes it.
 The [compiler-oracle audit](../corpus/evidence/compiler-oracles-2026-09-08.json)
 records the migrated call sites, crash regression, cross-target compilation and
 package checks.
+
+## Generated-C conformance
+
+The [Csmith audit](../corpus/conformance/csmith/README.md) checks pinned or supplied
+programs against strict GCC and Clang acceptance, both preprocessed frontend
+profiles, and normal/retained declaration parity. Its Linux CI gate uses four
+pinned programs and native CRC/UBSan controls. Larger runs retain every exclusion
+and tool failure separately; a compiler-rejected program never counts as a
+frontend success.
