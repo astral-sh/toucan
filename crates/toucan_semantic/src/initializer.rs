@@ -528,6 +528,7 @@ impl Analyzer {
                             length: Some(bound),
                         },
                         qualifiers: self.unit.qualifiers(ty)?,
+                        alignment: self.unit.typedef_alignment(ty)?,
                     })
                 } else {
                     Ok(ty.clone())

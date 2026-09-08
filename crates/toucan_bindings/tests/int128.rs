@@ -39,8 +39,8 @@ fn int128_calls_callbacks_and_records_match_c() {
     for (attribute, abi) in abis {
         let header = format!(
             r#"
-            typedef __int128 I;
-            typedef unsigned __int128 U;
+            typedef __int128 I __attribute__((aligned(16)));
+            typedef unsigned __int128 U __attribute__((aligned(16)));
             struct Single {{ U value; }};
             struct Wide {{ char tag; I value; U other; }};
             typedef I ({attribute} *Callback)(I, U);

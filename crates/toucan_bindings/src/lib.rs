@@ -771,6 +771,22 @@ impl Emitter<'_> {
                 "type nesting exceeds the binding limit of 256".into(),
             ));
         }
+        if ty.alignment.is_some() {
+            let mut underlying = ty.clone();
+            underlying.alignment = None;
+            let actual = self.unit.layout(ty)?;
+            let natural = self.unit.layout(&underlying)?;
+            if self.unit.alignment(ty)? != self.unit.alignment(&underlying)?
+                || actual.alignment_bits != natural.alignment_bits
+                || actual.field_alignment_bits != natural.field_alignment_bits
+                || actual.required_alignment_bits != natural.required_alignment_bits
+            {
+                return Err(Error(format!(
+                    "typedef alignment {} cannot be represented by a Rust type alias without changing its layout or call ABI",
+                    self.unit.alignment(ty)?
+                )));
+            }
+        }
         match &ty.kind {
             TypeKind::Typedef(name) => {
                 if self.aliases.insert(name.clone()) {

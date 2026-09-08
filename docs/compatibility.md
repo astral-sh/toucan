@@ -297,3 +297,31 @@ union storage, packed access through unaligned copies, and uninitialized struct
 padding. An intentionally invalid union read is rejected by Miri. These interpreter
 checks cover the recorded generated Rust examples; they do not execute C FFI or
 cover every generated binding.
+
+## Aligned typedefs
+
+GNU `aligned(N)` typedefs may increase or decrease alignment; `aligned` without
+an argument uses the selected profile's default maximum. The frontend preserves
+this independently of C type compatibility and canonical record-tag layout.
+Arrays, local/VLA aliases, pointer aliases, fields and packing retain the target's
+rules. `_Alignof` reports the declared alignment; `layout().alignment_bits` is the
+minimum pointer alignment and can be smaller for an over-aligned scalar alias.
+For example, `typedef int A __attribute__((aligned(16)))` has size 4 and C alignment 16;
+an array of A is rejected because its element size cannot satisfy that alignment.
+
+Rust type aliases cannot encode independent alignment. Selected aliases whose
+annotations change their layout or ABI produce an explicit binding diagnostic.
+Redundant annotations, including Linux's aligned(16) 128-bit integer aliases, can use
+ordinary Rust aliases. Unselected aliases remain available to semantic checking.
+
+Arithmetic and conditional expressions involving an unpromoted typedef with a
+changed alignment currently produce an explicit diagnostic. GCC and Clang retain
+different typedef identities in these result types; Toucan does not discard that
+observable `typeof` alignment. Combining pointer types with changed-alignment
+pointees also produces an explicit diagnostic. Integer promotions and ordinary object, pointer,
+array and member uses remain supported.
+
+[Validation evidence](../corpus/evidence/aligned-typedefs-2026-09-08.json) includes
+GCC/Clang layout probes, native C/Rust int128 calls, real translation-unit progress,
+and default-path allocation measurements. The real source files still encounter
+separate unsupported attributes or compiler intrinsics after these typedefs.

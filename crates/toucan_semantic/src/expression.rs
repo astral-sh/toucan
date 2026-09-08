@@ -247,14 +247,18 @@ impl Analyzer {
                         integer_to_type(IntegerValue::int(0))
                     }
                     ast::UnaryOperator::Complement => {
-                        integer_to_type(self.promoted_integer(&operand, offset)?)
+                        let result = integer_to_type(self.promoted_integer(&operand, offset)?);
+                        self.check_arithmetic_alignment(&operand, &result, offset)?;
+                        result
                     }
                     ast::UnaryOperator::Plus | ast::UnaryOperator::Minus => {
                         self.require_arithmetic(&value, offset)?;
                         if matches!(value.kind, TypeKind::Float(_)) {
                             value
                         } else {
-                            integer_to_type(self.promoted_integer(&operand, offset)?)
+                            let result = integer_to_type(self.promoted_integer(&operand, offset)?);
+                            self.check_arithmetic_alignment(&operand, &result, offset)?;
+                            result
                         }
                     }
                     ast::UnaryOperator::PreIncrement
@@ -278,7 +282,9 @@ impl Analyzer {
                 let right = self.expression_info(&conditional.node.else_expression)?;
                 let left_value = self.converted_type(&left, offset)?;
                 let right_value = self.converted_type(&right, offset)?;
-                if self.is_arithmetic(&left_value)? && self.is_arithmetic(&right_value)? {
+                let result = if self.is_arithmetic(&left_value)?
+                    && self.is_arithmetic(&right_value)?
+                {
                     self.arithmetic_type(&left, &right, offset)?
                 } else if matches!(
                     (&left_value.kind, &right_value.kind),
@@ -311,7 +317,10 @@ impl Analyzer {
                         offset,
                         "conditional operands have incompatible types",
                     ));
-                }
+                };
+                self.check_arithmetic_alignment(&left, &result, offset)?;
+                self.check_arithmetic_alignment(&right, &result, offset)?;
+                result
             }
             ast::Expression::Member(member) => {
                 let base = self.expression_info(&member.node.expression)?;
@@ -632,6 +641,26 @@ impl Analyzer {
             }
             _ => unreachable!("assignment operators have been converted above"),
         };
+        if !assignment
+            && matches!(
+                operator,
+                Op::Multiply
+                    | Op::Divide
+                    | Op::Modulo
+                    | Op::Plus
+                    | Op::Minus
+                    | Op::ShiftLeft
+                    | Op::ShiftRight
+                    | Op::BitwiseAnd
+                    | Op::BitwiseXor
+                    | Op::BitwiseOr
+            )
+        {
+            self.check_arithmetic_alignment(&left, &ty, offset)?;
+            if !matches!(operator, Op::ShiftLeft | Op::ShiftRight) {
+                self.check_arithmetic_alignment(&right, &ty, offset)?;
+            }
+        }
         Ok(ExpressionInfo::value(if assignment {
             left_value
         } else {
@@ -768,7 +797,9 @@ impl Analyzer {
     }
 
     pub(crate) fn unqualified(&self, ty: &Type) -> Result<Type, Error> {
+        let alignment = self.unit.typedef_alignment(ty)?;
         let mut ty = self.unit.resolve(ty)?.clone();
+        ty.alignment = alignment;
         ty.qualifiers = Qualifiers::default();
         Ok(ty)
     }
@@ -822,6 +853,36 @@ impl Analyzer {
         }
     }
 
+    /// GCC and Clang preserve different typedef sugar in arithmetic results.
+    /// Until that identity is represented, do not invent an observable typeof
+    /// alignment for an unpromoted, nonredundantly aligned operand.
+    fn check_arithmetic_alignment(
+        &self,
+        operand: &ExpressionInfo,
+        result: &Type,
+        offset: usize,
+    ) -> Result<(), Error> {
+        if operand.bitfield.is_some() {
+            return Ok(());
+        }
+        let Some(alignment) = self.unit.typedef_alignment(&operand.ty)? else {
+            return Ok(());
+        };
+        let resolved = self.unit.resolve(&operand.ty)?;
+        if resolved.kind != result.kind {
+            return Ok(());
+        }
+        let mut underlying = resolved.clone();
+        underlying.alignment = None;
+        if u64::from(alignment.get()) != self.unit.alignment(&underlying)? {
+            return Err(Error::new(
+                offset,
+                "arithmetic result alignment for an unpromoted aligned typedef is unsupported",
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) fn arithmetic_type(
         &self,
         left: &ExpressionInfo,
@@ -851,6 +912,26 @@ impl Analyzer {
         right: &Type,
         offset: usize,
     ) -> Result<Type, Error> {
+        for mut ty in [left, right] {
+            for _ in 0..128 {
+                if let Some(alignment) = self.unit.typedef_alignment(ty)? {
+                    let mut underlying = self.unit.resolve(ty)?.clone();
+                    underlying.alignment = None;
+                    if u64::from(alignment.get()) != self.unit.alignment(&underlying)? {
+                        return Err(Error::new(
+                            offset,
+                            "composite pointer alignment involving an aligned typedef is unsupported",
+                        ));
+                    }
+                }
+                match &self.unit.resolve(ty)?.kind {
+                    TypeKind::Pointer(inner)
+                    | TypeKind::Array { element: inner, .. }
+                    | TypeKind::VariableArray { element: inner } => ty = inner,
+                    _ => break,
+                }
+            }
+        }
         let mut qualifiers =
             union_qualifiers(self.unit.qualifiers(left)?, self.unit.qualifiers(right)?);
         let left = self.unqualified(left)?;

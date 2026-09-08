@@ -1,4 +1,5 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
+use std::num::NonZeroU32;
 
 use serde::Serialize;
 use toucan_target::{self as target, Target};
@@ -19,6 +20,10 @@ pub struct TranslationUnit {
 /// A qualified C type. Typedefs and tags retain their declaration identities.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
 pub struct Type {
+    /// GNU typedef alignment in bytes. This does not change C type compatibility
+    /// or the canonical layout of a referenced record tag.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub alignment: Option<NonZeroU32>,
     pub kind: TypeKind,
     pub qualifiers: Qualifiers,
 }
@@ -27,6 +32,7 @@ impl Type {
     /// Constructs an unqualified type.
     pub fn new(kind: TypeKind) -> Self {
         Self {
+            alignment: None,
             kind,
             qualifiers: Qualifiers::default(),
         }
@@ -388,6 +394,9 @@ impl TranslationUnit {
     pub fn alignment(&self, ty: &Type) -> Result<u64, Error> {
         let mut ty = ty;
         for _ in 0..128 {
+            if let Some(alignment) = self.typedef_alignment(ty)? {
+                return Ok(u64::from(alignment.get()));
+            }
             match &self.resolve(ty)?.kind {
                 TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
                     ty = element
@@ -398,6 +407,34 @@ impl TranslationUnit {
         Err(Error::new(
             0,
             "array type nesting exceeds the 128-level limit",
+        ))
+    }
+
+    /// Returns the outermost GNU typedef alignment override, without applying
+    /// it to the pointee or mutating a referenced record.
+    pub fn typedef_alignment(&self, ty: &Type) -> Result<Option<NonZeroU32>, Error> {
+        let mut ty = ty;
+        for _ in 0..128 {
+            if let Some(alignment) = ty.alignment {
+                if !alignment.get().is_power_of_two() || alignment.get() > (1 << 28) {
+                    return Err(Error::new(
+                        0,
+                        "typedef alignment must be a supported power of two",
+                    ));
+                }
+                return Ok(Some(alignment));
+            }
+            let TypeKind::Typedef(name) = &ty.kind else {
+                return Ok(None);
+            };
+            ty = self
+                .typedefs
+                .get(name)
+                .ok_or_else(|| Error::new(0, format!("unknown typedef `{name}`")))?;
+        }
+        Err(Error::new(
+            0,
+            "typedef alignment resolution exceeds the 128-level limit",
         ))
     }
 
@@ -448,10 +485,28 @@ impl TranslationUnit {
 
     /// Computes target layout, rejecting incomplete or recursively embedded types.
     pub fn layout(&self, ty: &Type) -> Result<target::Layout, Error> {
-        let ty = self.layout_type(ty, &mut HashSet::new(), &mut HashMap::new(), 0, true)?;
-        self.target
-            .layout(&ty)
-            .map_err(|e| Error::new(0, e.to_string()))
+        let lowered = self.layout_type(ty, &mut HashSet::new(), &mut HashMap::new(), 0, true)?;
+        let mut layout = self
+            .target
+            .layout(&lowered)
+            .map_err(|e| Error::new(0, e.to_string()))?;
+        // clang-cl honors a GNU typedef's decreased pointer alignment even though
+        // the Microsoft field-layout rules retain the natural field alignment.
+        if self.target == Target::X86_64PcWindowsMsvc {
+            let mut current = ty;
+            for _ in 0..128 {
+                if let Some(alignment) = self.typedef_alignment(current)? {
+                    layout.alignment_bits =
+                        layout.alignment_bits.min(u64::from(alignment.get()) * 8);
+                    break;
+                }
+                match &self.resolve(current)?.kind {
+                    TypeKind::Array { element, .. } => current = element,
+                    _ => break,
+                }
+            }
+        }
+        Ok(layout)
     }
 
     fn layout_type(
@@ -468,19 +523,33 @@ impl TranslationUnit {
                 "record layout nesting exceeds the 128-level limit",
             ));
         }
-        let resolved = self.resolve(ty)?;
+        if let TypeKind::Typedef(name) = &ty.kind {
+            let inner = self
+                .typedefs
+                .get(name)
+                .ok_or_else(|| Error::new(0, format!("unknown typedef `{name}`")))?;
+            return Ok(aligned_layout_type(
+                self.layout_type(inner, active, cache, depth + 1, expand_record)?,
+                ty.alignment,
+            ));
+        }
+        let resolved = ty;
         if !expand_record && let TypeKind::Record(id) = resolved.kind {
             if !cache.contains_key(&id) {
                 // Shared record definitions form a graph. Expanding every edge
                 // as a separate tree duplicates nested fields exponentially.
-                let lowered = self.layout_type(ty, active, cache, depth, true)?;
+                let lowered =
+                    self.layout_type(&Type::new(TypeKind::Record(id)), active, cache, depth, true)?;
                 let layout = self
                     .target
                     .layout(&lowered)
                     .map_err(|error| Error::new(0, error.to_string()))?;
                 cache.insert(id, layout);
             }
-            return Ok(target::Type::opaque_layout(&cache[&id]));
+            return Ok(aligned_layout_type(
+                target::Type::opaque_layout(&cache[&id]),
+                ty.alignment,
+            ));
         }
         let builtin = match &resolved.kind {
             TypeKind::Void => Some(target::BuiltinType::Void),
@@ -515,7 +584,10 @@ impl TranslationUnit {
             _ => None,
         };
         if let Some(builtin) = builtin {
-            return Ok(target::Type::builtin(builtin));
+            return Ok(aligned_layout_type(
+                target::Type::builtin(builtin),
+                ty.alignment,
+            ));
         }
         let mut annotations = Vec::new();
         let variant = match &resolved.kind {
@@ -615,9 +687,24 @@ impl TranslationUnit {
             TypeKind::Function(_) => return Err(Error::new(0, "a function has no object layout")),
             _ => unreachable!("builtin and typedef cases handled above"),
         };
-        Ok(target::Type {
-            annotations,
-            variant,
-        })
+        Ok(aligned_layout_type(
+            target::Type {
+                annotations,
+                variant,
+            },
+            ty.alignment,
+        ))
+    }
+}
+
+fn aligned_layout_type(inner: target::Type, alignment: Option<NonZeroU32>) -> target::Type {
+    match alignment {
+        Some(alignment) => target::Type {
+            annotations: vec![target::Annotation::Align(Some(
+                u64::from(alignment.get()) * 8,
+            ))],
+            variant: target::TypeVariant::Typedef(Box::new(inner)),
+        },
+        None => inner,
     }
 }

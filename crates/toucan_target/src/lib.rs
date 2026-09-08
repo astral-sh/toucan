@@ -57,6 +57,18 @@ impl Target {
         }
     }
 
+    /// Alignment requested by GNU `aligned` without an argument, in bytes.
+    /// These profiles use their default compiler flags, without wider vector ABIs.
+    pub const fn default_maximum_alignment(self) -> u32 {
+        match self {
+            Self::X86_64UnknownLinuxGnu
+            | Self::Aarch64UnknownLinuxGnu
+            | Self::X86_64AppleDarwin
+            | Self::Aarch64AppleDarwin
+            | Self::X86_64PcWindowsMsvc => 16,
+        }
+    }
+
     /// Returns whether plain `char` is signed in this profile.
     pub const fn char_is_signed(self) -> bool {
         !matches!(self, Self::Aarch64UnknownLinuxGnu)
@@ -469,7 +481,11 @@ impl Layout {
     }
 
     fn from_abi(ty: &abi::Type<abi::TypeLayout>) -> Self {
-        let fields = match &ty.variant {
+        let mut fields_type = ty;
+        while let abi::TypeVariant::Typedef(inner) = &fields_type.variant {
+            fields_type = inner;
+        }
+        let fields = match &fields_type.variant {
             abi::TypeVariant::Record(record) => record
                 .fields
                 .iter()

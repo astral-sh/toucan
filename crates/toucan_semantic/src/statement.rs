@@ -634,8 +634,17 @@ impl Analyzer {
         }
         let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
         for item in &declaration.node.declarators {
-            let (name, mut ty, _) =
+            let (name, mut ty, extra) =
                 self.declarator(base.clone(), &item.node.declarator, &attributes)?;
+            if is_typedef {
+                self.align_typedef(
+                    &mut ty,
+                    &declaration.node.specifiers,
+                    &attributes,
+                    &extra,
+                    item.span.start,
+                )?;
+            }
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "local declaration has no name"))?;
             let variably_modified = self.unit.is_variably_modified(&ty)?;
@@ -675,7 +684,12 @@ impl Analyzer {
                     if variably_modified || !self.same_type(previous, &ty, 0)? {
                         return Err(Error::new(item.span.start, "conflicting block typedef"));
                     }
+                    let alignment = self
+                        .unit
+                        .typedef_alignment(previous)?
+                        .max(self.unit.typedef_alignment(&ty)?);
                     ty = self.composite_type(previous, &ty, 0)?;
+                    ty.alignment = alignment;
                     if let Some(checked) = &mut self.checked {
                         checked.local_declaration(
                             item,

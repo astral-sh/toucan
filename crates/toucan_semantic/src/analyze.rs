@@ -891,12 +891,13 @@ impl Analyzer {
                         "a typedef cannot have an initializer",
                     ));
                 }
-                if attributes.alignment.is_some() || declarator_attributes.alignment.is_some() {
-                    return Err(Error::new(
-                        item.span.start,
-                        "aligned typedefs are unsupported",
-                    ));
-                }
+                self.align_typedef(
+                    &mut ty,
+                    &declaration.node.specifiers,
+                    &attributes,
+                    &declarator_attributes,
+                    item.span.start,
+                )?;
                 if let Some(previous) = self.unit.typedefs.get(&name) {
                     if !self.same_type(previous, &ty, 0)? {
                         return Err(Error::new(
@@ -904,7 +905,12 @@ impl Analyzer {
                             format!("conflicting typedef `{name}`"),
                         ));
                     }
+                    let alignment = self
+                        .unit
+                        .typedef_alignment(previous)?
+                        .max(self.unit.typedef_alignment(&ty)?);
                     ty = self.composite_type(previous, &ty, 0)?;
+                    ty.alignment = alignment;
                     self.unit.typedefs.insert(name.clone(), ty.clone());
                 } else {
                     self.unit.typedefs.insert(name.clone(), ty.clone());
@@ -1072,6 +1078,7 @@ impl Analyzer {
                         length: Some(1),
                     },
                     qualifiers: self.unit.qualifiers(&ty)?,
+                    alignment: self.unit.typedef_alignment(&ty)?,
                 };
             }
             if !self.is_complete_object(&ty, 0)? {
@@ -1348,7 +1355,42 @@ impl Analyzer {
         Ok(Type {
             kind,
             qualifiers: self.unit.qualifiers(left)?,
+            alignment: self.unit.typedef_alignment(left)?,
         })
+    }
+
+    pub(crate) fn align_typedef(
+        &self,
+        ty: &mut Type,
+        specifiers: &[Node<ast::DeclarationSpecifier>],
+        attributes: &Attributes,
+        extra: &Attributes,
+        offset: usize,
+    ) -> Result<(), Error> {
+        if specifiers
+            .iter()
+            .any(|s| matches!(s.node, ast::DeclarationSpecifier::Alignment(_)))
+        {
+            return Err(Error::new(
+                offset,
+                "an alignment specifier is not permitted on a typedef",
+            ));
+        }
+        if let Some(alignment) = attributes.alignment.max(extra.alignment) {
+            if matches!(
+                self.unit.resolve(ty)?.kind,
+                TypeKind::Void | TypeKind::Function(_)
+            ) {
+                return Err(Error::new(
+                    offset,
+                    "aligned typedefs require an object type",
+                ));
+            }
+            ty.alignment = std::num::NonZeroU32::new(u32::try_from(alignment).map_err(|_| {
+                Error::new(offset, "typedef alignment exceeds the supported range")
+            })?);
+        }
+        Ok(())
     }
 
     pub(crate) fn specifiers(
@@ -1383,7 +1425,7 @@ impl Analyzer {
                     let value = match &alignment.node {
                         ast::AlignmentSpecifier::Type(ty) => {
                             let ty = self.type_name(&ty.node)?;
-                            self.unit.layout(&ty)?.alignment_bytes()
+                            self.unit.alignment(&ty)?
                         }
                         ast::AlignmentSpecifier::Constant(expression) => {
                             self.eval(expression)?.as_u64()?
@@ -1822,6 +1864,17 @@ impl Analyzer {
                             derived.span.start,
                             "array element must have complete object type",
                         ));
+                    }
+                    if self.unit.typedef_alignment(&ty)?.is_some()
+                        && !self.unit.is_variable_length_array(&ty)?
+                    {
+                        let alignment = self.unit.alignment(&ty)?;
+                        if self.unit.layout(&ty)?.size_bytes() % alignment != 0 {
+                            return Err(Error::new(
+                                derived.span.start,
+                                "array element size is not a multiple of its typedef alignment",
+                            ));
+                        }
                     }
                     let kind = match &array.node.size {
                         ast::ArraySize::Unknown => TypeKind::Array {
@@ -2763,6 +2816,7 @@ impl Analyzer {
         }
         let qualifiers = self.unit.qualifiers(&ty)?;
         let mut resolved = self.unit.resolve(&ty)?.clone();
+        resolved.alignment = self.unit.typedef_alignment(&ty)?;
         let clang = matches!(
             self.unit.target,
             Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc
@@ -2872,13 +2926,16 @@ impl Analyzer {
                         }
                         "packed" => result.packed = true,
                         "aligned" => {
-                            if attribute.arguments.len() != 1 {
-                                return Err(Error::new(
-                                    extension.span.start,
-                                    "aligned attributes require an explicit alignment",
-                                ));
-                            }
-                            let value = self.eval(&attribute.arguments[0])?.as_u64()?;
+                            let value = match attribute.arguments.as_slice() {
+                                [] => u64::from(self.unit.target.default_maximum_alignment()),
+                                [value] => self.eval(value)?.as_u64()?,
+                                _ => {
+                                    return Err(Error::new(
+                                        extension.span.start,
+                                        "aligned attributes accept at most one alignment",
+                                    ));
+                                }
+                            };
                             set_alignment(result, value, extension.span.start)?;
                         }
                         "cdecl" | "stdcall" | "fastcall" | "thiscall" | "ms_abi" | "sysv_abi" => {
