@@ -396,6 +396,8 @@ impl Compilation {
                                 name: name.clone(),
                                 reason: if value.kind().is_narrow() {
                                     format!("{} macro constants have no Rust representation; use an explicit float or double cast", if value.kind() == semantic::FloatKind::BFloat16 {"__bf16"} else {"_Float16"})
+                                } else if value.kind() == semantic::FloatKind::FLOAT128 {
+                                    "binary128 macro constants have no verified Rust representation; use an explicit float or double cast".into()
                                 } else {
                                     "long double macro constants have no Rust representation; use an explicit float or double cast".into()
                                 },

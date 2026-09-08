@@ -100,6 +100,7 @@ impl Format {
     fn for_type(kind: FloatKind, target: Target, offset: usize) -> Result<Self, Error> {
         Ok(match kind {
             FloatKind::FLOAT16 => Self::Binary16,
+            FloatKind::FLOAT128 => Self::Binary128,
             FloatKind::BFloat16 => Self::BFloat16,
             FloatKind::Float => Self::Binary32,
             FloatKind::Double => Self::Binary64,
@@ -143,7 +144,12 @@ impl Analyzer {
                 "floating literal exceeds the 4096-byte limit",
             ));
         }
-        let kind = crate::narrow_float::literal_kind(&literal.suffix.format, offset)?;
+        let kind = crate::narrow_float::literal_kind(
+            &literal.suffix.format,
+            self.unit.target,
+            self.unit.compiler,
+            offset,
+        )?;
         let format = Format::for_type(kind, self.unit.target, offset)?;
         // lang-c stores hexadecimal digits after the `0x` prefix.
         let number = if literal.base == ast::FloatBase::Hexadecimal {

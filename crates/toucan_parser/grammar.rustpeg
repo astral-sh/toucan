@@ -162,6 +162,7 @@ float_format -> FloatFormat =
     f:ts18661_float_suffix { FloatFormat::TS18661Format(f) } /
     [fF] { FloatFormat::Float } /
     [lL] { FloatFormat::LongDouble } /
+    gnu<[qQ]> { FloatFormat::Float128 } /
     { FloatFormat::Double }
 
 character_constant -> String =
@@ -654,6 +655,10 @@ type_specifier_nonunique -> TypeSpecifier =
     K<"long"> { TypeSpecifier::Long } /
     K<"float"> { TypeSpecifier::Float } /
     K<"double"> { TypeSpecifier::Double } /
+    clang<K<"__float128">> {?
+        if env.gnu_float128_typedef { Err("GNU __float128 typedef name") }
+        else { Ok(TypeSpecifier::Float128) }
+    } /
     K<"signed" / gnu<"__signed" "__"?>> { TypeSpecifier::Signed } /
     K<"unsigned"> { TypeSpecifier::Unsigned } /
     K<"_Complex" / gnu<"__complex" "__"?>> { TypeSpecifier::Complex } /

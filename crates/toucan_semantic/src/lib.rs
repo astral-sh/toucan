@@ -42,6 +42,7 @@ mod transparent_union;
 mod variadic_pack;
 mod vector;
 mod weak;
+mod wide_float;
 mod x86;
 
 pub use analyze::{

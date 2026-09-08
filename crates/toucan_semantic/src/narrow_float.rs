@@ -16,8 +16,26 @@ impl FloatKind {
     }
 }
 
-pub(crate) fn literal_kind(format: &ast::FloatFormat, offset: usize) -> Result<FloatKind, Error> {
+pub(crate) fn literal_kind(
+    format: &ast::FloatFormat,
+    target: toucan_target::Target,
+    compiler: toucan_target::Compiler,
+    offset: usize,
+) -> Result<FloatKind, Error> {
     Ok(match format {
+        ast::FloatFormat::Float128 => crate::wide_float::q_literal_kind(target, compiler),
+        ast::FloatFormat::TS18661Format(ast::TS18661FloatType {
+            format: ast::TS18661FloatFormat::BinaryInterchange,
+            width: 128,
+        }) => {
+            if compiler != toucan_target::Compiler::Gnu {
+                return Err(Error::new(
+                    offset,
+                    "the Clang profile rejects the f128 floating literal suffix",
+                ));
+            }
+            FloatKind::FLOAT128
+        }
         ast::FloatFormat::Float => FloatKind::Float,
         ast::FloatFormat::Double => FloatKind::Double,
         ast::FloatFormat::LongDouble => FloatKind::LongDouble,
@@ -47,6 +65,7 @@ pub(crate) fn common_kind(
         FloatKind::Float => Ok(2),
         FloatKind::Double => Ok(3),
         FloatKind::LongDouble => Ok(4),
+        FloatKind::FLOAT128 => Ok(5),
         _ => Err(Error::new(
             offset,
             "extended floating arithmetic is unsupported",

@@ -99,6 +99,7 @@ pub const RESERVED_GNU: &[&str] = &[
 
 // Ref: https://clang.llvm.org/docs/AttributeReference.html
 pub const RESERVED_CLANG: &[&str] = &[
+    "__float128",
     // Only enabled with -fms-extensions and only affect *-*-win32 targets
     "__single_inheritance",
     "__multiple_inheritance",

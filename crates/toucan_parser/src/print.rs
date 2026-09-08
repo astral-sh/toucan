@@ -565,6 +565,7 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
 
 fn print_float_format(p: &mut Printer, n: &FloatFormat) {
     match *n {
+        FloatFormat::Float128 => p.w.write_str(" Float128").unwrap(),
         FloatFormat::Float => p.w.write_str(" Float").unwrap(),
         FloatFormat::Double => p.w.write_str(" Double").unwrap(),
         FloatFormat::LongDouble => p.w.write_str(" LongDouble").unwrap(),
@@ -624,6 +625,7 @@ fn print_type_specifier(p: &mut Printer, n: &TypeSpecifier) {
     match *n {
         TypeSpecifier::AutoType => p.w.write_str(" AutoType").unwrap(),
         TypeSpecifier::BFloat16 => p.w.write_str(" BFloat16").unwrap(),
+        TypeSpecifier::Float128 => p.w.write_str(" Float128").unwrap(),
         TypeSpecifier::Void => p.w.write_str(" Void").unwrap(),
         TypeSpecifier::Char => p.w.write_str(" Char").unwrap(),
         TypeSpecifier::Short => p.w.write_str(" Short").unwrap(),

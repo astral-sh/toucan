@@ -105,7 +105,12 @@ impl Analyzer {
                     )?)
                 }
                 ast::Constant::Float(float) => {
-                    let kind = crate::narrow_float::literal_kind(&float.suffix.format, offset)?;
+                    let kind = crate::narrow_float::literal_kind(
+                        &float.suffix.format,
+                        self.unit.target,
+                        self.unit.compiler,
+                        offset,
+                    )?;
                     if float.suffix.imaginary {
                         self.require_complex_kind(kind, offset)?;
                         Type::new(TypeKind::Complex(kind))
@@ -1403,7 +1408,10 @@ impl Analyzer {
     ) -> Result<(), Error> {
         if matches!(
             kind,
-            crate::FloatKind::Float | crate::FloatKind::Double | crate::FloatKind::LongDouble
+            crate::FloatKind::Float
+                | crate::FloatKind::Double
+                | crate::FloatKind::LongDouble
+                | crate::FloatKind::FLOAT128
         ) {
             Ok(())
         } else {

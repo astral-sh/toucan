@@ -1,0 +1,42 @@
+{
+  "schema_version": 1,
+  "integration_base": "4426c22",
+  "frozen_patch_sha256": "3c00703bd0b26567d5697a941499994b79a57b57b881b27a1e5c9e0e14b72c30",
+  "integration": "Reuse the existing type-name specifier context and preserve target/minimum-width/alignment handling while clearing Clang ignored mode attributes. Regenerate the merged parser with 504 guarded terminal arms.",
+  "validation": {
+    "semantic_native_tests": 27,
+    "facade_tests_with_actual_rust_1_64": 3,
+    "parser_tests": 34,
+    "checked_seed_replay": {
+      "profiles": 7,
+      "accepted": 362,
+      "matching_diagnostics": 114,
+      "normal_retained_unit_equality": true,
+      "graph_invariants": true
+    },
+    "parser_reproduction": {
+      "PYTHONOPTIMIZE": "1",
+      "byte_identical": true,
+      "sha256": "56ecbe9911cb29339be64772f77ddf9bdf21f41e11dc088dcf766954912c8f73"
+    },
+    "clippy": "workspace all targets/all features, warnings denied",
+    "logs": {
+      "tests": {
+        "path": "/tmp/toucan-float128-integrated-tests.log",
+        "sha256": "f8cadb0f332554ae5b68f4275450776f52b6cf653e6b5334a684624830273bd7"
+      },
+      "facade": {
+        "path": "/tmp/toucan-float128-integrated-facade.log",
+        "sha256": "475986c20563f40fad47f90207bd284f2ab4097971cbbe509577e29820f32d35"
+      },
+      "clippy": {
+        "path": "/tmp/toucan-float128-integrated-clippy.log",
+        "sha256": "21cbf35a643db5aa8142f2cc43885451e9a8399003cad0cf5ebd534ff9b40e12"
+      },
+      "replay": {
+        "path": "/tmp/toucan-float128-integrated-replay.log",
+        "sha256": "cdb0ed34182614a5e961c49c0461831c799b55ee162c2a44ff0305d697e2cebc"
+      }
+    }
+  }
+}

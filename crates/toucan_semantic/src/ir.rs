@@ -833,13 +833,14 @@ impl TranslationUnit {
             ));
         }
         if let TypeKind::Float(kind) = resolved.kind
-            && kind.is_narrow()
+            && (kind.is_narrow() || kind == FloatKind::FLOAT128)
         {
+            let bits = if kind == FloatKind::FLOAT128 { 128 } else { 16 };
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&target::Layout {
-                    size_bits: 16,
-                    alignment_bits: 16,
-                    field_alignment_bits: 16,
+                    size_bits: bits,
+                    alignment_bits: bits,
+                    field_alignment_bits: bits,
                     required_alignment_bits: 8,
                     fields: Vec::new(),
                 }),
@@ -947,8 +948,11 @@ impl TranslationUnit {
             }
             TypeKind::Complex(kind) => {
                 if !matches!(
-                    kind,
-                    FloatKind::Float | FloatKind::Double | FloatKind::LongDouble
+                    *kind,
+                    FloatKind::Float
+                        | FloatKind::Double
+                        | FloatKind::LongDouble
+                        | FloatKind::FLOAT128
                 ) {
                     return Err(Error::new(0, "extended complex types are unsupported"));
                 }

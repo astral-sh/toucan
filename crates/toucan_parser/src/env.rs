@@ -14,6 +14,7 @@ pub struct Env {
     pub symbols: Vec<HashMap<String, Symbol>>,
     pub extensions_gnu: bool,
     pub extensions_clang: bool,
+    pub gnu_float128_typedef: bool,
     pub reserved: HashSet<&'static str>,
     // Parameter scopes are normally discarded at the end of their declarators.
     // A definition temporarily saves them until its declarator identifies which
@@ -29,6 +30,7 @@ impl Env {
             definition_scopes: None,
             extensions_gnu: false,
             extensions_clang: false,
+            gnu_float128_typedef: false,
             symbols: vec![HashMap::default()],
             reserved,
         }
@@ -44,6 +46,7 @@ impl Env {
             definition_scopes: None,
             extensions_gnu: true,
             extensions_clang: false,
+            gnu_float128_typedef: true,
             symbols: vec![symbols],
             reserved,
         }
@@ -60,9 +63,17 @@ impl Env {
             definition_scopes: None,
             extensions_gnu: true,
             extensions_clang: true,
+            gnu_float128_typedef: false,
             symbols: vec![symbols],
             reserved,
         }
+    }
+
+    pub fn with_gnu_and_clang_extensions() -> Env {
+        let mut env = Self::with_clang();
+        env.gnu_float128_typedef = true;
+        env.reserved.remove("__float128");
+        env
     }
 
     pub fn enter_scope(&mut self) {
@@ -111,15 +122,16 @@ impl Env {
                 return *symbol == Symbol::Typename;
             }
         }
-        self.extensions_gnu
-            && matches!(
-                ident,
-                "__Float32x4_t"
-                    | "__Float64x2_t"
-                    | "__SVFloat32_t"
-                    | "__SVFloat64_t"
-                    | "__SVBool_t"
-            )
+        (self.gnu_float128_typedef && ident == "__float128")
+            || self.extensions_gnu
+                && matches!(
+                    ident,
+                    "__Float32x4_t"
+                        | "__Float64x2_t"
+                        | "__SVFloat32_t"
+                        | "__SVFloat64_t"
+                        | "__SVBool_t"
+                )
     }
 
     pub fn handle_declarator(&mut self, d: &Node<Declarator>, sym: Symbol) {

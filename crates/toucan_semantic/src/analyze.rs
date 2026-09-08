@@ -73,7 +73,7 @@ fn analyze_on_parser_stack(
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
     let (source, packs) = prepare_source(source)?;
-    let parsed = parse(&source, 0)?;
+    let parsed = parse(&source, 0, profile.compiler())?;
     let packs = packs
         .into_iter()
         .map(|(offset, pack)| (parsed.offsets.pragma_offset(offset), pack))
@@ -201,7 +201,7 @@ fn evaluate_on_parser_stack<Value>(
     source.push_str("int __toucan_expression = (");
     source.push_str(expression);
     source.push_str(");\n");
-    let parsed = parse(&source, expression_offset).map_err(|mut error| {
+    let parsed = parse(&source, expression_offset, unit.compiler).map_err(|mut error| {
         error.offset = error.offset.saturating_sub(expression_offset);
         error
     })?;
@@ -264,7 +264,7 @@ struct Parsed {
     int128_specifiers: HashSet<usize>,
 }
 
-fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
+fn parse(source: &str, diagnostic_offset: usize, compiler: Compiler) -> Result<Parsed, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
@@ -275,7 +275,10 @@ fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
     let config = driver::Config {
         cpp_command: String::new(),
         cpp_options: Vec::new(),
-        flavor: driver::Flavor::ClangC11,
+        flavor: match compiler {
+            Compiler::Gnu => driver::Flavor::GnuC11WithClangExtensions,
+            Compiler::Clang => driver::Flavor::ClangC11,
+        },
     };
     let (source, record_attributes) = normalize_attributes(&source);
     let (source, literal_spellings) = crate::literals::normalize_literal_escapes(source);
@@ -2202,7 +2205,12 @@ impl Analyzer {
                 )
             })
             .collect::<Vec<_>>();
-        let prepared = self.prepare_specifiers_context(&specifiers, type_name)?;
+        let mut prepared = self.prepare_specifiers_context(&specifiers, type_name)?;
+        // Clang ignores declaration mode attributes in a type name. GNU applies
+        // them to the completed abstract declarator.
+        if type_name && self.unit.compiler == Compiler::Clang {
+            prepared.attributes.mode = None;
+        }
         self.complete_specifiers(&specifiers, prepared, None)
     }
 
@@ -2240,6 +2248,7 @@ impl Analyzer {
         let mut int = false;
         let mut int128 = false;
         let mut special = None;
+        let mut direct_complex_base = false;
         for ty in types {
             if self.int128_specifiers.contains(&ty.span.start) {
                 if std::mem::replace(&mut int128, true) {
@@ -2265,6 +2274,21 @@ impl Analyzer {
                         ast::TypeSpecifier::Void => TypeKind::Void,
                         ast::TypeSpecifier::Bool => TypeKind::Bool,
                         ast::TypeSpecifier::TypedefName(name) => {
+                            if !self.unit.typedefs.contains_key(&name.node.name)
+                                && let Some(kind) = crate::wide_float::predefined_type(
+                                    &name.node.name,
+                                    self.unit.target,
+                                    self.unit.compiler,
+                                )
+                            {
+                                if types.len() != 1 {
+                                    return Err(Error::new(
+                                        ty.span.start,
+                                        "invalid modifiers on typedef type",
+                                    ));
+                                }
+                                return Ok(Type::new(TypeKind::Float(kind)));
+                            }
                             if !self.unit.typedefs.contains_key(&name.node.name)
                                 && let Some(builtin) = crate::arm::builtin_type(
                                     &name.node.name,
@@ -2309,11 +2333,32 @@ impl Analyzer {
                             self.atomic_type(inner, true, ty.span.start)?.kind
                         }
                         ast::TypeSpecifier::BFloat16 => TypeKind::Float(FloatKind::BFloat16),
+                        ast::TypeSpecifier::Float128 => {
+                            if self.unit.target != toucan_target::Target::X86_64UnknownLinuxGnu {
+                                return Err(Error::new(
+                                    ty.span.start,
+                                    "__float128 spelling is unavailable in this Clang target profile",
+                                ));
+                            }
+                            direct_complex_base = true;
+                            TypeKind::Float(FloatKind::FLOAT128)
+                        }
                         ast::TypeSpecifier::TS18661Float(float) => {
                             let name = extended_float_name(float);
                             if self.unit.typedefs.contains_key(&name) {
                                 TypeKind::Typedef(name)
                             } else {
+                                if float.format == ast::TS18661FloatFormat::BinaryInterchange
+                                    && float.width == 128
+                                {
+                                    if self.unit.compiler != toucan_target::Compiler::Gnu {
+                                        return Err(Error::new(
+                                            ty.span.start,
+                                            "the Clang profile rejects the _Float128 type spelling",
+                                        ));
+                                    }
+                                    direct_complex_base = true;
+                                }
                                 TypeKind::Float(FloatKind::Extended {
                                     format: match float.format {
                                         ast::TS18661FloatFormat::BinaryInterchange => {
@@ -2347,6 +2392,23 @@ impl Analyzer {
             }
         }
         if let Some(special) = special {
+            if complex
+                && direct_complex_base
+                && !float
+                && !double
+                && !char_
+                && !signed
+                && !unsigned
+                && !short
+                && long == 0
+                && !int
+                && !int128
+            {
+                let TypeKind::Float(kind) = special else {
+                    unreachable!()
+                };
+                return Ok(Type::new(TypeKind::Complex(kind)));
+            }
             if long > 0
                 || short
                 || signed
@@ -2515,6 +2577,9 @@ impl Analyzer {
                 definition,
             },
         )?;
+        if let Some(mode) = &attributes.mode {
+            self.floating_machine_mode(&ty, mode, declaration.span.start)?;
+        }
         extra.target_type_name |= attributes.target_type_name;
         extra
             .target_attributes
@@ -2597,7 +2662,7 @@ impl Analyzer {
             attributes.alias_base && !parameter.declarator().is_some_and(has_function_derivation);
         let mut array_qualifiers = Qualifiers::default();
         let mut array_atomic = false;
-        let (name, mut parameter_type, declared_type_use) =
+        let (name, mut parameter_type, mut declared_type_use) =
             if let Some(declarator) = parameter.declarator() {
                 let array = outermost_derived(declarator).and_then(|derived| {
                     if let ast::DerivedDeclarator::Array(array) = &derived.node {
@@ -2631,6 +2696,9 @@ impl Analyzer {
             } else {
                 (None, base, attributes.type_use)
             };
+        if let Some(mode) = &attributes.mode {
+            self.floating_machine_mode(&parameter_type, mode, parameter.span().start)?;
+        }
         parameter_type =
             self.apply_calling_convention(parameter_type, &attributes, parameter.span().start)?;
         let mut extra = Attributes::default();
@@ -2640,6 +2708,13 @@ impl Analyzer {
         extra.require_function_attributes(false)?;
         extra.require_no_weak()?;
         extra.require_no_transparent_union()?;
+        if let Some(mode) = &extra.mode {
+            parameter_type = self.machine_mode(parameter_type, mode, parameter.span().start)?;
+            if let (Some(checked), Some(id)) = (&mut self.checked, declared_type_use) {
+                declared_type_use =
+                    Some(checked.retype_use(id, &parameter_type, parameter.span().start)?);
+            }
+        }
         if let Some(bytes) = extra.vector_size {
             parameter_type = self.vector_type(parameter_type, bytes, parameter.span().start)?;
         }
@@ -3192,6 +3267,9 @@ impl Analyzer {
         attributes.no_inline =
             crate::target_features::merge_inline(attributes.no_inline, no_inline);
         attributes.target_type_name = type_name;
+        if type_name && self.unit.compiler == Compiler::Clang {
+            attributes.mode = None;
+        }
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, declaration.span.start)?;
         }
@@ -4271,6 +4349,9 @@ impl Analyzer {
     }
 
     fn machine_mode(&self, mut ty: Type, mode: &str, offset: usize) -> Result<Type, Error> {
+        if let Some(result) = self.floating_machine_mode(&ty, mode, offset)? {
+            return Ok(result);
+        }
         let resolved = self.unit.resolve(&ty)?;
         if !matches!(resolved.kind, TypeKind::Integer(_)) {
             return Err(Error::new(

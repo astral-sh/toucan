@@ -65,6 +65,10 @@ pub enum Flavor {
     GnuC11,
     /// Standard C11 with Clang extensions
     ClangC11,
+    /// GNU builtin names with the Clang extension grammar enabled.
+    ///
+    /// Semantic consumers can validate extension availability after parsing.
+    GnuC11WithClangExtensions,
 }
 
 /// Result of a successful parse
@@ -233,6 +237,7 @@ pub fn parse_preprocessed_with_limits(
             Flavor::StdC11 => Env::with_core(),
             Flavor::GnuC11 => Env::with_gnu(),
             Flavor::ClangC11 => Env::with_clang(),
+            Flavor::GnuC11WithClangExtensions => Env::with_gnu_and_clang_extensions(),
         };
         translation_unit_with_limits(&source, &mut env, limits)
     });

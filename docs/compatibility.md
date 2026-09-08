@@ -499,7 +499,9 @@ code for these operations.
   representations described below; aggregate calls still require C pointer accessors.
 - `_Float16` and `__bf16` have distinct types, layouts and supported conversions;
   see [half types](half-types.md) for constant-precision and Rust ABI limits.
-  Other extended floating-point types retain their identity but do not have
+  [Binary128](binary128.md) has target-aware spelling, literal, machine-mode,
+  semantic, layout, constant, and checked-code support. Its Rust storage/call ABI
+  remains unsupported. Other extended floating-point types retain their identity but do not have
   supported layout or binding representations. `long double` has a target layout, but its Rust
   binding representation is not implemented.
 - Large enum constants follow the target's GCC or Clang profile, including their

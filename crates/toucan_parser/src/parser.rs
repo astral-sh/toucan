@@ -1683,7 +1683,48 @@ fn __parse_float_format<'input>(__input: &'input str, __state: &mut ParseState<'
                         match __choice_res {
                             Matched(__pos, __value) => Matched(__pos, __value),
                             Failed if __state.budget.failure.is_some() => return Failed,
-                            Failed => Matched(__pos, { FloatFormat::Double }),
+                            Failed => {
+                                let __choice_res = {
+                                    let __seq_res = {
+                                        let __seq_res = {
+                                            __state.suppress_fail += 1;
+                                            let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
+                                            __state.suppress_fail -= 1;
+                                            match __assert_res {
+                                                Matched(_, __value) => Matched(__pos, __value),
+                                                Failed => Failed,
+                                            }
+                                        };
+                                        match __seq_res {
+                                            Matched(__pos, _) => {
+                                                let __seq_res = if __input.len() > __pos {
+                                                    let (__ch, __next) = char_range_at(__input, __pos);
+                                                    match __ch {
+                                                        'q' | 'Q' => Matched(__next, ()),
+                                                        _ => __state.mark_failure(__pos, "[qQ]"),
+                                                    }
+                                                } else {
+                                                    __state.mark_failure(__pos, "[qQ]")
+                                                };
+                                                match __seq_res {
+                                                    Matched(__pos, e) => Matched(__pos, { e }),
+                                                    Failed => Failed,
+                                                }
+                                            }
+                                            Failed => Failed,
+                                        }
+                                    };
+                                    match __seq_res {
+                                        Matched(__pos, _) => Matched(__pos, { FloatFormat::Float128 }),
+                                        Failed => Failed,
+                                    }
+                                };
+                                match __choice_res {
+                                    Matched(__pos, __value) => Matched(__pos, __value),
+                                    Failed if __state.budget.failure.is_some() => return Failed,
+                                    Failed => Matched(__pos, { FloatFormat::Double }),
+                                }
+                            }
                         }
                     }
                 }
@@ -9384,79 +9425,76 @@ fn __parse_type_specifier_nonunique<'input>(__input: &'input str, __state: &mut 
                                                     Failed => {
                                                         let __choice_res = {
                                                             let __seq_res = {
-                                                                __state.suppress_fail += 1;
-                                                                let res = {
-                                                                    let __seq_res = {
-                                                                        let __choice_res = slice_eq(__input, __state, __pos, "signed");
-                                                                        match __choice_res {
-                                                                            Matched(__pos, __value) => Matched(__pos, __value),
-                                                                            Failed if __state.budget.failure.is_some() => return Failed,
-                                                                            Failed => {
-                                                                                let __seq_res = {
-                                                                                    __state.suppress_fail += 1;
-                                                                                    let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
-                                                                                    __state.suppress_fail -= 1;
-                                                                                    match __assert_res {
-                                                                                        Matched(_, __value) => Matched(__pos, __value),
-                                                                                        Failed => Failed,
-                                                                                    }
-                                                                                };
+                                                                let __seq_res = {
+                                                                    __state.suppress_fail += 1;
+                                                                    let __assert_res = __parse_clang_guard(__input, __state, __pos, env);
+                                                                    __state.suppress_fail -= 1;
+                                                                    match __assert_res {
+                                                                        Matched(_, __value) => Matched(__pos, __value),
+                                                                        Failed => Failed,
+                                                                    }
+                                                                };
+                                                                match __seq_res {
+                                                                    Matched(__pos, _) => {
+                                                                        let __seq_res = {
+                                                                            __state.suppress_fail += 1;
+                                                                            let res = {
+                                                                                let __seq_res = slice_eq(__input, __state, __pos, "__float128");
                                                                                 match __seq_res {
-                                                                                    Matched(__pos, _) => {
+                                                                                    Matched(__pos, e) => {
                                                                                         let __seq_res = {
-                                                                                            let __seq_res = slice_eq(__input, __state, __pos, "__signed");
-                                                                                            match __seq_res {
-                                                                                                Matched(__pos, _) => match slice_eq(__input, __state, __pos, "__") {
-                                                                                                    Matched(__newpos, _) => Matched(__newpos, ()),
-                                                                                                    Failed if __state.budget.failure.is_some() => return Failed,
-                                                                                                    Failed => Matched(__pos, ()),
-                                                                                                },
-                                                                                                Failed => Failed,
+                                                                                            __state.suppress_fail += 1;
+                                                                                            let __assert_res = if __input.len() > __pos {
+                                                                                                let (__ch, __next) = char_range_at(__input, __pos);
+                                                                                                match __ch {
+                                                                                                    '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
+                                                                                                    _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
+                                                                                                }
+                                                                                            } else {
+                                                                                                __state.mark_failure(__pos, "[_a-zA-Z0-9]")
+                                                                                            };
+                                                                                            __state.suppress_fail -= 1;
+                                                                                            match __assert_res {
+                                                                                                Failed if __state.budget.failure.is_some() => return Failed,
+                                                                                                Failed => Matched(__pos, ()),
+                                                                                                Matched(..) => Failed,
                                                                                             }
                                                                                         };
                                                                                         match __seq_res {
-                                                                                            Matched(__pos, e) => Matched(__pos, { e }),
+                                                                                            Matched(__pos, _) => Matched(__pos, { e }),
                                                                                             Failed => Failed,
                                                                                         }
                                                                                     }
                                                                                     Failed => Failed,
                                                                                 }
-                                                                            }
-                                                                        }
-                                                                    };
-                                                                    match __seq_res {
-                                                                        Matched(__pos, e) => {
-                                                                            let __seq_res = {
-                                                                                __state.suppress_fail += 1;
-                                                                                let __assert_res = if __input.len() > __pos {
-                                                                                    let (__ch, __next) = char_range_at(__input, __pos);
-                                                                                    match __ch {
-                                                                                        '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
-                                                                                        _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
-                                                                                    }
-                                                                                } else {
-                                                                                    __state.mark_failure(__pos, "[_a-zA-Z0-9]")
-                                                                                };
-                                                                                __state.suppress_fail -= 1;
-                                                                                match __assert_res {
-                                                                                    Failed if __state.budget.failure.is_some() => return Failed,
-                                                                                    Failed => Matched(__pos, ()),
-                                                                                    Matched(..) => Failed,
-                                                                                }
                                                                             };
-                                                                            match __seq_res {
-                                                                                Matched(__pos, _) => Matched(__pos, { e }),
-                                                                                Failed => Failed,
-                                                                            }
+                                                                            __state.suppress_fail -= 1;
+                                                                            res
+                                                                        };
+                                                                        match __seq_res {
+                                                                            Matched(__pos, e) => Matched(__pos, { e }),
+                                                                            Failed => Failed,
                                                                         }
-                                                                        Failed => Failed,
                                                                     }
-                                                                };
-                                                                __state.suppress_fail -= 1;
-                                                                res
+                                                                    Failed => Failed,
+                                                                }
                                                             };
                                                             match __seq_res {
-                                                                Matched(__pos, _) => Matched(__pos, { TypeSpecifier::Signed }),
+                                                                Matched(__pos, _) => {
+                                                                    match {
+                                                                        if env.gnu_float128_typedef {
+                                                                            Err("GNU __float128 typedef name")
+                                                                        } else {
+                                                                            Ok(TypeSpecifier::Float128)
+                                                                        }
+                                                                    } {
+                                                                        Ok(res) => Matched(__pos, res),
+                                                                        Err(expected) => {
+                                                                            __state.mark_failure(__pos, expected);
+                                                                            Failed
+                                                                        }
+                                                                    }
+                                                                }
                                                                 Failed => Failed,
                                                             }
                                                         };
@@ -9468,7 +9506,44 @@ fn __parse_type_specifier_nonunique<'input>(__input: &'input str, __state: &mut 
                                                                     let __seq_res = {
                                                                         __state.suppress_fail += 1;
                                                                         let res = {
-                                                                            let __seq_res = slice_eq(__input, __state, __pos, "unsigned");
+                                                                            let __seq_res = {
+                                                                                let __choice_res = slice_eq(__input, __state, __pos, "signed");
+                                                                                match __choice_res {
+                                                                                    Matched(__pos, __value) => Matched(__pos, __value),
+                                                                                    Failed if __state.budget.failure.is_some() => return Failed,
+                                                                                    Failed => {
+                                                                                        let __seq_res = {
+                                                                                            __state.suppress_fail += 1;
+                                                                                            let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
+                                                                                            __state.suppress_fail -= 1;
+                                                                                            match __assert_res {
+                                                                                                Matched(_, __value) => Matched(__pos, __value),
+                                                                                                Failed => Failed,
+                                                                                            }
+                                                                                        };
+                                                                                        match __seq_res {
+                                                                                            Matched(__pos, _) => {
+                                                                                                let __seq_res = {
+                                                                                                    let __seq_res = slice_eq(__input, __state, __pos, "__signed");
+                                                                                                    match __seq_res {
+                                                                                                        Matched(__pos, _) => match slice_eq(__input, __state, __pos, "__") {
+                                                                                                            Matched(__newpos, _) => Matched(__newpos, ()),
+                                                                                                            Failed if __state.budget.failure.is_some() => return Failed,
+                                                                                                            Failed => Matched(__pos, ()),
+                                                                                                        },
+                                                                                                        Failed => Failed,
+                                                                                                    }
+                                                                                                };
+                                                                                                match __seq_res {
+                                                                                                    Matched(__pos, e) => Matched(__pos, { e }),
+                                                                                                    Failed => Failed,
+                                                                                                }
+                                                                                            }
+                                                                                            Failed => Failed,
+                                                                                        }
+                                                                                    }
+                                                                                }
+                                                                            };
                                                                             match __seq_res {
                                                                                 Matched(__pos, e) => {
                                                                                     let __seq_res = {
@@ -9501,7 +9576,7 @@ fn __parse_type_specifier_nonunique<'input>(__input: &'input str, __state: &mut 
                                                                         res
                                                                     };
                                                                     match __seq_res {
-                                                                        Matched(__pos, _) => Matched(__pos, { TypeSpecifier::Unsigned }),
+                                                                        Matched(__pos, _) => Matched(__pos, { TypeSpecifier::Signed }),
                                                                         Failed => Failed,
                                                                     }
                                                                 };
@@ -9513,44 +9588,7 @@ fn __parse_type_specifier_nonunique<'input>(__input: &'input str, __state: &mut 
                                                                             let __seq_res = {
                                                                                 __state.suppress_fail += 1;
                                                                                 let res = {
-                                                                                    let __seq_res = {
-                                                                                        let __choice_res = slice_eq(__input, __state, __pos, "_Complex");
-                                                                                        match __choice_res {
-                                                                                            Matched(__pos, __value) => Matched(__pos, __value),
-                                                                                            Failed if __state.budget.failure.is_some() => return Failed,
-                                                                                            Failed => {
-                                                                                                let __seq_res = {
-                                                                                                    __state.suppress_fail += 1;
-                                                                                                    let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
-                                                                                                    __state.suppress_fail -= 1;
-                                                                                                    match __assert_res {
-                                                                                                        Matched(_, __value) => Matched(__pos, __value),
-                                                                                                        Failed => Failed,
-                                                                                                    }
-                                                                                                };
-                                                                                                match __seq_res {
-                                                                                                    Matched(__pos, _) => {
-                                                                                                        let __seq_res = {
-                                                                                                            let __seq_res = slice_eq(__input, __state, __pos, "__complex");
-                                                                                                            match __seq_res {
-                                                                                                                Matched(__pos, _) => match slice_eq(__input, __state, __pos, "__") {
-                                                                                                                    Matched(__newpos, _) => Matched(__newpos, ()),
-                                                                                                                    Failed if __state.budget.failure.is_some() => return Failed,
-                                                                                                                    Failed => Matched(__pos, ()),
-                                                                                                                },
-                                                                                                                Failed => Failed,
-                                                                                                            }
-                                                                                                        };
-                                                                                                        match __seq_res {
-                                                                                                            Matched(__pos, e) => Matched(__pos, { e }),
-                                                                                                            Failed => Failed,
-                                                                                                        }
-                                                                                                    }
-                                                                                                    Failed => Failed,
-                                                                                                }
-                                                                                            }
-                                                                                        }
-                                                                                    };
+                                                                                    let __seq_res = slice_eq(__input, __state, __pos, "unsigned");
                                                                                     match __seq_res {
                                                                                         Matched(__pos, e) => {
                                                                                             let __seq_res = {
@@ -9583,7 +9621,7 @@ fn __parse_type_specifier_nonunique<'input>(__input: &'input str, __state: &mut 
                                                                                 res
                                                                             };
                                                                             match __seq_res {
-                                                                                Matched(__pos, _) => Matched(__pos, { TypeSpecifier::Complex }),
+                                                                                Matched(__pos, _) => Matched(__pos, { TypeSpecifier::Unsigned }),
                                                                                 Failed => Failed,
                                                                             }
                                                                         };
@@ -9595,7 +9633,44 @@ fn __parse_type_specifier_nonunique<'input>(__input: &'input str, __state: &mut 
                                                                                     let __seq_res = {
                                                                                         __state.suppress_fail += 1;
                                                                                         let res = {
-                                                                                            let __seq_res = __parse_ts18661_float_type_specifier(__input, __state, __pos, env);
+                                                                                            let __seq_res = {
+                                                                                                let __choice_res = slice_eq(__input, __state, __pos, "_Complex");
+                                                                                                match __choice_res {
+                                                                                                    Matched(__pos, __value) => Matched(__pos, __value),
+                                                                                                    Failed if __state.budget.failure.is_some() => return Failed,
+                                                                                                    Failed => {
+                                                                                                        let __seq_res = {
+                                                                                                            __state.suppress_fail += 1;
+                                                                                                            let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
+                                                                                                            __state.suppress_fail -= 1;
+                                                                                                            match __assert_res {
+                                                                                                                Matched(_, __value) => Matched(__pos, __value),
+                                                                                                                Failed => Failed,
+                                                                                                            }
+                                                                                                        };
+                                                                                                        match __seq_res {
+                                                                                                            Matched(__pos, _) => {
+                                                                                                                let __seq_res = {
+                                                                                                                    let __seq_res = slice_eq(__input, __state, __pos, "__complex");
+                                                                                                                    match __seq_res {
+                                                                                                                        Matched(__pos, _) => match slice_eq(__input, __state, __pos, "__") {
+                                                                                                                            Matched(__newpos, _) => Matched(__newpos, ()),
+                                                                                                                            Failed if __state.budget.failure.is_some() => return Failed,
+                                                                                                                            Failed => Matched(__pos, ()),
+                                                                                                                        },
+                                                                                                                        Failed => Failed,
+                                                                                                                    }
+                                                                                                                };
+                                                                                                                match __seq_res {
+                                                                                                                    Matched(__pos, e) => Matched(__pos, { e }),
+                                                                                                                    Failed => Failed,
+                                                                                                                }
+                                                                                                            }
+                                                                                                            Failed => Failed,
+                                                                                                        }
+                                                                                                    }
+                                                                                                }
+                                                                                            };
                                                                                             match __seq_res {
                                                                                                 Matched(__pos, e) => {
                                                                                                     let __seq_res = {
@@ -9628,7 +9703,7 @@ fn __parse_type_specifier_nonunique<'input>(__input: &'input str, __state: &mut 
                                                                                         res
                                                                                     };
                                                                                     match __seq_res {
-                                                                                        Matched(__pos, t) => Matched(__pos, { TypeSpecifier::TS18661Float(t) }),
+                                                                                        Matched(__pos, _) => Matched(__pos, { TypeSpecifier::Complex }),
                                                                                         Failed => Failed,
                                                                                     }
                                                                                 };
@@ -9636,24 +9711,71 @@ fn __parse_type_specifier_nonunique<'input>(__input: &'input str, __state: &mut 
                                                                                     Matched(__pos, __value) => Matched(__pos, __value),
                                                                                     Failed if __state.budget.failure.is_some() => return Failed,
                                                                                     Failed => {
-                                                                                        let __seq_res = {
-                                                                                            __state.suppress_fail += 1;
-                                                                                            let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
-                                                                                            __state.suppress_fail -= 1;
-                                                                                            match __assert_res {
-                                                                                                Matched(_, __value) => Matched(__pos, __value),
+                                                                                        let __choice_res = {
+                                                                                            let __seq_res = {
+                                                                                                __state.suppress_fail += 1;
+                                                                                                let res = {
+                                                                                                    let __seq_res = __parse_ts18661_float_type_specifier(__input, __state, __pos, env);
+                                                                                                    match __seq_res {
+                                                                                                        Matched(__pos, e) => {
+                                                                                                            let __seq_res = {
+                                                                                                                __state.suppress_fail += 1;
+                                                                                                                let __assert_res = if __input.len() > __pos {
+                                                                                                                    let (__ch, __next) = char_range_at(__input, __pos);
+                                                                                                                    match __ch {
+                                                                                                                        '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
+                                                                                                                        _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
+                                                                                                                    }
+                                                                                                                } else {
+                                                                                                                    __state.mark_failure(__pos, "[_a-zA-Z0-9]")
+                                                                                                                };
+                                                                                                                __state.suppress_fail -= 1;
+                                                                                                                match __assert_res {
+                                                                                                                    Failed if __state.budget.failure.is_some() => return Failed,
+                                                                                                                    Failed => Matched(__pos, ()),
+                                                                                                                    Matched(..) => Failed,
+                                                                                                                }
+                                                                                                            };
+                                                                                                            match __seq_res {
+                                                                                                                Matched(__pos, _) => Matched(__pos, { e }),
+                                                                                                                Failed => Failed,
+                                                                                                            }
+                                                                                                        }
+                                                                                                        Failed => Failed,
+                                                                                                    }
+                                                                                                };
+                                                                                                __state.suppress_fail -= 1;
+                                                                                                res
+                                                                                            };
+                                                                                            match __seq_res {
+                                                                                                Matched(__pos, t) => Matched(__pos, { TypeSpecifier::TS18661Float(t) }),
                                                                                                 Failed => Failed,
                                                                                             }
                                                                                         };
-                                                                                        match __seq_res {
-                                                                                            Matched(__pos, _) => {
-                                                                                                let __seq_res = __parse_typeof_specifier(__input, __state, __pos, env);
+                                                                                        match __choice_res {
+                                                                                            Matched(__pos, __value) => Matched(__pos, __value),
+                                                                                            Failed if __state.budget.failure.is_some() => return Failed,
+                                                                                            Failed => {
+                                                                                                let __seq_res = {
+                                                                                                    __state.suppress_fail += 1;
+                                                                                                    let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
+                                                                                                    __state.suppress_fail -= 1;
+                                                                                                    match __assert_res {
+                                                                                                        Matched(_, __value) => Matched(__pos, __value),
+                                                                                                        Failed => Failed,
+                                                                                                    }
+                                                                                                };
                                                                                                 match __seq_res {
-                                                                                                    Matched(__pos, e) => Matched(__pos, { e }),
+                                                                                                    Matched(__pos, _) => {
+                                                                                                        let __seq_res = __parse_typeof_specifier(__input, __state, __pos, env);
+                                                                                                        match __seq_res {
+                                                                                                            Matched(__pos, e) => Matched(__pos, { e }),
+                                                                                                            Failed => Failed,
+                                                                                                        }
+                                                                                                    }
                                                                                                     Failed => Failed,
                                                                                                 }
                                                                                             }
-                                                                                            Failed => Failed,
                                                                                         }
                                                                                     }
                                                                                 }

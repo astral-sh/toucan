@@ -274,7 +274,8 @@ fn integer_machine_modes_preserve_width_and_signedness() {
         evaluate_integer(&unit, "(wide)1 << 127").unwrap().value,
         1u128 << 127
     );
-    assert!(analyze("typedef float F __attribute__((mode(DF)));", TARGET).is_err());
+    assert!(analyze("typedef float F __attribute__((mode(DF)));", TARGET).is_ok());
+    assert!(analyze("typedef float F __attribute__((mode(QI)));", TARGET).is_err());
     let windows = analyze(
         "typedef int register_t __attribute__((mode(word))); typedef int wide __attribute__((mode(TI)));",
         Target::X86_64PcWindowsMsvc,
@@ -310,7 +311,7 @@ fn extended_float_compatibility_typedefs_are_preserved() {
         function.return_type.kind,
         TypeKind::Float(toucan_semantic::FloatKind::Extended { width: 128, .. })
     ));
-    assert!(unit.layout(&function.return_type).is_err());
+    assert_eq!(unit.layout(&function.return_type).unwrap().size_bits, 128);
 }
 
 #[test]

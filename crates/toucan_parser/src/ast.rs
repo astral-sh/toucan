@@ -131,6 +131,8 @@ pub struct FloatSuffix {
 /// (C11 6.4.4.2)
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum FloatFormat {
+    /// GNU q/Q literal suffix. Its type is target-specific.
+    Float128,
     /// `f` suffix
     Float,
     /// no suffix
@@ -640,6 +642,8 @@ pub enum TypeSpecifier {
     AutoType,
     /// GNU and Clang bfloat16 arithmetic type.
     BFloat16,
+    /// Clang reserved __float128 spelling (GNU uses a predefined typedef).
+    Float128,
     /// `void`
     Void,
     /// `char`
