@@ -22,6 +22,25 @@ fn size_t_requires_a_matching_unsigned_c_type() {
 }
 
 #[test]
+fn long_double_macro_values_are_not_lowered_to_rust_floats() {
+    for target in Target::ALL {
+        let unit = analyze("", target).unwrap();
+        let toucan_semantic::ArithmeticConstant::Floating(value) =
+            toucan_semantic::evaluate_arithmetic(&unit, "1.0L").unwrap()
+        else {
+            panic!("floating value");
+        };
+        let macros = std::collections::BTreeMap::from([(
+            "VALUE".into(),
+            Some(toucan_bindings::MacroValue::Floating(value)),
+        )]);
+        let error =
+            toucan_bindings::generate_with_macros(&unit, &Options::default(), &macros).unwrap_err();
+        assert!(error.to_string().contains("long double"));
+    }
+}
+
+#[test]
 #[ignore = "requires native C compilers, ar, and rustc; run with --include-ignored"]
 fn rust_enum_variants_and_usize_match_native_c_calls() {
     let target = match (std::env::consts::ARCH, std::env::consts::OS) {

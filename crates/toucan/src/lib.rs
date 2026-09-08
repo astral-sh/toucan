@@ -176,6 +176,7 @@ pub struct Report {
     pub dependencies: Vec<PathBuf>,
     pub declarations: usize,
     pub integer_macros: usize,
+    pub floating_macros: usize,
     pub string_macros: usize,
     pub skipped_declarations: Vec<String>,
     /// Selected functions deliberately omitted by the caller's blocklist.
@@ -228,6 +229,7 @@ impl Compilation {
         let mut macros = BTreeMap::new();
         let mut skipped_macros = Vec::new();
         let mut integer_macros = 0;
+        let mut floating_macros = 0;
         let mut string_macros = 0;
         for (name, definition) in &self.preprocessed.macros {
             if !options.includes(name)
@@ -279,13 +281,33 @@ impl Compilation {
                     name: name.clone(),
                     reason: error.to_string(),
                 }),
-                Ok(None) => match semantic::evaluate_integer(&self.unit, &expression) {
-                    Ok(value) => {
+                Ok(None) => match semantic::evaluate_integer(&self.unit, &expression)
+                    .map(semantic::ArithmeticConstant::Integer)
+                    .or_else(|_| semantic::evaluate_arithmetic(&self.unit, &expression))
+                {
+                    Ok(semantic::ArithmeticConstant::Integer(value)) => {
                         macros.insert(
                             name.clone(),
                             Some(toucan_bindings::MacroValue::Integer(value)),
                         );
                         integer_macros += 1;
+                    }
+                    Ok(semantic::ArithmeticConstant::Floating(value)) => {
+                        if matches!(
+                            value.kind(),
+                            semantic::FloatKind::Float | semantic::FloatKind::Double
+                        ) {
+                            macros.insert(
+                                name.clone(),
+                                Some(toucan_bindings::MacroValue::Floating(value)),
+                            );
+                            floating_macros += 1;
+                        } else {
+                            skipped_macros.push(SkippedMacro {
+                                name: name.clone(),
+                                reason: "long double macro constants have no Rust representation; use an explicit float or double cast".into(),
+                            });
+                        }
                     }
                     Err(error) => skipped_macros.push(SkippedMacro {
                         name: name.clone(),
@@ -302,6 +324,7 @@ impl Compilation {
             dependencies: self.preprocessed.dependencies.clone(),
             declarations: bindings.declarations,
             integer_macros,
+            floating_macros,
             string_macros,
             skipped_declarations: bindings.skipped,
             blocked_functions: bindings.blocked_functions,

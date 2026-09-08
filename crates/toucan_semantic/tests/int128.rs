@@ -1,7 +1,7 @@
 use std::io::Write;
 use std::process::{Command, Stdio};
 
-use toucan_semantic::{analyze, evaluate_integer};
+use toucan_semantic::{ArithmeticConstant, analyze, evaluate_arithmetic, evaluate_integer};
 use toucan_target::Target;
 
 const VALID: &[&str] = &[
@@ -54,6 +54,12 @@ fn int128_types_use_integer_semantics_in_every_context() {
         assert_eq!(value.bits, 128);
         assert!(!value.signed);
         assert_eq!(evaluate_integer(&unit, "sizeof(I)").unwrap().value, 16);
+        let ArithmeticConstant::Floating(value) =
+            evaluate_arithmetic(&unit, "((__int128)1 << 100) + 1.0").unwrap()
+        else {
+            panic!("mixed arithmetic must produce double");
+        };
+        assert_eq!(value.to_bits(), 0x4630_0000_0000_0000);
         // The grammar adapter must never change genuine extended float types.
         assert!(
             analyze("unsigned _Float16 x;", target).is_err(),

@@ -7,7 +7,10 @@ use toucan_target::Target;
 
 use crate::analyze::Analyzer;
 use crate::integer::{convert, promote, signed_result};
-use crate::{Error, FloatKind, IntegerValue, Type, TypeKind};
+use crate::{
+    ArithmeticConstant, Error, FloatKind, FloatingFormat, FloatingValue, IntegerValue, Type,
+    TypeKind,
+};
 
 /// Binary128 exactly stores every finite value in the supported C formats. Each
 /// conversion and operation still rounds in its own target format, not binary128.
@@ -18,6 +21,32 @@ pub(crate) enum ArithmeticValue {
 }
 
 impl ArithmeticValue {
+    pub(crate) fn into_constant(
+        self,
+        target: Target,
+        offset: usize,
+    ) -> Result<ArithmeticConstant, Error> {
+        Ok(match self {
+            Self::Integer(value) => ArithmeticConstant::Integer(value),
+            Self::Floating { value, kind } => {
+                let format = Format::for_type(kind, target, offset)?;
+                let bits = match format {
+                    Format::Binary32 => encode_float::<Single>(value),
+                    Format::Binary64 => encode_float::<Double>(value),
+                    Format::X87 => encode_float::<X87DoubleExtended>(value),
+                    Format::Binary128 => encode_float::<Quad>(value),
+                };
+                let format = match format {
+                    Format::Binary32 => FloatingFormat::Binary32,
+                    Format::Binary64 => FloatingFormat::Binary64,
+                    Format::X87 => FloatingFormat::X87,
+                    Format::Binary128 => FloatingFormat::Binary128,
+                };
+                ArithmeticConstant::Floating(FloatingValue { kind, format, bits })
+            }
+        })
+    }
+
     pub(crate) fn truth(self) -> bool {
         match self {
             Self::Integer(value) => value.truth(),
@@ -129,6 +158,18 @@ impl Analyzer {
         use ast::UnaryOperator as Unary;
         let offset = expression.span.start;
         match &expression.node {
+            ast::Expression::Call(call)
+                if matches!(&call.node.callee.node, ast::Expression::Identifier(identifier)
+                if matches!(identifier.node.name.as_str(), "__builtin_inf" | "__builtin_inff" | "__builtin_infl"
+                    | "__builtin_huge_val" | "__builtin_huge_valf" | "__builtin_huge_vall"
+                    | "__builtin_nan" | "__builtin_nanf" | "__builtin_nanl"
+                    | "__builtin_nans" | "__builtin_nansf" | "__builtin_nansl")) =>
+            {
+                Err(Error::new(
+                    offset,
+                    "non-finite floating builtin constants are unsupported",
+                ))
+            }
             ast::Expression::Constant(constant) => {
                 if let ast::Constant::Float(literal) = &constant.node {
                     self.floating_literal(literal, offset)
@@ -380,6 +421,14 @@ where
         .map_err(|_| Error::new(offset, "invalid floating constant"))?;
     let value = finite_result(parsed, offset)?;
     Ok(value.convert(&mut false).value)
+}
+
+fn encode_float<F: Float>(value: Quad) -> u128
+where
+    Quad: FloatConvert<F>,
+{
+    let value: F = value.convert(&mut false).value;
+    value.to_bits()
 }
 
 fn convert_float<F>(value: ArithmeticValue, offset: usize) -> Result<Quad, Error>

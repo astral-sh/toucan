@@ -95,6 +95,50 @@ pub enum FloatKind {
     },
 }
 
+/// The target encoding of a finite floating constant, without object padding.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum FloatingFormat {
+    Binary32,
+    Binary64,
+    /// The 80 meaningful bits of the x87 extended format, including its explicit integer bit.
+    X87,
+    Binary128,
+}
+
+/// An owned finite C floating value. Operations have already rounded in the
+/// target format; the bits retain negative zero and subnormal values.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct FloatingValue {
+    pub(crate) kind: FloatKind,
+    pub(crate) format: FloatingFormat,
+    pub(crate) bits: u128,
+}
+
+impl FloatingValue {
+    /// Return the C type, retaining `long double` even on binary64 targets.
+    pub const fn kind(self) -> FloatKind {
+        self.kind
+    }
+
+    /// Return the target encoding independently of the C type's storage padding.
+    pub const fn format(self) -> FloatingFormat {
+        self.format
+    }
+
+    /// Return the encoding in the low bits, independent of target byte order.
+    pub const fn to_bits(self) -> u128 {
+        self.bits
+    }
+}
+
+/// The result of arithmetic constant evaluation. This query admits floating
+/// operands; an integer result does not imply a C integer constant expression.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum ArithmeticConstant {
+    Integer(IntegerValue),
+    Floating(FloatingValue),
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
 pub enum ExtendedFloatFormat {
     BinaryInterchange,

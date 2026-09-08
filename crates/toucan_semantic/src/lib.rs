@@ -17,7 +17,7 @@ mod literals;
 mod parser_extensions;
 mod statement;
 
-pub use analyze::{analyze, evaluate_integer};
+pub use analyze::{analyze, evaluate_arithmetic, evaluate_integer};
 pub use ir::*;
 pub use literals::{
     DecodedString, StringEncoding, decode_character_literal, decode_string_literals,

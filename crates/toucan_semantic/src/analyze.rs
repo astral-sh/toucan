@@ -82,6 +82,30 @@ pub(crate) fn analyze_inner(
 /// Evaluates an integer constant expression in the translation unit's type and
 /// enumerator environment, using the target's C integer conversion rules.
 pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<IntegerValue, Error> {
+    evaluate_expression(unit, expression, |analyzer, expression| {
+        analyzer.eval(expression)
+    })
+}
+
+/// Evaluate a supported arithmetic constant in the unit's type and enumerator
+/// environment. Floating operations round to nearest, ties to even in the target
+/// format. This is a separate query from C integer-constant-expression checking.
+pub fn evaluate_arithmetic(
+    unit: &TranslationUnit,
+    expression: &str,
+) -> Result<crate::ArithmeticConstant, Error> {
+    evaluate_expression(unit, expression, |analyzer, expression| {
+        analyzer
+            .eval_arithmetic(expression)?
+            .into_constant(analyzer.unit.target, expression.span.start)
+    })
+}
+
+fn evaluate_expression<Value>(
+    unit: &TranslationUnit,
+    expression: &str,
+    evaluate: impl FnOnce(&mut Analyzer, &Node<ast::Expression>) -> Result<Value, Error>,
+) -> Result<Value, Error> {
     let identifiers = validate_expression_source(expression)?;
     for value in unit.constants.values() {
         value.validate()?;
@@ -154,7 +178,7 @@ pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<Inte
     analyzer.character_literals = parsed.character_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
     analyzer.int128_specifiers = parsed.int128_specifiers;
-    analyzer.eval(expression).map_err(|mut error| {
+    evaluate(&mut analyzer, expression).map_err(|mut error| {
         error.offset = parsed
             .offsets
             .original_offset(error.offset)

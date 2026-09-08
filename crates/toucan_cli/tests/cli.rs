@@ -210,3 +210,73 @@ fn cli_captures_the_current_utc_time_without_source_date_epoch() {
     });
     assert!(matched, "{actual}");
 }
+
+#[test]
+fn unsupported_floating_macros_are_reported_and_can_fail_generation() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("floating.h");
+    let output = directory.path().join("bindings.rs");
+    let report = directory.path().join("report.json");
+    std::fs::write(
+        &header,
+        "#define FINITE 0.1f\n#define UNSUPPORTED 1.0L\n#define NAN_VALUE __builtin_nan(\"\")\n",
+    )
+    .unwrap();
+    std::fs::write(&output, "existing bindings\n").unwrap();
+    let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
+        .arg("bindgen")
+        .arg(&header)
+        .arg("--deny-skipped-macros")
+        .arg("--output")
+        .arg(&output)
+        .arg("--report")
+        .arg(&report)
+        .output()
+        .unwrap();
+    assert!(!result.status.success());
+    assert_eq!(
+        std::fs::read_to_string(&output).unwrap(),
+        "existing bindings\n"
+    );
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(report).unwrap()).unwrap();
+    assert_eq!(report["floating_macros"], 1);
+    assert!(
+        report["skipped_macros"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["name"] == "UNSUPPORTED"
+                && item["reason"].as_str().unwrap().contains("long double"))
+    );
+    assert!(
+        report["skipped_macros"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .any(|item| item["name"] == "NAN_VALUE"
+                && item["reason"].as_str().unwrap().contains("non-finite"))
+    );
+    let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
+        .arg("bindgen")
+        .arg(&header)
+        .args([
+            "--deny-skipped-macros",
+            "--allowlist",
+            "FINITE",
+            "--rust-target",
+            "1.64",
+        ])
+        .arg("--output")
+        .arg(&output)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let source = std::fs::read_to_string(output).unwrap();
+    assert!(source.contains("pub const FINITE: ::core::primitive::f32"));
+    assert!(source.contains("0x3dcccccd"));
+}

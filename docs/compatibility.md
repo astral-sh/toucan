@@ -39,6 +39,34 @@ The semantic literal tests compare values with native GCC and Clang and types an
 array bounds with Clang across all five targets. They also check malformed escapes,
 incompatible array element types, and the public decoder's input-size limit.
 
+## Arithmetic constants
+
+`evaluate_integer` checks C integer constant expressions. `evaluate_arithmetic`
+also accepts supported floating expressions and returns an owned integer or floating
+value. An integer result from the latter query does not make the source a C integer
+constant expression: `(int)(1.0 + 2.0)` is one example.
+
+Floating literals, arithmetic, and casts round to nearest, ties to even in their
+target format without host floating-point arithmetic. The public result retains
+the C type, encoding, and exact bits, including negative zero and subnormals.
+`long double` uses x87 extended precision on x86-64 Linux/macOS, binary128 on
+AArch64 Linux, and binary64 on AArch64 macOS and x86-64 Windows. Its bits exclude object padding.
+Overflow, division by zero, non-finite builtin forms, and unsupported formats
+produce diagnostics.
+
+Rust bindings emit finite `float` and `double` macro values as `f32` and `f64`
+using exact bit patterns. For Rust 1.83 and later, emission uses `from_bits`;
+Rust 1.64–1.82 uses an equal-width const transmute because `from_bits` was not yet
+const-stable. Every integer bit pattern is valid for the corresponding IEEE float.
+`long double` macro values remain explicitly unsupported in Rust bindings, even
+on targets where they use binary64. A C cast to `float` or `double` selects an
+emittable type and applies the target's conversion rules.
+
+Tests compare bit patterns against Clang for all five targets, including meaningful
+`long double` bits, and execute generated constants against native GCC/Clang FFI
+calls with current Rust and Rust 1.64. These checks do not cover alternate rounding
+modes, excess-precision options, or floating-point environment access.
+
 ## Variable-length arrays
 
 Variable-length arrays retain a distinct runtime-sized type. Bounds, parameter
@@ -148,8 +176,8 @@ configuration. See CI results for changes made after that run.
   64 bits and values that cannot be represented without truncation are rejected.
 - Rust bindings reject union bitfields, records containing bitfields passed by value,
   field-level alignment, and combined packing and explicit record alignment.
-- Function-like macros and object macros that are not supported integer or
-  string constants are reported as omitted. SQLite's `SQLITE_STATIC` and
+- Function-like macros and object macros that are not supported integer, finite
+  `float`/`double`, or string constants are reported as omitted. SQLite's `SQLITE_STATIC` and
   `SQLITE_TRANSIENT` destructor macros are examples. No invalid function pointer is
   synthesized to represent a sentinel.
 - Macro expansion diagnostics identify an invocation location; they do not yet

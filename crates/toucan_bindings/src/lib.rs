@@ -9,8 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 use toucan_semantic::{
-    CallingConvention, DeclarationKind, FloatKind, FunctionType, IntegerKind, IntegerValue,
-    RecordKind, Scope, TranslationUnit, Type, TypeKind,
+    CallingConvention, DeclarationKind, FloatKind, FloatingValue, FunctionType, IntegerKind,
+    IntegerValue, RecordKind, Scope, TranslationUnit, Type, TypeKind,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -175,6 +175,7 @@ pub struct MacroIntegerType {
 #[derive(Debug)]
 pub enum MacroValue {
     Integer(IntegerValue),
+    Floating(FloatingValue),
     String(Vec<u8>),
     /// UTF-16, UTF-32, or target-wide code units. Supported element types are
     /// unsigned short, unsigned int, and int. Units retain unsigned bit patterns,
@@ -534,6 +535,13 @@ pub fn generate_with_macros(
             renamed_macros.insert(name.clone(), c_name.clone());
         }
         match value {
+            MacroValue::Floating(value) => {
+                source.push_str(&floating_constant_named(
+                    &name,
+                    *value,
+                    options.rust_target,
+                )?);
+            }
             MacroValue::Integer(value) => {
                 let emitted = normalize_macro(*value, options.macro_policy(c_name))?;
                 if emitted.bits != value.bits || emitted.signed != value.signed {
@@ -624,6 +632,37 @@ pub fn generate_with_macros(
         renamed_macros,
         macro_types,
     })
+}
+
+fn floating_constant_named(
+    name: &str,
+    value: FloatingValue,
+    rust_target: RustTarget,
+) -> Result<String, Error> {
+    let (width, bits) = match value.kind() {
+        FloatKind::Float => (32, value.to_bits()),
+        FloatKind::Double => (64, value.to_bits()),
+        _ => return Err(Error("long double macro constants have no Rust representation; use an explicit float or double cast".into())),
+    };
+    let rust_type = format!("::core::primitive::f{width}");
+    let bits = format!("0x{bits:0digits$x}", digits = width / 4);
+    let expression = if rust_target.minor >= 83 {
+        format!("{rust_type}::from_bits({bits})")
+    } else {
+        // `from_bits` became const in Rust 1.83. Equal-width integer-to-float
+        // transmutation is const-stable on 1.64 and every float bit pattern is valid.
+        format!(
+            "unsafe {{ ::core::mem::transmute::<::core::primitive::u{width}, {rust_type}>({bits}) }}"
+        )
+    };
+    let safety = if rust_target.minor < 83 {
+        "// SAFETY: equal-width integer and IEEE float; every bit pattern is valid.\n"
+    } else {
+        ""
+    };
+    Ok(format!(
+        "{safety}pub const {name}: {rust_type} = {expression};\n"
+    ))
 }
 
 fn normalize_macro(value: IntegerValue, policy: MacroType) -> Result<IntegerValue, Error> {
