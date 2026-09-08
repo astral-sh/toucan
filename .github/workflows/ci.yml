@@ -31,6 +31,26 @@ jobs:
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
         with:
           toolchain: stable
+      - name: Select native C compiler oracles
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            if ! brew list --versions gcc@14 >/dev/null; then
+              brew install gcc@14
+            fi
+            native_gcc="$(brew --prefix gcc@14)/bin/gcc-14"
+          else
+            native_gcc="$(command -v gcc)"
+          fi
+          native_gcc_version="$("$native_gcc" --version)"
+          if [[ "$native_gcc_version" != *"Free Software Foundation"* ]]; then
+            echo "Expected GNU GCC: $native_gcc_version" >&2
+            exit 1
+          fi
+          echo "$native_gcc_version"
+          clang --version
+          echo "TOUCAN_GCC=$native_gcc" >> "$GITHUB_ENV"
       - run: cargo test --workspace -- --include-ignored
       - run: cargo doc --workspace --no-deps
         env:

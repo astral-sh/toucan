@@ -174,8 +174,10 @@ configuration. See CI results for changes made after that run.
 - Large enum constants follow the target's GCC or Clang profile, including their
   types during and after the definition. Apple enum ranges requiring more than
   64 bits and values that cannot be represented without truncation are rejected.
-- Rust bindings reject union bitfields, records containing bitfields passed by value,
-  field-level alignment, and combined packing and explicit record alignment.
+- Rust bindings reject records containing bitfields passed by value, field-level
+  alignment, and combined packing and explicit record alignment. Union bitfields
+  have the pointer-based representation described below; volatile union bitfields and
+  bitfields with Rust enum representations remain unsupported.
 - Function-like macros and object macros that are not supported integer, finite
   `float`/`double`, or string constants are reported as omitted. SQLite's `SQLITE_STATIC` and
   `SQLITE_TRANSIENT` destructor macros are examples. No invalid function pointer is
@@ -251,3 +253,29 @@ reliable limits for pathological parser backtracking; extend the target/header
 matrix; run sustained fuzzing and independent safety review; validate distribution
 and allocator configurations; and define a stable API and diagnostics contract.
 The [development plan](development.md) records the broader acceptance criteria.
+
+## Union bitfield bindings
+
+Unions containing bitfields retain a Rust `repr(C)` union with overlapping storage
+and their ordinary public fields. Generated size and alignment assertions use
+the target C layout, including packed unions and unnamed bitfields. Natural
+alignment comes from a zero-sized alignment member, so an otherwise supported
+union can also appear inside a packed record. Packed records containing a record
+that needs Rust `repr(align)` are rejected, including containment through arrays
+or intermediate records; pointer fields are permitted. C accepts such layouts,
+but Rust forbids combining these representations transitively.
+
+Bitfield getters and setters on unions are `unsafe`: another union member may
+leave the bytes they access uninitialized. Each accessor requires all bytes
+overlapping that bitfield to be initialized. Setters preserve the other bits in
+those bytes, so they have the same initialization requirement as getters. The
+implementation uses raw byte accesses without creating references to inactive
+storage. Const bitfields have no setter. Volatile union bitfields are rejected
+because the required access width and ordering are not implemented.
+
+Unions containing bitfields, and records containing those unions, cannot yet be
+passed or returned by value, including callback arguments. Equal size and alignment
+do not prove equal calling conventions. Tests compare layouts with Clang on all
+five targets and initialized storage bytes with native GCC and Clang, exercising
+callbacks in both directions through union pointers. Generated accessors and
+layout assertions are also tested with Rust 1.64.

@@ -1020,10 +1020,14 @@ impl Emitter<'_> {
     }
 
     fn is_const(&self, ty: &Type) -> Result<bool, Error> {
+        self.has_qualifier(ty, |ty| ty.qualifiers.is_const)
+    }
+
+    fn has_qualifier(&self, ty: &Type, matches: fn(&Type) -> bool) -> Result<bool, Error> {
         let mut ty = ty;
         let mut visited = BTreeSet::new();
         loop {
-            if ty.qualifiers.is_const {
+            if matches(ty) {
                 return Ok(true);
             }
             if let TypeKind::Array { element, .. } = &ty.kind {
@@ -1250,6 +1254,43 @@ impl Emitter<'_> {
         Ok(())
     }
 
+    fn check_packed_containment(
+        &self,
+        ty: &Type,
+        visited: &mut BTreeSet<usize>,
+        depth: usize,
+    ) -> Result<(), Error> {
+        check_depth(depth)?;
+        match &self.unit.resolve(ty)?.kind {
+            TypeKind::Record(id) => {
+                if !visited.insert(*id) {
+                    return Ok(());
+                }
+                let record = self
+                    .unit
+                    .records
+                    .get(*id)
+                    .ok_or_else(|| Error("invalid record identity".into()))?;
+                let fields = record.fields.as_deref().unwrap_or_default();
+                let implicit_alignment = record.kind == RecordKind::Struct
+                    && !record.packed
+                    && record.pack.is_none()
+                    && fields.iter().any(|field| field.bit_width.is_some());
+                if record.alignment.is_some() || implicit_alignment {
+                    return Err(Error("packed records cannot contain a record requiring Rust repr(align), including through arrays or nested records".into()));
+                }
+                for field in fields {
+                    self.check_packed_containment(&field.ty, visited, depth + 1)?;
+                }
+            }
+            TypeKind::Array { element, .. } => {
+                self.check_packed_containment(element, visited, depth + 1)?
+            }
+            _ => {}
+        }
+        Ok(())
+    }
+
     fn record(&self, id: usize, source: &mut String) -> Result<(), Error> {
         let record = &self.unit.records[id];
         let name = self.record_name(id)?;
@@ -1263,11 +1304,7 @@ impl Emitter<'_> {
         };
         let layout = self.unit.layout(&Type::new(TypeKind::Record(id)))?;
         let has_bitfields = fields.iter().any(|field| field.bit_width.is_some());
-        if has_bitfields && record.kind == RecordKind::Union {
-            return Err(Error(format!(
-                "`{name}` has union bitfields, which are not yet supported in Rust bindings"
-            )));
-        }
+        let union_bits = has_bitfields && record.kind == RecordKind::Union;
         let mut repr = vec!["C".to_owned()];
         let pack = if record.packed { Some(1) } else { record.pack };
         if pack.is_some() && record.alignment.is_some() {
@@ -1276,12 +1313,15 @@ impl Emitter<'_> {
             )));
         }
         if let Some(pack) = pack {
+            let mut visited = BTreeSet::new();
+            for field in fields {
+                self.check_packed_containment(&field.ty, &mut visited, 0)?;
+            }
             repr.push(format!("packed({pack})"));
         }
-        if let Some(alignment) = record
-            .alignment
-            .or_else(|| (has_bitfields && pack.is_none()).then_some(layout.alignment_bytes()))
-        {
+        if let Some(alignment) = record.alignment.or_else(|| {
+            (has_bitfields && !union_bits && pack.is_none()).then_some(layout.alignment_bytes())
+        }) {
             repr.push(format!("align({alignment})"));
         }
         let kind = match record.kind {
@@ -1294,6 +1334,40 @@ impl Emitter<'_> {
             repr.join(", ")
         )
         .unwrap();
+        let union_storage = if union_bits {
+            let storage = helper_field(fields, "__toucan_union_bits");
+            writeln!(
+                source,
+                "    {storage}: ::core::mem::MaybeUninit<[::core::primitive::u8; {}]>,",
+                layout.size_bytes()
+            )
+            .unwrap();
+            // A zero-sized primitive raises natural alignment without an
+            // artificial repr(align) that would forbid packed containing types.
+            if !record
+                .alignment
+                .is_some_and(|alignment| alignment >= layout.alignment_bytes())
+            {
+                if ![8, 16, 32, 64, 128].contains(&layout.alignment_bits) {
+                    return Err(Error(format!(
+                        "`{name}` has unsupported union bitfield alignment"
+                    )));
+                }
+                if layout.alignment_bits == 128 {
+                    self.check_128_bit_abi()?;
+                }
+                let marker = helper_field(fields, "__toucan_alignment");
+                writeln!(
+                    source,
+                    "    {marker}: [::core::primitive::u{}; 0],",
+                    layout.alignment_bits
+                )
+                .unwrap();
+            }
+            Some(storage)
+        } else {
+            None
+        };
         let mut index = 0;
         let mut byte_offset = 0;
         let mut accessors = String::new();
@@ -1318,7 +1392,42 @@ impl Emitter<'_> {
         }
         while index < fields.len() {
             let field = &fields[index];
-            if field.bit_width.is_some() {
+            if union_bits && (field.alignment.is_some() || field.packed) {
+                return Err(Error(format!(
+                    "`{name}` has field-level alignment or packing"
+                )));
+            }
+            if let Some(width) = field.bit_width {
+                if let Some(storage) = &union_storage {
+                    if self.has_qualifier(&field.ty, |ty| ty.qualifiers.is_volatile)? {
+                        return Err(Error(format!(
+                            "`{name}` has a volatile union bitfield; access width and ordering are unsupported"
+                        )));
+                    }
+                    if let Some((getter, setter)) = accessor_names.get(&index) {
+                        let member = layout.fields[index]
+                            .ok_or_else(|| Error("named bitfield has no layout".into()))?;
+                        if member
+                            .offset_bits
+                            .checked_add(width)
+                            .is_none_or(|end| end > layout.size_bits)
+                        {
+                            return Err(Error("union bitfield exceeds its storage".into()));
+                        }
+                        self.bitfield_accessors(
+                            getter,
+                            setter,
+                            &field.ty,
+                            member.offset_bits,
+                            width,
+                            storage,
+                            true,
+                            &mut accessors,
+                        )?;
+                    }
+                    index += 1;
+                    continue;
+                }
                 let start_index = index;
                 while index < fields.len() && fields[index].bit_width.is_some() {
                     index += 1;
@@ -1382,6 +1491,7 @@ impl Emitter<'_> {
                                 field_layout.offset_bits - start * 8,
                                 field.bit_width.unwrap(),
                                 &storage,
+                                false,
                                 &mut accessors,
                             )?;
                         }
@@ -1398,7 +1508,7 @@ impl Emitter<'_> {
                 Some(name) => names.identifier(name)?,
                 None => helper_field(fields, &format!("__anonymous_{index}")),
             };
-            if has_bitfields {
+            if has_bitfields && !union_bits {
                 let offset = layout.fields[index]
                     .ok_or_else(|| Error("ordinary field has no layout".into()))?
                     .offset_bits
@@ -1420,7 +1530,7 @@ impl Emitter<'_> {
             writeln!(source, "    pub {field_name}: {},", self.ty(&field.ty)?).unwrap();
             index += 1;
         }
-        if has_bitfields && byte_offset < layout.size_bytes() {
+        if has_bitfields && !union_bits && byte_offset < layout.size_bytes() {
             let padding = helper_field(fields, "__toucan_padding_tail");
             writeln!(
                 source,
@@ -1429,7 +1539,7 @@ impl Emitter<'_> {
             )
             .unwrap();
         }
-        if has_bitfields && pack.is_some() {
+        if has_bitfields && !union_bits && pack.is_some() {
             let marker = helper_field(fields, "__toucan_alignment");
             writeln!(
                 source,
@@ -1485,6 +1595,7 @@ impl Emitter<'_> {
         offset: u64,
         width: u64,
         storage: &str,
+        union: bool,
         source: &mut String,
     ) -> Result<(), Error> {
         if !(1..=128).contains(&width) {
@@ -1492,6 +1603,11 @@ impl Emitter<'_> {
         }
         let rust_type = self.ty(ty)?;
         let kind = &self.unit.resolve(ty)?.kind;
+        if self.options.rustified_enums && matches!(kind, TypeKind::Enum(_)) {
+            return Err(Error(
+                "enum bitfields require the integer enum representation".into(),
+            ));
+        }
         let signed = match kind {
             TypeKind::Integer(IntegerKind::Char) => self.unit.target.char_is_signed(),
             TypeKind::Integer(
@@ -1505,7 +1621,22 @@ impl Emitter<'_> {
             TypeKind::Enum(id) => self.enum_type(*id)?.contains("::i"),
             _ => false,
         };
-        writeln!(source, "    pub fn {getter}(&self) -> {rust_type} {{\n        let mut value: ::core::primitive::u128 = 0;\n        for bit in 0..{width} {{\n            let position = {offset} + bit;\n            value |= (((self.{storage}[position / 8] >> (position % 8)) & 1) as ::core::primitive::u128) << bit;\n        }}").unwrap();
+        let qualifier = if union { "unsafe " } else { "" };
+        let read = if union {
+            source.push_str("    /// # Safety\n    /// Bytes overlapping this bitfield must be initialized. Other union members may leave them uninitialized.\n    #[deny(unsafe_op_in_unsafe_fn)]\n");
+            "unsafe { storage.add(position / 8).read() }".to_owned()
+        } else {
+            format!("self.{storage}[position / 8]")
+        };
+        writeln!(
+            source,
+            "    pub {qualifier}fn {getter}(&self) -> {rust_type} {{"
+        )
+        .unwrap();
+        if union {
+            writeln!(source, "        let storage = ::core::ptr::addr_of!(self.{storage}).cast::<::core::primitive::u8>();").unwrap();
+        }
+        writeln!(source, "        let mut value: ::core::primitive::u128 = 0;\n        for bit in 0..{width} {{\n            let position = {offset} + bit;\n            value |= ((({read} >> (position % 8)) & 1) as ::core::primitive::u128) << bit;\n        }}").unwrap();
         if matches!(kind, TypeKind::Bool) {
             source.push_str("        value != 0\n");
         } else if signed {
@@ -1520,7 +1651,27 @@ impl Emitter<'_> {
             writeln!(source, "        value as {rust_type}").unwrap();
         }
         source.push_str("    }\n");
-        writeln!(source, "    pub fn {setter}(&mut self, value: {rust_type}) {{\n        let value = value as ::core::primitive::u128;\n        for bit in 0..{width} {{\n            let position = {offset} + bit;\n            let mask = 1 << (position % 8);\n            self.{storage}[position / 8] = (self.{storage}[position / 8] & !mask) | ((((value >> bit) & 1) as ::core::primitive::u8) << (position % 8));\n        }}\n    }}").unwrap();
+        if union && self.is_const(ty)? {
+            return Ok(());
+        }
+        if union {
+            source.push_str("    /// # Safety\n    /// Bytes overlapping this bitfield must be initialized; the update reads and preserves their other bits.\n    #[deny(unsafe_op_in_unsafe_fn)]\n");
+        }
+        writeln!(
+            source,
+            "    pub {qualifier}fn {setter}(&mut self, value: {rust_type}) {{"
+        )
+        .unwrap();
+        if union {
+            writeln!(source, "        let storage = ::core::ptr::addr_of_mut!(self.{storage}).cast::<::core::primitive::u8>();").unwrap();
+        }
+        writeln!(source, "        let value = value as ::core::primitive::u128;\n        for bit in 0..{width} {{\n            let position = {offset} + bit;\n            let mask = 1 << (position % 8);").unwrap();
+        if union {
+            source.push_str("            unsafe { let byte = storage.add(position / 8); byte.write((byte.read() & !mask) | ((((value >> bit) & 1) as ::core::primitive::u8) << (position % 8))); }\n");
+        } else {
+            writeln!(source, "            self.{storage}[position / 8] = (self.{storage}[position / 8] & !mask) | ((((value >> bit) & 1) as ::core::primitive::u8) << (position % 8));").unwrap();
+        }
+        source.push_str("        }\n    }\n");
         Ok(())
     }
 }
