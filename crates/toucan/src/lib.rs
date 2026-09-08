@@ -1,8 +1,8 @@
 //! A reusable, target-explicit frontend for C headers.
 //!
 //! The frontend never launches a compiler. Callers supply include directories and
-//! the target's sysroot. This API currently analyzes declarations; function bodies
-//! are parsed but not type-checked. Unsupported bindings produce diagnostics.
+//! the target's sysroot. Declarations, initializers, and function bodies are checked
+//! within the supported C feature set. Unsupported bindings produce diagnostics.
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};

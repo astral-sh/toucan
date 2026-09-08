@@ -58,7 +58,7 @@ enum Command {
         #[arg(short, long)]
         output: Option<PathBuf>,
     },
-    /// Parse and analyze header declarations (function bodies are not type-checked).
+    /// Check declarations, initializers, and function bodies.
     Check {
         #[command(flatten)]
         input: Input,

@@ -11,11 +11,10 @@ use crate::{
 
 type PackEvents = Vec<(usize, Option<u64>)>;
 
-/// Parses and analyzes preprocessed C declarations without invoking a subprocess.
+/// Parses and checks preprocessed C declarations and bodies without a subprocess.
 ///
-/// Pack pragmas are interpreted before parsing. Function bodies are syntax-checked
-/// only; the returned declarations mark definitions so binding generators can omit
-/// inline functions without pretending that an external symbol exists.
+/// Pack pragmas are interpreted before parsing. Definition markers let binding
+/// generators omit inline functions after their bodies have been checked.
 pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
@@ -33,30 +32,12 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
                 analyzer.static_assert(&assertion)?
             }
             ast::ExternalDeclaration::FunctionDefinition(definition) => {
-                if !definition.node.declarations.is_empty() {
-                    return Err(Error::new(
-                        definition.span.start,
-                        "K&R function definitions are unsupported",
-                    ));
-                }
-                let declaration = Node::new(
-                    ast::Declaration {
-                        specifiers: definition.node.specifiers,
-                        declarators: vec![Node::new(
-                            ast::InitDeclarator {
-                                declarator: definition.node.declarator,
-                                initializer: None,
-                            },
-                            definition.span,
-                        )],
-                    },
-                    definition.span,
-                );
-                analyzer.declaration(&declaration, true)?;
+                analyzer.function_definition(&definition)?;
             }
         }
     }
     analyzer.finish_tentative_definitions()?;
+    analyzer.validate_block_externs()?;
     Ok(analyzer.unit)
 }
 
@@ -326,7 +307,7 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 }
 
 #[derive(Clone, Debug, Default)]
-struct Attributes {
+pub(crate) struct Attributes {
     packed: bool,
     alignment: Option<u64>,
     link_name: Option<String>,
@@ -334,26 +315,32 @@ struct Attributes {
 }
 
 #[derive(Clone, Copy)]
-enum Tag {
+pub(crate) enum Tag {
     Record(usize),
     Enum(usize),
 }
 
 #[derive(Clone, Copy)]
-struct TagBinding {
-    tag: Tag,
-    depth: usize,
+pub(crate) struct TagBinding {
+    pub(crate) tag: Tag,
+    pub(crate) depth: usize,
 }
 
-/// Only bindings introduced in a prototype need to be saved and restored.
-/// Existing file-scope maps are shared even for headers with many prototypes.
+/// Scope frames retain only new bindings; file-scope maps remain shared.
 #[derive(Default)]
-struct PrototypeScope {
-    tags: Vec<(String, Option<TagBinding>)>,
-    constants: Vec<(String, Option<IntegerValue>)>,
+pub(crate) struct LexicalScope {
+    pub(crate) is_block: bool,
+    pub(crate) record_ids: Vec<usize>,
+    pub(crate) enum_ids: Vec<usize>,
+    pub(crate) typedefs: HashMap<String, Type>,
+    pub(crate) static_storage: HashSet<String>,
+    pub(crate) linked: HashSet<String>,
+    pub(crate) register: HashSet<String>,
+    pub(crate) tags: Vec<(String, Option<TagBinding>)>,
+    pub(crate) constants: Vec<(String, Option<IntegerValue>)>,
     /// A parameter index, or None for an enumerator in the ordinary namespace.
-    names: HashMap<String, Option<usize>>,
-    parameters: Vec<Parameter>,
+    pub(crate) names: HashMap<String, Option<usize>>,
+    pub(crate) parameters: Vec<Parameter>,
 }
 
 #[derive(Default)]
@@ -424,13 +411,17 @@ fn outermost_derived(
 
 pub(crate) struct Analyzer {
     pub(crate) unit: TranslationUnit,
-    tags: HashMap<String, TagBinding>,
-    prototype_scopes: Vec<PrototypeScope>,
+    pub(crate) tags: HashMap<String, TagBinding>,
+    pub(crate) lexical_scopes: Vec<LexicalScope>,
     defining_enums: HashSet<usize>,
     tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
     record_attributes: HashSet<usize>,
     nesting: usize,
+    pub(crate) capture_function_scope: bool,
+    pub(crate) function_scope: Option<crate::statement::FunctionScope>,
+    pub(crate) block_externs: HashMap<String, Type>,
+    type_names: HashMap<(usize, usize), Type>,
 }
 
 impl Analyzer {
@@ -479,38 +470,42 @@ impl Analyzer {
         Self {
             unit,
             tags,
-            prototype_scopes: Vec::new(),
+            lexical_scopes: Vec::new(),
             defining_enums: HashSet::new(),
             tentative_definitions: BTreeMap::new(),
             packs: Vec::new(),
             record_attributes: HashSet::new(),
             nesting: 0,
+            capture_function_scope: false,
+            function_scope: None,
+            block_externs: HashMap::new(),
+            type_names: HashMap::new(),
         }
     }
 
     fn scope(&self) -> Scope {
-        if self.prototype_scopes.is_empty() {
-            Scope::File
-        } else {
-            Scope::Prototype
+        match self.lexical_scopes.last() {
+            Some(scope) if scope.is_block => Scope::Block,
+            Some(_) => Scope::Prototype,
+            None => Scope::File,
         }
     }
 
-    fn bind_tag(&mut self, name: String, tag: Tag) {
+    pub(crate) fn bind_tag(&mut self, name: String, tag: Tag) {
         let previous = self.tags.insert(
             name.clone(),
             TagBinding {
                 tag,
-                depth: self.prototype_scopes.len(),
+                depth: self.lexical_scopes.len(),
             },
         );
-        if let Some(scope) = self.prototype_scopes.last_mut() {
+        if let Some(scope) = self.lexical_scopes.last_mut() {
             scope.tags.push((name, previous));
         }
     }
 
     pub(crate) fn parameter_type(&self, name: &str) -> Option<&Type> {
-        self.prototype_scopes
+        self.lexical_scopes
             .iter()
             .rev()
             .find_map(|scope| {
@@ -522,11 +517,38 @@ impl Analyzer {
             .flatten()
     }
 
-    fn leave_prototype(&mut self) -> Vec<Parameter> {
+    pub(crate) fn leave_prototype(&mut self) -> Vec<Parameter> {
         let scope = self
-            .prototype_scopes
+            .lexical_scopes
             .pop()
             .expect("prototype scope is active");
+        if self.capture_function_scope && !scope.is_block {
+            self.function_scope = Some(crate::statement::FunctionScope {
+                record_ids: scope.record_ids.clone(),
+                enum_ids: scope.enum_ids.clone(),
+                tags: scope
+                    .tags
+                    .iter()
+                    .filter_map(|(name, _)| {
+                        self.tags
+                            .get(name)
+                            .map(|binding| (name.clone(), binding.tag))
+                    })
+                    .collect(),
+                constants: scope
+                    .constants
+                    .iter()
+                    .filter_map(|(name, _)| {
+                        self.unit
+                            .constants
+                            .get(name)
+                            .map(|value| (name.clone(), *value))
+                    })
+                    .collect(),
+                parameters: scope.parameters.clone(),
+                register: scope.register.clone(),
+            });
+        }
         for (name, previous) in scope.tags.into_iter().rev() {
             if let Some(previous) = previous {
                 self.tags.insert(name, previous);
@@ -613,7 +635,7 @@ impl Analyzer {
         self.unit.typedefs.insert("__builtin_va_list".into(), ty);
     }
 
-    fn declaration(
+    pub(crate) fn declaration(
         &mut self,
         declaration: &Node<ast::Declaration>,
         definition: bool,
@@ -1010,7 +1032,7 @@ impl Analyzer {
         })
     }
 
-    fn specifiers(
+    pub(crate) fn specifiers(
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
     ) -> Result<(Type, Attributes), Error> {
@@ -1107,6 +1129,16 @@ impl Analyzer {
     }
 
     fn base_type(&mut self, types: &[Node<ast::TypeSpecifier>]) -> Result<Type, Error> {
+        if let [
+            Node {
+                node: ast::TypeSpecifier::TypedefName(name),
+                ..
+            },
+        ] = types
+            && let Some(ty) = self.local_typedef(&name.node.name)
+        {
+            return Ok(ty.clone());
+        }
         let offset = types.first().map_or(0, |ty| ty.span.start);
         let mut long = 0;
         let mut short = false;
@@ -1258,16 +1290,29 @@ impl Analyzer {
         }))
     }
 
+    /// Resolves each written type name once, so typing an unevaluated operand and
+    /// subsequently evaluating it cannot redeclare tags defined inside that type.
     pub(crate) fn type_name(&mut self, name: &ast::TypeName) -> Result<Type, Error> {
-        let (ty, _) = self.specifier_qualifiers(&name.specifiers)?;
-        if let Some(declarator) = &name.declarator {
-            Ok(self.declarator(ty, declarator)?.1)
-        } else {
-            Ok(ty)
+        let start = name.specifiers.first().map_or(0, |node| node.span.start);
+        let end = name.declarator.as_ref().map_or_else(
+            || name.specifiers.last().map_or(start, |node| node.span.end),
+            |node| node.span.end,
+        );
+        let key = (start, end);
+        if let Some(ty) = self.type_names.get(&key) {
+            return Ok(ty.clone());
         }
+        let (ty, _) = self.specifier_qualifiers(&name.specifiers)?;
+        let ty = if let Some(declarator) = &name.declarator {
+            self.declarator(ty, declarator)?.1
+        } else {
+            ty
+        };
+        self.type_names.insert(key, ty.clone());
+        Ok(ty)
     }
 
-    fn declarator(
+    pub(crate) fn declarator(
         &mut self,
         ty: Type,
         declaration: &Node<ast::Declarator>,
@@ -1359,9 +1404,9 @@ impl Analyzer {
                             "a function cannot return an array or function",
                         ));
                     }
-                    self.prototype_scopes.push(PrototypeScope {
+                    self.lexical_scopes.push(LexicalScope {
                         parameters: Vec::with_capacity(function.node.parameters.len()),
-                        ..PrototypeScope::default()
+                        ..LexicalScope::default()
                     });
                     let prototype = !function.node.parameters.is_empty();
                     for parameter in &function.node.parameters {
@@ -1442,10 +1487,13 @@ impl Analyzer {
                             _ => parameter_type,
                         };
                         let scope = self
-                            .prototype_scopes
+                            .lexical_scopes
                             .last_mut()
                             .expect("prototype scope is active");
                         if let Some(name) = &name {
+                            if parameter.node.specifiers.iter().any(|specifier| matches!(&specifier.node, ast::DeclarationSpecifier::StorageClass(storage) if storage.node == ast::StorageClassSpecifier::Register)) {
+                                scope.register.insert(name.clone());
+                            }
                             if scope
                                 .names
                                 .insert(name.clone(), Some(scope.parameters.len()))
@@ -1564,7 +1612,7 @@ impl Analyzer {
             .and_then(|name| self.tags.get(name))
             .filter(|binding| {
                 declaration.node.declarations.is_none()
-                    || binding.depth == self.prototype_scopes.len()
+                    || binding.depth == self.lexical_scopes.len()
             });
         let id = if let Some(binding) = binding {
             let Tag::Record(id) = binding.tag else {
@@ -1597,6 +1645,9 @@ impl Analyzer {
                 alignment: None,
                 pack,
             });
+            if let Some(scope) = self.lexical_scopes.last_mut() {
+                scope.record_ids.push(id);
+            }
             if let Some(name) = name {
                 self.bind_tag(name, Tag::Record(id));
             }
@@ -1840,7 +1891,7 @@ impl Analyzer {
             .and_then(|name| self.tags.get(name))
             .filter(|binding| {
                 declaration.node.enumerators.is_empty()
-                    || binding.depth == self.prototype_scopes.len()
+                    || binding.depth == self.lexical_scopes.len()
             });
         let id = if let Some(binding) = binding {
             let Tag::Enum(id) = binding.tag else {
@@ -1858,6 +1909,9 @@ impl Analyzer {
                 complete: false,
                 variants: Vec::new(),
             });
+            if let Some(scope) = self.lexical_scopes.last_mut() {
+                scope.enum_ids.push(id);
+            }
             if let Some(name) = name {
                 self.bind_tag(name, Tag::Enum(id));
             }
@@ -1889,7 +1943,7 @@ impl Analyzer {
                 value
             };
             let name = enumerator.node.identifier.node.name.clone();
-            let duplicate = if let Some(scope) = self.prototype_scopes.last_mut() {
+            let duplicate = if let Some(scope) = self.lexical_scopes.last_mut() {
                 scope.names.insert(name.clone(), None).is_some()
             } else {
                 self.unit.constants.contains_key(&name)
@@ -1907,7 +1961,7 @@ impl Analyzer {
                 ));
             }
             let previous_binding = self.unit.constants.insert(name.clone(), value);
-            if let Some(scope) = self.prototype_scopes.last_mut() {
+            if let Some(scope) = self.lexical_scopes.last_mut() {
                 scope.constants.push((name.clone(), previous_binding));
             }
             self.unit.enums[id]
@@ -2037,7 +2091,10 @@ impl Analyzer {
         Ok(())
     }
 
-    fn static_assert(&mut self, assertion: &Node<ast::StaticAssert>) -> Result<(), Error> {
+    pub(crate) fn static_assert(
+        &mut self,
+        assertion: &Node<ast::StaticAssert>,
+    ) -> Result<(), Error> {
         if !self.eval(&assertion.node.expression)?.truth() {
             return Err(Error::new(
                 assertion.span.start,

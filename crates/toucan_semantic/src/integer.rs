@@ -574,7 +574,7 @@ pub(crate) fn promote(value: IntegerValue) -> IntegerValue {
     }
 }
 
-fn convert(value: IntegerValue, destination: IntegerValue) -> IntegerValue {
+pub(crate) fn convert(value: IntegerValue, destination: IntegerValue) -> IntegerValue {
     IntegerValue::new(
         if value.signed {
             value.signed_value() as u128

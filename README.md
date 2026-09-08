@@ -3,13 +3,13 @@
 A C frontend in Rust. Generate Rust bindings without libclang, or embed the frontend
 in your own tools.
 
-Toucan provides preprocessing, declaration analysis, integer constant evaluation,
+Toucan provides preprocessing, type checking, integer constant evaluation,
 and target-specific layout through reusable libraries. Rust binding generation is
 the first application; the same representation is intended for API compatibility
 checks, header indexes, and static analysis.
 
-**Toucan is experimental.** It analyzes header declarations, but does not yet
-type-check function bodies or variable initializers. It is not a production-ready
+**Toucan is experimental.** It checks declarations, expressions, initializers, and
+function bodies within the supported C feature set. It is not yet a production-ready
 replacement for bindgen. See [compatibility](docs/compatibility.md) for supported
 features and remaining gaps.
 
@@ -76,8 +76,8 @@ toucan check api.h
 toucan inspect api.h --output api.json
 ```
 
-`preprocess` expands macros and includes. `check` validates header declarations
-within the supported scope. `inspect` writes the semantic representation as versioned
+`preprocess` expands macros and includes. `check` validates declarations and function
+bodies within the supported scope. Unsupported constructs produce diagnostics. `inspect` writes the semantic representation as versioned
 JSON. The library API and JSON schema are experimental.
 
 ### System headers and cross-compilation

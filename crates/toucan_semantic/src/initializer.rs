@@ -474,6 +474,9 @@ impl Analyzer {
                 let ty = self.check_initializer(&ty, &initializer, true)?;
                 Ok(
                     if matches!(self.unit.resolve(&ty)?.kind, TypeKind::Array { .. }) {
+                        if self.in_function_body() {
+                            return Err(invalid());
+                        }
                         ConstantKind::Address
                     } else {
                         ConstantKind::Arithmetic
@@ -489,7 +492,8 @@ impl Analyzer {
                 if matches!(
                     self.unit.resolve(&ty)?.kind,
                     TypeKind::Array { .. } | TypeKind::Function(_)
-                ) {
+                ) && self.object_has_static_storage(&identifier.node.name)
+                {
                     Ok(ConstantKind::Address)
                 } else {
                     Err(invalid())
@@ -619,16 +623,16 @@ impl Analyzer {
         };
         match &expression.node {
             ast::Expression::Identifier(identifier) => {
-                if self.unit.declarations.iter().any(|declaration| {
-                    declaration.name == identifier.node.name
-                        && declaration.kind != DeclarationKind::Typedef
-                }) {
+                if self.object_has_static_storage(&identifier.node.name) {
                     Ok(())
                 } else {
                     Err(invalid())
                 }
             }
             ast::Expression::CompoundLiteral(_) => {
+                if self.in_function_body() {
+                    return Err(invalid());
+                }
                 self.static_initializer(expression)?;
                 Ok(())
             }

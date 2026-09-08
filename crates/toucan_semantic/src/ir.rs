@@ -119,12 +119,13 @@ pub struct Parameter {
     pub ty: Type,
 }
 
-/// The scope in which a tag was introduced. Prototype tags retain their type
-/// identities, but their names are unavailable at file scope.
+/// The scope in which a tag was introduced. Prototype and block tags retain their
+/// type identities, but their names are unavailable at file scope.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum Scope {
     File,
     Prototype,
+    Block,
 }
 
 #[derive(Clone, Debug, Serialize)]

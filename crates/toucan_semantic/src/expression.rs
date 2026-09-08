@@ -12,6 +12,7 @@ struct ExpressionInfo {
     ty: Type,
     lvalue: bool,
     bitfield: Option<u64>,
+    register: bool,
 }
 
 impl ExpressionInfo {
@@ -20,6 +21,7 @@ impl ExpressionInfo {
             ty,
             lvalue: false,
             bitfield: None,
+            register: false,
         }
     }
 
@@ -28,6 +30,7 @@ impl ExpressionInfo {
             ty,
             lvalue: true,
             bitfield: None,
+            register: false,
         }
     }
 }
@@ -77,7 +80,9 @@ impl Analyzer {
                 if let Some(value) = self.unit.constants.get(name) {
                     integer_to_type(*value)
                 } else if let Some(ty) = self.parameter_type(name) {
-                    return Ok(ExpressionInfo::object(ty.clone()));
+                    let mut info = ExpressionInfo::object(ty.clone());
+                    info.register = self.is_register_object(name);
+                    return Ok(info);
                 } else if let Some(declaration) = self
                     .unit
                     .declarations
@@ -110,7 +115,7 @@ impl Analyzer {
                     ast::Initializer::List(literal.node.initializer_list.clone()),
                     literal.span,
                 );
-                let ty = self.check_initializer(&ty, &initializer, false)?;
+                let ty = self.check_initializer(&ty, &initializer, !self.in_function_body())?;
                 return Ok(ExpressionInfo::object(ty));
             }
             ast::Expression::GenericSelection(selection) => {
@@ -118,8 +123,7 @@ impl Analyzer {
                 return self.expression_info(selected);
             }
             ast::Expression::Cast(cast) => {
-                let source = self.expression_type(&cast.node.expression)?;
-                let source = self.value_type(&source)?;
+                let source = self.value_expression_type(&cast.node.expression)?;
                 let destination = self.type_name(&cast.node.type_name.node)?;
                 let destination = self.unit.resolve(&destination)?.clone();
                 if !matches!(destination.kind, TypeKind::Void) {
@@ -145,27 +149,37 @@ impl Analyzer {
                     && let ast::Expression::UnaryOperator(indirection) = &unary.node.operand.node
                     && indirection.node.operator.node == ast::UnaryOperator::Indirection
                 {
-                    let ty = self.expression_type(&indirection.node.operand)?;
-                    let ty = self.value_type(&ty)?;
+                    let ty = self.value_expression_type(&indirection.node.operand)?;
                     if !matches!(ty.kind, TypeKind::Pointer(_)) {
                         return Err(Error::new(offset, "indirection requires a pointer"));
                     }
                     return Ok(ExpressionInfo::value(ty));
                 }
                 let operand = self.expression_info(&unary.node.operand)?;
-                let value = self.value_type(&operand.ty)?;
+                let value = self.converted_type(&operand, offset)?;
                 match unary.node.operator.node {
                     ast::UnaryOperator::Address => {
-                        if operand.bitfield.is_some()
-                            || (!operand.lvalue
-                                && !matches!(
-                                    self.unit.resolve(&operand.ty)?.kind,
-                                    TypeKind::Function(_)
-                                ))
+                        if operand.register {
+                            return Err(Error::new(
+                                offset,
+                                "cannot take the address of a register object",
+                            ));
+                        }
+                        if operand.bitfield.is_some() {
+                            return Err(Error::new(
+                                offset,
+                                "cannot take the address of a bitfield",
+                            ));
+                        }
+                        if !operand.lvalue
+                            && !matches!(
+                                self.unit.resolve(&operand.ty)?.kind,
+                                TypeKind::Function(_)
+                            )
                         {
                             return Err(Error::new(
                                 offset,
-                                "address requires an lvalue or function designator and cannot address a bitfield",
+                                "address requires an lvalue or function designator",
                             ));
                         }
                         operand.ty.pointer()
@@ -186,6 +200,7 @@ impl Analyzer {
                             ty: *pointee,
                             lvalue: !function,
                             bitfield: None,
+                            register: false,
                         });
                     }
                     ast::UnaryOperator::Negate => {
@@ -218,12 +233,12 @@ impl Analyzer {
             }
             ast::Expression::BinaryOperator(binary) => return self.binary_expression(binary),
             ast::Expression::Conditional(conditional) => {
-                let condition = self.expression_type(&conditional.node.condition)?;
+                let condition = self.value_expression_type(&conditional.node.condition)?;
                 self.require_scalar(&condition, offset)?;
                 let left = self.expression_info(&conditional.node.then_expression)?;
                 let right = self.expression_info(&conditional.node.else_expression)?;
-                let left_value = self.value_type(&left.ty)?;
-                let right_value = self.value_type(&right.ty)?;
+                let left_value = self.converted_type(&left, offset)?;
+                let right_value = self.converted_type(&right, offset)?;
                 if self.is_arithmetic(&left_value)? && self.is_arithmetic(&right_value)? {
                     self.arithmetic_type(&left, &right, offset)?
                 } else if matches!(
@@ -262,7 +277,7 @@ impl Analyzer {
             ast::Expression::Member(member) => {
                 let base = self.expression_info(&member.node.expression)?;
                 let (ty, lvalue) = if member.node.operator.node == ast::MemberOperator::Indirect {
-                    let value = self.value_type(&base.ty)?;
+                    let value = self.converted_type(&base, offset)?;
                     let TypeKind::Pointer(pointee) = value.kind else {
                         return Err(Error::new(offset, "indirect member requires a pointer"));
                     };
@@ -276,11 +291,12 @@ impl Analyzer {
                     ty: field,
                     lvalue,
                     bitfield,
+                    register: member.node.operator.node == ast::MemberOperator::Direct
+                        && base.register,
                 });
             }
             ast::Expression::Call(call) => {
-                let callee = self.expression_type(&call.node.callee)?;
-                let callee = self.value_type(&callee)?;
+                let callee = self.value_expression_type(&call.node.callee)?;
                 let TypeKind::Pointer(pointee) = callee.kind else {
                     return Err(Error::new(offset, "callee is not a function"));
                 };
@@ -303,8 +319,8 @@ impl Analyzer {
                     {
                         self.check_assignment(&parameter.ty, argument)?;
                     } else {
-                        let ty = self.expression_type(argument)?;
-                        self.require_complete_object(&self.value_type(&ty)?, argument.span.start)?;
+                        let ty = self.value_expression_type(argument)?;
+                        self.require_complete_object(&ty, argument.span.start)?;
                     }
                 }
                 if !matches!(
@@ -336,8 +352,7 @@ impl Analyzer {
             ast::Expression::Comma(expressions) => {
                 let mut ty = Type::new(TypeKind::Void);
                 for expression in expressions.iter() {
-                    let expression = self.expression_type(expression)?;
-                    ty = self.value_type(&expression)?;
+                    ty = self.value_expression_type(expression)?;
                 }
                 ty
             }
@@ -364,8 +379,7 @@ impl Analyzer {
                 "generic selection exceeds the 256-association limit",
             ));
         }
-        let control = self.expression_type(&selection.node.expression)?;
-        let control = self.value_type(&control)?;
+        let control = self.value_expression_type(&selection.node.expression)?;
         let mut types = Vec::new();
         let mut expressions = Vec::new();
         let mut selected = None;
@@ -425,8 +439,8 @@ impl Analyzer {
         let offset = binary.span.start;
         let left = self.expression_info(&binary.node.lhs)?;
         let right = self.expression_info(&binary.node.rhs)?;
-        let left_value = self.value_type(&left.ty)?;
-        let right_value = self.value_type(&right.ty)?;
+        let left_value = self.converted_type(&left, offset)?;
+        let right_value = self.converted_type(&right, offset)?;
         let assignment = matches!(
             binary.node.operator.node,
             Op::Assign
@@ -588,8 +602,7 @@ impl Analyzer {
         destination: &Type,
         expression: &Node<ast::Expression>,
     ) -> Result<(), Error> {
-        let source = self.expression_type(expression)?;
-        let source = self.value_type(&source)?;
+        let source = self.value_expression_type(expression)?;
         self.check_assignment_type(destination, &source, expression)
     }
 
@@ -648,6 +661,31 @@ impl Analyzer {
             ));
         }
         self.size_of(&operand.ty, expression.span.start)
+    }
+
+    /// Checks a value context, including array conversion restrictions that rely
+    /// on expression storage rather than only its C type.
+    pub(crate) fn value_expression_type(
+        &mut self,
+        expression: &Node<ast::Expression>,
+    ) -> Result<Type, Error> {
+        let info = self.expression_info(expression)?;
+        self.converted_type(&info, expression.span.start)
+    }
+
+    fn converted_type(&self, expression: &ExpressionInfo, offset: usize) -> Result<Type, Error> {
+        if expression.register
+            && matches!(
+                self.unit.resolve(&expression.ty)?.kind,
+                TypeKind::Array { .. }
+            )
+        {
+            return Err(Error::new(
+                offset,
+                "register array cannot undergo pointer conversion",
+            ));
+        }
+        self.value_type(&expression.ty)
     }
 
     /// Applies lvalue conversion and C's array/function designator conversion.

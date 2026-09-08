@@ -1,14 +1,15 @@
-//! C declarations, target-specific types, and integer constant expressions.
+//! C declarations, target-specific types, expressions, and function-body constraints.
 //!
-//! This crate accepts preprocessed C without invoking an external compiler. Function
-//! bodies are parsed, but are not type-checked; the semantic API describes header
-//! declarations rather than claiming to validate executable C programs.
+//! This crate checks preprocessed C without invoking an external compiler. Unsupported
+//! constructs return diagnostics; function bodies are checked even when a binding
+//! consumer omits their definitions from its generated API.
 
 mod analyze;
 mod expression;
 mod initializer;
 mod integer;
 mod ir;
+mod statement;
 
 pub use analyze::{analyze, evaluate_integer};
 pub use ir::*;

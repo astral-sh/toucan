@@ -33,7 +33,9 @@ configuration. See CI results for changes made after that run.
 
 ## Current gaps
 
-- Function bodies and variable initializers are parsed but not type-checked.
+- Bodies and initializers are type-checked. Variable-length arrays, inline assembly,
+  and GNU statement expressions still require implementation; unsupported constructs
+  return diagnostics. Typed bodies are not yet exposed through the public IR.
 - Declaration constraints still need broader conformance testing. Prototype-local
   tags retain distinct identities and are checked against GCC and Clang.
 - C++, K&R function definitions, variable-length arrays, TLS, atomic and complex

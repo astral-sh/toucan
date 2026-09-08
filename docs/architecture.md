@@ -44,9 +44,12 @@ C promotions and usual arithmetic conversions, checks signed overflow and invali
 shifts, and respects short-circuit operators. An unevaluated operand of `sizeof` is
 type-checked without evaluating its arithmetic.
 
-The semantic layer currently analyzes declarations. It does not type-check function
-bodies or variable initializers. This distinction matters for consumers building
-static analysis: a successful header analysis is not a complete C program validation.
+The semantic layer checks declarations, expressions, initializers, and function
+bodies. Lexical scopes keep local names out of the exported declarations while
+preserving tag identities. Aggregate initialization uses a subobject cursor, so
+sparse designated initializers do not expand implicitly zeroed elements. Function
+checking validates calls, assignments, returns, control-flow constraints, and labels.
+Unsupported constructs produce diagnostics; this remains an incomplete C11 implementation.
 
 ## Rust representation
 
@@ -84,5 +87,5 @@ in the report. The CLI can turn macro omissions into errors.
 
 The integrated API returns the semantic translation unit separately from generated
 bindings. An indexer or compatibility checker can consume it without generating
-Rust. Current declaration coverage does not provide the function-body semantics
-needed for a complete static analyzer.
+Rust. The checker validates supported function bodies, but the public representation does
+not yet expose a typed body or control-flow graph for downstream analyzers.
