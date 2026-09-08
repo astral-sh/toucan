@@ -294,8 +294,8 @@ Clang ignores inapplicable placements, including ordinary fields, parameters,
 and tags, with a warning. GCC 13 ignores the unknown attribute, including any
 arguments. Toucan accepts those declaration cases without reproducing the
 warnings, following its existing attribute-warning policy. Standalone attribute
-statements and label attributes remain unsupported here. Feature-query macros
-remain conservative; accepting this spelling does not advertise a debug backend.
+statements and label attributes remain unsupported here. Clang profiles advertise
+`__has_attribute(nodebug)` for these source constraints; this does not imply a debug backend.
 The [nodebug evidence](../corpus/evidence/nodebug-2026-09-08.json) records the
 compiler checks and remaining untouched-header blocker.
 

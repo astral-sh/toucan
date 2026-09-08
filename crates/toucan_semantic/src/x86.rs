@@ -572,22 +572,32 @@ impl X86Intrinsic {
         self,
         profile: toucan_target::CompilerProfile,
     ) -> Option<X86Signature> {
+        let (result, parameters) = self.prototype_with_profile(profile)?;
+        Some(X86Signature {
+            result: result.ty(),
+            parameters: parameters.iter().map(|parameter| parameter.ty()).collect(),
+        })
+    }
+    /// Whether the spelling has a source signature in this compiler profile.
+    pub fn is_available(self, profile: toucan_target::CompilerProfile) -> bool {
+        self.prototype_with_profile(profile).is_some()
+    }
+    fn prototype_with_profile(
+        self,
+        profile: toucan_target::CompilerProfile,
+    ) -> Option<(IntrinsicType, &'static [IntrinsicType])> {
         let target = profile.target();
         let descriptor = self.descriptor();
-        let (result, parameters) = match (target, profile.compiler()) {
-            (Target::X86_64UnknownLinuxGnu, toucan_target::Compiler::Gnu) => descriptor.gcc?,
+        match (target, profile.compiler()) {
+            (Target::X86_64UnknownLinuxGnu, toucan_target::Compiler::Gnu) => descriptor.gcc,
             (
                 Target::X86_64UnknownLinuxGnu
                 | Target::X86_64AppleDarwin
                 | Target::X86_64PcWindowsMsvc,
                 toucan_target::Compiler::Clang,
-            ) => descriptor.clang?,
-            _ => return None,
-        };
-        Some(X86Signature {
-            result: result.ty(),
-            parameters: parameters.iter().map(|parameter| parameter.ty()).collect(),
-        })
+            ) => descriptor.clang,
+            _ => None,
+        }
     }
     /// Immediate obligations for this compiler profile. GNU checking may leave
     /// these pending even for known invalid values: its expander checks them only

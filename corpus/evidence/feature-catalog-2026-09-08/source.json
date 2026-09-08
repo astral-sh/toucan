@@ -1,0 +1,8 @@
+{
+  "base_commit": "1be727f05f3996c37f0398625e7c5a19156e89ef",
+  "dirty": true,
+  "sha256": {
+    "Cargo.lock": "027b754cd4acd38404bd5cdc28e0e8f56e139bc7ea566efc17afeee7a2239c0e",
+    "Cargo.toml": "fd951542ebcc65c584e78e35d26749d3559399117b8e9a86d5df1b1b527a5d17"
+  }
+}

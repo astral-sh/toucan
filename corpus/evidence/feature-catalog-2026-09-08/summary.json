@@ -1,0 +1,44 @@
+{
+  "status": "passed",
+  "source_manifest_sha256": "ac39e70c9626a0915466b15b82ec6fe734025356b44b3880c22557e9ace0211c",
+  "archive_sha256": "98b30ad969a9e476db776b060b02c2b4cc67ea78883c7536e1ae768f957bf1f2",
+  "availability_comparisons": 6804,
+  "false_positive_availability_claims": 0,
+  "workspace_reported_passed": 682,
+  "workspace_ignored": 182,
+  "additional_cli_tests": 3,
+  "additional_builder_override_tests": 1,
+  "facade_tests": 4,
+  "checked_seed_pairs": 1064,
+  "checked_accepted": 761,
+  "matching_diagnostics": 303,
+  "translation_unit_runs": 28,
+  "builder_profiles": 4,
+  "consumed_bindings": 4,
+  "identical_runtime_artifacts": 25,
+  "timing_medians_ms": {
+    "zlib": {
+      "baseline": 48.546182,
+      "changed": 49.575484
+    },
+    "sqlite": {
+      "baseline": 189.014173,
+      "changed": 187.924296
+    },
+    "zstd": {
+      "baseline": 14.918925,
+      "changed": 14.854856
+    },
+    "libgit2": {
+      "baseline": 403.457501,
+      "changed": 406.36467
+    }
+  },
+  "limitations": [
+    "Availability comparisons permit unadvertised native features and do not prove operand semantics for every name.",
+    "Full-source checks use GNU11 and frozen prior compiler-preprocessed controls; original libgit2 C90 flags remain unmodeled.",
+    "Seven warm CLI pairs on a shared host measure this change, not in-process performance versus bindgen.",
+    "ASan campaign is at d7ba4de and uses a small mechanical operator catalog, not the new semantic catalog.",
+    "Five other query macros still return zero; compiler version macros are unchanged."
+  ]
+}

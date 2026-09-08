@@ -24,9 +24,9 @@ evaluation and nested layout queries. Both choices are independent of the machin
 running Toucan. Include paths and sysroots are explicit inputs. See
 [compiler profiles](compiler-profiles.md) for supported pairs and defaults; a
 profile does not claim every extension of that compiler exists.
-Capability predicates such as `__has_builtin` currently return zero. Headers may
-therefore select fallback implementations even when some advertised GNU syntax is
-accepted.
+`__has_builtin` and `__has_attribute` use the semantic classifiers for supported
+names and profile constraints. Other feature queries still return zero. See the
+[query contract](feature-queries.md) for argument rules and catalog coverage.
 
 `toucan_layout` supplies record and bitfield layout rules through an attributed
 fork of `repc`. The engine accepts an explicit compiler choice, including Clang

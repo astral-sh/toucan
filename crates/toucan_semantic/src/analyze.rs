@@ -3988,8 +3988,8 @@ impl Analyzer {
                 ast::Extension::AvailabilityAttribute(_) => {}
                 ast::Extension::Attribute(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
-                    match name {
-                        "min_vector_width" => {
+                    match crate::attributes::Attribute::from_name(name) {
+                        Some(crate::attributes::Attribute::MinimumVectorWidth) => {
                             if self.unit.compiler == Compiler::Gnu || result.target_type_name {
                                 // Ignoring an attribute does not skip parsing its expressions.
                                 // GNU additionally permits bare identifier arguments without lookup.
@@ -4014,7 +4014,7 @@ impl Analyzer {
                                 );
                             }
                         }
-                        "target" => {
+                        Some(crate::attributes::Attribute::Target) => {
                             if result.target_attributes.len() >= 256 {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -4025,19 +4025,19 @@ impl Analyzer {
                                 .target_attributes
                                 .push(self.parse_target_attribute(attribute, extension.span)?);
                         }
-                        "always_inline" => {
+                        Some(crate::attributes::Attribute::AlwaysInline) => {
                             result.always_inline = crate::target_features::merge_inline(
                                 result.always_inline,
                                 Some((extension.span, !attribute.arguments.is_empty())),
                             )
                         }
-                        "noinline" => {
+                        Some(crate::attributes::Attribute::NoInline) => {
                             result.no_inline = crate::target_features::merge_inline(
                                 result.no_inline,
                                 Some((extension.span, !attribute.arguments.is_empty())),
                             )
                         }
-                        "noescape" => {
+                        Some(crate::attributes::Attribute::NoEscape) => {
                             if self.unit.compiler == Compiler::Clang {
                                 if result.noescape.len() >= 256 {
                                     return Err(Error::new(
@@ -4061,7 +4061,7 @@ impl Analyzer {
                                     .push((extension.span, !attribute.arguments.is_empty()));
                             }
                         }
-                        "nodebug" => {
+                        Some(crate::attributes::Attribute::NoDebug) => {
                             // Debug information is outside the retained semantic graph.
                             // GCC ignores this unknown attribute, including its arguments.
                             if self.unit.compiler == Compiler::Clang
@@ -4070,7 +4070,7 @@ impl Analyzer {
                                 result.nodebug_arguments = Some(extension.span.start);
                             }
                         }
-                        "transparent_union" => {
+                        Some(crate::attributes::Attribute::TransparentUnion) => {
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -4079,7 +4079,8 @@ impl Analyzer {
                             }
                             result.transparent_union = Some(extension.span);
                         }
-                        "returns_twice" | "noreturn" => {
+                        Some(crate::attributes::Attribute::ReturnsTwice)
+                        | Some(crate::attributes::Attribute::NoReturn) => {
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -4094,7 +4095,7 @@ impl Analyzer {
                                 self.has_type_noreturn |= result.type_noreturn;
                             }
                         }
-                        "weak" => {
+                        Some(crate::attributes::Attribute::Weak) => {
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -4103,7 +4104,8 @@ impl Analyzer {
                             }
                             result.weak = Some(extension.span);
                         }
-                        "warning" | "error" => {
+                        Some(crate::attributes::Attribute::Warning)
+                        | Some(crate::attributes::Attribute::Error) => {
                             let kind = if name == "warning" {
                                 crate::checked::DiagnosticAttributeKind::Warning
                             } else {
@@ -4115,13 +4117,14 @@ impl Analyzer {
                                 kind,
                             )?);
                         }
-                        "diagnose_if" | "enable_if" => {
+                        Some(crate::attributes::Attribute::DiagnoseIf)
+                        | Some(crate::attributes::Attribute::EnableIf) => {
                             return Err(Error::new(
                                 extension.span.start,
                                 format!("call-constraint attribute `{name}` is unsupported"),
                             ));
                         }
-                        "mode" => {
+                        Some(crate::attributes::Attribute::Mode) => {
                             let [argument] = attribute.arguments.as_slice() else {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -4136,7 +4139,7 @@ impl Analyzer {
                             };
                             result.mode = Some(identifier.node.name.trim_matches('_').to_owned());
                         }
-                        "vector_size" => {
+                        Some(crate::attributes::Attribute::VectorSize) => {
                             let [value] = attribute.arguments.as_slice() else {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -4152,8 +4155,16 @@ impl Analyzer {
                             }
                             result.vector_size = Some(bytes);
                         }
-                        "packed" => result.packed = true,
-                        "aligned" => {
+                        Some(crate::attributes::Attribute::Packed) => {
+                            if !attribute.arguments.is_empty() {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "packed takes no arguments",
+                                ));
+                            }
+                            result.packed = true;
+                        }
+                        Some(crate::attributes::Attribute::Aligned) => {
                             let value = match attribute.arguments.as_slice() {
                                 [] => u64::from(self.unit.target.default_maximum_alignment()),
                                 [value] => self
@@ -4167,7 +4178,8 @@ impl Analyzer {
                             };
                             set_alignment(result, value, extension.span.start)?;
                         }
-                        "aarch64_vector_pcs" | "aarch64_sve_pcs" => {
+                        Some(crate::attributes::Attribute::Aarch64VectorPcs)
+                        | Some(crate::attributes::Attribute::Aarch64SvePcs) => {
                             if name == "aarch64_sve_pcs"
                                 && self.unit.target == Target::Aarch64UnknownLinuxGnu
                                 && self.unit.compiler == Compiler::Gnu
@@ -4203,7 +4215,12 @@ impl Analyzer {
                             }
                             result.calling_convention = Some(convention);
                         }
-                        "cdecl" | "stdcall" | "fastcall" | "thiscall" | "ms_abi" | "sysv_abi" => {
+                        Some(crate::attributes::Attribute::Cdecl)
+                        | Some(crate::attributes::Attribute::Stdcall)
+                        | Some(crate::attributes::Attribute::Fastcall)
+                        | Some(crate::attributes::Attribute::Thiscall)
+                        | Some(crate::attributes::Attribute::MsAbi)
+                        | Some(crate::attributes::Attribute::SysvAbi) => {
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -4245,40 +4262,7 @@ impl Analyzer {
                                 result.calling_convention = Some(convention);
                             }
                         }
-                        // These attributes do not alter C representation or calling convention.
-                        "nothrow"
-                        | "leaf"
-                        | "nonnull"
-                        | "format"
-                        | "format_arg"
-                        | "warn_unused_result"
-                        | "malloc"
-                        | "alloc_size"
-                        | "alloc_align"
-                        | "access"
-                        | "deprecated"
-                        | "pure"
-                        | "const"
-                        | "visibility"
-                        | "sentinel"
-                        | "gnu_inline"
-                        | "unused"
-                        | "used"
-                        | "artificial"
-                        | "returns_nonnull"
-                        | "cold"
-                        | "hot"
-                        | "may_alias"
-                        | "noclone"
-                        | "no_sanitize"
-                        | "no_sanitize_address"
-                        | "no_sanitize_thread"
-                        | "no_sanitize_undefined"
-                        | "fallthrough"
-                        | "warn_unused"
-                        | "externally_visible"
-                        | "nonnull_all"
-                        | "warn_if_not_aligned" => {}
+                        Some(crate::attributes::Attribute::Ignored) => {}
                         _ => {
                             return Err(Error::new(
                                 extension.span.start,

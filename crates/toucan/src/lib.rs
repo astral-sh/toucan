@@ -4,6 +4,8 @@
 //! the target's sysroot. Declarations, initializers, and function bodies are checked
 //! within the supported C feature set. Unsupported bindings produce diagnostics.
 
+mod features;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
@@ -53,6 +55,7 @@ impl Config {
     pub fn with_profile(profile: CompilerProfile) -> Self {
         let target = profile.target();
         let mut preprocessor = PreprocessorConfig {
+            feature_queries: Some(features::queries(profile)),
             trigraphs: profile.default_trigraphs(),
             predefined_macro_mode: match profile.compiler() {
                 Compiler::Gnu => PredefinedMacroMode::GnuCommandLine,
@@ -65,8 +68,6 @@ impl Config {
         // These predicates advertise only implemented syntax/semantics. They are
         // independent of the GNU version used for header compatibility.
         for name in [
-            "__has_builtin(x)",
-            "__has_attribute(x)",
             "__has_feature(x)",
             "__has_extension(x)",
             "__has_c_attribute(x)",

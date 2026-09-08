@@ -213,10 +213,7 @@ fn apply_short(config: &mut Config, flag: &str, operand: &str) -> Result<(), Bin
                 .defines
                 .insert(name.into(), value.into());
         }
-        "-U" => config
-            .preprocessor
-            .defines
-            .retain(|name, _| name.split('(').next() != Some(operand)),
+        "-U" => config.preprocessor.undefine(operand),
         _ => unreachable!(),
     }
     Ok(())
@@ -225,6 +222,25 @@ fn apply_short(config: &mut Config, flag: &str, operand: &str) -> Result<(), Bin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn command_line_overrides_remove_and_replace_feature_operators() {
+        for name in ["__has_builtin", "__has_attribute"] {
+            for args in [
+                vec![format!("-U{name}")],
+                vec![format!("-D{name}(x)=1"), format!("-U{name}")],
+            ] {
+                let config = from_arguments(&args, Some("x86_64-unknown-linux-gnu")).unwrap();
+                let source =
+                    format!("#ifdef {name}\n#error operator still defined\n#endif\nint x;\n");
+                toucan::parse_source(std::path::Path::new("query.h"), &source, &config).unwrap();
+            }
+            let args = [format!("-U{name}"), format!("-D{name}(x)=7")];
+            let config = from_arguments(&args, Some("x86_64-unknown-linux-gnu")).unwrap();
+            let source = format!("_Static_assert({name}(unknown)==7, \"override\");");
+            toucan::parse_source(std::path::Path::new("query.h"), &source, &config).unwrap();
+        }
+    }
 
     #[test]
     fn explicit_target_and_ordered_definitions_override_cargo_defaults() {

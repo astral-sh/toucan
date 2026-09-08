@@ -14,10 +14,7 @@ pub(crate) struct ObjectSizeSignature {
 
 impl Analyzer {
     pub(crate) fn object_size_signature(&self, name: &str) -> Option<ObjectSizeSignature> {
-        if !matches!(
-            name,
-            "__builtin_object_size" | "__builtin_dynamic_object_size"
-        ) {
+        if !is_object_size_builtin(name) {
             return None;
         }
         let mut pointee = Type::new(TypeKind::Void);
@@ -88,4 +85,11 @@ impl Analyzer {
         self.leave_expression();
         result
     }
+}
+
+pub(crate) fn is_object_size_builtin(name: &str) -> bool {
+    matches!(
+        name,
+        "__builtin_object_size" | "__builtin_dynamic_object_size"
+    )
 }

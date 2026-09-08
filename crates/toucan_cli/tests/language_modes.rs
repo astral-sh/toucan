@@ -74,3 +74,31 @@ fn definitions_and_trigraphs_follow_occurrence_order() {
         assert_eq!(text.contains("\"#\""), enabled, "{args:?}: {text}");
     }
 }
+
+#[test]
+fn command_line_overrides_remove_and_replace_feature_operators() {
+    for name in ["__has_builtin", "__has_attribute"] {
+        for args in [
+            vec![format!("-U{name}")],
+            vec![format!("-D{name}(x)=1"), format!("-U{name}")],
+        ] {
+            let args = args.iter().map(String::as_str).collect::<Vec<_>>();
+            let source = format!("#ifdef {name}\n#error operator still defined\n#endif\nint x;\n");
+            let output = run(&source, "check", &args);
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        let undefine = format!("-U{name}");
+        let define = format!("-D{name}(x)=7");
+        let source = format!("_Static_assert({name}(unknown)==7, \"override\");");
+        let output = run(&source, "check", &[&undefine, &define]);
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}

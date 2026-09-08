@@ -76,12 +76,18 @@ fn execute(request: Request) -> Result<Value, Box<dyn std::error::Error>> {
         if let Some(value) = value {
             config.preprocessor.defines.insert(name, value);
         } else {
-            config.preprocessor.defines.remove(&name);
+            config.preprocessor.undefine(&name);
         }
     }
     match request.operation {
         Operation::Preprocess => {
             let definitions = config.preprocessor.defines.clone();
+            let feature_queries = json!({
+                "compiler": config.compiler(),
+                "language_mode": config.language_mode(),
+                "configured_builtin": config.preprocessor.feature_queries.as_ref().is_some_and(|queries| queries.is_enabled(toucan::FeatureQuery::Builtin)),
+                "configured_attribute": config.preprocessor.feature_queries.as_ref().is_some_and(|queries| queries.is_enabled(toucan::FeatureQuery::Attribute)),
+            });
             let embedded_headers = json!({
                 "virtual": config.preprocessor.virtual_headers,
                 "forced": config.preprocessor.forced_includes.iter().map(|header| (
@@ -95,6 +101,7 @@ fn execute(request: Request) -> Result<Value, Box<dyn std::error::Error>> {
                         "status": "preprocessed",
                         "dependencies": preprocessed.dependencies,
                         "definitions": definitions,
+                        "feature_queries": feature_queries,
                         "embedded_headers": embedded_headers,
                         "bytes": preprocessed.source.len(),
                     }))

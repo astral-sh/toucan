@@ -14,25 +14,12 @@ pub(crate) struct MemorySignature {
 impl Analyzer {
     /// Infinity and huge-value intrinsics share the target's three C float types.
     pub(crate) fn infinity_builtin_kind(&self, name: &str) -> Option<FloatKind> {
-        Some(match name {
-            "__builtin_inff" | "__builtin_huge_valf" => FloatKind::Float,
-            "__builtin_inf" | "__builtin_huge_val" => FloatKind::Double,
-            "__builtin_infl" | "__builtin_huge_vall" => FloatKind::LongDouble,
-            _ => return None,
-        })
+        infinity_kind(name)
     }
 
     /// NaN constructors take a string payload and return the selected C format.
     pub(crate) fn nan_builtin(&self, name: &str) -> Option<(FloatKind, bool)> {
-        Some(match name {
-            "__builtin_nanf" => (FloatKind::Float, false),
-            "__builtin_nan" => (FloatKind::Double, false),
-            "__builtin_nanl" => (FloatKind::LongDouble, false),
-            "__builtin_nansf" => (FloatKind::Float, true),
-            "__builtin_nans" => (FloatKind::Double, true),
-            "__builtin_nansl" => (FloatKind::LongDouble, true),
-            _ => return None,
-        })
+        nan_kind(name)
     }
 
     /// Keep the payload conversion shared by type checking and retained uses.
@@ -47,19 +34,7 @@ impl Analyzer {
         &self,
         name: &str,
     ) -> Option<(FloatKind, ast::UnaryOperator)> {
-        use ast::UnaryOperator::{Complement, Imaginary, Real};
-        Some(match name {
-            "__builtin_crealf" => (FloatKind::Float, Real),
-            "__builtin_creal" => (FloatKind::Double, Real),
-            "__builtin_creall" => (FloatKind::LongDouble, Real),
-            "__builtin_cimagf" => (FloatKind::Float, Imaginary),
-            "__builtin_cimag" => (FloatKind::Double, Imaginary),
-            "__builtin_cimagl" => (FloatKind::LongDouble, Imaginary),
-            "__builtin_conjf" => (FloatKind::Float, Complement),
-            "__builtin_conj" => (FloatKind::Double, Complement),
-            "__builtin_conjl" => (FloatKind::LongDouble, Complement),
-            _ => return None,
-        })
+        complex_unary(name)
     }
 
     /// GNU/Clang's component constructor preserves each operand's real value.
@@ -94,39 +69,20 @@ impl Analyzer {
 
     /// Byte-swap prototypes use the compiler target's exact-width unsigned types.
     pub(crate) fn byte_swap_type(&self, name: &str) -> Option<Type> {
-        let kind = match name {
-            "__builtin_bswap16" => IntegerKind::UnsignedShort,
-            "__builtin_bswap32" => IntegerKind::UnsignedInt,
-            "__builtin_bswap64" => match self.unit.target {
-                toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu => IntegerKind::UnsignedLong,
-                _ => IntegerKind::UnsignedLongLong,
-            },
-            _ => return None,
-        };
-        Some(Type::new(TypeKind::Integer(kind)))
+        byte_swap_kind(name, self.unit.target).map(|kind| Type::new(TypeKind::Integer(kind)))
     }
 
     /// Fixed-width bit-count builtins convert to their declared unsigned C parameter.
     /// The canonical long type supplies the target-dependent width in both checking
     /// and retained argument conversions.
     pub(crate) fn bit_count_type(&self, name: &str) -> Option<Type> {
-        let kind = match name {
-            "__builtin_clz" | "__builtin_ctz" => IntegerKind::UnsignedInt,
-            "__builtin_clzl" | "__builtin_ctzl" => IntegerKind::UnsignedLong,
-            "__builtin_clzll" | "__builtin_ctzll" => IntegerKind::UnsignedLongLong,
-            _ => return None,
-        };
-        Some(Type::new(TypeKind::Integer(kind)))
+        bit_count_kind(name).map(|kind| Type::new(TypeKind::Integer(kind)))
     }
 
     /// Library builtins use the target's ordinary C parameter conversions.
     /// Keep this signature shared with retained argument-use construction.
     pub(crate) fn memory_builtin_signature(&self, name: &str) -> Option<MemorySignature> {
-        if !matches!(
-            name,
-            "__builtin_memset" | "__builtin_memcpy" | "__builtin_memmove" | "__builtin_memcmp"
-        ) {
+        if !is_memory_builtin(name) {
             return None;
         }
         let pointer = Type::new(TypeKind::Void).pointer();
@@ -293,10 +249,8 @@ impl Analyzer {
         let nan = self.nan_builtin(name);
         let bit_count = self.bit_count_type(name);
         let object_size = self.object_size_signature(name);
-        let arity = match name {
-            "__builtin_va_start" | "__builtin_va_copy" | "__builtin_expect" => 2,
-            "__builtin_va_end" | "__builtin_constant_p" => 1,
-            "__builtin_unreachable" | "__builtin_trap" => 0,
+        let arity = match simple_builtin_arity(name) {
+            Some(arity) => arity,
             _ if memory.is_some() => 3,
             _ if byte_swap.is_some() || bit_count.is_some() => 1,
             _ if object_size.is_some() => 2,
@@ -546,4 +500,81 @@ impl Analyzer {
             value.rank,
         ))
     }
+}
+
+pub(crate) fn infinity_kind(name: &str) -> Option<FloatKind> {
+    Some(match name {
+        "__builtin_inff" | "__builtin_huge_valf" => FloatKind::Float,
+        "__builtin_inf" | "__builtin_huge_val" => FloatKind::Double,
+        "__builtin_infl" | "__builtin_huge_vall" => FloatKind::LongDouble,
+        _ => return None,
+    })
+}
+
+pub(crate) fn nan_kind(name: &str) -> Option<(FloatKind, bool)> {
+    Some(match name {
+        "__builtin_nanf" => (FloatKind::Float, false),
+        "__builtin_nan" => (FloatKind::Double, false),
+        "__builtin_nanl" => (FloatKind::LongDouble, false),
+        "__builtin_nansf" => (FloatKind::Float, true),
+        "__builtin_nans" => (FloatKind::Double, true),
+        "__builtin_nansl" => (FloatKind::LongDouble, true),
+        _ => return None,
+    })
+}
+
+pub(crate) fn complex_unary(name: &str) -> Option<(FloatKind, ast::UnaryOperator)> {
+    use ast::UnaryOperator::{Complement, Imaginary, Real};
+    Some(match name {
+        "__builtin_crealf" => (FloatKind::Float, Real),
+        "__builtin_creal" => (FloatKind::Double, Real),
+        "__builtin_creall" => (FloatKind::LongDouble, Real),
+        "__builtin_cimagf" => (FloatKind::Float, Imaginary),
+        "__builtin_cimag" => (FloatKind::Double, Imaginary),
+        "__builtin_cimagl" => (FloatKind::LongDouble, Imaginary),
+        "__builtin_conjf" => (FloatKind::Float, Complement),
+        "__builtin_conj" => (FloatKind::Double, Complement),
+        "__builtin_conjl" => (FloatKind::LongDouble, Complement),
+        _ => return None,
+    })
+}
+
+pub(crate) fn bit_count_kind(name: &str) -> Option<IntegerKind> {
+    let kind = match name {
+        "__builtin_clz" | "__builtin_ctz" => IntegerKind::UnsignedInt,
+        "__builtin_clzl" | "__builtin_ctzl" => IntegerKind::UnsignedLong,
+        "__builtin_clzll" | "__builtin_ctzll" => IntegerKind::UnsignedLongLong,
+        _ => return None,
+    };
+    Some(kind)
+}
+
+pub(crate) fn byte_swap_kind(name: &str, target: toucan_target::Target) -> Option<IntegerKind> {
+    let kind = match name {
+        "__builtin_bswap16" => IntegerKind::UnsignedShort,
+        "__builtin_bswap32" => IntegerKind::UnsignedInt,
+        "__builtin_bswap64" => match target {
+            toucan_target::Target::X86_64UnknownLinuxGnu
+            | toucan_target::Target::Aarch64UnknownLinuxGnu => IntegerKind::UnsignedLong,
+            _ => IntegerKind::UnsignedLongLong,
+        },
+        _ => return None,
+    };
+    Some(kind)
+}
+
+pub(crate) fn is_memory_builtin(name: &str) -> bool {
+    matches!(
+        name,
+        "__builtin_memset" | "__builtin_memcpy" | "__builtin_memmove" | "__builtin_memcmp"
+    )
+}
+
+pub(crate) fn simple_builtin_arity(name: &str) -> Option<usize> {
+    Some(match name {
+        "__builtin_va_start" | "__builtin_va_copy" | "__builtin_expect" => 2,
+        "__builtin_va_end" | "__builtin_constant_p" => 1,
+        "__builtin_unreachable" | "__builtin_trap" => 0,
+        _ => return None,
+    })
 }

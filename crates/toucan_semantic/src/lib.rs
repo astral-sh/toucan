@@ -11,6 +11,7 @@ mod array_identity;
 mod asm;
 mod atomic;
 mod atomic_type;
+mod attributes;
 mod auto_type;
 mod builtins;
 mod c11_atomic;
@@ -20,6 +21,7 @@ mod constant_query;
 mod elementwise;
 mod enums;
 mod expression;
+mod features;
 mod floating;
 mod fortified;
 mod initializer;
@@ -54,6 +56,8 @@ pub use analyze::{
 };
 pub use arm::Aarch64Pcs;
 pub use array_identity::VariableArrayId;
+pub use attributes::has_attribute;
+pub use features::has_builtin;
 pub use ir::*;
 pub use literals::{
     DecodedString, StringEncoding, decode_character_literal, decode_character_literal_with_profile,

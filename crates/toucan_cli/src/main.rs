@@ -224,10 +224,7 @@ impl Input {
                     .insert(name.into(), value.into());
             } else {
                 let (_, name) = undefines.next().expect("peeked undefinition");
-                config
-                    .preprocessor
-                    .defines
-                    .retain(|key, _| key.split('(').next() != Some(name.as_str()));
+                config.preprocessor.undefine(name);
             }
         }
         Ok(config)
