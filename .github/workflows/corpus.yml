@@ -47,8 +47,10 @@ jobs:
         include:
           - runner: ubuntu-24.04
             target: x86_64-unknown-linux-gnu
+            source_requirement: both
           - runner: ubuntu-24.04-arm
             target: aarch64-unknown-linux-gnu
+            source_requirement: toucan
           - runner: macos-15
             target: aarch64-apple-darwin
           - runner: macos-15-intel
@@ -125,6 +127,7 @@ jobs:
             --probe target/release/examples/audit_translation_unit \
             --revision "${{ github.sha }}" \
             --target "${{ matrix.target }}" \
+            --require "${{ matrix.source_requirement }}" \
             --output corpus/results/translation-units
 
       - name: Run native C and Rust probes
