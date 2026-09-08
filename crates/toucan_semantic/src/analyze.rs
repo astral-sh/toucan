@@ -2873,6 +2873,13 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
     let bytes = source.as_bytes();
     let mut index = 0;
     let mut nesting = 0usize;
+    let mut grouping = 0usize;
+    let mut pending_colons = vec![0usize];
+    let mut active_colons = 0usize;
+    // lang-c recursively parses labels and unbraced control flow before our
+    // semantic depth checks run. Count introducers across a whole outer brace
+    // region, including siblings: semicolons do not end dangling-else chains.
+    let mut control_tokens = 0usize;
     #[derive(Default)]
     struct ExpressionDepth {
         operators: usize,
@@ -2928,6 +2935,11 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
                 index += 1;
             }
             b'(' | b'[' | b'{' => {
+                if bytes[index] == b'{' {
+                    pending_colons.push(0);
+                } else {
+                    grouping += 1;
+                }
                 expressions.push(ExpressionDepth::default());
                 nesting += 1;
                 if nesting > 128 {
@@ -2938,6 +2950,16 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
                 }
             }
             b')' | b']' | b'}' => {
+                if bytes[index] == b'}' {
+                    if pending_colons.len() > 1 {
+                        active_colons -= pending_colons.pop().expect("brace region");
+                    }
+                    if pending_colons.len() == 1 {
+                        control_tokens = 0;
+                    }
+                } else {
+                    grouping = grouping.saturating_sub(1);
+                }
                 nesting = nesting.saturating_sub(1);
                 if expressions.len() > 1 {
                     let depth = expressions.pop().expect("nested expression").depth();
@@ -2945,10 +2967,38 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
                     parent.child = parent.child.max(depth);
                 }
             }
-            b';' | b',' => expressions
-                .last_mut()
-                .expect("expression frame")
-                .next_expression(),
+            b':' => {
+                *pending_colons.last_mut().expect("root region") += 1;
+                active_colons += 1;
+            }
+            byte if byte.is_ascii_alphabetic() || byte == b'_' => {
+                let start = index;
+                while bytes
+                    .get(index + 1)
+                    .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+                {
+                    index += 1;
+                }
+                if matches!(
+                    &source[start..=index],
+                    "if" | "else" | "for" | "while" | "do" | "switch"
+                ) {
+                    control_tokens += 1;
+                }
+            }
+            b';' | b',' => {
+                if bytes[index] == b';' && grouping == 0 {
+                    // A completed statement ends its label chain. Keep labels
+                    // in parent braces and across for-header semicolons active.
+                    let current = pending_colons.last_mut().expect("root region");
+                    active_colons -= *current;
+                    *current = 0;
+                }
+                expressions
+                    .last_mut()
+                    .expect("expression frame")
+                    .next_expression();
+            }
             b'*' | b'!' | b'~' | b'+' | b'-' | b'/' | b'%' | b'&' | b'|' | b'^' | b'?' | b'<'
             | b'>' | b'=' => {
                 expressions.last_mut().expect("expression frame").operators += 1;
@@ -2965,6 +3015,12 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
                 }
             }
             _ => {}
+        }
+        if control_tokens + active_colons > 1024 {
+            return Err(Error::new(
+                index,
+                "control-flow introducers and pending colons exceed the 1024-token limit within an outer brace region",
+            ));
         }
         index += 1;
     }

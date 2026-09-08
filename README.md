@@ -259,3 +259,17 @@ address-valued immediates, embedded NUL bytes, and non-UTF-8 assembler text rema
 unsupported. The native regressions compare operand acceptance against GCC and
 Clang and call optimized C byte-swap wrappers through Toucan-generated bindings.
 Apple's byte-order header is covered by the macOS corpus jobs.
+
+
+## Parser resource limits
+
+Parsing rejects excessive nesting before entering the recursive C parser. Within
+one outer brace region, at most 1,024 control-flow introducers (`if`, `else`,
+`for`, `while`, `do`, `switch`) and pending colons are allowed together. A
+terminating semicolon clears the current label chain; labels in enclosing braces
+and across `for` headers remain counted. Each separate function body receives a
+fresh budget. Comments and literals do not consume it.
+
+This conservative limit also rejects very large flat control-flow bodies with a
+diagnostic. It prevents deeply chained labels and unbraced statements from
+overflowing the parser stack before semantic nesting checks can run.

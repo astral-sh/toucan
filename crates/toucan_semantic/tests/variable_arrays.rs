@@ -252,7 +252,9 @@ fn many_vm_declarations_and_labels_use_compact_scope_snapshots() {
     use std::fmt::Write;
     let mut source = String::from("void f(int n) {");
     for index in 0..5000 {
-        write!(source, "int a{index}[n]; L{index}:; if (n) goto L{index};").unwrap();
+        // Exercise 5,000 VM snapshots and jumps without spending the separate
+        // per-body control-flow introducer budget on 5,000 `if` statements.
+        write!(source, "int a{index}[n]; L{index}:; goto L{index};").unwrap();
     }
     source.push('}');
     analyze(&source, Target::X86_64UnknownLinuxGnu).unwrap();
