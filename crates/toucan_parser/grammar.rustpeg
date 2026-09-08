@@ -559,6 +559,7 @@ declaration_specifiers_nonunique  -> Vec<Node<DeclarationSpecifier>> =
     list0<node<declaration_specifier_nontype / declaration_specifier_nonunique_type0>>
 
 declaration_specifier_nontype -> DeclarationSpecifier =
+    a:declspec_specifier { DeclarationSpecifier::Extension(a) } /
     s:node<calling_convention_keyword> { DeclarationSpecifier::Extension(vec![s]) } /
     s:storage_class_specifier { DeclarationSpecifier::StorageClass(s) } /
     s:type_qualifier { DeclarationSpecifier::TypeQualifier(s) } /
@@ -668,15 +669,17 @@ type_specifier_nonunique -> TypeSpecifier =
     gnu<typeof_specifier>
 
 struct_or_union_specifier -> StructType =
-    t:node<struct_or_union> _ i:identifier? _ d:struct_or_union_body {
+    t:node<struct_or_union> _ a:declspec_specifier_list _ i:identifier? _ d:struct_or_union_body {
         StructType {
+            extensions: a,
             kind: t,
             identifier: i,
             declarations: d,
         }
     } /
-    t:node<struct_or_union> _ i:identifier {
+    t:node<struct_or_union> _ a:declspec_specifier_list _ i:identifier {
         StructType {
+            extensions: a,
             kind: t,
             identifier: Some(i),
             declarations: None,
@@ -716,6 +719,7 @@ specifier_qualifier_nonunique_type0 -> SpecifierQualifier =
     s:node<type_specifier_nonunique> { SpecifierQualifier::TypeSpecifier(s) }
 
 specifier_qualifier_qualifier0 -> SpecifierQualifier =
+    a:declspec_specifier { SpecifierQualifier::Extension(a) } /
     s:node<calling_convention_keyword> { SpecifierQualifier::Extension(vec![s]) } /
     a:alignment_specifier { SpecifierQualifier::Alignment(a) } /
     q:type_qualifier { SpecifierQualifier::TypeQualifier(q) } /
@@ -736,14 +740,16 @@ struct_declarator -> StructDeclarator =
     }
 
 enum_specifier -> EnumType =
-    K<"enum"> _ i:identifier? _ "{" _ e:cs1<node<enumerator>> _ ","? _ "}" {
+    K<"enum"> _ a:declspec_specifier_list _ i:identifier? _ "{" _ e:cs1<node<enumerator>> _ ","? _ "}" {
         EnumType {
+            extensions: a,
             identifier: i,
             enumerators: e,
         }
     } /
-    K<"enum"> _ i:identifier {
+    K<"enum"> _ a:declspec_specifier_list _ i:identifier {
         EnumType {
+            extensions: a,
             identifier: Some(i),
             enumerators: Vec::new(),
         }
@@ -1291,6 +1297,30 @@ calling_convention_name -> String =
     name:$(msvc<K<"_" ("cdecl" / "stdcall" / "fastcall" / "thiscall" / "vectorcall")>>) { name.into() }
 
 clang_calling_guard = {? if env.clang_calling_conventions || env.extensions_msvc { Ok(()) } else { Err("calling convention keywords disabled") } }
+
+////
+// Microsoft declaration attributes
+////
+
+declspec_specifier_list -> Vec<Node<Extension>> =
+    a:list0<declspec_specifier> { a.into_iter().flat_map(|v| v).collect() }
+
+declspec_specifier -> Vec<Node<Extension>> =
+    msvc<K<"_" "_"? "declspec">> _ "(" _
+    a:(("," _ { None }) / (a:node<declspec_attribute> _ { Some(a) }))* ")" {
+        a.into_iter().flatten().collect()
+    }
+
+declspec_attribute -> Extension =
+    n:node<declspec_attribute_name> _ p:attribute_parameters? {
+        Extension::Declspec(Attribute {
+            name: n,
+            arguments: p.unwrap_or_default(),
+        })
+    }
+
+declspec_attribute_name -> String =
+    attribute_name / n:$(string_literal0) { n.into() }
 
 ////
 // GNU attributes

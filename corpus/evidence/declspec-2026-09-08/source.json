@@ -1,0 +1,24 @@
+{
+  "base": "09d138d74e3c347493b92efc210d9795dbe19941",
+  "files": {
+    "crates/toucan/tests/declspec.rs": "17487a7b6583faf021e0180b279e4cbdf2dfc7c53002e589eac4f696a383f1c9",
+    "crates/toucan_parser/README.md": "c1164fd0d911ff1f62c102df9189c125baee269be013cd099b88f1e1cb4a2b70",
+    "crates/toucan_parser/grammar.rustpeg": "7a9ce89f693cebc0ecd11a20b5641869197cdef338bbafe2c05590941f460679",
+    "crates/toucan_parser/scripts/instrument.py": "ac5f06f6272da290a8dd35897f0f978abed43a288622e4c416a719f2b31f2c45",
+    "crates/toucan_parser/src/ast.rs": "127f1caa789b4d47130718786bbab1410781bc28c9c877f26771a7a5e6fa44ba",
+    "crates/toucan_parser/src/measure.rs": "aab1aa7c9d28fbcb0ef4b2f65f5be9fd764c5e56d906374bd5589081dc54ea53",
+    "crates/toucan_parser/src/parser.rs": "24671ea21ae4b2306da7a7dfc50dc78cd60e2b03fe8e4f5148cf77ccd02a6c62",
+    "crates/toucan_parser/src/strings.rs": "a8cc3d9da555cb6deedaef5008818eaee733fdcb56b5823ffaf0334d8e035723",
+    "crates/toucan_parser/src/visit.rs": "6a304a3238a2632e5be5ac3eed1bed69bec80b46f093b5ffa85cf90a1837e73f",
+    "crates/toucan_parser/tests/msvc.rs": "e2dfb71de4bea1d7a3a806ca933907b0f9b1f80ad9bef10a784fb68308ee427b",
+    "crates/toucan_semantic/src/analyze.rs": "7a13900e0dc6ed4097a23bf3e3ecd6ec7ae6069d1fb2a855a15f37e993fe156f",
+    "crates/toucan_semantic/src/declspec.rs": "06608fa1e010e6a36c065c0de8a7a6c310bc8e9754e207f9efb2ac59de835d1e",
+    "crates/toucan_semantic/src/ir.rs": "75a089a2e9e9e921c6c33936fd905cf211b3fdc94989e96acf888203d1ddaa6b",
+    "crates/toucan_semantic/src/lib.rs": "4cebebb2372efdc14f279c1652cf689f8143a1a143bc98bcbb0b183591e9514c",
+    "crates/toucan_semantic/src/object_alignment.rs": "6d54076ab623f815501b31854d3c4ea6dce4da987db787c40a698f27f3289ab5",
+    "crates/toucan_semantic/src/statement.rs": "3df8a19c87dcf373cd5e5edde05a7cc58059f5b7ce2c4541e4150f3730866b72",
+    "docs/compiler-profiles.md": "66db1f53cb9728c8363d192f97ad53e813fc25eff963734609e349c3f12289a9",
+    "docs/msvc-declarations.md": "c74b772e83003669898a0015cb8250070121626d3a80f9fa9971262620a02ad3",
+    "fuzz/seeds/checked/declspec.h": "60960fae6674c64ab9df7b125067f6058f8c5011650bd9fcd85698d41dbc33b1"
+  }
+}

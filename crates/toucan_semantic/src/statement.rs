@@ -664,7 +664,7 @@ impl Analyzer {
         }
         let mut auto = self.auto_declaration(declaration)?;
         let explicit = if auto.is_none() {
-            Some(self.specifiers(&declaration.node.specifiers)?)
+            Some(self.declaration_specifiers(&declaration.node)?)
         } else {
             None
         };

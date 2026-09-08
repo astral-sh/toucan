@@ -595,6 +595,7 @@ pub(crate) struct Attributes {
     type_name_use: bool,
     packed: bool,
     pub(crate) alignment: Option<u64>,
+    pub(crate) msvc_alignment: Option<u64>,
     pub(crate) c11_alignment: Option<u64>,
     pub(crate) link_name: Option<String>,
     mode: Option<String>,
@@ -606,6 +607,11 @@ pub(crate) struct Attributes {
 }
 
 impl Attributes {
+    /// The strongest vendor alignment, retaining its spelling in separate fields.
+    pub(crate) fn vendor_alignment(&self) -> Option<u64> {
+        self.alignment.max(self.msvc_alignment)
+    }
+
     /// Clang checks arity only after recognizing a supported declaration subject.
     pub(crate) fn check_nodebug_subject(&self) -> Result<(), Error> {
         if let Some(offset) = self.nodebug_arguments {
@@ -1231,7 +1237,7 @@ impl Analyzer {
         }
         let mut auto = self.auto_declaration(declaration)?;
         let explicit = if auto.is_none() {
-            Some(self.specifiers(&declaration.node.specifiers)?)
+            Some(self.declaration_specifiers(&declaration.node)?)
         } else {
             None
         };
@@ -2003,7 +2009,7 @@ impl Analyzer {
         }
         .map(|ty| self.unit.typedef_alignment_metadata(ty))
         .transpose()?;
-        let explicit = attributes.alignment.max(extra.alignment);
+        let explicit = attributes.vendor_alignment().max(extra.vendor_alignment());
         ty.alignment = inherited;
         if let Some(alignment) = explicit {
             if matches!(
@@ -2012,7 +2018,15 @@ impl Analyzer {
             ) {
                 return Err(Error::new(
                     offset,
-                    "aligned typedefs require an object type",
+                    if attributes
+                        .msvc_alignment
+                        .max(extra.msvc_alignment)
+                        .is_some()
+                    {
+                        "Microsoft alignment on void or function typedefs is unsupported"
+                    } else {
+                        "aligned typedefs require an object type"
+                    },
                 ));
             }
             ty.alignment = crate::TypeAlignment::new(u32::try_from(alignment).map_err(|_| {
@@ -2027,6 +2041,19 @@ impl Analyzer {
         self.retain_typedef_alignment(name, ty, previous, inherited, explicit.is_some(), offset)
     }
 
+    /// Prepares a declaration with its standalone-tag context still available.
+    pub(crate) fn declaration_specifiers(
+        &mut self,
+        declaration: &ast::Declaration,
+    ) -> Result<(Type, Attributes), Error> {
+        let prepared = self.prepare_specifiers_context(
+            &declaration.specifiers,
+            false,
+            declaration.declarators.is_empty(),
+        )?;
+        self.complete_specifiers(&declaration.specifiers, prepared, None)
+    }
+
     pub(crate) fn specifiers(
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
@@ -2039,13 +2066,14 @@ impl Analyzer {
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
     ) -> Result<PreparedSpecifiers, Error> {
-        self.prepare_specifiers_context(specifiers, false)
+        self.prepare_specifiers_context(specifiers, false, false)
     }
 
     fn prepare_specifiers_context(
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
         type_name: bool,
+        tag_only: bool,
     ) -> Result<PreparedSpecifiers, Error> {
         let mut types = Vec::new();
         let mut qualifiers = Qualifiers::default();
@@ -2056,23 +2084,83 @@ impl Analyzer {
         };
         let mut record_attributes = Attributes::default();
         let mut after_tag_definition = false;
+        let tag_definition = || {
+            specifiers
+                .iter()
+                .find_map(|specifier| match &specifier.node {
+                    ast::DeclarationSpecifier::TypeSpecifier(ty) => match &ty.node {
+                        ast::TypeSpecifier::Struct(tag) if tag.node.declarations.is_some() => {
+                            Some(ty.span.start)
+                        }
+                        ast::TypeSpecifier::Enum(tag) if !tag.node.enumerators.is_empty() => {
+                            Some(ty.span.start)
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                })
+        };
         for specifier in specifiers {
             match &specifier.node {
                 ast::DeclarationSpecifier::TypeSpecifier(ty) => {
                     after_tag_definition = matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
                         || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty());
+                    match &ty.node {
+                        ast::TypeSpecifier::Struct(tag) => {
+                            self.attributes(&tag.node.extensions, &mut record_attributes)?
+                        }
+                        ast::TypeSpecifier::Enum(tag) => {
+                            self.attributes(&tag.node.extensions, &mut record_attributes)?
+                        }
+                        _ => {}
+                    }
                     types.push(ty.clone());
                 }
                 ast::DeclarationSpecifier::TypeQualifier(qualifier) => {
                     add_qualifier(&mut qualifiers, &mut atomic, qualifier)?
                 }
                 ast::DeclarationSpecifier::Extension(extensions) => {
-                    if self.record_attributes.contains(&specifier.span.start)
-                        || after_tag_definition
-                    {
-                        self.attributes(extensions, &mut record_attributes)?;
-                    } else {
-                        self.attributes(extensions, &mut attributes)?;
+                    for extension in extensions {
+                        if let ast::Extension::Declspec(attribute) = &extension.node {
+                            if type_name {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "__declspec is not permitted directly in a type name",
+                                ));
+                            }
+                            // Microsoft prefix alignment belongs to a following tag
+                            // definition, but the same spelling after `}` belongs to
+                            // the declarator. Other prefix attributes stay on the
+                            // object or function declared alongside a tag definition.
+                            let tag_alignment = attribute.name.node == "align"
+                                && (tag_only
+                                    || tag_definition()
+                                        .is_some_and(|start| extension.span.start < start));
+                            if tag_alignment {
+                                self.declspec_attribute(
+                                    attribute,
+                                    extension.span,
+                                    &mut record_attributes,
+                                    false,
+                                )?;
+                            } else {
+                                self.declspec_attribute(
+                                    attribute,
+                                    extension.span,
+                                    &mut attributes,
+                                    tag_only,
+                                )?;
+                            }
+                        } else if self.record_attributes.contains(&specifier.span.start)
+                            || after_tag_definition
+                        {
+                            self.attributes(
+                                std::slice::from_ref(extension),
+                                &mut record_attributes,
+                            )?;
+                        } else {
+                            self.attributes(std::slice::from_ref(extension), &mut attributes)?;
+                        }
                     }
                 }
                 ast::DeclarationSpecifier::Function(specifier)
@@ -2165,7 +2253,7 @@ impl Analyzer {
         });
         let clang_forward = self.unit.compiler == Compiler::Clang
             && (record_attributes.packed
-                || record_attributes.alignment.is_some()
+                || record_attributes.vendor_alignment().is_some()
                 || record_attributes.transparent_union.is_some())
             && match self.unit.resolve(&ty)?.kind {
                 TypeKind::Record(id) => self.unit.records[id].fields.is_none(),
@@ -2255,7 +2343,7 @@ impl Analyzer {
                 )
             })
             .collect::<Vec<_>>();
-        let mut prepared = self.prepare_specifiers_context(&specifiers, type_name)?;
+        let mut prepared = self.prepare_specifiers_context(&specifiers, type_name, false)?;
         // Clang ignores declaration mode attributes in a type name. GNU applies
         // them to the completed abstract declarator.
         if type_name && self.unit.compiler == Compiler::Clang {
@@ -2766,6 +2854,7 @@ impl Analyzer {
                 extra.require_no_weak()?;
                 extra.require_no_transparent_union()?;
                 attributes.alignment = attributes.alignment.max(extra.alignment);
+                attributes.msvc_alignment = attributes.msvc_alignment.max(extra.msvc_alignment);
                 attributes.noescape.extend(extra.noescape);
                 (name, ty, extra.type_use)
             } else {
@@ -3448,6 +3537,9 @@ impl Analyzer {
                 }
                 if inner_attributes.packed {
                     attributes.packed = true;
+                }
+                if inner_attributes.msvc_alignment.is_some() {
+                    attributes.msvc_alignment = inner_attributes.msvc_alignment;
                 }
                 if inner_attributes.alignment.is_some() {
                     attributes.alignment = inner_attributes.alignment;
@@ -4169,24 +4261,28 @@ impl Analyzer {
         if let Some(span) = attributes.transparent_union {
             self.apply_transparent_record(ty, span.start)?;
         }
-        if !attributes.packed && attributes.alignment.is_none() {
+        if !attributes.packed && attributes.vendor_alignment().is_none() {
             return Ok(());
         }
         if let TypeKind::Record(id) = self.unit.resolve(ty)?.kind {
             let record = &mut self.unit.records[id];
             record.packed |= attributes.packed;
-            if attributes.alignment.is_some() {
-                record.alignment = attributes.alignment;
+            if attributes.vendor_alignment().is_some() {
+                record.alignment = if attributes.msvc_alignment.is_some() {
+                    record.alignment.max(attributes.vendor_alignment())
+                } else {
+                    attributes.alignment
+                };
             }
         } else if let TypeKind::Enum(id) = self.unit.resolve(ty)?.kind {
-            if attributes.alignment.is_some() {
+            if attributes.vendor_alignment().is_some() {
                 return Err(Error::new(
                     0,
                     "alignment attributes on enum tags are unsupported",
                 ));
             }
             self.unit.enums[id].packed |= attributes.packed;
-        } else if attributes.packed || attributes.alignment.is_some() {
+        } else if attributes.packed || attributes.vendor_alignment().is_some() {
             return Err(Error::new(
                 0,
                 "layout attributes on a non-record type are unsupported",
@@ -4223,6 +4319,9 @@ impl Analyzer {
                     )?);
                 }
                 ast::Extension::AvailabilityAttribute(_) => {}
+                ast::Extension::Declspec(attribute) => {
+                    self.declspec_attribute(attribute, extension.span, result, false)?;
+                }
                 ast::Extension::Attribute(attribute)
                 | ast::Extension::CallingConvention(attribute) => {
                     let name = attribute.name.node.trim_matches('_');

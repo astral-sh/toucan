@@ -48,6 +48,13 @@ Keywords are accepted in declaration specifiers, pointer qualifiers, and
 parenthesized named or abstract declarators. Semantic checking determines which
 conventions affect the selected target.
 
+Microsoft extensions also reserve `_declspec` and `__declspec`. Attributes retain
+an `Extension::Declspec` node with their exact name, operands, and source span.
+Declaration and field specifiers accept these annotations; struct and enum nodes
+retain attributes written between the tag keyword and its name. The parser
+preserves comma-separated, whitespace-separated, and string annotation names.
+Semantic checking determines the supported attributes and their valid subjects.
+
 GNU attributes on null statements have a distinct `Statement::Attribute` node.
 Semantic checking determines which statement annotations are supported; the visitor
 preserves their attributes and source spans.

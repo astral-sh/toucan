@@ -19,6 +19,7 @@ mod c11_atomic;
 pub mod checked;
 mod complex;
 mod constant_query;
+mod declspec;
 mod elementwise;
 mod enums;
 mod expression;
@@ -62,6 +63,7 @@ pub use analyze::{
 pub use arm::Aarch64Pcs;
 pub use array_identity::VariableArrayId;
 pub use attributes::has_attribute;
+pub use declspec::has_declspec_attribute;
 pub use features::has_builtin;
 pub use ir::*;
 pub use literals::{

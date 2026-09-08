@@ -95,3 +95,64 @@ fn calling_keywords_keep_their_written_spelling_and_span() {
         parsed.unit
     );
 }
+
+#[derive(Default)]
+struct Declspecs(Vec<(String, Span, usize)>);
+
+impl<'ast> Visit<'ast> for Declspecs {
+    fn visit_extension(&mut self, extension: &'ast Extension, span: &'ast Span) {
+        if let Extension::Declspec(attribute) = extension {
+            self.0.push((
+                attribute.name.node.clone(),
+                *span,
+                attribute.arguments.len(),
+            ));
+        }
+        visit::visit_extension(self, extension, span);
+    }
+}
+
+#[test]
+fn declspec_attributes_keep_tag_placement_operands_spans_and_limits() {
+    let source = "__declspec(,noinline,,noreturn,) void f(void); struct __declspec(align(16)) S {_declspec(align(8)) int x;}; enum __declspec(deprecated(\"old\")) E{A}; __declspec(\"first\" \"second\"(unknown)) int annotated;";
+    let config = Config {
+        extensions_msvc: true,
+        ..Config::with_clang()
+    };
+    let parsed = parse_preprocessed(&config, source.into()).unwrap();
+    let mut attributes = Declspecs::default();
+    attributes.visit_translation_unit(&parsed.unit);
+    assert_eq!(
+        attributes
+            .0
+            .iter()
+            .map(|(name, span, argc)| (name.as_str(), source[span.start..span.end].trim(), *argc))
+            .collect::<Vec<_>>(),
+        [
+            ("noinline", "noinline", 0),
+            ("noreturn", "noreturn", 0),
+            ("align", "align(16)", 1),
+            ("align", "align(8)", 1),
+            ("deprecated", "deprecated(\"old\")", 1),
+            ("\"first\"", "\"first\"", 0),
+            ("\"second\"", "\"second\"(unknown)", 1),
+        ]
+    );
+    let error = parse_preprocessed_with_limits(
+        &config,
+        source.into(),
+        ParseLimits {
+            max_work: parsed.statistics.work - 1,
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error.resource.unwrap().kind, ResourceKind::Work);
+    assert_eq!(
+        parse_preprocessed(&config, source.into())
+            .unwrap()
+            .statistics,
+        parsed.statistics
+    );
+    assert!(parse_preprocessed(&Config::with_clang(), source.into()).is_err());
+}

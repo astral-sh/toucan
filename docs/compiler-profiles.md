@@ -73,8 +73,9 @@ inside function bodies, casts, and constant macros. Their unmodified C types are
 `char`, `short`, `int`, and `long long`. In particular, `__int8` retains plain
 `char` identity; `signed __int8` is `signed char`. These spellings remain ordinary
 identifiers on the other profiles. This support does not establish Windows SDK
-header coverage; Microsoft declaration attributes and calling-convention keywords
-have separate syntax and semantic requirements.
+header coverage. The profile also parses calling-convention keywords and checked
+Microsoft [declaration attributes](msvc-declarations.md); remaining SDK spellings
+still require separate syntax and semantic support.
 
 Compatibility version macros remain conservative: GNU 4.2.1 and, for Clang,
 Clang 4.0. They select supported header branches; they do not claim every feature

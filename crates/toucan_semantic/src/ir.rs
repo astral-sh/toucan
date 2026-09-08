@@ -596,7 +596,7 @@ impl TranslationUnit {
         ))
     }
 
-    /// Returns the outermost GNU typedef alignment override, without applying
+    /// Returns the outermost vendor typedef alignment override, without applying
     /// it to the pointee or mutating a referenced record.
     pub fn typedef_alignment(&self, ty: &Type) -> Result<Option<NonZeroU32>, Error> {
         Ok(self.typedef_alignment_metadata(ty)?.bytes())

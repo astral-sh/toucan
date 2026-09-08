@@ -8,13 +8,14 @@ use crate::{Declaration, DeclarationKind, Error, TranslationUnit, Type};
 
 /// Alignment attached to an object or function declaration, not its C type.
 ///
-/// GNU attributes can decrease object alignment. C11 requirements cannot do so,
+/// GNU and Microsoft attributes can decrease object alignment. C11 requirements cannot do so,
 /// and Clang additionally checks agreement between C11 redeclarations. Keeping
 /// the two spellings separate preserves those rules when declarations merge.
 #[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub struct DeclarationAlignment {
     // Zero means absent. Otherwise these encode a bounded power-of-two exponent.
     gnu: u8,
+    msvc: u8,
     // The extra value 1 preserves a written _Alignas(0).
     c11: u8,
     effective: u8,
@@ -31,9 +32,27 @@ impl DeclarationAlignment {
             .unwrap_or(0);
         Ok(Self {
             gnu,
+            msvc: 0,
             c11,
             effective: 0,
         })
+    }
+
+    /// Adds a Microsoft alignment while preserving its spelling separately.
+    pub fn with_msvc(mut self, bytes: u32) -> Result<Self, Error> {
+        if !bytes.is_power_of_two() || bytes > 8192 {
+            return Err(Error::new(
+                0,
+                "Microsoft alignment must be a power of two from 1 through 8192 bytes",
+            ));
+        }
+        self.msvc = self.msvc.max(encode(bytes)?);
+        Ok(self)
+    }
+
+    /// The strongest Microsoft `__declspec(align)` attribute, in bytes.
+    pub fn msvc(self) -> Option<NonZeroU32> {
+        decode(self.msvc)
     }
 
     /// The strongest GNU `aligned` attribute, in bytes.
@@ -55,17 +74,20 @@ impl DeclarationAlignment {
 
     /// Whether this declaration has no written or inherited alignment facts.
     pub fn is_empty(&self) -> bool {
-        self.gnu == 0 && self.c11 == 0 && self.effective == 0
+        self.gnu == 0 && self.msvc == 0 && self.c11 == 0 && self.effective == 0
     }
 
     /// The greatest nonzero explicit alignment, before the natural minimum.
     pub fn explicit(self) -> Option<NonZeroU32> {
-        self.gnu().max(self.c11().and_then(NonZeroU32::new))
+        self.gnu()
+            .max(self.msvc())
+            .max(self.c11().and_then(NonZeroU32::new))
     }
 
     pub(crate) fn combined(self, other: Self) -> Self {
         Self {
             gnu: self.gnu.max(other.gnu),
+            msvc: self.msvc.max(other.msvc),
             c11: self.c11.max(other.c11),
             effective: self.effective.max(other.effective),
         }
@@ -83,7 +105,7 @@ impl DeclarationAlignment {
     }
 
     fn validate(self) -> Result<(), Error> {
-        if self.gnu > 29 || self.c11 > 30 || self.effective > 29 {
+        if self.gnu > 29 || self.msvc > 14 || self.c11 > 30 || self.effective > 29 {
             return Err(Error::new(
                 0,
                 "declaration alignment exceeds the supported range",
@@ -135,6 +157,7 @@ impl std::fmt::Debug for DeclarationAlignment {
         formatter
             .debug_struct("DeclarationAlignment")
             .field("gnu", &self.gnu())
+            .field("msvc", &self.msvc())
             .field("c11", &self.c11())
             .field("effective", &self.effective())
             .finish()
@@ -145,11 +168,15 @@ impl Serialize for DeclarationAlignment {
     fn serialize<S: serde::Serializer>(&self, serializer: S) -> Result<S::Ok, S::Error> {
         use serde::ser::SerializeStruct;
         let count = usize::from(self.gnu != 0)
+            + usize::from(self.msvc != 0)
             + usize::from(self.c11 != 0)
             + usize::from(self.effective != 0);
         let mut state = serializer.serialize_struct("DeclarationAlignment", count)?;
         if let Some(value) = self.gnu() {
             state.serialize_field("gnu", &value)?;
+        }
+        if let Some(value) = self.msvc() {
+            state.serialize_field("msvc", &value)?;
         }
         if let Some(value) = self.c11() {
             state.serialize_field("c11", &value)?;
@@ -230,6 +257,7 @@ impl Analyzer {
         offset: usize,
     ) -> Result<DeclarationAlignment, Error> {
         let gnu = base.alignment.max(extra.alignment);
+        let msvc = base.msvc_alignment.max(extra.msvc_alignment);
         let c11 = base.c11_alignment.max(extra.c11_alignment);
         let mut alignment =
             DeclarationAlignment::new(gnu.map(|value| value as u32), c11.map(|value| value as u32))
@@ -237,6 +265,9 @@ impl Analyzer {
                     error.offset = offset;
                     error
                 })?;
+        if let Some(value) = msvc {
+            alignment = alignment.with_msvc(value as u32)?;
+        }
         alignment.validate().map_err(|mut error| {
             error.offset = offset;
             error
@@ -267,12 +298,13 @@ impl Analyzer {
             && let Some(natural) = self.declaration_natural_alignment(ty)?
         {
             let requested = if self.unit.compiler == Compiler::Clang {
-                c11.max(gnu).unwrap_or(0)
+                c11.max(gnu).max(msvc).unwrap_or(0)
             } else {
                 c11.unwrap_or(0)
             };
             if requested < natural
-                && (requested != 0 || (self.unit.compiler == Compiler::Clang && gnu.is_some()))
+                && (requested != 0
+                    || (self.unit.compiler == Compiler::Clang && gnu.max(msvc).is_some()))
             {
                 return Err(Error::new(
                     offset,

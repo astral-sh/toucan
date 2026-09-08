@@ -738,6 +738,8 @@ pub enum TS18661FloatFormat {
 /// (C11 6.7.2.1)
 #[derive(Debug, PartialEq, Clone)]
 pub struct StructType {
+    /// Attributes written between the tag keyword and its name or body.
+    pub extensions: Vec<Node<Extension>>,
     pub kind: Node<StructKind>,
     pub identifier: Option<Node<Identifier>>,
     /// List of structure of union members, when present.
@@ -801,6 +803,8 @@ pub struct StructDeclarator {
 /// (C11 6.7.2.2)
 #[derive(Debug, PartialEq, Clone)]
 pub struct EnumType {
+    /// Attributes written between `enum` and its name or body.
+    pub extensions: Vec<Node<Extension>>,
     pub identifier: Option<Node<Identifier>>,
     pub enumerators: Vec<Node<Enumerator>>,
 }
@@ -1258,6 +1262,8 @@ pub enum Extension {
     Attribute(Attribute),
     /// A calling-convention keyword such as `__cdecl`, preserving its spelling.
     CallingConvention(Attribute),
+    /// A Microsoft `__declspec` attribute, preserving its exact name and operands.
+    Declspec(Attribute),
     /// Assembler name for an object
     ///
     /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Asm-Labels.html)

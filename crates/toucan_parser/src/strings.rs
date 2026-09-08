@@ -102,6 +102,8 @@ pub const RESERVED_GNU: &[&str] = &[
 
 // Ref: https://clang.llvm.org/docs/AttributeReference.html
 pub const RESERVED_MSVC: &[&str] = &[
+    "_declspec",
+    "__declspec",
     "_int8",
     "__int8",
     "_int16",
