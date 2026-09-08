@@ -16,6 +16,8 @@ toucan_preprocessor = { path = "../toucan_preprocessor" }
 toucan_semantic = { path = "../toucan_semantic" }
 toucan_bindings = { path = "../toucan_bindings" }
 
+[dev-dependencies]
+tempfile.workspace = true
+
 [lints]
 workspace = true
-

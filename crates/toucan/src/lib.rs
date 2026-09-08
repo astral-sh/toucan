@@ -4,6 +4,7 @@
 //! the target's sysroot. This API currently analyzes declarations; function bodies
 //! are parsed but not type-checked. Unsupported bindings produce diagnostics.
 
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -178,6 +179,8 @@ pub struct Report {
     /// Enum constants use the compatible enum integer type in Rust. Their C
     /// expression types are retained here for independent compiler validation.
     pub enum_constants: Vec<toucan_bindings::EnumConstants>,
+    /// Rust-to-C names for macro constants whose identifiers were escaped or renamed.
+    pub renamed_macros: BTreeMap<String, String>,
     pub timings: Timings,
 }
 
@@ -189,87 +192,111 @@ pub struct SkippedMacro {
 
 impl Compilation {
     /// Generates declarations and supported object-like macro constants. The
-    /// report identifies every selected macro that was not emitted.
+    /// report identifies selected macros that were not emitted. With no allowlist,
+    /// reserved `__` macros are omitted unless they shadow a declaration.
     pub fn bindings(&self, options: &BindingOptions) -> Result<(String, Report), Error> {
-        let bindings = toucan_bindings::generate(&self.unit, options)?;
-        let mut source = bindings.source;
-        let mut report = Report {
-            target: self.unit.target.triple().into(),
-            dependencies: self.preprocessed.dependencies.clone(),
-            declarations: bindings.declarations,
-            integer_macros: 0,
-            string_macros: 0,
-            skipped_declarations: bindings.skipped,
-            skipped_macros: Vec::new(),
-            enum_constants: bindings.enum_constants,
-            timings: self.timings.clone(),
-        };
+        let declared_names: BTreeSet<_> = self
+            .unit
+            .declarations
+            .iter()
+            .map(|item| item.name.as_str())
+            .chain(self.unit.constants.keys().map(String::as_str))
+            .chain(
+                self.unit
+                    .records
+                    .iter()
+                    .filter(|item| item.scope == semantic::Scope::File)
+                    .filter_map(|item| item.name.as_deref()),
+            )
+            .chain(
+                self.unit
+                    .enums
+                    .iter()
+                    .filter(|item| item.scope == semantic::Scope::File)
+                    .filter_map(|item| item.name.as_deref()),
+            )
+            .collect();
+        let mut macros = BTreeMap::new();
+        let mut skipped_macros = Vec::new();
+        let mut integer_macros = 0;
+        let mut string_macros = 0;
         for (name, definition) in &self.preprocessed.macros {
             if !options.includes(name)
-                || name.starts_with("__")
-                || self.unit.constants.contains_key(name)
+                || (name.starts_with("__")
+                    && !declared_names.contains(name.as_str())
+                    && options.allowlist.is_empty())
             {
                 continue;
             }
             if definition.parameters.is_some() {
-                report.skipped_macros.push(SkippedMacro {
+                skipped_macros.push(SkippedMacro {
                     name: name.clone(),
                     reason: "function-like macro".into(),
                 });
                 continue;
             }
+            // Even an unsupported replacement hides an enumerator with this name.
+            // Keep the original semantic value available to evaluate other macros.
+            macros.insert(name.clone(), None);
             let expression = match self.preprocessed.expand_object_macro(name) {
                 Ok(Some(value)) if !value.trim().is_empty() => value,
                 Ok(_) => {
-                    report.skipped_macros.push(SkippedMacro {
+                    skipped_macros.push(SkippedMacro {
                         name: name.clone(),
                         reason: "empty replacement".into(),
                     });
                     continue;
                 }
                 Err(error) => {
-                    report.skipped_macros.push(SkippedMacro {
+                    skipped_macros.push(SkippedMacro {
                         name: name.clone(),
                         reason: error.to_string(),
                     });
                     continue;
                 }
             };
+            if expression.trim() == name && self.unit.constants.contains_key(name) {
+                // System headers commonly define enum members as self-aliases so
+                // #ifdef can detect them. Preserve their enum-compatible Rust type.
+                macros.remove(name);
+                continue;
+            }
             if let Some(bytes) = string_literal(&expression) {
-                // Macro names have already been checked as C identifiers. Use the
-                // same keyword escaping as integer constants by reusing its prefix.
-                let constant = toucan_bindings::integer_constant(
-                    name,
-                    semantic::IntegerValue {
-                        value: 0,
-                        bits: 32,
-                        signed: true,
-                        rank: 3,
-                    },
-                )?;
-                let prefix = constant.split(':').next().expect("constant contains colon");
-                source.push_str(&format!(
-                    "{prefix}: &[::core::primitive::u8; {}] = &[{}0];\n",
-                    bytes.len() + 1,
-                    bytes
-                        .iter()
-                        .map(|byte| format!("{byte}, "))
-                        .collect::<String>()
-                ));
-                report.string_macros += 1;
+                macros.insert(
+                    name.clone(),
+                    Some(toucan_bindings::MacroValue::String(bytes)),
+                );
+                string_macros += 1;
             } else {
                 match semantic::evaluate_integer(&self.unit, &expression) {
                     Ok(value) => {
-                        source.push_str(&toucan_bindings::integer_constant(name, value)?);
-                        report.integer_macros += 1;
+                        macros.insert(
+                            name.clone(),
+                            Some(toucan_bindings::MacroValue::Integer(value)),
+                        );
+                        integer_macros += 1;
                     }
-                    Err(error) => report.skipped_macros.push(SkippedMacro {
+                    Err(error) => skipped_macros.push(SkippedMacro {
                         name: name.clone(),
                         reason: error.to_string(),
                     }),
                 }
             }
         }
+        let bindings = toucan_bindings::generate_with_macros(&self.unit, options, &macros)?;
+        let source = bindings.source;
+        let report = Report {
+            target: self.unit.target.triple().into(),
+            dependencies: self.preprocessed.dependencies.clone(),
+            declarations: bindings.declarations,
+            integer_macros,
+            string_macros,
+            skipped_declarations: bindings.skipped,
+            skipped_macros,
+            enum_constants: bindings.enum_constants,
+            renamed_macros: bindings.renamed_macros,
+            timings: self.timings.clone(),
+        };
         Ok((source, report))
     }
 }

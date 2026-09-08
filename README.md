@@ -50,6 +50,8 @@ toucan bindgen api.h --target x86_64-unknown-linux-gnu \
 
 An allowlist entry selects an exact C name or a prefix ending in `*`. Referenced
 types are included automatically. With no allowlist, all names are selected.
+Compiler-internal macros beginning with `__` are omitted by default unless they
+shadow a declaration. An explicit matching allowlist selects them.
 Generated records include compile-time size, alignment, and field-offset assertions.
 The output also checks that Rust is compiling for the selected target.
 
@@ -58,6 +60,11 @@ macros. Unsupported selected ABI representations fail generation. Macros that ca
 be represented as integer or ordinary string constants are reported as omitted;
 `--deny-skipped-macros` makes these omissions an error. Function-like macros are not
 translated into Rust functions.
+
+An object macro replaces a same-named enum constant in the generated bindings.
+Self-aliases such as `#define VALUE VALUE` retain the enum representation. Macros
+that conflict with other declaration names produce a diagnostic. The report maps
+renamed Rust macro constants back to their original C names.
 
 ## Analyze headers
 

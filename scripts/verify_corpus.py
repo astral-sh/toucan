@@ -17,10 +17,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 PROBES = json.loads((ROOT / "corpus" / "probes.json").read_text())
 INTEGER_CONSTANT = re.compile(
-    r"^pub const (\w+): (?:::core::primitive::)?([iu])(8|16|32|64|128) =", re.MULTILINE
+    r"^pub const ((?:r#)?\w+): (?:::core::primitive::)?([iu])(8|16|32|64|128) =",
+    re.MULTILINE,
 )
 STRING_CONSTANT = re.compile(
-    r"^pub const (\w+): &\[(?:::core::primitive::)?u8(?:; \d+)?\] =", re.MULTILINE
+    r"^pub const ((?:r#)?\w+): &\[(?:::core::primitive::)?u8(?:; \d+)?\] =",
+    re.MULTILINE,
 )
 
 
@@ -98,7 +100,10 @@ def generate_probes(
     ]
     integers = INTEGER_CONSTANT.findall(source)
     strings = STRING_CONSTANT.findall(source)
-    constants = set(re.findall(r"^pub const (\w+):", source, re.MULTILINE))
+    constants = set(re.findall(r"^pub const ((?:r#)?\w+):", source, re.MULTILINE))
+    renamed_macros = metadata.get("renamed_macros", {})
+    if renamed_macros.keys() - constants:
+        raise RuntimeError("renamed macro metadata names a missing constant")
     covered = {constant for constant, _, _ in integers} | set(strings)
     if not integers or constants != covered:
         raise RuntimeError(
@@ -116,14 +121,20 @@ def generate_probes(
                 f"toucan_probe_enum_{index}_{i} = {variant}"
                 for i, variant in enumerate(enumeration["variants"])
             )
+            # A later macro may shadow an original enumerator. Temporarily expose
+            # the actual declarations while reconstructing their enum's type.
+            for variant in enumeration["variants"]:
+                c.extend([f'#pragma push_macro("{variant}")', f"#undef {variant}"])
             c.append(f"{c_type} {{ {variants} }};")
+            for variant in reversed(enumeration["variants"]):
+                c.append(f'#pragma pop_macro("{variant}")')
         for constant in enumeration["emitted"]:
             rust_name = constant["rust_name"]
             if rust_name not in constants or rust_name in enum_constants:
                 raise RuntimeError(f"invalid enum constant metadata: {rust_name}")
             enum_constants[rust_name] = (c_type, constant)
     for constant, sign, bits in integers:
-        expression = constant
+        expression = renamed_macros.get(constant, constant)
         if constant in enum_constants:
             c_type, projection = enum_constants[constant]
             c_name = projection["c_name"]
@@ -159,8 +170,9 @@ def generate_probes(
         )
         rust.append(f'println!("constant_signed.{constant}={int(sign == "i")}");')
     for constant in strings:
+        expression = renamed_macros.get(constant, constant)
         c.append(
-            f'printf("string.{constant}="); for (size_t i = 0; i < sizeof({constant}); i++) printf("%02x", (unsigned char)({constant})[i]); putchar(\'\\n\');'
+            f'printf("string.{constant}="); for (size_t i = 0; i < sizeof({expression}); i++) printf("%02x", (unsigned char)({expression})[i]); putchar(\'\\n\');'
         )
         rust.append(
             f'print!("string.{constant}="); for byte in b::{constant} {{ print!("{{byte:02x}}"); }} println!();'

@@ -16,7 +16,16 @@ SPEC.loader.exec_module(probes)
 
 class EnumProbeTests(unittest.TestCase):
     def compile_probes(
-        self, declaration, c_type, variants, rust_type, value, c_expression_bits=32
+        self,
+        declaration,
+        c_type,
+        variants,
+        rust_type,
+        value,
+        c_expression_bits=32,
+        *,
+        rust_name="SELECTED",
+        macro_name=None,
     ):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
@@ -26,7 +35,7 @@ class EnumProbeTests(unittest.TestCase):
             fixture.parent.mkdir(parents=True)
             fixture.write_text("fn ffi_test() {}")
             bindings = (
-                f"pub const SELECTED: ::core::primitive::{rust_type} = {value};\n"
+                f"pub const {rust_name}: ::core::primitive::{rust_type} = {value};\n"
             )
             metadata = {
                 "enum_constants": [
@@ -36,7 +45,7 @@ class EnumProbeTests(unittest.TestCase):
                         "emitted": [
                             {
                                 "c_name": "SELECTED",
-                                "rust_name": "SELECTED",
+                                "rust_name": rust_name,
                                 "c_expression_bits": c_expression_bits,
                                 "c_expression_signed": True,
                             }
@@ -44,6 +53,9 @@ class EnumProbeTests(unittest.TestCase):
                     }
                 ]
             }
+            if macro_name is not None:
+                metadata["enum_constants"] = []
+                metadata["renamed_macros"] = {rust_name: macro_name}
             with (
                 patch.object(probes, "ROOT", directory),
                 patch.dict(probes.PROBES, {"probe": []}),
@@ -79,12 +91,34 @@ class EnumProbeTests(unittest.TestCase):
                 )
             return *outputs, coverage
 
+    def test_renamed_macros_use_their_original_c_names(self):
+        for c_name, rust_name in [("self", "__toucan_self_"), ("type", "r#type")]:
+            with self.subTest(name=c_name):
+                expected, actual, coverage = self.compile_probes(
+                    f"#define {c_name} 7\n",
+                    None,
+                    [],
+                    "i32",
+                    7,
+                    rust_name=rust_name,
+                    macro_name=c_name,
+                )
+                self.assertEqual(expected, actual)
+                self.assertEqual(coverage["enum_constants"], 0)
+
     def test_named_and_anonymous_enum_representations_match_c(self):
         cases = [
             ("enum Named { SELECTED = 3 };", "enum Named", ["SELECTED"], "u32", 3),
             ("typedef enum { SELECTED = -2 } Named;", "Named", ["SELECTED"], "i32", -2),
             (
                 "enum { NEGATIVE = -1, SELECTED = 3 };",
+                None,
+                ["NEGATIVE", "SELECTED"],
+                "i32",
+                3,
+            ),
+            (
+                "enum { NEGATIVE = -1, SELECTED = 3 };\n#define NEGATIVE 4294967295U\n",
                 None,
                 ["NEGATIVE", "SELECTED"],
                 "i32",

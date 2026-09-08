@@ -407,6 +407,7 @@ name = "toucan"
 version = "0.0.1"
 dependencies = [
  "serde",
+ "tempfile",
  "thiserror",
  "toucan_bindings",
  "toucan_preprocessor",

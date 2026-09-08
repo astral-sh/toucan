@@ -38,6 +38,15 @@ pub struct Bindings {
     pub skipped: Vec<String>,
     /// Enum constants are projected to their enum's compatible integer type.
     pub enum_constants: Vec<EnumConstants>,
+    /// Rust-to-C names for macro constants whose identifiers were escaped or renamed.
+    pub renamed_macros: BTreeMap<String, String>,
+}
+
+/// An evaluated object-like macro. String bytes exclude the terminating NUL.
+#[derive(Debug)]
+pub enum MacroValue {
+    Integer(IntegerValue),
+    String(Vec<u8>),
 }
 
 /// The C enum behind a group of emitted Rust constants.
@@ -76,6 +85,45 @@ impl From<toucan_semantic::Error> for Error {
 /// be passed directly to functions taking that enum. The translation unit keeps
 /// their original C expression types for integer promotions and macro evaluation.
 pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, Error> {
+    generate_with_macros(unit, options, &BTreeMap::new())
+}
+
+/// Generate declarations together with evaluated object-like macros.
+///
+/// Macro names shadow enumerators without changing the semantic translation unit.
+/// A `None` value suppresses a shadowed enumerator when its macro cannot be emitted.
+/// Direct self-aliases should be excluded from this map to retain enum projection.
+/// Other declaration-name collisions produce a diagnostic. All emitted names share
+/// the same Rust name allocation, including reserved identifiers and helper types.
+pub fn generate_with_macros(
+    unit: &TranslationUnit,
+    options: &Options,
+    macros: &BTreeMap<String, Option<MacroValue>>,
+) -> Result<Bindings, Error> {
+    let declaration_names: BTreeSet<_> = unit
+        .declarations
+        .iter()
+        .map(|item| item.name.as_str())
+        .chain(
+            unit.records
+                .iter()
+                .filter(|item| item.scope == Scope::File)
+                .filter_map(|item| item.name.as_deref()),
+        )
+        .chain(
+            unit.enums
+                .iter()
+                .filter(|item| item.scope == Scope::File)
+                .filter_map(|item| item.name.as_deref()),
+        )
+        .collect();
+    for (name, value) in macros {
+        if value.is_some() && options.includes(name) && declaration_names.contains(name.as_str()) {
+            return Err(Error(format!(
+                "macro `{name}` conflicts with a C declaration; their Rust names cannot both be emitted"
+            )));
+        }
+    }
     let mut emitter = Emitter {
         unit,
         names: Names::new(
@@ -84,6 +132,7 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
                 .map(|item| item.name.as_str())
                 .chain(unit.typedefs.keys().map(String::as_str))
                 .chain(unit.constants.keys().map(String::as_str))
+                .chain(macros.keys().map(String::as_str))
                 .chain(
                     unit.records
                         .iter()
@@ -198,7 +247,7 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
             if enum_owners.insert(variant.name.as_str(), id).is_some() {
                 return Err(Error(format!("duplicate enumerator `{}`", variant.name)));
             }
-            if options.includes(&variant.name) {
+            if options.includes(&variant.name) && !macros.contains_key(&variant.name) {
                 let value = unit.constants.get(&variant.name).ok_or_else(|| {
                     Error(format!("missing enumerator constant `{}`", variant.name))
                 })?;
@@ -223,7 +272,7 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
         }
     }
     for (name, value) in &unit.constants {
-        if options.includes(name) {
+        if options.includes(name) && !macros.contains_key(name) {
             let value = if let Some(&id) = enum_owners.get(name.as_str()) {
                 let (bits, signed) = emitter.enum_integer(id)?;
                 convert_enum_constant(*value, bits, signed)?
@@ -272,11 +321,43 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
         }
     }
     source.push_str("}\n");
+    let mut renamed_macros = BTreeMap::new();
+    for (name, value) in macros {
+        if !options.includes(name) {
+            continue;
+        }
+        let Some(value) = value else {
+            continue;
+        };
+        let c_name = name;
+        let name = emitter.names.identifier(c_name)?;
+        if name != *c_name {
+            renamed_macros.insert(name.clone(), c_name.clone());
+        }
+        match value {
+            MacroValue::Integer(value) => {
+                source.push_str(&integer_constant_named(&name, *value)?);
+            }
+            MacroValue::String(bytes) => {
+                write!(
+                    source,
+                    "pub const {name}: &[::core::primitive::u8; {}] = &[",
+                    bytes.len() + 1
+                )
+                .unwrap();
+                for byte in bytes {
+                    write!(source, "{byte}, ").unwrap();
+                }
+                source.push_str("0];\n");
+            }
+        }
+    }
     Ok(Bindings {
         source,
         declarations: selected.len(),
         skipped,
         enum_constants,
+        renamed_macros,
     })
 }
 
