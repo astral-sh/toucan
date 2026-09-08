@@ -42,6 +42,14 @@ impl Analyzer {
             ast::Expression::Cast(cast) => {
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 let destination = self.integer_type(&ty, offset)?;
+                // C11 6.6 permits a floating constant as an immediate operand
+                // of a cast to integer type in an integer constant expression.
+                if let ast::Expression::Constant(constant) = &cast.node.expression.node
+                    && let ast::Constant::Float(literal) = &constant.node
+                {
+                    let value = self.floating_literal(literal, offset)?;
+                    return self.convert_arithmetic(value, &ty, offset)?.integer(offset);
+                }
                 let value = self.eval(&cast.node.expression)?;
                 Ok(if matches!(self.unit.resolve(&ty)?.kind, TypeKind::Bool) {
                     IntegerValue::new(u128::from(value.truth()), 8, false, 0)
@@ -424,7 +432,7 @@ impl Analyzer {
         }
     }
 
-    fn binary(
+    pub(crate) fn binary(
         &self,
         operator: &ast::BinaryOperator,
         left: IntegerValue,
@@ -607,7 +615,7 @@ pub(crate) fn common(left: IntegerValue, right: IntegerValue) -> IntegerValue {
     }
 }
 
-fn signed_result(
+pub(crate) fn signed_result(
     value: Option<i128>,
     ty: IntegerValue,
     offset: usize,

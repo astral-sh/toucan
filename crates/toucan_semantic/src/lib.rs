@@ -6,6 +6,7 @@
 
 mod analyze;
 mod expression;
+mod floating;
 mod initializer;
 mod integer;
 mod ir;

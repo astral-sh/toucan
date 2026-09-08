@@ -74,7 +74,19 @@ impl Analyzer {
                 }
                 self.check_assignment(ty, expression)?;
                 if static_storage {
-                    self.static_initializer(expression)?;
+                    let kind = self.static_initializer(expression)?;
+                    if kind == ConstantKind::Arithmetic
+                        && matches!(
+                            resolved.kind,
+                            TypeKind::Integer(_)
+                                | TypeKind::Bool
+                                | TypeKind::Enum(_)
+                                | TypeKind::Float(_)
+                        )
+                    {
+                        let value = self.eval_arithmetic(expression)?;
+                        self.convert_arithmetic(value, ty, offset)?;
+                    }
                 }
                 Ok(ty.clone())
             }
@@ -556,7 +568,7 @@ impl Analyzer {
                     return Err(invalid());
                 }
                 let left = self.static_initializer(&binary.node.lhs)?;
-                if let Ok(value) = self.eval(&binary.node.lhs)
+                if let Ok(value) = self.eval_arithmetic(&binary.node.lhs)
                     && ((binary.node.operator.node == Op::LogicalAnd && !value.truth())
                         || (binary.node.operator.node == Op::LogicalOr && value.truth()))
                 {
@@ -564,15 +576,7 @@ impl Analyzer {
                 }
                 let right = self.static_initializer(&binary.node.rhs)?;
                 if left == ConstantKind::Arithmetic && right == ConstantKind::Arithmetic {
-                    // Integer arithmetic is evaluated as well as typed, catching
-                    // overflow, division by zero, and invalid shifts.
-                    let ty = self.expression_type(expression)?;
-                    if matches!(
-                        self.unit.resolve(&ty)?.kind,
-                        TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
-                    ) {
-                        self.eval(expression)?;
-                    }
+                    self.eval_arithmetic(expression)?;
                     Ok(ConstantKind::Arithmetic)
                 } else if left == ConstantKind::Address
                     && right == ConstantKind::Arithmetic
@@ -591,7 +595,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Conditional(conditional) => {
-                let condition = self.eval(&conditional.node.condition)?;
+                let condition = self.eval_arithmetic(&conditional.node.condition)?;
                 self.static_initializer(if condition.truth() {
                     &conditional.node.then_expression
                 } else {

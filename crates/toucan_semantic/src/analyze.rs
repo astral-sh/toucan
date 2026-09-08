@@ -451,7 +451,7 @@ impl Analyzer {
         analyzer
     }
 
-    fn from_unit(unit: TranslationUnit) -> Self {
+    pub(crate) fn from_unit(unit: TranslationUnit) -> Self {
         let tags = unit
             .records
             .iter()
