@@ -3,6 +3,7 @@
 //! The caller supplies the target's include paths and predefined macros. No host
 //! compiler is invoked, and missing includes and unsupported directives are errors.
 
+mod file_identity;
 mod file_origins;
 pub use file_origins::{FileMapping, FileOrigins};
 mod macro_definitions;
@@ -284,6 +285,7 @@ pub struct Preprocessor {
     macros: BTreeMap<String, Macro>,
     dependencies: BTreeMap<PathBuf, Option<Arc<Path>>>,
     once: BTreeSet<PathBuf>,
+    hardlinks: BTreeMap<(u64, u64), Arc<Path>>,
     tokens: usize,
     expansion_tokens: usize,
     source_bytes: usize,
@@ -295,10 +297,11 @@ pub struct Preprocessor {
     macro_definitions: Option<Box<MacroDefinitions>>,
 }
 
-/// Separates filesystem identity, compiler-visible access spelling, and main-file rules.
+/// Separates the read path, shared file identity, access spelling, and main-file rules.
 #[derive(Clone, Copy)]
 struct InputFile<'a> {
     physical: &'a Path,
+    identity: &'a Path,
     accessed: &'a Path,
     main: bool,
 }
@@ -307,6 +310,7 @@ impl<'a> InputFile<'a> {
     fn named(path: &'a Path, main: bool) -> Self {
         Self {
             physical: path,
+            identity: path,
             accessed: path,
             main,
         }
@@ -368,6 +372,7 @@ impl Preprocessor {
             macros: BTreeMap::new(),
             dependencies: BTreeMap::new(),
             once: BTreeSet::new(),
+            hardlinks: BTreeMap::new(),
             tokens: 0,
             expansion_tokens: 0,
             source_bytes: 0,
@@ -420,7 +425,8 @@ impl Preprocessor {
         // its name first, including when a forced input names the same file.
         let physical = fs::canonicalize(main)
             .map_err(|error| Error::new(main, 1, format!("cannot open header: {error}")))?;
-        let spelling = self.register_file(&physical, main);
+        let (file, identity) = self.open_file(&physical, main)?;
+        let spelling = self.register_file(&physical, main, identity.as_ref());
         let accessed = if self.clang_paths() {
             spelling.as_deref().unwrap_or(&physical)
         } else {
@@ -428,6 +434,7 @@ impl Preprocessor {
         };
         let input = InputFile {
             physical: &physical,
+            identity: identity.as_deref().unwrap_or(&physical),
             accessed,
             main: true,
         };
@@ -452,7 +459,7 @@ impl Preprocessor {
                 })?;
             self.file(&candidate.0, 0, candidate.1, &mut output)?;
         }
-        self.read_file(input, 0, None, &mut output)?;
+        self.read_file(input, file, 0, None, &mut output)?;
         Ok(self.finish(main, output))
     }
 
@@ -464,8 +471,27 @@ impl Preprocessor {
     }
 
     /// Register dependencies once and retain only Clang's noncanonical first name.
-    fn register_file(&mut self, physical: &Path, accessed: &Path) -> Option<Arc<Path>> {
+    fn register_file(
+        &mut self,
+        physical: &Path,
+        accessed: &Path,
+        identity: Option<&Arc<Path>>,
+    ) -> Option<Arc<Path>> {
         let clang = self.clang_paths();
+        if clang
+            && let Some(identity) = identity
+            && identity.as_ref() != physical
+        {
+            let spelling = self
+                .dependencies
+                .get(identity.as_ref())
+                .and_then(Clone::clone)
+                .unwrap_or_else(|| Arc::clone(identity));
+            self.dependencies
+                .entry(physical.to_owned())
+                .or_insert_with(|| Some(Arc::clone(&spelling)));
+            return Some(spelling);
+        }
         self.dependencies
             .entry(physical.to_owned())
             .or_insert_with(|| {
@@ -507,6 +533,7 @@ impl Preprocessor {
             .map_or(0, |queries| queries.enabled);
         self.dependencies.clear();
         self.once.clear();
+        self.hardlinks.clear();
         self.tokens = 0;
         self.expansion_tokens = 0;
         self.source_bytes = 0;
@@ -594,7 +621,17 @@ impl Preprocessor {
         if self.once.contains(&physical) {
             return Ok(());
         }
-        let spelling = self.register_file(&physical, path);
+        let (file, identity) = self.open_file(&physical, path)?;
+        let once_path = identity.as_deref().unwrap_or(&physical);
+        if self.once.contains(once_path) {
+            // Clang records a distinct hard-link access as a dependency even
+            // when once suppresses its contents. GNU records only the first.
+            if self.clang_paths() {
+                self.register_file(&physical, path, identity.as_ref());
+            }
+            return Ok(());
+        }
+        let spelling = self.register_file(&physical, path, identity.as_ref());
         let accessed = if self.clang_paths() {
             spelling.as_deref().unwrap_or(&physical)
         } else {
@@ -603,18 +640,41 @@ impl Preprocessor {
         self.read_file(
             InputFile {
                 physical: &physical,
+                identity: once_path,
                 accessed,
                 main: false,
             },
+            file,
             depth,
             include_origin,
             output,
         )
     }
 
+    /// Inspect and read the same open file, caching identities only for hard links.
+    fn open_file(
+        &mut self,
+        physical: &Path,
+        accessed: &Path,
+    ) -> Result<(fs::File, Option<Arc<Path>>), Error> {
+        let fail = |error| Error::new(accessed, 1, format!("cannot read header: {error}"));
+        let file = fs::File::open(physical).map_err(fail)?;
+        let identity = file_identity::linked_identity(&file)
+            .map_err(fail)?
+            .map(|identity| {
+                Arc::clone(
+                    self.hardlinks
+                        .entry(identity)
+                        .or_insert_with(|| Arc::from(physical)),
+                )
+            });
+        Ok((file, identity))
+    }
+
     fn read_file(
         &mut self,
         input: InputFile<'_>,
+        file: fs::File,
         depth: usize,
         include_origin: Option<usize>,
         output: &mut String,
@@ -631,11 +691,8 @@ impl Preprocessor {
             .max_source_bytes
             .saturating_sub(self.source_bytes);
         let mut source = String::new();
-        fs::File::open(input.physical)
-            .and_then(|file| {
-                file.take((limit as u64).saturating_add(1))
-                    .read_to_string(&mut source)
-            })
+        file.take((limit as u64).saturating_add(1))
+            .read_to_string(&mut source)
             .map_err(|error| {
                 Error::new(input.accessed, 1, format!("cannot read header: {error}"))
             })?;
@@ -984,9 +1041,9 @@ impl Preprocessor {
                     return Ok(());
                 }
                 let path = if self.config.allow_filesystem {
-                    fs::canonicalize(input.physical).unwrap_or_else(|_| input.physical.to_owned())
+                    fs::canonicalize(input.identity).unwrap_or_else(|_| input.identity.to_owned())
                 } else {
-                    input.physical.to_owned()
+                    input.identity.to_owned()
                 };
                 self.once.insert(path);
             }

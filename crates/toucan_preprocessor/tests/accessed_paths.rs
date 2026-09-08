@@ -334,3 +334,162 @@ fn exact_access_spellings_do_not_collapse_during_origin_interning() {
         files.0.join("./leaf.h").as_os_str()
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn hardlinks_share_once_and_clang_names_but_retain_dependency_paths() {
+    let files = Files::new();
+    files.write(
+        "root.h",
+        "#include \"a/header.h\"\n#include \"b/header.h\"\n",
+    );
+    files.write("a/header.h", "");
+    files.write("a/choice.h", "int a_choice;\n");
+    files.write("b/choice.h", "int b_choice;\n");
+    std::fs::hard_link(files.0.join("a/header.h"), files.0.join("b/header.h")).unwrap();
+    let first = std::fs::canonicalize(files.0.join("a/header.h")).unwrap();
+    let second = std::fs::canonicalize(files.0.join("b/header.h")).unwrap();
+    for once in [false, true] {
+        files.write(
+            "a/header.h",
+            &format!(
+                "{}#define MARKER 1\nconst char *name=__FILE__;\n#include \"choice.h\"\n",
+                if once { "#pragma once\n" } else { "" }
+            ),
+        );
+        for clang in [false, true] {
+            let mut processor = Preprocessor::new(config(clang));
+            let result = processor.preprocess(&files.0.join("root.h")).unwrap();
+            assert_eq!(
+                result.source.matches("const char").count(),
+                if once { 1 } else { 2 }
+            );
+            assert_eq!(
+                result.source.matches("a_choice").count(),
+                if clang && !once { 2 } else { 1 }
+            );
+            assert_eq!(
+                result.source.matches("b_choice").count(),
+                usize::from(!clang && !once)
+            );
+            assert!(result.dependencies.contains(&first));
+            assert_eq!(result.dependencies.contains(&second), clang || !once);
+            let origins = result.file_origins().unwrap();
+            assert_eq!(
+                origins.macro_definition("MARKER").unwrap().path.as_ref(),
+                if once { &first } else { &second }
+            );
+            assert_eq!(
+                origins.macro_definition_name("MARKER").unwrap(),
+                files.0.join(if clang || once {
+                    "a/header.h"
+                } else {
+                    "b/header.h"
+                })
+            );
+
+            // Register the main hard link first, even though the forced input is
+            // processed first; the main input bypasses an earlier once marker.
+            let result = processor
+                .preprocess_files(&[first.clone(), second.clone()])
+                .unwrap();
+            assert_eq!(result.source.matches("const char").count(), 2);
+            assert_eq!(
+                result.source.matches("a_choice").count(),
+                usize::from(!clang)
+            );
+            assert_eq!(
+                result.source.matches("b_choice").count(),
+                if clang { 2 } else { 1 }
+            );
+            assert!(result.dependencies.contains(&first));
+            assert!(result.dependencies.contains(&second));
+        }
+    }
+}
+
+#[test]
+fn identical_distinct_headers_are_not_file_aliases() {
+    let files = Files::new();
+    files.write(
+        "root.h",
+        "#include \"a/header.h\"\n#include \"b/header.h\"\n",
+    );
+    for prefix in ["a", "b"] {
+        files.write(&format!("{prefix}/header.h"), "#pragma once\nint value;\n");
+    }
+    for clang in [false, true] {
+        let result = Preprocessor::new(config(clang))
+            .preprocess(&files.0.join("root.h"))
+            .unwrap();
+        assert_eq!(compact(&result.source), "intvalue;intvalue;");
+        assert_eq!(result.dependencies.len(), 3);
+    }
+}
+
+#[cfg(windows)]
+#[test]
+fn windows_hardlinks_have_an_explicit_identity_boundary() {
+    let files = Files::new();
+    files.write("original.h", "int value;\n");
+    std::fs::hard_link(files.0.join("original.h"), files.0.join("alias.h")).unwrap();
+    for clang in [false, true] {
+        let error = Preprocessor::new(config(clang))
+            .preprocess(&files.0.join("original.h"))
+            .unwrap_err();
+        assert!(error.message.contains("128-bit file identity"), "{error}");
+    }
+}
+
+#[cfg(unix)]
+#[test]
+#[ignore = "requires GCC and Clang"]
+fn hardlink_names_and_ordered_inputs_match_native() {
+    let files = Files::new();
+    files.write(
+        "root.h",
+        "#include \"a/header.h\"\n#include \"b/header.h\"\n",
+    );
+    files.write("a/header.h", "");
+    files.write("a/choice.h", "int a_choice;\n");
+    files.write("b/choice.h", "int b_choice;\n");
+    std::fs::hard_link(files.0.join("a/header.h"), files.0.join("b/header.h")).unwrap();
+    for once in [false, true] {
+        files.write(
+            "a/header.h",
+            &format!(
+                "{}const char *name=__FILE__;\n#include \"choice.h\"\n",
+                if once { "#pragma once\n" } else { "" }
+            ),
+        );
+        for clang in [false, true] {
+            let compiler = std::env::var(if clang { "TOUCAN_CLANG" } else { "TOUCAN_GCC" })
+                .unwrap_or_else(|_| if clang { "clang" } else { "gcc" }.into());
+            for paths in [
+                vec![files.0.join("root.h")],
+                vec![files.0.join("a/header.h"), files.0.join("b/header.h")],
+            ] {
+                let actual = Preprocessor::new(config(clang))
+                    .preprocess_files(&paths)
+                    .unwrap();
+                let mut command = Command::new(&compiler);
+                command.args(["-E", "-P", "-x", "c"]);
+                for path in &paths[..paths.len() - 1] {
+                    command.arg("-include").arg(path);
+                }
+                let native = command.arg(paths.last().unwrap()).output().unwrap();
+                assert_eq!(
+                    toucan_test_support::compiler_acceptance(&native),
+                    Ok(true),
+                    "{command:?}: {}",
+                    String::from_utf8_lossy(&native.stderr)
+                );
+                assert_eq!(
+                    compact(&actual.source),
+                    compact(&String::from_utf8_lossy(&native.stdout)),
+                    "{command:?}"
+                );
+            }
+        }
+    }
+}

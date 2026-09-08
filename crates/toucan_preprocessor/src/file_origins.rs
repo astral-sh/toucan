@@ -24,7 +24,8 @@ impl FileMapping {
         &self.generated
     }
 
-    /// Canonical identity for filesystem reads; supplied name for in-memory inputs.
+    /// Canonical read path, or the supplied name for in-memory inputs.
+    /// Distinct hard links retain their distinct canonical paths here.
     pub fn path(&self) -> &Path {
         &self.path
     }
@@ -49,7 +50,7 @@ pub struct FileOrigins {
 }
 
 impl FileOrigins {
-    /// Ordered ranges, coalesced only when physical identity and accessed spelling match.
+    /// Ordered ranges, coalesced only when canonical path and accessed spelling match.
     pub fn mappings(&self) -> &[FileMapping] {
         &self.mappings
     }
