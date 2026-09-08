@@ -318,12 +318,20 @@ impl Analyzer {
                     IntegerValue::int(0)
                 } else {
                     if binary.node.operator.node == ast::BinaryOperator::Index {
-                        return match &self.unit.resolve(&left)?.kind {
-                            TypeKind::Array { element, .. } | TypeKind::Pointer(element) => {
-                                Ok((**element).clone())
+                        // C defines a[b] as *(a + b), so either operand may
+                        // provide the pointer, but the other must be an integer.
+                        for (pointer, index) in [(&left, &right), (&right, &left)] {
+                            if let TypeKind::Array { element, .. } | TypeKind::Pointer(element) =
+                                &self.unit.resolve(pointer)?.kind
+                            {
+                                self.integer_type(index, offset)?;
+                                return Ok((**element).clone());
                             }
-                            _ => Err(Error::new(offset, "index requires pointer or array")),
-                        };
+                        }
+                        return Err(Error::new(
+                            offset,
+                            "index requires pointer and integer operands",
+                        ));
                     }
                     let left = self.integer_type(&left, offset)?;
                     if matches!(
@@ -397,6 +405,16 @@ impl Analyzer {
                 let TypeKind::Function(function) = &ty.kind else {
                     return Err(Error::new(offset, "callee is not a function"));
                 };
+                if function.prototype
+                    && (call.node.arguments.len() < function.parameters.len()
+                        || (!function.variadic
+                            && call.node.arguments.len() != function.parameters.len()))
+                {
+                    return Err(Error::new(
+                        offset,
+                        "argument count does not match function prototype",
+                    ));
+                }
                 return Ok(function.return_type.clone());
             }
             _ => {

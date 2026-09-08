@@ -438,7 +438,7 @@ impl Analyzer {
             return Err(Error::new(declaration.span.start, "thread-local objects require unsupported Rust TLS bindings"));
         }
         for item in &declaration.node.declarators {
-            let (name, ty, mut declarator_attributes) =
+            let (name, mut ty, mut declarator_attributes) =
                 self.declarator(base.clone(), &item.node.declarator)?;
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "declaration has no name"))?;
@@ -501,27 +501,13 @@ impl Analyzer {
                         format!("conflicting declaration of `{name}`"),
                     ));
                 }
+                // A composite type retains all available bounds and prototypes,
+                // including those nested inside pointers and function parameters.
+                ty = self.composite_type(&previous.ty, &ty, 0)?;
+                let previous = &mut self.unit.declarations[previous_index];
+                previous.ty = ty.clone();
                 // Repeated compatible prototypes need only one binding.
                 if !definition {
-                    let complete = matches!((&self.unit.resolve(&previous.ty)?.kind, &self.unit.resolve(&ty)?.kind),
-                        (TypeKind::Function(old), TypeKind::Function(new)) if !old.prototype && new.prototype)
-                        || matches!(
-                            (
-                                &self.unit.resolve(&previous.ty)?.kind,
-                                &self.unit.resolve(&ty)?.kind
-                            ),
-                            (
-                                TypeKind::Array { length: None, .. },
-                                TypeKind::Array {
-                                    length: Some(_),
-                                    ..
-                                }
-                            )
-                        );
-                    let previous = &mut self.unit.declarations[previous_index];
-                    if complete {
-                        previous.ty = ty;
-                    }
                     if previous.link_name.is_none() {
                         previous.link_name = declarator_attributes.link_name;
                     }
@@ -618,6 +604,67 @@ impl Analyzer {
             }
             _ => Ok(left.kind == right.kind),
         }
+    }
+
+    /// Combines compatible declarations without losing nested type information.
+    fn composite_type(&self, left: &Type, right: &Type, depth: usize) -> Result<Type, Error> {
+        if depth >= 128 {
+            return Err(Error::new(
+                0,
+                "composite type nesting exceeds the 128-level limit",
+            ));
+        }
+        if left == right {
+            return Ok(left.clone());
+        }
+        let resolved_left = self.unit.resolve(left)?;
+        let resolved_right = self.unit.resolve(right)?;
+        let kind = match (&resolved_left.kind, &resolved_right.kind) {
+            (TypeKind::Pointer(a), TypeKind::Pointer(b)) => {
+                TypeKind::Pointer(Box::new(self.composite_type(a, b, depth + 1)?))
+            }
+            (
+                TypeKind::Array {
+                    element: a,
+                    length: a_len,
+                },
+                TypeKind::Array {
+                    element: b,
+                    length: b_len,
+                },
+            ) => TypeKind::Array {
+                element: Box::new(self.composite_type(a, b, depth + 1)?),
+                length: a_len.or(*b_len),
+            },
+            (TypeKind::Function(a), TypeKind::Function(b)) => {
+                let mut function = if a.prototype {
+                    (**a).clone()
+                } else {
+                    (**b).clone()
+                };
+                function.return_type =
+                    self.composite_type(&a.return_type, &b.return_type, depth + 1)?;
+                if a.prototype && b.prototype {
+                    for ((parameter, a), b) in function
+                        .parameters
+                        .iter_mut()
+                        .zip(&a.parameters)
+                        .zip(&b.parameters)
+                    {
+                        parameter.ty = self.composite_type(&a.ty, &b.ty, depth + 1)?;
+                    }
+                }
+                TypeKind::Function(Box::new(function))
+            }
+            _ => return Ok(left.clone()),
+        };
+        if kind == resolved_left.kind {
+            return Ok(left.clone());
+        }
+        Ok(Type {
+            kind,
+            qualifiers: self.unit.qualifiers(left)?,
+        })
     }
 
     fn specifiers(
