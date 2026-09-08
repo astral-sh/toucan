@@ -39,6 +39,12 @@ const VALID: &[&str] = &[
     "union U { int x; double y; }; union U u = {.x = 1, .y = 2};",
     "struct S { int n; int a[]; }; struct S s = {1};",
     "extern int a[3]; int a[] = {1, 2, 3};",
+    "int f(int); extern int (*p)(int); int (*p)() = f;",
+    "extern int a[5]; int a[] = {1, 2}; _Static_assert(sizeof a == 5 * sizeof(int), \"prior bound\");",
+    "extern int a[5]; int a[] = {[2] = 1}; _Static_assert(sizeof a == 5 * sizeof(int), \"prior designated bound\");",
+    "extern int a[2][3]; int a[][3] = {{1}}; _Static_assert(sizeof a == 6 * sizeof(int), \"prior nested bound\");",
+    "extern char a[5]; char a[] = \"hi\"; _Static_assert(sizeof a == 5, \"prior string bound\");",
+    "extern unsigned short a[2]; unsigned short a[] = u\"\\U0001F600\"; _Static_assert(sizeof a == 2 * sizeof(unsigned short), \"omitted terminator\");",
     "int x, *p = &x;",
     "int *p = 0;",
     "int *p = (void *)0;",
@@ -81,6 +87,9 @@ const INVALID: &[&str] = &[
     "struct S { int x; }; struct S s = {1, 2};",
     "union U { int x, y; }; union U u = {1, 2};",
     "extern int a[3]; int a[] = {1, 2, 3, 4};",
+    "int f(double); extern int (*p)(int); int (*p)() = f;",
+    "extern int a[2]; int a[] = {[2] = 1};",
+    "extern char a[2]; char a[] = \"abc\";",
     "const int x = 1; int *p = &x;",
     "int x; double *p = &x;",
     "int *p = 1;",
@@ -187,5 +196,80 @@ fn initializer_constraints_match_c_compilers() {
                 String::from_utf8_lossy(&output.stderr)
             );
         }
+    }
+}
+
+const PRIOR_BOUND_SOURCE: &str = r#"
+    extern int values[5]; int values[] = {1, 2};
+    extern int sparse[5]; int sparse[] = {[2] = 7};
+    extern int grid[2][3]; int grid[][3] = {{9}};
+    extern char text[5]; char text[] = "hi";
+    extern unsigned short emoji[2]; unsigned short emoji[] = u"\U0001F600";
+    _Static_assert(sizeof values == 5 * sizeof(int), "prior bound");
+    _Static_assert(sizeof sparse == 5 * sizeof(int), "prior designated bound");
+    _Static_assert(sizeof grid == 6 * sizeof(int), "prior nested bound");
+    _Static_assert(sizeof text == 5, "prior string bound");
+    _Static_assert(sizeof emoji == 2 * sizeof(unsigned short), "omitted terminator");
+    int main(void) {
+        return values[0] != 1 || values[1] != 2 || values[4] != 0
+            || sparse[0] != 0 || sparse[2] != 7 || sparse[4] != 0
+            || grid[0][0] != 9 || grid[1][2] != 0
+            || text[0] != 'h' || text[2] != 0 || text[4] != 0
+            || emoji[0] != 0xd83d || emoji[1] != 0xde00;
+    }
+"#;
+
+#[test]
+fn prior_declarations_supply_initializer_bounds_on_every_target() {
+    for target in Target::ALL {
+        analyze(PRIOR_BOUND_SOURCE, target).unwrap();
+    }
+}
+
+#[test]
+#[ignore = "requires native GCC and Clang plus all Clang target backends; run with --include-ignored"]
+fn prior_bounds_and_zero_fill_match_c_compilers() {
+    let directory = tempfile::tempdir().unwrap();
+    let input = directory.path().join("bounds.c");
+    std::fs::write(&input, PRIOR_BOUND_SOURCE).unwrap();
+    for compiler in ["gcc", "clang"] {
+        let executable = directory.path().join(format!("{compiler}.exe"));
+        let output = std::process::Command::new(compiler)
+            .args(["-std=c11", "-pedantic-errors"])
+            .arg(&input)
+            .arg("-o")
+            .arg(&executable)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{compiler}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(
+            std::process::Command::new(executable)
+                .status()
+                .unwrap()
+                .success(),
+            "{compiler}"
+        );
+    }
+    for target in Target::ALL {
+        let output = std::process::Command::new("clang")
+            .args([
+                "-std=c11",
+                "-pedantic-errors",
+                "-fsyntax-only",
+                "-target",
+                target.triple(),
+            ])
+            .arg(&input)
+            .output()
+            .unwrap();
+        assert!(
+            output.status.success(),
+            "{target}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
     }
 }

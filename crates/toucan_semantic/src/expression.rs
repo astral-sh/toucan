@@ -126,8 +126,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::StringLiteral(strings) => {
-                let decoded =
-                    crate::decode_string_literals(&strings.node, self.unit.target, offset)?;
+                let decoded = self.decode_string_literal(strings, offset)?;
                 return Ok(ExpressionInfo::object(Type::new(TypeKind::Array {
                     element: Box::new(Type::new(TypeKind::Integer(decoded.element_type))),
                     length: Some(decoded.code_units.len() as u64),

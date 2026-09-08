@@ -7,7 +7,7 @@ use lang_c::{ast, span::Node};
 
 use crate::analyze::Analyzer;
 use crate::expression::ExpressionInfo;
-use crate::{Error, StringEncoding, Type, TypeKind, decode_string_literals};
+use crate::{Error, StringEncoding, Type, TypeKind};
 
 /// lang-c drops a basic asm statement's qualifier, so validate it before parsing.
 pub(crate) fn check_qualifiers(source: &str, mut index: usize) -> Result<(), Error> {
@@ -258,7 +258,7 @@ impl Analyzer {
     }
 
     pub(crate) fn asm_string(&self, literal: &Node<ast::StringLiteral>) -> Result<String, Error> {
-        let decoded = decode_string_literals(&literal.node, self.unit.target, literal.span.start)?;
+        let decoded = self.decode_string_literal(literal, literal.span.start)?;
         if decoded.encoding != StringEncoding::Ordinary {
             return Err(Error::new(
                 literal.span.start,

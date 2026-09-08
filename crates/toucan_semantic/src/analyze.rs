@@ -41,6 +41,7 @@ pub(crate) fn analyze_inner(
     let mut analyzer = Analyzer::new(target, packs);
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
+    analyzer.string_literals = parsed.string_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
     analyzer.int128_specifiers = parsed.int128_specifiers;
     let result = (|| {
@@ -176,6 +177,7 @@ fn evaluate_expression<Value>(
     let mut analyzer = Analyzer::from_unit(unit.clone());
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
+    analyzer.string_literals = parsed.string_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
     analyzer.int128_specifiers = parsed.int128_specifiers;
     evaluate(&mut analyzer, expression).map_err(|mut error| {
@@ -191,6 +193,7 @@ struct Parsed {
     unit: ast::TranslationUnit,
     record_attributes: HashSet<usize>,
     character_literals: HashMap<usize, String>,
+    string_literals: HashMap<usize, Vec<String>>,
     offsets: crate::parser_extensions::SourceMap,
     empty_initializers: HashSet<usize>,
     int128_specifiers: HashSet<usize>,
@@ -211,7 +214,7 @@ fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
         flavor: driver::Flavor::ClangC11,
     };
     let (source, record_attributes) = normalize_attributes(&source);
-    let (source, character_literals) = crate::literals::normalize_character_escapes(source);
+    let (source, literal_spellings) = crate::literals::normalize_literal_escapes(source);
     let parsed = driver::parse_preprocessed(&config, source).map_err(|mut error| {
         error.offset = adapted.offsets.original_offset(error.offset);
         error.source = original.to_owned();
@@ -241,7 +244,8 @@ fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
     Ok(Parsed {
         unit: parsed.unit,
         record_attributes,
-        character_literals,
+        character_literals: literal_spellings.characters,
+        string_literals: literal_spellings.strings,
         offsets: adapted.offsets,
         empty_initializers: adapted.empty_initializers,
         int128_specifiers: adapted.int128_specifiers,
@@ -519,6 +523,7 @@ pub(crate) struct Analyzer {
     packs: PackEvents,
     record_attributes: HashSet<usize>,
     pub(crate) character_literals: HashMap<usize, String>,
+    pub(crate) string_literals: HashMap<usize, Vec<String>>,
     pub(crate) empty_initializers: HashSet<usize>,
     int128_specifiers: HashSet<usize>,
     nesting: usize,
@@ -584,6 +589,7 @@ impl Analyzer {
             packs: Vec::new(),
             record_attributes: HashSet::new(),
             character_literals: HashMap::new(),
+            string_literals: HashMap::new(),
             empty_initializers: HashSet::new(),
             int128_specifiers: HashSet::new(),
             nesting: 0,
@@ -919,7 +925,6 @@ impl Analyzer {
                     "an object cannot have void type",
                 ));
             }
-            let initializer_type = ty.clone();
             let is_definition = definition || item.node.initializer.is_some();
             let declaration_index = if let Some(previous_index) = self
                 .unit
@@ -1008,6 +1013,9 @@ impl Analyzer {
                     .or_insert(item.span.start);
             }
             if let Some(initializer) = &item.node.initializer {
+                // Earlier declarations contribute bounds to the object being
+                // initialized, including when this declarator omits its bound.
+                let initializer_type = self.unit.declarations[declaration_index].ty.clone();
                 self.initialize_declaration(declaration_index, &initializer_type, initializer)?;
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
@@ -2660,8 +2668,7 @@ impl Analyzer {
             match &extension.node {
                 ast::Extension::AsmLabel(label) => {
                     result.link_name = Some(decode_strings(
-                        &label.node,
-                        self.unit.target,
+                        self.decode_string_literal(label, extension.span.start)?,
                         extension.span.start,
                     )?);
                 }
@@ -2790,11 +2797,8 @@ impl Analyzer {
         &mut self,
         assertion: &Node<ast::StaticAssert>,
     ) -> Result<(), Error> {
-        let message = crate::decode_string_literals(
-            &assertion.node.message.node,
-            self.unit.target,
-            assertion.node.message.span.start,
-        )?;
+        let message =
+            self.decode_string_literal(&assertion.node.message, assertion.node.message.span.start)?;
         let value = self.eval(&assertion.node.expression)?;
         if !value.truth() {
             let message = message
@@ -2803,7 +2807,10 @@ impl Analyzer {
                     bytes.pop();
                     String::from_utf8(bytes).ok()
                 })
-                .unwrap_or_else(|| assertion.node.message.node.join(" "));
+                .unwrap_or_else(|| {
+                    self.string_literal_tokens(&assertion.node.message)
+                        .join(" ")
+                });
             return Err(Error::new(
                 assertion.span.start,
                 format!("static assertion failed: {message}"),
@@ -2947,8 +2954,7 @@ fn set_alignment(attributes: &mut Attributes, value: u64, offset: usize) -> Resu
     Ok(())
 }
 
-fn decode_strings(strings: &[String], target: Target, offset: usize) -> Result<String, Error> {
-    let decoded = crate::decode_string_literals(strings, target, offset)?;
+fn decode_strings(decoded: crate::DecodedString, offset: usize) -> Result<String, Error> {
     let mut bytes = decoded
         .to_bytes()
         .ok_or_else(|| Error::new(offset, "text context requires an ordinary or UTF-8 string"))?;

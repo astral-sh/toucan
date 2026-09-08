@@ -671,8 +671,7 @@ impl Analyzer {
                 }
             },
             ast::Expression::StringLiteral(strings) => {
-                let decoded =
-                    crate::decode_string_literals(&strings.node, self.unit.target, offset)?;
+                let decoded = self.decode_string_literal(strings, offset)?;
                 self.code_builder().budget.charge(
                     0,
                     0,
@@ -1243,6 +1242,39 @@ mod tests {
 
     fn scalar(code: &CheckedCode, id: TypeId, kind: IntegerKind) {
         assert_eq!(ty(code, id).kind, TypeKind::Integer(kind));
+    }
+
+    #[test]
+    fn original_string_escapes_and_prior_array_bounds_are_retained() {
+        for target in Target::ALL {
+            let code = checked(
+                r#"extern int values[5]; int values[] = {1,2}; unsigned short emoji[] = u"\U0001F600"; char mixed[] = "\x00e9" "\u00e9";"#,
+                target,
+            );
+            let strings: Vec<_> = code
+                .expressions
+                .iter()
+                .filter_map(|expression| match &expression.kind {
+                    ExprKind::String(value) => Some(value.code_units.as_slice()),
+                    _ => None,
+                })
+                .collect();
+            assert_eq!(
+                strings,
+                [&[0xd83d, 0xde00, 0][..], &[0xe9, 0xc3, 0xa9, 0][..]]
+            );
+            for site in &code.declarations {
+                if code.entities[site.entity.index()].name.as_deref() == Some("values") {
+                    assert!(matches!(
+                        ty(&code, site.ty).kind,
+                        TypeKind::Array {
+                            length: Some(5),
+                            ..
+                        }
+                    ));
+                }
+            }
+        }
     }
 
     #[test]

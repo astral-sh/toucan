@@ -157,6 +157,12 @@ fn character_values_and_types_follow_the_target_profile() {
 }
 
 const VALID: &[&str] = &[
+    r#"unsigned short a[] = u"\U0001F600"; _Static_assert(sizeof a == 3 * sizeof(unsigned short), "UTF-16 bound");"#,
+    r#"unsigned int a[] = U"\U0001F600"; _Static_assert(sizeof a == 2 * sizeof(unsigned int), "UTF-32 bound");"#,
+    r#"char a[] = u8"\U0001F600"; _Static_assert(sizeof a == 5, "UTF-8 bound");"#,
+    r#"char raw[] = "\x00e9"; char unicode[] = "\u00e9"; _Static_assert(sizeof raw == 2 && sizeof unicode == 3, "distinct spellings");"#,
+    r#"char a[] = "\x00e9" "\u00e9"; _Static_assert(sizeof a == 4, "adjacent escapes");"#,
+    r#"unsigned short a[] = "a" u"\U0001F600" /* boundary */ "\u4f60"; _Static_assert(sizeof a == 5 * sizeof(unsigned short), "mixed prefix");"#,
     r#"char a[] = "\x40"; _Static_assert(sizeof a == 2, "bound");"#,
     r#"char a[] = "é"; _Static_assert(sizeof a == 3, "bytes");"#,
     r#"unsigned char a[] = u8"é";"#,
@@ -211,7 +217,7 @@ fn wide_source(target: Target) -> String {
     let signed_byte = if target.char_is_signed() { -1 } else { 255 };
     format!(
         r#"
-        {ty} a[] = L"é你😀";
+        {ty} a[] = L"é\u4f60\U0001f600";
         _Static_assert(sizeof a == {bound} * sizeof({ty}), "wide array bound");
         _Static_assert(_Generic(L'A', {ty}: 1, default: 0), "wchar type");
         _Static_assert('\xff' == {signed_byte}, "plain char signedness");
@@ -321,6 +327,22 @@ fn universal_character_spelling_survives_the_parser_adapter() {
 }
 
 #[test]
+fn string_universal_name_diagnostics_keep_original_offsets() {
+    let source =
+        r#"struct S {int x;}; struct S object = (struct S){}; char text[] = "\U00110000";"#;
+    let error = analyze(source, GNU).unwrap_err();
+    assert_eq!(error.offset, source.find(r#""\U"#).unwrap());
+    assert!(error.message.contains("universal character name"));
+    analyze(
+        r#"_Static_assert(1, "\u00e9"); int renamed(void) __asm__("\u00e9");"#,
+        GNU,
+    )
+    .unwrap();
+    let error = analyze(r#"_Static_assert(0, "\xff" "\u00e9");"#, GNU).unwrap_err();
+    assert!(error.message.contains(r#""\u00e9""#));
+}
+
+#[test]
 #[ignore = "requires native GCC and Clang; run with --include-ignored"]
 fn code_units_and_character_values_match_native_compilers() {
     let target = native_target();
@@ -328,6 +350,7 @@ fn code_units_and_character_values_match_native_compilers() {
         &[r#""\a\b\f\n\r\t\v\\\'\"\?\0\1\10\100\xff""#],
         &[r#""\0123\x40""#, r#""A""#],
         &[r#""é你😀""#],
+        &[r#""\x00e9""#, r#""\u00e9""#],
         &[r#"u8"é\u4f60\U0001f600""#],
         &[r#"u"é\u4f60\U0001f600""#],
         &[r#"U"é\u4f60\U0001f600""#],
@@ -360,6 +383,7 @@ fn code_units_and_character_values_match_native_compilers() {
             ));
         }
     }
+    analyze(&declarations, target).unwrap();
     for compiler in ["gcc", "clang"] {
         let mut character_checks = String::new();
         let mut characters = vec![
