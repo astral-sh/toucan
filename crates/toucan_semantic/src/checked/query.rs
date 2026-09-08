@@ -173,7 +173,9 @@ impl Builder {
                         .combine(self.query_use_effects(right))
                 }
             }
-            ExprKind::Cast { value, .. } => self.query_use_effects(value),
+            ExprKind::Cast { value, .. } | ExprKind::ConvertVector { value, .. } => {
+                self.query_use_effects(value)
+            }
             ExprKind::Conditional {
                 condition,
                 then_value,

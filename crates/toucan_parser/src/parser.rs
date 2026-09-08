@@ -20681,7 +20681,14 @@ fn __parse_gnu_primary_expression<'input>(__input: &'input str, __state: &mut Pa
                                         match __choice_res {
                                             Matched(__pos, __value) => Matched(__pos, __value),
                                             Failed if __state.budget.failure.is_some() => return Failed,
-                                            Failed => __parse_keyword_expression(__input, __state, __pos, env),
+                                            Failed => {
+                                                let __choice_res = __parse_convertvector_expression(__input, __state, __pos, env);
+                                                match __choice_res {
+                                                    Matched(__pos, __value) => Matched(__pos, __value),
+                                                    Failed if __state.budget.failure.is_some() => return Failed,
+                                                    Failed => __parse_keyword_expression(__input, __state, __pos, env),
+                                                }
+                                            }
                                         }
                                     }
                                 }
@@ -20991,6 +20998,160 @@ fn __parse_choose_expression_inner<'input>(__input: &'input str, __state: &mut P
                                                                                                     Failed => Failed,
                                                                                                 }
                                                                                             }
+                                                                                            Failed => Failed,
+                                                                                        }
+                                                                                    }
+                                                                                    Failed => Failed,
+                                                                                }
+                                                                            }
+                                                                            Failed => Failed,
+                                                                        }
+                                                                    }
+                                                                    Failed => Failed,
+                                                                }
+                                                            }
+                                                            Failed => Failed,
+                                                        }
+                                                    }
+                                                    Failed => Failed,
+                                                }
+                                            }
+                                            Failed => Failed,
+                                        }
+                                    }
+                                    Failed => Failed,
+                                }
+                            }
+                            Failed => Failed,
+                        }
+                    }
+                    Failed => Failed,
+                }
+            }
+            Failed => Failed,
+        }
+    }
+
+    })();
+    let end = match &result { Matched(end, _) => Some(*end), Failed => None };
+    __state.budget.leave(__pos, end);
+    if __state.budget.failure.is_some() { Failed } else { result }
+}
+
+fn __parse_convertvector_expression<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<Expression> {
+    #![allow(non_snake_case, unused)]
+    if !__state.budget.enter(__pos) { return Failed; }
+    let result = (|| {
+    {
+        let __seq_res = {
+            let __seq_res = Matched(__pos, __pos);
+            match __seq_res {
+                Matched(__pos, l) => {
+                    let __seq_res = __parse_convertvector_expression_inner(__input, __state, __pos, env);
+                    match __seq_res {
+                        Matched(__pos, e) => {
+                            let __seq_res = Matched(__pos, __pos);
+                            match __seq_res {
+                                Matched(__pos, r) => match { __state.budget.node(e, Span::span(l, r)) } {
+                                    Ok(res) => Matched(__pos, res),
+                                    Err(expected) => {
+                                        __state.mark_failure(__pos, expected);
+                                        Failed
+                                    }
+                                },
+                                Failed => Failed,
+                            }
+                        }
+                        Failed => Failed,
+                    }
+                }
+                Failed => Failed,
+            }
+        };
+        match __seq_res {
+            Matched(__pos, n) => Matched(__pos, { Expression::ConvertVector(Box::new(n)) }),
+            Failed => Failed,
+        }
+    }
+
+    })();
+    let end = match &result { Matched(end, _) => Some(*end), Failed => None };
+    __state.budget.leave(__pos, end);
+    if __state.budget.failure.is_some() { Failed } else { result }
+}
+
+fn __parse_convertvector_expression_inner<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<ConvertVectorExpression> {
+    #![allow(non_snake_case, unused)]
+    if !__state.budget.enter(__pos) { return Failed; }
+    let result = (|| {
+    {
+        let __seq_res = {
+            __state.suppress_fail += 1;
+            let res = {
+                let __seq_res = slice_eq(__input, __state, __pos, "__builtin_convertvector");
+                match __seq_res {
+                    Matched(__pos, e) => {
+                        let __seq_res = {
+                            __state.suppress_fail += 1;
+                            let __assert_res = if __input.len() > __pos {
+                                let (__ch, __next) = char_range_at(__input, __pos);
+                                match __ch {
+                                    '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
+                                    _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
+                                }
+                            } else {
+                                __state.mark_failure(__pos, "[_a-zA-Z0-9]")
+                            };
+                            __state.suppress_fail -= 1;
+                            match __assert_res {
+                                Failed if __state.budget.failure.is_some() => return Failed,
+                                Failed => Matched(__pos, ()),
+                                Matched(..) => Failed,
+                            }
+                        };
+                        match __seq_res {
+                            Matched(__pos, _) => Matched(__pos, { e }),
+                            Failed => Failed,
+                        }
+                    }
+                    Failed => Failed,
+                }
+            };
+            __state.suppress_fail -= 1;
+            res
+        };
+        match __seq_res {
+            Matched(__pos, _) => {
+                let __seq_res = __parse__(__input, __state, __pos, env);
+                match __seq_res {
+                    Matched(__pos, _) => {
+                        let __seq_res = slice_eq(__input, __state, __pos, "(");
+                        match __seq_res {
+                            Matched(__pos, _) => {
+                                let __seq_res = __parse__(__input, __state, __pos, env);
+                                match __seq_res {
+                                    Matched(__pos, _) => {
+                                        let __seq_res = __parse_assignment_expression(__input, __state, __pos, env);
+                                        match __seq_res {
+                                            Matched(__pos, e) => {
+                                                let __seq_res = __parse__(__input, __state, __pos, env);
+                                                match __seq_res {
+                                                    Matched(__pos, _) => {
+                                                        let __seq_res = slice_eq(__input, __state, __pos, ",");
+                                                        match __seq_res {
+                                                            Matched(__pos, _) => {
+                                                                let __seq_res = __parse__(__input, __state, __pos, env);
+                                                                match __seq_res {
+                                                                    Matched(__pos, _) => {
+                                                                        let __seq_res = __parse_type_name(__input, __state, __pos, env);
+                                                                        match __seq_res {
+                                                                            Matched(__pos, t) => {
+                                                                                let __seq_res = __parse__(__input, __state, __pos, env);
+                                                                                match __seq_res {
+                                                                                    Matched(__pos, _) => {
+                                                                                        let __seq_res = slice_eq(__input, __state, __pos, ")");
+                                                                                        match __seq_res {
+                                                                                            Matched(__pos, _) => Matched(__pos, { ConvertVectorExpression { expression: e, type_name: t } }),
                                                                                             Failed => Failed,
                                                                                         }
                                                                                     }

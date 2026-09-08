@@ -694,6 +694,9 @@ impl Analyzer {
             return Ok(None);
         };
         Ok(match &expression.node {
+            ast::Expression::ConvertVector(conversion) => {
+                self.object_discarded_effects(&conversion.node.expression, depth + 1)?
+            }
             ast::Expression::TypesCompatible(_) => Some(false),
             ast::Expression::Constant(_) | ast::Expression::StringLiteral(_) => Some(false),
             ast::Expression::Identifier(_) => {

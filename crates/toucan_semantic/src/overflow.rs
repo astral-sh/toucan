@@ -449,6 +449,9 @@ impl Analyzer {
                 let selected = self.checked_choose_expression(selection)?;
                 recurse(self, selected)?
             }
+            ast::Expression::ConvertVector(conversion) => {
+                recurse(self, &conversion.node.expression)?
+            }
             ast::Expression::TypesCompatible(_) => Some(false),
             ast::Expression::GenericSelection(selection) => {
                 let index = self

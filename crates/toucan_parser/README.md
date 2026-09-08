@@ -36,6 +36,8 @@ preserves their attributes and source spans.
 
 `__builtin_types_compatible_p` and `__builtin_choose_expr` have dedicated AST nodes. Their type-name and expression operands retain original spans; the checked frontend supplies type compatibility, selected value categories, and evaluation contexts.
 
+`__builtin_convertvector` retains its value expression and destination type name in a dedicated AST node.
+
 Parsing uses a bounded scoped worker stack; `driver::with_parser_stack` reuses one
 worker for a batch of calls. `driver::parse_preprocessed_with_limits` accepts limits
 and returns source-positioned resource diagnostics. `ParseStatistics` records actual

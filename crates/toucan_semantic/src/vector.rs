@@ -8,6 +8,57 @@ use crate::floating::ArithmeticValue;
 use crate::{Error, FloatKind, IntegerKind, Qualifiers, Type, TypeKind};
 
 impl Analyzer {
+    /// Converts corresponding lanes numerically; the written destination keeps
+    /// its qualifiers and alignment until an enclosing value conversion.
+    pub(crate) fn convert_vector_type(
+        &mut self,
+        conversion: &Node<ast::ConvertVectorExpression>,
+    ) -> Result<Type, Error> {
+        let source = self.expression_type(&conversion.node.expression)?;
+        let destination = self.type_name(&conversion.node.type_name.node)?;
+        let source_shape = if self.gnu_vector_profile() {
+            self.unit.atomic_value(&source)?.unwrap_or(&source)
+        } else {
+            &source
+        };
+        let source = self.unit.resolve(source_shape)?;
+        let destination_shape = if self.gnu_vector_profile() {
+            self.unit
+                .atomic_value(&destination)?
+                .unwrap_or(&destination)
+        } else {
+            &destination
+        };
+        let destination_shape = self.unit.resolve(destination_shape)?;
+        let TypeKind::Vector {
+            lanes: source_lanes,
+            ..
+        } = source.kind
+        else {
+            return Err(Error::new(
+                conversion.node.expression.span.start,
+                "first argument to __builtin_convertvector must have fixed vector type",
+            ));
+        };
+        let TypeKind::Vector {
+            lanes: destination_lanes,
+            ..
+        } = destination_shape.kind
+        else {
+            return Err(Error::new(
+                conversion.node.type_name.span.start,
+                "second argument to __builtin_convertvector must be a fixed vector type",
+            ));
+        };
+        if source_lanes != destination_lanes {
+            return Err(Error::new(
+                conversion.span.start,
+                "__builtin_convertvector requires equal source and destination lane counts",
+            ));
+        }
+        Ok(destination)
+    }
+
     /// Applies GNU vector_size to a scalar base, including GCC's derived-type spelling.
     pub(crate) fn vector_type(&self, ty: Type, bytes: u64, offset: usize) -> Result<Type, Error> {
         self.vector_type_at(ty, bytes, offset, 0)

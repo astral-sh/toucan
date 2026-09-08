@@ -181,6 +181,7 @@ impl Analyzer {
                 return Ok(ExpressionInfo::object(ty));
             }
             ast::Expression::Statement(statement) => return self.statement_expression(statement),
+            ast::Expression::ConvertVector(conversion) => self.convert_vector_type(conversion)?,
             ast::Expression::TypesCompatible(query) => {
                 self.eval_types_compatible(query)?;
                 integer_to_type(IntegerValue::int(0))

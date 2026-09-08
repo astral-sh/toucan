@@ -1371,6 +1371,7 @@ gnu_primary_expression -> Expression =
     va_arg_expression /
     types_compatible_expression /
     choose_expression /
+    convertvector_expression /
     keyword_expression
 
 types_compatible_expression -> Expression =
@@ -1387,6 +1388,14 @@ choose_expression -> Expression =
 choose_expression_inner -> ChooseExpression =
     K<"__builtin_choose_expr"> _ "(" _ c:assignment_expression _ "," _ t:assignment_expression _ "," _ e:assignment_expression _ ")" {
         ChooseExpression { condition: c, then_expression: t, else_expression: e }
+    }
+
+convertvector_expression -> Expression =
+    n:node<convertvector_expression_inner> { Expression::ConvertVector(Box::new(n)) }
+
+convertvector_expression_inner -> ConvertVectorExpression =
+    K<"__builtin_convertvector"> _ "(" _ e:assignment_expression _ "," _ t:type_name _ ")" {
+        ConvertVectorExpression { expression: e, type_name: t }
     }
 
 statement_expression -> Expression =

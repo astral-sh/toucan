@@ -391,6 +391,21 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     expression_use(code, argument);
                 }
             }
+            ExprKind::ConvertVector { value, destination } => {
+                expression_use(code, value);
+                assert_eq!(value.context(), UseContext::Value);
+                assert!(code.occurrence(destination.occurrence).is_some());
+                let destination = code.type_use(destination.type_use).unwrap();
+                let ty = code.ty(destination.shape()).unwrap();
+                let ty = unit.atomic_value(ty).unwrap().unwrap_or(ty);
+                let TypeKind::Vector { lanes: result, .. } = unit.resolve(ty).unwrap().kind else {
+                    panic!("convertvector destination");
+                };
+                let TypeKind::Vector { lanes: input, .. } = unit.resolve(code.ty(value.effective_type()).unwrap()).unwrap().kind else {
+                    panic!("convertvector source");
+                };
+                assert_eq!(input, result);
+            }
             ExprKind::ShuffleVector {
                 callee_occurrence,
                 operands,

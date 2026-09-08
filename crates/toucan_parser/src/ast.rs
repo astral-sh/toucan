@@ -191,6 +191,9 @@ pub enum Expression {
     /// GNU compile-time selection without the usual conditional conversions.
     Choose(Box<Node<ChooseExpression>>),
 
+    /// Numeric conversion of corresponding vector lanes.
+    ConvertVector(Box<Node<ConvertVectorExpression>>),
+
     /// Structure and union members
     ///
     /// Both direct (`.`) and indirect (`->`) access.
@@ -297,6 +300,13 @@ pub struct ChooseExpression {
     pub condition: Box<Node<Expression>>,
     pub then_expression: Box<Node<Expression>>,
     pub else_expression: Box<Node<Expression>>,
+}
+
+/// GNU and Clang vector conversion with a type-name destination.
+#[derive(Debug, PartialEq, Clone)]
+pub struct ConvertVectorExpression {
+    pub expression: Box<Node<Expression>>,
+    pub type_name: Node<TypeName>,
 }
 
 /// C11 generic selection.

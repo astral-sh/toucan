@@ -215,9 +215,13 @@ enumeration!(FloatBase {
 });
 structure!(FloatSuffix { format, imaginary });
 enumeration!(FloatFormat { Float, Double, LongDouble, Float128, TS18661Format(v0) });
-enumeration!(Expression { Identifier(v0), Constant(v0), StringLiteral(v0), GenericSelection(v0), TypesCompatible(v0), Choose(v0), Member(v0), Call(v0), CompoundLiteral(v0), SizeOfTy(v0), SizeOfVal(v0), AlignOf(v0), UnaryOperator(v0), Cast(v0), BinaryOperator(v0), Conditional(v0), Comma(v0), OffsetOf(v0), VaArg(v0), Statement(v0) });
+enumeration!(Expression { Identifier(v0), Constant(v0), StringLiteral(v0), GenericSelection(v0), TypesCompatible(v0), Choose(v0), ConvertVector(v0), Member(v0), Call(v0), CompoundLiteral(v0), SizeOfTy(v0), SizeOfVal(v0), AlignOf(v0), UnaryOperator(v0), Cast(v0), BinaryOperator(v0), Conditional(v0), Comma(v0), OffsetOf(v0), VaArg(v0), Statement(v0) });
 enumeration!(MemberOperator { Direct, Indirect });
 structure!(TypesCompatibleExpression { left, right });
+structure!(ConvertVectorExpression {
+    expression,
+    type_name
+});
 structure!(ChooseExpression {
     condition,
     then_expression,

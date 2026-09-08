@@ -82,6 +82,14 @@ pub trait Visit<'ast> {
         visit_types_compatible_expression(self, value, span)
     }
 
+    fn visit_convert_vector_expression(
+        &mut self,
+        value: &'ast ConvertVectorExpression,
+        span: &'ast Span,
+    ) {
+        visit_convert_vector_expression(self, value, span)
+    }
+
     fn visit_choose_expression(&mut self, value: &'ast ChooseExpression, span: &'ast Span) {
         visit_choose_expression(self, value, span)
     }
@@ -621,6 +629,9 @@ pub fn visit_expression<'ast, V: Visit<'ast> + ?Sized>(
             visitor.visit_types_compatible_expression(&t.node, &t.span)
         }
         Expression::Choose(ref c) => visitor.visit_choose_expression(&c.node, &c.span),
+        Expression::ConvertVector(ref c) => {
+            visitor.visit_convert_vector_expression(&c.node, &c.span)
+        }
         Expression::Member(ref m) => visitor.visit_member_expression(&m.node, &m.span),
         Expression::Call(ref c) => visitor.visit_call_expression(&c.node, &c.span),
         Expression::CompoundLiteral(ref c) => visitor.visit_compound_literal(&c.node, &c.span),
@@ -660,6 +671,15 @@ pub fn visit_types_compatible_expression<'ast, V: Visit<'ast> + ?Sized>(
 ) {
     visitor.visit_type_name(&value.left.node, &value.left.span);
     visitor.visit_type_name(&value.right.node, &value.right.span);
+}
+
+pub fn visit_convert_vector_expression<'ast, V: Visit<'ast> + ?Sized>(
+    visitor: &mut V,
+    value: &'ast ConvertVectorExpression,
+    _span: &'ast Span,
+) {
+    visitor.visit_expression(&value.expression.node, &value.expression.span);
+    visitor.visit_type_name(&value.type_name.node, &value.type_name.span);
 }
 
 pub fn visit_choose_expression<'ast, V: Visit<'ast> + ?Sized>(

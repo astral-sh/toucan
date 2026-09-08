@@ -455,6 +455,12 @@ pub enum ExprKind {
         record: TypeId,
         members: Vec<OffsetMember>,
     },
+    /// Numerically converts each source lane to the corresponding destination
+    /// lane. The input is evaluated once; this does not reinterpret its bits.
+    ConvertVector {
+        value: ExprUse,
+        destination: TypeNameOperand,
+    },
     /// Both written types are checked, but their bounds and typeof operands are
     /// unevaluated. The int result is an integer constant expression.
     TypesCompatible {
@@ -1349,6 +1355,13 @@ impl Analyzer {
                 }
             }
             ast::Expression::OffsetOf(offset_of) => self.retain_offset_of(offset_of)?,
+            ast::Expression::ConvertVector(conversion) => {
+                self.code_builder().budget.charge(0, 1, 0, offset)?;
+                ExprKind::ConvertVector {
+                    value: self.retained_value(&conversion.node.expression)?,
+                    destination: self.retained_type_name_operand(&conversion.node.type_name)?,
+                }
+            }
             ast::Expression::TypesCompatible(query) => {
                 let compatible = self.eval_types_compatible(query)?.truth();
                 ExprKind::TypesCompatible {

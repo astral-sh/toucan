@@ -157,6 +157,14 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
         self.name("TypesCompatibleExpression");
         visit_types_compatible_expression(&mut self.block(), n, span);
     }
+    fn visit_convert_vector_expression(
+        &mut self,
+        n: &'ast ConvertVectorExpression,
+        span: &'ast Span,
+    ) {
+        self.name("ConvertVectorExpression");
+        visit_convert_vector_expression(&mut self.block(), n, span);
+    }
     fn visit_choose_expression(&mut self, n: &'ast ChooseExpression, span: &'ast Span) {
         self.name("ChooseExpression");
         visit_choose_expression(&mut self.block(), n, span);

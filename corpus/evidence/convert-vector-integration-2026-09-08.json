@@ -1,0 +1,45 @@
+{
+  "schema_version": 1,
+  "integration_base": "9f8155c",
+  "frozen_patch_sha256": "c94a94fbb4bf78cbfc6dd6aefff375f65247faaeb4d71c875144abf905b0054a",
+  "integration": "Merge numeric lane conversion with expression alignment and binary128 parser extensions; regenerate the merged parser with 506 guarded terminals and 232 guarded rules.",
+  "validation": {
+    "semantic_native_tests": 18,
+    "parser_tests": "passed; recursion-budget child entry point remains ignored in the parent run and is exercised by its subprocess tests",
+    "checked_seed_replay": {
+      "profiles": 7,
+      "accepted": 379,
+      "matching_diagnostics": 118,
+      "normal_retained_unit_equality": true,
+      "graph_invariants": true
+    },
+    "parser_reproduction": {
+      "PYTHONOPTIMIZE": "1",
+      "byte_identical": true,
+      "sha256": "393f96ce9c2bb8b351e8edd9df6a8a054790e7ffaf109dcbe6548214ca4b4ade"
+    },
+    "clippy": "workspace all targets/all features, warnings denied",
+    "logs": {
+      "tests": {
+        "path": "/tmp/toucan-convertvector-integrated-tests.log",
+        "sha256": "8e332ea14bb5d6d2061ae85aef6c6374a1d240e03d32ae80ddf37b102acee5fb"
+      },
+      "parser-tests": {
+        "path": "/tmp/toucan-convertvector-integrated-parser-tests.log",
+        "sha256": "e49977f83b1c242296552b33a002b71a7975a5aac79d845613c971334fdda463"
+      },
+      "clippy": {
+        "path": "/tmp/toucan-convertvector-integrated-clippy.log",
+        "sha256": "4f14a500aa847eccb0d197aa38eface85f87386b6e702a5953a668e000ba9ce8"
+      },
+      "replay": {
+        "path": "/tmp/toucan-convertvector-integrated-replay.log",
+        "sha256": "05db54a26b4709272cd444fddc275ea42d4c625bccdc9a58fdea00be5c121da0"
+      },
+      "parser-reproduction": {
+        "path": "/tmp/toucan-convertvector-integrated-parser-reproduction.log",
+        "sha256": "e502ea2c8817849e68954eef3f2d2e6109af0ed1c33ec187e10dc1d520e6a82b"
+      }
+    }
+  }
+}
