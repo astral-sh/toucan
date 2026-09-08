@@ -395,7 +395,14 @@ fn code_units_and_character_values_match_native_compilers() {
             r"L'\xffffffff'",
             r"U'\U0001f600'",
         ];
-        if is_gnu_compiler(compiler) {
+        // Homebrew GCC can run on macOS, whose Toucan profile follows Clang's
+        // character-literal rules. Compare GNU-only extensions on GNU targets.
+        if is_gnu_compiler(compiler)
+            && matches!(
+                target,
+                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            )
+        {
             characters.extend(["'é'", "L'ab'", r"u'\U0001f600'"]);
         }
         for character in characters {
