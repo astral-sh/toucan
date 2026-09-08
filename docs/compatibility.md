@@ -42,6 +42,17 @@ bound. Rust bindings support parameters whose outer array layer adjusts to a
 pointer, and reject remaining runtime-sized array layers. Runtime bound expressions
 and typed bodies are not yet exposed through the public IR.
 
+## GNU pointer conversions
+
+The supported targets accept GNU conversions between function pointers and
+`void *` in assignments, calls, equality comparisons, and conditional expressions.
+The common pointed-to type is `void`; GCC retains the void operand's qualifiers
+and Clang drops them for conditional expressions combining these pointer types.
+Conversions to object pointers still reject discarded qualifiers. As in GCC and
+Clang, converting a qualified `void *` to a function pointer does not qualify the
+function type. Other incompatible pointed-to types and multiple pointer levels
+remain errors. These function-pointer conversions are an extension to C11.
+
 ## Compiler intrinsics
 
 The `stdarg.h` built-ins check argument-list types using the target's array,

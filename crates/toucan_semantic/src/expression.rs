@@ -652,6 +652,13 @@ impl Analyzer {
                 return Ok(());
             }
             if let TypeKind::Pointer(source) = &source.kind {
+                if matches!(self.unit.resolve(source)?.kind, TypeKind::Void)
+                    && matches!(self.unit.resolve(pointee)?.kind, TypeKind::Function(_))
+                {
+                    // Qualifiers on void describe object access and do not
+                    // qualify a function. GCC and Clang discard them here.
+                    return Ok(());
+                }
                 let to = self.unit.qualifiers(pointee)?;
                 let from = self.unit.qualifiers(source)?;
                 if (from.is_const && !to.is_const)
@@ -813,16 +820,25 @@ impl Analyzer {
     /// A common pointed-to type may add top-level qualifiers; nested pointers must
     /// already be compatible, so this does not permit `char **` to `const char **`.
     fn composite_pointer(&self, left: &Type, right: &Type, offset: usize) -> Result<Type, Error> {
-        let qualifiers =
+        let mut qualifiers =
             union_qualifiers(self.unit.qualifiers(left)?, self.unit.qualifiers(right)?);
         let left = self.unqualified(left)?;
         let right = self.unqualified(right)?;
         let mut result = if self.compatible(&left, &right)? {
             self.composite_type(&left, &right, 0)?
-        } else if matches!(left.kind, TypeKind::Void)
-            && !matches!(right.kind, TypeKind::Function(_))
-            || matches!(right.kind, TypeKind::Void) && !matches!(left.kind, TypeKind::Function(_))
-        {
+        } else if matches!(left.kind, TypeKind::Void) || matches!(right.kind, TypeKind::Void) {
+            // Clang uses an unqualified void pointer for the conditional
+            // function/void extension; GCC retains the void operand's qualifiers.
+            if (matches!(left.kind, TypeKind::Function(_))
+                || matches!(right.kind, TypeKind::Function(_)))
+                && !matches!(
+                    self.unit.target,
+                    toucan_target::Target::X86_64UnknownLinuxGnu
+                        | toucan_target::Target::Aarch64UnknownLinuxGnu
+                )
+            {
+                qualifiers = Qualifiers::default();
+            }
             Type::new(TypeKind::Void)
         } else {
             return Err(Error::new(offset, "incompatible pointer types"));

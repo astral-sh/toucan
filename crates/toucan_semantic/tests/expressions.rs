@@ -121,7 +121,6 @@ fn expression_constraints_match_c11_compiler() {
         "i ? p : 1",
         "i ? p : f",
         "i ? s : t",
-        "i ? fp : vp",
         "takes_intp(i ? (const void *)0 : p)",
         "takes_intp(cp)",
         "takes_intp(carr)",
