@@ -97,8 +97,14 @@ impl Analyzer {
                 Ok(ty.clone())
             }
             ast::Initializer::List(items) => {
+                let items =
+                    if items.len() == 1 && self.empty_initializers.contains(&items[0].span.start) {
+                        &[][..]
+                    } else {
+                        items.as_slice()
+                    };
                 if matches!(resolved.kind, TypeKind::Array { .. })
-                    && let [item] = items.as_slice()
+                    && let [item] = items
                     && item.node.designation.is_empty()
                     && let ast::Initializer::Expression(expression) = &item.node.initializer.node
                     && matches!(expression.node, ast::Expression::StringLiteral(_))
@@ -107,7 +113,7 @@ impl Analyzer {
                     return self.string_initializer(ty, expression);
                 }
                 if !matches!(resolved.kind, TypeKind::Array { .. } | TypeKind::Record(_)) {
-                    let [item] = items.as_slice() else {
+                    let [item] = items else {
                         return Err(Error::new(offset, "scalar initializer requires one value"));
                     };
                     if !item.node.designation.is_empty() {

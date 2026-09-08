@@ -21,25 +21,36 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
     }
     let (source, packs) = prepare_source(source)?;
     let parsed = parse(&source, 0)?;
+    let packs = packs
+        .into_iter()
+        .map(|(offset, pack)| (parsed.offsets.pragma_offset(offset), pack))
+        .collect();
     let mut analyzer = Analyzer::new(target, packs);
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
-    for external in parsed.unit.0 {
-        match external.node {
-            ast::ExternalDeclaration::Declaration(declaration) => {
-                analyzer.declaration(&declaration, false)?
-            }
-            ast::ExternalDeclaration::StaticAssert(assertion) => {
-                analyzer.static_assert(&assertion)?
-            }
-            ast::ExternalDeclaration::FunctionDefinition(definition) => {
-                analyzer.function_definition(&definition)?;
+    analyzer.empty_initializers = parsed.empty_initializers;
+    let result = (|| {
+        for external in parsed.unit.0 {
+            match external.node {
+                ast::ExternalDeclaration::Declaration(declaration) => {
+                    analyzer.declaration(&declaration, false)?
+                }
+                ast::ExternalDeclaration::StaticAssert(assertion) => {
+                    analyzer.static_assert(&assertion)?
+                }
+                ast::ExternalDeclaration::FunctionDefinition(definition) => {
+                    analyzer.function_definition(&definition)?;
+                }
             }
         }
-    }
-    analyzer.finish_tentative_definitions()?;
-    analyzer.validate_block_externs()?;
-    Ok(analyzer.unit)
+        analyzer.finish_tentative_definitions()?;
+        analyzer.validate_block_externs()?;
+        Ok(analyzer.unit)
+    })();
+    result.map_err(|mut error: Error| {
+        error.offset = parsed.offsets.original_offset(error.offset);
+        error
+    })
 }
 
 /// Evaluates an integer constant expression in the translation unit's type and
@@ -115,8 +126,12 @@ pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<Inte
     let mut analyzer = Analyzer::from_unit(unit.clone());
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
+    analyzer.empty_initializers = parsed.empty_initializers;
     analyzer.eval(expression).map_err(|mut error| {
-        error.offset = error.offset.saturating_sub(expression_offset);
+        error.offset = parsed
+            .offsets
+            .original_offset(error.offset)
+            .saturating_sub(expression_offset);
         error
     })
 }
@@ -125,14 +140,19 @@ struct Parsed {
     unit: ast::TranslationUnit,
     record_attributes: HashSet<usize>,
     character_literals: HashMap<usize, String>,
+    offsets: crate::parser_extensions::SourceMap,
+    empty_initializers: HashSet<usize>,
 }
 
 fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
+    let original = source;
     let source = strip_comments(source)?;
     check_parse_limits(&source)?;
+    let adapted = crate::parser_extensions::adapt(&source)?;
+    let source = adapted.source;
     let config = driver::Config {
         cpp_command: String::new(),
         cpp_options: Vec::new(),
@@ -141,6 +161,17 @@ fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
     let (source, record_attributes) = normalize_attributes(&source);
     let (source, character_literals) = crate::literals::normalize_character_escapes(source);
     let parsed = driver::parse_preprocessed(&config, source).map_err(|mut error| {
+        error.offset = adapted.offsets.original_offset(error.offset);
+        error.source = original.to_owned();
+        error.line = original[..error.offset]
+            .bytes()
+            .filter(|byte| *byte == b'\n')
+            .count()
+            + 1;
+        let line_start = original[..error.offset]
+            .rfind('\n')
+            .map_or(0, |newline| newline + 1);
+        error.column = original[line_start..error.offset].chars().count() + 1;
         let offset = error.offset;
         if diagnostic_offset != 0 && offset >= diagnostic_offset {
             // Macro parse wrappers must not leak into the displayed line/column.
@@ -159,6 +190,8 @@ fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
         unit: parsed.unit,
         record_attributes,
         character_literals,
+        offsets: adapted.offsets,
+        empty_initializers: adapted.empty_initializers,
     })
 }
 
@@ -282,9 +315,13 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
                 }
                 index += 1;
             }
-            b'(' | b'[' => delimiters.push(bytes[index]),
-            b')' | b']' => {
-                let expected = if bytes[index] == b')' { b'(' } else { b'[' };
+            b'(' | b'[' | b'{' => delimiters.push(bytes[index]),
+            b')' | b']' | b'}' => {
+                let expected = match bytes[index] {
+                    b')' => b'(',
+                    b']' => b'[',
+                    _ => b'{',
+                };
                 if delimiters.pop() != Some(expected) {
                     return Err(Error::new(
                         index,
@@ -292,7 +329,7 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
                     ));
                 }
             }
-            b';' | b'{' | b'}' | b'#' => {
+            b';' | b'#' => {
                 return Err(Error::new(
                     index,
                     "declarations and statements are not integer expressions",
@@ -425,6 +462,7 @@ pub(crate) struct Analyzer {
     packs: PackEvents,
     record_attributes: HashSet<usize>,
     pub(crate) character_literals: HashMap<usize, String>,
+    pub(crate) empty_initializers: HashSet<usize>,
     nesting: usize,
     pub(crate) capture_function_scope: bool,
     definition_parameters: Option<usize>,
@@ -486,6 +524,7 @@ impl Analyzer {
             packs: Vec::new(),
             record_attributes: HashSet::new(),
             character_literals: HashMap::new(),
+            empty_initializers: HashSet::new(),
             nesting: 0,
             capture_function_scope: false,
             definition_parameters: None,
@@ -1428,7 +1467,18 @@ impl Analyzer {
                                 add_qualifier(&mut pointer.qualifiers, qualifier)?
                             }
                             ast::PointerQualifier::Extension(extensions) => {
-                                self.attributes(extensions, &mut Attributes::default())?
+                                let mut attributes = Attributes::default();
+                                self.attributes(extensions, &mut attributes)?;
+                                if attributes.packed
+                                    || attributes.alignment.is_some()
+                                    || attributes.mode.is_some()
+                                    || attributes.link_name.is_some()
+                                {
+                                    return Err(Error::new(
+                                        qualifier.span.start,
+                                        "attributes that change a nested type's representation are unsupported",
+                                    ));
+                                }
                             }
                         }
                     }

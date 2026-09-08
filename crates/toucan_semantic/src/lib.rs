@@ -11,6 +11,7 @@ mod initializer;
 mod integer;
 mod ir;
 mod literals;
+mod parser_extensions;
 mod statement;
 
 pub use analyze::{analyze, evaluate_integer};
