@@ -30,10 +30,9 @@ void shared(int n) {
 Clang compares the deduced types with `ASTContext::hasSameType` in
 [`BuildDeclaratorGroup`](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/lib/Sema/SemaDecl.cpp#L14965).
 
-The standalone identity layer records this distinction; support for Clang's
-multiple and derived `__auto_type` declarations is a subsequent layer. The native
-probe test checks Clang's rule separately from Toucan's current declaration
-support.
+[Clang declaration deduction](auto-type.md) uses this distinction for multiple
+and derived `__auto_type` declarations. The identity probes also test the
+underlying compiler rule independently.
 
 ## Construction and limits
 

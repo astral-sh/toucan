@@ -631,27 +631,48 @@ impl Analyzer {
                 }
             }
         }
-        let inference = self.infer_auto_declaration(declaration)?;
-        let (base, attributes) =
-            self.specifiers_with_inference(&declaration.node.specifiers, inference.as_ref())?;
-        if declaration.node.declarators.is_empty() {
+        let mut auto = self.auto_declaration(declaration)?;
+        let explicit = if auto.is_none() {
+            Some(self.specifiers(&declaration.node.specifiers)?)
+        } else {
+            None
+        };
+        if declaration.node.declarators.is_empty()
+            && let Some((_, attributes)) = &explicit
+        {
             attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
         }
         for item in &declaration.node.declarators {
+            let inferred = auto
+                .as_mut()
+                .map(|group| self.auto_item(declaration, item, group))
+                .transpose()?;
+            let (base, attributes) = match &inferred {
+                Some((base, attributes, _)) => (base, attributes),
+                None => {
+                    let (base, attributes) =
+                        explicit.as_ref().expect("explicit declaration specifiers");
+                    (base, attributes)
+                }
+            };
+            let inference = inferred.as_ref().map(|(_, _, inference)| inference);
             let (name, mut ty, extra) =
-                self.declarator(base.clone(), &item.node.declarator, &attributes)?;
+                self.declarator(base.clone(), &item.node.declarator, attributes)?;
             extra.check_nodebug_subject()?;
+            if let Some(inference) = inference {
+                self.check_auto_declarator(inference, &item.node.declarator, &ty)?;
+            }
             if is_typedef {
                 self.align_typedef(
                     &mut ty,
                     &declaration.node.specifiers,
-                    &attributes,
+                    attributes,
                     &extra,
                     item.span.start,
                 )?;
-                self.apply_transparent_typedef(&mut ty, &attributes, &extra)?;
+                self.apply_transparent_typedef(&mut ty, attributes, &extra)?;
             } else {
                 extra.require_no_transparent_union()?;
             }

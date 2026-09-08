@@ -74,11 +74,11 @@ Windows, correcting an earlier omission. Other existing default behavior is
 preserved. Flags such as `-fshort-enums`, optimization, optional instruction sets,
 and arbitrary compiler versions are not implied by a profile. Unsupported
 extensions continue to produce diagnostics. The layout adapter can represent
-aligned enum layouts, but source-level enum layout attributes remain unsupported.
+aligned enum layouts, but source-level enum alignment attributes remain unsupported; packed enum attributes are supported.
 
 The [profile evidence](../corpus/evidence/compiler-profiles-2026-09-08.json) records
-source and binary hashes, compiler commands, allocation samples, and the remaining
-Clang zstd `__bf16` blocker. The seven-profile tests compare ordinary and retained analysis, native and
+source and binary hashes, compiler commands, allocation samples, and the
+Clang zstd `__bf16` blocker observed at that revision. Subsequent [half-type](half-types.md) support resolves those declarations. The seven-profile tests compare ordinary and retained analysis, native and
 cross-target C layout probes, unchanged Clang `stdatomic.h` operations, and
 actual C/Rust bitfield calls compiled separately by GCC and Clang. Those checks
 establish the tested behavior; they are not complete compiler conformance.

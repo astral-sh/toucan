@@ -85,10 +85,11 @@ fn plain_inference_preserves_target_types_and_declaration_constraints() {
             );
         }
         for source in ["__auto_type x=1,y=2;", "int n;__auto_type *p=&n;"] {
-            let error = analyze(source, target).unwrap_err();
-            if !gnu(target) {
-                assert!(error.message.contains("unsupported"), "{error}");
-            }
+            assert_eq!(
+                analyze(source, target).is_ok(),
+                !gnu(target),
+                "{target}: {source}"
+            );
         }
         let source = format!(
             "int f(void){{const int a=1;__auto_type x=a;_Static_assert(__builtin_types_compatible_p(typeof(&x),int*),\"int\");_Atomic int b=1;__auto_type y=b;_Static_assert(__builtin_types_compatible_p(typeof(&y),{}),\"atomic\");return x;}}",

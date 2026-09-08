@@ -25,7 +25,8 @@ impl TypeInference {
     pub fn expression(&self) -> ExprId {
         self.expression
     }
-    /// The selected type before explicit declaration qualifiers or attributes.
+    /// The deduced base before written pointer/array/function modifiers,
+    /// declaration qualifiers, or attributes. The site type includes those layers.
     pub fn type_use(&self) -> TypeUseId {
         self.type_use
     }

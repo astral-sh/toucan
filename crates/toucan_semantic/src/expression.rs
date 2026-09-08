@@ -944,6 +944,10 @@ impl Analyzer {
                     // qualify a function. GCC and Clang discard them here.
                     return Ok(());
                 }
+                let array_to = self.assignment_array_qualification(pointee, offset)?;
+                let array_from = self.assignment_array_qualification(source, offset)?;
+                let pointee = array_to.as_ref().unwrap_or(pointee);
+                let source = array_from.as_ref().unwrap_or(source);
                 let to = self.unit.qualifiers(pointee)?;
                 let from = self.unit.qualifiers(source)?;
                 if (from.is_const && !to.is_const)
@@ -969,6 +973,66 @@ impl Analyzer {
         Err(Error::new(
             offset,
             "incompatible assignment or argument types",
+        ))
+    }
+
+    /// GNU and Clang C modes allow array-element qualification conversions.
+    /// Normalize only this comparison view, preserving the stored source types.
+    fn assignment_array_qualification(
+        &self,
+        ty: &Type,
+        offset: usize,
+    ) -> Result<Option<Type>, Error> {
+        if !matches!(
+            self.unit.resolve(ty)?.kind,
+            TypeKind::Array { .. } | TypeKind::VariableArray { .. }
+        ) {
+            return Ok(None);
+        }
+        let (mut result, qualifiers) = self.array_qualification(ty, offset, 0)?;
+        result.qualifiers = qualifiers;
+        Ok(Some(result))
+    }
+
+    fn array_qualification(
+        &self,
+        ty: &Type,
+        offset: usize,
+        depth: usize,
+    ) -> Result<(Type, Qualifiers), Error> {
+        if depth >= 128 {
+            return Err(Error::new(
+                offset,
+                "array qualification nesting exceeds 128 levels",
+            ));
+        }
+        let mut qualifiers = self.unit.qualifiers(ty)?;
+        let kind = match &self.unit.resolve(ty)?.kind {
+            TypeKind::Array { element, length } => {
+                let (element, inner) = self.array_qualification(element, offset, depth + 1)?;
+                qualifiers = union_qualifiers(qualifiers, inner);
+                TypeKind::Array {
+                    element: Box::new(element),
+                    length: *length,
+                }
+            }
+            TypeKind::VariableArray { element, identity } => {
+                let (element, inner) = self.array_qualification(element, offset, depth + 1)?;
+                qualifiers = union_qualifiers(qualifiers, inner);
+                TypeKind::VariableArray {
+                    element: Box::new(element),
+                    identity: *identity,
+                }
+            }
+            kind => kind.clone(),
+        };
+        Ok((
+            Type {
+                kind,
+                qualifiers: Qualifiers::default(),
+                alignment: self.unit.typedef_alignment(ty)?,
+            },
+            qualifiers,
         ))
     }
 

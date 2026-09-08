@@ -654,6 +654,15 @@ fn outermost_derived(
     }
 }
 
+#[derive(Clone)]
+pub(crate) struct PreparedSpecifiers {
+    types: Vec<Node<ast::TypeSpecifier>>,
+    qualifiers: Qualifiers,
+    atomic: bool,
+    attributes: Attributes,
+    record_attributes: Attributes,
+}
+
 pub(crate) struct Analyzer {
     pub(crate) array_identities: crate::array_identity::Registry,
     // Completed query checks prevent nested constant folding from replaying operand typing.
@@ -1019,15 +1028,33 @@ impl Analyzer {
             }
             return Ok(());
         }
-        let inference = self.infer_auto_declaration(declaration)?;
-        let (base, attributes) =
-            self.specifiers_with_inference(&declaration.node.specifiers, inference.as_ref())?;
-        if declaration.node.declarators.is_empty() {
+        let mut auto = self.auto_declaration(declaration)?;
+        let explicit = if auto.is_none() {
+            Some(self.specifiers(&declaration.node.specifiers)?)
+        } else {
+            None
+        };
+        if declaration.node.declarators.is_empty()
+            && let Some((_, attributes)) = &explicit
+        {
             attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
         }
         for item in &declaration.node.declarators {
+            let inferred = auto
+                .as_mut()
+                .map(|group| self.auto_item(declaration, item, group))
+                .transpose()?;
+            let (base, attributes) = match &inferred {
+                Some((base, attributes, _)) => (base, attributes),
+                None => {
+                    let (base, attributes) =
+                        explicit.as_ref().expect("explicit declaration specifiers");
+                    (base, attributes)
+                }
+            };
+            let inference = inferred.as_ref().map(|(_, _, inference)| inference);
             let mut prechecked_initializer = None;
             let mut is_static = storage.class == Some(ast::StorageClassSpecifier::Static);
             let previous_parameters = self.definition_parameters;
@@ -1036,10 +1063,13 @@ impl Analyzer {
                     .filter(|derived| matches!(derived.node, ast::DerivedDeclarator::Function(_)))
                     .map(|derived| derived.span.start);
             }
-            let declarator = self.declarator(base.clone(), &item.node.declarator, &attributes);
+            let declarator = self.declarator(base.clone(), &item.node.declarator, attributes);
             self.definition_parameters = previous_parameters;
             let (name, mut ty, mut declarator_attributes) = declarator?;
             declarator_attributes.check_nodebug_subject()?;
+            if let Some(inference) = inference {
+                self.check_auto_declarator(inference, &item.node.declarator, &ty)?;
+            }
             if self.unit.is_variably_modified(&ty)? {
                 return Err(Error::new(
                     item.span.start,
@@ -1085,11 +1115,11 @@ impl Analyzer {
                 self.align_typedef(
                     &mut ty,
                     &declaration.node.specifiers,
-                    &attributes,
+                    attributes,
                     &declarator_attributes,
                     item.span.start,
                 )?;
-                self.apply_transparent_typedef(&mut ty, &attributes, &declarator_attributes)?;
+                self.apply_transparent_typedef(&mut ty, attributes, &declarator_attributes)?;
                 if let Some(previous) = self.unit.typedefs.get(&name) {
                     if !self.same_type(previous, &ty, 0)? {
                         return Err(Error::new(
@@ -1390,20 +1420,40 @@ impl Analyzer {
     /// incomplete/complete pair. Parameter names and equivalent ABI spellings
     /// do not create distinct function types.
     pub(crate) fn same_type(&self, left: &Type, right: &Type, depth: usize) -> Result<bool, Error> {
+        self.same_type_at::<false, false>(left, right, depth)
+    }
+
+    pub(crate) fn same_deduced_type(&self, left: &Type, right: &Type) -> Result<bool, Error> {
+        self.same_type_at::<true, false>(left, right, 0)
+    }
+
+    /// Exact deduction also compares VLA identity and treats an array's element
+    /// qualifiers as its own. Ordinary C compatibility retains its existing rules.
+    fn same_type_at<const EXACT: bool, const ARRAY_ELEMENT: bool>(
+        &self,
+        left: &Type,
+        right: &Type,
+        depth: usize,
+    ) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
                 0,
                 "type identity nesting exceeds the 128-level limit",
             ));
         }
-        if self.unit.qualifiers(left)? != self.unit.qualifiers(right)? {
+        if !ARRAY_ELEMENT
+            && self.identity_qualifiers::<EXACT>(left, depth)?
+                != self.identity_qualifiers::<EXACT>(right, depth)?
+        {
             return Ok(false);
         }
         let left = self.unit.resolve(left)?;
         let right = self.unit.resolve(right)?;
         Ok(match (&left.kind, &right.kind) {
             (TypeKind::Pointer(a), TypeKind::Pointer(b))
-            | (TypeKind::Atomic(a), TypeKind::Atomic(b)) => self.same_type(a, b, depth + 1)?,
+            | (TypeKind::Atomic(a), TypeKind::Atomic(b)) => {
+                self.same_type_at::<EXACT, false>(a, b, depth + 1)?
+            }
             (
                 TypeKind::Array {
                     element: a,
@@ -1413,18 +1463,28 @@ impl Analyzer {
                     element: b,
                     length: bl,
                 },
-            ) => al == bl && self.same_type(a, b, depth + 1)?,
+            ) => al == bl && self.same_type_at::<EXACT, EXACT>(a, b, depth + 1)?,
             (
-                TypeKind::VariableArray { element: a, .. },
-                TypeKind::VariableArray { element: b, .. },
-            ) => self.same_type(a, b, depth + 1)?,
+                TypeKind::VariableArray {
+                    element: a,
+                    identity: ai,
+                },
+                TypeKind::VariableArray {
+                    element: b,
+                    identity: bi,
+                },
+            ) => (!EXACT || ai == bi) && self.same_type_at::<EXACT, EXACT>(a, b, depth + 1)?,
             (TypeKind::Function(a), TypeKind::Function(b)) => {
                 if a.prototype != b.prototype
                     || a.variadic != b.variadic
                     || a.parameters.len() != b.parameters.len()
                     || a.calling_convention.for_target(self.unit.target)?
                         != b.calling_convention.for_target(self.unit.target)?
-                    || !self.same_type(&a.return_type, &b.return_type, depth + 1)?
+                    || !self.same_type_at::<EXACT, false>(
+                        &a.return_type,
+                        &b.return_type,
+                        depth + 1,
+                    )?
                 {
                     return Ok(false);
                 }
@@ -1433,7 +1493,7 @@ impl Analyzer {
                     let mut b = self.unit.resolve(&b.ty)?.clone();
                     a.qualifiers = Qualifiers::default();
                     b.qualifiers = Qualifiers::default();
-                    if !self.same_type(&a, &b, depth + 1)? {
+                    if !self.same_type_at::<EXACT, false>(&a, &b, depth + 1)? {
                         return Ok(false);
                     }
                 }
@@ -1441,6 +1501,34 @@ impl Analyzer {
             }
             _ => left.kind == right.kind,
         })
+    }
+
+    fn identity_qualifiers<'a, const EXACT: bool>(
+        &'a self,
+        mut ty: &'a Type,
+        depth: usize,
+    ) -> Result<Qualifiers, Error> {
+        let mut result = self.unit.qualifiers(ty)?;
+        if EXACT {
+            let mut levels = depth;
+            while let TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } =
+                &self.unit.resolve(ty)?.kind
+            {
+                levels += 1;
+                if levels >= 128 {
+                    return Err(Error::new(
+                        0,
+                        "type identity nesting exceeds the 128-level limit",
+                    ));
+                }
+                ty = element;
+                let inner = self.unit.qualifiers(ty)?;
+                result.is_const |= inner.is_const;
+                result.is_volatile |= inner.is_volatile;
+                result.is_restrict |= inner.is_restrict;
+            }
+        }
+        Ok(result)
     }
 
     pub(crate) fn compatible_at(
@@ -1715,14 +1803,14 @@ impl Analyzer {
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
     ) -> Result<(Type, Attributes), Error> {
-        self.specifiers_with_inference(specifiers, None)
+        let prepared = self.prepare_specifiers(specifiers)?;
+        self.complete_specifiers(specifiers, prepared, None)
     }
 
-    pub(crate) fn specifiers_with_inference(
+    pub(crate) fn prepare_specifiers(
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
-        inference: Option<&crate::auto_type::AutoInference<'_>>,
-    ) -> Result<(Type, Attributes), Error> {
+    ) -> Result<PreparedSpecifiers, Error> {
         let mut types = Vec::new();
         let mut qualifiers = Qualifiers::default();
         let mut atomic = false;
@@ -1771,6 +1859,28 @@ impl Analyzer {
         if let Some(checked) = &mut self.checked {
             checked.begin_specifier_operands(&types)?;
         }
+        Ok(PreparedSpecifiers {
+            types,
+            qualifiers,
+            atomic,
+            attributes,
+            record_attributes,
+        })
+    }
+
+    pub(crate) fn complete_specifiers(
+        &mut self,
+        specifiers: &[Node<ast::DeclarationSpecifier>],
+        prepared: PreparedSpecifiers,
+        inference: Option<&crate::auto_type::AutoInference<'_>>,
+    ) -> Result<(Type, Attributes), Error> {
+        let PreparedSpecifiers {
+            types,
+            qualifiers,
+            atomic,
+            mut attributes,
+            record_attributes,
+        } = prepared;
         record_attributes.require_function_attributes(false)?;
         record_attributes.require_no_weak()?;
         if record_attributes.vector_size.is_some() {
