@@ -18,9 +18,10 @@ selector. Archived campaigns using modulo five retain that selector contract;
 replaying their exact bytes with the new harness can select a different profile.
 Record the harness source and selector count with each campaign. The same byte sum's
 `0x100` bit independently selects GNU11 (clear) or C11 (set). The preprocessing
-harness uses that bit to disable or enable trigraph replacement; it has no compiler
-profile. The campaign runner pads each seed with a comment to cover every compiler
-profile in both modes, including both trigraph settings for preprocessing. The
+harness uses that bit to disable or enable trigraph replacement, and bit `1` selects
+GNU (clear) or Clang (set) feature-query argument rules with a small test catalog.
+It has no physical target profile. The campaign runner pads each seed with a comment to cover every compiler
+profile in both modes, including both trigraph settings and query dialects for preprocessing. The
 reported profile count must match the compiled harness's `CompilerProfile::ALL`.
 Older archived sources retain their recorded selector contracts. The `checked`
 target compares analysis with and without retained code. Successful results must have

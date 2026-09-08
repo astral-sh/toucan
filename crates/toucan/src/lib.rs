@@ -11,7 +11,8 @@ use std::time::{Duration, Instant};
 pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions, RustTarget};
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
 pub use toucan_preprocessor::{
-    ForcedInclude, OriginKind, PredefinedMacroMode, SourceLocation, SourceMapping,
+    FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude, OriginKind,
+    PredefinedMacroMode, QueryDialect, SourceLocation, SourceMapping,
 };
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};
 pub use toucan_semantic::{self as semantic, Analysis, AnalysisOptions, TranslationUnit};

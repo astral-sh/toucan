@@ -51,7 +51,7 @@ class FuzzCampaignTests(unittest.TestCase):
 
     def test_mode_padding_covers_boundary_checksums_and_preprocessing(self):
         for source in [b"", b"a" * 255, b"a" * 256, b"a" * 511]:
-            for count in (None, 1, 7, 31, 32):
+            for count in (None, 1, 2, 7, 31, 32):
                 seeds = list(campaign.seed_profiles(source, count))
                 self.assertEqual(len(seeds), 2 * (count or 1))
                 self.assertEqual(

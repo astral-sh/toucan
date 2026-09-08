@@ -6,6 +6,7 @@ use crate::{Config, Macro};
 
 pub(crate) struct Expansion<'a> {
     pub macros: &'a BTreeMap<String, Macro>,
+    pub active_queries: u8,
     pub config: &'a Config,
     pub file: &'a Path,
     pub produced: usize,
@@ -86,6 +87,45 @@ impl Expansion<'_> {
                 self.charge(std::slice::from_ref(&replacement))?;
                 output.push(replacement);
                 self.location = previous_location;
+                continue;
+            }
+            if let Some(kind) = crate::query_active(self.active_queries, &token.text) {
+                let parent_location = self.location;
+                self.location = Some((token.line, token.column));
+                if token.depth >= self.config.max_expansion_depth {
+                    return Err(format!(
+                        "macro expansion depth limit exceeded while expanding `{}`",
+                        token.text
+                    ));
+                }
+                if pending.pop_front().is_none_or(|token| token.text != "(") {
+                    return Err(format!(
+                        "{} requires a parenthesized identifier",
+                        kind.name()
+                    ));
+                }
+                let (arguments, _, _) = arguments(&mut pending, 1, false)?;
+                let argument = arguments.into_iter().next().expect("one query argument");
+                let queries = self
+                    .config
+                    .feature_queries
+                    .as_ref()
+                    .expect("active query configuration");
+                let argument = if queries.expands_argument(kind) {
+                    self.expand(argument)?
+                } else {
+                    argument
+                };
+                self.charge(&argument)?;
+                let value = queries.evaluate(kind, &argument)?;
+                let mut replacement = token;
+                replacement.kind = Kind::Number;
+                replacement.text = value.to_string();
+                replacement.expanded = true;
+                replacement.depth += 1;
+                self.charge(std::slice::from_ref(&replacement))?;
+                output.push(replacement);
+                self.location = parent_location;
                 continue;
             }
             let Some(definition) = self.macros.get(&token.text) else {

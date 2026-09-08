@@ -1,0 +1,331 @@
+use std::path::Path;
+use std::sync::Arc;
+
+use toucan_preprocessor::{
+    Config, FeatureQueries, FeatureQuery, FeatureQueryProvider, Preprocessor, QueryDialect,
+};
+
+#[derive(Debug)]
+struct Catalog {
+    dialect: QueryDialect,
+    gnu_namespace: bool,
+}
+impl FeatureQueryProvider for Catalog {
+    fn query(&self, kind: FeatureQuery, namespace: Option<&str>, name: &str) -> u64 {
+        if namespace.is_some_and(|name| !self.gnu_namespace || !matches!(name, "gnu" | "__gnu__")) {
+            return 0;
+        }
+        match kind {
+            FeatureQuery::Builtin => u64::from(name == "__builtin_bswap32"),
+            FeatureQuery::Attribute => match name {
+                "aligned" | "__aligned__" | "packed" => 1,
+                "fallthrough" => {
+                    if self.dialect == QueryDialect::Gnu {
+                        201910
+                    } else {
+                        1
+                    }
+                }
+                _ => 0,
+            },
+        }
+    }
+}
+
+fn config(dialect: QueryDialect) -> Config {
+    Config {
+        feature_queries: Some(FeatureQueries::new(
+            dialect,
+            Arc::new(Catalog {
+                dialect,
+                gnu_namespace: true,
+            }),
+        )),
+        allow_filesystem: false,
+        ..Config::default()
+    }
+}
+
+fn compact(text: &str) -> String {
+    text.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+const CASES: &[(&str, &str)] = &[
+    (
+        "direct",
+        "a __has_builtin(__builtin_bswap32)\nb __has_builtin(__toucan_missing)\nc __has_attribute(aligned)\nd __has_attribute(fallthrough)\n",
+    ),
+    (
+        "arguments",
+        "#define B __builtin_bswap32\n#define A aligned\na __has_builtin(B)\nb __has_attribute(A)\nc __has_attribute(__aligned__)\n",
+    ),
+    (
+        "wrappers",
+        "#define Q __has_builtin\n#define R(x) __has_builtin(x)\n#define B __builtin_bswap32\na Q(__builtin_bswap32)\nb R(B)\n",
+    ),
+    (
+        "counter",
+        "a __COUNTER__\nb __has_builtin(__COUNTER__)\nc __COUNTER__\n",
+    ),
+    ("attribute_counter", "a __has_attribute(__COUNTER__)\n"),
+    (
+        "namespace",
+        "a __has_attribute(gnu::aligned)\nb __has_attribute(__gnu__::__aligned__)\nc __has_attribute(toucan::aligned)\n",
+    ),
+    (
+        "namespace_expansion",
+        "#define NS gnu\n#define NAME aligned\na __has_attribute(NS::NAME)\n",
+    ),
+    ("bare", "a __has_builtin;\n"),
+    ("empty", "#if __has_builtin()\nyes\n#endif\n"),
+    ("number", "a __has_builtin(1)\n"),
+    ("nested", "a __has_builtin((__builtin_bswap32))\n"),
+    ("comma", "a __has_builtin(__builtin_bswap32, missing)\n"),
+    ("missing_close", "a __has_builtin(__builtin_bswap32\n"),
+    ("short_circuit", "#if 0 && __has_builtin()\nyes\n#endif\n"),
+    (
+        "inactive",
+        "#if 0\n#if __has_builtin()\nyes\n#endif\n#endif\nok\n",
+    ),
+    (
+        "undefined",
+        "#undef __has_builtin\n#if defined(__has_builtin)\nwrong\n#endif\n__has_builtin(anything)\n",
+    ),
+    (
+        "redefined",
+        "#define __has_builtin(x) 7\na __has_builtin()\n#undef __has_builtin\n#define __has_builtin 9\nb __has_builtin\n",
+    ),
+    ("stringified", "#define STR(x) #x\na STR(__has_builtin())\n"),
+    (
+        "pasted",
+        "#define CAT(a,b) a##b\na CAT(__has_,builtin)(__builtin_bswap32)\n",
+    ),
+    (
+        "defined",
+        "#if !defined(__has_builtin) || !defined __has_attribute\n#error missing\n#endif\n#ifdef __has_builtin\nyes\n#endif\n",
+    ),
+    (
+        "expanded_comma",
+        "#define A aligned,packed\na __has_attribute(A)\n",
+    ),
+    ("recursive", "#define A A\na __has_attribute(A)\n"),
+];
+
+#[test]
+fn query_arguments_and_rescanning_use_the_configured_dialect() {
+    for (dialect, expected) in [
+        (QueryDialect::Gnu, "a1b1c1"),
+        (QueryDialect::Clang, "a0b1c1"),
+    ] {
+        let result = Preprocessor::new(config(dialect))
+            .preprocess_str(Path::new("query.h"), CASES[1].1)
+            .unwrap();
+        assert_eq!(compact(&result.source), expected);
+    }
+    let result = Preprocessor::new(config(QueryDialect::Clang))
+        .preprocess_str(Path::new("query.h"), CASES[3].1)
+        .unwrap();
+    assert_eq!(compact(&result.source), "a0b0c1");
+    for dialect in [QueryDialect::Gnu, QueryDialect::Clang] {
+        let mut preprocessor = Preprocessor::new(config(dialect));
+        for name in [
+            "bare",
+            "empty",
+            "number",
+            "nested",
+            "comma",
+            "missing_close",
+            "short_circuit",
+            "expanded_comma",
+        ] {
+            let source = CASES.iter().find(|(case, _)| *case == name).unwrap().1;
+            assert!(
+                preprocessor
+                    .preprocess_str(Path::new("query.h"), source)
+                    .is_err(),
+                "{dialect:?}: {name}"
+            );
+        }
+        let source = CASES
+            .iter()
+            .find(|(case, _)| *case == "inactive")
+            .unwrap()
+            .1;
+        assert_eq!(
+            preprocessor
+                .preprocess_str(Path::new("query.h"), source)
+                .unwrap()
+                .source,
+            "ok\n"
+        );
+    }
+}
+
+#[test]
+fn query_overrides_survive_final_macro_queries_and_reset_per_entry_point() {
+    for dialect in [QueryDialect::Gnu, QueryDialect::Clang] {
+        let mut pp = Preprocessor::new(config(dialect));
+        let result = pp
+            .preprocess_str(
+                Path::new("query.h"),
+                "#define VALUE __has_builtin(__builtin_bswap32)\nVALUE\n",
+            )
+            .unwrap();
+        assert_eq!(
+            result.expand_object_macro("VALUE").unwrap().as_deref(),
+            Some("1")
+        );
+        assert!(result.is_defined("__has_builtin"));
+        assert!(!result.macros.contains_key("__has_builtin"));
+        assert_eq!(result.expand_object_macro("__has_builtin").unwrap(), None);
+        let result = pp
+            .preprocess_str(
+                Path::new("query.h"),
+                "#define VALUE __has_builtin(__builtin_bswap32)\n#undef __has_builtin\n",
+            )
+            .unwrap();
+        assert!(!result.is_defined("__has_builtin"));
+        assert_eq!(
+            compact(&result.expand_object_macro("VALUE").unwrap().unwrap()),
+            "__has_builtin(__builtin_bswap32)"
+        );
+        let result = pp
+            .preprocess_str(Path::new("query.h"), "__has_builtin(__builtin_bswap32)\n")
+            .unwrap();
+        assert_eq!(result.source, "1\n");
+        let mut c = config(dialect);
+        c.undefine("__has_builtin");
+        let result = Preprocessor::new(c.clone())
+            .preprocess_str(
+                Path::new("query.h"),
+                "#ifdef __has_builtin\n#error enabled\n#endif\n",
+            )
+            .unwrap();
+        assert!(!result.is_defined("__has_builtin"));
+        c.defines.insert("__has_builtin(x)".into(), "7".into());
+        let result = Preprocessor::new(c)
+            .preprocess_str(Path::new("query.h"), "__has_builtin(anything)\n")
+            .unwrap();
+        assert_eq!(result.source, "7\n");
+        let mut c = config(dialect);
+        c.defines.insert("__has_builtin(x)".into(), "9".into());
+        let result = Preprocessor::new(c)
+            .preprocess_str(Path::new("query.h"), "__has_builtin(anything)\n")
+            .unwrap();
+        assert_eq!(result.source, "9\n");
+    }
+}
+
+#[test]
+fn query_expansion_charges_budgets_and_preserves_invocation_locations() {
+    let mut c = config(QueryDialect::Gnu);
+    c.max_tokens = 28;
+    let error = Preprocessor::new(c)
+        .preprocess_str(
+            Path::new("query.h"),
+            "#define A aligned aligned aligned aligned\n#define B A A A A\n__has_attribute(B)\n",
+        )
+        .unwrap_err();
+    assert!(error.message.contains("limit"), "{error}");
+    let mut c = config(QueryDialect::Clang);
+    c.max_expansion_depth = 1;
+    let error = Preprocessor::new(c)
+        .preprocess_str(
+            Path::new("query.h"),
+            "#define QUERY __has_builtin\nQUERY(__builtin_bswap32)\n",
+        )
+        .unwrap_err();
+    assert!(error.message.contains("depth limit"), "{error}");
+    let mut pp = Preprocessor::new(config(QueryDialect::Clang));
+    let result = pp
+        .preprocess_str(
+            Path::new("query.h"),
+            "#define Q(x) __has_builtin(x)\n#line 20 \"logical.h\"\n  Q(__builtin_bswap32)\n",
+        )
+        .unwrap();
+    let location = result.resolve_location(0).unwrap();
+    assert_eq!(
+        (&*location.path, location.line, location.column),
+        (Path::new("logical.h"), 20, 3)
+    );
+    let error = pp
+        .preprocess_str(
+            Path::new("query.h"),
+            "#line 30 \"logical.h\"\n  __has_builtin(1)\n",
+        )
+        .unwrap_err();
+    assert_eq!(
+        (error.path.as_path(), error.line, error.column),
+        (Path::new("logical.h"), 30, 3)
+    );
+}
+
+#[test]
+#[ignore = "requires native GCC and Clang; Clang cross-target preprocessing uses no sysroot"]
+fn feature_query_syntax_values_and_effects_match_compilers() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let targets = [
+        "x86_64-unknown-linux-gnu",
+        "aarch64-unknown-linux-gnu",
+        "x86_64-apple-darwin",
+        "aarch64-apple-darwin",
+        "x86_64-pc-windows-msvc",
+    ];
+    for (compiler, dialect) in [("gcc", QueryDialect::Gnu), ("clang", QueryDialect::Clang)] {
+        let native_targets = ["native"];
+        let targets = if dialect == QueryDialect::Gnu {
+            &native_targets[..]
+        } else {
+            &targets[..]
+        };
+        for target in targets {
+            for standard in ["c11", "gnu11"] {
+                for (name, source) in CASES {
+                    let mut command = Command::new(compiler);
+                    command
+                        .args(["-E", "-P", "-x", "c"])
+                        .arg(format!("-std={standard}"));
+                    if dialect == QueryDialect::Clang {
+                        command.arg(format!("--target={target}"));
+                    }
+                    let mut child = command
+                        .arg("-")
+                        .stdin(Stdio::piped())
+                        .stdout(Stdio::piped())
+                        .stderr(Stdio::piped())
+                        .spawn()
+                        .unwrap();
+                    child
+                        .stdin
+                        .take()
+                        .unwrap()
+                        .write_all(source.as_bytes())
+                        .unwrap();
+                    let native = child.wait_with_output().unwrap();
+                    let accepted = toucan_test_support::compiler_acceptance(&native).unwrap();
+                    let mut query_config = config(dialect);
+                    query_config.feature_queries.as_mut().unwrap().provider = Arc::new(Catalog {
+                        dialect,
+                        gnu_namespace: standard == "gnu11",
+                    });
+                    let actual = Preprocessor::new(query_config)
+                        .preprocess_str(Path::new("query.h"), source);
+                    assert_eq!(
+                        actual.is_ok(),
+                        accepted,
+                        "{compiler} {target} {standard} {name}: {actual:?}\n{}",
+                        String::from_utf8_lossy(&native.stderr)
+                    );
+                    if let Ok(actual) = actual {
+                        assert_eq!(
+                            compact(&actual.source),
+                            compact(&String::from_utf8_lossy(&native.stdout)),
+                            "{compiler} {target} {standard} {name}"
+                        );
+                    }
+                }
+            }
+        }
+    }
+}

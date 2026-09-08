@@ -137,6 +137,9 @@ def main():
         "language_mode_selector": None
         if args.target == "preprocess"
         else "sum(input bytes) & 0x100: 0=gnu11, 256=c11",
+        "query_dialect_selector": "sum(input bytes) & 1: 0=gnu, 1=clang"
+        if args.target == "preprocess"
+        else None,
         "trigraph_selector": "sum(input bytes) & 0x100 != 0"
         if args.target == "preprocess"
         else None,
@@ -201,7 +204,10 @@ def main():
         corpus = root / "fuzz" / "corpus" / args.target
         corpus.mkdir(parents=True, exist_ok=True)
         for path in sorted((root / "fuzz" / "seeds" / args.target).glob("*.h")):
-            for data in seed_profiles(path.read_bytes(), report["profiles"]):
+            for data in seed_profiles(
+                path.read_bytes(),
+                2 if args.target == "preprocess" else report["profiles"],
+            ):
                 (corpus / hashlib.sha256(data).hexdigest()).write_bytes(data)
         (corpus / "invalid-utf8").write_bytes(b"int valid_prefix;\xff")
         report["initial_corpus"] = archive_initial_corpus(corpus, output)
