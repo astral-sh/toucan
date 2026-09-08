@@ -205,10 +205,11 @@ impl Builder {
         Ok(())
     }
 
-    pub(super) fn begin_type_operand_context(&mut self, occurrence: OccurrenceId) {
+    pub(super) fn begin_type_operand_context(&mut self, occurrence: OccurrenceId, start: usize) {
         self.ownership_builder
             .starts
-            .insert(occurrence, self.code.type_operands.len());
+            .entry(occurrence)
+            .or_insert(start);
     }
 
     pub(super) fn finish_type_operand_context(

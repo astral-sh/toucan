@@ -110,19 +110,23 @@ impl Analyzer {
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<IntegerValue, Error> {
-        if self
+        let checkpoint = self
             .checked
-            .as_mut()
-            .map(|checked| checked.expression_needs_check(expression))
-            .transpose()?
-            .unwrap_or(false)
-        {
-            self.expression_info(expression)?;
-        }
+            .as_ref()
+            .map(|checked| checked.evaluation_checkpoint());
         self.enter_expression(expression.span.start)?;
         let result = self.eval_inner(expression);
         self.leave_expression();
-        result
+        let value = result?;
+        // Preserve the ordinary evaluator's first diagnostic. Type names may
+        // already have created bounds or typeof operands; keep their enclosing
+        // context when recording a successful expression through the cache.
+        if let (Some(checked), Some(checkpoint)) = (&mut self.checked, checkpoint)
+            && checked.prepare_evaluated_expression(expression, checkpoint)?
+        {
+            self.expression_info(expression)?;
+        }
+        Ok(value)
     }
 
     fn eval_inner(&mut self, expression: &Node<ast::Expression>) -> Result<IntegerValue, Error> {

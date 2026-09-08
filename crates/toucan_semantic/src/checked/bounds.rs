@@ -137,11 +137,29 @@ pub(super) struct BoundsBuilder {
 }
 
 impl Builder {
+    /// Saves the arena boundaries before constant evaluation can create type facts.
+    pub(crate) fn evaluation_checkpoint(&self) -> super::EvaluationCheckpoint {
+        super::EvaluationCheckpoint {
+            bounds: self.code.bounds.len(),
+            type_operands: self.code.type_operands.len(),
+        }
+    }
+
     pub(super) fn begin_bound_context(&mut self, occurrence: OccurrenceId) {
-        self.begin_type_operand_context(occurrence);
+        self.restore_bound_context(occurrence, self.evaluation_checkpoint());
+    }
+
+    /// Keeps the earliest boundary when successful evaluation precedes typing.
+    pub(super) fn restore_bound_context(
+        &mut self,
+        occurrence: OccurrenceId,
+        checkpoint: super::EvaluationCheckpoint,
+    ) {
+        self.begin_type_operand_context(occurrence, checkpoint.type_operands);
         self.bounds_builder
             .starts
-            .insert(occurrence, self.code.bounds.len());
+            .entry(occurrence)
+            .or_insert(checkpoint.bounds);
     }
     pub(super) fn finish_bound_context(
         &mut self,

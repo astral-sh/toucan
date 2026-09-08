@@ -388,6 +388,23 @@ impl Builder {
         }
     }
 
+    /// Retains facts created while evaluating a constant in the enclosing
+    /// expression's original context, without checking its syntax twice.
+    pub(crate) fn prepare_evaluated_expression(
+        &mut self,
+        node: &Node<ast::Expression>,
+        checkpoint: super::EvaluationCheckpoint,
+    ) -> Result<bool, Error> {
+        let Some(occurrence) = self.find(OccurrenceKind::Expression, node)? else {
+            return Ok(false);
+        };
+        if self.expression_builder.states.contains_key(&occurrence) {
+            return Ok(false);
+        }
+        self.restore_bound_context(occurrence, checkpoint);
+        Ok(true)
+    }
+
     pub(crate) fn expression_needs_check(
         &mut self,
         node: &Node<ast::Expression>,

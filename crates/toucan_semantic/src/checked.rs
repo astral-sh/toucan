@@ -353,6 +353,13 @@ enum EntityKey {
     Enumerator(usize, usize),
 }
 
+/// Bound and typeof arenas before a constant query begins.
+#[derive(Clone, Copy)]
+pub(crate) struct EvaluationCheckpoint {
+    bounds: usize,
+    type_operands: usize,
+}
+
 pub(crate) struct Builder {
     statement_builder: statement::StatementBuilder,
     reference_builder: references::ReferenceBuilder,
