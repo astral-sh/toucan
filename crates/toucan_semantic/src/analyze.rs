@@ -425,6 +425,7 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Attributes {
+    pub(crate) diagnostic_attributes: Vec<crate::checked::attributes::ParsedDiagnosticAttribute>,
     pub(crate) type_use: Option<crate::checked::bounds::TypeUseId>,
     type_name_use: bool,
     packed: bool,
@@ -433,6 +434,18 @@ pub(crate) struct Attributes {
     mode: Option<String>,
     calling_convention: Option<CallingConvention>,
     alias_base: bool,
+}
+
+impl Attributes {
+    pub(crate) fn require_function_diagnostics(&self, function: bool) -> Result<(), Error> {
+        if !function && let Some(attribute) = self.diagnostic_attributes.first() {
+            return Err(Error::new(
+                attribute.span.start,
+                "diagnostic attributes require a function declaration",
+            ));
+        }
+        Ok(())
+    }
 }
 
 #[derive(Clone, Copy)]
@@ -534,6 +547,7 @@ fn outermost_derived(
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) diagnostic_kinds: HashMap<String, u8>,
     pub(crate) checked: Option<Box<CodeBuilder>>,
     pub(crate) unit: TranslationUnit,
     pub(crate) tags: HashMap<String, TagBinding>,
@@ -600,6 +614,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            diagnostic_kinds: HashMap::new(),
             checked: None,
             unit,
             tags,
@@ -812,6 +827,7 @@ impl Analyzer {
             let (ty, attributes) = self.specifiers(
                 &declaration.node.specifiers[..declaration.node.specifiers.len() - 1],
             )?;
+            attributes.require_function_diagnostics(false)?;
             if attributes.packed || attributes.alignment.is_some() || attributes.mode.is_some() {
                 return Err(Error::new(
                     declaration.span.start,
@@ -856,6 +872,9 @@ impl Analyzer {
             return Ok(());
         }
         let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
+        if declaration.node.declarators.is_empty() {
+            attributes.require_function_diagnostics(false)?;
+        }
         for item in &declaration.node.declarators {
             let mut is_static = storage.class == Some(ast::StorageClassSpecifier::Static);
             let previous_parameters = self.definition_parameters;
@@ -923,6 +942,9 @@ impl Analyzer {
             } else {
                 DeclarationKind::Variable
             };
+            declarator_attributes
+                .require_function_diagnostics(kind == DeclarationKind::Function)?;
+            self.check_diagnostic_attributes(&name, &declarator_attributes.diagnostic_attributes)?;
             if storage.thread_local {
                 return Err(Error::new(
                     item.span.start,
@@ -1045,6 +1067,10 @@ impl Analyzer {
                 self.initialize_declaration(declaration_index, &initializer_type, initializer)?;
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
+                checked.attach_diagnostic_attributes(
+                    site,
+                    &declarator_attributes.diagnostic_attributes,
+                )?;
                 let declaration = &self.unit.declarations[declaration_index];
                 checked.complete_declaration(
                     site,
@@ -1439,6 +1465,7 @@ impl Analyzer {
         if let Some(checked) = &mut self.checked {
             checked.begin_specifier_operands(&types)?;
         }
+        record_attributes.require_function_diagnostics(false)?;
         let mut ty = self.base_type(&types)?;
         if let Some(checked) = &mut self.checked {
             for specifier in &types {
@@ -1717,9 +1744,11 @@ impl Analyzer {
             return Ok(ty.clone());
         }
         let (ty, mut attributes) = self.specifier_qualifiers(&name.specifiers)?;
+        attributes.require_function_diagnostics(false)?;
         attributes.type_name_use = true;
         let (ty, type_use) = if let Some(declarator) = &name.declarator {
             let (_, ty, extra) = self.declarator(ty, declarator, &attributes)?;
+            extra.require_function_diagnostics(false)?;
             (ty, extra.type_use)
         } else {
             (
@@ -1741,7 +1770,7 @@ impl Analyzer {
         attributes: &Attributes,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
         let alias_base = attributes.alias_base && !has_function_derivation(declaration);
-        let (name, ty, extra) = self.declarator_at(
+        let (name, ty, mut extra) = self.declarator_at(
             ty,
             declaration,
             None,
@@ -1749,6 +1778,11 @@ impl Analyzer {
             attributes.type_use,
             attributes.type_name_use,
         )?;
+        if !attributes.diagnostic_attributes.is_empty() {
+            let mut diagnostic_attributes = attributes.diagnostic_attributes.clone();
+            diagnostic_attributes.append(&mut extra.diagnostic_attributes);
+            extra.diagnostic_attributes = diagnostic_attributes;
+        }
         if attributes.calling_convention.is_none() {
             return Ok((name, ty, extra));
         }
@@ -1837,6 +1871,7 @@ impl Analyzer {
                                     || attributes.alignment.is_some()
                                     || attributes.mode.is_some()
                                     || attributes.link_name.is_some()
+                                    || !attributes.diagnostic_attributes.is_empty()
                                 {
                                     return Err(Error::new(
                                         qualifier.span.start,
@@ -2024,6 +2059,7 @@ impl Analyzer {
                             ));
                         }
                         let (base, mut attributes) = self.specifiers(&parameter.node.specifiers)?;
+                        attributes.require_function_diagnostics(false)?;
                         attributes.alias_base = attributes.alias_base
                             && !parameter
                                 .node
@@ -2053,6 +2089,7 @@ impl Analyzer {
                                     attributes.type_use,
                                     attributes.type_name_use,
                                 )?;
+                                extra.require_function_diagnostics(false)?;
                                 (name, ty, extra.type_use)
                             } else {
                                 (None, base, attributes.type_use)
@@ -2064,6 +2101,7 @@ impl Analyzer {
                         )?;
                         let mut extra = Attributes::default();
                         self.attributes(&parameter.node.extensions, &mut extra)?;
+                        extra.require_function_diagnostics(false)?;
                         parameter_type = self.apply_calling_convention(
                             parameter_type,
                             &extra,
@@ -2285,6 +2323,9 @@ impl Analyzer {
                 if inner_attributes.link_name.is_some() {
                     attributes.link_name = inner_attributes.link_name;
                 }
+                attributes
+                    .diagnostic_attributes
+                    .extend(inner_attributes.diagnostic_attributes);
                 (name, ty, attributes)
             }
         };
@@ -2397,6 +2438,7 @@ impl Analyzer {
                     ast::StructDeclaration::Field(field) => {
                         let (base, attributes) =
                             self.specifier_qualifiers(&field.node.specifiers)?;
+                        attributes.require_function_diagnostics(false)?;
                         if field.node.declarators.is_empty() {
                             // GNU and Clang accept declarations without members,
                             // including nested tag definitions. Only a directly
@@ -2431,6 +2473,7 @@ impl Analyzer {
                                     } else {
                                         (None, base.clone(), Attributes::default())
                                     };
+                                extra.require_function_diagnostics(false)?;
                                 if name.as_ref().is_some_and(|name| {
                                     fields.iter().any(|field| field.name.as_ref() == Some(name))
                                 }) {
@@ -2696,7 +2739,9 @@ impl Analyzer {
         }
         let mut previous: Option<IntegerValue> = None;
         for enumerator in &declaration.node.enumerators {
-            self.attributes(&enumerator.node.extensions, &mut Attributes::default())?;
+            let mut attributes = Attributes::default();
+            self.attributes(&enumerator.node.extensions, &mut attributes)?;
+            attributes.require_function_diagnostics(false)?;
             let value = if let Some(expression) = &enumerator.node.expression {
                 self.eval(expression)?
             } else if let Some(previous) = previous {
@@ -2874,6 +2919,7 @@ impl Analyzer {
     }
 
     fn apply_record_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
+        attributes.require_function_diagnostics(false)?;
         if !attributes.packed && attributes.alignment.is_none() {
             return Ok(());
         }
@@ -2909,6 +2955,24 @@ impl Analyzer {
                 ast::Extension::Attribute(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
                     match name {
+                        "warning" | "error" => {
+                            let kind = if name == "warning" {
+                                crate::checked::DiagnosticAttributeKind::Warning
+                            } else {
+                                crate::checked::DiagnosticAttributeKind::Error
+                            };
+                            result.diagnostic_attributes.push(self.diagnostic_attribute(
+                                attribute,
+                                extension.span,
+                                kind,
+                            )?);
+                        }
+                        "diagnose_if" | "enable_if" => {
+                            return Err(Error::new(
+                                extension.span.start,
+                                format!("call-constraint attribute `{name}` is unsupported"),
+                            ));
+                        }
                         "mode" => {
                             let [argument] = attribute.arguments.as_slice() else {
                                 return Err(Error::new(
@@ -3008,8 +3072,6 @@ impl Analyzer {
                         | "no_sanitize_thread"
                         | "no_sanitize_undefined"
                         | "fallthrough"
-                        | "diagnose_if"
-                        | "enable_if"
                         | "warn_unused"
                         | "externally_visible"
                         | "nonnull_all"

@@ -132,6 +132,28 @@ condition behavior follow the target's GCC or Clang profile. Constant evaluation
 of statement-expression bodies and GCC's precise-width bitfield result types
 remain unsupported and produce diagnostics.
 
+## Diagnostic attributes
+
+GNU `warning` and `error` attributes, including their underscored spellings,
+are checked on function declarations. Retained analysis exposes each written
+annotation's declaration site, severity, decoded message, and original source
+range. Redeclarations preserve separate annotations. Conflicting severities follow
+the target's GCC profile on Linux and Clang profile on Darwin and Windows.
+
+These annotations do not change function types or generated bindings. As with
+GCC and Clang's syntax-only checking, Toucan does not issue their call diagnostics:
+whether a call survives optimization is outside this frontend's checking phase.
+For example, an `error` call guarded by a local constant can fail compilation at
+`-O0` and disappear at `-O2`. The retained annotations are written facts, not an
+effective compiler message or proof that a call will be diagnosed. See the
+[GCC function attribute reference](https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html).
+
+Diagnostic messages currently support ordinary strings, adjacent concatenation,
+simple escapes, and universal character names. Prefixed strings and numeric
+escapes have compiler-specific interpretations and produce unsupported-feature
+diagnostics. Nonfunction attachments also produce diagnostics. Clang's
+`diagnose_if` and `enable_if` call constraints remain unsupported and are rejected.
+
 ## Calling conventions
 
 Function types retain GNU `ms_abi` and `sysv_abi` attributes on x86-64. Compatibility

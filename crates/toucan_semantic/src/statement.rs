@@ -633,6 +633,9 @@ impl Analyzer {
             }
         }
         let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
+        if declaration.node.declarators.is_empty() {
+            attributes.require_function_diagnostics(false)?;
+        }
         for item in &declaration.node.declarators {
             let (name, mut ty, extra) =
                 self.declarator(base.clone(), &item.node.declarator, &attributes)?;
@@ -649,6 +652,8 @@ impl Analyzer {
                 name.ok_or_else(|| Error::new(item.span.start, "local declaration has no name"))?;
             let variably_modified = self.unit.is_variably_modified(&ty)?;
             let function = matches!(self.unit.resolve(&ty)?.kind, TypeKind::Function(_));
+            extra.require_function_diagnostics(function && !is_typedef)?;
+            self.check_diagnostic_attributes(&name, &extra.diagnostic_attributes)?;
             if variably_modified && (is_extern || function) {
                 return Err(Error::new(
                     item.span.start,
@@ -816,7 +821,7 @@ impl Analyzer {
                 {
                     let composite = self.composite_type(previous, &ty, 0)?;
                     if let Some(checked) = &mut self.checked {
-                        checked.local_declaration(
+                        let site = checked.local_declaration(
                             item,
                             OccurrenceKind::InitDeclarator,
                             LocalDeclaration {
@@ -839,6 +844,10 @@ impl Analyzer {
                                 allocation: None,
                             },
                         )?;
+                        if let Some(site) = site {
+                            checked
+                                .attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
+                        }
                     }
                     self.lexical_scopes
                         .last_mut()
@@ -913,6 +922,7 @@ impl Analyzer {
                 ));
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
+                checked.attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
                 let allocation = self
                     .lexical_scopes
                     .last()

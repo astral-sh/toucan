@@ -11,6 +11,7 @@
 //! and initializer order does not impose an order on C side effects.
 
 mod access;
+pub(crate) mod attributes;
 pub(crate) mod bounds;
 pub(crate) mod expression;
 pub(crate) mod initializer;
@@ -18,6 +19,7 @@ mod ownership;
 pub(crate) mod references;
 pub(crate) mod statement;
 
+pub use attributes::{DiagnosticAttribute, DiagnosticAttributeKind};
 pub use bounds::{
     Bound, BoundEvaluation, BoundId, BoundInput, BoundSite, BoundValue, Extent, FunctionUse,
     TypeStep, TypeUse, TypeUseId,
@@ -310,6 +312,8 @@ pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> O
 
 #[derive(Debug, Serialize)]
 pub struct CheckedCode {
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub(crate) diagnostic_attributes: Vec<attributes::DiagnosticAttribute>,
     pub(crate) type_operands: Vec<ownership::TypeOperand>,
     pub(crate) statements: Vec<statement::Statement>,
     pub(crate) statement_coverage: Vec<statement::StatementCoverage>,
@@ -401,6 +405,7 @@ impl Builder {
             expression_builder: expression::ExpressionBuilder::default(),
             statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
+                diagnostic_attributes: Vec::new(),
                 type_operands: Vec::new(),
                 statements: Vec::new(),
                 statement_coverage: Vec::new(),
@@ -879,6 +884,7 @@ impl Builder {
         self.finish_expression_coverage()?;
         self.finish_statements()?;
         self.finish_references(offsets)?;
+        self.finish_diagnostic_attributes(offsets)?;
         self.finish_initializer_coverage()?;
         self.finish_bounds(offsets)?;
         self.finish_type_ownership()?;

@@ -130,6 +130,14 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             );
         }
     }
+    for attribute in code.diagnostic_attributes() {
+        source_span(source, attribute.source());
+        let declaration = code.declaration(attribute.declaration()).unwrap();
+        assert_eq!(
+            code.entity(declaration.entity()).unwrap().kind(),
+            EntityKind::Function
+        );
+    }
     for (_, ty) in code.types() {
         type_shape(unit, ty);
     }
