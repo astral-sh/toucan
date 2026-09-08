@@ -24,7 +24,7 @@ generated declarations can target Rust 1.64 or later.
 `Builder` supports ordered `header` calls, `clang_arg`/`clang_args`, `use_core`,
 `size_t_is_usize`, `rust_target`, `layout_tests`, `raw_line`,
 `blocklist_function`, `blocklist_type`, and `rustified_enum(".*")`. Generation returns bindings
-with `Display`, `write_to_file`, and a `report()` containing omitted macros and
+with `Display`, `write`, `write_to_file`, and a `report()` containing omitted macros and
 dependencies. Compile-time size and alignment assertions remain enabled when
 runtime layout tests are disabled.
 
@@ -37,6 +37,20 @@ named dependency can still be emitted. Blocked anonymous enum typedefs also omit
 their enum constants; a blocked alias of a named enum does not block that enum.
 See [external types](../../docs/external-types.md) for layout and ABI contracts.
 These boundaries are not general bindgen API compatibility.
+
+`Formatter::Rustfmt` is the default. Formatting runs when bindings are displayed
+or written; `generate()` does not start rustfmt. `Formatter::None` writes the
+unformatted source. `with_rustfmt` overrides `RUSTFMT` and the default executable
+lookup on `PATH`. `rustfmt_configuration_file` sets a configuration path and
+enables rustfmt. Raw lines appear after the banner and before declarations, with
+their bytes preserved outside formatting. Writer errors propagate; formatter
+failures report a diagnostic and use unformatted declarations. See
+[formatting and output](../../docs/bindgen-formatting.md) for the pinned behavior
+comparison and supported formatter names.
+
+`clang_version()` identifies the Toucan package in `full` and returns `None` in
+`parsed`: it does not load libclang or report the emulated Clang semantic profile
+as an installed compiler version.
 
 Toucan additionally provides `dll_import_library(pattern, library)` for checked
 Microsoft DLL imports. It accepts the same exact-name or trailing `.*` patterns
