@@ -63,8 +63,17 @@ fn include_dir(compiler: &str, arg: &str) -> PathBuf {
 #[test]
 #[ignore = "requires installed Clang resource headers and target backends"]
 fn unchanged_clang_stdatomic_header_and_operations() {
-    let directory = include_dir("clang", "-print-resource-dir").join("include");
+    let musl_clang = std::env::var("TOUCAN_CLANG_RESOURCE_ORACLE").ok();
     for target in Target::ALL {
+        // Apple Clang's stddef.h delegates musl targets to the sysroot, even in
+        // freestanding mode. This isolated resource-header test has no sysroot.
+        // Keep a selected upstream compiler paired with its untouched headers.
+        let compiler = if target.is_musl() {
+            musl_clang.as_deref().unwrap_or("clang")
+        } else {
+            "clang"
+        };
+        let directory = include_dir(compiler, "-print-resource-dir").join("include");
         let mut config =
             Config::with_profile(CompilerProfile::new(target, Compiler::Clang).unwrap());
         config.preprocessor.include_dirs.push(directory.clone());
@@ -97,7 +106,7 @@ fn unchanged_clang_stdatomic_header_and_operations() {
         );
         let file = tempfile::NamedTempFile::new().unwrap();
         std::fs::write(file.path(), OPERATIONS).unwrap();
-        let out = Command::new("clang")
+        let out = Command::new(compiler)
             .args([
                 "-target",
                 target.triple(),
@@ -113,7 +122,7 @@ fn unchanged_clang_stdatomic_header_and_operations() {
             .unwrap();
         assert!(
             out.status.success(),
-            "{target}: {}",
+            "{target} with {compiler}: {}",
             String::from_utf8_lossy(&out.stderr)
         );
     }

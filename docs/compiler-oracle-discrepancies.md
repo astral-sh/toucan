@@ -176,3 +176,21 @@ gap, separate from the native compiler's source constraints. The focused regress
 requires that explicit diagnostic. Native conversion constraints and runtime lane
 checks remain enabled. Static vector evaluation and compiler-version differences
 need their own implementation and value probes before broader support is claimed.
+
+## Apple Clang resource headers on musl targets
+
+Apple Clang 17's resource `stddef.h` uses `#include_next <stddef.h>` for musl
+cross targets, including `-ffreestanding -nostdinc`. The isolated `stdatomic.h`
+oracle intentionally has only the compiler's resource include directory, so that
+route requires a target sysroot it does not have. This is a header configuration
+failure, not a C source rejection or a frontend conformance result.
+
+On macOS, CI selects upstream Clang 18 with `TOUCAN_CLANG_RESOURCE_ORACLE` for
+both musl targets in `unchanged_clang_stdatomic_header_and_operations`. The test
+obtains that compiler's own resource directory and passes the same untouched
+headers to Toucan and that compiler. The other targets continue to use the host
+Clang and its headers. Set this variable to an upstream Clang path when running
+this isolated test locally with Apple Clang; no headers are copied or edited.
+The separate native musl jobs validate actual musl sysroots and runtime calls.
+The [saved local validation](../corpus/evidence/apple-musl-resource-oracle-2026-09-08.json)
+records the failure, oracle selection, test results, and untouched header hashes.

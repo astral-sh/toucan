@@ -40,6 +40,14 @@ jobs:
               brew install gcc@14
             fi
             native_gcc="$(brew --prefix gcc@14)/bin/gcc-14"
+            # Apple resource headers delegate musl stddef.h to a target sysroot.
+            # Pair upstream Clang with its own untouched freestanding headers.
+            if ! brew list --versions llvm@18 >/dev/null; then
+              brew install llvm@18
+            fi
+            resource_clang="$(brew --prefix llvm@18)/bin/clang"
+            "$resource_clang" --version
+            echo "TOUCAN_CLANG_RESOURCE_ORACLE=$resource_clang" >> "$GITHUB_ENV"
           else
             native_gcc="$(command -v gcc)"
           fi
@@ -53,12 +61,7 @@ jobs:
           if [[ "$(clang --version)" == *"Apple clang version 17.0.0 (clang-1700.0.13.5)"* ]]; then
             # This Apple build crashes on atomic pointer casts. Keep it for the
             # other oracles; use upstream Clang for those exact source cases.
-            if ! brew list --versions llvm@18 >/dev/null; then
-              brew install llvm@18
-            fi
-            atomic_pointer_clang="$(brew --prefix llvm@18)/bin/clang"
-            "$atomic_pointer_clang" --version
-            echo "TOUCAN_ATOMIC_POINTER_CLANG=$atomic_pointer_clang" >> "$GITHUB_ENV"
+            echo "TOUCAN_ATOMIC_POINTER_CLANG=$resource_clang" >> "$GITHUB_ENV"
           fi
           echo "TOUCAN_GCC=$native_gcc" >> "$GITHUB_ENV"
           # Existing probes that invoke `gcc` must also use GNU GCC on macOS.
