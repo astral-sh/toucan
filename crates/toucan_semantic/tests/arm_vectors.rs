@@ -321,10 +321,24 @@ fn compiler(command: &mut std::process::Command, source: &str) -> std::process::
     child.wait_with_output().unwrap()
 }
 
+fn calls_sve_function(assembly: &[u8]) -> bool {
+    String::from_utf8_lossy(assembly).lines().any(|line| {
+        let mut words = line.split_whitespace();
+        matches!(words.next(), Some("bl" | "b"))
+            && matches!(words.next(), Some("f" | "_f" | "f@PLT"))
+    })
+}
+
 #[test]
 #[ignore = "requires Clang with all five target backends; run with --include-ignored"]
 fn arm_vector_constraints_match_clang_and_type_only_uses_generate_code() {
     use std::process::Command;
+    let version = Command::new("clang").arg("--version").output().unwrap();
+    assert!(version.status.success());
+    // This Apple build diagnoses SVE operand types before discarding an
+    // unevaluated branch. Its diagnostic phase differs from upstream Clang 18.
+    let eager_apple_sve = String::from_utf8_lossy(&version.stdout)
+        .contains("Apple clang version 17.0.0 (clang-1700.0.13.5)");
     for target in Target::ALL {
         let output = compiler(
             Command::new("clang").args([
@@ -363,7 +377,7 @@ fn arm_vector_constraints_match_clang_and_type_only_uses_generate_code() {
     }
     for target in ARM {
         for source in TYPE_ONLY {
-            let output = compiler(
+            let mut output = compiler(
                 Command::new("clang").args([
                     "-target",
                     target.triple(),
@@ -378,12 +392,74 @@ fn arm_vector_constraints_match_clang_and_type_only_uses_generate_code() {
                 ]),
                 &format!("{PRELUDE}{source}\n"),
             );
+            if !output.status.success() && eager_apple_sve {
+                let diagnostic = String::from_utf8_lossy(&output.stderr);
+                let errors = diagnostic
+                    .lines()
+                    .filter(|line| line.contains("error:"))
+                    .collect::<Vec<_>>();
+                assert!(
+                    !errors.is_empty()
+                        && errors.iter().all(|line| {
+                            line.contains("cannot be used in a target without sve")
+                        }),
+                    "unexpected Apple Clang diagnostic for {target}: {source}: {diagnostic}"
+                );
+                // Enabling the ISA satisfies that frontend check. The assembly
+                // must still omit f(), independently of the diagnostic policy.
+                output = compiler(
+                    Command::new("clang").args([
+                        "-target",
+                        target.triple(),
+                        "-std=gnu11",
+                        "-march=armv8-a+sve",
+                        "-O0",
+                        "-S",
+                        "-o",
+                        "-",
+                        "-x",
+                        "c",
+                        "-",
+                    ]),
+                    &format!("{PRELUDE}{source}\n"),
+                );
+            }
             assert!(
                 output.status.success(),
                 "{target}: {source}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
+            assert!(
+                !calls_sve_function(&output.stdout),
+                "unevaluated SVE call emitted for {target}: {source}"
+            );
         }
+        // Check the branch/symbol spelling with an ordinary call: Darwin has
+        // no supported execution ABI for an actual SVE return value.
+        let control = compiler(
+            Command::new("clang").args([
+                "-target",
+                target.triple(),
+                "-std=gnu11",
+                "-O0",
+                "-S",
+                "-o",
+                "-",
+                "-x",
+                "c",
+                "-",
+            ]),
+            "int f(void); void g(void){f();}",
+        );
+        assert!(
+            control.status.success(),
+            "{}",
+            String::from_utf8_lossy(&control.stderr)
+        );
+        assert!(
+            calls_sve_function(&control.stdout),
+            "missing control call on {target}"
+        );
         for source in INVALID {
             let output = compiler(
                 Command::new("clang").args([

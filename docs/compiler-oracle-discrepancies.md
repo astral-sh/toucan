@@ -1,9 +1,26 @@
 # Compiler oracle discrepancies
 
-Native compilers provide useful differential evidence, but an optimization bug
-is not a C language rule. Toucan's target profiles do not identify a particular
-compiler version or optimization level. The checked graph preserves source
-semantics when a native result contradicts C11.
+Compiler versions can differ in diagnostics and code generation. Toucan's
+profiles select a compiler family and target, without identifying a particular
+compiler version or optimization level. These records distinguish native oracle
+behavior from the checked graph's source semantics.
+
+## Apple Clang SVE feature diagnostics
+
+Apple Clang 17.0.0 (`clang-1700.0.13.5`) diagnoses an SVE value in the discarded
+arm of `__builtin_choose_expr` without SVE enabled. Upstream Clang 18 accepts the
+same type-only expression and emits no call. The
+[Intel](https://github.com/astral-sh/toucan/actions/runs/34211061229/job/102011913138)
+and [ARM](https://github.com/astral-sh/toucan/actions/runs/34211061229/job/102011913358)
+macOS jobs exposed this diagnostic-phase difference when cross-compiling the
+AArch64 fixture.
+
+The oracle recognizes only that recorded Apple build and its specific missing-SVE
+diagnostic. It then enables SVE for the compiler check and requires the assembly
+to omit the discarded function call. Other compiler errors still fail the test.
+A scalar-call control checks that the assembly matcher recognizes the target's
+symbol spelling. Toucan's feature-use checks retain their evaluated-use policy;
+this does not establish an SVE execution ABI on Darwin.
 
 ## Clang 18 conditional VLA bounds
 
