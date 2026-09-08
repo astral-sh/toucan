@@ -20,17 +20,16 @@ compiler ABI is used; flags such as `-fshort-enums` are not implied.
 
 | Target | Layout model | Native validation |
 | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | Implemented; GCC and Clang probes | [Four-library run passed](../corpus/evidence/native-2026-09-08.json) |
-| `aarch64-unknown-linux-gnu` | Implemented; Clang cross-target probes | [Four-library run passed](../corpus/evidence/native-2026-09-08.json) |
-| `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [Four-library run passed](../corpus/evidence/native-2026-09-08.json) |
-| `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [Four-library run passed](../corpus/evidence/native-2026-09-08.json) |
+| `x86_64-unknown-linux-gnu` | Implemented; GCC and Clang probes | [C/FFI and differential checks passed](../corpus/evidence/native-equivalence-2026-09-08.json) |
+| `aarch64-unknown-linux-gnu` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-equivalence-2026-09-08.json) |
+| `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-equivalence-2026-09-08.json) |
+| `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-equivalence-2026-09-08.json) |
 | `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | Not run; MSVC header syntax is incomplete |
 
-The recorded [native run](https://github.com/astral-sh/toucan/actions/runs/34174435203)
+The recorded [native run](https://github.com/astral-sh/toucan/actions/runs/34176518153)
 passed on 2026-09-08, using GCC 13.3.0 on Linux and Apple Clang 17.0.0 on macOS.
-The evidence identifies the tested commit and executable for each target. See the CI
-results for the current commit; the historical run does not establish that later
-changes pass.
+The evidence identifies the tested checkout, PR head, and executable for each
+configuration. See CI results for changes made after that run.
 
 ## Current gaps
 
@@ -68,20 +67,29 @@ exported symbol; generating bindings for definitions is outside the current scop
 ## Recorded evidence
 
 The [upstream corpus](../corpus/README.md) processes untouched public headers from
-pinned zlib, SQLite, zstd, and libgit2 releases. The recorded native run emitted
-1,648 declarations, skipped no selected declarations, and passed 4,086 C/Rust
-comparisons on each of the four Linux and macOS targets. Actual FFI calls exercised
-compression, SQLite queries, and libgit2 operations. The reports record 111 omitted
+pinned zlib, SQLite, zstd, and libgit2 releases. Every recorded target emitted 1,648
+declarations, skipped no selected declarations, and passed 5,444 C/Rust comparisons.
+These cover constants, enum representations, selected records, and actual FFI calls
+for compression, SQLite queries, and libgit2 operations. Reports record 111 omitted
 macros on Linux and 110 on macOS, with their reasons.
 
-This run predates the bindgen API comparison and the all-record layout probes. Its
-layout checks cover the 17 records and 88 field offsets named in the corpus probes.
-New validation must be recorded separately against the version that ran it.
+Bindgen comparison matched 1,284 function signatures and three global types on each
+target. Independent C probes checked every complete generated record and ordinary
+field: 111 records and 636 offsets on x86_64 Linux and macOS, 111 and 638 on AArch64
+Linux, and 109 and 628 on AArch64 macOS. The [corpus results](../corpus/README.md#recorded-native-results)
+separate those C checks from shared-field and typedef comparisons against bindgen.
 
-The selected API names, independent probe coverage, compiler versions, header
-checksums, and commands are recorded with the result. Successful probes establish
-the tested constants and representations. They do not validate every declaration
-constraint or every possible call to those APIs.
+The comparison gate passed with no unexplained differences. Exact API equivalence
+remains false; accepted macro types, unsigned sentinels, a nested SQLite callback,
+additional constants, helper names, and private storage representations remain
+visible in the evidence. C oracles independently check the accepted type, value,
+and callback differences.
+
+A [separate test run](https://github.com/astral-sh/toucan/actions/runs/34177031459)
+passed optimized C/Rust `va_list` calls on all four native targets. These tests
+exercise argument passing in addition to size and alignment. Successful probes
+establish the tested representations and calls; they do not validate every C
+declaration constraint or every possible use of these APIs.
 
 The [dependency audit](../corpus/evidence/dependency-audit-2026-09-08.json) found no
 known RustSec advisories in the workspace, fuzzing, or comparison tool lockfiles on

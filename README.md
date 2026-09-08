@@ -134,18 +134,20 @@ Unix platforms or mimalloc on Windows.
 ## Validation
 
 The [upstream corpus](corpus/README.md) builds pinned releases of zlib, SQLite, zstd,
-and libgit2 and processes their untouched public headers. A recorded native run on
-x86_64 and AArch64 Linux and macOS generated 1,648 declarations and passed 4,086
-independent C/Rust comparisons per target, including constants, layouts, and field
-offsets. Generated Rust also called the built libraries for compression, SQLite
-queries, and libgit2 operations.
+and libgit2 and processes their untouched public headers. Native runs on x86_64 and
+AArch64 Linux and macOS passed 5,444 C/Rust comparisons per target and actual FFI
+calls into all four libraries.
 
-The [recorded evidence](corpus/evidence/native-2026-09-08.json) identifies the tested
-commit and configurations. It records 111 omitted macros on Linux and 110 on macOS.
-This run covers 17 records and predates the broader API-equivalence and all-record
-layout checks. See [compatibility](docs/compatibility.md) for coverage and gaps.
-[Benchmark methodology](docs/benchmarks.md) and [fuzzing](fuzz/README.md) document
-separate performance and malformed-input checks.
+The same runs matched 1,284 function signatures and three global types with bindgen
+and independently checked every complete generated record against C. Depending on
+the target, that covered 109–111 records and 628–638 ordinary field offsets. The
+comparison gate passed with no unexplained differences; exact API equivalence
+remains false, with each accepted difference recorded and justified.
+
+The [recorded evidence](corpus/evidence/native-equivalence-2026-09-08.json) identifies
+the tested commits and configurations. See [compatibility](docs/compatibility.md)
+for coverage and gaps. [Benchmarks](docs/benchmarks.md) and [fuzzing](fuzz/README.md)
+record separate performance and malformed-input checks.
 
 ## Development
 

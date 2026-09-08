@@ -32,30 +32,59 @@ Both directories are ignored by Git. A failed command returns a nonzero exit cod
 its stdout, stderr, and invocation. `evidence.json` reports the status of every requested
 project and names any missing builds.
 
-## Recorded native run
+## Recorded native results
 
-The [native run on 2026-09-08](https://github.com/astral-sh/toucan/actions/runs/34174435203)
-passed on x86_64 and AArch64 Linux and macOS. Each target compiled all four libraries and
-completed their FFI checks. Each compared 1,319 integer constants, seven strings, and 17
-records with 88 field offsets, for 4,086 checks. Each generated 1,648 declarations and
-skipped no selected declarations.
+The [native run on 2026-09-08](https://github.com/astral-sh/toucan/actions/runs/34176518153)
+passed C/FFI probes, bindgen API comparison, and independent record-layout probes on x86_64
+and AArch64 Linux and macOS. Each target built all four pinned libraries and generated 1,648
+declarations, with no selected declarations skipped.
 
-| Targets | C compiler | Rust | Omitted macros |
-| --- | --- | --- | --- |
-| x86_64 and AArch64 Linux | GCC 13.3.0 | 1.96.0 | 111 |
-| x86_64 and AArch64 macOS | Apple Clang 17.0.0 | 1.96.0 | 110 |
+Each target passed 5,444 C/Rust comparisons covering 1,319 integer constants, seven strings,
+and the 17 records and 88 offsets selected in the FFI corpus. These include separate checks
+of the C expression types and Rust enum representations of 679 enumerators. Actual calls
+exercise all four libraries.
 
-The [compact evidence](evidence/native-2026-09-08.json) preserves the tested checkout and PR
-head commits, project versions, per-target counts, executable and binding checksums, and
-artifact identifiers and digests. The workflow artifacts retain the complete reports, probe
-sources, commands, and logs for 14 days. The omitted macros include decoration macros,
-function-like macros, aggregate initializers, and SQLite's destructor sentinels. Linux adds
-the empty `Z_LFS64` feature macro to the omitted set. Windows was not run.
+Bindgen comparison found matching signatures for 1,284 functions and matching types for
+three globals on every target. The table records the remaining target-dependent coverage:
 
-This historical run predates enum constant projection, prototype-scope changes, bindgen API
-comparison, and the all-record layout probes. It establishes the recorded C and FFI checks
-for its tested version. Results for later changes and broader comparisons are separate. The
-[earlier local Linux result](evidence/linux-x86_64.json) is retained as a separate snapshot.
+| Target | Shared typedefs | Complete records checked against C | C field offsets | Shared field offsets compared with bindgen |
+| --- | ---: | ---: | ---: | ---: |
+| `x86_64-unknown-linux-gnu` | 203 | 111 | 636 | 636 |
+| `aarch64-unknown-linux-gnu` | 207 | 111 | 638 | 628 |
+| `x86_64-apple-darwin` | 204 | 111 | 636 | 636 |
+| `aarch64-apple-darwin` | 208 | 109 | 628 | 628 |
+
+Counts are per project, so a helper type used by two projects can appear twice. AArch64
+Linux's `va_list` has named fields in Toucan and private storage in bindgen. Its fields are
+checked against C separately; they are excluded from the shared-field comparison. AArch64
+macOS represents `va_list` as a pointer and therefore has fewer record types.
+
+All targets passed with no unexplained differences. Exact API equivalence remains false:
+the reports retain specific constant-type and sentinel differences, SQLite's `xDlSym`
+callback discrepancy, extra Toucan constants, helper-name differences, and private storage
+representations. The type, value, and callback exceptions have separately compiled C oracles.
+
+Linux used GCC 13.3.0; macOS used Apple Clang 17.0.0. Both used Rust 1.96.0 and bindgen
+0.72.1. Reports name 111 omitted macros on Linux and 110 on macOS, including decoration
+macros, function-like macros, aggregate initializers, and SQLite's destructor sentinels.
+Linux additionally defines the empty `Z_LFS64` feature macro. Windows was not run.
+
+The [compact evidence](evidence/native-equivalence-2026-09-08.json) preserves each scope's
+counts, accepted differences, executable and generated-source hashes, artifact metadata,
+and tested checkout SHA separately from the PR head SHA. Workflow artifacts retain complete
+reports, probe sources, commands, and logs for 14 days.
+
+A [separate native test run](https://github.com/astral-sh/toucan/actions/runs/34177031459)
+passed optimized C/Rust `va_list` calls on all four targets, along with the workspace tests,
+lint, and Rust 1.96 checks. Its commit and checkout provenance are recorded separately in
+the same summary. The [CI fuzz smoke run](https://github.com/astral-sh/toucan/actions/runs/34177031461)
+passed with the default sanitizer configuration; [local fuzz runs](../fuzz/README.md) have
+separate scope and sanitizer settings.
+
+The [earlier four-target result](evidence/native-2026-09-08.json) and
+[earlier local Linux result](evidence/linux-x86_64.json) remain historical snapshots. The
+newer record-layout and API checks overlap the FFI corpus; their counts are not a count of
+additional unique assertions.
 
 ## What is checked
 
@@ -64,9 +93,13 @@ for its tested version. Results for later changes and broader comparisons are se
   with `z`. Selection does not reduce the header text passed to the frontend.
 - Generated bindings compile with `improper_ctypes` and `improper_ctypes_definitions` denied.
 - Every emitted integer constant is compared with the C compiler for value, width, and
-  signedness. Every emitted byte-string constant is compared including its terminator.
+  signedness. Enumerators are checked both as C expressions and as values represented by
+  their enum type. Every emitted byte-string constant is compared including its terminator.
 - C `sizeof`, `_Alignof`, and `offsetof` results are compared with Rust for the public records
   listed in [probes.json](probes.json).
+- The differential tools compare generated APIs with bindgen, then independently compile
+  C and Rust probes for every complete record and ordinary field in Toucan's output. See
+  the [comparison tools](../tools/binding_compare/README.md) for commands and scope.
 - The Rust program links the freshly built static library and calls its actual implementation:
   zlib and zstd compression round trips, SQLite in-memory prepare/bind/step/finalize, and
   libgit2 initialization, version queries, object ID conversion, and signature allocation.
