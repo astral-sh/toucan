@@ -1510,18 +1510,22 @@ impl Analyzer {
                         return Ok(false);
                     }
                     for parameter in &prototype.parameters {
-                        if matches!(
-                            self.unit.resolve(&parameter.ty)?.kind,
-                            TypeKind::Bool
-                                | TypeKind::Integer(
-                                    IntegerKind::Char
-                                        | IntegerKind::SignedChar
-                                        | IntegerKind::UnsignedChar
-                                        | IntegerKind::Short
-                                        | IntegerKind::UnsignedShort
-                                )
-                                | TypeKind::Float(FloatKind::Float)
-                        ) {
+                        let parameter_type = self.unit.resolve(&parameter.ty)?;
+                        if (matches!(parameter_type.kind, TypeKind::Enum(_))
+                            && self.integer_type(parameter_type, 0)?.rank < 3)
+                            || matches!(
+                                parameter_type.kind,
+                                TypeKind::Bool
+                                    | TypeKind::Integer(
+                                        IntegerKind::Char
+                                            | IntegerKind::SignedChar
+                                            | IntegerKind::UnsignedChar
+                                            | IntegerKind::Short
+                                            | IntegerKind::UnsignedShort
+                                    )
+                                    | TypeKind::Float(FloatKind::Float)
+                            )
+                        {
                             return Ok(false);
                         }
                     }
@@ -1810,11 +1814,15 @@ impl Analyzer {
             && (record_attributes.packed
                 || record_attributes.alignment.is_some()
                 || record_attributes.transparent_union.is_some())
-            && matches!(self.unit.resolve(&ty)?.kind, TypeKind::Record(id) if self.unit.records[id].fields.is_none());
+            && match self.unit.resolve(&ty)?.kind {
+                TypeKind::Record(id) => self.unit.records[id].fields.is_none(),
+                TypeKind::Enum(id) => !self.unit.enums[id].complete,
+                _ => false,
+            };
         // GCC ignores layout attributes on forward tags; Clang retains them.
         // Both ignore a new attribute applied after the tag is already defined.
         if defines_tag || clang_forward {
-            self.apply_record_attributes(&ty, &record_attributes)?;
+            self.apply_tag_attributes(&ty, &record_attributes)?;
         }
         let atomic_wrapper = atomic && self.unit.atomic_value(&ty)?.is_none();
         if atomic {
@@ -3188,6 +3196,7 @@ impl Analyzer {
         } else {
             let id = self.unit.enums.len();
             self.unit.enums.push(Enum {
+                packed: false,
                 name: name.clone(),
                 scope: self.scope(),
                 complete: false,
@@ -3406,7 +3415,7 @@ impl Analyzer {
         Ok(resolved)
     }
 
-    fn apply_record_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
+    fn apply_tag_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
         attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
         if let Some(span) = attributes.transparent_union {
@@ -3421,6 +3430,14 @@ impl Analyzer {
             if attributes.alignment.is_some() {
                 record.alignment = attributes.alignment;
             }
+        } else if let TypeKind::Enum(id) = self.unit.resolve(ty)?.kind {
+            if attributes.alignment.is_some() {
+                return Err(Error::new(
+                    0,
+                    "alignment attributes on enum tags are unsupported",
+                ));
+            }
+            self.unit.enums[id].packed |= attributes.packed;
         } else if attributes.packed || attributes.alignment.is_some() {
             return Err(Error::new(
                 0,

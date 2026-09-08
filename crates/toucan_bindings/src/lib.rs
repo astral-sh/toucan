@@ -1112,12 +1112,17 @@ impl Emitter<'_> {
     }
 
     fn enum_integer(&self, id: usize) -> Result<(u8, bool), Error> {
-        let layout = self.unit.layout(&Type::new(TypeKind::Enum(id)))?;
-        let signed = self.unit.target.triple().contains("msvc")
-            || self.unit.enums[id]
-                .variants
-                .iter()
-                .any(|v| v.value.signed && v.value.signed_value() < 0);
+        let kind = self.unit.enum_integer_kind(id)?;
+        let layout = self.unit.layout(&Type::new(TypeKind::Integer(kind)))?;
+        let signed = matches!(
+            kind,
+            IntegerKind::SignedChar
+                | IntegerKind::Short
+                | IntegerKind::Int
+                | IntegerKind::Long
+                | IntegerKind::LongLong
+                | IntegerKind::Int128
+        );
         let bits = u8::try_from(layout.size_bits)
             .ok()
             .filter(|bits| [8, 16, 32, 64, 128].contains(bits))

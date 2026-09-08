@@ -919,8 +919,8 @@ Invalid public Boolean metadata is rejected before applying an integer override.
 
 The [Boolean macro evidence](../corpus/evidence/bool-macros-2026-09-08.json) compares
 generated consumers with independent GCC/Clang value, size and `_Generic` type
-probes, including Rust 1.64. Packed enum attributes remain a separate unsupported
-source feature; their compiler-accepted minimized input is recorded for follow-up.
+probes, including Rust 1.64. Packed enum constants initialized from Boolean
+expressions retain C `int` type in macro aliases.
 
 ### Native atomic headers and Clang intrinsics
 
@@ -955,3 +955,32 @@ for a three-byte record, and pointer-to-VLA fetch-add uses a zero stride. The
 positive runtime checks cover three-byte record load/exchange, four-byte record
 compare-exchange, fixed-size pointer arithmetic, and VLA initialization/load;
 they do not claim those compiler failures pass or validate a Toucan code generator.
+
+
+### Packed enums
+
+GNU `packed` enum tags select the smallest compatible integer that represents
+all enumerators. Linux and Darwin profiles support signed and unsigned byte and
+short representations; the Microsoft ABI ignores enum packing and keeps its
+ordinary `int` representation. `TranslationUnit::enum_integer_kind` returns the
+compatible integer without erasing the enum's nominal identity. Small enumerator
+identifiers still have C `int` type, and narrow enum values promote to `int` in
+arithmetic and variadic arguments.
+
+Tag attributes apply at the definition. Clang also retains attributes on a
+forward tag; GNU ignores them there. Packing a typedef or object does not change
+its enum tag. Direct enum alignment attributes remain unsupported. GNU
+`__alignof__(expression)` is a separate parser gap; type alignment queries work.
+
+Default bindings preserve the compatible integer domain. Optional Rust enums use
+the corresponding integer representation and require named valid variants.
+Packed atomic enum storage uses the matching core integer atomic; the existing
+Clang narrow atomic call diagnostic applies to its reduced width.
+
+[Packed enum evidence](../corpus/evidence/packed-enums-2026-09-08.json) records
+seven-profile type/layout comparisons and declaration constraints, generated
+GCC/Clang C↔Rust calls on x86_64 Linux at independent C O0/O2 and Rust O0/O3,
+Rust 1.64/current consumers, and unchanged default allocations and bindings.
+The native tests cover callbacks, stack arguments, structs, unions and variadic
+promotion. Cross-target compilation establishes layout/type constraints; native
+macOS and ARM calls remain CI gates.

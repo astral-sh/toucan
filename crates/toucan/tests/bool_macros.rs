@@ -142,22 +142,23 @@ fn policies_preserve_boolean_identity_and_enum_alias_integer_types() {
 }
 
 #[test]
-fn packed_enum_source_keeps_its_explicit_unsupported_diagnostic() {
-    let mut config = Config::new(Target::X86_64UnknownLinuxGnu);
-    config.preprocessor.defines.clear();
-    let error = toucan::parse_source(
-        Path::new("packed.h"),
-        "enum __attribute__((packed)) P { VALUE = (_Bool)1 };",
-        &config,
-    )
-    .err()
-    .expect("packed enums remain unsupported");
-    assert!(
-        error
-            .to_string()
-            .contains("layout attributes on a non-record type"),
-        "{error}"
-    );
+fn packed_enum_bool_initializers_keep_int_macro_aliases() {
+    for profile in toucan::CompilerProfile::ALL {
+        let mut config = Config::with_profile(profile);
+        config.preprocessor.defines.clear();
+        let compilation = toucan::parse_source(
+            Path::new("packed.h"),
+            "enum __attribute__((packed)) P { VALUE = (_Bool)1 };\n#define PACKED_ALIAS VALUE\n",
+            &config,
+        )
+        .unwrap();
+        let value = toucan::semantic::evaluate_integer(compilation.unit(), "VALUE").unwrap();
+        assert_eq!((value.bits, value.signed, value.rank), (32, true, 3));
+        let (source, report) = compilation.bindings(&BindingOptions::default()).unwrap();
+        assert!(source.contains("pub const PACKED_ALIAS: ::core::primitive::i32 = 1;"));
+        assert!(!source.contains("pub const VALUE: ::core::primitive::bool"));
+        assert!(report.skipped_macros.is_empty());
+    }
 }
 
 #[test]

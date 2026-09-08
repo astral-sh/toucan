@@ -526,27 +526,9 @@ impl Analyzer {
                 IntegerKind::Int128 => (128, true, 6),
                 IntegerKind::UnsignedInt128 => (128, false, 6),
             },
-            TypeKind::Enum(_) => {
-                let layout = self.unit.layout(ty)?;
-                let TypeKind::Enum(id) = ty.kind else {
-                    unreachable!()
-                };
-                let signed = self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
-                    || self.unit.enums[id]
-                        .variants
-                        .iter()
-                        .any(|variant| variant.value.signed && variant.value.signed_value() < 0);
-                let bits = layout.size_bits as u8;
-                let rank = if bits <= 32 {
-                    3
-                } else if u64::from(bits) <= self.unit.target.long_width() {
-                    4
-                } else if bits <= 64 {
-                    5
-                } else {
-                    6
-                };
-                (bits, signed, rank)
+            TypeKind::Enum(id) => {
+                let kind = self.unit.enum_integer_kind(id)?;
+                return self.integer_type(&Type::new(TypeKind::Integer(kind)), offset);
             }
             _ => return Err(Error::new(offset, "expected an integer type")),
         };

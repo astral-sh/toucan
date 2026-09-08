@@ -299,6 +299,9 @@ pub struct Field {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Enum {
+    /// Canonical tag packing. The MSVC ABI retains int representation.
+    #[serde(skip_serializing_if = "is_false")]
+    pub packed: bool,
     pub name: Option<String>,
     pub scope: Scope,
     /// Whether the closing brace of the definition has been reached.
@@ -847,6 +850,9 @@ impl TranslationUnit {
                     .ok_or_else(|| Error::new(0, "invalid enum identity"))?;
                 if !enumeration.complete {
                     return Err(Error::new(0, "incomplete enum has no object layout"));
+                }
+                if enumeration.packed {
+                    annotations.push(target::Annotation::Packed);
                 }
                 target::TypeVariant::Enum(
                     enumeration
