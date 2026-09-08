@@ -59,6 +59,11 @@ impl Emitter<'_> {
     /// Register storage once; recursive pointer dependencies are collected afterward.
     pub(super) fn collect_atomic(&mut self, ty: &Type, depth: usize) -> Result<(), Error> {
         check_depth(depth)?;
+        let unit = self.unit;
+        let value = unit
+            .atomic_value(ty)?
+            .ok_or_else(|| Error("expected atomic storage".into()))?;
+        self.reject_complex_storage(value)?;
         let key = self.atomic_key(ty)?;
         if self.atomics.indices.contains_key(&key) {
             return Ok(());
@@ -242,6 +247,7 @@ impl Emitter<'_> {
 
     /// Collect pointer/function dependencies used only by the scalar call carrier.
     pub(super) fn collect_call_value(&mut self, ty: &Type, depth: usize) -> Result<(), Error> {
+        self.reject_complex_call_value(ty, depth)?;
         self.collect_at(ty, depth)?;
         if let Some(value) = self.unit.atomic_value(ty)?
             && matches!(self.unit.resolve(value)?.kind, TypeKind::Pointer(_))
@@ -261,6 +267,9 @@ impl Emitter<'_> {
             return self.ty_at(ty, depth);
         };
         let resolved = self.unit.resolve(value)?;
+        if matches!(resolved.kind, TypeKind::Complex(_)) {
+            return Err(crate::complex::call_abi_error());
+        }
         if self.unit.compiler == Compiler::Clang
             && matches!(
                 resolved.kind,

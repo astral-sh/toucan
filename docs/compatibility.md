@@ -490,8 +490,10 @@ code for these operations.
   tags retain distinct identities and are checked against GCC and Clang.
 - [C11 identifier-list definitions](old-style-definitions.md) preserve incoming
   argument types, local parameter types and retained entry conversions.
-- C++, complex types, unsupported calling conventions,
-  and unknown ABI attributes are rejected.
+- C++, unsupported calling conventions, and unknown ABI attributes are rejected.
+- The three [C11 complex scalar types](complex-types.md) have semantic, layout,
+  constant, and checked-code support. Complex Rust storage and call ABIs remain
+  explicit binding diagnostics.
 - Thread-local and atomic objects are checked by the semantic library. Direct TLS
   bindings require C accessors. Atomic objects use the storage and scalar call
   representations described below; aggregate calls still require C pointer accessors.

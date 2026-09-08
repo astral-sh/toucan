@@ -42,6 +42,36 @@ impl Analyzer {
         character.pointer()
     }
 
+    /// GNU/Clang's component constructor preserves each operand's real value.
+    pub(crate) fn complex_constructor_type(
+        &mut self,
+        call: &Node<ast::CallExpression>,
+    ) -> Result<Type, Error> {
+        let [real, imaginary] = call.node.arguments.as_slice() else {
+            return Err(Error::new(
+                call.span.start,
+                "__builtin_complex requires two real floating arguments",
+            ));
+        };
+        let real = self.value_expression_type(real)?;
+        let imaginary = self.value_expression_type(imaginary)?;
+        let (TypeKind::Float(real), TypeKind::Float(imaginary)) = (&real.kind, &imaginary.kind)
+        else {
+            return Err(Error::new(
+                call.span.start,
+                "__builtin_complex requires matching real floating argument types",
+            ));
+        };
+        if real != imaginary {
+            return Err(Error::new(
+                call.span.start,
+                "__builtin_complex requires matching real floating argument types",
+            ));
+        }
+        self.require_complex_kind(*real, call.span.start)?;
+        Ok(Type::new(TypeKind::Complex(*real)))
+    }
+
     /// Byte-swap prototypes use the compiler target's exact-width unsigned types.
     pub(crate) fn byte_swap_type(&self, name: &str) -> Option<Type> {
         let kind = match name {
@@ -136,6 +166,9 @@ impl Analyzer {
         let Some(name) = self.builtin_name(call) else {
             return Ok(None);
         };
+        if name == "__builtin_complex" {
+            return self.complex_constructor_type(call).map(Some);
+        }
         if name == "__builtin_shufflevector" {
             return self
                 .shuffle_vector_signature(call)
@@ -273,6 +306,17 @@ impl Analyzer {
             "__builtin_constant_p" => {
                 let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.value_expression_type(&arguments[0])?;
+                if self.unit.compiler == toucan_target::Compiler::Clang
+                    && matches!(ty.kind, TypeKind::Complex(_))
+                {
+                    if !self.known_constant_operand(&arguments[0])? {
+                        return Err(Error::new(
+                            offset,
+                            "Clang complex constant-query fallback evaluation is unsupported",
+                        ));
+                    }
+                    self.discard_sve_feature_uses(checkpoint);
+                }
                 // Clang can evaluate fresh VLA bounds in numeric queries. A
                 // nonnumeric operand cannot reach that fallback; GNU suppresses
                 // all query operands. Retain uncertain Clang obligations.

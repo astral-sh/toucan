@@ -21,7 +21,7 @@ impl Analyzer {
         Ok(IntegerValue::int(i128::from(known)))
     }
 
-    fn known_constant_operand(
+    pub(crate) fn known_constant_operand(
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<bool, Error> {
@@ -149,6 +149,7 @@ impl Analyzer {
                         || self.bit_count_type(name).is_some()
                         || self.infinity_builtin_kind(name).is_some()
                         || self.nan_builtin(name).is_some()
+                        || name == "__builtin_complex"
                 }) {
                     return Ok(false);
                 }

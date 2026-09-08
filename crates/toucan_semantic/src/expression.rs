@@ -98,13 +98,13 @@ impl Analyzer {
                     )?)
                 }
                 ast::Constant::Float(float) => {
+                    let kind = crate::narrow_float::literal_kind(&float.suffix.format, offset)?;
                     if float.suffix.imaginary {
-                        return Err(Error::new(offset, "complex expressions are unsupported"));
+                        self.require_complex_kind(kind, offset)?;
+                        Type::new(TypeKind::Complex(kind))
+                    } else {
+                        Type::new(TypeKind::Float(kind))
                     }
-                    Type::new(TypeKind::Float(crate::narrow_float::literal_kind(
-                        &float.suffix.format,
-                        offset,
-                    )?))
                 }
             },
             ast::Expression::Identifier(identifier) => {
@@ -207,8 +207,13 @@ impl Analyzer {
                             | TypeKind::Function(_)
                     ) || matches!(
                         (&destination.kind, &source.kind),
-                        (TypeKind::Pointer(_), TypeKind::Float(_))
-                            | (TypeKind::Float(_), TypeKind::Pointer(_))
+                        (
+                            TypeKind::Pointer(_),
+                            TypeKind::Float(_) | TypeKind::Complex(_)
+                        ) | (
+                            TypeKind::Float(_) | TypeKind::Complex(_),
+                            TypeKind::Pointer(_)
+                        )
                     ) {
                         return Err(Error::new(offset, "invalid scalar cast"));
                     }
@@ -312,7 +317,7 @@ impl Analyzer {
                     }
                     ast::UnaryOperator::Plus | ast::UnaryOperator::Minus => {
                         self.require_arithmetic(&value, offset)?;
-                        if matches!(value.kind, TypeKind::Float(_)) {
+                        if matches!(value.kind, TypeKind::Float(_) | TypeKind::Complex(_)) {
                             value
                         } else {
                             let result = integer_to_type(self.promoted_integer(&operand, offset)?);
@@ -325,6 +330,12 @@ impl Analyzer {
                     | ast::UnaryOperator::PostIncrement
                     | ast::UnaryOperator::PostDecrement => {
                         self.require_modifiable(&operand, offset)?;
+                        if matches!(value.kind, TypeKind::Complex(_)) {
+                            return Err(Error::new(
+                                offset,
+                                "GNU complex increment and decrement are unsupported",
+                            ));
+                        }
                         if matches!(value.kind, TypeKind::Vector { .. }) {
                             if !self.gnu_vector_profile() {
                                 return Err(Error::new(
@@ -777,6 +788,15 @@ impl Analyzer {
             | Op::Greater
             | Op::GreaterOrEqual => {
                 if self.is_arithmetic(&left_value)? && self.is_arithmetic(&right_value)? {
+                    if !matches!(operator, Op::Equals | Op::NotEquals)
+                        && (matches!(left_value.kind, TypeKind::Complex(_))
+                            || matches!(right_value.kind, TypeKind::Complex(_)))
+                    {
+                        return Err(Error::new(
+                            offset,
+                            "ordered comparison requires real operands",
+                        ));
+                    }
                     self.arithmetic_type(&left, &right, offset)?;
                 } else if matches!(operator, Op::Equals | Op::NotEquals) {
                     if matches!(left_value.kind, TypeKind::Pointer(_))
@@ -1127,6 +1147,7 @@ impl Analyzer {
             TypeKind::Bool
                 | TypeKind::Integer(_)
                 | TypeKind::Float(_)
+                | TypeKind::Complex(_)
                 | TypeKind::Enum(_)
                 | TypeKind::Pointer(_)
         ) {
@@ -1138,7 +1159,11 @@ impl Analyzer {
     pub(crate) fn is_arithmetic(&self, ty: &Type) -> Result<bool, Error> {
         Ok(matches!(
             self.unit.resolve(ty)?.kind,
-            TypeKind::Bool | TypeKind::Integer(_) | TypeKind::Enum(_) | TypeKind::Float(_)
+            TypeKind::Bool
+                | TypeKind::Integer(_)
+                | TypeKind::Enum(_)
+                | TypeKind::Float(_)
+                | TypeKind::Complex(_)
         ))
     }
 
@@ -1230,7 +1255,7 @@ impl Analyzer {
         let left_kind = &self.unit.resolve(left_type)?.kind;
         let right_kind = &self.unit.resolve(right_type)?.kind;
         let float_kind = |kind: &TypeKind| {
-            if let TypeKind::Float(kind) = kind {
+            if let TypeKind::Float(kind) | TypeKind::Complex(kind) = kind {
                 Some(*kind)
             } else {
                 None
@@ -1239,12 +1264,61 @@ impl Analyzer {
         if let Some(kind) =
             crate::narrow_float::common_kind(float_kind(left_kind), float_kind(right_kind), offset)?
         {
-            return Ok(Type::new(TypeKind::Float(kind)));
+            return Ok(Type::new(
+                if matches!(left_kind, TypeKind::Complex(_))
+                    || matches!(right_kind, TypeKind::Complex(_))
+                {
+                    self.require_complex_kind(kind, offset)?;
+                    TypeKind::Complex(kind)
+                } else {
+                    TypeKind::Float(kind)
+                },
+            ));
         }
         Ok(integer_to_type(common(
             self.promoted_integer(left, offset)?,
             self.promoted_integer(right, offset)?,
         )))
+    }
+
+    /// Compute common real precision without changing either operand's domain.
+    /// A real operand stays real in mixed complex arithmetic (C11 6.3.1.8).
+    pub(crate) fn arithmetic_operand_types(
+        &self,
+        left: &ExpressionInfo,
+        right: &ExpressionInfo,
+        offset: usize,
+    ) -> Result<(Type, Type, Type), Error> {
+        let result = self.arithmetic_type(left, right, offset)?;
+        if let TypeKind::Complex(kind) = result.kind {
+            let left = self.converted_type(left, offset)?;
+            let right = self.converted_type(right, offset)?;
+            let operand = |ty: &Type| {
+                Type::new(if matches!(ty.kind, TypeKind::Complex(_)) {
+                    TypeKind::Complex(kind)
+                } else {
+                    TypeKind::Float(kind)
+                })
+            };
+            Ok((operand(&left), operand(&right), result))
+        } else {
+            Ok((result.clone(), result.clone(), result))
+        }
+    }
+
+    pub(crate) fn require_complex_kind(
+        &self,
+        kind: crate::FloatKind,
+        offset: usize,
+    ) -> Result<(), Error> {
+        if matches!(
+            kind,
+            crate::FloatKind::Float | crate::FloatKind::Double | crate::FloatKind::LongDouble
+        ) {
+            Ok(())
+        } else {
+            Err(Error::new(offset, "extended complex types are unsupported"))
+        }
     }
 
     /// A common pointed-to type may add top-level qualifiers; nested pointers must

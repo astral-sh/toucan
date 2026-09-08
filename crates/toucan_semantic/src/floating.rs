@@ -8,8 +8,8 @@ use toucan_target::Target;
 use crate::analyze::Analyzer;
 use crate::integer::{convert, promote, signed_result};
 use crate::{
-    ArithmeticConstant, Error, FloatKind, FloatingFormat, FloatingValue, IntegerValue, Type,
-    TypeKind,
+    ArithmeticConstant, ComplexValue, Error, FloatKind, FloatingFormat, FloatingValue,
+    IntegerValue, Type, TypeKind,
 };
 
 /// Binary128 exactly stores every finite value in the supported C formats. Each
@@ -25,6 +25,12 @@ pub(crate) enum ArithmeticValue {
         // C arithmetic operations.
         signaling: bool,
     },
+    Complex {
+        real: Quad,
+        imaginary: Quad,
+        kind: FloatKind,
+        signaling: [bool; 2],
+    },
 }
 
 impl ArithmeticValue {
@@ -39,25 +45,23 @@ impl ArithmeticValue {
                 value,
                 kind,
                 signaling,
+            } => ArithmeticConstant::Floating(floating_constant(
+                value, kind, signaling, target, offset,
+            )?),
+            Self::Complex {
+                real,
+                imaginary,
+                kind,
+                signaling,
             } => {
-                let format = Format::for_type(kind, target, offset)?;
-                let bits = match format {
-                    Format::Binary16 => encode_float::<Half>(value, signaling),
-                    Format::BFloat16 => encode_float::<BFloat>(value, signaling),
-                    Format::Binary32 => encode_float::<Single>(value, signaling),
-                    Format::Binary64 => encode_float::<Double>(value, signaling),
-                    Format::X87 => encode_float::<X87DoubleExtended>(value, signaling),
-                    Format::Binary128 => encode_float::<Quad>(value, signaling),
-                };
-                let format = match format {
-                    Format::Binary16 => FloatingFormat::Binary16,
-                    Format::BFloat16 => FloatingFormat::BFloat16,
-                    Format::Binary32 => FloatingFormat::Binary32,
-                    Format::Binary64 => FloatingFormat::Binary64,
-                    Format::X87 => FloatingFormat::X87,
-                    Format::Binary128 => FloatingFormat::Binary128,
-                };
-                ArithmeticConstant::Floating(FloatingValue { kind, format, bits })
+                let real = floating_constant(real, kind, signaling[0], target, offset)?;
+                let imaginary = floating_constant(imaginary, kind, signaling[1], target, offset)?;
+                ArithmeticConstant::Complex(ComplexValue {
+                    kind,
+                    format: real.format,
+                    real_bits: real.bits,
+                    imaginary_bits: imaginary.bits,
+                })
             }
         })
     }
@@ -66,13 +70,18 @@ impl ArithmeticValue {
         match self {
             Self::Integer(value) => value.truth(),
             Self::Floating { value, .. } => !value.is_zero(),
+            Self::Complex {
+                real, imaginary, ..
+            } => !real.is_zero() || !imaginary.is_zero(),
         }
     }
 
     pub(crate) fn integer(self, offset: usize) -> Result<IntegerValue, Error> {
         match self {
             Self::Integer(value) => Ok(value),
-            Self::Floating { .. } => Err(Error::new(offset, "expected an integer constant")),
+            Self::Floating { .. } | Self::Complex { .. } => {
+                Err(Error::new(offset, "expected an integer constant"))
+            }
         }
     }
 }
@@ -128,9 +137,6 @@ impl Analyzer {
         literal: &ast::Float,
         offset: usize,
     ) -> Result<ArithmeticValue, Error> {
-        if literal.suffix.imaginary {
-            return Err(Error::new(offset, "complex constants are unsupported"));
-        }
         if literal.number.len() > 4096 {
             return Err(Error::new(
                 offset,
@@ -149,10 +155,20 @@ impl Analyzer {
             format,
             parse_literal(&number, offset, kind.is_narrow() && self.gnu_sync_profile())
         )?;
-        Ok(ArithmeticValue::Floating {
-            value,
-            kind,
-            signaling: false,
+        Ok(if literal.suffix.imaginary {
+            self.require_complex_kind(kind, offset)?;
+            ArithmeticValue::Complex {
+                real: Quad::ZERO,
+                imaginary: value,
+                kind,
+                signaling: [false; 2],
+            }
+        } else {
+            ArithmeticValue::Floating {
+                value,
+                kind,
+                signaling: false,
+            }
         })
     }
 
@@ -194,6 +210,37 @@ impl Analyzer {
                         value: dispatch!(format, nan_storage(payload, signaling)),
                         kind,
                         signaling,
+                    })
+                } else if name == Some("__builtin_complex") {
+                    let ty = self.complex_constructor_type(call)?;
+                    let TypeKind::Complex(kind) = ty.kind else {
+                        unreachable!("complex constructor type")
+                    };
+                    let real = self.eval_arithmetic(&call.node.arguments[0])?;
+                    let imaginary = self.eval_arithmetic(&call.node.arguments[1])?;
+                    let (
+                        ArithmeticValue::Floating {
+                            value: real,
+                            signaling: real_signaling,
+                            ..
+                        },
+                        ArithmeticValue::Floating {
+                            value: imaginary,
+                            signaling: imaginary_signaling,
+                            ..
+                        },
+                    ) = (real, imaginary)
+                    else {
+                        return Err(Error::new(
+                            offset,
+                            "__builtin_complex constant arguments must be real floating values",
+                        ));
+                    };
+                    Ok(ArithmeticValue::Complex {
+                        real,
+                        imaginary,
+                        kind,
+                        signaling: [real_signaling, imaginary_signaling],
                     })
                 } else {
                     self.eval(expression).map(ArithmeticValue::Integer)
@@ -270,6 +317,29 @@ impl Analyzer {
                     ))));
                 }
                 match value {
+                    ArithmeticValue::Complex {
+                        real,
+                        imaginary,
+                        kind,
+                        signaling,
+                    } => {
+                        let (real, imaginary) = match unary.node.operator.node {
+                            Unary::Plus => (real, imaginary),
+                            Unary::Minus => (-real, -imaginary),
+                            _ => {
+                                return Err(Error::new(
+                                    offset,
+                                    "operator requires integer operands",
+                                ));
+                            }
+                        };
+                        Ok(ArithmeticValue::Complex {
+                            real,
+                            imaginary,
+                            kind,
+                            signaling,
+                        })
+                    }
                     ArithmeticValue::Floating {
                         value,
                         kind,
@@ -422,6 +492,73 @@ impl Analyzer {
                 0,
             )));
         }
+        if let TypeKind::Complex(kind) = ty.kind {
+            self.require_complex_kind(kind, offset)?;
+            let (real, imaginary) = match value {
+                ArithmeticValue::Complex {
+                    real,
+                    imaginary,
+                    kind,
+                    signaling,
+                } => (
+                    ArithmeticValue::Floating {
+                        value: real,
+                        kind,
+                        signaling: signaling[0],
+                    },
+                    ArithmeticValue::Floating {
+                        value: imaginary,
+                        kind,
+                        signaling: signaling[1],
+                    },
+                ),
+                value => (
+                    value,
+                    ArithmeticValue::Floating {
+                        value: Quad::ZERO,
+                        kind,
+                        signaling: false,
+                    },
+                ),
+            };
+            let real_ty = Type::new(TypeKind::Float(kind));
+            let real = self.convert_arithmetic(real, &real_ty, offset)?;
+            let imaginary = self.convert_arithmetic(imaginary, &real_ty, offset)?;
+            let (
+                ArithmeticValue::Floating {
+                    value: real,
+                    signaling: real_signaling,
+                    ..
+                },
+                ArithmeticValue::Floating {
+                    value: imaginary,
+                    signaling: imaginary_signaling,
+                    ..
+                },
+            ) = (real, imaginary)
+            else {
+                unreachable!("real component conversion")
+            };
+            return Ok(ArithmeticValue::Complex {
+                real,
+                imaginary,
+                kind,
+                signaling: [real_signaling, imaginary_signaling],
+            });
+        }
+        let value = match value {
+            ArithmeticValue::Complex {
+                real,
+                kind,
+                signaling,
+                ..
+            } => ArithmeticValue::Floating {
+                value: real,
+                kind,
+                signaling: signaling[0],
+            },
+            value => value,
+        };
         if let TypeKind::Float(kind) = ty.kind {
             let format = Format::for_type(kind, self.unit.target, offset)?;
             let signaling = if let ArithmeticValue::Floating {
@@ -443,6 +580,7 @@ impl Analyzer {
         let destination = self.integer_type(destination, offset)?;
         let result = match value {
             ArithmeticValue::Integer(value) => convert(value, destination),
+            ArithmeticValue::Complex { .. } => unreachable!("complex real component extracted"),
             ArithmeticValue::Floating { value, .. } => {
                 // C floating-to-integer conversion truncates toward zero. It
                 // does not wrap out-of-range values as integer casts do.
@@ -484,6 +622,81 @@ impl Analyzer {
         Ok(())
     }
 
+    fn complex_binary(
+        &self,
+        operator: &ast::BinaryOperator,
+        left: ArithmeticValue,
+        right: ArithmeticValue,
+        kind: FloatKind,
+        format: Format,
+        offset: usize,
+    ) -> Result<ArithmeticValue, Error> {
+        let real_domains = [
+            !matches!(left, ArithmeticValue::Complex { .. }),
+            !matches!(right, ArithmeticValue::Complex { .. }),
+        ];
+        let ty = Type::new(TypeKind::Complex(kind));
+        let left = self.convert_arithmetic(left, &ty, offset)?;
+        let right = self.convert_arithmetic(right, &ty, offset)?;
+        let (
+            ArithmeticValue::Complex {
+                real: a,
+                imaginary: b,
+                signaling: left_signaling,
+                ..
+            },
+            ArithmeticValue::Complex {
+                real: c,
+                imaginary: d,
+                signaling: right_signaling,
+                ..
+            },
+        ) = (left, right)
+        else {
+            unreachable!("converted complex operands")
+        };
+        if matches!(
+            operator,
+            ast::BinaryOperator::Equals | ast::BinaryOperator::NotEquals
+        ) {
+            let equal = a == c && b == d;
+            return Ok(ArithmeticValue::Integer(IntegerValue::int(i128::from(
+                if *operator == ast::BinaryOperator::Equals {
+                    equal
+                } else {
+                    !equal
+                },
+            ))));
+        }
+        if left_signaling
+            .into_iter()
+            .chain(right_signaling)
+            .any(|value| value)
+        {
+            return Err(Error::new(
+                offset,
+                "arithmetic on signaling NaN constants is unsupported",
+            ));
+        }
+        use crate::complex::binary as complex_float;
+        let [real, imaginary] = dispatch!(
+            format,
+            complex_float(
+                operator,
+                [a, b, c, d],
+                real_domains,
+                self.gnu_sync_profile(),
+                offset
+            )
+        )?;
+        Ok(ArithmeticValue::Complex {
+            real,
+            imaginary,
+            kind,
+            signaling: [false; 2],
+        })
+    }
+
     fn arithmetic_binary(
         &self,
         operator: &ast::BinaryOperator,
@@ -498,7 +711,9 @@ impl Analyzer {
                 .map(ArithmeticValue::Integer);
         }
         let float_kind = |value| {
-            if let ArithmeticValue::Floating { kind, .. } = value {
+            if let ArithmeticValue::Floating { kind, .. } | ArithmeticValue::Complex { kind, .. } =
+                value
+            {
                 Some(kind)
             } else {
                 None
@@ -508,6 +723,11 @@ impl Analyzer {
             .expect("a floating operand is present");
         self.require_narrow_constant_precision(kind, offset)?;
         let format = Format::for_type(kind, self.unit.target, offset)?;
+        if matches!(left, ArithmeticValue::Complex { .. })
+            || matches!(right, ArithmeticValue::Complex { .. })
+        {
+            return self.complex_binary(operator, left, right, kind, format, offset);
+        }
         let signaling = matches!(
             left,
             ArithmeticValue::Floating {
@@ -549,6 +769,33 @@ impl Analyzer {
             signaling: false,
         })
     }
+}
+
+fn floating_constant(
+    value: Quad,
+    kind: FloatKind,
+    signaling: bool,
+    target: Target,
+    offset: usize,
+) -> Result<FloatingValue, Error> {
+    let format = Format::for_type(kind, target, offset)?;
+    let bits = match format {
+        Format::Binary16 => encode_float::<Half>(value, signaling),
+        Format::BFloat16 => encode_float::<BFloat>(value, signaling),
+        Format::Binary32 => encode_float::<Single>(value, signaling),
+        Format::Binary64 => encode_float::<Double>(value, signaling),
+        Format::X87 => encode_float::<X87DoubleExtended>(value, signaling),
+        Format::Binary128 => encode_float::<Quad>(value, signaling),
+    };
+    let format = match format {
+        Format::Binary16 => FloatingFormat::Binary16,
+        Format::BFloat16 => FloatingFormat::BFloat16,
+        Format::Binary32 => FloatingFormat::Binary32,
+        Format::Binary64 => FloatingFormat::Binary64,
+        Format::X87 => FloatingFormat::X87,
+        Format::Binary128 => FloatingFormat::Binary128,
+    };
+    Ok(FloatingValue { kind, format, bits })
 }
 
 /// GNU payload digits are accumulated modulo 2^128; every supported significand
@@ -635,7 +882,9 @@ where
     let converted = match value {
         ArithmeticValue::Integer(value) if value.signed => F::from_i128(value.signed_value()),
         ArithmeticValue::Integer(value) => F::from_u128(value.value),
-        ArithmeticValue::Floating { value, .. } => value.convert(&mut false),
+        ArithmeticValue::Floating { value, .. } | ArithmeticValue::Complex { real: value, .. } => {
+            value.convert(&mut false)
+        }
     };
     let value = checked_result(converted, offset)?;
     Ok(value.convert(&mut false).value)

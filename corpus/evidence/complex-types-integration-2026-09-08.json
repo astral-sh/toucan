@@ -1,0 +1,44 @@
+{
+  "schema_version": 1,
+  "integration_base": "b5249c5",
+  "frozen_patch_sha256": "8af2d9c739e0c6a225fd84e08e5a223707a16f4c5b60462e80a0141da5c7f5c7",
+  "integration": "Preserve both complex-constructor and vector-shuffle builtin dispatch after integrating minimum-vector-width and shuffle support.",
+  "validation": {
+    "workspace_tests": {
+      "passed": 756,
+      "failed": 0,
+      "ignored": 0
+    },
+    "focused_native_tests": {
+      "passed": 11,
+      "failed": 0,
+      "ignored": 0
+    },
+    "checked_seed_replay": {
+      "profiles": 7,
+      "accepted": 338,
+      "matching_diagnostics": 110,
+      "normal_retained_unit_equality": true,
+      "graph_invariants": true
+    },
+    "clippy": "workspace all targets/all features, warnings denied",
+    "logs": {
+      "workspace": {
+        "path": "/tmp/toucan-complex-integrated-workspace.log",
+        "sha256": "4cd133d071b666d663a5ce26610493426b0482df777f091b1c97cd360285aef8"
+      },
+      "focused": {
+        "path": "/tmp/toucan-complex-integrated-tests.log",
+        "sha256": "6eb7e1341882dd646a2b5db03a86664c2d78d9e81f8b218812afafc938ca47d4"
+      },
+      "clippy": {
+        "path": "/tmp/toucan-complex-integrated-clippy.log",
+        "sha256": "64d7095d4f5bece27bcf3d6052b87c0be682208e65575a39b36a22628649b4f5"
+      },
+      "replay": {
+        "path": "/tmp/toucan-complex-replay.log",
+        "sha256": "abf630bcbb110e360b50f496792571a020854a30fec4ee8e99cb38a219663c54"
+      }
+    }
+  }
+}

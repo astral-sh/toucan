@@ -181,6 +181,8 @@ pub enum Builtin {
     /// each mask lane selects modulo the concatenated input lane count. All
     /// operands are evaluated once in ordinary unspecified argument order.
     VectorShuffle,
+    /// Constructs a complex value from two matching real floating components.
+    Complex,
     X86(crate::x86::X86Intrinsic),
     Sync(crate::sync::SyncOperation),
     Atomic(crate::atomic::AtomicOperation),
@@ -251,6 +253,7 @@ impl Builtin {
     fn from_name(name: &str) -> Option<Self> {
         Some(match name {
             "__builtin_shuffle" => Self::VectorShuffle,
+            "__builtin_complex" => Self::Complex,
             "__builtin_va_start" => Self::VaStart,
             "__builtin_va_end" => Self::VaEnd,
             "__builtin_va_copy" => Self::VaCopy,
@@ -346,6 +349,11 @@ pub struct GenericArm {
 pub enum ExprKind {
     Integer(IntegerValue),
     Float {
+        digits: String,
+        hexadecimal: bool,
+    },
+    /// GNU imaginary floating literal, with positive zero real component.
+    ImaginaryFloat {
         digits: String,
         hexadecimal: bool,
     },
@@ -1022,9 +1030,18 @@ impl Analyzer {
                     self.code_builder()
                         .budget
                         .charge(0, 0, float.number.len(), offset)?;
-                    ExprKind::Float {
-                        digits: float.number.to_string(),
-                        hexadecimal: float.base == ast::FloatBase::Hexadecimal,
+                    let digits = float.number.to_string();
+                    let hexadecimal = float.base == ast::FloatBase::Hexadecimal;
+                    if float.suffix.imaginary {
+                        ExprKind::ImaginaryFloat {
+                            digits,
+                            hexadecimal,
+                        }
+                    } else {
+                        ExprKind::Float {
+                            digits,
+                            hexadecimal,
+                        }
                     }
                 }
             },
@@ -1592,7 +1609,7 @@ impl Analyzer {
                             Conversion::Assignment,
                         )),
                     )
-                } else if builtin == Builtin::VectorShuffle {
+                } else if matches!(builtin, Builtin::VectorShuffle | Builtin::Complex) {
                     (UseContext::Value, None)
                 } else if builtin == Builtin::ConstantQuery {
                     (UseContext::UnevaluatedValue, None)
@@ -1793,10 +1810,10 @@ impl Analyzer {
                 right_destination = Some((right, Conversion::IntegerPromotion));
             }
             _ if self.is_arithmetic(&left_value)? && self.is_arithmetic(&right_value)? => {
-                let common = self.arithmetic_type(&left, &right, offset)?;
-                computation = Some(common.clone());
-                left_destination = Some((common.clone(), Conversion::Arithmetic));
-                right_destination = Some((common, Conversion::Arithmetic));
+                let (left, right, result) = self.arithmetic_operand_types(&left, &right, offset)?;
+                computation = Some(result);
+                left_destination = Some((left, Conversion::Arithmetic));
+                right_destination = Some((right, Conversion::Arithmetic));
             }
             Op::Equals
             | Op::NotEquals

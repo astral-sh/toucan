@@ -66,6 +66,8 @@ pub enum TypeKind {
     Bool,
     Integer(IntegerKind),
     Float(FloatKind),
+    /// A C complex scalar, with two components of the corresponding real type.
+    Complex(FloatKind),
     Pointer(Box<Type>),
     /// C11 atomic object type. Storage layout and observable accesses differ
     /// from the contained non-atomic value; outer qualifiers remain independent.
@@ -191,12 +193,54 @@ impl FloatingValue {
     }
 }
 
+/// An owned complex constant with corresponding-real target encodings.
+/// The real component precedes the imaginary component in C object storage;
+/// these encodings exclude padding within either component.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct ComplexValue {
+    pub(crate) kind: FloatKind,
+    pub(crate) format: FloatingFormat,
+    pub(crate) real_bits: u128,
+    pub(crate) imaginary_bits: u128,
+}
+
+impl ComplexValue {
+    /// Return the common C type of the two real components.
+    pub const fn kind(self) -> FloatKind {
+        self.kind
+    }
+
+    /// Return the target encoding of either component, excluding object padding.
+    pub const fn format(self) -> FloatingFormat {
+        self.format
+    }
+
+    /// Return the real component without changing its target representation.
+    pub const fn real(self) -> FloatingValue {
+        FloatingValue {
+            kind: self.kind,
+            format: self.format,
+            bits: self.real_bits,
+        }
+    }
+
+    /// Return the imaginary component without changing its target representation.
+    pub const fn imaginary(self) -> FloatingValue {
+        FloatingValue {
+            kind: self.kind,
+            format: self.format,
+            bits: self.imaginary_bits,
+        }
+    }
+}
+
 /// The result of arithmetic constant evaluation. This query admits floating
 /// operands; an integer result does not imply a C integer constant expression.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum ArithmeticConstant {
     Integer(IntegerValue),
     Floating(FloatingValue),
+    Complex(ComplexValue),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
@@ -838,6 +882,24 @@ impl TranslationUnit {
                     },
                     fields,
                 })
+            }
+            TypeKind::Complex(kind) => {
+                if !matches!(
+                    kind,
+                    FloatKind::Float | FloatKind::Double | FloatKind::LongDouble
+                ) {
+                    return Err(Error::new(0, "extended complex types are unsupported"));
+                }
+                target::TypeVariant::Array {
+                    element: Box::new(self.layout_type(
+                        &Type::new(TypeKind::Float(*kind)),
+                        active,
+                        cache,
+                        depth + 1,
+                        false,
+                    )?),
+                    length: Some(2),
+                }
             }
             TypeKind::Array { element, length } => target::TypeVariant::Array {
                 element: Box::new(self.layout_type(element, active, cache, depth + 1, false)?),

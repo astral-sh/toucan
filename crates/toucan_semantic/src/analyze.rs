@@ -2233,6 +2233,7 @@ impl Analyzer {
         let mut char_ = false;
         let mut float = false;
         let mut double = false;
+        let mut complex = false;
         let mut int = false;
         let mut int128 = false;
         let mut special = None;
@@ -2255,6 +2256,7 @@ impl Analyzer {
                 ast::TypeSpecifier::Float if !float => float = true,
                 ast::TypeSpecifier::Double if !double => double = true,
                 ast::TypeSpecifier::Int if !int => int = true,
+                ast::TypeSpecifier::Complex if !complex => complex = true,
                 value => {
                     let kind = match value {
                         ast::TypeSpecifier::Void => TypeKind::Void,
@@ -2303,12 +2305,6 @@ impl Analyzer {
                             let inner = self.type_name(&name.node)?;
                             self.atomic_type(inner, true, ty.span.start)?.kind
                         }
-                        ast::TypeSpecifier::Complex => {
-                            return Err(Error::new(
-                                ty.span.start,
-                                "complex type ABI is unsupported",
-                            ));
-                        }
                         ast::TypeSpecifier::BFloat16 => TypeKind::Float(FloatKind::BFloat16),
                         ast::TypeSpecifier::TS18661Float(float) => {
                             let name = extended_float_name(float);
@@ -2348,7 +2344,16 @@ impl Analyzer {
             }
         }
         if let Some(special) = special {
-            if long > 0 || short || signed || unsigned || char_ || float || double || int || int128
+            if long > 0
+                || short
+                || signed
+                || unsigned
+                || char_
+                || float
+                || double
+                || int
+                || int128
+                || complex
             {
                 return Err(Error::new(offset, "invalid modifiers on type"));
             }
@@ -2364,6 +2369,21 @@ impl Analyzer {
             || (double && (long > 1 || short || signed || unsigned || int))
         {
             return Err(Error::new(offset, "invalid C type specifier combination"));
+        }
+        if complex {
+            if !float && !double {
+                return Err(Error::new(
+                    offset,
+                    "complex types require float, double, or long double; GNU integer and implicit complex types are unsupported",
+                ));
+            }
+            return Ok(Type::new(TypeKind::Complex(if float {
+                FloatKind::Float
+            } else if long == 1 {
+                FloatKind::LongDouble
+            } else {
+                FloatKind::Double
+            })));
         }
         Ok(Type::new(if float {
             TypeKind::Float(FloatKind::Float)

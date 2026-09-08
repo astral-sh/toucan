@@ -6,6 +6,7 @@
 //! containing bitfields are available behind pointers.
 
 mod atomic;
+mod complex;
 
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
@@ -306,6 +307,7 @@ pub fn generate_with_macros(
         transparent_storage: BTreeSet::new(),
         vectors: BTreeSet::new(),
         atomics: atomic::Atomics::default(),
+        complex_records: complex::Records::default(),
     };
     let mut selected = Vec::new();
     let mut skipped = Vec::new();
@@ -815,6 +817,7 @@ struct Emitter<'a> {
     transparent_storage: BTreeSet<usize>,
     vectors: BTreeSet<(u64, u64)>,
     atomics: atomic::Atomics,
+    complex_records: complex::Records,
 }
 
 struct BitfieldSegment {
@@ -1247,6 +1250,7 @@ impl Emitter<'_> {
                         unreachable!("handled above"),
                 }
             ),
+            TypeKind::Complex(_) => return Err(complex::storage_error()),
             TypeKind::Float(FloatKind::Float) => "::core::primitive::f32".into(),
             TypeKind::Float(FloatKind::Double) => "::core::primitive::f64".into(),
             TypeKind::Float(kind) if kind.is_narrow() => {
@@ -1494,6 +1498,7 @@ impl Emitter<'_> {
             TypeKind::Float(FloatKind::LongDouble) => {
                 return Err(Error("long double by value is unsupported".into()));
             }
+            TypeKind::Complex(_) => return Err(complex::call_abi_error()),
             _ => {}
         }
         Ok(())

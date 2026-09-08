@@ -28,7 +28,7 @@ impl Analyzer {
                 matches!(
                     self.unit.resolve(&ty)?.kind,
                     TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
-                ) && (matches!(&cast.node.expression.node, ast::Expression::Constant(constant) if matches!(constant.node, ast::Constant::Float(_)))
+                ) && (matches!(&cast.node.expression.node, ast::Expression::Constant(constant) if matches!(&constant.node, ast::Constant::Float(literal) if !literal.suffix.imaginary))
                     || self.is_integer_constant_expression(&cast.node.expression, depth + 1)?)
             }
             ast::Expression::UnaryOperator(unary) => {
@@ -286,6 +286,7 @@ impl Analyzer {
                 // of a cast to integer type in an integer constant expression.
                 if let ast::Expression::Constant(constant) = &cast.node.expression.node
                     && let ast::Constant::Float(literal) = &constant.node
+                    && !literal.suffix.imaginary
                 {
                     let value = self.floating_literal(literal, offset)?;
                     return self.convert_arithmetic(value, &ty, offset)?.integer(offset);

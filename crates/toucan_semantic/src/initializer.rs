@@ -341,6 +341,7 @@ impl Analyzer {
                                 | TypeKind::Bool
                                 | TypeKind::Enum(_)
                                 | TypeKind::Float(_)
+                                | TypeKind::Complex(_)
                         )
                     {
                         let value = self.eval_arithmetic(expression)?;
@@ -981,7 +982,8 @@ impl Analyzer {
                     || self
                         .builtin_name(call)
                         .and_then(|name| self.nan_builtin(name))
-                        .is_some() =>
+                        .is_some()
+                    || self.builtin_name(call) == Some("__builtin_complex") =>
             {
                 self.eval_arithmetic(expression)?;
                 Ok(ConstantKind::Arithmetic)

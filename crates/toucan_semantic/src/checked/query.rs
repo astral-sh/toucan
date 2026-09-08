@@ -39,6 +39,8 @@ pub enum QuerySuppression {
     OrdinarySideEffects,
     /// Clang or GCC completed this object-size query before scalar code generation.
     ObjectSizeFrontendFold,
+    /// The supported Clang complex query was proven constant before its scalar fallback.
+    ConstantQueryFrontendFold,
 }
 
 /// Evaluation policy for argument zero of a constant or object-size query.
@@ -121,6 +123,7 @@ impl Builder {
             ExprKind::TypesCompatible { .. }
             | ExprKind::Integer(_)
             | ExprKind::Float { .. }
+            | ExprKind::ImaginaryFloat { .. }
             | ExprKind::String(_)
             | ExprKind::Name(_)
             | ExprKind::SizeOfType(_)
@@ -218,6 +221,7 @@ impl Builder {
                 | Builtin::HugeValueFloat
                 | Builtin::HugeValueLongDouble => Absent,
                 Builtin::ConstantQuery
+                | Builtin::Complex
                 | Builtin::Expect
                 | Builtin::Nan
                 | Builtin::NanFloat
@@ -323,6 +327,11 @@ impl crate::analyze::Analyzer {
         }
         if builtin == Builtin::ConstantQuery {
             let ty = self.code_builder().code.types[arguments[0].effective_type.index()].clone();
+            if matches!(self.unit.resolve(&ty)?.kind, crate::TypeKind::Complex(_)) {
+                return Ok(Some(QueryEvaluation::Unevaluated(
+                    QuerySuppression::ConstantQueryFrontendFold,
+                )));
+            }
             if !matches!(
                 self.unit.resolve(&ty)?.kind,
                 crate::TypeKind::Integer(_)

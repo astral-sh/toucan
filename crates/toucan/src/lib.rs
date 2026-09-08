@@ -402,6 +402,13 @@ impl Compilation {
                             });
                         }
                     }
+                    Ok(semantic::ArithmeticConstant::Complex(_)) => skipped_macros
+                        .push(SkippedMacro {
+                        name: name.clone(),
+                        reason:
+                            "complex macro constants have no verified Rust storage representation"
+                                .into(),
+                    }),
                     Err(error) => skipped_macros.push(SkippedMacro {
                         name: name.clone(),
                         reason: error.to_string(),

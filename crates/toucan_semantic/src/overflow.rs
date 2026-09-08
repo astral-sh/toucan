@@ -490,6 +490,7 @@ impl Analyzer {
                         || self.bit_count_type(name).is_some()
                         || self.infinity_builtin_kind(name).is_some()
                         || self.nan_builtin(name).is_some()
+                        || name == "__builtin_complex"
                         || name == "__builtin_expect"
                         || name == "__atomic_is_lock_free"
                         || name == "__c11_atomic_is_lock_free"

@@ -307,6 +307,11 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         }
         match expression.kind() {
             ExprKind::Integer(_) | ExprKind::Float { .. } | ExprKind::String(_) => {}
+            ExprKind::ImaginaryFloat { digits, .. } => {
+                assert!(!digits.is_empty());
+                let ty = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
+                assert!(matches!(ty.kind, TypeKind::Complex(_)));
+            }
             ExprKind::Name(entity) => {
                 assert!(code.entity(*entity).is_some());
             }
@@ -430,6 +435,18 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 ..
             } => {
                 assert!(code.occurrence(*callee_occurrence).is_some());
+                if *builtin == Builtin::Complex {
+                    let ty = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
+                    let TypeKind::Complex(kind) = ty.kind else {
+                        panic!("complex constructor result");
+                    };
+                    assert_eq!(arguments.len(), 2);
+                    for argument in arguments {
+                        assert_eq!(argument.context(), UseContext::Value);
+                        let ty = unit.resolve(code.ty(argument.effective_type()).unwrap()).unwrap();
+                        assert!(matches!(ty.kind, TypeKind::Float(component) if component == kind));
+                    }
+                }
                 if let Builtin::X86(intrinsic) = builtin {
                     let signature = intrinsic
                         .signature_with_profile(unit.profile().unwrap())
@@ -984,6 +1001,7 @@ fn type_shape(unit: &TranslationUnit, root: &Type) {
             | TypeKind::Bool
             | TypeKind::Integer(_)
             | TypeKind::Float(_)
+            | TypeKind::Complex(_)
             | TypeKind::Sve(_) => {}
         }
     }
