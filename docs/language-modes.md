@@ -215,3 +215,11 @@ also includes Microsoft declaration attributes and literal-query optimization.
 It checks 3,696 ordinary/retained seed pairs across all 44 profile/mode settings,
 keeps eight existing binding artifacts byte-identical, and reruns native C90 FFI
 with Rust 1.64. The original archives retain their own source revisions.
+
+The [220-program corpus rerun](../corpus/evidence/conformance-a3256d6/summary.json)
+at `a3256d6` covers all four modes through both GCC and Clang preprocessing.
+The existing strict-C11 control gate passes in every route: 211 programs in each
+C11 mode, 189 in C90, and 210 in GNU90 after intersection with that mode’s native
+acceptance. This does not establish pedantic C90 conformance. The only exploratory
+difference is a pointer assignment that discards `const`; both native compilers
+reject it under pedantic C11. No tool or oracle-pipeline failures occurred.

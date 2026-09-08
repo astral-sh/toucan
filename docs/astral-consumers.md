@@ -167,3 +167,12 @@ The [builder evidence](../corpus/evidence/astral-builder-a7fab44/summary.json)
 records the native Linux run and the source, lock, generated binding, selected
 artifact, and runtime hashes. It covers these two pinned consumer paths; it does
 not run either workspace's full test suite or measure application performance.
+
+The [combined frontend rerun](../corpus/evidence/astral-builder-a3256d6/summary.json)
+at `a3256d6` includes C90, Microsoft declaration attributes, allocation builtins,
+and compiler feature queries. Fresh replacement packages drive both unchanged
+project build scripts. Both ty vendored tests and all 19 uv extraction tests pass;
+CLI diagnostics, installed wheel bytes, and truncated-frame rejection match. All
+557 ty and 750 uv existing locked packages and dependency edges are preserved.
+This remains evidence for the recorded native Linux paths, not their complete
+workspace suites or other operating systems.
