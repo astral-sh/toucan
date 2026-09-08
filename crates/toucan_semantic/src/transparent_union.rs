@@ -434,7 +434,7 @@ fn variant_type_bytes(ty: &Type, depth: usize) -> Result<usize, Error> {
         TypeKind::Pointer(inner)
         | TypeKind::Atomic(inner)
         | TypeKind::Array { element: inner, .. }
-        | TypeKind::VariableArray { element: inner } => {
+        | TypeKind::VariableArray { element: inner, .. } => {
             bytes = bytes.saturating_add(variant_type_bytes(inner, depth + 1)?);
         }
         TypeKind::Typedef(name) => bytes = bytes.saturating_add(name.len()),

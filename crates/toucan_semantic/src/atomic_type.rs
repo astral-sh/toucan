@@ -152,7 +152,7 @@ fn atomic_type_depth(
         TypeKind::Pointer(value)
         | TypeKind::Atomic(value)
         | TypeKind::Array { element: value, .. }
-        | TypeKind::VariableArray { element: value }
+        | TypeKind::VariableArray { element: value, .. }
         | TypeKind::Vector { element: value, .. } => {
             atomic_type_depth(value, depth + 1, nodes, offset)?
         }

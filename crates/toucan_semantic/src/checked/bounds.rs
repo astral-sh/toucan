@@ -1084,7 +1084,7 @@ fn path_type<'a>(mut ty: &'a Type, path: &[TypeStep]) -> Option<&'a TypeKind> {
             (
                 TypeStep::Element,
                 TypeKind::Array { element, .. }
-                | TypeKind::VariableArray { element }
+                | TypeKind::VariableArray { element, .. }
                 | TypeKind::Vector { element, .. },
             ) => element,
             (TypeStep::Return, TypeKind::Function(function)) => &function.return_type,

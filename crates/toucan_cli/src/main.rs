@@ -243,13 +243,13 @@ fn run(cli: Cli) -> Result<()> {
                     })
                 }).collect();
                 serde_json::json!({
-                    "schema_version": 2,
+                    "schema_version": 4,
                     "translation_unit": compilation.unit(),
                     "checked_code": compilation.checked(),
                     "preprocessed": {"source": preprocessed.source, "mappings": mappings},
                 })
             } else {
-                serde_json::json!({ "schema_version": 1, "translation_unit": compilation.unit() })
+                serde_json::json!({ "schema_version": 3, "translation_unit": compilation.unit() })
             };
             write_output(output, &(serde_json::to_string_pretty(&manifest)? + "\n"))
         }

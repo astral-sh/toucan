@@ -6,6 +6,7 @@
 
 mod analyze;
 mod arm;
+mod array_identity;
 mod asm;
 mod atomic;
 mod atomic_type;
@@ -39,6 +40,7 @@ pub use analyze::{
     analyze, analyze_with_options, analyze_with_profile, evaluate_arithmetic, evaluate_integer,
 };
 pub use arm::Aarch64Pcs;
+pub use array_identity::VariableArrayId;
 pub use ir::*;
 pub use literals::{
     DecodedString, StringEncoding, decode_character_literal, decode_character_literal_with_profile,

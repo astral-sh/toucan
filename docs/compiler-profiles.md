@@ -82,8 +82,9 @@ establish the tested behavior; they are not complete compiler conformance.
 ## Serialized identity
 
 Both inspection formats include `translation_unit.compiler`, spelled `gcc` or
-`clang`; binding reports also include `compiler`. Version 1 remains the
-declaration-only inspection shape, and version 2 includes checked code. This is
-an additive field in the experimental formats. Consumers should check the shape
-version and tolerate unknown fields; archived results without compiler identity
-use their recorded target's default.
+`clang`; binding reports also include `compiler`. Version 3 is the declaration-only
+inspection shape, and version 4 includes checked code. The compiler field was
+additive in versions 1/2; versions 3/4 also require the new VLA identity field,
+as described in the [inspection migration](inspection.md#migration-from-versions-1-and-2).
+Consumers should check the shape version and tolerate unknown fields. Archived
+results without compiler identity use their recorded target's default.

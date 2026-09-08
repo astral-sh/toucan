@@ -50,7 +50,7 @@ impl Analyzer {
         let scalar = match &mut resolved.kind {
             TypeKind::Pointer(element)
             | TypeKind::Array { element, .. }
-            | TypeKind::VariableArray { element } => Some(element.as_mut()),
+            | TypeKind::VariableArray { element, .. } => Some(element.as_mut()),
             TypeKind::Function(function) => Some(&mut function.return_type),
             _ => None,
         };

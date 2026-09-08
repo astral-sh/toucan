@@ -1039,7 +1039,7 @@ impl Analyzer {
     pub(crate) fn value_type(&self, ty: &Type) -> Result<Type, Error> {
         let resolved = self.unit.resolve(ty)?;
         Ok(match &resolved.kind {
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                 let mut element = (**element).clone();
                 element.qualifiers =
                     union_qualifiers(self.unit.qualifiers(&element)?, self.unit.qualifiers(ty)?);
@@ -1200,7 +1200,7 @@ impl Analyzer {
                 match &self.unit.resolve(ty)?.kind {
                     TypeKind::Pointer(inner)
                     | TypeKind::Array { element: inner, .. }
-                    | TypeKind::VariableArray { element: inner } => ty = inner,
+                    | TypeKind::VariableArray { element: inner, .. } => ty = inner,
                     _ => break,
                 }
             }
@@ -1297,7 +1297,7 @@ impl Analyzer {
             TypeKind::Atomic(value) if self.gnu_sync_profile() => {
                 self.contains_const_inner(value, depth + 1, visited)
             }
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                 self.contains_const_inner(element, depth + 1, visited)
             }
             TypeKind::Record(id) => {

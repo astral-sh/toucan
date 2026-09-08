@@ -112,7 +112,7 @@ impl Analyzer {
             ty = self.unqualified(value)?;
         }
         match &mut ty.kind {
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                 **element = self.compatibility_operand(element, depth + 1)?;
             }
             _ => {}

@@ -318,7 +318,7 @@ fn bounded_key(ty: &Type, depth: usize, remaining: &mut usize) -> Result<(), Err
         TypeKind::Pointer(inner)
         | TypeKind::Atomic(inner)
         | TypeKind::Array { element: inner, .. }
-        | TypeKind::VariableArray { element: inner }
+        | TypeKind::VariableArray { element: inner, .. }
         | TypeKind::Vector { element: inner, .. } => bounded_key(inner, depth + 1, remaining)?,
         TypeKind::Function(function) => {
             bounded_key(&function.return_type, depth + 1, remaining)?;

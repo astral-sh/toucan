@@ -85,6 +85,7 @@ fn analyze_on_parser_stack(
     analyzer.empty_initializers = parsed.empty_initializers;
     analyzer.int128_specifiers = parsed.int128_specifiers;
     let result = (|| {
+        analyzer.prepare_array_identities(&parsed.unit, &source)?;
         if let Some(limits) = retention {
             analyzer.checked = Some(Box::new(CodeBuilder::new(
                 &parsed.unit,
@@ -235,7 +236,9 @@ fn evaluate_on_parser_stack<Value>(
     analyzer.string_literals = parsed.string_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
     analyzer.int128_specifiers = parsed.int128_specifiers;
-    evaluate(&mut analyzer, expression)
+    analyzer
+        .prepare_array_identities(&parsed.unit, &source)
+        .and_then(|()| evaluate(&mut analyzer, expression))
         .and_then(|value| {
             analyzer.validate_sve_features()?;
             Ok(value)
@@ -643,6 +646,7 @@ fn outermost_derived(
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) array_identities: crate::array_identity::Registry,
     // Completed query checks prevent nested constant folding from replaying operand typing.
     pub(crate) checked_overflow_predicates: HashMap<(usize, usize), (u8, bool)>,
     pub(crate) checked_atomic_queries: HashSet<(usize, usize)>,
@@ -727,6 +731,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            array_identities: crate::array_identity::Registry::default(),
             allow_late_object_size_folds: false,
             diagnostic_kinds: HashMap::new(),
             checked: None,
@@ -1398,9 +1403,10 @@ impl Analyzer {
                     length: bl,
                 },
             ) => al == bl && self.same_type(a, b, depth + 1)?,
-            (TypeKind::VariableArray { element: a }, TypeKind::VariableArray { element: b }) => {
-                self.same_type(a, b, depth + 1)?
-            }
+            (
+                TypeKind::VariableArray { element: a, .. },
+                TypeKind::VariableArray { element: b, .. },
+            ) => self.same_type(a, b, depth + 1)?,
             (TypeKind::Function(a), TypeKind::Function(b)) => {
                 if a.prototype != b.prototype
                     || a.variadic != b.variadic
@@ -1467,13 +1473,17 @@ impl Analyzer {
             ) => Ok((a == b || a.is_none() || b.is_none())
                 && self.compatible_at(left, right, depth + 1)?),
             (
-                TypeKind::VariableArray { element: left },
-                TypeKind::VariableArray { element: right },
+                TypeKind::VariableArray { element: left, .. },
+                TypeKind::VariableArray { element: right, .. },
             )
-            | (TypeKind::VariableArray { element: left }, TypeKind::Array { element: right, .. })
-            | (TypeKind::Array { element: left, .. }, TypeKind::VariableArray { element: right }) => {
-                self.compatible_at(left, right, depth + 1)
-            }
+            | (
+                TypeKind::VariableArray { element: left, .. },
+                TypeKind::Array { element: right, .. },
+            )
+            | (
+                TypeKind::Array { element: left, .. },
+                TypeKind::VariableArray { element: right, .. },
+            ) => self.compatible_at(left, right, depth + 1),
             (TypeKind::Function(left), TypeKind::Function(right)) => {
                 if left.calling_convention.for_target(self.unit.target)?
                     != right.calling_convention.for_target(self.unit.target)?
@@ -1571,10 +1581,10 @@ impl Analyzer {
                     element: a,
                     length: Some(length),
                 },
-                TypeKind::VariableArray { element: b },
+                TypeKind::VariableArray { element: b, .. },
             )
             | (
-                TypeKind::VariableArray { element: a },
+                TypeKind::VariableArray { element: a, .. },
                 TypeKind::Array {
                     element: b,
                     length: Some(length),
@@ -1583,9 +1593,18 @@ impl Analyzer {
                 element: Box::new(self.composite_type(a, b, depth + 1)?),
                 length: Some(*length),
             },
-            (TypeKind::VariableArray { element: a }, TypeKind::VariableArray { element: b })
+            (
+                TypeKind::VariableArray {
+                    element: a,
+                    identity,
+                },
+                TypeKind::VariableArray { element: b, .. },
+            )
             | (
-                TypeKind::VariableArray { element: a },
+                TypeKind::VariableArray {
+                    element: a,
+                    identity,
+                },
                 TypeKind::Array {
                     element: b,
                     length: None,
@@ -1596,9 +1615,13 @@ impl Analyzer {
                     element: a,
                     length: None,
                 },
-                TypeKind::VariableArray { element: b },
+                TypeKind::VariableArray {
+                    element: b,
+                    identity,
+                },
             ) => TypeKind::VariableArray {
                 element: Box::new(self.composite_type(a, b, depth + 1)?),
+                identity: *identity,
             },
             (TypeKind::Function(a), TypeKind::Function(b)) => {
                 let mut function = if a.prototype {
@@ -2345,6 +2368,7 @@ impl Analyzer {
                                 }
                                 TypeKind::VariableArray {
                                     element: Box::new(ty),
+                                    identity: self.array_identity(array.span)?,
                                 }
                             }
                         }
@@ -2373,6 +2397,7 @@ impl Analyzer {
                             }
                             TypeKind::VariableArray {
                                 element: Box::new(ty),
+                                identity: self.array_identity(array.span)?,
                             }
                         }
                     };
@@ -2513,7 +2538,7 @@ impl Analyzer {
                         }
                         parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
                             TypeKind::Array { element, .. }
-                            | TypeKind::VariableArray { element } => {
+                            | TypeKind::VariableArray { element, .. } => {
                                 // Qualifying an array typedef qualifies its elements.
                                 // Parameter adjustment removes only the array layer.
                                 let mut element = (**element).clone();
@@ -3073,7 +3098,7 @@ impl Analyzer {
             TypeKind::Array { element, length } => {
                 length.is_some() && self.is_complete_object(element, depth + 1)?
             }
-            TypeKind::VariableArray { element } | TypeKind::Atomic(element) => {
+            TypeKind::VariableArray { element, .. } | TypeKind::Atomic(element) => {
                 self.is_complete_object(element, depth + 1)?
             }
             _ => true,
@@ -3094,7 +3119,7 @@ impl Analyzer {
         // GNU C propagates qualifiers on array typedefs to their element type.
         if self.unit.compiler == toucan_target::Compiler::Gnu {
             for _ in 0..128 {
-                let (TypeKind::Array { element, .. } | TypeKind::VariableArray { element }) =
+                let (TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. }) =
                     &resolved.kind
                 else {
                     break;
@@ -3338,7 +3363,7 @@ impl Analyzer {
                     alias_base,
                 )?;
             }
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                 if !clang {
                     return Ok(ty);
                 }

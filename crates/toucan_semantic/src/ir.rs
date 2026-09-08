@@ -86,6 +86,8 @@ pub enum TypeKind {
     /// incomplete array, its extent cannot be completed by a later declaration.
     VariableArray {
         element: Box<Type>,
+        /// Exact array-type identity; ordinary C compatibility ignores it.
+        identity: crate::VariableArrayId,
     },
     Function(Box<FunctionType>),
     Record(usize),
@@ -490,7 +492,7 @@ impl TranslationUnit {
                 return Ok(u64::from(alignment.get()));
             }
             match &self.resolve(ty)?.kind {
-                TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+                TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                     ty = element
                 }
                 _ => return Ok(self.layout(ty)?.alignment_bytes()),

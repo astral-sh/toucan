@@ -8,7 +8,7 @@ toucan inspect api.h --target x86_64-unknown-linux-gnu --checked-code --output a
 ```
 
 The command preprocesses and checks the entire input, including function bodies.
-Its version 2 JSON contains:
+Its version 4 JSON contains:
 
 - `translation_unit`: target and compiler identities, declarations, canonical types,
   records, and enumerations.
@@ -17,7 +17,7 @@ Its version 2 JSON contains:
 - `preprocessed`: the exact source addressed by those occurrences and mappings to
   original file locations or macro invocations.
 
-Without `--checked-code`, `inspect` keeps the version 1 declaration-only format.
+Without `--checked-code`, `inspect` uses the version 3 declaration-only format.
 Both formats are experimental; consumers should check `schema_version` and tolerate
 additive fields. The `compiler` field uses `gcc` or `clang`; see
 [compiler profiles](compiler-profiles.md) for defaults and compatibility.
@@ -57,3 +57,27 @@ Semantic or retention-limit failures produce a diagnostic and preserve an existi
 output file. Successful checked analysis has complete expression, statement, and
 initializer coverage within the supported feature set. Resource limits still
 apply; the library exposes them through `AnalysisOptions`.
+
+## Migration from versions 1 and 2
+
+Versions 3 (declarations) and 4 (checked code) add `identity` to the existing
+`VariableArray` struct variant. Its element remains a `Type`; for example:
+
+```json
+{"VariableArray":{"element":{"alignment":null,"kind":{"Integer":"Int"},"qualifiers":{"is_const":false,"is_volatile":false,"is_restrict":false}},"identity":7}}
+```
+
+The identity is an opaque number local to one analysis result. It distinguishes
+separately written runtime array types, including equal-looking bounds and written
+prototype stars. Copies of one object or typedef type retain its identity. It is
+independent of checked `BoundId`: a type identity does not schedule a bound
+expression or determine a composite array's runtime size. Ordinary C compatibility
+continues to use its existing VLA rules.
+
+Consumers matching `TypeKind::VariableArray` in Rust must bind `identity` or use
+`..`. JSON consumers should accept schemas 3/4 and read the added field when exact
+type identity matters. Identities are not interchangeable between independent
+analysis results. Expression queries use a separate occurrence registry and reserve
+identities beyond those inherited from their input translation unit.
+
+See [VLA type identities](vla-type-identity.md) for construction limits and validation.

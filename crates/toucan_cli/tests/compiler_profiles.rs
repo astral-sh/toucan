@@ -1,12 +1,12 @@
 use std::process::Command;
 
 #[test]
-fn inspection_records_compiler_with_the_existing_shape_versions() {
+fn inspection_records_compiler_with_vla_identity_shape_versions() {
     let directory = tempfile::tempdir().unwrap();
     let header = directory.path().join("profile.h");
     std::fs::write(
         &header,
-        "#ifndef __clang__\n#error expected Clang\n#endif\nint f(int n){ return n; }\n",
+        "#ifndef __clang__\n#error expected Clang\n#endif\nint f(int n){ return n; }\nvoid visit(int n, int a[][n]);\n",
     )
     .unwrap();
     for checked in [false, true] {
@@ -31,9 +31,17 @@ fn inspection_records_compiler_with_the_existing_shape_versions() {
             String::from_utf8_lossy(&output.stderr)
         );
         let json: serde_json::Value = serde_json::from_slice(&output.stdout).unwrap();
-        assert_eq!(json["schema_version"], if checked { 2 } else { 1 });
+        assert_eq!(json["schema_version"], if checked { 4 } else { 3 });
         assert_eq!(json["translation_unit"]["compiler"], "clang");
         assert_eq!(json["translation_unit"]["target"], "X86_64UnknownLinuxGnu");
+        let visit = json["translation_unit"]["declarations"]
+            .as_array()
+            .unwrap()
+            .iter()
+            .find(|d| d["name"] == "visit")
+            .unwrap();
+        assert!(visit["ty"]["kind"]["Function"]["parameters"][1]["ty"]["kind"]
+            ["Pointer"]["kind"]["VariableArray"]["identity"].as_u64().unwrap() > 0);
     }
 }
 

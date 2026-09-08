@@ -194,7 +194,9 @@ fn atomic_vla_type_uses_preserve_bound_identity_and_load_projection() {
                         (TypeStep::AtomicValue, TypeKind::Atomic(value))
                         | (TypeStep::Pointer, TypeKind::Pointer(value))
                         | (TypeStep::Element, TypeKind::Array { element: value, .. })
-                        | (TypeStep::Element, TypeKind::VariableArray { element: value }) => value,
+                        | (TypeStep::Element, TypeKind::VariableArray { element: value, .. }) => {
+                            value
+                        }
                         _ => panic!("invalid atomic bound path: {step:?} {ty:?}"),
                     };
                 }
