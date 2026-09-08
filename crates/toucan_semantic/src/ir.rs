@@ -407,6 +407,10 @@ impl SymbolBinding {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Declaration {
+    /// Summary of file-scope inline occurrences, separate from final body ownership.
+    /// `None` means no recorded inline history applies to this declaration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inline_facts: Option<crate::FunctionInlineFacts>,
     /// Ownership of a function body, independently of `is_definition`, which
     /// continues to indicate a checked body or an initialized object.
     #[serde(skip_serializing_if = "Option::is_none")]

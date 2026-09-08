@@ -320,8 +320,9 @@ impl Builder {
             })
             .collect::<Result<Vec<_>, _>>()?;
         let compilation = toucan::parse_files(&paths, &config)?;
+        self.options.emit_function_definitions = true;
+        self.options.exclude_inline_functions = true;
         if config.analysis.retain_declaration_origins {
-            self.options.emit_function_definitions = true;
             selection::apply(
                 &compilation,
                 files.as_ref(),

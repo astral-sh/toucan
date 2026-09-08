@@ -151,10 +151,12 @@ first and final replacements and file-selection membership. This control concern
 definition history, independently of macro expression/type policy.
 `push_macro` and `pop_macro` remain unsupported.
 
-Origin-aware selection emits ordinary externally linked C function definitions
-and excludes inline candidates. The unrestricted legacy Builder path still uses
-the core emitter's definition-skipping policy; a separate default eligibility
-layer will close that compatibility gap without enabling full origin capture.
+The Builder emits ordinary externally linked C function definitions and excludes
+inline candidates. Its default path uses compact declaration-time inline facts,
+without enabling origin capture. A plain body followed by a later inline prototype
+remains eligible; an inline body, including a replaced GNU body, is excluded.
+The core emitter retains its separate opt-in definition and inline policies.
+See [default function selection](../../docs/bindgen-functions.md) for native evidence.
 Enum naming/derive/comment/format policies are independent APIs and are not added
 by file selection or callbacks.
 

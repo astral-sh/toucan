@@ -58,6 +58,35 @@ impl FunctionDefinitionKind {
     }
 }
 
+/// Declaration-time inline facts for a function with recorded inline syntax.
+///
+/// Absence on a declaration means no inline history applies. These facts describe
+/// source occurrences, independently of which body supplies a linker definition.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize)]
+pub struct FunctionInlineFacts {
+    /// A file-scope occurrence was not inline when it was checked. Clang can
+    /// inherit an earlier inline specifier; a later specifier is not retroactive.
+    pub has_non_inline_declaration: bool,
+    /// A checked file-scope body was inline, including a replaced GNU body.
+    pub has_inline_definition: bool,
+}
+
+impl crate::Declaration {
+    /// Rejects inconsistent inline facts supplied by a caller-built unit.
+    pub fn validate_inline_facts(&self) -> Result<(), Error> {
+        if let Some(facts) = self.inline_facts
+            && (self.kind != crate::DeclarationKind::Function
+                || (facts.has_inline_definition && !self.is_definition))
+        {
+            return Err(Error::new(
+                0,
+                "inline facts require a function; an inline definition requires a checked body",
+            ));
+        }
+        Ok(())
+    }
+}
+
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct DeclarationFacts {
     pub(crate) offset: usize,
@@ -307,6 +336,17 @@ impl Analyzer {
             return Ok(());
         };
         for history in registry.histories.values() {
+            if let Some(index) = history.file_declaration {
+                self.unit.declarations[index].inline_facts = Some(FunctionInlineFacts {
+                    has_non_inline_declaration: history
+                        .declarations
+                        .iter()
+                        .any(|declaration| declaration.file_scope && !declaration.inlined),
+                    has_inline_definition: history.declarations.iter().any(|declaration| {
+                        declaration.file_scope && declaration.body && declaration.inlined
+                    }),
+                });
+            }
             if let (Some(index), Some(body)) = (history.file_declaration, history.last_body) {
                 let binding = self.unit.declarations[index].symbol_binding;
                 let kind = history.ownership(

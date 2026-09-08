@@ -1786,6 +1786,7 @@ impl Analyzer {
                 let index = self.unit.declarations.len();
                 self.unit.declarations.push(Declaration {
                     function_definition_kind: None,
+                    inline_facts: None,
                     dll_storage_class,
                     alignment,
                     returns_twice,

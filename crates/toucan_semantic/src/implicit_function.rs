@@ -72,6 +72,7 @@ impl Analyzer {
         if self.lexical_scopes.is_empty() {
             self.unit.declarations.push(Declaration {
                 function_definition_kind: None,
+                inline_facts: None,
                 dll_storage_class: None,
                 alignment: Default::default(),
                 returns_twice: false,

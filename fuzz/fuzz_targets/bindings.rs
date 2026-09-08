@@ -39,6 +39,8 @@ fuzz_target!(|bytes: &[u8]| {
         // The next four bits vary trait requests independently of those modes.
         let derives = (selector >> 11) & 15;
         let _ = compilation.bindings(&toucan::BindingOptions {
+            emit_function_definitions: selector & 1 != 0,
+            exclude_inline_functions: selector & 2 != 0,
             rustified_enums: true,
             derives: toucan::DeriveOptions {
                 copy: derives & 1 != 0,

@@ -39,6 +39,9 @@ pub struct Options {
     /// Emit externally linked functions even when their C definition is present.
     /// The caller must still link the C object providing that definition.
     pub emit_function_definitions: bool,
+    /// Exclude functions whose file declarations are all inline, or that have an
+    /// inline body, including a replaced GNU body. This is independent of linkage.
+    pub exclude_inline_functions: bool,
     /// Emit Rust enums with named variants instead of integer aliases. Values
     /// outside the declared variants are invalid Rust enum values.
     pub rustified_enums: bool,
@@ -196,10 +199,15 @@ impl Options {
         Ok(())
     }
 
-    fn blocks_function(&self, name: &str) -> bool {
-        self.blocklist_functions
-            .iter()
-            .any(|pattern| matches_name(pattern, name))
+    fn blocks_function(&self, declaration: &toucan_semantic::Declaration) -> bool {
+        (self.exclude_inline_functions
+            && declaration.inline_facts.is_some_and(|facts| {
+                !facts.has_non_inline_declaration || facts.has_inline_definition
+            }))
+            || self
+                .blocklist_functions
+                .iter()
+                .any(|pattern| matches_name(pattern, &declaration.name))
     }
 
     fn blocks_type(&self, name: &str) -> bool {
@@ -377,7 +385,7 @@ pub fn generate_with_macros(
         .iter()
         .enumerate()
         .filter(|(index, item)| {
-            (item.kind != DeclarationKind::Function || !options.blocks_function(&item.name))
+            (item.kind != DeclarationKind::Function || !options.blocks_function(item))
                 && (options.selection.is_none()
                     || options.includes_declaration(*index, &item.name, item.kind))
         })
@@ -455,6 +463,7 @@ pub fn generate_with_macros(
     let mut blocked_functions = Vec::new();
     let mut seen = BTreeSet::new();
     for (index, declaration) in unit.declarations.iter().enumerate() {
+        declaration.validate_inline_facts()?;
         if !options.includes_declaration(index, &declaration.name, declaration.kind)
             || !seen.insert(declaration.name.clone())
         {
@@ -479,9 +488,7 @@ pub fn generate_with_macros(
             )?;
             continue;
         }
-        if declaration.kind == DeclarationKind::Function
-            && options.blocks_function(&declaration.name)
-        {
+        if declaration.kind == DeclarationKind::Function && options.blocks_function(declaration) {
             blocked_functions.push(declaration.name.clone());
             continue;
         }

@@ -403,6 +403,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 selection: None,
                 generated_names: Default::default(),
                 emit_function_definitions: false,
+                exclude_inline_functions: false,
                 no_layout_tests: false,
                 allowlist,
                 rustified_enums,

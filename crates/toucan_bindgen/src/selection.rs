@@ -44,24 +44,7 @@ pub(crate) fn apply(
         })
     };
     let mut selection = files.map(|_| Box::<BindingSelection>::default());
-    // An inline definition makes earlier declarations inline candidates too,
-    // matching libclang's separate definition lookup before callback invocation.
-    let inline_bodies: BTreeSet<_> = origins
-        .entries()
-        .iter()
-        .filter_map(|origin| {
-            if origin.is_definition()
-                && origin.is_inline()
-                && let DeclarationTarget::Declaration(index) = origin.target()
-            {
-                return Some(index);
-            }
-            None
-        })
-        .collect();
     let mut generated = BTreeSet::new();
-    let mut functions = BTreeSet::new();
-    let mut eligible_functions = BTreeSet::new();
     let mut records = BTreeSet::new();
     let mut enums = BTreeSet::new();
     for origin in origins.entries() {
@@ -69,12 +52,12 @@ pub(crate) fn apply(
         match origin.target() {
             DeclarationTarget::Declaration(index) => {
                 let declaration = &compilation.unit().declarations[index];
-                if declaration.kind == DeclarationKind::Function {
-                    functions.insert(index);
-                }
                 let kind = match declaration.kind {
                     DeclarationKind::Function
-                        if !origin.is_inline() && !inline_bodies.contains(&index) =>
+                        if !origin.is_inline()
+                            && !declaration
+                                .inline_facts
+                                .is_some_and(|facts| facts.has_inline_definition) =>
                     {
                         Some(ItemKind::Function)
                     }
@@ -97,9 +80,6 @@ pub(crate) fn apply(
                     )));
                 }
                 if selected && (kind.is_some() || declaration.kind != DeclarationKind::Function) {
-                    if declaration.kind == DeclarationKind::Function {
-                        eligible_functions.insert(index);
-                    }
                     if let Some(selection) = &mut selection {
                         selection.declarations.insert(index);
                     }
@@ -176,13 +156,6 @@ pub(crate) fn apply(
             })
             .map(|declaration| declaration.name.clone())
             .collect();
-    }
-    if selection.is_none() {
-        for index in functions.difference(&eligible_functions) {
-            options
-                .blocklist_functions
-                .push(compilation.unit().declarations[*index].name.clone());
-        }
     }
     options.selection = selection;
     Ok(())

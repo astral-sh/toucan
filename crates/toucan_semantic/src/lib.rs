@@ -76,7 +76,7 @@ pub use builtin_function::BuiltinFunction;
 pub use declspec::has_declspec_attribute;
 pub use dll_storage::DllStorageClass;
 pub use features::has_builtin;
-pub use inline::FunctionDefinitionKind;
+pub use inline::{FunctionDefinitionKind, FunctionInlineFacts};
 pub use ir::*;
 pub use literals::{
     DecodedString, StringEncoding, decode_character_literal, decode_character_literal_with_profile,

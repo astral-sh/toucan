@@ -47,7 +47,8 @@ preserves the earlier enumerator-query optimization and macro-definition history
 The binding and origin suites and workspace Clippy pass on that combined source.
 
 Macro selection currently follows the final active macro environment. Bindgen's
-sequential macro-value history, unrestricted Builder function eligibility, and
-comment/derive/format options remain separate adapter work. The examined unchanged
+sequential macro-value history and comment/derive/format options remain separate
+adapter work. [Default function selection](bindgen-functions.md) extends this
+layer without requiring origin capture. The examined unchanged
 AWS-LC 0.44.0 crypto-only route has no first/final-definition or file-membership
 difference among its 7,900 selected macro definitions.
