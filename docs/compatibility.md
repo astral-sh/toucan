@@ -90,8 +90,9 @@ adjustment, storage and scope constraints, and jumps across variably modified
 declarations are checked. `sizeof` on a VLA is valid at runtime and cannot be used
 as an integer constant expression; its alignment is available without a runtime
 bound. Rust bindings support parameters whose outer array layer adjusts to a
-pointer, and reject remaining runtime-sized array layers. Runtime bound expressions
-and typed bodies are not yet exposed through the public IR.
+pointer, and reject remaining runtime-sized array layers. The optional
+[checked graph](analysis-api.md) exposes runtime bound expressions, their evaluation
+contexts, and typed bodies.
 
 ## Flexible-array initialization
 
@@ -346,7 +347,8 @@ FFI behavior, not execution of Toucan's retained expression graph.
 
 - Bodies and initializers are type-checked, including the supported GNU statement
   expressions and inline assembly operands. Unsupported constraints produce
-  diagnostics. Typed bodies are not yet exposed through the public IR.
+  diagnostics. The optional checked graph exposes typed bodies; consumers still
+  need to implement execution or lowering for its supported compiler intrinsics.
 - Declaration constraints still need broader conformance testing. Prototype-local
   tags retain distinct identities and are checked against GCC and Clang.
 - C++, K&R function definitions, TLS, atomic and complex
@@ -361,7 +363,7 @@ FFI behavior, not execution of Toucan's retained expression graph.
   alignment, and combined packing and explicit record alignment. Union bitfields
   have the pointer-based representation described below; volatile bitfields and
   bitfields with Rust enum representations remain unsupported.
-- Function-like macros and object macros that are not supported integer, finite
+- Function-like macros and object macros that are not supported integer,
   `float`/`double`, or string constants are reported as omitted. SQLite's `SQLITE_STATIC` and
   `SQLITE_TRANSIENT` destructor macros are examples. No invalid function pointer is
   synthesized to represent a sentinel.

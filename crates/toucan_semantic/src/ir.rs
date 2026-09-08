@@ -111,7 +111,7 @@ pub enum FloatKind {
     },
 }
 
-/// The target encoding of a finite floating constant, without object padding.
+/// The target encoding of a floating constant, without object padding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum FloatingFormat {
     Binary32,
