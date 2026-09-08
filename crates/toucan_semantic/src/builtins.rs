@@ -153,8 +153,35 @@ impl Analyzer {
                     let ty = self.value_expression_type(argument)?;
                     self.require_complete_object(&ty, argument.span.start)?;
                 }
+                self.check_argument_pack(
+                    argument,
+                    index,
+                    arguments.len(),
+                    signature.parameters.len(),
+                    signature.variadic,
+                )?;
             }
             return Ok(Some(signature.result));
+        }
+        if matches!(name, "__builtin_va_arg_pack" | "__builtin_va_arg_pack_len") {
+            if !matches!(
+                self.unit.target,
+                toucan_target::Target::X86_64UnknownLinuxGnu
+                    | toucan_target::Target::Aarch64UnknownLinuxGnu
+            ) {
+                return Err(Error::new(
+                    call.span.start,
+                    "variadic argument packs require a GNU target profile",
+                ));
+            }
+            if !call.node.arguments.is_empty() {
+                return Err(Error::new(
+                    call.span.start,
+                    format!("{name} requires zero arguments"),
+                ));
+            }
+            self.has_variadic_packs |= name == "__builtin_va_arg_pack";
+            return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));
         }
         let memory = self.memory_builtin_signature(name);
         let byte_swap = self.byte_swap_type(name);

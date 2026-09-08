@@ -19,6 +19,7 @@ mod literals;
 mod object_size;
 mod parser_extensions;
 mod statement;
+mod variadic_pack;
 mod weak;
 
 pub use analyze::{analyze, analyze_with_options, evaluate_arithmetic, evaluate_integer};

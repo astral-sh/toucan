@@ -50,6 +50,10 @@ pub enum Conversion {
 #[non_exhaustive]
 pub enum UseContext {
     Value,
+    /// Expand the enclosing inline function's anonymous arguments here. The
+    /// expression's int type is only the GNU builtin's type-checking placeholder;
+    /// no ordinary argument conversion or single integer argument is implied.
+    VariadicPack,
     Place,
     ReadModifyWrite,
     Unevaluated,
@@ -156,6 +160,8 @@ pub enum Builtin {
     VaStart,
     VaEnd,
     VaCopy,
+    VaArgPack,
+    VaArgPackLength,
     Expect,
     Unreachable,
     Trap,
@@ -207,11 +213,19 @@ pub enum Builtin {
     CountTrailingZerosLongLong,
 }
 impl Builtin {
+    /// Whether evaluated uses must be expanded with a concrete inlined caller.
+    /// These operations have no standalone scalar runtime implementation.
+    pub fn requires_inline_expansion(self) -> bool {
+        matches!(self, Self::VaArgPack | Self::VaArgPackLength)
+    }
+
     fn from_name(name: &str) -> Option<Self> {
         Some(match name {
             "__builtin_va_start" => Self::VaStart,
             "__builtin_va_end" => Self::VaEnd,
             "__builtin_va_copy" => Self::VaCopy,
+            "__builtin_va_arg_pack" => Self::VaArgPack,
+            "__builtin_va_arg_pack_len" => Self::VaArgPackLength,
             "__builtin_expect" => Self::Expect,
             "__builtin_unreachable" => Self::Unreachable,
             "__builtin_trap" => Self::Trap,
@@ -1192,6 +1206,14 @@ impl Analyzer {
                 TypeKind::Array { .. }
             );
             for (index, argument) in call.node.arguments.iter().enumerate() {
+                if fortified
+                    .as_ref()
+                    .is_some_and(|signature| signature.variadic)
+                    && self.argument_pack(argument)?
+                {
+                    arguments.push(self.retained_use(argument, UseContext::VariadicPack, None)?);
+                    continue;
+                }
                 let (context, destination) = if let Some(signature) = &fortified {
                     let destination = if let Some(parameter) = signature.parameters.get(index) {
                         (parameter.clone(), Conversion::Assignment)
@@ -1263,6 +1285,10 @@ impl Analyzer {
         };
         let mut arguments = Vec::new();
         for (index, argument) in call.node.arguments.iter().enumerate() {
+            if self.argument_pack(argument)? {
+                arguments.push(self.retained_use(argument, UseContext::VariadicPack, None)?);
+                continue;
+            }
             let (destination, conversion) = if function.prototype
                 && let Some(parameter) = function.parameters.get(index)
             {

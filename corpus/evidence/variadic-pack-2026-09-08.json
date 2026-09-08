@@ -1,0 +1,297 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-08",
+  "base_commit": "ff77330",
+  "source_files_sha256": {
+    "crates/toucan_semantic/src/variadic_pack.rs": "581d094dab39ca2e7ff49a5a7c7c96ea7168d5633c9a3b0dda3a4fde84501523",
+    "crates/toucan_semantic/src/analyze.rs": "c182b88fd8d4f4f0d69db251d420c58f11409cb9ffbf351e425ec86bc51eb4e0",
+    "crates/toucan_semantic/src/expression.rs": "b4b7b45e7e2550d7fbe487bcd34f560b1ac27d5540d0b08d8e82348aacaff188",
+    "crates/toucan_semantic/src/builtins.rs": "0868abbabd2c34b56052b2ef71469aaa9cc293349423eb028a07890cb5895b84",
+    "crates/toucan_semantic/src/checked/expression.rs": "2a0c6356e70413b16a9335ffffe4dc304bc3f6dccc996004b4f7c87a8f3addf8",
+    "crates/toucan_semantic/tests/variadic_pack.rs": "e65c84422d154ee6754b6b57cd08f5670c9cd6bc226e94902d5c01fb46c88a87",
+    "crates/toucan/tests/variadic_pack.rs": "348186cf68aca87fa6f25b303af827701587ee1de54e61e4fe21118a09ed787d",
+    "fuzz/seeds/checked/variadic_pack_generic.h": "d730bf1a3d80263553e2ab919983f63a783ce2435cf960569e2535ee483c3a6e"
+  },
+  "native_signature_tests": {
+    "valid_wrappers": 9,
+    "invalid_wrappers": 6,
+    "gcc_optimization_levels": [
+      "O0",
+      "O2"
+    ],
+    "clang_rejects_gnu_intrinsics": true
+  },
+  "native_c_rust": {
+    "status": "passed",
+    "optimization_levels": [
+      "O0",
+      "O2"
+    ],
+    "cases": [
+      "empty pack",
+      "mixed int/double promoted arguments",
+      "argument count",
+      "fortified sprintf"
+    ]
+  },
+  "review_regression": {
+    "description": "The initial unpublished implementation rechecked unselected Generic branches when classifying a later argument pack. The final implementation uses a bounded association-index cache.",
+    "reproducer": "fuzz/seeds/checked/variadic_pack_generic.h",
+    "before": {
+      "rlib": "/home/dev-user/code/oss/toucan/target/debug/deps/libtoucan_semantic-701fcd030a4d321e.rlib",
+      "rlib_sha256": "262bc89de7480a92ab7f49c3751bf999de6c2a438bedbef0cc9eacbc2d28383d",
+      "rows": [
+        {
+          "n": 4,
+          "pack_seen": false,
+          "retained": false,
+          "seconds": 0.007271742000739323,
+          "stdout": "true 0.001813\n",
+          "exit_code": 0
+        },
+        {
+          "n": 4,
+          "pack_seen": true,
+          "retained": false,
+          "seconds": 0.0070040820028225426,
+          "stdout": "true 0.001844\n",
+          "exit_code": 0
+        },
+        {
+          "n": 4,
+          "pack_seen": true,
+          "retained": true,
+          "seconds": 0.00790141800098354,
+          "stdout": "true 0.003080\n",
+          "exit_code": 0
+        },
+        {
+          "n": 8,
+          "pack_seen": false,
+          "retained": false,
+          "seconds": 0.007243358999403426,
+          "stdout": "true 0.002511\n",
+          "exit_code": 0
+        },
+        {
+          "n": 8,
+          "pack_seen": true,
+          "retained": false,
+          "seconds": 0.009638142000767402,
+          "stdout": "true 0.005295\n",
+          "exit_code": 0
+        },
+        {
+          "n": 8,
+          "pack_seen": true,
+          "retained": true,
+          "seconds": 0.008527612997568212,
+          "stdout": "true 0.004072\n",
+          "exit_code": 0
+        },
+        {
+          "n": 12,
+          "pack_seen": false,
+          "retained": false,
+          "seconds": 0.008473527002934134,
+          "stdout": "true 0.003596\n",
+          "exit_code": 0
+        },
+        {
+          "n": 12,
+          "pack_seen": true,
+          "retained": false,
+          "seconds": 0.049050402998545906,
+          "stdout": "true 0.044498\n",
+          "exit_code": 0
+        },
+        {
+          "n": 12,
+          "pack_seen": true,
+          "retained": true,
+          "seconds": 0.010584800002106931,
+          "stdout": "true 0.005768\n",
+          "exit_code": 0
+        },
+        {
+          "n": 16,
+          "pack_seen": false,
+          "retained": false,
+          "seconds": 0.009500845000729896,
+          "stdout": "true 0.004872\n",
+          "exit_code": 0
+        },
+        {
+          "n": 16,
+          "pack_seen": true,
+          "retained": false,
+          "seconds": 0.6656096560000151,
+          "stdout": "true 0.660114\n",
+          "exit_code": 0
+        },
+        {
+          "n": 16,
+          "pack_seen": true,
+          "retained": true,
+          "seconds": 0.014827945000433829,
+          "stdout": "true 0.008756\n",
+          "exit_code": 0
+        },
+        {
+          "n": 20,
+          "pack_seen": false,
+          "retained": false,
+          "seconds": 0.012478106000344269,
+          "stdout": "true 0.006858\n",
+          "exit_code": 0
+        },
+        {
+          "n": 20,
+          "pack_seen": true,
+          "retained": false,
+          "timeout": 4
+        },
+        {
+          "n": 20,
+          "pack_seen": true,
+          "retained": true,
+          "seconds": 0.01562873999864678,
+          "stdout": "true 0.009579\n",
+          "exit_code": 0
+        }
+      ]
+    },
+    "after": {
+      "rlib": "/home/dev-user/code/oss/toucan/target/debug/deps/libtoucan_semantic-115ea7952139d125.rlib",
+      "rlib_sha256": "9a724cb0815cda04784e9d5b49e64c3e39b82b03cb49fb4904fd1fb1c5d64ad1",
+      "rows": [
+        {
+          "n": 4,
+          "pack_seen": false,
+          "retained": false,
+          "seconds": 0.007146799001930049,
+          "stdout": "true 0.001753\n",
+          "exit_code": 0
+        },
+        {
+          "n": 4,
+          "pack_seen": true,
+          "retained": false,
+          "seconds": 0.0066963270000997,
+          "stdout": "true 0.001793\n",
+          "exit_code": 0
+        },
+        {
+          "n": 4,
+          "pack_seen": true,
+          "retained": true,
+          "seconds": 0.0071418589977838565,
+          "stdout": "true 0.002753\n",
+          "exit_code": 0
+        },
+        {
+          "n": 8,
+          "pack_seen": false,
+          "retained": false,
+          "seconds": 0.006777719001547666,
+          "stdout": "true 0.002508\n",
+          "exit_code": 0
+        },
+        {
+          "n": 8,
+          "pack_seen": true,
+          "retained": false,
+          "seconds": 0.007346256999881007,
+          "stdout": "true 0.002629\n",
+          "exit_code": 0
+        },
+        {
+          "n": 8,
+          "pack_seen": true,
+          "retained": true,
+          "seconds": 0.008757245999731822,
+          "stdout": "true 0.004053\n",
+          "exit_code": 0
+        },
+        {
+          "n": 12,
+          "pack_seen": false,
+          "retained": false,
+          "seconds": 0.008178837000741623,
+          "stdout": "true 0.003535\n",
+          "exit_code": 0
+        },
+        {
+          "n": 12,
+          "pack_seen": true,
+          "retained": false,
+          "seconds": 0.008125116000883281,
+          "stdout": "true 0.003797\n",
+          "exit_code": 0
+        },
+        {
+          "n": 12,
+          "pack_seen": true,
+          "retained": true,
+          "seconds": 0.010081660002470016,
+          "stdout": "true 0.005620\n",
+          "exit_code": 0
+        },
+        {
+          "n": 16,
+          "pack_seen": false,
+          "retained": false,
+          "seconds": 0.009240057999704732,
+          "stdout": "true 0.004786\n",
+          "exit_code": 0
+        },
+        {
+          "n": 16,
+          "pack_seen": true,
+          "retained": false,
+          "seconds": 0.009678086997155333,
+          "stdout": "true 0.005046\n",
+          "exit_code": 0
+        },
+        {
+          "n": 16,
+          "pack_seen": true,
+          "retained": true,
+          "seconds": 0.012246322999999393,
+          "stdout": "true 0.007293\n",
+          "exit_code": 0
+        },
+        {
+          "n": 20,
+          "pack_seen": false,
+          "retained": false,
+          "seconds": 0.010793350000312785,
+          "stdout": "true 0.006281\n",
+          "exit_code": 0
+        },
+        {
+          "n": 20,
+          "pack_seen": true,
+          "retained": false,
+          "seconds": 0.010861206003028201,
+          "stdout": "true 0.006439\n",
+          "exit_code": 0
+        },
+        {
+          "n": 20,
+          "pack_seen": true,
+          "retained": true,
+          "seconds": 0.013924416998634115,
+          "stdout": "true 0.009206\n",
+          "exit_code": 0
+        }
+      ]
+    }
+  },
+  "scope": [
+    "Compiler acceptance and native execution are GNU-profile tests; Clang rejects these intrinsics.",
+    "The semantic API exposes the requirement for evaluated uses to expand with an inlined caller. It does not perform inlining or invent a pack length.",
+    "The regression timings are single debug-build observations on CPU2, not application benchmarks.",
+    "The original sources and ordinary C compiler constraints remain unchanged."
+  ]
+}

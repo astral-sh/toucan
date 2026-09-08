@@ -374,6 +374,17 @@ impl Analyzer {
                         let ty = self.value_expression_type(argument)?;
                         self.require_complete_object(&ty, argument.span.start)?;
                     }
+                    self.check_argument_pack(
+                        argument,
+                        index,
+                        call.node.arguments.len(),
+                        if function.prototype {
+                            function.parameters.len()
+                        } else {
+                            0
+                        },
+                        !function.prototype || function.variadic,
+                    )?;
                 }
                 if !matches!(
                     self.unit.resolve(&function.return_type)?.kind,
@@ -480,6 +491,16 @@ impl Analyzer {
                 self.expression_type(expression)?;
             }
         }
+        // Record the decision even before a pack is discovered in the selected
+        // arm. A later argument-use query must not recheck unselected subtrees.
+        let key = (selection.span.start, selection.span.end);
+        if self.generic_selections.len() >= 65_536 && !self.generic_selections.contains_key(&key) {
+            return Err(Error::new(
+                offset,
+                "generic selection count exceeds the 65536-entry limit",
+            ));
+        }
+        self.generic_selections.insert(key, selected);
         Ok(expressions[selected])
     }
 

@@ -444,3 +444,36 @@ array and member uses remain supported.
 GCC/Clang layout probes, native C/Rust int128 calls, real translation-unit progress,
 and default-path allocation measurements. The real source files still encounter
 separate unsupported attributes or compiler intrinsics after these typedefs.
+
+### GNU variadic argument packs
+
+The GNU profiles support `__builtin_va_arg_pack()` and
+`__builtin_va_arg_pack_len()`, including fortify wrappers. Both have C type `int`
+for type checking and unevaluated expressions. A retained `VaArgPack` operation
+represents the enclosing inline function's anonymous arguments; `VaArgPackLength`
+represents their count after inlining. Neither supplies a standalone runtime
+integer value, and the frontend does not invent a count without a concrete caller.
+
+A direct pack, an identity `int` cast, unary plus, or a selected generic association
+in the final variadic argument position has `UseContext::VariadicPack`. Fixed and
+explicit variadic arguments retain their ordinary conversions. Known pack uses in
+fixed or nonfinal argument positions produce diagnostics. No-prototype callees and
+empty packs are supported.
+
+[`Builtin::requires_inline_expansion`](../crates/toucan_semantic/src/checked/expression.rs)
+identifies the lowering requirement. As with GCC's syntax-only checking, ordinary
+C type checking can succeed before inlining makes an intrinsic use valid or
+invalid. A code generator must expand packs with the actual caller, resolve
+wrappers such as comma/conditional expressions, and reject evaluated uses that
+remain afterward. This library does not perform that optimization phase. Clang
+profiles reject these GNU-only intrinsics. Native tests compile wrappers at `-O0`
+and `-O2` and exercise empty packs, mixed promoted arguments, argument counts, and
+fortified formatting through Rust calls.
+
+See [GCC's argument-pack contract](https://gcc.gnu.org/onlinedocs/gcc/Constructing-Calls.html).
+
+Argument-pack classification reuses the association chosen during `_Generic`
+type checking. It does not recheck unselected expression trees. The semantic
+selection cache permits at most 65,536 distinct generic selections per input.
+The [review regression and native results](../corpus/evidence/variadic-pack-2026-09-08.json)
+record the compiler probes and the corrected repeated-work case.

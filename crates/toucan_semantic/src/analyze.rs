@@ -558,6 +558,8 @@ fn outermost_derived(
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) has_variadic_packs: bool,
+    pub(crate) generic_selections: HashMap<(usize, usize), usize>,
     pub(crate) weak_symbols: BTreeMap<String, lang_c::span::Span>,
     pub(crate) diagnostic_kinds: HashMap<String, u8>,
     pub(crate) checked: Option<Box<CodeBuilder>>,
@@ -647,6 +649,8 @@ impl Analyzer {
             current_function: None,
             block_externs: HashMap::new(),
             weak_symbols: BTreeMap::new(),
+            has_variadic_packs: false,
+            generic_selections: HashMap::new(),
             type_names: HashMap::new(),
         }
     }
