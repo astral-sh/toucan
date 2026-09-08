@@ -94,6 +94,46 @@ or recheck an otherwise accepted source always fail the audit. There is no chang
 baseline count or exception list: every rejection remains visible. Reports apply
 only to their recorded executables and flags.
 
+## Strict acceptance gate
+
+`--fail-on-strict-difference` requires Toucan to accept every eligible case that
+both compilers also accept with the pedantic C11 flags above. The report includes
+`strict_eligible_count`, `strict_toucan_accepted`, and `strict_differences` alongside
+all exploratory differences. Infrastructure failures remain fatal under either
+policy. There is no case exception list or fixed expected passing count.
+
+```console
+python3 scripts/audit_c_testsuite.py --workers 4 --fail-on-strict-difference
+```
+
+The [conformance workflow](../../.github/workflows/conformance.yml) runs this gate
+on Ubuntu with Rust 1.96, Python 3.12, explicit GCC 13 and Clang 18 executables,
+and four workers. It also tests the gate's failure behavior and retains reports,
+inputs, and diagnostics as artifacts, including failed audits.
+
+## Recorded results
+
+The [recorded acceptance report](../evidence/c-testsuite-2026-09-08.json) preserves
+all 220 case classifications, source and preprocessed hashes, tool hashes,
+configuration, and origin metadata from the existing audit. Toucan accepted
+219 of 220 eligible C11 cases and all 211 cases accepted by both pedantic C11
+oracles. Recomputing the strict gate from those retained results succeeds; requiring
+all exploratory differences to disappear fails.
+
+The remaining case, `00144.c`, assigns a conditional `const void *` result to
+`void *`. Both pedantic compilers diagnose the discarded qualifier, as does
+Toucan. Its [complete compiler and frontend diagnostics](../evidence/c-testsuite-2026-09-08-differences.json)
+remain recorded as an exploratory difference. This classification does not make
+the other 211 programs a proof of full C conformance.
+
+The separate [zstd feature report](../evidence/zstd-features-2026-09-08.json) links
+to eight complete native consumer reports: default, experimental, multithreaded,
+and combined profiles, each built with Rust 1.64.0 and Rust 1.98.1. Upstream and
+Toucan-generated bindings produced matching results and all 50 recorded runtime
+artifacts; 72 generated layout tests passed. These are native x86-64 Linux consumer
+checks, with each report retaining its actual frontend hash. They do not represent
+full Ruff or uv builds.
+
 ## Origins and licenses
 
 The c-testsuite harness is MIT licensed. Its

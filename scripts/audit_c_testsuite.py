@@ -307,6 +307,49 @@ def audit(source: Path, args: argparse.Namespace, manifest: dict) -> dict:
     return result
 
 
+def summarize(cases: list[dict], changed_tools: list[str]) -> dict:
+    """Classify both exploratory and pedantic-positive cases without an exception list."""
+    strict = [
+        case for case in cases if case["eligible"] and case["both_accept"]["strict_c11"]
+    ]
+    return {
+        "source_count": len(cases),
+        "both_accept": {
+            mode: sum(case["both_accept"][mode] for case in cases) for mode in MODES
+        },
+        "eligible_count": sum(case["eligible"] for case in cases),
+        "toucan_checked": sum("toucan" in case for case in cases),
+        "toucan_accepted": sum(
+            accepted(case["toucan"]) for case in cases if "toucan" in case
+        ),
+        "differences": [case["name"] for case in cases if case["difference"]],
+        "strict_eligible_count": len(strict),
+        "strict_toucan_accepted": sum(accepted(case["toucan"]) for case in strict),
+        "strict_differences": [case["name"] for case in strict if case["difference"]],
+        "tool_failures": [case["name"] for case in cases if case["tool_failure"]],
+        "oracle_pipeline_failures": [
+            case["name"] for case in cases if case["oracle_pipeline_failure"]
+        ],
+        "changed_tools": changed_tools,
+    }
+
+
+def audit_failed(
+    summary: dict,
+    *,
+    fail_on_difference: bool = False,
+    fail_on_strict_difference: bool = False,
+) -> bool:
+    """Keep infrastructure failures fatal under either acceptance policy."""
+    return bool(
+        summary["tool_failures"]
+        or summary["oracle_pipeline_failures"]
+        or summary["changed_tools"]
+        or (fail_on_difference and summary["differences"])
+        or (fail_on_strict_difference and summary["strict_differences"])
+    )
+
+
 def arguments() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -391,6 +434,11 @@ def arguments() -> argparse.Namespace:
         "--fail-on-difference",
         action="store_true",
         help="return nonzero if Toucan rejects an input accepted by both selected-dialect oracles",
+    )
+    parser.add_argument(
+        "--fail-on-strict-difference",
+        action="store_true",
+        help="return nonzero for eligible Toucan rejections accepted by both pedantic C11 oracles",
     )
     args = parser.parse_args()
     if (
@@ -510,6 +558,7 @@ def main() -> int:
                 "workers",
                 "timeout",
                 "fail_on_difference",
+                "fail_on_strict_difference",
             ]
         },
         "environment": {
@@ -541,35 +590,17 @@ def main() -> int:
         for name in tools
         if digest(Path(tools[name]["path"])) != tools[name]["sha256"]
     ]
-    cases = report["cases"]
-    report["summary"] = {
-        "source_count": len(cases),
-        "both_accept": {
-            mode: sum(case["both_accept"][mode] for case in cases) for mode in MODES
-        },
-        "eligible_count": sum(case["eligible"] for case in cases),
-        "toucan_checked": sum("toucan" in case for case in cases),
-        "toucan_accepted": sum(
-            accepted(case["toucan"]) for case in cases if "toucan" in case
-        ),
-        "differences": [case["name"] for case in cases if case["difference"]],
-        "tool_failures": [case["name"] for case in cases if case["tool_failure"]],
-        "oracle_pipeline_failures": [
-            case["name"] for case in cases if case["oracle_pipeline_failure"]
-        ],
-        "changed_tools": changed_tools,
-    }
+    report["summary"] = summarize(report["cases"], changed_tools)
     report["seconds"] = time.monotonic() - started
     write_json(args.output / "evidence.json", report)
     print(json.dumps(report["summary"], indent=2))
     print(f"Evidence: {args.output / 'evidence.json'}")
-    failed = (
-        report["summary"]["tool_failures"]
-        or report["summary"]["oracle_pipeline_failures"]
-        or changed_tools
-    )
     return int(
-        bool(failed or (args.fail_on_difference and report["summary"]["differences"]))
+        audit_failed(
+            report["summary"],
+            fail_on_difference=args.fail_on_difference,
+            fail_on_strict_difference=args.fail_on_strict_difference,
+        )
     )
 
 
