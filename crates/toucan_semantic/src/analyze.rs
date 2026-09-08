@@ -312,6 +312,7 @@ pub(crate) struct Analyzer {
     pub(crate) unit: TranslationUnit,
     tags: HashMap<String, TagBinding>,
     prototype_scopes: Vec<PrototypeScope>,
+    defining_enums: HashSet<usize>,
     packs: PackEvents,
     record_attributes: HashSet<usize>,
     nesting: usize,
@@ -364,6 +365,7 @@ impl Analyzer {
             unit,
             tags,
             prototype_scopes: Vec::new(),
+            defining_enums: HashSet::new(),
             packs: Vec::new(),
             record_attributes: HashSet::new(),
             nesting: 0,
@@ -1419,7 +1421,9 @@ impl Analyzer {
             }
             id
         };
-        if !declaration.node.enumerators.is_empty() && !self.unit.enums[id].variants.is_empty() {
+        if !declaration.node.enumerators.is_empty()
+            && (self.unit.enums[id].complete || !self.defining_enums.insert(id))
+        {
             return Err(Error::new(
                 declaration.span.start,
                 "enum is defined more than once",
@@ -1472,6 +1476,7 @@ impl Analyzer {
         if !declaration.node.enumerators.is_empty() {
             self.unit.enums[id].complete = true;
             self.finish_enum(id, declaration.span.start)?;
+            self.defining_enums.remove(&id);
         }
         Ok(id)
     }

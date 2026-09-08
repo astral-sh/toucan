@@ -207,6 +207,10 @@ fn gnu_widens_extended_enums_and_apple_rejects_lossy_recovery() {
 }
 
 const COMPLETENESS: &[(&str, bool)] = &[
+    ("enum E { A = sizeof(enum E { B = 1 }) };", false),
+    // A prototype introduces a distinct tag even while the outer definition is
+    // active; matching by spelling would incorrectly reject this shadow.
+    ("enum E { A = sizeof(int (*)(enum E { B = 1 })) };", true),
     ("enum E { A = sizeof(enum E) };", false),
     ("enum E { A = 1, B = sizeof(enum E) };", false),
     ("enum E { A = 1, B = _Alignof(enum E) };", false),
