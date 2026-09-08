@@ -1,4 +1,4 @@
-name: Fuzz smoke tests
+name: Fuzz tests
 
 on:
   pull_request:
@@ -7,20 +7,25 @@ on:
       - "Cargo.lock"
       - "crates/**"
       - "fuzz/**"
+      - "scripts/run_fuzz_campaign.py"
+      - "scripts/tests/test_fuzz_campaign.py"
       - ".github/workflows/fuzz.yml"
   push:
     branches: [main]
   workflow_dispatch:
+  schedule:
+    - cron: "43 2 * * *"
 
 permissions:
   contents: read
 
 concurrency:
-  group: fuzz-${{ github.ref }}
+  group: fuzz-${{ github.event_name }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   smoke:
+    if: github.event_name != 'schedule' && github.event_name != 'workflow_dispatch'
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -31,6 +36,7 @@ jobs:
         with:
           toolchain: nightly-2026-09-07
       - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - run: python3 -m unittest discover -s scripts/tests -p test_fuzz_campaign.py
       - name: Exercise each boundary
         shell: bash
         run: |
@@ -57,3 +63,44 @@ jobs:
             fuzz/artifacts/
           if-no-files-found: warn
           retention-days: 14
+
+  campaign:
+    if: github.event_name == 'schedule' || github.event_name == 'workflow_dispatch'
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [preprocess, semantic, bindings, checked]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: nightly-2026-09-07
+      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - uses: actions/cache/restore@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-v1-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+          restore-keys: fuzz-corpus-v1-${{ matrix.target }}-
+      - name: Run a fifteen-minute campaign
+        env:
+          FUZZ_TARGET: ${{ matrix.target }}
+          FUZZ_SEED: ${{ github.run_number }}
+        run: python3 scripts/run_fuzz_campaign.py "$FUZZ_TARGET" --seconds 900 --seed "$FUZZ_SEED" --output "fuzz/runs/$FUZZ_TARGET"
+      - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
+        if: success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+        with:
+          path: fuzz/corpus/${{ matrix.target }}
+          key: fuzz-corpus-v1-${{ matrix.target }}-${{ github.run_id }}-${{ github.run_attempt }}
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: fuzz-campaign-${{ matrix.target }}
+          path: |
+            fuzz/runs/${{ matrix.target }}/
+            fuzz/corpus/${{ matrix.target }}/
+          if-no-files-found: warn
+          retention-days: 30

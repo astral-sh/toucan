@@ -26,6 +26,26 @@ CI uses the C dictionary and immediately permits each harness's maximum input si
 16 KiB for preprocessing and analysis, 8 KiB for binding generation. The smoke
 runs still last 60 seconds per target; they are not sustained campaigns.
 
+The daily and manually dispatched workflow runs each target for 15 minutes with
+AddressSanitizer. Successful default-branch runs save the evolving corpus for the
+next campaign. Every run uploads its starting corpus archive, final corpus,
+dictionary, binary, source hashes, logs, and reproducer files for 30 days. The
+starting archive makes a recorded random seed useful even after the corpus changes.
+These jobs start running after the workflow reaches the default branch; adding
+the workflow is not evidence that a scheduled campaign has completed.
+
+The same runner works locally with a nightly toolchain and `cargo-fuzz` selected:
+
+```console
+python3 scripts/run_fuzz_campaign.py checked --seconds 900 --seed 12345 --output fuzz/runs/checked-local
+```
+
+The output directory must be new. To replay a saved campaign, extract its starting
+corpus into a new directory and invoke its saved binary with that directory and
+the recorded libFuzzer arguments, updating the dictionary and artifact paths.
+The binary requires a compatible host. Preserve the archive before further
+mutations; a final corpus is not an exact substitute for the starting corpus.
+
 The preprocessing targets disable filesystem access. Includes can resolve only to
 the configured in-memory resource headers.
 
@@ -95,6 +115,16 @@ cargo +nightly fuzz run semantic /tmp/toucan-fuzz-semantic -- -dict=fuzz/c.dict 
 ```
 
 ## Retained-code differential campaign
+
+Two [later campaigns](evidence/checked-parser-campaigns-2026-09-08.json) completed
+without findings: 195,925 executions at `caf6bcf` after GNU atomic intrinsics and
+MMX, and 80,241 at `4945364` after parser limits, SSE, overflow intrinsics, and TLS.
+Each ran for 901 seconds with AddressSanitizer, a 16 KiB input limit, a five-second
+per-input timeout, and a 1 GiB RSS limit. Peak RSS was 709 MiB and 670 MiB,
+respectively. LeakSanitizer remained disabled under ptrace. Neither run covers the
+later C11 atomic types, type introspection, ARM, or `__auto_type` implementations.
+These historical reports contain hashes; exact replay also requires the locally
+saved starting corpus. New campaigns archive those inputs with their evidence.
 
 The [definition follow-up](evidence/checked-definition-2026-09-08.json) found a
 parameter-scope assertion after 179,902 executions: `int f(int named); int f() { return 0; }`
