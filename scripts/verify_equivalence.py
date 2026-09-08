@@ -210,7 +210,7 @@ def alias_reason(name: str, side: str, report: dict, project: dict) -> str | Non
     return None
 
 
-def classify(report: dict, project: dict, enum_names: set[str]) -> tuple[list, list]:
+def classify(report: dict, project: dict) -> tuple[list, list]:
     """Classify exact known differences; the caller must first validate C evidence."""
     accepted, unexpected = [], []
     name = project["name"]
@@ -260,13 +260,6 @@ def classify(report: dict, project: dict, enum_names: set[str]) -> tuple[list, l
                     "bindgen": str(sentinel),
                 }:
                     reason = "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen"
-            elif category == "constants" and item in enum_names:
-                if (
-                    difference
-                    == {"toucan": primitive("i32"), "bindgen": primitive("u32")}
-                    and item not in native["different"]
-                ):
-                    reason = "C enumerator expression has int type; bindgen uses the unsigned enum type"
             elif category == "constants" and item in MACRO_TYPES.get(name, {}):
                 toucan_type, bindgen_type, _ = MACRO_TYPES[name][item]
                 if (
@@ -546,21 +539,11 @@ def verify(project: dict, args, evidence: dict) -> dict:
             if Path(path).is_file()
         }
         execute(bindgen_command, directory, "generate-bindgen", commands, args.timeout)
-        inspection = json.loads(
-            execute(
-                [str(args.toucan), "inspect", *options],
-                directory,
-                "inspect",
-                commands,
-                args.timeout,
-            )
-        )["translation_unit"]
-        enum_names = {
-            variant["name"]
-            for enum in inspection["enums"]
-            for variant in enum["variants"]
-        } & inspection["constants"].keys()
-        result["enum_constant_names"] = sorted(enum_names)
+        result["enum_constant_names"] = sorted(
+            constant["c_name"]
+            for group in metadata["enum_constants"]
+            for constant in group["emitted"]
+        )
         oracle = ROOT / "corpus" / "oracles" / f"{name}.c"
         if oracle.exists():
             source = directory / "oracle.c"
@@ -641,7 +624,7 @@ def verify(project: dict, args, evidence: dict) -> dict:
             report["inventory"]["toucan"]["constants"]
         ):
             raise RuntimeError("C evidence did not cover every generated constant")
-        accepted, unexpected = classify(report, project, enum_names)
+        accepted, unexpected = classify(report, project)
         result.update(
             {
                 "comparison": str(comparison_path),

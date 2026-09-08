@@ -39,17 +39,14 @@ def report():
 
 
 class EquivalenceGateTests(unittest.TestCase):
-    def test_enum_exception_requires_a_known_enumerator(self):
+    def test_enum_representation_must_match(self):
         value = report()
         value["comparisons"]["constants"]["different"]["VALUE"] = {
             "toucan": gate.primitive("i32"),
             "bindgen": gate.primitive("u32"),
         }
         project = {"name": "zstd", "allowlist": ["*"]}
-        accepted, unexpected = gate.classify(value, project, {"VALUE"})
-        self.assertEqual(len(accepted), 1)
-        self.assertFalse(unexpected)
-        accepted, unexpected = gate.classify(value, project, set())
+        accepted, unexpected = gate.classify(value, project)
         self.assertFalse(accepted)
         self.assertEqual(len(unexpected), 1)
 
@@ -65,9 +62,9 @@ class EquivalenceGateTests(unittest.TestCase):
             "bindgen": "-2",
         }
         project = {"name": "zstd", "allowlist": ["ZSTD*"]}
-        self.assertFalse(gate.classify(value, project, set())[1])
+        self.assertFalse(gate.classify(value, project)[1])
         value["comparisons"]["native_constants"]["different"][item]["toucan"] = "0"
-        self.assertEqual(len(gate.classify(value, project, set())[1]), 2)
+        self.assertEqual(len(gate.classify(value, project)[1]), 2)
 
     def test_layout_offset_function_and_global_differences_are_never_accepted(self):
         value = report()
@@ -76,7 +73,7 @@ class EquivalenceGateTests(unittest.TestCase):
                 "toucan": 1,
                 "bindgen": 2,
             }
-        self.assertEqual(len(gate.classify(value, {"name": "sqlite"}, set())[1]), 4)
+        self.assertEqual(len(gate.classify(value, {"name": "sqlite"})[1]), 4)
 
     def test_only_named_extra_constants_are_accepted(self):
         value = report()
@@ -85,7 +82,7 @@ class EquivalenceGateTests(unittest.TestCase):
                 "ZSTD_VERSION_STRING",
                 "NEW_CONSTANT",
             ]
-        accepted, unexpected = gate.classify(value, {"name": "zstd"}, set())
+        accepted, unexpected = gate.classify(value, {"name": "zstd"})
         self.assertEqual({item["name"] for item in accepted}, {"ZSTD_VERSION_STRING"})
         self.assertEqual({item["name"] for item in unexpected}, {"NEW_CONSTANT"})
 
@@ -95,11 +92,11 @@ class EquivalenceGateTests(unittest.TestCase):
             "__toucan_bits_1",
             "__toucan_padding_2",
         ]
-        self.assertFalse(gate.classify(value, {"name": "libgit2"}, set())[1])
+        self.assertFalse(gate.classify(value, {"name": "libgit2"})[1])
         value["excluded_storage_fields"]["toucan"]["git_commit_create_options"].append(
             "unvalidated_storage"
         )
-        self.assertTrue(gate.classify(value, {"name": "libgit2"}, set())[1])
+        self.assertTrue(gate.classify(value, {"name": "libgit2"})[1])
 
     def test_va_list_storage_requires_independent_c_validation(self):
         value = report()
@@ -185,11 +182,11 @@ class EquivalenceGateTests(unittest.TestCase):
         }
         value["record_name_mapping"] = {"Anonymous": "Public"}
         self.assertFalse(
-            gate.classify(value, {"name": "zlib", "allowlist": ["Public"]}, set())[1]
+            gate.classify(value, {"name": "zlib", "allowlist": ["Public"]})[1]
         )
         value["record_name_mapping"] = {}
         self.assertTrue(
-            gate.classify(value, {"name": "zlib", "allowlist": ["Public"]}, set())[1]
+            gate.classify(value, {"name": "zlib", "allowlist": ["Public"]})[1]
         )
 
 
