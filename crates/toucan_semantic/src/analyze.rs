@@ -1411,6 +1411,7 @@ impl Analyzer {
             self.unit.enums.push(Enum {
                 name: name.clone(),
                 scope: self.scope(),
+                complete: false,
                 variants: Vec::new(),
             });
             if let Some(name) = name {
@@ -1436,9 +1437,7 @@ impl Analyzer {
             };
             // C11 enumerator identifiers have type int when their values fit,
             // irrespective of the suffix/type used in the defining expression.
-            let value = if (value.signed && i32::try_from(value.signed_value()).is_ok())
-                || (!value.signed && value.value <= i32::MAX as u128)
-            {
+            let value = if value.fits_int() {
                 IntegerValue::int(value.signed_value())
             } else {
                 value
@@ -1469,6 +1468,10 @@ impl Analyzer {
                 .variants
                 .push(EnumVariant { name, value });
             previous = Some(value);
+        }
+        if !declaration.node.enumerators.is_empty() {
+            self.unit.enums[id].complete = true;
+            self.finish_enum(id, declaration.span.start)?;
         }
         Ok(id)
     }

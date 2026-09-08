@@ -160,6 +160,8 @@ pub struct Field {
 pub struct Enum {
     pub name: Option<String>,
     pub scope: Scope,
+    /// Whether the closing brace of the definition has been reached.
+    pub complete: bool,
     pub variants: Vec<EnumVariant>,
 }
 
@@ -193,7 +195,7 @@ pub struct IntegerValue {
     pub value: u128,
     pub bits: u8,
     pub signed: bool,
-    /// C ranks: bool=0, char=1, short=2, int=3, long=4, long long=5.
+    /// C ranks: bool=0, char=1, short=2, int=3, long=4, long long=5, int128=6.
     pub rank: u8,
 }
 
@@ -218,6 +220,15 @@ impl IntegerValue {
             return Err(Error::new(0, "expected a nonnegative integer"));
         }
         u64::try_from(self.value).map_err(|_| Error::new(0, "integer does not fit in 64 bits"))
+    }
+
+    /// Returns whether this value is representable in the target profiles' 32-bit `int`.
+    pub(crate) fn fits_int(self) -> bool {
+        if self.signed {
+            i32::try_from(self.signed_value()).is_ok()
+        } else {
+            self.value <= i32::MAX as u128
+        }
     }
 
     pub(crate) fn new(value: u128, bits: u8, signed: bool, rank: u8) -> Self {
@@ -421,23 +432,30 @@ impl TranslationUnit {
                 element: Box::new(self.layout_type(element, active, depth + 1)?),
                 length: *length,
             },
-            TypeKind::Enum(id) => target::TypeVariant::Enum(
-                self.enums
+            TypeKind::Enum(id) => {
+                let enumeration = self
+                    .enums
                     .get(*id)
-                    .ok_or_else(|| Error::new(0, "invalid enum identity"))?
-                    .variants
-                    .iter()
-                    .map(|variant| {
-                        variant.value.validate()?;
-                        if variant.value.signed {
-                            Ok(variant.value.signed_value())
-                        } else {
-                            i128::try_from(variant.value.value)
-                                .map_err(|_| Error::new(0, "enum value exceeds layout support"))
-                        }
-                    })
-                    .collect::<Result<_, _>>()?,
-            ),
+                    .ok_or_else(|| Error::new(0, "invalid enum identity"))?;
+                if !enumeration.complete {
+                    return Err(Error::new(0, "incomplete enum has no object layout"));
+                }
+                target::TypeVariant::Enum(
+                    enumeration
+                        .variants
+                        .iter()
+                        .map(|variant| {
+                            variant.value.validate()?;
+                            if variant.value.signed {
+                                Ok(variant.value.signed_value())
+                            } else {
+                                i128::try_from(variant.value.value)
+                                    .map_err(|_| Error::new(0, "enum value exceeds layout support"))
+                            }
+                        })
+                        .collect::<Result<_, _>>()?,
+                )
+            }
             TypeKind::Function(_) => return Err(Error::new(0, "a function has no object layout")),
             _ => unreachable!("builtin and typedef cases handled above"),
         };

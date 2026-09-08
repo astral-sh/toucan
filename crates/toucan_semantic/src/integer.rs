@@ -471,7 +471,16 @@ impl Analyzer {
                         .iter()
                         .any(|variant| variant.value.signed && variant.value.signed_value() < 0);
                 let bits = layout.size_bits as u8;
-                (bits, signed, if bits <= 32 { 3 } else { 4 })
+                let rank = if bits <= 32 {
+                    3
+                } else if u64::from(bits) <= self.unit.target.long_width() {
+                    4
+                } else if bits <= 64 {
+                    5
+                } else {
+                    6
+                };
+                (bits, signed, rank)
             }
             _ => return Err(Error::new(offset, "expected an integer type")),
         };
@@ -531,15 +540,79 @@ impl Analyzer {
         ))
     }
 
+    /// Applies the compiler's final enumerator types after every initializer has
+    /// been evaluated with the types visible inside the definition.
+    pub(crate) fn finish_enum(&mut self, id: usize, offset: usize) -> Result<(), Error> {
+        let destination = self.integer_type(&Type::new(TypeKind::Enum(id)), offset)?;
+        let gnu = matches!(
+            self.unit.target,
+            toucan_target::Target::X86_64UnknownLinuxGnu
+                | toucan_target::Target::Aarch64UnknownLinuxGnu
+        );
+        if !gnu && destination.bits > 64 {
+            return Err(Error::new(
+                offset,
+                "enum values exceed the target's supported integer range",
+            ));
+        }
+        let variants = &mut self.unit.enums[id].variants;
+        let wider_than_int = variants.iter().any(|variant| !variant.value.fits_int());
+        for variant in variants {
+            let value = variant.value;
+            // Some compiler extensions recover from an unrepresentable enum by
+            // truncating its values. We reject that recovery instead of emitting
+            // constants whose values changed silently.
+            let converted = convert(value, destination);
+            let representable = if value.signed && value.signed_value() < 0 {
+                converted.signed && value.signed_value() == converted.signed_value()
+            } else {
+                (!converted.signed || converted.signed_value() >= 0)
+                    && value.value == converted.value
+            };
+            if !representable {
+                return Err(Error::new(
+                    offset,
+                    "enum value is not representable in its compatible integer type",
+                ));
+            }
+            // GCC applies its C23 rule in older language modes too: one value
+            // outside int changes every enumerator's type after the closing
+            // brace. Clang keeps the individually representable values as int.
+            if (gnu && wider_than_int) || !value.fits_int() {
+                variant.value = converted;
+                self.unit.constants.insert(variant.name.clone(), converted);
+            }
+        }
+        Ok(())
+    }
+
+    /// Adds one for an implicit enumerator, widening on overflow while preserving
+    /// signedness. The wider type remains visible to subsequent initializers.
     pub(crate) fn integer_add_one(
         &self,
-        value: IntegerValue,
+        mut value: IntegerValue,
         offset: usize,
     ) -> Result<IntegerValue, Error> {
+        let maximum = IntegerValue::mask(value.bits) >> u32::from(value.signed);
+        if value.value == maximum {
+            let gnu = matches!(
+                self.unit.target,
+                toucan_target::Target::X86_64UnknownLinuxGnu
+                    | toucan_target::Target::Aarch64UnknownLinuxGnu
+            );
+            let wider = [(self.unit.target.long_width() as u8, 4), (64, 5), (128, 6)]
+                .into_iter()
+                .find(|(bits, _)| *bits > value.bits && (*bits <= 64 || gnu))
+                .ok_or_else(|| {
+                    Error::new(
+                        offset,
+                        "enumerator increment exceeds supported integer types",
+                    )
+                })?;
+            value = convert(value, IntegerValue::new(0, wider.0, value.signed, wider.1));
+        }
         if value.signed {
             signed_result(value.signed_value().checked_add(1), value, offset)
-        } else if value.value == IntegerValue::mask(value.bits) {
-            Err(Error::new(offset, "enumerator increment overflows"))
         } else {
             Ok(IntegerValue::new(
                 value.value + 1,
