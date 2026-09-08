@@ -658,7 +658,7 @@ impl Analyzer {
         Ok(())
     }
 
-    fn compatible(&self, left: &Type, right: &Type) -> Result<bool, Error> {
+    pub(crate) fn compatible(&self, left: &Type, right: &Type) -> Result<bool, Error> {
         self.compatible_at(left, right, 0)
     }
 
@@ -739,7 +739,12 @@ impl Analyzer {
     }
 
     /// Combines compatible declarations without losing nested type information.
-    fn composite_type(&self, left: &Type, right: &Type, depth: usize) -> Result<Type, Error> {
+    pub(crate) fn composite_type(
+        &self,
+        left: &Type,
+        right: &Type,
+        depth: usize,
+    ) -> Result<Type, Error> {
         if depth >= 128 {
             return Err(Error::new(
                 0,

@@ -5,6 +5,7 @@
 //! declarations rather than claiming to validate executable C programs.
 
 mod analyze;
+mod expression;
 mod integer;
 mod ir;
 

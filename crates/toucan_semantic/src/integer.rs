@@ -35,6 +35,10 @@ impl Analyzer {
                         format!("`{}` is not an integer constant", identifier.node.name),
                     )
                 }),
+            ast::Expression::GenericSelection(selection) => {
+                let selected = self.generic_expression(selection)?;
+                self.eval(selected)
+            }
             ast::Expression::Cast(cast) => {
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 let destination = self.integer_type(&ty, offset)?;
@@ -111,12 +115,10 @@ impl Analyzer {
                 let ty = self.type_name(&size.node.0.node)?;
                 self.size_of(&ty, offset)
             }
-            ast::Expression::SizeOfVal(size) => {
-                let ty = self.expression_type(&size.node.0)?;
-                self.size_of(&ty, offset)
-            }
+            ast::Expression::SizeOfVal(size) => self.sizeof_expression(&size.node.0),
             ast::Expression::AlignOf(alignment) => {
                 let ty = self.type_name(&alignment.node.0.node)?;
+                self.size_of(&ty, offset)?;
                 let layout = self.unit.layout(&ty)?;
                 Ok(self.size_value(layout.alignment_bytes()))
             }
@@ -171,7 +173,7 @@ impl Analyzer {
         }
     }
 
-    fn size_of(&self, ty: &Type, offset: usize) -> Result<IntegerValue, Error> {
+    pub(crate) fn size_of(&self, ty: &Type, offset: usize) -> Result<IntegerValue, Error> {
         if matches!(
             self.unit.resolve(ty)?.kind,
             TypeKind::Array { length: None, .. } | TypeKind::Void | TypeKind::Function(_)
@@ -181,7 +183,7 @@ impl Analyzer {
         Ok(self.size_value(self.unit.layout(ty)?.size_bytes()))
     }
 
-    fn size_value(&self, value: u64) -> IntegerValue {
+    pub(crate) fn size_value(&self, value: u64) -> IntegerValue {
         let bits = self.unit.target.pointer_width() as u8;
         IntegerValue::new(
             u128::from(value),
@@ -236,211 +238,6 @@ impl Analyzer {
         Err(Error::new(offset, format!("unknown field `{name}`")))
     }
 
-    pub(crate) fn expression_type(
-        &mut self,
-        expression: &Node<ast::Expression>,
-    ) -> Result<Type, Error> {
-        self.enter_expression(expression.span.start)?;
-        let result = self.expression_type_inner(expression);
-        self.leave_expression();
-        result
-    }
-
-    fn expression_type_inner(&mut self, expression: &Node<ast::Expression>) -> Result<Type, Error> {
-        let offset = expression.span.start;
-        let integer = match &expression.node {
-            ast::Expression::Constant(constant) => match &constant.node {
-                ast::Constant::Integer(integer) => self.literal(integer, offset)?,
-                ast::Constant::Character(_) => IntegerValue::int(0),
-                ast::Constant::Float(float) => {
-                    return Ok(Type::new(TypeKind::Float(match float.suffix.format {
-                        ast::FloatFormat::Float => crate::FloatKind::Float,
-                        ast::FloatFormat::Double => crate::FloatKind::Double,
-                        ast::FloatFormat::LongDouble => crate::FloatKind::LongDouble,
-                        _ => return Err(Error::new(offset, "unsupported floating-point type")),
-                    })));
-                }
-            },
-            ast::Expression::Identifier(identifier) => {
-                if let Some(value) = self.unit.constants.get(&identifier.node.name) {
-                    *value
-                } else if let Some(ty) = self.parameter_type(&identifier.node.name) {
-                    return Ok(ty.clone());
-                } else if let Some(declaration) = self
-                    .unit
-                    .declarations
-                    .iter()
-                    .find(|declaration| declaration.name == identifier.node.name)
-                {
-                    return Ok(declaration.ty.clone());
-                } else {
-                    return Err(Error::new(
-                        offset,
-                        format!("unknown identifier `{}`", identifier.node.name),
-                    ));
-                }
-            }
-            ast::Expression::Cast(cast) => {
-                self.expression_type(&cast.node.expression)?;
-                return self.type_name(&cast.node.type_name.node);
-            }
-            ast::Expression::UnaryOperator(unary) => {
-                let ty = self.expression_type(&unary.node.operand)?;
-                match unary.node.operator.node {
-                    ast::UnaryOperator::Address => return Ok(ty.pointer()),
-                    ast::UnaryOperator::Indirection => {
-                        let TypeKind::Pointer(pointee) = &self.unit.resolve(&ty)?.kind else {
-                            return Err(Error::new(offset, "indirection requires a pointer"));
-                        };
-                        return Ok((**pointee).clone());
-                    }
-                    ast::UnaryOperator::Negate => {
-                        self.require_scalar(&ty, offset)?;
-                        IntegerValue::int(0)
-                    }
-                    _ => promote(self.integer_type(&ty, offset)?),
-                }
-            }
-            ast::Expression::BinaryOperator(binary) => {
-                let left = self.expression_type(&binary.node.lhs)?;
-                let right = self.expression_type(&binary.node.rhs)?;
-                if matches!(
-                    binary.node.operator.node,
-                    ast::BinaryOperator::Equals
-                        | ast::BinaryOperator::NotEquals
-                        | ast::BinaryOperator::Less
-                        | ast::BinaryOperator::LessOrEqual
-                        | ast::BinaryOperator::Greater
-                        | ast::BinaryOperator::GreaterOrEqual
-                        | ast::BinaryOperator::LogicalAnd
-                        | ast::BinaryOperator::LogicalOr
-                ) {
-                    self.require_scalar(&left, offset)?;
-                    self.require_scalar(&right, offset)?;
-                    IntegerValue::int(0)
-                } else {
-                    if binary.node.operator.node == ast::BinaryOperator::Index {
-                        // C defines a[b] as *(a + b), so either operand may
-                        // provide the pointer, but the other must be an integer.
-                        for (pointer, index) in [(&left, &right), (&right, &left)] {
-                            if let TypeKind::Array { element, .. } | TypeKind::Pointer(element) =
-                                &self.unit.resolve(pointer)?.kind
-                            {
-                                self.integer_type(index, offset)?;
-                                return Ok((**element).clone());
-                            }
-                        }
-                        return Err(Error::new(
-                            offset,
-                            "index requires pointer and integer operands",
-                        ));
-                    }
-                    let left = self.integer_type(&left, offset)?;
-                    if matches!(
-                        binary.node.operator.node,
-                        ast::BinaryOperator::ShiftLeft | ast::BinaryOperator::ShiftRight
-                    ) {
-                        self.integer_type(&right, offset)?;
-                        promote(left)
-                    } else {
-                        common(left, self.integer_type(&right, offset)?)
-                    }
-                }
-            }
-            ast::Expression::Conditional(conditional) => {
-                let condition = self.expression_type(&conditional.node.condition)?;
-                self.require_scalar(&condition, offset)?;
-                let left = self.expression_type(&conditional.node.then_expression)?;
-                let right = self.expression_type(&conditional.node.else_expression)?;
-                common(
-                    self.integer_type(&left, offset)?,
-                    self.integer_type(&right, offset)?,
-                )
-            }
-            ast::Expression::SizeOfTy(size) => {
-                let ty = self.type_name(&size.node.0.node)?;
-                self.size_of(&ty, offset)?;
-                self.size_value(0)
-            }
-            ast::Expression::SizeOfVal(size) => {
-                let ty = self.expression_type(&size.node.0)?;
-                self.size_of(&ty, offset)?;
-                self.size_value(0)
-            }
-            ast::Expression::AlignOf(alignment) => {
-                let ty = self.type_name(&alignment.node.0.node)?;
-                self.unit.layout(&ty)?;
-                self.size_value(0)
-            }
-            ast::Expression::OffsetOf(_) => {
-                self.eval(expression)?;
-                self.size_value(0)
-            }
-            ast::Expression::StringLiteral(strings) => {
-                let decoded = crate::analyze::decode_strings(&strings.node, offset)?;
-                return Ok(Type::new(TypeKind::Array {
-                    element: Box::new(Type::new(TypeKind::Integer(IntegerKind::Char))),
-                    length: Some(decoded.len() as u64 + 1),
-                }));
-            }
-            ast::Expression::Member(member) => {
-                let mut ty = self.expression_type(&member.node.expression)?;
-                if member.node.operator.node == ast::MemberOperator::Indirect {
-                    let TypeKind::Pointer(pointee) = &self.unit.resolve(&ty)?.kind else {
-                        return Err(Error::new(offset, "indirect member requires a pointer"));
-                    };
-                    ty = (**pointee).clone();
-                }
-                return Ok(self
-                    .field_offset(&ty, &member.node.identifier.node.name, offset)?
-                    .1);
-            }
-            ast::Expression::Call(call) => {
-                for argument in &call.node.arguments {
-                    self.expression_type(argument)?;
-                }
-                let ty = self.expression_type(&call.node.callee)?;
-                let mut ty = self.unit.resolve(&ty)?;
-                if let TypeKind::Pointer(pointee) = &ty.kind {
-                    ty = self.unit.resolve(pointee)?;
-                }
-                let TypeKind::Function(function) = &ty.kind else {
-                    return Err(Error::new(offset, "callee is not a function"));
-                };
-                if function.prototype
-                    && (call.node.arguments.len() < function.parameters.len()
-                        || (!function.variadic
-                            && call.node.arguments.len() != function.parameters.len()))
-                {
-                    return Err(Error::new(
-                        offset,
-                        "argument count does not match function prototype",
-                    ));
-                }
-                return Ok(function.return_type.clone());
-            }
-            _ => {
-                return Err(Error::new(
-                    offset,
-                    "expression type inference is unsupported for this expression",
-                ));
-            }
-        };
-        Ok(integer_to_type(integer))
-    }
-
-    /// Validates an operand's type without evaluating its value. Arrays and
-    /// function designators undergo their usual conversion to pointers.
-    fn require_scalar(&self, ty: &Type, offset: usize) -> Result<(), Error> {
-        if matches!(
-            self.unit.resolve(ty)?.kind,
-            TypeKind::Void | TypeKind::Record(_)
-        ) {
-            return Err(Error::new(offset, "operator requires a scalar operand"));
-        }
-        Ok(())
-    }
-
     pub(crate) fn integer_type(&self, ty: &Type, offset: usize) -> Result<IntegerValue, Error> {
         let ty = self.unit.resolve(ty)?;
         let (bits, signed, rank) = match ty.kind {
@@ -487,7 +284,11 @@ impl Analyzer {
         Ok(IntegerValue::new(0, bits, signed, rank))
     }
 
-    fn literal(&self, literal: &ast::Integer, offset: usize) -> Result<IntegerValue, Error> {
+    pub(crate) fn literal(
+        &self,
+        literal: &ast::Integer,
+        offset: usize,
+    ) -> Result<IntegerValue, Error> {
         if literal.suffix.imaginary {
             return Err(Error::new(
                 offset,
@@ -765,7 +566,7 @@ impl Analyzer {
     }
 }
 
-fn promote(value: IntegerValue) -> IntegerValue {
+pub(crate) fn promote(value: IntegerValue) -> IntegerValue {
     if value.rank < 3 {
         convert(value, IntegerValue::int(0))
     } else {
@@ -786,7 +587,7 @@ fn convert(value: IntegerValue, destination: IntegerValue) -> IntegerValue {
     )
 }
 
-fn common(left: IntegerValue, right: IntegerValue) -> IntegerValue {
+pub(crate) fn common(left: IntegerValue, right: IntegerValue) -> IntegerValue {
     let left = promote(left);
     let right = promote(right);
     if left.signed == right.signed {
@@ -824,7 +625,7 @@ fn signed_result(
     Ok(IntegerValue::new(value as u128, ty.bits, true, ty.rank))
 }
 
-fn integer_to_type(value: IntegerValue) -> Type {
+pub(crate) fn integer_to_type(value: IntegerValue) -> Type {
     Type::new(TypeKind::Integer(match (value.rank, value.signed) {
         (0 | 1, true) => IntegerKind::SignedChar,
         (0 | 1, false) => IntegerKind::UnsignedChar,
