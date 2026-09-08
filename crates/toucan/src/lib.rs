@@ -13,7 +13,7 @@ use std::time::{Duration, Instant};
 pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions, RustTarget};
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
 pub use toucan_preprocessor::{
-    FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude, OriginKind,
+    FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude, LineComments, OriginKind,
     PredefinedMacroMode, QueryDialect, SourceLocation, SourceMapping,
 };
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};

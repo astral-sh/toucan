@@ -14,6 +14,38 @@ import run_fuzz_campaign as campaign
 
 
 class FuzzCampaignTests(unittest.TestCase):
+    def test_preprocessor_padding_covers_all_policies_without_changing_source(self):
+        for source in [
+            b"",
+            b"int x=6 //**/ 2;",
+            b"a" * 255,
+            b"a" * 256,
+            b"a" * 511,
+            b"a" * 2560,
+        ]:
+            seeds = list(campaign.seed_preprocessor_policies(source))
+            self.assertEqual(len(seeds), 20)
+            self.assertEqual({(sum(seed) >> 9) % 5 for seed in seeds}, set(range(5)))
+            self.assertEqual(
+                {
+                    ((sum(seed) >> 9) % 5, bool(sum(seed) & 0x100), sum(seed) & 1)
+                    for seed in seeds
+                },
+                {
+                    (comment, trigraph, dialect)
+                    for comment in range(5)
+                    for trigraph in (False, True)
+                    for dialect in range(2)
+                },
+            )
+            self.assertTrue(
+                all(
+                    seed.startswith(source + b"\n/* profile ")
+                    and seed.endswith(b" */\n")
+                    for seed in seeds
+                )
+            )
+
     def test_profile_seeds_and_initial_archive_preserve_exact_input_bytes(self):
         source = b"int f(void) { return 0; }\n"
         for count in (5, 7, 11, 32):

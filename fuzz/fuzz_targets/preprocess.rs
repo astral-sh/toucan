@@ -30,6 +30,13 @@ fuzz_target!(|bytes: &[u8]| {
             Arc::clone(&CATALOG),
         )),
         trigraphs: selector & 0x100 != 0,
+        line_comments: [
+            toucan::LineComments::Enabled,
+            toucan::LineComments::GnuC90,
+            toucan::LineComments::GnuC90Preprocessing,
+            toucan::LineComments::ClangC90,
+            toucan::LineComments::ClangC90Preprocessing,
+        ][(selector >> 9) % 5],
         max_tokens: 4096,
         max_source_bytes: 65_536,
         max_include_depth: 8,

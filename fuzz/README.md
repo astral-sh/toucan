@@ -21,6 +21,14 @@ Record the harness source and selector count with each campaign. The same byte s
 `0x100` bit independently selects GNU11 (clear) or C11 (set). The preprocessing
 harness uses that bit to disable or enable trigraph replacement, and bit `1` selects
 GNU (clear) or Clang (set) feature-query argument rules with a small test catalog.
+Preprocessing selector version 2 also uses `(sum(input bytes) >> 9) % 5` for
+line-comment handling: enabled, GCC C90 compilation, GCC C90 preprocessing,
+Clang C90 compilation, or Clang C90 preprocessing, in that order. The source
+bytes remain intact. The runner appends block-comment padding to cover all 20
+comment/query/trigraph combinations for every preprocessing seed. Older
+preprocessing campaigns always enabled line comments; replay their saved binary
+to preserve that behavior. This change does not alter the semantic targets'
+two-mode selector.
 It has no physical target profile. The campaign runner pads each seed with a comment to cover every compiler
 profile in both modes, including both trigraph settings and query dialects for preprocessing. The
 reported profile count must match the compiled harness's `CompilerProfile::ALL`.
