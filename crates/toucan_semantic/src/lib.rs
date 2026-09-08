@@ -5,6 +5,7 @@
 //! consumer omits their definitions from its generated API.
 
 mod analyze;
+mod builtins;
 mod expression;
 mod floating;
 mod initializer;

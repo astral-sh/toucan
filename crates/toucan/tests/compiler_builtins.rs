@@ -97,3 +97,33 @@ fn compiler_integer_types_match_native_c() {
         String::from_utf8_lossy(&output.stderr)
     );
 }
+
+#[test]
+fn stdarg_macros_check_complete_function_bodies() {
+    let source = r#"
+        #include <stdarg.h>
+        static double sum(int n, ...) {
+            va_list args, copy;
+            va_start(args, n);
+            va_copy(copy, args);
+            double result = 0;
+            for (int i = 0; i < n; ++i) result += va_arg(copy, double);
+            va_end(copy);
+            va_end(args);
+            return result;
+        }
+    "#;
+    for target in Target::ALL {
+        let mut config = Config::new(target);
+        config.preprocessor.allow_filesystem = false;
+        toucan::parse_source(Path::new("variadic.h"), source, &config).unwrap();
+        let source = source.replace("va_arg(copy, double)", "va_arg(copy, void)");
+        let error = toucan::parse_source(Path::new("variadic.h"), &source, &config)
+            .err()
+            .expect("invalid va_arg result");
+        assert!(
+            error.to_string().contains("complete object type"),
+            "{error}"
+        );
+    }
+}

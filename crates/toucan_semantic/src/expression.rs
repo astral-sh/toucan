@@ -312,7 +312,11 @@ impl Analyzer {
                         && base.register,
                 });
             }
+            ast::Expression::VaArg(argument) => self.va_arg_type(argument)?,
             ast::Expression::Call(call) => {
+                if let Some(ty) = self.builtin_call_type(call)? {
+                    return Ok(ExpressionInfo::value(ty));
+                }
                 let callee = self.value_expression_type(&call.node.callee)?;
                 let TypeKind::Pointer(pointee) = callee.kind else {
                     return Err(Error::new(offset, "callee is not a function"));
@@ -372,12 +376,6 @@ impl Analyzer {
                     ty = self.value_expression_type(expression)?;
                 }
                 ty
-            }
-            _ => {
-                return Err(Error::new(
-                    offset,
-                    "expression checking is unsupported for this expression",
-                ));
             }
         };
         Ok(ExpressionInfo::value(ty))
@@ -767,7 +765,7 @@ impl Analyzer {
         }
     }
 
-    fn require_complete_object(&self, ty: &Type, offset: usize) -> Result<(), Error> {
+    pub(crate) fn require_complete_object(&self, ty: &Type, offset: usize) -> Result<(), Error> {
         if self.is_complete_object(ty, 0)? {
             Ok(())
         } else {
@@ -856,7 +854,11 @@ impl Analyzer {
         Ok(self.eval(expression).is_ok_and(|value| value.value == 0))
     }
 
-    fn require_modifiable(&self, expression: &ExpressionInfo, offset: usize) -> Result<(), Error> {
+    pub(crate) fn require_modifiable(
+        &self,
+        expression: &ExpressionInfo,
+        offset: usize,
+    ) -> Result<(), Error> {
         if !expression.lvalue
             || self.contains_const(&expression.ty, 0)?
             || matches!(

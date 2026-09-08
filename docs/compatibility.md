@@ -42,6 +42,20 @@ bound. Rust bindings support parameters whose outer array layer adjusts to a
 pointer, and reject remaining runtime-sized array layers. Runtime bound expressions
 and typed bodies are not yet exposed through the public IR.
 
+## Compiler intrinsics
+
+The `stdarg.h` built-ins check argument-list types using the target's array,
+record, or pointer representation. `va_start` requires a variadic function and its
+visible last named parameter; `va_arg` requires a complete result type. List
+mutation requires the appropriate pointer or modifiable object. These checks do
+not prove runtime list initialization, lifetime, or agreement with the caller's
+actual variadic arguments.
+
+`__builtin_expect` checks both arguments against the target's `long` type. When
+both are arithmetic constants, evaluation returns the converted first argument.
+`__builtin_unreachable` and `__builtin_trap` have void type and take no arguments.
+Ordinary declarations can shadow intrinsic call names.
+
 ## GNU statement expressions
 
 Statement expressions (`({ ...; expression; })`) check their local declarations,
