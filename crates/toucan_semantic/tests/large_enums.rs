@@ -265,6 +265,10 @@ fn enum_values_and_types_match_c_compilers() {
         ("clang", APPLE),
         ("clang", Target::Aarch64AppleDarwin),
     ] {
+        // macOS supplies a `gcc` command that invokes Apple Clang.
+        if compiler == "gcc" && !cfg!(target_os = "linux") {
+            continue;
+        }
         let extra = GNU_WIDE
             .iter()
             .filter(|_| target == GNU)
