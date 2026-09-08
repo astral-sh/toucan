@@ -3,6 +3,7 @@ use std::collections::{BTreeMap, HashSet};
 use lang_c::{ast, span::Node};
 
 use crate::analyze::{Analyzer, LexicalScope, Tag};
+use crate::checked::statement::ControlKind;
 use crate::checked::{
     EntityKind, LocalDeclaration, OccurrenceKind, ScopeId, ScopeKind, Storage, declarator_name_span,
 };
@@ -122,6 +123,12 @@ impl Analyzer {
                     "statement expression requires a compound statement",
                 ));
             };
+            let checked_statement = analyzer
+                .checked
+                .as_mut()
+                .map(|checked| checked.begin_statement(statement))
+                .transpose()?
+                .flatten();
             let gnu = analyzer.gnu_statement_expressions();
             let mut result = None;
             let mut final_value = None;
@@ -144,6 +151,9 @@ impl Analyzer {
                     }
                     ast::BlockItem::Statement(statement) => {
                         if matches!(statement.node, ast::Statement::Expression(None)) {
+                            if analyzer.checked.is_some() {
+                                analyzer.statement(statement)?;
+                            }
                             continue;
                         }
                         analyzer.statement(statement)?;
@@ -159,6 +169,9 @@ impl Analyzer {
             }
             if let Some(checked) = &mut analyzer.checked {
                 checked.statement_expression_result(statement, final_value)?;
+            }
+            if let Some(id) = checked_statement {
+                analyzer.retain_statement(statement, id)?;
             }
             let Some(result) = result else {
                 return Ok(ExpressionInfo::value(Type::new(TypeKind::Void)));
@@ -233,6 +246,19 @@ impl Analyzer {
         check: impl FnOnce(&mut Self) -> Result<T, Error>,
     ) -> Result<T, Error> {
         self.with_scope(span, None, ScopeKind::Block, check)
+    }
+
+    fn with_statement<T>(
+        &mut self,
+        span: lang_c::span::Span,
+        check: impl FnOnce(&mut Self) -> Result<T, Error>,
+    ) -> Result<T, Error> {
+        self.with_block(span, |analyzer| {
+            if let Some(checked) = &mut analyzer.checked {
+                checked.statement_scope();
+            }
+            check(analyzer)
+        })
     }
 
     fn with_scope<T>(
@@ -339,6 +365,9 @@ impl Analyzer {
         let reuse = parameters
             .as_ref()
             .and_then(|parameters| parameters.checked_scope);
+        if let Some(checked) = &mut self.checked {
+            checked.begin_body(definition)?;
+        }
         let result = self.with_scope(definition.span, reuse, ScopeKind::Function, |analyzer| {
             if let Some(parameters) = parameters {
                 for id in parameters.record_ids {
@@ -421,7 +450,16 @@ impl Analyzer {
                     "function body must be a compound statement",
                 ));
             };
+            let checked_statement = analyzer
+                .checked
+                .as_mut()
+                .map(|checked| checked.begin_statement(&definition.node.statement))
+                .transpose()?
+                .flatten();
             analyzer.block_items(items)?;
+            if let Some(id) = checked_statement {
+                analyzer.retain_statement(&definition.node.statement, id)?;
+            }
             let context = analyzer.function_context();
             let expression_ends = ancestry_ends(&context.expression_parents);
             // VM declarations are visited in lexical preorder. An ancestor
@@ -451,6 +489,9 @@ impl Analyzer {
                 ) {
                     return Err(Error::new(*offset, "goto enters a statement expression"));
                 }
+            }
+            if analyzer.checked.is_some() {
+                analyzer.retain_function_body(definition)?;
             }
             Ok(())
         });
@@ -505,6 +546,22 @@ impl Analyzer {
     }
 
     fn block_declaration(
+        &mut self,
+        declaration: &Node<ast::Declaration>,
+        for_initializer: bool,
+    ) -> Result<(), Error> {
+        let checkpoint = self
+            .checked
+            .as_ref()
+            .map(|checked| checked.declaration_checkpoint());
+        self.block_declaration_inner(declaration, for_initializer)?;
+        if let (Some(checked), Some(checkpoint)) = (&mut self.checked, checkpoint) {
+            checked.complete_declaration_group(declaration, checkpoint)?;
+        }
+        Ok(())
+    }
+
+    fn block_declaration_inner(
         &mut self,
         declaration: &Node<ast::Declaration>,
         for_initializer: bool,
@@ -875,7 +932,13 @@ impl Analyzer {
         check: impl FnOnce(&mut Self) -> Result<(), Error>,
     ) -> Result<(), Error> {
         self.function_context_mut().loops += 1;
+        if let Some(checked) = &mut self.checked {
+            checked.enter_control(ControlKind::Loop, 0)?;
+        }
         let result = check(self);
+        if let Some(checked) = &mut self.checked {
+            checked.leave_control();
+        }
         self.function_context_mut().loops -= 1;
         result
     }
@@ -896,8 +959,21 @@ impl Analyzer {
     }
 
     fn statement(&mut self, statement: &Node<ast::Statement>) -> Result<(), Error> {
+        let checked_statement = if let Some(checked) = &mut self.checked {
+            let Some(id) = checked.begin_statement(statement)? else {
+                return Ok(());
+            };
+            Some(id)
+        } else {
+            None
+        };
         self.enter_expression(statement.span.start)?;
-        let result = self.statement_inner(statement);
+        let result = self.statement_inner(statement).and_then(|()| {
+            if let Some(id) = checked_statement {
+                self.retain_statement(statement, id)?;
+            }
+            Ok(())
+        });
         self.leave_expression();
         result
     }
@@ -910,7 +986,7 @@ impl Analyzer {
         let offset = statement.span.start;
         match &statement.node {
             ast::Statement::Compound(items) => {
-                self.with_block(statement.span, |analyzer| analyzer.block_items(items))
+                self.with_statement(statement.span, |analyzer| analyzer.block_items(items))
             }
             ast::Statement::Expression(expression) => {
                 if let Some(expression) = expression {
@@ -932,7 +1008,7 @@ impl Analyzer {
                     }
                 }
             }
-            ast::Statement::If(selection) => self.with_block(statement.span, |analyzer| {
+            ast::Statement::If(selection) => self.with_statement(statement.span, |analyzer| {
                 analyzer.scalar_condition(&selection.node.condition)?;
                 analyzer.substatement(&selection.node.then_statement)?;
                 if let Some(statement) = &selection.node.else_statement {
@@ -940,7 +1016,7 @@ impl Analyzer {
                 }
                 Ok(())
             }),
-            ast::Statement::While(iteration) => self.with_block(statement.span, |analyzer| {
+            ast::Statement::While(iteration) => self.with_statement(statement.span, |analyzer| {
                 if analyzer.gnu_statement_expressions() {
                     analyzer.scalar_condition(&iteration.node.expression)?;
                     analyzer.with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))
@@ -951,7 +1027,7 @@ impl Analyzer {
                     })
                 }
             }),
-            ast::Statement::DoWhile(iteration) => self.with_block(statement.span, |analyzer| {
+            ast::Statement::DoWhile(iteration) => self.with_statement(statement.span, |analyzer| {
                 if analyzer.gnu_statement_expressions() {
                     analyzer
                         .with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))?;
@@ -963,7 +1039,7 @@ impl Analyzer {
                     })
                 }
             }),
-            ast::Statement::For(iteration) => self.with_block(statement.span, |analyzer| {
+            ast::Statement::For(iteration) => self.with_statement(statement.span, |analyzer| {
                 match &iteration.node.initializer.node {
                     ast::ForInitializer::Empty => {}
                     ast::ForInitializer::Expression(expression) => {
@@ -986,7 +1062,7 @@ impl Analyzer {
                     })
                 }
             }),
-            ast::Statement::Switch(selection) => self.with_block(statement.span, |analyzer| {
+            ast::Statement::Switch(selection) => self.with_statement(statement.span, |analyzer| {
                 let ty = analyzer.value_expression_type(&selection.node.expression)?;
                 let ty = promote(analyzer.integer_type(&ty, selection.node.expression.span.start)?);
                 let variably_modified = analyzer.active_variably_modified();
@@ -998,7 +1074,13 @@ impl Analyzer {
                     variably_modified,
                     statement_expression: context.active_expression,
                 });
+                if let Some(checked) = &mut analyzer.checked {
+                    checked.enter_control(ControlKind::Switch, offset)?;
+                }
                 let result = analyzer.substatement(&selection.node.statement);
+                if let Some(checked) = &mut analyzer.checked {
+                    checked.leave_control();
+                }
                 analyzer.function_context_mut().switches.pop();
                 result
             }),
@@ -1085,6 +1167,17 @@ impl Analyzer {
             .iter()
             .rev()
             .find_map(|scope| scope.variably_modified)
+    }
+
+    pub(crate) fn retained_switch_integer_type(
+        &self,
+        offset: usize,
+    ) -> Result<IntegerValue, Error> {
+        self.function_context()
+            .switches
+            .last()
+            .map(|switch| switch.ty)
+            .ok_or_else(|| Error::new(offset, "case has no current switch"))
     }
 
     fn check_switch_entry(&self, switch: &SwitchContext, offset: usize) -> Result<(), Error> {

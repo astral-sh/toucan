@@ -239,7 +239,7 @@ pub(crate) enum ExprKind {
         initializer: OccurrenceId,
     },
     StatementExpression {
-        body: OccurrenceId,
+        body: super::statement::StatementId,
         result: Option<ExprUse>,
     },
 }
@@ -470,11 +470,11 @@ impl Analyzer {
             .expect("expression retention is enabled")
     }
 
-    fn retained_type(&mut self, ty: &Type, offset: usize) -> Result<TypeId, Error> {
+    pub(crate) fn retained_type(&mut self, ty: &Type, offset: usize) -> Result<TypeId, Error> {
         self.code_builder().intern_type(ty, offset)
     }
 
-    fn retained_expression_id(
+    pub(crate) fn retained_expression_id(
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<ExprId, Error> {
@@ -484,7 +484,7 @@ impl Analyzer {
         self.code_builder().expression_id(expression)
     }
 
-    fn retained_use(
+    pub(crate) fn retained_use(
         &mut self,
         expression: &Node<ast::Expression>,
         context: UseContext,
@@ -565,7 +565,10 @@ impl Analyzer {
         })
     }
 
-    fn retained_value(&mut self, expression: &Node<ast::Expression>) -> Result<ExprUse, Error> {
+    pub(crate) fn retained_value(
+        &mut self,
+        expression: &Node<ast::Expression>,
+    ) -> Result<ExprUse, Error> {
         self.retained_use(expression, UseContext::Value, None)
     }
 
@@ -937,6 +940,7 @@ impl Analyzer {
                         )
                     })
                     .transpose()?;
+                let body = self.code_builder().statement_id(statement)?;
                 ExprKind::StatementExpression { body, result }
             }
         };

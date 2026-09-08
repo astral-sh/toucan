@@ -44,25 +44,25 @@ enum Architecture {
 }
 
 #[derive(Default)]
-struct Location {
-    register: bool,
-    memory: bool,
-    immediate: bool,
-    fixed: BTreeSet<&'static str>,
-    matching: Option<usize>,
+pub(crate) struct Location {
+    pub(crate) register: bool,
+    pub(crate) memory: bool,
+    pub(crate) immediate: bool,
+    pub(crate) fixed: BTreeSet<&'static str>,
+    pub(crate) matching: Option<usize>,
 }
 
-struct Constraint {
-    alternatives: Vec<Location>,
-    read_write: bool,
+pub(crate) struct Constraint {
+    pub(crate) alternatives: Vec<Location>,
+    pub(crate) read_write: bool,
 }
 
-struct Operand {
-    info: ExpressionInfo,
-    ty: Type,
-    constraint: Constraint,
-    integer_constant: bool,
-    offset: usize,
+pub(crate) struct Operand {
+    pub(crate) info: ExpressionInfo,
+    pub(crate) ty: Type,
+    pub(crate) constraint: Constraint,
+    pub(crate) integer_constant: bool,
+    pub(crate) offset: usize,
 }
 
 impl Analyzer {
@@ -84,6 +84,9 @@ impl Analyzer {
         let assembly = match &statement.node {
             ast::AsmStatement::GnuBasic(template) => {
                 self.asm_string(template)?;
+                if self.checked.is_some() {
+                    self.retain_assembly(statement, &[])?;
+                }
                 return Ok(());
             }
             ast::AsmStatement::GnuExtended(assembly) => assembly,
@@ -247,10 +250,14 @@ impl Analyzer {
             &names,
             architecture,
             offset,
-        )
+        )?;
+        if self.checked.is_some() {
+            self.retain_assembly(statement, &operands)?;
+        }
+        Ok(())
     }
 
-    fn asm_string(&self, literal: &Node<ast::StringLiteral>) -> Result<String, Error> {
+    pub(crate) fn asm_string(&self, literal: &Node<ast::StringLiteral>) -> Result<String, Error> {
         let decoded = decode_string_literals(&literal.node, self.unit.target, literal.span.start)?;
         if decoded.encoding != StringEncoding::Ordinary {
             return Err(Error::new(

@@ -3,6 +3,7 @@
 //! can be retained without missing semantic facts.
 
 pub(crate) mod expression;
+pub(crate) mod statement;
 
 use std::collections::HashMap;
 use std::hash::{BuildHasher, RandomState};
@@ -111,6 +112,10 @@ pub(crate) enum OccurrenceKind {
     Expression,
     Initializer,
     Statement,
+    StaticAssert,
+    Label,
+    StringLiteral,
+    AsmOperand,
 }
 
 #[derive(Debug, Serialize)]
@@ -170,6 +175,7 @@ impl From<DeclarationKind> for EntityKind {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Entity {
+    pub(crate) body: Option<statement::BodyId>,
     pub(crate) name: Option<String>,
     pub(crate) kind: EntityKind,
     /// Canonical file declaration, when one exists. Block externs may precede it.
@@ -193,6 +199,7 @@ pub(crate) enum Linkage {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct DeclarationSite {
+    pub(crate) body: Option<statement::BodyId>,
     pub(crate) name_source: Option<SourceSpan>,
     pub(crate) entity: EntityId,
     pub(crate) occurrence: OccurrenceId,
@@ -237,6 +244,11 @@ pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> O
 
 #[derive(Debug, Serialize)]
 pub(crate) struct CheckedCode {
+    pub(crate) statements: Vec<statement::Statement>,
+    pub(crate) statement_coverage: Vec<statement::StatementCoverage>,
+    pub(crate) bodies: Vec<statement::FunctionBody>,
+    pub(crate) declaration_groups: Vec<statement::DeclarationGroup>,
+    pub(crate) assertions: Vec<statement::Assertion>,
     pub(crate) expressions: Vec<expression::Expression>,
     pub(crate) assignment_conversions: Vec<expression::ExprUse>,
     pub(crate) expression_coverage: Vec<expression::ExpressionCoverage>,
@@ -268,6 +280,7 @@ enum EntityKey {
 }
 
 pub(crate) struct Builder {
+    statement_builder: statement::StatementBuilder,
     expression_builder: expression::ExpressionBuilder,
     code: CheckedCode,
     budget: Budget,
@@ -297,7 +310,13 @@ impl Builder {
     ) -> Result<Self, Error> {
         let mut builder = Self {
             expression_builder: expression::ExpressionBuilder::default(),
+            statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
+                statements: Vec::new(),
+                statement_coverage: Vec::new(),
+                bodies: Vec::new(),
+                declaration_groups: Vec::new(),
+                assertions: Vec::new(),
                 expressions: Vec::new(),
                 assignment_conversions: Vec::new(),
                 expression_coverage: Vec::new(),
@@ -481,6 +500,7 @@ impl Builder {
         )?;
         let id = EntityId(self.code.entities.len() as u32);
         self.code.entities.push(Entity {
+            body: None,
             name: name.map(str::to_owned),
             kind,
             declaration: None,
@@ -503,6 +523,7 @@ impl Builder {
         self.budget.charge(1, 4, 0, offset)?;
         let id = SiteId(self.code.declarations.len() as u32);
         self.code.declarations.push(DeclarationSite {
+            body: None,
             entity,
             occurrence,
             scope: self.current,
@@ -736,6 +757,7 @@ impl Builder {
             occurrence.source = map_span(offsets, *span, &mut self.budget)?;
         }
         self.finish_expression_coverage()?;
+        self.finish_statements()?;
         for (scope, span) in self.code.scopes.iter_mut().zip(self.scope_spans) {
             if scope.kind != ScopeKind::File {
                 scope.source = map_span(offsets, span, &mut self.budget)?;
@@ -891,6 +913,10 @@ impl<'ast> Visit<'ast> for Builder {
     visit_occurrence!(visit_expression, ast::Expression, Expression);
     visit_occurrence!(visit_initializer, ast::Initializer, Initializer);
     visit_occurrence!(visit_statement, ast::Statement, Statement);
+    visit_occurrence!(visit_static_assert, ast::StaticAssert, StaticAssert);
+    visit_occurrence!(visit_label, ast::Label, Label);
+    visit_occurrence!(visit_string_literal, ast::StringLiteral, StringLiteral);
+    visit_occurrence!(visit_gnu_asm_operand, ast::GnuAsmOperand, AsmOperand);
 }
 
 #[cfg(test)]

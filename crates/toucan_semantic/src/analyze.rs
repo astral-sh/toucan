@@ -2763,7 +2763,8 @@ impl Analyzer {
             self.unit.target,
             assertion.node.message.span.start,
         )?;
-        if !self.eval(&assertion.node.expression)?.truth() {
+        let value = self.eval(&assertion.node.expression)?;
+        if !value.truth() {
             let message = message
                 .to_bytes()
                 .and_then(|mut bytes| {
@@ -2775,6 +2776,9 @@ impl Analyzer {
                 assertion.span.start,
                 format!("static assertion failed: {message}"),
             ));
+        }
+        if self.checked.is_some() {
+            self.retain_static_assertion(assertion, value, message)?;
         }
         Ok(())
     }
