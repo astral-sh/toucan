@@ -160,6 +160,34 @@ constant probes, public-environment validation, query-local enum isolation, and
 [34,955 address-sanitized binding executions](../fuzz/evidence/literal-evaluation-2026-09-08/README.md).
 These measurements retain the same shared-host limitations as the baseline.
 
+### Avoiding declaration copies for enumerator expressions
+
+The [enumerator query capture](../benchmarks/evidence/constant-query-2026-09-08/README.md)
+extends the bounded proof to expressions using known integer constants. Each
+query copies only the values it references into a fresh analyzer. Type-dependent
+and unknown expressions retain the complete environment and existing validation.
+
+| Project | Before | After | bindgen 0.72.1 |
+| --- | ---: | ---: | ---: |
+| zlib | 33.210 ms | 33.507 ms | 118.930 ms |
+| SQLite | 51.625 ms | 52.034 ms | 154.641 ms |
+| zstd | 8.838 ms | 8.886 ms | 100.890 ms |
+| libgit2 | 285.329 ms | 218.466 ms | 259.455 ms |
+
+Libgit2 generation is 23.4% faster than the `a215c7e` baseline in this capture.
+Its binding phase makes 75.8% fewer allocation requests and requests 70.7% fewer
+bytes. All four outputs and binding reports match before and after, apart from
+elapsed times. Another 164,400 query results match across all 88 supported
+compiler, target, and language settings, including types, diagnostics, and offsets.
+
+Seven randomized rounds contain 420 timed library calls on CPU 30, using the
+system allocator and separately built source trees. Allocation counters and
+Callgrind profiles were captured separately. These are warm library calls on a
+shared host; process startup and first libclang initialization are excluded.
+The other projects' medians are 0.5–0.9% higher, so this capture does not establish
+unchanged latency for those routes. The artifact preserves raw samples, complete
+outputs, all 149 actual header hashes, source, and reproduction drivers.
+
 ## Allocator comparison
 
 A paired run at commit `f78baa8` compared the system allocator with the CLI's

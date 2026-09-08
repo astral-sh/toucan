@@ -1,0 +1,59 @@
+{
+  "base_commit": "f9d6f955d03aab8b72f4ce749354b4327ce56cd5",
+  "frozen_patch_sha256": "a5460d54051ea31957f1831818470a862f98bda48603c8d5909ac42dc12dd86e",
+  "measured_production_source_matches": true,
+  "differences_from_measured_source": [
+    "crates/toucan/tests/non_object_queries.rs",
+    "crates/toucan/tests/omitted_conditional.rs",
+    "crates/toucan_bindings/tests/floatn.rs",
+    "crates/toucan_test_support/src/lib.rs"
+  ],
+  "difference_explanation": "PR227 changes only native test object linkage. All measured production compiler and generator sources match. Later CI and evidence commits do not affect those sources.",
+  "workspace": {
+    "passed": 832,
+    "failed": 0,
+    "ignored": 222
+  },
+  "native_and_query_tests": 10,
+  "unchanged_header_outputs": 8,
+  "unchanged_musl_outputs": 4,
+  "release_cli_sha256": "68754f90b97b95bfe926480cfb78a93a9da8d13c2a2c7532067768557501ec10",
+  "frozen_artifacts_checked": 18,
+  "frozen_archive_members_checked": 271,
+  "archive_sha256": "1c219f2e1da8b711f783666f123467c261f0eaa73c9e93b58d8ee77c12c8f2c0",
+  "archive_files": {
+    "drivers/toucan-enumerator-root-projects.py": {
+      "sha256": "5c0370470b2ee8c44540d310ee69e3f1bf324638fae8901114c898128189f1ed",
+      "bytes": 2062
+    },
+    "logs/toucan-enumerator-root-clippy.log": {
+      "sha256": "9b48557b667c7c3123a1567511fc2ac7785ba1beb5d998253fd344d6234f7cb1",
+      "bytes": 502
+    },
+    "logs/toucan-enumerator-root-native.log": {
+      "sha256": "8218f12a22db4244bf35e546e43ae25cfa20b069290d90dd95d5f96d8b82d151",
+      "bytes": 1234
+    },
+    "logs/toucan-enumerator-root-projects.log": {
+      "sha256": "f525c422a56707011f2ade07442c4a30c2cae0eba386f87737f87168eb4e388a",
+      "bytes": 320
+    },
+    "logs/toucan-enumerator-root-release.log": {
+      "sha256": "f59dc50895989fc72615d2ae4ecce8a69a8cc1fa15ebdb0809ff5bb0698afb4f",
+      "bytes": 403
+    },
+    "logs/toucan-enumerator-root-workspace.log": {
+      "sha256": "1498dfe189a27ae40ab390091cf8127884be1f9c71db92b8e6eda3991db84528",
+      "bytes": 134207
+    },
+    "projects.json": {
+      "sha256": "61a64a4a1bac5a88ce01dcd3d907965ab7c7e664d6479fe4a4912e850b222873",
+      "bytes": 798064
+    }
+  },
+  "limitations": [
+    "Integration runs execute on Linux x86-64.",
+    "Timing and query differential captures remain those of the separately frozen source; integration does not collect new latency samples.",
+    "Native macOS runs require an explicit request under PR230."
+  ]
+}

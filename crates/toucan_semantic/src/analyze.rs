@@ -292,11 +292,23 @@ fn evaluate_on_parser_stack<Value>(
         return Err(Error::new(0, "expected integer expression"));
     };
     unit.validate_parameter_contracts()?;
-    // Literal arithmetic only depends on the target and language profile. Keep
-    // validating the public environment above, but avoid copying declarations
-    // that this expression cannot reference. Each query still owns its analyzer.
-    let mut analyzer = if literal_expression(&expression.node, 0, &mut 4096) {
-        Analyzer::new(profile, Vec::new())
+    // Literals and known enumerator values do not need declaration identities.
+    // Keep validating the public environment above, and copy only the values
+    // referenced by a proven expression. Each query still owns its analyzer.
+    let mut constants = BTreeMap::new();
+    let mut analyzer = if value_expression(
+        &expression.node,
+        &unit.constants,
+        &mut constants,
+        0,
+        &mut 4096,
+    ) {
+        let mut analyzer = Analyzer::new(profile, Vec::new());
+        analyzer.unit.constants = constants
+            .into_iter()
+            .map(|(name, value)| (name.to_owned(), value))
+            .collect();
+        analyzer
     } else {
         Analyzer::from_unit(unit.clone())
     };
@@ -325,18 +337,40 @@ fn evaluate_on_parser_stack<Value>(
         })
 }
 
-/// Proves that an expression cannot inspect or introduce a declaration. An
-/// exhausted traversal budget keeps the ordinary evaluation path and its limits.
-fn literal_expression(expression: &ast::Expression, depth: u8, remaining: &mut usize) -> bool {
+/// Collects the owner-independent values referenced by an expression that cannot
+/// inspect or introduce types or objects. Unknown names and exhausted traversal
+/// budgets keep the ordinary evaluation path and its limits.
+fn value_expression<'a>(
+    expression: &'a ast::Expression,
+    constants: &BTreeMap<String, IntegerValue>,
+    referenced: &mut BTreeMap<&'a str, IntegerValue>,
+    depth: u8,
+    remaining: &mut usize,
+) -> bool {
     if depth >= 128 || *remaining == 0 {
         return false;
     }
     *remaining -= 1;
-    let mut operand = |expression: &Node<ast::Expression>| {
-        literal_expression(&expression.node, depth + 1, remaining)
+    let mut operand = |expression: &'a Node<ast::Expression>| {
+        value_expression(
+            &expression.node,
+            constants,
+            referenced,
+            depth + 1,
+            remaining,
+        )
     };
     match expression {
         ast::Expression::Constant(_) => true,
+        ast::Expression::Identifier(identifier) => {
+            let name = identifier.node.name.as_str();
+            if let Some(&value) = constants.get(name) {
+                referenced.insert(name, value);
+                true
+            } else {
+                false
+            }
+        }
         ast::Expression::UnaryOperator(unary) => {
             matches!(
                 unary.node.operator.node,
