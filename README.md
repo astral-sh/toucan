@@ -229,3 +229,14 @@ The ABI restriction follows Rust's [128-bit compatibility changes](https://blog.
 The enum restriction follows the [Rust 1.89 stabilization](https://github.com/rust-lang/rust/pull/138285).
 The [zstd fixture](tools/zstd_consumer/README.md) validates both upstream and Toucan
 bindings with Rust 1.64 and a pinned compatible dependency lock.
+
+### String macros
+
+Ordinary and `u8` string macros emit byte arrays. `u`, `U`, and `L` strings emit
+`u16`, `u32`, or `i32` code-unit arrays according to their prefix and the target's
+`wchar_t`. C11 escapes and adjacent literals are supported, including numeric
+escapes that do not encode Unicode. Arrays include the implicit terminating NUL;
+explicit NULs remain part of the contents.
+
+`--generate-cstr` applies to ordinary and `u8` strings and rejects interior NULs.
+Wide strings retain their typed arrays when this option is enabled.

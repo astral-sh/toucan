@@ -209,7 +209,7 @@ jobs:
         run: |
           set -euo pipefail
           rustup toolchain install 1.64.0 --profile minimal --no-self-update
-          TOUCAN_TEST_RUST_TOOLCHAIN=1.64.0 cargo test --locked -p toucan --test rust_target -- --include-ignored
+          TOUCAN_TEST_RUST_TOOLCHAIN=1.64.0 cargo test --locked -p toucan --test rust_target --test string_macros -- --include-ignored
           if [[ "$RUNNER_OS" == "macOS" ]]; then
             corpus_sysroot="$(xcrun --show-sdk-path)"
           else

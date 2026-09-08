@@ -111,7 +111,7 @@ configuration. See CI results for changes made after that run.
   64 bits and values that cannot be represented without truncation are rejected.
 - Rust bindings reject union bitfields, records containing bitfields passed by value,
   field-level alignment, and combined packing and explicit record alignment.
-- Function-like macros and object macros that are not supported integer or ordinary
+- Function-like macros and object macros that are not supported integer or
   string constants are reported as omitted. SQLite's `SQLITE_STATIC` and
   `SQLITE_TRANSIENT` destructor macros are examples. No invalid function pointer is
   synthesized to represent a sentinel.

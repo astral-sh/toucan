@@ -33,6 +33,7 @@ pub struct Options {
     /// checked; callers are responsible for their validity and C compatibility.
     pub raw_lines: Vec<String>,
     /// Emit byte string macros as `&core::ffi::CStr`. Interior NUL bytes are errors.
+    /// Wide string macros retain typed code-unit arrays.
     pub generate_cstr: bool,
     /// Minimum Rust version for generated declarations. Defaults to Rust 1.96.
     /// Caller-provided raw lines are outside this contract.
@@ -165,11 +166,19 @@ pub struct MacroIntegerType {
     pub rust_signed: bool,
 }
 
-/// An evaluated object-like macro. String bytes exclude the terminating NUL.
+/// An evaluated object-like macro. String contents exclude the implicit
+/// terminating NUL; emission appends exactly one code unit of value zero.
 #[derive(Debug)]
 pub enum MacroValue {
     Integer(IntegerValue),
     String(Vec<u8>),
+    /// UTF-16, UTF-32, or target-wide code units. Supported element types are
+    /// unsigned short, unsigned int, and int. Units retain unsigned bit patterns,
+    /// including numeric escapes that do not encode Unicode scalars.
+    WideString {
+        element_type: IntegerKind,
+        code_units: Vec<u32>,
+    },
 }
 
 /// The C enum behind a group of emitted Rust constants.
@@ -494,6 +503,41 @@ pub fn generate_with_macros(
                     });
                 }
                 source.push_str(&integer_constant_named(&name, emitted)?);
+            }
+            MacroValue::WideString {
+                element_type,
+                code_units,
+            } => {
+                let (rust_type, maximum, signed) = match element_type {
+                    IntegerKind::UnsignedShort => ("u16", u32::from(u16::MAX), false),
+                    IntegerKind::UnsignedInt => ("u32", u32::MAX, false),
+                    IntegerKind::Int => ("i32", u32::MAX, true),
+                    _ => {
+                        return Err(Error(format!(
+                            "wide string macro `{c_name}` has an unsupported element type"
+                        )));
+                    }
+                };
+                if code_units.iter().any(|unit| *unit > maximum) {
+                    return Err(Error(format!(
+                        "wide string macro `{c_name}` has a code unit outside its element range"
+                    )));
+                }
+                write!(
+                    source,
+                    "pub const {name}: &[::core::primitive::{rust_type}; {}] = &[",
+                    code_units.len() + 1
+                )
+                .unwrap();
+                for unit in code_units {
+                    let value = if signed {
+                        i64::from(*unit as i32)
+                    } else {
+                        i64::from(*unit)
+                    };
+                    write!(source, "{value}, ").unwrap();
+                }
+                source.push_str("0];\n");
             }
             MacroValue::String(bytes) => {
                 if options.generate_cstr {
