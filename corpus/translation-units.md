@@ -76,11 +76,12 @@ whole-project acceptance or optimizer/code-generator equivalence.
 
 ## Recorded result
 
-The [Linux x86-64 evidence](evidence/translation-units-1dd52e3.json) checks frontend
-revision `1dd52e3c2115372db723e17e93f6cb49db09ddaa`. All seven inputs complete through
+The [Linux x86-64 evidence](evidence/translation-units-4945364.json) checks frontend
+revision `494536458133e4b7a8e80bee4a8880b80ec5f82d`. All seven inputs complete through
 both preprocessing routes, with retention disabled and enabled: 28 successful
 analyses. All fourteen retention pairs have identical full declaration hashes.
-The audit ran with `--require both` and the manifest's unchanged resource limits.
+The audit ran with `--require both` and the manifest's unchanged resource limits,
+including the new parser work and backtracking limits.
 
 The evidence uses path parameters for cache, checkout, output and probe locations,
 and shares one indexed table of dependency hashes. Full logs, preprocessing files,
@@ -95,13 +96,13 @@ analysis remains slower than GCC on these larger source inputs.
 
 | Translation unit | GCC syntax check (s) | Toucan normal (s) | Toucan retained (s) |
 | --- | ---: | ---: | ---: |
-| zlib-adler32 | 0.065 | 0.065 | 0.115 |
-| zlib-deflate | 0.066 | 0.115 | 0.165 |
-| libgit2-alloc | 0.115 | 0.165 | 0.215 |
-| libgit2-repository | 0.165 | 0.517 | 0.717 |
-| zstd-zstd_common | 0.065 | 0.115 | 0.165 |
-| zstd-zstd_compress | 0.165 | 0.474 | 0.877 |
-| sqlite-sqlite3 | 0.627 | 2.222 | 4.614 |
+| zlib-adler32 | 0.067 | 0.119 | 0.118 |
+| zlib-deflate | 0.065 | 0.115 | 0.166 |
+| libgit2-alloc | 0.116 | 0.216 | 0.266 |
+| libgit2-repository | 0.215 | 0.617 | 0.767 |
+| zstd-zstd_common | 0.065 | 0.165 | 0.166 |
+| zstd-zstd_compress | 0.165 | 0.416 | 0.617 |
+| sqlite-sqlite3 | 0.516 | 2.825 | 4.581 |
 
 These are single audit observations, not a controlled throughput benchmark. Times
 include process startup and timeout supervision; Toucan also streams declaration
