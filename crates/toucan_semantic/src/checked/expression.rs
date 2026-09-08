@@ -167,6 +167,7 @@ operators!(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub enum Builtin {
+    X86(crate::x86::X86Intrinsic),
     Sync(crate::sync::SyncOperation),
     Atomic(crate::atomic::AtomicOperation),
     VaStart,
@@ -289,7 +290,9 @@ impl Builtin {
             "__builtin_ctzl" => Self::CountTrailingZerosLong,
             "__builtin_ctzll" => Self::CountTrailingZerosLongLong,
             name => {
-                if let Some(operation) = crate::atomic::AtomicOperation::from_name(name) {
+                if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
+                    Self::X86(intrinsic)
+                } else if let Some(operation) = crate::atomic::AtomicOperation::from_name(name) {
                     Self::Atomic(operation)
                 } else {
                     Self::Sync(crate::sync::SyncOperation::from_name(name)?)
@@ -1220,6 +1223,11 @@ impl Analyzer {
         if let Some(name) = self.builtin_name(call)
             && let Some(builtin) = Builtin::from_name(name)
         {
+            let x86 = if let Builtin::X86(intrinsic) = builtin {
+                intrinsic.signature(self.unit.target)
+            } else {
+                None
+            };
             let atomic = if let Builtin::Atomic(operation) = builtin {
                 Some(self.atomic_signature(operation, call)?)
             } else {
@@ -1257,7 +1265,17 @@ impl Analyzer {
                     arguments.push(self.retained_use(argument, UseContext::VariadicPack, None)?);
                     continue;
                 }
-                let (context, destination) = if let Some(signature) = &atomic {
+                let (context, destination) = if let Some(signature) = &x86 {
+                    let destination = signature.parameters()[index].clone();
+                    let conversion = if !self.gnu_vector_profile()
+                        && matches!(destination.kind, TypeKind::Vector { .. })
+                    {
+                        Conversion::IntrinsicArgument
+                    } else {
+                        Conversion::Assignment
+                    };
+                    (UseContext::Value, Some((destination, conversion)))
+                } else if let Some(signature) = &atomic {
                     (
                         signature.context,
                         Some((

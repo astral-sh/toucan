@@ -352,8 +352,8 @@ Linux profiles follow GCC's signed-character and `long` comparison-mask types;
 Darwin and Windows follow Clang's `char` and `long long` masks. GNU Linux also
 accepts addresses of vector lanes and vector increment/decrement. Clang profiles
 reject those operations. Implicit conversions between different vector types,
-enum lanes, non-power-of-two sizes, extended-vector swizzles, and architecture
-intrinsics are outside this slice. Static vectors accept brace initializers and
+enum lanes, non-power-of-two sizes, and extended-vector swizzles remain unsupported.
+The instruction intrinsics supported below have their own argument conversions. Static vectors accept brace initializers and
 vector compound literals; other static vector-expression evaluation is explicitly
 unsupported.
 
@@ -371,6 +371,36 @@ For example, Windows `vector_size(16), aligned(1)` keeps 16-byte field alignment
 with 1-byte pointer alignment. Native GCC/Clang tests exercise memory access and
 callbacks in both directions with current Rust and Rust 1.64; this proves pointer
 FFI behavior, not execution of Toucan's retained expression graph.
+
+## x86 MMX intrinsics
+
+The 59 builtin names used by GCC 13.3's `mmintrin.h` have explicit signatures and
+retained `Builtin::X86` identities. This covers packing, arithmetic, comparisons,
+shifts, bitwise operations, vector construction/extraction, and `emms`. Non-x86
+targets reject these names. Ordinary declarations can shadow them; the builtin
+itself is not an addressable function or an exported binding.
+
+`X86Intrinsic::signature` exposes the target profile's C types. GCC and Clang
+use different vector element types for bitwise operations and shift counts.
+Clang also permits equal-sized vector reinterpret conversions in these arguments,
+retained as `IntrinsicArgument`; GCC requires compatible vector types.
+`required_features` records MMX, and additionally SSE2 for `paddq`/`psubq`.
+The fixed x86-64 profiles enable those instruction sets. Per-function target
+attributes and disabling CPU features remain unsupported configuration.
+
+Immediate constraints are available through `immediate_constraints`, including
+the argument index, inclusive range, and compiler stage. `vec_ext_v2si` requires
+an index in 0..=1 after conversion to `int`. Clang requires an integer constant
+expression during checking. GCC accepts source expressions that only become valid
+after inlining, so successful analysis preserves an `AfterInlining` obligation;
+a consumer must discharge it before emitting instructions. Runtime shift counts
+are valid, including the builtins whose names end in `i`.
+
+These operations are type checked and retained, without SIMD constant folding or
+machine-code generation. Compiler reference programs verify the descriptor
+semantics; they do not execute Toucan's retained graph. Rust bindings continue to
+reject vectors passed by value. The [MMX probe record](../corpus/evidence/mmx-intrinsics-2026-09-08.json)
+records the compiler sources, target checks, untouched header, and native results.
 
 ## Legacy atomic intrinsics
 

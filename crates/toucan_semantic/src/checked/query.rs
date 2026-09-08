@@ -183,6 +183,13 @@ impl Builder {
             ExprKind::BuiltinCall {
                 builtin, arguments, ..
             } => match builtin {
+                Builtin::X86(intrinsic) => {
+                    if intrinsic.has_side_effects() {
+                        Present
+                    } else {
+                        operands(arguments)
+                    }
+                }
                 Builtin::Infinity
                 | Builtin::InfinityFloat
                 | Builtin::InfinityLongDouble

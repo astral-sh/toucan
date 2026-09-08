@@ -107,6 +107,13 @@ impl Analyzer {
             {
                 self.eval_atomic_lock_free(call).is_ok()
             }
+            ast::Expression::Call(call)
+                if self.builtin_name(call).is_some_and(|name| {
+                    self.byte_swap_type(name).is_some() || self.bit_count_type(name).is_some()
+                }) =>
+            {
+                self.eval(expression).is_ok()
+            }
             ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
                 self.eval_expect(call).is_ok()
             }

@@ -327,9 +327,22 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             ExprKind::BuiltinCall {
                 callee_occurrence,
                 arguments,
+                builtin,
                 ..
             } => {
                 assert!(code.occurrence(*callee_occurrence).is_some());
+                if let Builtin::X86(intrinsic) = builtin {
+                    let signature = intrinsic.signature(unit.target).unwrap();
+                    assert_eq!(arguments.len(), signature.parameters().len());
+                    assert_eq!(code.ty(expression.ty()).unwrap(), signature.result());
+                    for (argument, parameter) in arguments.iter().zip(signature.parameters()) {
+                        assert_eq!(code.ty(argument.effective_type()).unwrap(), parameter);
+                    }
+                    for constraint in intrinsic.immediate_constraints(unit.target) {
+                        assert!(constraint.argument() < arguments.len());
+                        assert!(constraint.minimum() <= constraint.maximum());
+                    }
+                }
                 for argument in arguments {
                     expression_use(code, argument);
                 }
