@@ -39,6 +39,22 @@ The [ARM macOS validation](https://github.com/astral-sh/toucan/actions/runs/3421
 passed the full native workspace suite with Apple Clang and Homebrew Clang 18.1.8
 under this selection policy.
 
+## Apple Clang invalid `va_arg` crash
+
+Apple Clang 17.0.0 (`clang-1700.0.13.5`) diagnoses a function type passed to
+`__builtin_va_arg`, then crashes during object generation when targeting
+x86-64 Linux. The [Intel macOS job](https://github.com/astral-sh/toucan/actions/runs/34219192884/job/102038043391)
+returned exit code 1 with an illegal-instruction diagnostic. The shared oracle
+classifier correctly treats this as a compiler failure.
+
+We check this one invalid Clang source with `-fsyntax-only`. Valid function-pointer
+`va_arg` calls still generate objects, as do all other positive and negative
+cases. In particular, GCC defers some invalid `va_start` diagnostics until body
+lowering, so syntax-only checking cannot replace those object-generation probes.
+The [saved report](../corpus/evidence/va-arg-oracle-phases-2026-09-08.json)
+records the failure and successful upstream Clang and GCC diagnostic probes.
+Native macOS validation of the changed fixture remains pending CI.
+
 ## Apple Clang SVE feature diagnostics
 
 Apple Clang 17.0.0 (`clang-1700.0.13.5`) diagnoses an SVE value in the discarded
