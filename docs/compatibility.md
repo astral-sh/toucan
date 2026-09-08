@@ -249,6 +249,35 @@ condition behavior follow the target's GCC or Clang profile. Constant evaluation
 of statement-expression bodies and GCC's precise-width bitfield result types
 remain unsupported and produce diagnostics.
 
+## Functions that may return more than once
+
+GNU `returns_twice` and `__returns_twice__` accept no arguments and require a
+function declaration or definition. Toucan preserves the merged property in
+`Declaration::returns_twice`, retained entities, and declaration sites; written
+sites also expose their attribute source span. The attribute does not become a
+C function-pointer type qualifier. GCC permits adding it after a definition;
+Clang diagnoses and ignores that late annotation, which Toucan rejects on Clang
+profiles. Combinations with GNU `noreturn` or C11 `_Noreturn`, and multiple C names
+sharing a returns-twice assembler symbol, have explicit unsupported diagnostics.
+
+These are declaration facts. In Clang, an attribute added after an earlier call
+or on a block declaration need not mark other call instructions retroactively.
+The graph preserves declaration order and scope; the final entity flag is not a
+compiler-lowered call-effect result. Indirect-call target analysis is not provided.
+GCC describes the required caller handling in its
+[function attribute documentation](https://gcc.gnu.org/onlinedocs/gcc/Common-Function-Attributes.html).
+
+A selected returns-twice function cannot be emitted as a direct Rust binding.
+Rust removed the experimental `ffi_returns_twice` feature in 1.78, so neither
+current stable Rust nor the supported 1.64 baseline has an applicable supported
+caller annotation; see Rust's
+[removed feature record](https://github.com/rust-lang/rust/blob/main/compiler/rustc_feature/src/removed.rs).
+Select a C wrapper that keeps the repeated return inside C and returns once to
+Rust. An unsafe Rust declaration or `C-unwind` does not supply that missing
+contract. Native tests compile a wrapper containing `setjmp` and `longjmp` with
+GCC and Clang at `-O0` and `-O2`, then call the generated binding from optimized
+Rust. The fixture never jumps across a Rust frame or calls back into Rust.
+
 ## Diagnostic attributes
 
 GNU `warning` and `error` attributes, including their underscored spellings,

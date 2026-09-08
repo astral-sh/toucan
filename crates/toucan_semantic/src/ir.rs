@@ -280,6 +280,10 @@ impl SymbolBinding {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Declaration {
+    /// Whether a compatible declaration says this function may return more than once.
+    /// This is not a function-pointer type qualifier or a retroactive call-site verdict.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub returns_twice: bool,
     /// Symbol binding; applies to externally linked functions and objects.
     #[serde(skip_serializing_if = "SymbolBinding::is_strong")]
     pub symbol_binding: SymbolBinding,

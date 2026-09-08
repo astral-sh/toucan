@@ -125,6 +125,15 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         if let Some(span) = declaration.weak_attribute() {
             source_span(source, span);
         }
+        if let Some(span) = declaration.returns_twice_attribute() {
+            source_span(source, span);
+            assert!(declaration.returns_twice());
+        }
+        if declaration.returns_twice() {
+            let entity = code.entity(declaration.entity()).unwrap();
+            assert_eq!(entity.kind(), EntityKind::Function);
+            assert!(entity.returns_twice());
+        }
         if let Some(span) = declaration.name_source() {
             source_span(source, span);
         }

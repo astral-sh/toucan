@@ -328,6 +328,12 @@ pub fn generate_with_macros(
             blocked_functions.push(declaration.name.clone());
             continue;
         }
+        if declaration.returns_twice {
+            return Err(Error(format!(
+                "returns_twice function `{}` requires a C wrapper that keeps repeated returns inside C",
+                declaration.name
+            )));
+        }
         if declaration.symbol_binding == toucan_semantic::SymbolBinding::Weak {
             return Err(Error(format!(
                 "weak symbol `{}` requires unsupported optional-symbol linkage in Rust bindings",

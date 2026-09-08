@@ -243,6 +243,8 @@ impl From<DeclarationKind> for EntityKind {
 
 #[derive(Debug, Serialize)]
 pub struct Entity {
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) returns_twice: bool,
     #[serde(skip_serializing_if = "crate::SymbolBinding::is_strong")]
     pub(crate) symbol_binding: crate::SymbolBinding,
     pub(crate) body: Option<statement::BodyId>,
@@ -271,10 +273,14 @@ pub enum Linkage {
 
 #[derive(Debug, Serialize)]
 pub struct DeclarationSite {
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) returns_twice: bool,
     #[serde(skip_serializing_if = "crate::SymbolBinding::is_strong")]
     pub(crate) symbol_binding: crate::SymbolBinding,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) weak_attribute: Option<SourceSpan>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) returns_twice_attribute: Option<SourceSpan>,
     pub(crate) body: Option<statement::BodyId>,
     pub(crate) initializer: Option<InitializerId>,
     pub(crate) type_use: bounds::TypeUseId,
@@ -614,6 +620,7 @@ impl Builder {
         )?;
         let id = EntityId(self.code.entities.len() as u32);
         self.code.entities.push(Entity {
+            returns_twice: false,
             symbol_binding: crate::SymbolBinding::Strong,
             body: None,
             name: name.map(str::to_owned),
@@ -640,6 +647,8 @@ impl Builder {
         self.budget.charge(1, 6, 0, offset)?;
         let id = SiteId(self.code.declarations.len() as u32);
         self.code.declarations.push(DeclarationSite {
+            returns_twice: self.code.entities[entity.index()].returns_twice,
+            returns_twice_attribute: None,
             symbol_binding: self.code.entities[entity.index()].symbol_binding,
             weak_attribute: None,
             body: None,
@@ -747,6 +756,7 @@ impl Builder {
             Linkage::External
         };
         self.code.entities[entity.index()].linkage = linkage;
+        self.code.entities[entity.index()].returns_twice = declaration.returns_twice;
         self.code.entities[entity.index()].symbol_binding = declaration.symbol_binding;
         let site = self.site(
             entity,
@@ -952,6 +962,13 @@ impl Builder {
             });
         }
         for (site, span) in self.code.declarations.iter_mut().zip(self.name_spans) {
+            if let Some(attribute) = &site.returns_twice_attribute {
+                site.returns_twice_attribute = Some(map_span(
+                    offsets,
+                    Span::span(attribute.range.start, attribute.range.end),
+                    &mut self.budget,
+                )?);
+            }
             if let Some(attribute) = &site.weak_attribute {
                 site.weak_attribute = Some(map_span(
                     offsets,
@@ -1188,6 +1205,25 @@ impl Builder {
             fragments: Vec::new(),
             synthetic: false,
         });
+    }
+}
+
+impl Builder {
+    /// Records the effective declaration state and its optional written attribute.
+    pub(crate) fn attach_returns_twice(
+        &mut self,
+        id: SiteId,
+        returns_twice: bool,
+        attribute: Option<Span>,
+    ) -> Result<(), Error> {
+        if let Some(span) = attribute {
+            self.budget.charge(0, 1, 0, span.start)?;
+        }
+        let site = &mut self.code.declarations[id.index()];
+        site.returns_twice = returns_twice;
+        self.code.entities[site.entity.index()].returns_twice = returns_twice;
+        site.returns_twice_attribute = attribute.map(crate::checked::unmapped_span);
+        Ok(())
     }
 }
 

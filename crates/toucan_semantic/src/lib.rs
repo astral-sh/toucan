@@ -19,6 +19,7 @@ mod literals;
 mod object_extent;
 mod object_size;
 mod parser_extensions;
+mod returns_twice;
 mod statement;
 mod transparent_union;
 mod variadic_pack;

@@ -134,3 +134,15 @@ expression tree and its query policy; a known scalar value alone is not proof th
 its operand is unevaluated. External folding APIs accept supported later facts,
 while nested declarations, types and static initializers retain frontend constant
 constraints.
+
+## Functions that may return more than once
+
+`Declaration::returns_twice` and `Entity::returns_twice()` preserve the merged GNU
+function annotation. `DeclarationSite::returns_twice()` records the state when a
+declaration was checked; `returns_twice_attribute()` gives its explicit original
+source span. Follow the entity's sites and their scopes to distinguish earlier
+prototypes from later annotations. These flags are not C type qualifiers and do
+not claim that a compiler retroactively annotates earlier calls. Ordinary function
+pointers retain their ordinary C types; indirect-call target analysis remains a
+consumer responsibility. Binding generation rejects selected direct returns-twice
+functions because Rust cannot express the required caller contract.

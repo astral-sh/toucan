@@ -86,6 +86,7 @@ pub(crate) fn analyze_inner(
         analyzer.finish_tentative_definitions()?;
         analyzer.validate_block_externs()?;
         analyzer.validate_weak_symbol_aliases()?;
+        analyzer.validate_returns_twice_aliases()?;
         let checked = analyzer
             .checked
             .take()
@@ -431,6 +432,8 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 pub(crate) struct Attributes {
     pub(crate) transparent_union: Option<lang_c::span::Span>,
     pub(crate) weak: Option<lang_c::span::Span>,
+    pub(crate) returns_twice: Option<lang_c::span::Span>,
+    pub(crate) noreturn: Option<lang_c::span::Span>,
     pub(crate) diagnostic_attributes: Vec<crate::checked::attributes::ParsedDiagnosticAttribute>,
     pub(crate) type_use: Option<crate::checked::bounds::TypeUseId>,
     type_name_use: bool,
@@ -464,7 +467,13 @@ impl Attributes {
         }
         Ok(())
     }
-    pub(crate) fn require_function_diagnostics(&self, function: bool) -> Result<(), Error> {
+    pub(crate) fn require_function_attributes(&self, function: bool) -> Result<(), Error> {
+        if !function && let Some(span) = self.returns_twice {
+            return Err(Error::new(
+                span.start,
+                "returns_twice requires a function declaration",
+            ));
+        }
         if !function && let Some(attribute) = self.diagnostic_attributes.first() {
             return Err(Error::new(
                 attribute.span.start,
@@ -579,6 +588,7 @@ pub(crate) struct Analyzer {
     pub(crate) has_variadic_packs: bool,
     pub(crate) generic_selections: HashMap<(usize, usize), usize>,
     pub(crate) weak_symbols: BTreeMap<String, lang_c::span::Span>,
+    pub(crate) function_effects: BTreeMap<String, crate::returns_twice::FunctionEffects>,
     pub(crate) diagnostic_kinds: HashMap<String, u8>,
     pub(crate) checked: Option<Box<CodeBuilder>>,
     pub(crate) unit: TranslationUnit,
@@ -669,6 +679,7 @@ impl Analyzer {
             current_function: None,
             block_externs: HashMap::new(),
             weak_symbols: BTreeMap::new(),
+            function_effects: BTreeMap::new(),
             transparent_variant_bytes: 0,
             has_variadic_packs: false,
             generic_selections: HashMap::new(),
@@ -866,7 +877,7 @@ impl Analyzer {
             let (ty, attributes) = self.specifiers(
                 &declaration.node.specifiers[..declaration.node.specifiers.len() - 1],
             )?;
-            attributes.require_function_diagnostics(false)?;
+            attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
             if attributes.packed || attributes.alignment.is_some() || attributes.mode.is_some() {
@@ -890,6 +901,7 @@ impl Analyzer {
                 name,
                 ty,
                 kind: DeclarationKind::Typedef,
+                returns_twice: false,
                 symbol_binding: crate::SymbolBinding::Strong,
                 link_name: None,
                 is_static: false,
@@ -915,7 +927,7 @@ impl Analyzer {
         }
         let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
         if declaration.node.declarators.is_empty() {
-            attributes.require_function_diagnostics(false)?;
+            attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
         }
@@ -990,9 +1002,13 @@ impl Analyzer {
             if kind != DeclarationKind::Typedef {
                 declarator_attributes.require_no_transparent_union()?;
             }
-            declarator_attributes
-                .require_function_diagnostics(kind == DeclarationKind::Function)?;
+            declarator_attributes.require_function_attributes(kind == DeclarationKind::Function)?;
             self.check_diagnostic_attributes(&name, &declarator_attributes.diagnostic_attributes)?;
+            let returns_twice = if kind == DeclarationKind::Function {
+                self.check_returns_twice(&name, &declarator_attributes)?
+            } else {
+                false
+            };
             if storage.thread_local {
                 return Err(Error::new(
                     item.span.start,
@@ -1083,6 +1099,7 @@ impl Analyzer {
                     previous_definition,
                 )?;
                 let previous = &mut self.unit.declarations[previous_index];
+                previous.returns_twice = returns_twice;
                 previous.symbol_binding = symbol_binding;
                 previous.ty = ty;
                 previous.is_definition |= is_definition;
@@ -1099,6 +1116,7 @@ impl Analyzer {
                 )?;
                 let index = self.unit.declarations.len();
                 self.unit.declarations.push(Declaration {
+                    returns_twice,
                     symbol_binding,
                     name,
                     ty,
@@ -1140,6 +1158,11 @@ impl Analyzer {
                 checked.attach_diagnostic_attributes(
                     site,
                     &declarator_attributes.diagnostic_attributes,
+                )?;
+                checked.attach_returns_twice(
+                    site,
+                    returns_twice,
+                    declarator_attributes.returns_twice,
                 )?;
                 checked.attach_symbol_binding(
                     site,
@@ -1527,6 +1550,11 @@ impl Analyzer {
                         self.attributes(extensions, &mut attributes)?;
                     }
                 }
+                ast::DeclarationSpecifier::Function(specifier)
+                    if specifier.node == ast::FunctionSpecifier::Noreturn =>
+                {
+                    attributes.noreturn = Some(specifier.span);
+                }
                 ast::DeclarationSpecifier::Alignment(alignment) => {
                     let value = match &alignment.node {
                         ast::AlignmentSpecifier::Type(ty) => {
@@ -1545,7 +1573,7 @@ impl Analyzer {
         if let Some(checked) = &mut self.checked {
             checked.begin_specifier_operands(&types)?;
         }
-        record_attributes.require_function_diagnostics(false)?;
+        record_attributes.require_function_attributes(false)?;
         record_attributes.require_no_weak()?;
         if record_attributes.vector_size.is_some() {
             return Err(Error::new(
@@ -1844,13 +1872,13 @@ impl Analyzer {
             return Ok(ty.clone());
         }
         let (ty, mut attributes) = self.specifier_qualifiers(&name.specifiers)?;
-        attributes.require_function_diagnostics(false)?;
+        attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
         attributes.require_no_transparent_union()?;
         attributes.type_name_use = true;
         let (ty, type_use) = if let Some(declarator) = &name.declarator {
             let (_, ty, extra) = self.declarator(ty, declarator, &attributes)?;
-            extra.require_function_diagnostics(false)?;
+            extra.require_function_attributes(false)?;
             extra.require_no_weak()?;
             extra.require_no_transparent_union()?;
             (ty, extra.type_use)
@@ -1883,6 +1911,8 @@ impl Analyzer {
             attributes.type_name_use,
         )?;
         extra.weak = extra.weak.or(attributes.weak);
+        extra.returns_twice = extra.returns_twice.or(attributes.returns_twice);
+        extra.noreturn = extra.noreturn.or(attributes.noreturn);
         extra.transparent_union = extra.transparent_union.or(attributes.transparent_union);
         if !attributes.diagnostic_attributes.is_empty() {
             let mut diagnostic_attributes = attributes.diagnostic_attributes.clone();
@@ -1983,6 +2013,7 @@ impl Analyzer {
                                     || attributes.link_name.is_some()
                                     || !attributes.diagnostic_attributes.is_empty()
                                     || attributes.weak.is_some()
+                                    || attributes.returns_twice.is_some()
                                     || attributes.transparent_union.is_some()
                                 {
                                     return Err(Error::new(
@@ -2171,7 +2202,7 @@ impl Analyzer {
                             ));
                         }
                         let (base, mut attributes) = self.specifiers(&parameter.node.specifiers)?;
-                        attributes.require_function_diagnostics(false)?;
+                        attributes.require_function_attributes(false)?;
                         attributes.require_no_weak()?;
                         attributes.require_no_transparent_union()?;
                         attributes.alias_base = attributes.alias_base
@@ -2203,7 +2234,7 @@ impl Analyzer {
                                     attributes.type_use,
                                     attributes.type_name_use,
                                 )?;
-                                extra.require_function_diagnostics(false)?;
+                                extra.require_function_attributes(false)?;
                                 extra.require_no_weak()?;
                                 extra.require_no_transparent_union()?;
                                 (name, ty, extra.type_use)
@@ -2217,7 +2248,7 @@ impl Analyzer {
                         )?;
                         let mut extra = Attributes::default();
                         self.attributes(&parameter.node.extensions, &mut extra)?;
-                        extra.require_function_diagnostics(false)?;
+                        extra.require_function_attributes(false)?;
                         extra.require_no_weak()?;
                         extra.require_no_transparent_union()?;
                         if let Some(bytes) = extra.vector_size {
@@ -2449,6 +2480,9 @@ impl Analyzer {
                     attributes.link_name = inner_attributes.link_name;
                 }
                 attributes.weak = attributes.weak.or(inner_attributes.weak);
+                attributes.returns_twice =
+                    attributes.returns_twice.or(inner_attributes.returns_twice);
+                attributes.noreturn = attributes.noreturn.or(inner_attributes.noreturn);
                 attributes.transparent_union = attributes
                     .transparent_union
                     .or(inner_attributes.transparent_union);
@@ -2568,7 +2602,7 @@ impl Analyzer {
                     ast::StructDeclaration::Field(field) => {
                         let (base, attributes) =
                             self.specifier_qualifiers(&field.node.specifiers)?;
-                        attributes.require_function_diagnostics(false)?;
+                        attributes.require_function_attributes(false)?;
                         attributes.require_no_weak()?;
                         attributes.require_no_transparent_union()?;
                         if field.node.declarators.is_empty() {
@@ -2605,7 +2639,7 @@ impl Analyzer {
                                     } else {
                                         (None, base.clone(), Attributes::default())
                                     };
-                                extra.require_function_diagnostics(false)?;
+                                extra.require_function_attributes(false)?;
                                 extra.require_no_weak()?;
                                 extra.require_no_transparent_union()?;
                                 if name.as_ref().is_some_and(|name| {
@@ -2875,7 +2909,7 @@ impl Analyzer {
         for enumerator in &declaration.node.enumerators {
             let mut attributes = Attributes::default();
             self.attributes(&enumerator.node.extensions, &mut attributes)?;
-            attributes.require_function_diagnostics(false)?;
+            attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
             let value = if let Some(expression) = &enumerator.node.expression {
@@ -3055,7 +3089,7 @@ impl Analyzer {
     }
 
     fn apply_record_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
-        attributes.require_function_diagnostics(false)?;
+        attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
         if let Some(span) = attributes.transparent_union {
             self.apply_transparent_record(ty, span.start)?;
@@ -3103,6 +3137,19 @@ impl Analyzer {
                                 ));
                             }
                             result.transparent_union = Some(extension.span);
+                        }
+                        "returns_twice" | "noreturn" => {
+                            if !attribute.arguments.is_empty() {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    format!("{name} takes no arguments"),
+                                ));
+                            }
+                            if name == "returns_twice" {
+                                result.returns_twice = Some(extension.span);
+                            } else {
+                                result.noreturn = Some(extension.span);
+                            }
                         }
                         "weak" => {
                             if !attribute.arguments.is_empty() {
@@ -3238,7 +3285,6 @@ impl Analyzer {
                         | "returns_nonnull"
                         | "cold"
                         | "hot"
-                        | "noreturn"
                         | "may_alias"
                         | "noclone"
                         | "no_sanitize"

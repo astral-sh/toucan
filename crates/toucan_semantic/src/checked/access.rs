@@ -53,6 +53,11 @@ impl Scope {
 }
 
 impl Entity {
+    /// Whether any compatible declaration carries `returns_twice`. Later annotations
+    /// do not retroactively describe the compiler effects of earlier call sites.
+    pub fn returns_twice(&self) -> bool {
+        self.returns_twice
+    }
     /// Final symbol binding after all compatible declarations, including block externs.
     pub fn symbol_binding(&self) -> crate::SymbolBinding {
         self.symbol_binding
@@ -80,6 +85,15 @@ impl Entity {
 }
 
 impl DeclarationSite {
+    /// The returns-twice property merged when this function was declared.
+    /// This is a declaration fact, not the result of compiler call lowering.
+    pub fn returns_twice(&self) -> bool {
+        self.returns_twice
+    }
+    /// The explicit attribute, when written on this declaration.
+    pub fn returns_twice_attribute(&self) -> Option<&SourceSpan> {
+        self.returns_twice_attribute.as_ref()
+    }
     /// Effective symbol binding at this declaration. Later declarations may change the entity.
     pub fn symbol_binding(&self) -> crate::SymbolBinding {
         self.symbol_binding

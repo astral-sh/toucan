@@ -641,7 +641,7 @@ impl Analyzer {
         }
         let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
         if declaration.node.declarators.is_empty() {
-            attributes.require_function_diagnostics(false)?;
+            attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
         }
@@ -667,8 +667,19 @@ impl Analyzer {
             if (!is_typedef && !function) || variably_modified {
                 self.require_no_fallthrough()?;
             }
-            extra.require_function_diagnostics(function && !is_typedef)?;
+            extra.require_function_attributes(function && !is_typedef)?;
             self.check_diagnostic_attributes(&name, &extra.diagnostic_attributes)?;
+            let returns_twice = if function && !is_typedef {
+                self.check_returns_twice(&name, &extra)?
+            } else {
+                false
+            };
+            if extra.returns_twice.is_some() && extra.link_name.is_some() {
+                return Err(Error::new(
+                    item.span.start,
+                    "assembly labels on block returns_twice declarations are unsupported",
+                ));
+            }
             if extra.weak.is_some() && extra.link_name.is_some() {
                 return Err(Error::new(
                     item.span.start,
@@ -879,6 +890,11 @@ impl Analyzer {
                         if let Some(site) = site {
                             checked
                                 .attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
+                            checked.attach_returns_twice(
+                                site,
+                                returns_twice,
+                                extra.returns_twice,
+                            )?;
                             checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                         }
                     }
@@ -956,6 +972,7 @@ impl Analyzer {
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
                 checked.attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
+                checked.attach_returns_twice(site, returns_twice, extra.returns_twice)?;
                 checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                 let allocation = self
                     .lexical_scopes
