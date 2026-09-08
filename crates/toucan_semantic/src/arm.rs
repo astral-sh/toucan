@@ -23,9 +23,10 @@ pub(crate) fn builtin_type(
     compiler: toucan_target::Compiler,
 ) -> Option<Type> {
     match (name, target) {
-        ("__Float32x4_t" | "__Float64x2_t", Target::Aarch64UnknownLinuxGnu)
-            if compiler == toucan_target::Compiler::Gnu =>
-        {
+        (
+            "__Float32x4_t" | "__Float64x2_t",
+            Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl,
+        ) if compiler == toucan_target::Compiler::Gnu => {
             let float = name == "__Float32x4_t";
             Some(Type::new(TypeKind::Vector {
                 element: Box::new(Type::new(TypeKind::Float(if float {
@@ -39,7 +40,9 @@ pub(crate) fn builtin_type(
         }
         (
             "__SVFloat32_t" | "__SVFloat64_t" | "__SVBool_t",
-            Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin,
+            Target::Aarch64UnknownLinuxGnu
+            | Target::Aarch64UnknownLinuxMusl
+            | Target::Aarch64AppleDarwin,
         ) => Some(Type::new(TypeKind::Sve(match name {
             "__SVFloat32_t" => SveKind::Float32,
             "__SVFloat64_t" => SveKind::Float64,
@@ -64,7 +67,9 @@ impl FunctionType {
     pub fn aarch64_pcs(&self, unit: &TranslationUnit) -> Result<Option<Aarch64Pcs>, Error> {
         if !matches!(
             unit.target,
-            Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin
+            Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
+                | Target::Aarch64AppleDarwin
         ) {
             return Ok(None);
         }

@@ -424,7 +424,7 @@ def main() -> int:
             "native_observations": probes,
             "limitations": [
                 "This checks the generated Rust API and native Rust layout; independent C-compiled probes and real FFI calls remain required.",
-                "Typedefs expand to target primitive types; usize/isize normalize to their 64-bit representation on the five supported target profiles.",
+                "Typedefs expand to target primitive types; usize/isize normalize to their 64-bit representation on the supported 64-bit target profiles.",
                 "Record names match through shared typedefs and corresponding API type positions, bijectively; all resulting field shapes and native layouts are still compared.",
                 "Generated private padding, alignment and bitfield storage fields are listed but their field shapes are excluded. Bitfield accessor semantics require C/Rust differential tests.",
                 "Opaque records are compared as opaque types and excluded from native size/offset probes.",

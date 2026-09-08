@@ -319,9 +319,15 @@ fn compiler_type_constraints_and_native_numeric_conversions() {
     for profile in CompilerProfile::ALL {
         if profile.compiler() == Compiler::Gnu
             && !((cfg!(all(target_os = "linux", target_arch = "x86_64"))
-                && profile.target() == Target::X86_64UnknownLinuxGnu)
+                && matches!(
+                    profile.target(),
+                    Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+                ))
                 || (cfg!(all(target_os = "linux", target_arch = "aarch64"))
-                    && profile.target() == Target::Aarch64UnknownLinuxGnu))
+                    && matches!(
+                        profile.target(),
+                        Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                    )))
         {
             continue;
         }

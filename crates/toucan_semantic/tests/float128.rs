@@ -29,10 +29,16 @@ fn parity(source: &str, profile: CompilerProfile, accepted: bool) {
 
 fn availability(profile: CompilerProfile) -> Vec<(&'static str, bool)> {
     let gnu = profile.compiler() == Compiler::Gnu;
-    let x86_linux = profile.target() == Target::X86_64UnknownLinuxGnu;
+    let x86_linux = matches!(
+        profile.target(),
+        Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+    );
     let linux = matches!(
         profile.target(),
-        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+        Target::X86_64UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxMusl
+            | Target::Aarch64UnknownLinuxGnu
+            | Target::Aarch64UnknownLinuxMusl
     );
     vec![
         (
@@ -82,15 +88,25 @@ fn availability(profile: CompilerProfile) -> Vec<(&'static str, bool)> {
 fn spellings_literals_and_machine_modes_have_separate_availability() {
     for profile in CompilerProfile::ALL {
         let gnu = profile.compiler() == Compiler::Gnu;
-        let x86_linux = profile.target() == Target::X86_64UnknownLinuxGnu;
+        let x86_linux = matches!(
+            profile.target(),
+            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+        );
         let linux = matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         for (source, accepted) in availability(profile) {
             parity(source, profile, accepted);
         }
-        let expected = if gnu && profile.target() == Target::Aarch64UnknownLinuxGnu {
+        let expected = if gnu
+            && matches!(
+                profile.target(),
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+            ) {
             "long double"
         } else {
             "__typeof__(1.0Q)"
@@ -153,7 +169,10 @@ fn builtin_typedef_shadowing_preserves_prior_types_and_parameter_scopes() {
         ] {
             parity(source, profile, true);
         }
-        if profile.target() == Target::X86_64UnknownLinuxGnu {
+        if matches!(
+            profile.target(),
+            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+        ) {
             parity(
                 "__float128 a;typedef int __float128;__float128 b;_Static_assert(sizeof(a)==16 && sizeof(b)==4,\"replacement\");",
                 profile,
@@ -201,8 +220,10 @@ fn target_encodings_layouts_and_conversions_preserve_binary128_identity() {
     for profile in CompilerProfile::ALL {
         let analysis = analyze_with_profile("", profile, &AnalysisOptions::default()).unwrap();
         let q_kind = if profile.compiler() == Compiler::Gnu
-            && profile.target() == Target::Aarch64UnknownLinuxGnu
-        {
+            && matches!(
+                profile.target(),
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+            ) {
             FloatKind::LongDouble
         } else {
             FloatKind::FLOAT128
@@ -402,7 +423,10 @@ int main(void){unsigned char bytes[16];for(unsigned i=0;i<sizeof(values)/sizeof(
             && !gcc_is_clang
             && !matches!(
                 host,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
+                    | Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
             )
         {
             continue; // No GNU Darwin compiler profile is advertised.

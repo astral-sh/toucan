@@ -118,7 +118,10 @@ fn enumerator_types_change_only_after_the_definition() {
         APPLE,
         Target::Aarch64AppleDarwin,
     ] {
-        let gnu = matches!(target, GNU | Target::Aarch64UnknownLinuxGnu);
+        let gnu = matches!(
+            target,
+            GNU | Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+        );
         for case in CASES {
             let unit = analyze(case.source, target).unwrap();
             let expected = if gnu {

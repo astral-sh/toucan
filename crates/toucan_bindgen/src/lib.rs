@@ -244,6 +244,16 @@ fn host_target() -> Option<Target> {
             target_os = "linux",
             target_env = "gnu"
         )),
+        Target::X86_64UnknownLinuxMusl => cfg!(all(
+            target_arch = "x86_64",
+            target_os = "linux",
+            target_env = "musl"
+        )),
+        Target::Aarch64UnknownLinuxMusl => cfg!(all(
+            target_arch = "aarch64",
+            target_os = "linux",
+            target_env = "musl"
+        )),
         Target::X86_64AppleDarwin => cfg!(all(target_arch = "x86_64", target_os = "macos")),
         Target::Aarch64AppleDarwin => cfg!(all(target_arch = "aarch64", target_os = "macos")),
         Target::X86_64PcWindowsMsvc => cfg!(all(

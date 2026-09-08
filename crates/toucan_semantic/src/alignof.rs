@@ -106,7 +106,11 @@ impl Analyzer {
             TypeKind::Void => Ok(1),
             TypeKind::Function(_) => Ok(
                 if self.unit.compiler == Compiler::Gnu
-                    && self.unit.target == toucan_target::Target::X86_64UnknownLinuxGnu
+                    && matches!(
+                        self.unit.target,
+                        toucan_target::Target::X86_64UnknownLinuxGnu
+                            | toucan_target::Target::X86_64UnknownLinuxMusl
+                    )
                 {
                     1
                 } else {

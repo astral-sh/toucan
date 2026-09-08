@@ -8,7 +8,10 @@ fn supported(profile: CompilerProfile) -> bool {
     profile.compiler() == Compiler::Clang
         && matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin | Target::X86_64PcWindowsMsvc
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::X86_64AppleDarwin
+                | Target::X86_64PcWindowsMsvc
         )
 }
 
@@ -134,9 +137,15 @@ fn compiler_constraints_and_defined_lane_execution() {
     for profile in CompilerProfile::ALL {
         let host_gnu = cfg!(target_os = "linux")
             && ((cfg!(target_arch = "x86_64")
-                && profile.target() == Target::X86_64UnknownLinuxGnu)
+                && matches!(
+                    profile.target(),
+                    Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+                ))
                 || (cfg!(target_arch = "aarch64")
-                    && profile.target() == Target::Aarch64UnknownLinuxGnu));
+                    && matches!(
+                        profile.target(),
+                        Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                    )));
         let mut compiler = if profile.compiler() == Compiler::Gnu {
             if !host_gnu {
                 continue;

@@ -87,3 +87,34 @@ fn external_types_are_referenced_and_unsupported_patterns_are_explicit_errors() 
             .contains("selective")
     );
 }
+
+#[test]
+fn musl_sysroots_use_the_selected_libc_include_directory() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("api.h");
+    std::fs::write(
+        &header,
+        "#include <target_marker.h>\nvoid accept(target_marker);\n",
+    )
+    .unwrap();
+    for arch in ["x86_64", "aarch64"] {
+        let include = directory
+            .path()
+            .join(format!("usr/include/{arch}-linux-musl"));
+        std::fs::create_dir_all(&include).unwrap();
+        std::fs::write(
+            include.join("target_marker.h"),
+            "typedef unsigned long target_marker;\n",
+        )
+        .unwrap();
+        let source = Builder::default()
+            .header(header.to_str().unwrap())
+            .clang_arg(format!("--target={arch}-unknown-linux-musl"))
+            .clang_arg(format!("--sysroot={}", directory.path().display()))
+            .generate()
+            .unwrap()
+            .to_string();
+        assert!(source.contains("target_env = \"musl\""));
+        assert!(source.contains("pub fn accept("));
+    }
+}

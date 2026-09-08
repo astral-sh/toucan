@@ -92,7 +92,10 @@ fn derived_types_obey_object_and_qualifier_constraints() {
             let result = analyze(source, target);
             assert_eq!(
                 result.is_ok(),
-                target == Target::X86_64UnknownLinuxGnu,
+                matches!(
+                    target,
+                    Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+                ),
                 "{target:?}: {source}: {result:?}"
             );
         }

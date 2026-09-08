@@ -19,9 +19,15 @@ by the GNU profile cannot be used with a Clang-built library; see
 | --- | --- | --- |
 | x86_64-unknown-linux-gnu | GCC | Clang |
 | aarch64-unknown-linux-gnu | GCC | Clang |
+| x86_64-unknown-linux-musl | GCC | Clang |
+| aarch64-unknown-linux-musl | GCC | Clang |
 | x86_64-apple-darwin | Clang | — |
 | aarch64-apple-darwin | Clang | — |
 | x86_64-pc-windows-msvc | Clang with the Microsoft ABI | — |
+
+Musl targets select their own libc environment and generated Rust guards. Use
+[the musl validation guide](musl.md) for sysroot setup and the distinction between
+native x86-64 and emulated AArch64 runtime evidence.
 
 Unsupported pairs fail before input preprocessing. Compiler selection does not
 change the operating system, scalar widths, signedness of plain `char` or

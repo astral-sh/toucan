@@ -11,7 +11,11 @@ impl FloatKind {
 }
 
 pub(crate) fn q_literal_kind(target: Target, compiler: Compiler) -> FloatKind {
-    if target == Target::Aarch64UnknownLinuxGnu && compiler == Compiler::Gnu {
+    if matches!(
+        target,
+        Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+    ) && compiler == Compiler::Gnu
+    {
         FloatKind::LongDouble
     } else {
         FloatKind::FLOAT128
@@ -20,7 +24,12 @@ pub(crate) fn q_literal_kind(target: Target, compiler: Compiler) -> FloatKind {
 
 /// GNU's predefined typedef is shadowable and must not mutate already checked types.
 pub(crate) fn predefined_type(name: &str, target: Target, compiler: Compiler) -> Option<FloatKind> {
-    (name == "__float128" && target == Target::X86_64UnknownLinuxGnu && compiler == Compiler::Gnu)
+    (name == "__float128"
+        && matches!(
+            target,
+            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+        )
+        && compiler == Compiler::Gnu)
         .then_some(FloatKind::FLOAT128)
 }
 
@@ -38,8 +47,12 @@ impl crate::analyze::Analyzer {
             "DC" => (FloatKind::Double, true),
             "TF" | "TC" => {
                 let kind = match self.unit.target {
-                    Target::X86_64UnknownLinuxGnu => FloatKind::FLOAT128,
-                    Target::Aarch64UnknownLinuxGnu => FloatKind::LongDouble,
+                    Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl => {
+                        FloatKind::FLOAT128
+                    }
+                    Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
+                        FloatKind::LongDouble
+                    }
                     _ => {
                         return Err(Error::new(
                             offset,

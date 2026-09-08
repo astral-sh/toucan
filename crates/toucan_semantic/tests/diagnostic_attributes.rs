@@ -87,7 +87,10 @@ fn diagnostic_attributes_validate_arguments_and_supported_attachments() {
         for source in CONFLICTS {
             let accepted = matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
+                    | Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
             );
             for retain_code in [false, true] {
                 let result = analyze_with_options(

@@ -75,6 +75,7 @@ impl TranslationUnit {
         if matches!(
             self.target,
             toucan_target::Target::Aarch64UnknownLinuxGnu
+                | toucan_target::Target::Aarch64UnknownLinuxMusl
                 | toucan_target::Target::Aarch64AppleDarwin
         ) && self.layout(ty)?.size_bits != self.layout(first)?.size_bits
         {

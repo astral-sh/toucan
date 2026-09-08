@@ -799,8 +799,8 @@ const CASES: &[(&str, &str, &str, [bool; 5])] = &[
 ];
 fn target_index(target: Target) -> usize {
     match target {
-        Target::X86_64UnknownLinuxGnu => 0,
-        Target::Aarch64UnknownLinuxGnu => 1,
+        Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl => 0,
+        Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => 1,
         Target::X86_64AppleDarwin => 2,
         Target::Aarch64AppleDarwin => 3,
         Target::X86_64PcWindowsMsvc => 4,

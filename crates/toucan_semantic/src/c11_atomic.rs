@@ -184,7 +184,9 @@ impl Analyzer {
                     floating
                         && !matches!(
                             self.unit.target,
-                            Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin
+                            Target::X86_64UnknownLinuxGnu
+                                | Target::X86_64UnknownLinuxMusl
+                                | Target::X86_64AppleDarwin
                         )
                 }
                 _ => false,

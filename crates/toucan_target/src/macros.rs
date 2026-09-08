@@ -84,10 +84,7 @@ impl CompilerProfile {
             target,
             Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin
         );
-        let aarch64 = matches!(
-            target,
-            Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin
-        );
+        let aarch64 = target.is_aarch64();
         if windows {
             for (name, value) in [
                 ("_WIN32", "1"),
@@ -181,7 +178,9 @@ impl CompilerProfile {
         }
         let (wchar_ty, wchar_width, wchar_size, wchar_max) = match target {
             Target::X86_64PcWindowsMsvc => ("unsigned short", "16", "2", "65535"),
-            Target::Aarch64UnknownLinuxGnu => ("unsigned int", "32", "4", "4294967295U"),
+            Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
+                ("unsigned int", "32", "4", "4294967295U")
+            }
             _ => ("int", "32", "4", "2147483647"),
         };
         define("__WCHAR_TYPE__", wchar_ty);
@@ -286,10 +285,12 @@ impl CompilerProfile {
         let (long_double_size, mantissa, max_exponent, biggest_alignment) = match target {
             Target::Aarch64AppleDarwin => ("8", "53", "1024", "8"),
             Target::X86_64PcWindowsMsvc => ("8", "53", "1024", "16"),
-            Target::Aarch64UnknownLinuxGnu => ("16", "113", "16384", "16"),
-            Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin => {
-                ("16", "64", "16384", "16")
+            Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
+                ("16", "113", "16384", "16")
             }
+            Target::X86_64UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxMusl
+            | Target::X86_64AppleDarwin => ("16", "64", "16384", "16"),
         };
         define("__SIZEOF_LONG_DOUBLE__", long_double_size);
         define("__LDBL_MANT_DIG__", mantissa);

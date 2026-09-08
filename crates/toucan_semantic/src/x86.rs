@@ -589,9 +589,13 @@ impl X86Intrinsic {
         let target = profile.target();
         let descriptor = self.descriptor();
         match (target, profile.compiler()) {
-            (Target::X86_64UnknownLinuxGnu, toucan_target::Compiler::Gnu) => descriptor.gcc,
+            (
+                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl,
+                toucan_target::Compiler::Gnu,
+            ) => descriptor.gcc,
             (
                 Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin
                 | Target::X86_64PcWindowsMsvc,
                 toucan_target::Compiler::Clang,
@@ -626,7 +630,10 @@ impl X86Intrinsic {
             };
         }
         match (target, profile.compiler()) {
-            (Target::X86_64UnknownLinuxGnu, toucan_target::Compiler::Gnu) => match self {
+            (
+                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl,
+                toucan_target::Compiler::Gnu,
+            ) => match self {
                 Self::VecExtV2si => immediate!(1, 0, 1, 1, AfterInlining),
                 Self::VecExtV4hi | Self::VecExtV4si => immediate!(1, 0, 3, 1, AfterInlining),
                 Self::VecSetV4hi => immediate!(2, 0, 3, 1, AfterInlining),
@@ -666,6 +673,7 @@ impl X86Intrinsic {
             },
             (
                 Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin
                 | Target::X86_64PcWindowsMsvc,
                 toucan_target::Compiler::Clang,
@@ -701,7 +709,10 @@ impl X86Intrinsic {
         profile: toucan_target::CompilerProfile,
     ) -> &'static [ConditionalImmediateConstraint] {
         if self == Self::Prefetch
-            && profile.target() == Target::X86_64UnknownLinuxGnu
+            && matches!(
+                profile.target(),
+                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+            )
             && profile.compiler() == toucan_target::Compiler::Gnu
         {
             &[ConditionalImmediateConstraint {
@@ -754,7 +765,7 @@ impl Analyzer {
         let signature = intrinsic.signature_with_profile(self.unit.profile()?).ok_or_else(|| {
             Error::new(
                 call.span.start,
-                if matches!(self.unit.target, Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin) {
+                if matches!(self.unit.target, Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl | Target::Aarch64AppleDarwin) {
                     "x86 instruction intrinsics require an x86-64 target profile"
                 } else { "this x86 intrinsic spelling is unavailable in the selected compiler profile" },
             )

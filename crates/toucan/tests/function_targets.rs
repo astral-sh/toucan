@@ -10,7 +10,10 @@ fn function_targets_preserve_the_ordinary_external_call_abi() {
     for profile in CompilerProfile::ALL.into_iter().filter(|profile| {
         matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin | Target::X86_64PcWindowsMsvc
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::X86_64AppleDarwin
+                | Target::X86_64PcWindowsMsvc
         )
     }) {
         let compile = |source| {

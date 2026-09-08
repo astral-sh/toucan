@@ -123,7 +123,10 @@ fn constant_queries_prove_supported_folds_without_optimizer_assumptions() {
         ] {
             let accepted = !matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
+                    | Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
             );
             assert_eq!(analyze(source, target).is_ok(), accepted);
             assert_eq!(

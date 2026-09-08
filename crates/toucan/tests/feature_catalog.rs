@@ -78,12 +78,7 @@ fn query_catalog_uses_target_and_language_even_when_identity_macros_are_overridd
             toucan::semantic::evaluate_integer(parsed.unit(), "x86")
                 .unwrap()
                 .value,
-            u128::from(matches!(
-                profile.target(),
-                Target::X86_64UnknownLinuxGnu
-                    | Target::X86_64AppleDarwin
-                    | Target::X86_64PcWindowsMsvc
-            ))
+            u128::from(profile.target().is_x86_64())
         );
         assert_eq!(
             toucan::semantic::evaluate_integer(parsed.unit(), "noescape")

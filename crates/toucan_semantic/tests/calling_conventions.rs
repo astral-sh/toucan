@@ -416,7 +416,9 @@ fn conventions_match_clang_target_ir() {
             let result = analyze(&source, target);
             if matches!(
                 target,
-                Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin
+                Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
+                    | Target::Aarch64AppleDarwin
             ) && matches!(convention, "ms_abi" | "sysv_abi")
             {
                 assert!(

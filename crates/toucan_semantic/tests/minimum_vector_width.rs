@@ -280,9 +280,15 @@ fn native_arguments_subjects_and_hint_lowering() {
             c.args(["-target", profile.target().triple(), "-emit-llvm"]);
             c
         } else if (cfg!(all(target_os = "linux", target_arch = "x86_64"))
-            && profile.target() == Target::X86_64UnknownLinuxGnu)
+            && matches!(
+                profile.target(),
+                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+            ))
             || (cfg!(all(target_os = "linux", target_arch = "aarch64"))
-                && profile.target() == Target::Aarch64UnknownLinuxGnu)
+                && matches!(
+                    profile.target(),
+                    Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                ))
         {
             std::process::Command::new(std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into()))
         } else {
@@ -313,6 +319,7 @@ fn native_arguments_subjects_and_hint_lowering() {
                 && matches!(
                     profile.target(),
                     Target::X86_64UnknownLinuxGnu
+                        | Target::X86_64UnknownLinuxMusl
                         | Target::X86_64AppleDarwin
                         | Target::X86_64PcWindowsMsvc
                 )

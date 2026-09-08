@@ -143,7 +143,10 @@ fn character_values_and_types_follow_the_target_profile() {
         assert_eq!(wide.signed, target.wchar_is_signed());
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         for (expression, value) in [("'é'", 0xc3a9), ("L'ab'", 98), (r"u'\U0001f600'", 0xde00)] {
             let actual = decode_character_literal(expression, target, 0);
@@ -400,7 +403,10 @@ fn code_units_and_character_values_match_native_compilers() {
         if is_gnu_compiler(compiler)
             && matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
+                    | Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
             )
         {
             characters.extend(["'é'", "L'ab'", r"u'\U0001f600'"]);

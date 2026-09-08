@@ -128,7 +128,10 @@ fn compiler_rules_do_not_change_linux_scalar_types_or_float_formats() {
                 }
             );
             assert_eq!(evaluate_integer(unit, "sizeof(L'A')").unwrap().value, 4);
-            let format = if target == Target::Aarch64UnknownLinuxGnu {
+            let format = if matches!(
+                target,
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+            ) {
                 "0x1p-100L + 1.0L != 1.0L"
             } else {
                 "0x1p-100L + 1.0L == 1.0L"
@@ -164,7 +167,10 @@ fn clang_linux_uses_clang_constraints_and_retained_builtin_signatures() {
                     "{profile:?}: {source}"
                 );
             }
-            if target == Target::Aarch64UnknownLinuxGnu {
+            if matches!(
+                target,
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+            ) {
                 assert_eq!(
                     parity("typedef __Float32x4_t Native;", profile).is_ok(),
                     compiler == Compiler::Gnu
@@ -251,14 +257,20 @@ fn same_target_layouts_and_named_default_correction_match_compilers() {
         );
         if matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         ) {
             source.push_str(LAYOUTS);
         }
         let analysis = parity(&source, profile).unwrap();
         let expressions = if matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         ) {
             vec![
                 "_Alignof(struct Forward)",
@@ -287,10 +299,14 @@ fn same_target_layouts_and_named_default_correction_match_compilers() {
             let mut command = std::process::Command::new("clang");
             command.args(["-target", profile.target().triple()]);
             command
-        } else if (profile.target() == Target::X86_64UnknownLinuxGnu
-            && cfg!(all(target_os = "linux", target_arch = "x86_64")))
-            || (profile.target() == Target::Aarch64UnknownLinuxGnu
-                && cfg!(all(target_os = "linux", target_arch = "aarch64")))
+        } else if (matches!(
+            profile.target(),
+            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+        ) && cfg!(all(target_os = "linux", target_arch = "x86_64")))
+            || (matches!(
+                profile.target(),
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+            ) && cfg!(all(target_os = "linux", target_arch = "aarch64")))
         {
             std::process::Command::new(std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into()))
         } else {

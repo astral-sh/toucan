@@ -1,5 +1,5 @@
 //! Attribute spellings shared by semantic dispatch and feature-query support.
-use toucan_target::{Compiler, CompilerProfile, Target as PhysicalTarget};
+use toucan_target::{Compiler, CompilerProfile};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Attribute {
@@ -115,12 +115,12 @@ pub fn has_attribute(profile: CompilerProfile, name: &str) -> u64 {
         MinimumVectorWidth | NoEscape | NoDebug => profile.compiler() == Compiler::Clang,
         Aarch64VectorPcs => {
             profile.compiler() == Compiler::Clang
-                || profile.target() == PhysicalTarget::Aarch64UnknownLinuxGnu
+                || profile.target().is_aarch64() && profile.target().is_linux()
         }
         Aarch64SvePcs => profile.compiler() == Compiler::Clang,
         Cdecl | Stdcall | Fastcall | Thiscall | MsAbi | SysvAbi => {
             profile.compiler() == Compiler::Clang
-                || profile.target() == PhysicalTarget::X86_64UnknownLinuxGnu
+                || profile.target().is_x86_64() && profile.target().is_linux()
         }
         _ => true,
     })

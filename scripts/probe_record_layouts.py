@@ -44,7 +44,12 @@ def record_probes(
         if name == "__builtin_va_list_record":
             c_type = (
                 "__typeof__(((__builtin_va_list){0})[0])"
-                if target in {"x86_64-unknown-linux-gnu", "x86_64-apple-darwin"}
+                if target
+                in {
+                    "x86_64-unknown-linux-gnu",
+                    "x86_64-unknown-linux-musl",
+                    "x86_64-apple-darwin",
+                }
                 else "__builtin_va_list"
             )
         elif record["aliases"]:

@@ -33,7 +33,7 @@ impl FromStr for Compiler {
 }
 
 /// A validated target, compiler family, and C language mode. GCC is supported on Linux;
-/// Clang is supported on all five targets, using the Microsoft ABI on Windows.
+/// Clang is supported on all supported targets, using the Microsoft ABI on Windows.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "ProfileFields")]
 pub struct CompilerProfile {
@@ -56,9 +56,9 @@ impl TryFrom<ProfileFields> for CompilerProfile {
     }
 }
 impl CompilerProfile {
-    /// Supported profiles, with the five target defaults followed by Clang on Linux.
-    /// This order also defines the semantic fuzzers' seven selector buckets.
-    pub const ALL: [Self; 7] = [
+    /// Supported profiles. The original seven entries retain their order; musl
+    /// profiles follow them. Fuzz campaign manifests record the selector count.
+    pub const ALL: [Self; 11] = [
         Self::default_for(Target::X86_64UnknownLinuxGnu),
         Self::default_for(Target::Aarch64UnknownLinuxGnu),
         Self::default_for(Target::X86_64AppleDarwin),
@@ -74,15 +74,22 @@ impl CompilerProfile {
             compiler: Compiler::Clang,
             language_mode: LanguageMode::Gnu11,
         },
+        Self::default_for(Target::X86_64UnknownLinuxMusl),
+        Self::default_for(Target::Aarch64UnknownLinuxMusl),
+        Self {
+            target: Target::X86_64UnknownLinuxMusl,
+            compiler: Compiler::Clang,
+            language_mode: LanguageMode::Gnu11,
+        },
+        Self {
+            target: Target::Aarch64UnknownLinuxMusl,
+            compiler: Compiler::Clang,
+            language_mode: LanguageMode::Gnu11,
+        },
     ];
     /// Rejects compiler/target pairs whose semantics and ABI have not been validated.
     pub fn new(target: Target, compiler: Compiler) -> Result<Self, LayoutError> {
-        if compiler == Compiler::Gnu
-            && !matches!(
-                target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-            )
-        {
+        if compiler == Compiler::Gnu && !target.is_linux() {
             return Err(LayoutError::UnsupportedCompiler { target, compiler });
         }
         Ok(Self {
@@ -96,9 +103,10 @@ impl CompilerProfile {
         Self {
             target,
             language_mode: LanguageMode::Gnu11,
-            compiler: match target {
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu => Compiler::Gnu,
-                _ => Compiler::Clang,
+            compiler: if target.is_linux() {
+                Compiler::Gnu
+            } else {
+                Compiler::Clang
             },
         }
     }

@@ -177,6 +177,8 @@ pub(super) fn from_arguments(
         let multiarch = match target {
             Target::X86_64UnknownLinuxGnu => Some("x86_64-linux-gnu"),
             Target::Aarch64UnknownLinuxGnu => Some("aarch64-linux-gnu"),
+            Target::X86_64UnknownLinuxMusl => Some("x86_64-linux-musl"),
+            Target::Aarch64UnknownLinuxMusl => Some("aarch64-linux-musl"),
             _ => None,
         };
         if let Some(multiarch) = multiarch {

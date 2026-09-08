@@ -308,8 +308,10 @@ impl Analyzer {
             FloatKind::Float => 24,
             FloatKind::Double => 53,
             FloatKind::LongDouble => match self.unit.target {
-                Target::Aarch64UnknownLinuxGnu => 113,
-                Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin => 64,
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => 113,
+                Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::X86_64AppleDarwin => 64,
                 Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc => 53,
             },
             FloatKind::FLOAT16 => 11,

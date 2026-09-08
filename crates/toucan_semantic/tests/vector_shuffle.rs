@@ -37,7 +37,10 @@ fn shuffle_retains_input_types_and_mask_evaluation() {
         );
         if matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         ) {
             let ordinary = ordinary.unwrap();
             let analysis = retained.unwrap();

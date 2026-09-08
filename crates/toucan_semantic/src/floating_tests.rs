@@ -102,18 +102,26 @@ fn arithmetic_rounding_retains_target_precision_and_signed_zero() {
         let wide = matches!(
             target,
             Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin
                 | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         assert_eq!(values[20], u128::from(wide));
         assert_eq!(values[21], u128::from(wide));
         assert_eq!(
             values[22],
-            u128::from(target == Target::Aarch64UnknownLinuxGnu)
+            u128::from(matches!(
+                target,
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+            ))
         );
         assert_eq!(
             values[23],
-            u128::from(target == Target::Aarch64UnknownLinuxGnu)
+            u128::from(matches!(
+                target,
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+            ))
         );
         assert_eq!(values[24], 0);
         assert_eq!(values[17], 1, "integer conversion must not double round");

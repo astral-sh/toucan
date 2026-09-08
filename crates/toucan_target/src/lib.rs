@@ -30,16 +30,22 @@ pub enum Target {
     Aarch64AppleDarwin,
     /// The Microsoft x64 ABI.
     X86_64PcWindowsMsvc,
+    /// The System V AMD64 ABI with musl Linux headers.
+    X86_64UnknownLinuxMusl,
+    /// The AArch64 ELF ABI with musl Linux headers.
+    Aarch64UnknownLinuxMusl,
 }
 
 impl Target {
     /// All supported targets, in a stable order.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 7] = [
         Self::X86_64UnknownLinuxGnu,
         Self::Aarch64UnknownLinuxGnu,
         Self::X86_64AppleDarwin,
         Self::Aarch64AppleDarwin,
         Self::X86_64PcWindowsMsvc,
+        Self::X86_64UnknownLinuxMusl,
+        Self::Aarch64UnknownLinuxMusl,
     ];
 
     /// Parses a canonical target triple. Unknown triples are rejected.
@@ -58,7 +64,47 @@ impl Target {
             Self::X86_64AppleDarwin => "x86_64-apple-darwin",
             Self::Aarch64AppleDarwin => "aarch64-apple-darwin",
             Self::X86_64PcWindowsMsvc => "x86_64-pc-windows-msvc",
+            Self::X86_64UnknownLinuxMusl => "x86_64-unknown-linux-musl",
+            Self::Aarch64UnknownLinuxMusl => "aarch64-unknown-linux-musl",
         }
+    }
+
+    /// Whether the target uses a Linux ABI and headers.
+    pub const fn is_linux(self) -> bool {
+        matches!(
+            self,
+            Self::X86_64UnknownLinuxGnu
+                | Self::Aarch64UnknownLinuxGnu
+                | Self::X86_64UnknownLinuxMusl
+                | Self::Aarch64UnknownLinuxMusl
+        )
+    }
+
+    /// Whether the target uses the musl C library.
+    pub const fn is_musl(self) -> bool {
+        matches!(
+            self,
+            Self::X86_64UnknownLinuxMusl | Self::Aarch64UnknownLinuxMusl
+        )
+    }
+
+    /// Whether the target uses the AArch64 instruction set.
+    pub const fn is_aarch64(self) -> bool {
+        matches!(
+            self,
+            Self::Aarch64UnknownLinuxGnu | Self::Aarch64UnknownLinuxMusl | Self::Aarch64AppleDarwin
+        )
+    }
+
+    /// Whether the target uses the x86-64 instruction set.
+    pub const fn is_x86_64(self) -> bool {
+        matches!(
+            self,
+            Self::X86_64UnknownLinuxGnu
+                | Self::X86_64UnknownLinuxMusl
+                | Self::X86_64AppleDarwin
+                | Self::X86_64PcWindowsMsvc
+        )
     }
 
     /// Alignment requested by GNU `aligned` without an argument, in bytes.
@@ -67,6 +113,8 @@ impl Target {
         match self {
             Self::X86_64UnknownLinuxGnu
             | Self::Aarch64UnknownLinuxGnu
+            | Self::X86_64UnknownLinuxMusl
+            | Self::Aarch64UnknownLinuxMusl
             | Self::X86_64AppleDarwin
             | Self::Aarch64AppleDarwin
             | Self::X86_64PcWindowsMsvc => 16,
@@ -75,7 +123,10 @@ impl Target {
 
     /// Returns whether plain `char` is signed in this profile.
     pub const fn char_is_signed(self) -> bool {
-        !matches!(self, Self::Aarch64UnknownLinuxGnu)
+        !matches!(
+            self,
+            Self::Aarch64UnknownLinuxGnu | Self::Aarch64UnknownLinuxMusl
+        )
     }
 
     /// Returns the width of object and function pointers, in bits.
@@ -105,7 +156,9 @@ impl Target {
     pub const fn wchar_is_signed(self) -> bool {
         !matches!(
             self,
-            Self::X86_64PcWindowsMsvc | Self::Aarch64UnknownLinuxGnu
+            Self::X86_64PcWindowsMsvc
+                | Self::Aarch64UnknownLinuxGnu
+                | Self::Aarch64UnknownLinuxMusl
         )
     }
 
@@ -127,6 +180,8 @@ impl Target {
         match self {
             Self::X86_64UnknownLinuxGnu => repc::Target::X86_64UnknownLinuxGnu,
             Self::Aarch64UnknownLinuxGnu => repc::Target::Aarch64UnknownLinuxGnu,
+            Self::X86_64UnknownLinuxMusl => repc::Target::X86_64UnknownLinuxMusl,
+            Self::Aarch64UnknownLinuxMusl => repc::Target::Aarch64UnknownLinuxMusl,
             Self::X86_64AppleDarwin => repc::Target::X86_64AppleMacosx,
             Self::Aarch64AppleDarwin => repc::Target::Aarch64AppleMacosx,
             Self::X86_64PcWindowsMsvc => repc::Target::X86_64PcWindowsMsvc,

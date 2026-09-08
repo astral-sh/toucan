@@ -380,9 +380,15 @@ fn compiler_constraints_and_native_operand_evaluation() {
     for p in CompilerProfile::ALL {
         let gnu = p.compiler() == Compiler::Gnu;
         let host_gnu = (cfg!(all(target_os = "linux", target_arch = "x86_64"))
-            && p.target() == Target::X86_64UnknownLinuxGnu)
+            && matches!(
+                p.target(),
+                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+            ))
             || (cfg!(all(target_os = "linux", target_arch = "aarch64"))
-                && p.target() == Target::Aarch64UnknownLinuxGnu);
+                && matches!(
+                    p.target(),
+                    Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                ));
         let mut cc = if gnu {
             if !host_gnu {
                 continue;
@@ -448,7 +454,10 @@ fn dead_value_operands_suppress_feature_uses_but_keep_type_checks() {
     for profile in CompilerProfile::ALL.into_iter().filter(|p| {
         matches!(
             p.target(),
-            Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin | Target::X86_64PcWindowsMsvc
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::X86_64AppleDarwin
+                | Target::X86_64PcWindowsMsvc
         )
     }) {
         for dead in [true, false] {

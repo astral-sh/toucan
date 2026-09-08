@@ -118,7 +118,9 @@ uses `"Jan  1 1970"` and `"00:00:00"`. `TZ` and locale do not change these macro
 Toucan uses the selected target's data model and predefined macros, independently
 of the host. Supply headers for that target through `--sysroot` and ordered `-I`
 arguments. `--sysroot` adds `usr/include` and, on Linux, the target's multiarch
-include directory; it does not discover a compiler installation or SDK.
+include directory; it does not discover a compiler installation or SDK. The
+[x86-64 and AArch64 musl targets](docs/musl.md) require musl headers and preserve
+the libc environment in generated Rust target guards.
 
 For native Linux headers, `--sysroot /` selects the installed system headers. Add
 compiler resource directories with `-I` when needed. On macOS, use the installed SDK:

@@ -32,7 +32,10 @@ const OPS: &[(&str, SyncOperation, usize)] = &[
 fn gnu(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+        Target::X86_64UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxMusl
+            | Target::Aarch64UnknownLinuxGnu
+            | Target::Aarch64UnknownLinuxMusl
     )
 }
 fn check(source: &str, target: Target) -> Result<Analysis, toucan_semantic::Error> {

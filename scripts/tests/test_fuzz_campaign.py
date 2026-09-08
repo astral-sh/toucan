@@ -16,7 +16,7 @@ import run_fuzz_campaign as campaign
 class FuzzCampaignTests(unittest.TestCase):
     def test_profile_seeds_and_initial_archive_preserve_exact_input_bytes(self):
         source = b"int f(void) { return 0; }\n"
-        for count in (5, 7, 32):
+        for count in (5, 7, 11, 32):
             seeds = list(campaign.seed_profiles(source, count))
             self.assertEqual(
                 [sum(seed) % count for seed in seeds], list(range(count)) * 2
@@ -51,7 +51,7 @@ class FuzzCampaignTests(unittest.TestCase):
 
     def test_mode_padding_covers_boundary_checksums_and_preprocessing(self):
         for source in [b"", b"a" * 255, b"a" * 256, b"a" * 511]:
-            for count in (None, 1, 2, 7, 31, 32):
+            for count in (None, 1, 2, 7, 11, 31, 32):
                 seeds = list(campaign.seed_profiles(source, count))
                 self.assertEqual(len(seeds), 2 * (count or 1))
                 self.assertEqual(

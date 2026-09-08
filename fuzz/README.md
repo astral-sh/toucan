@@ -11,10 +11,11 @@ cargo +nightly fuzz run checked -- -max_total_time=60
 
 Targets exercise UTF-8 input, bounded preprocessing, declaration analysis, layout,
 and binding generation. Semantic, binding, and checked-code targets select among
-all seven compiler profiles using the sum of input bytes modulo seven. The stable
-order is the five `Target::ALL` defaults, followed by Clang on x86-64 Linux and
-Clang on AArch64 Linux (`CompilerProfile::ALL`). Preprocessing has no profile
-selector. Archived campaigns using modulo five retain that selector contract;
+all eleven compiler profiles using the sum of input bytes modulo eleven. The
+`CompilerProfile::ALL` order preserves the original seven entries (five original
+target defaults, then Clang on GNU Linux x86-64 and AArch64), followed by GCC on
+musl x86-64 and AArch64, then Clang on those two musl targets. Preprocessing has no profile
+selector. Archived campaigns using modulo five or seven retain their selector contracts;
 replaying their exact bytes with the new harness can select a different profile.
 Record the harness source and selector count with each campaign. The same byte sum's
 `0x100` bit independently selects GNU11 (clear) or C11 (set). The preprocessing

@@ -181,7 +181,10 @@ fn sse_signatures_and_compiler_availability_are_retained() {
                 }
             }
         }
-        if target != Target::X86_64UnknownLinuxGnu {
+        if !matches!(
+            target,
+            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+        ) {
             let error = check(&source_for_unavailable(target), target).unwrap_err();
             assert!(error.message.contains("unavailable"));
         }
@@ -295,7 +298,10 @@ fn all_sse_formal_signatures_match_gcc_and_cross_target_clang() {
         let source = source(Target::X86_64AppleDarwin, false, false);
         let supported = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin | Target::X86_64PcWindowsMsvc
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::X86_64AppleDarwin
+                | Target::X86_64PcWindowsMsvc
         );
         let temp = tempfile::tempdir().unwrap();
         let output = compiler_input(

@@ -2133,7 +2133,10 @@ mod tests {
                     Builtin::ByteSwap64
                         if matches!(
                             target,
-                            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                            Target::X86_64UnknownLinuxGnu
+                                | Target::X86_64UnknownLinuxMusl
+                                | Target::Aarch64UnknownLinuxGnu
+                                | Target::Aarch64UnknownLinuxMusl
                         ) =>
                     {
                         IntegerKind::UnsignedLong
@@ -2746,7 +2749,10 @@ mod tests {
         for target in Target::ALL {
             let gnu = matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
+                    | Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
             );
             let code = checked(
                 "int f(int x) { int a[1]; ({ x; }); ({ x; _Static_assert(1, \"ok\"); }); ({ a; }); return ({ int x = 2; x; }); }",

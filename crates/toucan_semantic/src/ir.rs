@@ -296,12 +296,24 @@ impl CallingConvention {
             (Self::C, _) => Ok(Self::C),
             (
                 Self::Aarch64Vector | Self::Aarch64Sve,
-                Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin,
+                Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
+                | Target::Aarch64AppleDarwin,
             ) => Ok(self),
-            (Self::SysV64, Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin)
+            (
+                Self::SysV64,
+                Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::X86_64AppleDarwin,
+            )
             | (Self::Win64, Target::X86_64PcWindowsMsvc) => Ok(Self::C),
             (Self::SysV64, Target::X86_64PcWindowsMsvc)
-            | (Self::Win64, Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin) => Ok(self),
+            | (
+                Self::Win64,
+                Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::X86_64AppleDarwin,
+            ) => Ok(self),
             _ => Err(Error::new(
                 0,
                 "explicit calling convention is unsupported on this target",

@@ -37,7 +37,10 @@ fn data_models_are_explicit() {
         assert_eq!(target.builtin_layout(B::LongLong).unwrap().size_bytes(), 8);
         assert_eq!(
             target.char_is_signed(),
-            target != Target::Aarch64UnknownLinuxGnu
+            !matches!(
+                target,
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+            )
         );
         let macros = target.predefined_macros();
         assert_eq!(macros["__STDC_VERSION__"], "201112L");
@@ -59,7 +62,7 @@ fn data_models_are_explicit() {
         );
     }
     assert!(matches!(
-        Target::parse("x86_64-unknown-linux-musl"),
+        Target::parse("riscv64gc-unknown-linux-musl"),
         Err(LayoutError::UnsupportedTarget(_))
     ));
 }

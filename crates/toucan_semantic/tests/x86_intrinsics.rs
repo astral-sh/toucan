@@ -215,7 +215,10 @@ fn immediate_checks_preserve_compiler_stage_and_parameter_conversion() {
         Target::X86_64AppleDarwin,
         Target::X86_64PcWindowsMsvc,
     ] {
-        let gnu = target == Target::X86_64UnknownLinuxGnu;
+        let gnu = matches!(
+            target,
+            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+        );
         let constraint = X86Intrinsic::VecExtV2si.immediate_constraints(target)[0];
         assert_eq!(
             (
@@ -259,7 +262,10 @@ fn intrinsic_conversions_and_invalid_calls_are_explicit() {
         Target::X86_64PcWindowsMsvc,
     ] {
         let result = check(&source, target);
-        if target == Target::X86_64UnknownLinuxGnu {
+        if matches!(
+            target,
+            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+        ) {
             assert!(result.is_err());
         } else {
             let analysis = result.unwrap();

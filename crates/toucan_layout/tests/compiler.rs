@@ -145,7 +145,10 @@ fn unvalidated_compiler_overrides_are_errors() {
                 || compiler == Compiler::Clang
                     && matches!(
                         target,
-                        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                        Target::X86_64UnknownLinuxGnu
+                            | Target::X86_64UnknownLinuxMusl
+                            | Target::Aarch64UnknownLinuxGnu
+                            | Target::Aarch64UnknownLinuxMusl
                     );
             let result = compute_layout_with_compiler(target, compiler, &ty);
             assert_eq!(result.is_ok(), supported, "{} {compiler:?}", target.name());

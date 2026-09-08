@@ -147,7 +147,10 @@ fn returns_twice_late_definition_follows_compiler_profile() {
         let result = analyze(source, target);
         if matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         ) {
             assert!(result.unwrap().declarations[0].returns_twice);
         } else {

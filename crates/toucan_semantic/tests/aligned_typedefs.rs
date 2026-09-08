@@ -215,8 +215,10 @@ fn typedef_layouts_match_native_and_cross_target_compilers() {
             "{target:?}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
-        if target == Target::X86_64UnknownLinuxGnu
-            && cfg!(all(target_arch = "x86_64", target_os = "linux"))
+        if matches!(
+            target,
+            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+        ) && cfg!(all(target_arch = "x86_64", target_os = "linux"))
         {
             let compiler = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
             let output = std::process::Command::new(&compiler)

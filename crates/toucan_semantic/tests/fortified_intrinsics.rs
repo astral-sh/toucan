@@ -94,7 +94,10 @@ fn fortified_calls_check_fixed_parameters_and_target_va_list_types() {
         .unwrap();
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         for source in [
             "int f(void *p) {return __builtin___fprintf_chk(p,0,\"x\");}",

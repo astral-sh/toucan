@@ -113,8 +113,10 @@ fn alignment_queries_follow_declarations_members_and_pointer_origins() {
                 );
             }
             let expected = if profile.compiler() == Compiler::Gnu
-                && profile.target() == Target::X86_64UnknownLinuxGnu
-            {
+                && matches!(
+                    profile.target(),
+                    Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+                ) {
                 1
             } else {
                 4
@@ -400,7 +402,9 @@ fn sve_values_can_be_unevaluated_but_have_no_alignment_themselves() {
     for profile in CompilerProfile::ALL.into_iter().filter(|profile| {
         matches!(
             profile.target(),
-            Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin
+            Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
+                | Target::Aarch64AppleDarwin
         )
     }) {
         check(

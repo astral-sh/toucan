@@ -489,6 +489,7 @@ fn function_attributes_cover_identifier_list_bounds_and_keep_parameter_sites() {
         matches!(
             profile.target(),
             toucan_target::Target::X86_64UnknownLinuxGnu
+                | toucan_target::Target::X86_64UnknownLinuxMusl
                 | toucan_target::Target::X86_64AppleDarwin
                 | toucan_target::Target::X86_64PcWindowsMsvc
         )

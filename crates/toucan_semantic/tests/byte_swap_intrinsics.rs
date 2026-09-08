@@ -44,7 +44,10 @@ const INVALID: &[&str] = &[
 fn result_types(target: Target) -> String {
     let wide = if matches!(
         target,
-        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+        Target::X86_64UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxMusl
+            | Target::Aarch64UnknownLinuxGnu
+            | Target::Aarch64UnknownLinuxMusl
     ) {
         "unsigned long"
     } else {

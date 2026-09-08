@@ -47,7 +47,9 @@ Unsupported C syntax and unproved Rust calling ABIs remain generation errors.
 
 Cargo's `TARGET` selects the target. An explicit `--target` or `-target` overrides
 it. Outside a build script, the supported native host is the default. Every target
-uses the Clang semantic profile, including on Linux.
+uses the Clang semantic profile, including on Linux. Both GNU and musl Linux
+triples are supported on x86-64 and AArch64; provide the selected libc
+[sysroot and compiler resource headers](../../docs/musl.md).
 
 Supported arguments are `-I`, `-D`, `-U`, `-isystem`, `-include`, `--sysroot`,
 `-isysroot`, `-x c`, `-std=c11`, `-std=gnu11`, and trigraph overrides. Unknown options fail generation;

@@ -3,10 +3,10 @@ use toucan::{Compiler, CompilerProfile, Config, Target, parse_source};
 
 #[test]
 fn profiles_validate_and_round_trip_without_changing_physical_targets() {
-    assert_eq!(CompilerProfile::ALL.len(), 7);
+    assert_eq!(CompilerProfile::ALL.len(), 11);
     for (index, target) in Target::ALL.into_iter().enumerate() {
         assert_eq!(
-            CompilerProfile::ALL[index],
+            CompilerProfile::ALL[if index < 5 { index } else { index + 2 }],
             CompilerProfile::default_for(target)
         );
         assert_eq!(
@@ -15,7 +15,7 @@ fn profiles_validate_and_round_trip_without_changing_physical_targets() {
         );
         assert_eq!(
             CompilerProfile::new(target, Compiler::Gnu).is_ok(),
-            index < 2
+            target.is_linux()
         );
     }
     for profile in CompilerProfile::ALL {
@@ -57,7 +57,10 @@ fn profile_macros_keep_linux_types_and_respect_caller_overrides() {
         let mut source = source;
         if matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         ) {
             source.push_str("_Static_assert(_Generic((__INT64_TYPE__)0,long:1,default:0),\"Linux int64\"); _Static_assert(sizeof(long double)==16,\"Linux extended precision\");");
         }

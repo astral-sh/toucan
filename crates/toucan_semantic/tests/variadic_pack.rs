@@ -43,7 +43,10 @@ fn pack_signatures_and_positions_follow_the_gnu_profile() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         for body in VALID.iter().chain(INVALID) {
             let source = source(body);

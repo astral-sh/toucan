@@ -265,8 +265,16 @@ fn native_constraint_matrix() {
     let output = d.path().join("hint.s");
     for p in CompilerProfile::ALL {
         let host = cfg!(target_os = "linux")
-            && ((cfg!(target_arch = "x86_64") && p.target() == Target::X86_64UnknownLinuxGnu)
-                || (cfg!(target_arch = "aarch64") && p.target() == Target::Aarch64UnknownLinuxGnu));
+            && ((cfg!(target_arch = "x86_64")
+                && matches!(
+                    p.target(),
+                    Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+                ))
+                || (cfg!(target_arch = "aarch64")
+                    && matches!(
+                        p.target(),
+                        Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                    )));
         let mut cc = if p.compiler() == Compiler::Gnu {
             if !host {
                 continue;

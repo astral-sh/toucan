@@ -24,7 +24,10 @@ fn profile_defaults_and_caller_overrides_select_the_header_api() {
                 mode == LanguageMode::Gnu11
                     && matches!(
                         profile.target(),
-                        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                        Target::X86_64UnknownLinuxGnu
+                            | Target::X86_64UnknownLinuxMusl
+                            | Target::Aarch64UnknownLinuxGnu
+                            | Target::Aarch64UnknownLinuxMusl
                     )
             );
             config
@@ -219,7 +222,18 @@ fn profile_language_mode_round_trips_and_old_profiles_default_to_gnu11() {
 #[ignore = "requires rustc; supports TOUCAN_TEST_RUST_TOOLCHAIN"]
 fn c11_identifier_macros_generate_working_rust_1_64() {
     let directory = tempfile::tempdir().unwrap();
-    let profile = CompilerProfile::default_for(Target::X86_64UnknownLinuxGnu)
+    let mut command = std::process::Command::new("rustc");
+    if let Ok(toolchain) = std::env::var("TOUCAN_TEST_RUST_TOOLCHAIN") {
+        command.arg(format!("+{toolchain}"));
+    }
+    let version = command.arg("--version").arg("--verbose").output().unwrap();
+    assert!(version.status.success(), "{version:?}");
+    let version = String::from_utf8(version.stdout).unwrap();
+    let host = version
+        .lines()
+        .find_map(|line| line.strip_prefix("host: "))
+        .unwrap();
+    let profile = CompilerProfile::default_for(Target::parse(host).unwrap())
         .with_language_mode(LanguageMode::C11);
     let mut config = Config::with_profile(profile);
     config.preprocessor.defines.clear();

@@ -233,8 +233,10 @@ fn component_conversion_preserves_target_precision_and_extended_fold_limits() {
         assert_eq!(value.kind(), FloatKind::LongDouble);
         let (real, imaginary) = match profile.target() {
             toucan_target::Target::X86_64UnknownLinuxGnu
+            | toucan_target::Target::X86_64UnknownLinuxMusl
             | toucan_target::Target::X86_64AppleDarwin => (0x3fff_8000_0000_0000_0001, 1u128 << 79),
-            toucan_target::Target::Aarch64UnknownLinuxGnu => {
+            toucan_target::Target::Aarch64UnknownLinuxGnu
+            | toucan_target::Target::Aarch64UnknownLinuxMusl => {
                 ((0x3fffu128 << 112) | (1 << 49), 1u128 << 127)
             }
             _ => (0x3ff0_0000_0000_0000, 1u128 << 63),

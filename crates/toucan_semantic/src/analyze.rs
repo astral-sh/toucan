@@ -960,7 +960,7 @@ impl Analyzer {
     fn install_builtin_va_list(&mut self) {
         let pointer = Type::new(TypeKind::Void).pointer();
         let (fields, array) = match self.unit.target.triple() {
-            "x86_64-unknown-linux-gnu" | "x86_64-apple-darwin" => (
+            "x86_64-unknown-linux-gnu" | "x86_64-unknown-linux-musl" | "x86_64-apple-darwin" => (
                 vec![
                     (
                         "gp_offset",
@@ -975,7 +975,7 @@ impl Analyzer {
                 ],
                 true,
             ),
-            "aarch64-unknown-linux-gnu" => (
+            "aarch64-unknown-linux-gnu" | "aarch64-unknown-linux-musl" => (
                 vec![
                     ("__stack", pointer.clone()),
                     ("__gr_top", pointer.clone()),
@@ -2247,7 +2247,11 @@ impl Analyzer {
                         }
                         ast::TypeSpecifier::BFloat16 => TypeKind::Float(FloatKind::BFloat16),
                         ast::TypeSpecifier::Float128 => {
-                            if self.unit.target != toucan_target::Target::X86_64UnknownLinuxGnu {
+                            if !matches!(
+                                self.unit.target,
+                                toucan_target::Target::X86_64UnknownLinuxGnu
+                                    | toucan_target::Target::X86_64UnknownLinuxMusl
+                            ) {
                                 return Err(Error::new(
                                     ty.span.start,
                                     "__float128 spelling is unavailable in this Clang target profile",
@@ -3886,7 +3890,10 @@ impl Analyzer {
                     ));
                 }
                 if convention == CallingConvention::Aarch64Vector
-                    && self.unit.target == Target::Aarch64UnknownLinuxGnu
+                    && matches!(
+                        self.unit.target,
+                        Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                    )
                     && self.unit.compiler == Compiler::Gnu
                     && function.aarch64_pcs(&self.unit)? == Some(crate::Aarch64Pcs::Sve)
                 {
@@ -4181,7 +4188,11 @@ impl Analyzer {
                         Some(crate::attributes::Attribute::Aarch64VectorPcs)
                         | Some(crate::attributes::Attribute::Aarch64SvePcs) => {
                             if name == "aarch64_sve_pcs"
-                                && self.unit.target == Target::Aarch64UnknownLinuxGnu
+                                && matches!(
+                                    self.unit.target,
+                                    Target::Aarch64UnknownLinuxGnu
+                                        | Target::Aarch64UnknownLinuxMusl
+                                )
                                 && self.unit.compiler == Compiler::Gnu
                             {
                                 // GCC 13 does not implement this Clang attribute.
@@ -4237,6 +4248,7 @@ impl Analyzer {
                                         && matches!(
                                             self.unit.target,
                                             Target::X86_64UnknownLinuxGnu
+                                                | Target::X86_64UnknownLinuxMusl
                                                 | Target::X86_64AppleDarwin
                                         ) =>
                                 {

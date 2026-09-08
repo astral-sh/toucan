@@ -240,7 +240,10 @@ impl TranslationUnit {
 fn is_x86(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin | Target::X86_64PcWindowsMsvc
+        Target::X86_64UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxMusl
+            | Target::X86_64AppleDarwin
+            | Target::X86_64PcWindowsMsvc
     )
 }
 

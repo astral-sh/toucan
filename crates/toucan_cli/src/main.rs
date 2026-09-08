@@ -181,6 +181,8 @@ impl Input {
             let multiarch = match target.triple() {
                 "x86_64-unknown-linux-gnu" => Some("x86_64-linux-gnu"),
                 "aarch64-unknown-linux-gnu" => Some("aarch64-linux-gnu"),
+                "x86_64-unknown-linux-musl" => Some("x86_64-linux-musl"),
+                "aarch64-unknown-linux-musl" => Some("aarch64-linux-musl"),
                 _ => None,
             };
             if let Some(multiarch) = multiarch {
@@ -244,6 +246,16 @@ fn host_target() -> Result<Target> {
                 target_arch = "aarch64",
                 target_os = "linux",
                 target_env = "gnu"
+            )),
+            "x86_64-unknown-linux-musl" => cfg!(all(
+                target_arch = "x86_64",
+                target_os = "linux",
+                target_env = "musl"
+            )),
+            "aarch64-unknown-linux-musl" => cfg!(all(
+                target_arch = "aarch64",
+                target_os = "linux",
+                target_env = "musl"
             )),
             "x86_64-apple-darwin" => cfg!(all(target_arch = "x86_64", target_os = "macos")),
             "aarch64-apple-darwin" => cfg!(all(target_arch = "aarch64", target_os = "macos")),

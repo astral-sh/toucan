@@ -4,7 +4,11 @@ use toucan_semantic::{
 };
 use toucan_target::Target;
 
-const ARM: [Target; 2] = [Target::Aarch64UnknownLinuxGnu, Target::Aarch64AppleDarwin];
+const ARM: [Target; 3] = [
+    Target::Aarch64UnknownLinuxGnu,
+    Target::Aarch64AppleDarwin,
+    Target::Aarch64UnknownLinuxMusl,
+];
 const PRELUDE: &str =
     "typedef __SVFloat32_t V; typedef __SVFloat64_t D; typedef __SVBool_t P; V f(void);";
 
@@ -89,10 +93,12 @@ fn native_neon_identity_is_distinct_from_gnu_vectors() {
     assert!(right.conversions().iter().any(|step| step.kind()
         == toucan_semantic::checked::Conversion::Arithmetic
         && step.target_type() == *computation));
-    for target in Target::ALL
-        .into_iter()
-        .filter(|target| *target != Target::Aarch64UnknownLinuxGnu)
-    {
+    for target in Target::ALL.into_iter().filter(|target| {
+        !matches!(
+            *target,
+            Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+        )
+    }) {
         assert!(
             parity("typedef __Float32x4_t N;", target)
                 .unwrap_err()
@@ -145,12 +151,18 @@ fn sve_signatures_keep_sizeless_identity_and_effective_pcs() {
             ("neon", Aarch64Pcs::Vector, CallingConvention::Aarch64Vector),
             (
                 "explicit_sve",
-                if target == Target::Aarch64UnknownLinuxGnu {
+                if matches!(
+                    target,
+                    Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                ) {
                     Aarch64Pcs::Base
                 } else {
                     Aarch64Pcs::Sve
                 },
-                if target == Target::Aarch64UnknownLinuxGnu {
+                if matches!(
+                    target,
+                    Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                ) {
                     CallingConvention::C
                 } else {
                     CallingConvention::Aarch64Sve
@@ -532,7 +544,10 @@ fn builtin_names_have_file_scope_identity_and_can_be_shadowed_locally() {
         let error = parity("typedef int __SVFloat32_t;", target).unwrap_err();
         assert_eq!(
             error.message.contains("unsupported"),
-            target == Target::Aarch64UnknownLinuxGnu
+            matches!(
+                target,
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+            )
         );
     }
 }

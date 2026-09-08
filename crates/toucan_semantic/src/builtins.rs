@@ -555,7 +555,9 @@ pub(crate) fn byte_swap_kind(name: &str, target: toucan_target::Target) -> Optio
         "__builtin_bswap32" => IntegerKind::UnsignedInt,
         "__builtin_bswap64" => match target {
             toucan_target::Target::X86_64UnknownLinuxGnu
-            | toucan_target::Target::Aarch64UnknownLinuxGnu => IntegerKind::UnsignedLong,
+            | toucan_target::Target::X86_64UnknownLinuxMusl
+            | toucan_target::Target::Aarch64UnknownLinuxGnu
+            | toucan_target::Target::Aarch64UnknownLinuxMusl => IntegerKind::UnsignedLong,
             _ => IntegerKind::UnsignedLongLong,
         },
         _ => return None,
