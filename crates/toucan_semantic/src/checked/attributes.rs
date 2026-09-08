@@ -70,13 +70,7 @@ impl Analyzer {
                 DiagnosticAttributeKind::Warning => 1,
                 DiagnosticAttributeKind::Error => 2,
             };
-            if kinds == 3
-                && !matches!(
-                    self.unit.target,
-                    toucan_target::Target::X86_64UnknownLinuxGnu
-                        | toucan_target::Target::Aarch64UnknownLinuxGnu
-                )
-            {
+            if kinds == 3 && self.unit.compiler != toucan_target::Compiler::Gnu {
                 return Err(Error::new(
                     attribute.span.start,
                     "conflicting warning and error attributes",

@@ -10,6 +10,8 @@ use crate::Error;
 #[derive(Clone, Debug, Serialize)]
 pub struct TranslationUnit {
     pub target: Target,
+    /// Compiler behavior retained independently from the physical target.
+    pub compiler: target::Compiler,
     pub declarations: Vec<Declaration>,
     pub records: Vec<Record>,
     /// Nominal GNU typedef variants mapped directly to their source record.
@@ -436,6 +438,12 @@ impl IntegerValue {
 }
 
 impl TranslationUnit {
+    /// Validates compiler identity when callers construct or modify public IR.
+    pub fn profile(&self) -> Result<target::CompilerProfile, Error> {
+        target::CompilerProfile::new(self.target, self.compiler)
+            .map_err(|e| Error::new(0, e.to_string()))
+    }
+
     /// Whether this array's size depends on a runtime bound. Pointers to such
     /// arrays still have a constant pointer size.
     pub fn is_variable_length_array(&self, ty: &Type) -> Result<bool, Error> {
@@ -472,6 +480,7 @@ impl TranslationUnit {
 
     /// Computes alignment even when a complete array has a runtime extent.
     pub fn alignment(&self, ty: &Type) -> Result<u64, Error> {
+        self.profile()?;
         if self.is_sizeless(ty)? {
             return Err(Error::new(0, "sizeless SVE types have no object alignment"));
         }
@@ -568,9 +577,10 @@ impl TranslationUnit {
 
     /// Computes target layout, rejecting incomplete or recursively embedded types.
     pub fn layout(&self, ty: &Type) -> Result<target::Layout, Error> {
+        self.profile()?;
         let lowered = self.layout_type(ty, &mut HashSet::new(), &mut HashMap::new(), 0, true)?;
         let mut layout = self
-            .target
+            .profile()?
             .layout(&lowered)
             .map_err(|e| Error::new(0, e.to_string()))?;
         // clang-cl honors a GNU typedef's decreased pointer alignment even though
@@ -630,7 +640,7 @@ impl TranslationUnit {
                 let lowered =
                     self.layout_type(&Type::new(TypeKind::Record(id)), active, cache, depth, true)?;
                 let layout = self
-                    .target
+                    .profile()?
                     .layout(&lowered)
                     .map_err(|error| Error::new(0, error.to_string()))?;
                 cache.insert(id, layout);
@@ -658,10 +668,10 @@ impl TranslationUnit {
             }
             let inner = self.layout_type(value, active, cache, depth + 1, false)?;
             let inner = self
-                .target
+                .profile()?
                 .layout(&inner)
                 .map_err(|e| Error::new(0, e.to_string()))?;
-            let layout = crate::atomic_type::atomic_layout(self.target, inner)?;
+            let layout = crate::atomic_type::atomic_layout(self.compiler, inner)?;
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&layout),
                 ty.alignment,

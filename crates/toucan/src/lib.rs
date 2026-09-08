@@ -14,21 +14,40 @@ pub use toucan_preprocessor::{ForcedInclude, OriginKind, SourceLocation, SourceM
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};
 pub use toucan_semantic::{self as semantic, Analysis, AnalysisOptions, TranslationUnit};
 pub use toucan_source as source;
-pub use toucan_target::{self as target, Target};
+pub use toucan_target::{self as target, Compiler, CompilerProfile, Target};
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub target: Target,
+    profile: CompilerProfile,
     pub preprocessor: PreprocessorConfig,
     /// Optional owned semantic graph retention; disabled by default.
     pub analysis: AnalysisOptions,
 }
 
 impl Config {
+    /// Physical ABI and platform selected for preprocessing and analysis.
+    pub fn target(&self) -> Target {
+        self.profile.target()
+    }
+    /// Compiler behavior used by this configuration.
+    pub fn compiler(&self) -> Compiler {
+        self.profile.compiler()
+    }
+    /// The validated target/compiler pair.
+    pub fn profile(&self) -> CompilerProfile {
+        self.profile
+    }
+    /// Uses GCC on Linux and Clang on Darwin and Windows.
     pub fn new(target: Target) -> Self {
+        Self::with_profile(CompilerProfile::default_for(target))
+    }
+
+    /// Builds matching preprocessing and semantic configuration before caller overrides.
+    pub fn with_profile(profile: CompilerProfile) -> Self {
+        let target = profile.target();
         let mut preprocessor = PreprocessorConfig {
             char_unsigned: !target.char_is_signed(),
-            defines: target.predefined_macros(),
+            defines: profile.predefined_macros(),
             ..PreprocessorConfig::default()
         };
         // These predicates advertise only implemented syntax/semantics. They are
@@ -69,7 +88,7 @@ impl Config {
             ),
         ]);
         Self {
-            target,
+            profile,
             preprocessor,
             analysis: AnalysisOptions::default(),
         }
@@ -163,7 +182,7 @@ fn finish(
 ) -> Result<Compilation, Error> {
     let start = Instant::now();
     let analysis =
-        semantic::analyze_with_options(&preprocessed.source, config.target, &config.analysis)
+        semantic::analyze_with_profile(&preprocessed.source, config.profile, &config.analysis)
             .map_err(|error| SemanticError {
                 origin: preprocessed.resolve_location(error.offset).cloned(),
                 error,
@@ -181,6 +200,7 @@ fn finish(
 #[derive(Debug, serde::Serialize)]
 pub struct Report {
     pub target: String,
+    pub compiler: Compiler,
     /// Minimum Rust version for generated declarations, excluding caller-provided lines.
     pub rust_target: String,
     pub dependencies: Vec<PathBuf>,
@@ -389,6 +409,7 @@ impl Compilation {
         let source = bindings.source;
         let report = Report {
             target: self.unit().target.triple().into(),
+            compiler: self.unit().compiler,
             rust_target: options.rust_target.to_string(),
             dependencies: self.preprocessed.dependencies.clone(),
             declarations: bindings.declarations,

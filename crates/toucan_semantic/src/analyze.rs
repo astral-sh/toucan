@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use lang_c::{ast, driver, span::Node};
-use toucan_target::Target;
+use toucan_target::{Compiler, CompilerProfile, Target};
 
 use crate::checked::{
     Builder as CodeBuilder, CheckedCode, EntityKind, Limits as CodeLimits, LocalDeclaration,
@@ -34,11 +34,23 @@ pub fn analyze_with_options(
     target: Target,
     options: &crate::AnalysisOptions,
 ) -> Result<crate::Analysis, Error> {
-    let (unit, checked) = analyze_inner(
-        source,
-        target,
-        options.retain_code.then_some(options.limits),
-    )?;
+    analyze_with_profile(source, CompilerProfile::default_for(target), options)
+}
+
+/// Checks C under an explicitly validated compiler and physical target, retaining
+/// code when requested. Constant queries later reuse this choice from the unit.
+pub fn analyze_with_profile(
+    source: &str,
+    profile: CompilerProfile,
+    options: &crate::AnalysisOptions,
+) -> Result<crate::Analysis, Error> {
+    let (unit, checked) = crate::with_parser_stack(|| {
+        analyze_on_parser_stack(
+            source,
+            profile,
+            options.retain_code.then_some(options.limits),
+        )
+    })??;
     Ok(crate::Analysis { unit, checked })
 }
 
@@ -47,12 +59,14 @@ pub(crate) fn analyze_inner(
     target: Target,
     retention: Option<CodeLimits>,
 ) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
-    crate::with_parser_stack(|| analyze_on_parser_stack(source, target, retention))?
+    crate::with_parser_stack(|| {
+        analyze_on_parser_stack(source, CompilerProfile::default_for(target), retention)
+    })?
 }
 
 fn analyze_on_parser_stack(
     source: &str,
-    target: Target,
+    profile: CompilerProfile,
     retention: Option<CodeLimits>,
 ) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
     if source.len() > 16 * 1024 * 1024 {
@@ -64,7 +78,7 @@ fn analyze_on_parser_stack(
         .into_iter()
         .map(|(offset, pack)| (parsed.offsets.pragma_offset(offset), pack))
         .collect();
-    let mut analyzer = Analyzer::new(target, packs);
+    let mut analyzer = Analyzer::new(profile, packs);
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
@@ -146,6 +160,7 @@ fn evaluate_on_parser_stack<Value>(
     expression: &str,
     evaluate: impl FnOnce(&mut Analyzer, &Node<ast::Expression>) -> Result<Value, Error>,
 ) -> Result<Value, Error> {
+    unit.profile()?;
     let identifiers = validate_expression_source(expression)?;
     for value in unit.constants.values() {
         value.validate()?;
@@ -554,7 +569,7 @@ pub(crate) struct StorageSpecifiers {
 /// beside `static` or `extern`.
 pub(crate) fn storage_specifiers(
     specifiers: &[Node<ast::DeclarationSpecifier>],
-    target: Target,
+    compiler: Compiler,
 ) -> Result<StorageSpecifiers, Error> {
     let mut storage = StorageSpecifiers::default();
     let mut gnu_thread_local = false;
@@ -575,10 +590,7 @@ pub(crate) fn storage_specifiers(
             storage.thread_local = true;
             gnu_thread_local = class.node == ast::StorageClassSpecifier::GnuThreadLocal;
         } else if gnu_thread_local
-            && matches!(
-                target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-            )
+            && compiler == Compiler::Gnu
             && matches!(
                 class.node,
                 ast::StorageClassSpecifier::Static | ast::StorageClassSpecifier::Extern
@@ -682,9 +694,10 @@ impl Analyzer {
         self.nesting -= 1;
     }
 
-    fn new(target: Target, packs: PackEvents) -> Self {
+    fn new(profile: CompilerProfile, packs: PackEvents) -> Self {
         let mut analyzer = Self::from_unit(TranslationUnit {
-            target,
+            target: profile.target(),
+            compiler: profile.compiler(),
             declarations: Vec::new(),
             records: Vec::new(),
             record_origins: BTreeMap::new(),
@@ -912,7 +925,7 @@ impl Analyzer {
         declaration: &Node<ast::Declaration>,
         definition: bool,
     ) -> Result<(), Error> {
-        let storage = storage_specifiers(&declaration.node.specifiers, self.unit.target)?;
+        let storage = storage_specifiers(&declaration.node.specifiers, self.unit.compiler)?;
         if matches!(
             storage.class,
             Some(ast::StorageClassSpecifier::Auto | ast::StorageClassSpecifier::Register)
@@ -1019,7 +1032,9 @@ impl Analyzer {
             }
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "declaration has no name"))?;
-            if let Some(builtin) = crate::arm::builtin_type(&name, self.unit.target) {
+            if let Some(builtin) =
+                crate::arm::builtin_type(&name, self.unit.target, self.unit.compiler)
+            {
                 if !is_typedef {
                     return Err(Error::new(
                         item.span.start,
@@ -1757,10 +1772,11 @@ impl Analyzer {
             matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
                 || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty())
         });
-        let clang_forward = matches!(
-            self.unit.target,
-            Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin
-        ) && matches!(self.unit.resolve(&ty)?.kind, TypeKind::Record(id) if self.unit.records[id].fields.is_none());
+        let clang_forward = self.unit.compiler == Compiler::Clang
+            && (record_attributes.packed
+                || record_attributes.alignment.is_some()
+                || record_attributes.transparent_union.is_some())
+            && matches!(self.unit.resolve(&ty)?.kind, TypeKind::Record(id) if self.unit.records[id].fields.is_none());
         // GCC ignores layout attributes on forward tags; Clang retains them.
         // Both ignore a new attribute applied after the tag is already defined.
         if defines_tag || clang_forward {
@@ -1901,8 +1917,11 @@ impl Analyzer {
                         ast::TypeSpecifier::Bool => TypeKind::Bool,
                         ast::TypeSpecifier::TypedefName(name) => {
                             if !self.unit.typedefs.contains_key(&name.node.name)
-                                && let Some(builtin) =
-                                    crate::arm::builtin_type(&name.node.name, self.unit.target)
+                                && let Some(builtin) = crate::arm::builtin_type(
+                                    &name.node.name,
+                                    self.unit.target,
+                                    self.unit.compiler,
+                                )
                             {
                                 self.unit.typedefs.insert(name.node.name.clone(), builtin);
                             }
@@ -2390,7 +2409,7 @@ impl Analyzer {
                     let prototype = !function.node.parameters.is_empty();
                     for parameter in &function.node.parameters {
                         let storage =
-                            storage_specifiers(&parameter.node.specifiers, self.unit.target)?;
+                            storage_specifiers(&parameter.node.specifiers, self.unit.compiler)?;
                         if storage.thread_local
                             || !matches!(
                                 storage.class,
@@ -2478,11 +2497,7 @@ impl Analyzer {
                         if matches!(self.unit.resolve(&parameter_type)?.kind, TypeKind::Void)
                             && (qualifiers != Qualifiers::default()
                                 || (storage.class.is_some()
-                                    && matches!(
-                                        self.unit.target,
-                                        Target::X86_64UnknownLinuxGnu
-                                            | Target::Aarch64UnknownLinuxGnu
-                                    )))
+                                    && self.unit.compiler == toucan_target::Compiler::Gnu))
                         {
                             return Err(Error::new(
                                 parameter.span.start,
@@ -2981,10 +2996,8 @@ impl Analyzer {
                 )?;
                 // GCC also counts anonymous records containing only unnamed bitfields.
                 has_named_member |= !member_names.is_empty()
-                    || (matches!(
-                        self.unit.target,
-                        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-                    ) && field.name.is_none()
+                    || (self.unit.compiler == toucan_target::Compiler::Gnu
+                        && field.name.is_none()
                         && field.bit_width.is_none());
             }
             self.unit.records[id].pack = self
@@ -3079,10 +3092,7 @@ impl Analyzer {
             resolved = self.unit.resolve(value)?;
         }
         // GNU C propagates qualifiers on array typedefs to their element type.
-        if matches!(
-            self.unit.target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-        ) {
+        if self.unit.compiler == toucan_target::Compiler::Gnu {
             for _ in 0..128 {
                 let (TypeKind::Array { element, .. } | TypeKind::VariableArray { element }) =
                     &resolved.kind
@@ -3228,10 +3238,7 @@ impl Analyzer {
         ty: Type,
         previous: &Type,
     ) -> Result<Type, Error> {
-        if !matches!(
-            self.unit.target,
-            Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc
-        ) {
+        if self.unit.compiler != Compiler::Clang {
             return Ok(ty);
         }
         let TypeKind::Function(function) = &self.unit.resolve(&ty)?.kind else {
@@ -3285,10 +3292,7 @@ impl Analyzer {
         let qualifiers = self.unit.qualifiers(&ty)?;
         let mut resolved = self.unit.resolve(&ty)?.clone();
         resolved.alignment = self.unit.typedef_alignment(&ty)?;
-        let clang = matches!(
-            self.unit.target,
-            Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc
-        );
+        let clang = self.unit.compiler == Compiler::Clang;
         let alias_base = alias_base
             || (matches!(ty.kind, TypeKind::Typedef(_))
                 && matches!(resolved.kind, TypeKind::Pointer(_) | TypeKind::Array { .. }));
@@ -3312,6 +3316,7 @@ impl Analyzer {
                 }
                 if convention == CallingConvention::Aarch64Vector
                     && self.unit.target == Target::Aarch64UnknownLinuxGnu
+                    && self.unit.compiler == Compiler::Gnu
                     && function.aarch64_pcs(&self.unit)? == Some(crate::Aarch64Pcs::Sve)
                 {
                     return Err(Error::new(
@@ -3488,6 +3493,7 @@ impl Analyzer {
                         "aarch64_vector_pcs" | "aarch64_sve_pcs" => {
                             if name == "aarch64_sve_pcs"
                                 && self.unit.target == Target::Aarch64UnknownLinuxGnu
+                                && self.unit.compiler == Compiler::Gnu
                             {
                                 // GCC 13 does not implement this Clang attribute.
                                 continue;
@@ -3533,7 +3539,12 @@ impl Analyzer {
                                 // GNU ignores these x86-32 conventions on its
                                 // 64-bit targets. Clang retains explicit cdecl.
                                 "cdecl"
-                                    if matches!(self.unit.target, Target::X86_64AppleDarwin) =>
+                                    if self.unit.compiler == Compiler::Clang
+                                        && matches!(
+                                            self.unit.target,
+                                            Target::X86_64UnknownLinuxGnu
+                                                | Target::X86_64AppleDarwin
+                                        ) =>
                                 {
                                     Some(CallingConvention::SysV64)
                                 }

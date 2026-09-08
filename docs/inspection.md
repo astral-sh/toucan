@@ -10,14 +10,17 @@ toucan inspect api.h --target x86_64-unknown-linux-gnu --checked-code --output a
 The command preprocesses and checks the entire input, including function bodies.
 Its version 2 JSON contains:
 
-- `translation_unit`: declarations, canonical types, records, and enumerations.
+- `translation_unit`: target and compiler identities, declarations, canonical types,
+  records, and enumerations.
 - `checked_code`: owned arenas for source occurrences, scopes, entities,
   declaration sites, expressions, bodies, initializers, and type uses.
 - `preprocessed`: the exact source addressed by those occurrences and mappings to
   original file locations or macro invocations.
 
 Without `--checked-code`, `inspect` keeps the version 1 declaration-only format.
-Both formats are experimental; consumers should check `schema_version`.
+Both formats are experimental; consumers should check `schema_version` and tolerate
+additive fields. The `compiler` field uses `gcc` or `clang`; see
+[compiler profiles](compiler-profiles.md) for defaults and compatibility.
 
 ## Follow references
 

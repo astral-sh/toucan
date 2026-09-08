@@ -5,6 +5,8 @@
 //! or MSVC ABI through `repc`; flags such as `-fshort-enums` are not implied.
 
 mod macros;
+mod profile;
+pub use profile::{Compiler, CompilerProfile};
 
 use std::fmt;
 use std::str::FromStr;
@@ -116,9 +118,7 @@ impl Target {
     /// placement. This function validates layout-specific input and bounds nesting before
     /// calling the ABI engine.
     pub fn layout(self, ty: &Type) -> Result<Layout, LayoutError> {
-        let input = self.lower(ty, 0)?;
-        let output = repc::compute_layout(self.abi_target(), &input)?;
-        Ok(Layout::from_abi(&output))
+        CompilerProfile::default_for(self).layout(ty)
     }
 
     const fn abi_target(self) -> repc::Target {
@@ -131,7 +131,12 @@ impl Target {
         }
     }
 
-    fn lower(self, ty: &Type, depth: usize) -> Result<abi::Type<()>, LayoutError> {
+    fn lower(
+        self,
+        ty: &Type,
+        depth: usize,
+        compiler: Compiler,
+    ) -> Result<abi::Type<()>, LayoutError> {
         if depth >= 256 {
             return Err(LayoutError::NestingLimit);
         }
@@ -173,7 +178,7 @@ impl Target {
                             annotations: lower_annotations(&field.annotations)?,
                             named: field.named,
                             bit_width: field.bit_width,
-                            ty: self.lower(&field.ty, depth + 1)?,
+                            ty: self.lower(&field.ty, depth + 1, compiler)?,
                         })
                     })
                     .collect::<Result<_, LayoutError>>()?;
@@ -186,7 +191,7 @@ impl Target {
                 })
             }
             TypeVariant::Array { element, length } => abi::TypeVariant::Array(abi::Array {
-                element_type: Box::new(self.lower(element, depth + 1)?),
+                element_type: Box::new(self.lower(element, depth + 1, compiler)?),
                 num_elements: *length,
             }),
             TypeVariant::Enum(values) => {
@@ -200,7 +205,8 @@ impl Target {
                 } else {
                     i128::from(u64::MAX)
                 };
-                if matches!(self, Self::X86_64AppleDarwin | Self::Aarch64AppleDarwin)
+                if compiler == Compiler::Clang
+                    && self != Self::X86_64PcWindowsMsvc
                     && (minimum < i128::from(i64::MIN) || maximum > maximum_64)
                 {
                     // Clang only offers a lossy, diagnosed recovery for larger enum ranges.
@@ -223,7 +229,7 @@ impl Target {
                 required_alignment_bits: layout.required_alignment_bits,
             }),
             TypeVariant::Typedef(inner) => {
-                abi::TypeVariant::Typedef(Box::new(self.lower(inner, depth + 1)?))
+                abi::TypeVariant::Typedef(Box::new(self.lower(inner, depth + 1, compiler)?))
             }
         };
         Ok(abi::Type {
@@ -518,6 +524,10 @@ pub struct FieldLayout {
 /// A target selection or object layout failure.
 #[derive(Debug, Error)]
 pub enum LayoutError {
+    #[error("unsupported compiler `{0}`; expected gcc or clang")]
+    UnsupportedCompilerName(String),
+    #[error("compiler `{compiler}` is unsupported for target `{target}`")]
+    UnsupportedCompiler { target: Target, compiler: Compiler },
     #[error("unsupported target `{0}`")]
     UnsupportedTarget(String),
     #[error("void has no object layout")]

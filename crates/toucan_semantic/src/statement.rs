@@ -91,11 +91,7 @@ impl Analyzer {
     }
 
     fn gnu_statement_expressions(&self) -> bool {
-        matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        )
+        self.unit.compiler == toucan_target::Compiler::Gnu
     }
 
     /// Checks the block in the enclosing function's control-flow environment.
@@ -585,7 +581,7 @@ impl Analyzer {
         declaration: &Node<ast::Declaration>,
         for_initializer: bool,
     ) -> Result<(), Error> {
-        let specifiers = storage_specifiers(&declaration.node.specifiers, self.unit.target)?;
+        let specifiers = storage_specifiers(&declaration.node.specifiers, self.unit.compiler)?;
         let storage = specifiers.class.as_ref();
         let thread_local = specifiers.thread_local;
         if thread_local && storage.is_none() && !declaration.node.declarators.is_empty() {

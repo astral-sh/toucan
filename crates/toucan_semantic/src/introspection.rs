@@ -1,7 +1,6 @@
 //! GNU type compatibility and compile-time expression selection.
 
 use lang_c::{ast, span::Node};
-use toucan_target::Target;
 
 use crate::analyze::Analyzer;
 use crate::{Error, IntegerValue, Type, TypeKind};
@@ -129,10 +128,7 @@ impl Analyzer {
         right: &Type,
         depth: usize,
     ) -> Result<bool, Error> {
-        if matches!(
-            self.unit.target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-        ) {
+        if self.unit.compiler == toucan_target::Compiler::Gnu {
             self.compatible_at(&self.unqualified(left)?, &self.unqualified(right)?, depth)
         } else {
             self.compatible_at(left, right, depth)

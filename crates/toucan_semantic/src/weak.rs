@@ -23,11 +23,7 @@ impl Analyzer {
             }
             if previous_definition
                 && !self.weak_symbols.contains_key(name)
-                && !matches!(
-                    self.unit.target,
-                    toucan_target::Target::X86_64UnknownLinuxGnu
-                        | toucan_target::Target::Aarch64UnknownLinuxGnu
-                )
+                && self.unit.compiler != toucan_target::Compiler::Gnu
             {
                 return Err(Error::new(
                     span.start,

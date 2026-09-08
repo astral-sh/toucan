@@ -108,7 +108,7 @@ def main():
     )
     parser.add_argument("--seconds", type=int, default=900)
     parser.add_argument("--seed", type=int, required=True)
-    parser.add_argument("--profiles", type=int, default=5)
+    parser.add_argument("--profiles", type=int, default=7)
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if not 1 <= args.seconds <= 3600 or not 1 <= args.profiles <= 32:

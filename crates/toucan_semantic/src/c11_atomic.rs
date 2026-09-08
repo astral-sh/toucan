@@ -181,7 +181,11 @@ impl Analyzer {
                 }
                 TypeKind::Float(FloatKind::Float | FloatKind::Double) => floating,
                 TypeKind::Float(FloatKind::LongDouble) => {
-                    floating && self.unit.target != Target::X86_64AppleDarwin
+                    floating
+                        && !matches!(
+                            self.unit.target,
+                            Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin
+                        )
                 }
                 _ => false,
             };

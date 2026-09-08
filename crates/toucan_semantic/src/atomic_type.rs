@@ -1,7 +1,7 @@
 //! C11 atomic object types, separate from ordinary value qualification.
 
 use serde::Serialize;
-use toucan_target::{Layout, Target};
+use toucan_target::{Compiler, Layout};
 
 use crate::analyze::Analyzer;
 use crate::{Error, Qualifiers, TranslationUnit, Type, TypeKind};
@@ -92,11 +92,8 @@ impl Analyzer {
 
 /// The shipped compiler profiles promote small atomic storage differently.
 /// This changes the wrapper only, leaving canonical record layouts intact.
-pub(crate) fn atomic_layout(target: Target, mut inner: Layout) -> Result<Layout, Error> {
-    let gnu = matches!(
-        target,
-        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-    );
+pub(crate) fn atomic_layout(compiler: Compiler, mut inner: Layout) -> Result<Layout, Error> {
+    let gnu = compiler == Compiler::Gnu;
     let size = inner.size_bits;
     let (size, alignment) = if gnu {
         (

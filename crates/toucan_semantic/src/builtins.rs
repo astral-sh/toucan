@@ -192,11 +192,7 @@ impl Analyzer {
             return Ok(Some(signature.result));
         }
         if matches!(name, "__builtin_va_arg_pack" | "__builtin_va_arg_pack_len") {
-            if !matches!(
-                self.unit.target,
-                toucan_target::Target::X86_64UnknownLinuxGnu
-                    | toucan_target::Target::Aarch64UnknownLinuxGnu
-            ) {
+            if self.unit.compiler != toucan_target::Compiler::Gnu {
                 return Err(Error::new(
                     call.span.start,
                     "variadic argument packs require a GNU target profile",
@@ -278,11 +274,7 @@ impl Analyzer {
                 if self.gnu_vector_profile() || !self.is_arithmetic(&ty)? {
                     self.discard_sve_feature_uses(checkpoint);
                 }
-                if matches!(
-                    self.unit.target,
-                    toucan_target::Target::X86_64UnknownLinuxGnu
-                        | toucan_target::Target::Aarch64UnknownLinuxGnu
-                ) {
+                if self.unit.compiler == toucan_target::Compiler::Gnu {
                     self.require_definite_object(&ty, arguments[0].span.start)?;
                 }
                 return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));

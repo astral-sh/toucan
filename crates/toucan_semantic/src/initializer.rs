@@ -208,11 +208,7 @@ impl Analyzer {
     }
 
     fn gnu_flexible_arrays(&self) -> bool {
-        matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        )
+        self.unit.compiler == toucan_target::Compiler::Gnu
     }
 
     fn empty_initializer(&self, initializer: &Node<ast::Initializer>) -> bool {

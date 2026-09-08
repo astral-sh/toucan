@@ -38,11 +38,7 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
         destination: &Type,
     ) -> Result<(), Error> {
-        let gnu = matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        );
+        let gnu = self.unit.compiler == toucan_target::Compiler::Gnu;
         let offset = expression.span.start;
         if !gnu && !self.is_integer_constant_expression(expression, 0)? {
             return Err(Error::new(

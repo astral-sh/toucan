@@ -12,8 +12,8 @@ fuzz_target!(|bytes: &[u8]| {
     let selector = bytes
         .iter()
         .fold(0usize, |sum, byte| sum.wrapping_add(usize::from(*byte)));
-    let target = toucan::Target::ALL[selector % toucan::Target::ALL.len()];
-    let mut config = toucan::Config::new(target);
+    let profile = toucan::CompilerProfile::ALL[selector % toucan::CompilerProfile::ALL.len()];
+    let mut config = toucan::Config::with_profile(profile);
     config.preprocessor.allow_filesystem = false;
     config.preprocessor.max_tokens = 4096;
     config.preprocessor.max_source_bytes = 65_536;

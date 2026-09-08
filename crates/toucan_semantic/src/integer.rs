@@ -192,13 +192,15 @@ impl Analyzer {
         match &expression.node {
             ast::Expression::Constant(constant) => match &constant.node {
                 ast::Constant::Integer(integer) => self.literal(integer, offset),
-                ast::Constant::Character(character) => crate::decode_character_literal(
-                    self.character_literals
-                        .get(&constant.span.start)
-                        .map_or(character.as_str(), String::as_str),
-                    self.unit.target,
-                    offset,
-                ),
+                ast::Constant::Character(character) => {
+                    crate::decode_character_literal_with_profile(
+                        self.character_literals
+                            .get(&constant.span.start)
+                            .map_or(character.as_str(), String::as_str),
+                        self.unit.profile()?,
+                        offset,
+                    )
+                }
                 ast::Constant::Float(_) => Err(Error::new(
                     offset,
                     "floating-point expression is not an integer constant expression",
@@ -612,11 +614,7 @@ impl Analyzer {
     /// been evaluated with the types visible inside the definition.
     pub(crate) fn finish_enum(&mut self, id: usize, offset: usize) -> Result<(), Error> {
         let destination = self.integer_type(&Type::new(TypeKind::Enum(id)), offset)?;
-        let gnu = matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        );
+        let gnu = self.unit.compiler == toucan_target::Compiler::Gnu;
         if !gnu && destination.bits > 64 {
             return Err(Error::new(
                 offset,
@@ -663,11 +661,7 @@ impl Analyzer {
     ) -> Result<IntegerValue, Error> {
         let maximum = IntegerValue::mask(value.bits) >> u32::from(value.signed);
         if value.value == maximum {
-            let gnu = matches!(
-                self.unit.target,
-                toucan_target::Target::X86_64UnknownLinuxGnu
-                    | toucan_target::Target::Aarch64UnknownLinuxGnu
-            );
+            let gnu = self.unit.compiler == toucan_target::Compiler::Gnu;
             let wider = [(self.unit.target.long_width() as u8, 4), (64, 5), (128, 6)]
                 .into_iter()
                 .find(|(bits, _)| *bits > value.bits && (*bits <= 64 || gnu))

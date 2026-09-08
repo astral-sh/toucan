@@ -89,11 +89,11 @@ impl Analyzer {
             ast::Expression::Constant(constant) => match &constant.node {
                 ast::Constant::Integer(integer) => integer_to_type(self.literal(integer, offset)?),
                 ast::Constant::Character(character) => {
-                    integer_to_type(crate::decode_character_literal(
+                    integer_to_type(crate::decode_character_literal_with_profile(
                         self.character_literals
                             .get(&constant.span.start)
                             .map_or(character.as_str(), String::as_str),
-                        self.unit.target,
+                        self.unit.profile()?,
                         offset,
                     )?)
                 }
@@ -1216,11 +1216,7 @@ impl Analyzer {
             // function/void extension; GCC retains the void operand's qualifiers.
             if (matches!(left.kind, TypeKind::Function(_))
                 || matches!(right.kind, TypeKind::Function(_)))
-                && !matches!(
-                    self.unit.target,
-                    toucan_target::Target::X86_64UnknownLinuxGnu
-                        | toucan_target::Target::Aarch64UnknownLinuxGnu
-                )
+                && self.unit.compiler != toucan_target::Compiler::Gnu
             {
                 qualifiers = Qualifiers::default();
             }

@@ -1,4 +1,4 @@
-use toucan_target::Target;
+use toucan_target::{Compiler, CompilerProfile, Target};
 
 use crate::{Error, IntegerKind, IntegerValue};
 
@@ -75,7 +75,15 @@ pub fn decode_string_literals(
     let mut code_units = Vec::new();
     for literal in strings {
         let (_, body) = literal_body(literal, '"', offset)?;
-        decode_body(body, '"', encoding, target, offset, &mut code_units)?;
+        decode_body(
+            body,
+            '"',
+            encoding,
+            target,
+            CompilerProfile::default_for(target).compiler() == Compiler::Gnu,
+            offset,
+            &mut code_units,
+        )?;
     }
     code_units.push(0);
     Ok(DecodedString {
@@ -93,6 +101,17 @@ pub fn decode_character_literal(
     target: Target,
     offset: usize,
 ) -> Result<IntegerValue, Error> {
+    decode_character_literal_with_profile(literal, CompilerProfile::default_for(target), offset)
+}
+
+/// Decodes a character token with the selected compiler's multicharacter rules.
+pub fn decode_character_literal_with_profile(
+    literal: &str,
+    profile: CompilerProfile,
+    offset: usize,
+) -> Result<IntegerValue, Error> {
+    let target = profile.target();
+    let gnu = profile.compiler() == Compiler::Gnu;
     if literal.len() > MAX_LITERAL_BYTES {
         return Err(Error::new(
             offset,
@@ -107,7 +126,7 @@ pub fn decode_character_literal(
         ));
     }
     let mut units = Vec::new();
-    decode_body(body, '\'', encoding, target, offset, &mut units)?;
+    decode_body(body, '\'', encoding, target, gnu, offset, &mut units)?;
     if units.is_empty() {
         return Err(Error::new(offset, "empty character constant"));
     }
@@ -125,7 +144,7 @@ pub fn decode_character_literal(
             .fold(0u32, |value, unit| value.wrapping_shl(8) | unit);
         return Ok(IntegerValue::int(i128::from(value as i32)));
     }
-    if units.len() != 1 && !gnu_characters(target) {
+    if units.len() != 1 && !gnu {
         return Err(Error::new(
             offset,
             "wide character constant requires exactly one code unit",
@@ -161,13 +180,6 @@ fn unit_width(encoding: StringEncoding, target: Target) -> u32 {
     }
 }
 
-fn gnu_characters(target: Target) -> bool {
-    matches!(
-        target,
-        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-    )
-}
-
 fn literal_body(
     literal: &str,
     quote: char,
@@ -198,6 +210,7 @@ fn decode_body(
     quote: char,
     encoding: StringEncoding,
     target: Target,
+    gnu: bool,
     offset: usize,
     output: &mut Vec<u32>,
 ) -> Result<(), Error> {
@@ -280,7 +293,7 @@ fn decode_body(
         };
         match unit_width(encoding, target) {
             8 => {
-                if quote == '\'' && character.len_utf8() != 1 && !gnu_characters(target) {
+                if quote == '\'' && character.len_utf8() != 1 && !gnu {
                     return Err(Error::new(
                         offset,
                         "character is not representable in one execution byte",

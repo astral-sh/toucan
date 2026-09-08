@@ -12,8 +12,10 @@ fuzz_target!(|bytes: &[u8]| {
     let selector = bytes
         .iter()
         .fold(0usize, |sum, byte| sum.wrapping_add(usize::from(*byte)));
-    let target = toucan::Target::ALL[selector % toucan::Target::ALL.len()];
-    if let Ok(unit) = toucan::semantic::analyze(data, target) {
+    let profile = toucan::CompilerProfile::ALL[selector % toucan::CompilerProfile::ALL.len()];
+    if let Ok(analysis) = toucan::semantic::analyze_with_profile(data, profile, &Default::default())
+    {
+        let unit = analysis.unit();
         for declaration in &unit.declarations {
             let _ = unit.layout(&declaration.ty);
         }

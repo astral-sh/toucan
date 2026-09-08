@@ -350,18 +350,24 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             } => {
                 assert!(code.occurrence(*callee_occurrence).is_some());
                 if let Builtin::X86(intrinsic) = builtin {
-                    let signature = intrinsic.signature(unit.target).unwrap();
+                    let signature = intrinsic
+                        .signature_with_profile(unit.profile().unwrap())
+                        .unwrap();
                     assert_eq!(arguments.len(), signature.parameters().len());
                     assert_eq!(code.ty(expression.ty()).unwrap(), signature.result());
                     for (argument, parameter) in arguments.iter().zip(signature.parameters()) {
                         assert_eq!(code.ty(argument.effective_type()).unwrap(), parameter);
                     }
-                    for constraint in intrinsic.immediate_constraints(unit.target) {
+                    for constraint in
+                        intrinsic.immediate_constraints_with_profile(unit.profile().unwrap())
+                    {
                         assert!(constraint.argument() < arguments.len());
                         assert!(constraint.minimum() <= constraint.maximum());
                         assert!(constraint.multiple_of() > 0);
                     }
-                    for constraint in intrinsic.conditional_immediate_constraints(unit.target) {
+                    for constraint in intrinsic
+                        .conditional_immediate_constraints_with_profile(unit.profile().unwrap())
+                    {
                         assert!(constraint.condition().0 < arguments.len());
                         assert!(constraint.requirement().argument() < arguments.len());
                         assert!(

@@ -35,11 +35,14 @@ mod vector;
 mod weak;
 mod x86;
 
-pub use analyze::{analyze, analyze_with_options, evaluate_arithmetic, evaluate_integer};
+pub use analyze::{
+    analyze, analyze_with_options, analyze_with_profile, evaluate_arithmetic, evaluate_integer,
+};
 pub use arm::Aarch64Pcs;
 pub use ir::*;
 pub use literals::{
-    DecodedString, StringEncoding, decode_character_literal, decode_string_literals,
+    DecodedString, StringEncoding, decode_character_literal, decode_character_literal_with_profile,
+    decode_string_literals,
 };
 
 /// A source-positioned syntax, semantic, or unsupported-feature diagnostic.

@@ -54,11 +54,7 @@ impl Analyzer {
                     return self.value_type(ty);
                 }
                 Stream => {
-                    if matches!(
-                        self.unit.target,
-                        toucan_target::Target::X86_64UnknownLinuxGnu
-                            | toucan_target::Target::Aarch64UnknownLinuxGnu
-                    ) {
+                    if self.unit.compiler == toucan_target::Compiler::Gnu {
                         return Ok(Type::new(TypeKind::Void).pointer());
                     }
                     let ty = self.unit.typedefs.get("FILE").ok_or_else(|| {

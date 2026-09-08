@@ -11,7 +11,12 @@ cargo +nightly fuzz run checked -- -max_total_time=60
 
 Targets exercise UTF-8 input, bounded preprocessing, declaration analysis, layout,
 and binding generation. Semantic, binding, and checked-code targets select among
-all five target profiles using the sum of input bytes modulo five. The `checked`
+all seven compiler profiles using the sum of input bytes modulo seven. The stable
+order is the five `Target::ALL` defaults, followed by Clang on x86-64 Linux and
+Clang on AArch64 Linux (`CompilerProfile::ALL`). Preprocessing has no profile
+selector. Archived campaigns using modulo five retain that selector contract;
+replaying their exact bytes with the new harness can select a different profile.
+Record the harness source and selector count with each campaign. The `checked`
 target compares analysis with and without retained code. Successful results must have
 identical declarations; invalid inputs must produce the same diagnostic, except
 when the separate retention limits are reached. It also exercises layout queries

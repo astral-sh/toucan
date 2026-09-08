@@ -16,10 +16,14 @@ Toucan separates reusable compiler components from application policy.
 
 ## Target selection
 
-The selected C ABI determines integer widths, builtin macro values, record layout,
-and generated Rust's target guard. It is independent of the machine running Toucan.
-Include paths and sysroots are explicit inputs. A target profile is a compatibility
-profile for system headers, not a claim that every extension of that compiler exists.
+The physical C target determines scalar widths, operating system, architecture,
+and generated Rust's target guard. `CompilerProfile` independently selects GCC or
+Clang semantics, builtin signatures, compiler macros, and layout differences.
+The validated pair is retained on the translation unit and used by later constant
+evaluation and nested layout queries. Both choices are independent of the machine
+running Toucan. Include paths and sysroots are explicit inputs. See
+[compiler profiles](compiler-profiles.md) for supported pairs and defaults; a
+profile does not claim every extension of that compiler exists.
 Capability predicates such as `__has_builtin` currently return zero. Headers may
 therefore select fallback implementations even when some advertised GNU syntax is
 accepted.

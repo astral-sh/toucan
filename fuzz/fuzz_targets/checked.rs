@@ -3,7 +3,7 @@
 mod checked_invariants;
 
 use libfuzzer_sys::fuzz_target;
-use toucan::semantic::{AnalysisOptions, Error, analyze, analyze_with_options};
+use toucan::semantic::{AnalysisOptions, Error, analyze_with_profile};
 
 fn retention_limit(error: &Error) -> bool {
     matches!(
@@ -26,20 +26,21 @@ fuzz_target!(|bytes: &[u8]| {
     let selector = data
         .bytes()
         .fold(0usize, |sum, byte| sum.wrapping_add(usize::from(byte)));
-    let target = toucan::Target::ALL[selector % toucan::Target::ALL.len()];
+    let profile = toucan::CompilerProfile::ALL[selector % toucan::CompilerProfile::ALL.len()];
     let options = AnalysisOptions {
         retain_code: true,
         ..AnalysisOptions::default()
     };
     match (
-        analyze(data, target),
-        analyze_with_options(data, target, &options),
+        analyze_with_profile(data, profile, &AnalysisOptions::default())
+            .map(|analysis| analysis.into_unit()),
+        analyze_with_profile(data, profile, &options),
     ) {
         (Ok(unit), Ok(analysis)) => {
             assert!(analysis.checked().is_some());
             assert!(
                 format!("{unit:?}") == format!("{:?}", analysis.unit()),
-                "declaration IR changed for {target:?}"
+                "declaration IR changed for {profile:?}"
             );
             checked_invariants::check(&analysis, data);
             for declaration in &analysis.unit().declarations {
@@ -53,7 +54,7 @@ fuzz_target!(|bytes: &[u8]| {
         }
         (plain, retained) => {
             panic!(
-                "retention changed acceptance for {target:?}: plain={:?}; retained={:?}",
+                "retention changed acceptance for {profile:?}: plain={:?}; retained={:?}",
                 plain.map(|_| "accepted"),
                 retained.map(|_| "accepted")
             )

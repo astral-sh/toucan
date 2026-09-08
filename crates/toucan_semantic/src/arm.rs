@@ -17,9 +17,15 @@ pub enum Aarch64Pcs {
     Sve,
 }
 
-pub(crate) fn builtin_type(name: &str, target: Target) -> Option<Type> {
+pub(crate) fn builtin_type(
+    name: &str,
+    target: Target,
+    compiler: toucan_target::Compiler,
+) -> Option<Type> {
     match (name, target) {
-        ("__Float32x4_t" | "__Float64x2_t", Target::Aarch64UnknownLinuxGnu) => {
+        ("__Float32x4_t" | "__Float64x2_t", Target::Aarch64UnknownLinuxGnu)
+            if compiler == toucan_target::Compiler::Gnu =>
+        {
             let float = name == "__Float32x4_t";
             Some(Type::new(TypeKind::Vector {
                 element: Box::new(Type::new(TypeKind::Float(if float {

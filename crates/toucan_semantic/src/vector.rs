@@ -97,10 +97,7 @@ impl Analyzer {
     }
 
     pub(crate) fn gnu_vector_profile(&self) -> bool {
-        matches!(
-            self.unit.target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-        )
+        self.unit.compiler == toucan_target::Compiler::Gnu
     }
 
     /// Vector casts reinterpret storage; they are not elementwise numeric conversions.

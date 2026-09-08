@@ -92,11 +92,7 @@ use crate::analyze::{Analyzer, Attributes};
 
 impl Analyzer {
     fn transparent_clang_profile(&self) -> bool {
-        !matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        )
+        self.unit.compiler != toucan_target::Compiler::Gnu
     }
 
     // Clang compares the member type's natural or increased alignment. A

@@ -4,7 +4,7 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
-use toucan::{BindingOptions, Config, MacroType, RustTarget, Target};
+use toucan::{BindingOptions, Compiler, CompilerProfile, Config, MacroType, RustTarget, Target};
 
 #[cfg(all(feature = "performance-allocator", unix, not(target_os = "openbsd")))]
 #[global_allocator]
@@ -102,6 +102,9 @@ struct Input {
     /// C ABI target. Defaults to the host on supported platforms.
     #[arg(long)]
     target: Option<String>,
+    /// Compiler semantics and header macros: gcc or clang. Defaults to the target's compiler.
+    #[arg(long)]
+    compiler: Option<Compiler>,
     /// Add an include search directory. Search order follows the argument order.
     #[arg(short = 'I', long = "include-dir")]
     include_dirs: Vec<PathBuf>,
@@ -125,7 +128,11 @@ impl Input {
             Some(target) => Target::parse(target)?,
             None => host_target()?,
         };
-        let mut config = Config::new(target);
+        let profile = match self.compiler {
+            Some(compiler) => CompilerProfile::new(target, compiler)?,
+            None => CompilerProfile::default_for(target),
+        };
+        let mut config = Config::with_profile(profile);
         config.preprocessor.timestamp = match std::env::var("SOURCE_DATE_EPOCH") {
             Ok(value) => value.parse().context("invalid SOURCE_DATE_EPOCH")?,
             Err(std::env::VarError::NotPresent) => {

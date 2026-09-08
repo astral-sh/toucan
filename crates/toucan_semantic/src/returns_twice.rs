@@ -39,11 +39,7 @@ impl Analyzer {
             if let Some(declaration) = declaration {
                 if declaration.is_definition
                     && !declaration.returns_twice
-                    && !matches!(
-                        self.unit.target,
-                        toucan_target::Target::X86_64UnknownLinuxGnu
-                            | toucan_target::Target::Aarch64UnknownLinuxGnu
-                    )
+                    && self.unit.compiler != toucan_target::Compiler::Gnu
                 {
                     return Err(Error::new(
                         span.start,

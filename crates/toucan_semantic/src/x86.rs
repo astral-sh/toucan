@@ -532,10 +532,23 @@ impl X86Intrinsic {
     /// architecture or compiler profile does not provide this spelling.
     /// GCC and Clang differ in several 64-bit vector element types.
     pub fn signature(self, target: Target) -> Option<X86Signature> {
+        self.signature_with_profile(toucan_target::CompilerProfile::default_for(target))
+    }
+    /// Exact source signature under the selected compiler and physical target.
+    pub fn signature_with_profile(
+        self,
+        profile: toucan_target::CompilerProfile,
+    ) -> Option<X86Signature> {
+        let target = profile.target();
         let descriptor = self.descriptor();
-        let (result, parameters) = match target {
-            Target::X86_64UnknownLinuxGnu => descriptor.gcc,
-            Target::X86_64AppleDarwin | Target::X86_64PcWindowsMsvc => descriptor.clang?,
+        let (result, parameters) = match (target, profile.compiler()) {
+            (Target::X86_64UnknownLinuxGnu, toucan_target::Compiler::Gnu) => descriptor.gcc,
+            (
+                Target::X86_64UnknownLinuxGnu
+                | Target::X86_64AppleDarwin
+                | Target::X86_64PcWindowsMsvc,
+                toucan_target::Compiler::Clang,
+            ) => descriptor.clang?,
             _ => return None,
         };
         Some(X86Signature {
@@ -547,6 +560,14 @@ impl X86Intrinsic {
     /// these pending even for known invalid values: its expander checks them only
     /// after inlining. A consumer must discharge them before code generation.
     pub fn immediate_constraints(self, target: Target) -> &'static [ImmediateConstraint] {
+        self.immediate_constraints_with_profile(toucan_target::CompilerProfile::default_for(target))
+    }
+    /// Immediate obligations for the selected compiler, retaining their lowering stage.
+    pub fn immediate_constraints_with_profile(
+        self,
+        profile: toucan_target::CompilerProfile,
+    ) -> &'static [ImmediateConstraint] {
+        let target = profile.target();
         use ImmediateStage::{AfterInlining, Frontend};
         // These requirements constrain source operands; masking unused selector
         // bits is part of the identified intrinsic's instruction semantics.
@@ -561,8 +582,8 @@ impl X86Intrinsic {
                 }]
             };
         }
-        match target {
-            Target::X86_64UnknownLinuxGnu => match self {
+        match (target, profile.compiler()) {
+            (Target::X86_64UnknownLinuxGnu, toucan_target::Compiler::Gnu) => match self {
                 Self::VecExtV2si => immediate!(1, 0, 1, 1, AfterInlining),
                 Self::VecExtV4hi | Self::VecExtV4si => immediate!(1, 0, 3, 1, AfterInlining),
                 Self::VecSetV4hi => immediate!(2, 0, 3, 1, AfterInlining),
@@ -600,7 +621,12 @@ impl X86Intrinsic {
                 ],
                 _ => &[],
             },
-            Target::X86_64AppleDarwin | Target::X86_64PcWindowsMsvc => match self {
+            (
+                Target::X86_64UnknownLinuxGnu
+                | Target::X86_64AppleDarwin
+                | Target::X86_64PcWindowsMsvc,
+                toucan_target::Compiler::Clang,
+            ) => match self {
                 Self::VecExtV2si => immediate!(1, 0, 1, 1, Frontend),
                 Self::VecExtV4hi | Self::VecExtV4si => immediate!(1, 0, 3, 1, Frontend),
                 Self::VecSetV4hi => immediate!(2, 0, 3, 1, Frontend),
@@ -622,7 +648,19 @@ impl X86Intrinsic {
         self,
         target: Target,
     ) -> &'static [ConditionalImmediateConstraint] {
-        if self == Self::Prefetch && target == Target::X86_64UnknownLinuxGnu {
+        self.conditional_immediate_constraints_with_profile(
+            toucan_target::CompilerProfile::default_for(target),
+        )
+    }
+    /// Operand-dependent immediate restrictions under the selected compiler.
+    pub fn conditional_immediate_constraints_with_profile(
+        self,
+        profile: toucan_target::CompilerProfile,
+    ) -> &'static [ConditionalImmediateConstraint] {
+        if self == Self::Prefetch
+            && profile.target() == Target::X86_64UnknownLinuxGnu
+            && profile.compiler() == toucan_target::Compiler::Gnu
+        {
             &[ConditionalImmediateConstraint {
                 when_argument: 3,
                 when_value: 1,
@@ -670,7 +708,7 @@ impl Analyzer {
         intrinsic: X86Intrinsic,
         call: &Node<ast::CallExpression>,
     ) -> Result<Type, Error> {
-        let signature = intrinsic.signature(self.unit.target).ok_or_else(|| {
+        let signature = intrinsic.signature_with_profile(self.unit.profile()?).ok_or_else(|| {
             Error::new(
                 call.span.start,
                 if matches!(self.unit.target, Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin) {
@@ -706,7 +744,7 @@ impl Analyzer {
                 self.retain_assignment(argument, parameter)?;
             }
         }
-        for constraint in intrinsic.immediate_constraints(self.unit.target) {
+        for constraint in intrinsic.immediate_constraints_with_profile(self.unit.profile()?) {
             if constraint.stage != ImmediateStage::Frontend {
                 continue;
             }

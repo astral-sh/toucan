@@ -1,15 +1,12 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
-use toucan::{Config, Target, parse_source};
+use toucan::{Compiler, CompilerProfile, Config, Target, parse_source};
 
 #[test]
 fn predefined_integer_and_lock_free_contracts() {
-    for target in Target::ALL {
-        let config = Config::new(target);
-        let gnu = matches!(
-            target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-        );
+    for profile in CompilerProfile::ALL {
+        let config = Config::with_profile(profile);
+        let gnu = profile.compiler() == Compiler::Gnu;
         let prefix = if gnu { "__GCC" } else { "__CLANG" };
         let mut source = String::new();
         for width in [8, 16, 32, 64] {
@@ -67,12 +64,9 @@ fn include_dir(compiler: &str, arg: &str) -> PathBuf {
 #[ignore = "requires installed Clang resource headers and target backends"]
 fn unchanged_clang_stdatomic_header_and_operations() {
     let directory = include_dir("clang", "-print-resource-dir").join("include");
-    for target in [
-        Target::X86_64AppleDarwin,
-        Target::Aarch64AppleDarwin,
-        Target::X86_64PcWindowsMsvc,
-    ] {
-        let mut config = Config::new(target);
+    for target in Target::ALL {
+        let mut config =
+            Config::with_profile(CompilerProfile::new(target, Compiler::Clang).unwrap());
         config.preprocessor.include_dirs.push(directory.clone());
         config
             .preprocessor
@@ -163,12 +157,8 @@ fn unchanged_gcc_stdatomic_header_and_operations() {
 
 #[test]
 fn c11_lock_free_macro_preserves_evaluator_boolean_metadata() {
-    for target in [
-        Target::X86_64AppleDarwin,
-        Target::Aarch64AppleDarwin,
-        Target::X86_64PcWindowsMsvc,
-    ] {
-        let config = Config::new(target);
+    for target in Target::ALL {
+        let config = Config::with_profile(CompilerProfile::new(target, Compiler::Clang).unwrap());
         let parsed = parse_source(
             Path::new("query.h"),
             "#define LOCK_FREE __c11_atomic_is_lock_free(0)\n",

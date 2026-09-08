@@ -268,11 +268,7 @@ impl Analyzer {
     }
 
     fn object_size_gnu(&self) -> bool {
-        matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        )
+        self.unit.compiler == toucan_target::Compiler::Gnu
     }
 
     fn object_pointer(

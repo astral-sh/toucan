@@ -2,7 +2,6 @@
 
 use lang_c::{ast, span::Node};
 use serde::Serialize;
-use toucan_target::Target;
 
 use crate::analyze::Analyzer;
 use crate::{Error, Type, TypeKind};
@@ -84,10 +83,7 @@ pub(crate) struct SyncSignature {
 
 impl Analyzer {
     pub(crate) fn gnu_sync_profile(&self) -> bool {
-        matches!(
-            self.unit.target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-        )
+        self.unit.compiler == toucan_target::Compiler::Gnu
     }
 
     /// The pointee selects the overloaded operation; qualifiers on the value
