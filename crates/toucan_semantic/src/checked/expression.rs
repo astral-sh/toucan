@@ -199,6 +199,7 @@ pub enum Builtin {
     ComplexConjugateLongDouble,
     X86(crate::x86::X86Intrinsic),
     Nontemporal(crate::nontemporal::NontemporalOperation),
+    Elementwise(crate::elementwise::ElementwiseOperation),
     Sync(crate::sync::SyncOperation),
     Atomic(crate::atomic::AtomicOperation),
     C11Atomic(crate::c11_atomic::C11AtomicOperation),
@@ -334,7 +335,11 @@ impl Builtin {
             "__builtin_ctzl" => Self::CountTrailingZerosLong,
             "__builtin_ctzll" => Self::CountTrailingZerosLongLong,
             name => {
-                if let Some(operation) = crate::nontemporal::NontemporalOperation::from_name(name) {
+                if let Some(operation) = crate::elementwise::ElementwiseOperation::from_name(name) {
+                    Self::Elementwise(operation)
+                } else if let Some(operation) =
+                    crate::nontemporal::NontemporalOperation::from_name(name)
+                {
                     Self::Nontemporal(operation)
                 } else if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
                     Self::X86(intrinsic)
@@ -1566,6 +1571,11 @@ impl Analyzer {
             } else {
                 None
             };
+            let elementwise = if let Builtin::Elementwise(operation) = builtin {
+                Some(self.elementwise_type(operation, call)?)
+            } else {
+                None
+            };
             let memory = self.memory_builtin_signature(name);
             let nan = self.nan_builtin(name);
             let object_size = self.object_size_signature(name);
@@ -1593,7 +1603,12 @@ impl Analyzer {
                     arguments.push(self.retained_use(argument, UseContext::VariadicPack, None)?);
                     continue;
                 }
-                let (context, destination) = if let Some(signature) = &x86 {
+                let (context, destination) = if let Some(destination) = &elementwise {
+                    (
+                        UseContext::Value,
+                        Some((destination.clone(), Conversion::Arithmetic)),
+                    )
+                } else if let Some(signature) = &x86 {
                     let destination = signature.parameters()[index].clone();
                     let conversion = if !self.gnu_vector_profile()
                         && matches!(destination.kind, TypeKind::Vector { .. })

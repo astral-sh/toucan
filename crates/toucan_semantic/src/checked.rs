@@ -27,6 +27,7 @@ pub use crate::alignof::{AlignmentKind, AlignmentOperand};
 pub use crate::atomic::AtomicOperation;
 pub use crate::atomic_type::AtomicAccess;
 pub use crate::c11_atomic::C11AtomicOperation;
+pub use crate::elementwise::ElementwiseOperation;
 pub use crate::nontemporal::NontemporalOperation;
 pub use crate::object_extent::{
     ObjectSizeFoldStage, ObjectSizeProof, ObjectSizeResult, ObjectSizeUnknown,

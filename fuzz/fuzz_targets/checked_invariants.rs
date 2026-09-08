@@ -454,6 +454,13 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 ..
             } => {
                 assert!(code.occurrence(*callee_occurrence).is_some());
+                if let Builtin::Elementwise(_) = builtin {
+                    assert_eq!(arguments.len(),2);
+                    for argument in arguments {
+                        assert_eq!(argument.context(),UseContext::Value);
+                        assert_eq!(code.ty(argument.effective_type()),code.ty(expression.ty()));
+                    }
+                }
                 if *builtin == Builtin::Complex {
                     let ty = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
                     let TypeKind::Complex(kind) = ty.kind else {

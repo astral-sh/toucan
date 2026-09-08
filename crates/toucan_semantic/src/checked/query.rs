@@ -222,7 +222,8 @@ impl Builder {
                 | Builtin::HugeValue
                 | Builtin::HugeValueFloat
                 | Builtin::HugeValueLongDouble => Absent,
-                Builtin::ConstantQuery
+                Builtin::Elementwise(_)
+                | Builtin::ConstantQuery
                 | Builtin::Complex
                 | Builtin::ComplexReal
                 | Builtin::ComplexRealFloat

@@ -697,6 +697,21 @@ impl Analyzer {
             ast::Expression::ConvertVector(conversion) => {
                 self.object_discarded_effects(&conversion.node.expression, depth + 1)?
             }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(crate::elementwise::ElementwiseOperation::from_name)
+                    .is_some() =>
+            {
+                let mut effects = Some(false);
+                for argument in &call.node.arguments {
+                    effects = combine_effects(
+                        effects,
+                        self.object_discarded_effects(argument, depth + 1)?,
+                    );
+                }
+                effects
+            }
             ast::Expression::TypesCompatible(_) => Some(false),
             ast::Expression::Constant(_) | ast::Expression::StringLiteral(_) => Some(false),
             ast::Expression::Identifier(_) => {

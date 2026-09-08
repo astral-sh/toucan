@@ -489,7 +489,8 @@ impl Analyzer {
                 ) {
                     Some(false)
                 } else if name.is_some_and(|name| {
-                    self.byte_swap_type(name).is_some()
+                    crate::elementwise::ElementwiseOperation::from_name(name).is_some()
+                        || self.byte_swap_type(name).is_some()
                         || self.bit_count_type(name).is_some()
                         || self.infinity_builtin_kind(name).is_some()
                         || self.nan_builtin(name).is_some()

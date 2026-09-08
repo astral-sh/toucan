@@ -202,6 +202,9 @@ impl Analyzer {
                 },
             )));
         }
+        if let Some(operation) = crate::elementwise::ElementwiseOperation::from_name(name) {
+            return self.elementwise_type(operation, call).map(Some);
+        }
         if name == "__builtin_complex" {
             return self.complex_constructor_type(call).map(Some);
         }
