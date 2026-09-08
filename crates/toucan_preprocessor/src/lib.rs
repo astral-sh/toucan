@@ -562,7 +562,7 @@ impl Preprocessor {
                         if file.kind != Kind::String || !file.text.starts_with('"') {
                             return Err(fail("#line filename must be a string literal".into()));
                         }
-                        logical_path = PathBuf::from(&file.text[1..file.text.len() - 1]);
+                        logical_path = PathBuf::from(line_filename(&file.text).map_err(&fail)?);
                     }
                     line_adjustment = number as i64 - source.line_at(offset) as i64;
                     continue;
@@ -973,6 +973,73 @@ fn header_name(tokens: &[Token]) -> Result<(String, bool), String> {
         return Ok((name, false));
     }
     Err("#include requires a quoted or angle-bracket header name".into())
+}
+
+/// Decode the string literal used by `#line`, which follows ordinary C escape rules.
+fn line_filename(literal: &str) -> Result<String, String> {
+    let mut output = Vec::new();
+    let mut chars = literal[1..literal.len() - 1].chars().peekable();
+    while let Some(character) = chars.next() {
+        if character != '\\' {
+            let mut bytes = [0; 4];
+            output.extend_from_slice(character.encode_utf8(&mut bytes).as_bytes());
+            continue;
+        }
+        let escape = chars.next().ok_or("incomplete escape in #line filename")?;
+        let byte = match escape {
+            '\\' | '\'' | '"' | '?' => escape as u8,
+            'a' => 7,
+            'b' => 8,
+            'f' => 12,
+            'n' => b'\n',
+            'r' => b'\r',
+            't' => b'\t',
+            'v' => 11,
+            '0'..='7' | 'x' => {
+                let radix = if escape == 'x' { 16 } else { 8 };
+                let mut value = escape.to_digit(radix).unwrap_or(0);
+                let mut digits = usize::from(escape != 'x');
+                while let Some(digit) = chars.peek().and_then(|c| c.to_digit(radix)) {
+                    if radix == 8 && digits == 3 {
+                        break;
+                    }
+                    chars.next();
+                    digits += 1;
+                    value = value
+                        .checked_mul(radix)
+                        .and_then(|value| value.checked_add(digit))
+                        .filter(|value| *value <= 255)
+                        .ok_or("escape exceeds one byte in #line filename")?;
+                }
+                if digits == 0 {
+                    return Err("hexadecimal escape requires digits in #line filename".into());
+                }
+                value as u8
+            }
+            'u' | 'U' => {
+                let mut value = 0;
+                for _ in 0..if escape == 'u' { 4 } else { 8 } {
+                    let digit = chars
+                        .next()
+                        .and_then(|c| c.to_digit(16))
+                        .ok_or("invalid universal character name in #line filename")?;
+                    value = (value << 4) | digit;
+                }
+                let character = char::from_u32(value)
+                    .filter(|_| value >= 0xa0 || matches!(value, 0x24 | 0x40 | 0x60))
+                    .ok_or("invalid universal character name in #line filename")?;
+                let mut bytes = [0; 4];
+                output.extend_from_slice(character.encode_utf8(&mut bytes).as_bytes());
+                continue;
+            }
+            _ => return Err(format!("unsupported escape `\\{escape}` in #line filename")),
+        };
+        if byte == 0 {
+            return Err("NUL bytes in #line filenames are not supported".into());
+        }
+        output.push(byte);
+    }
+    String::from_utf8(output).map_err(|_| "non-UTF-8 #line filenames are not supported".into())
 }
 
 fn equivalent(left: &Macro, right: &Macro) -> Result<bool, String> {

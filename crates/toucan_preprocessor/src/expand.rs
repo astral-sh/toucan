@@ -75,17 +75,21 @@ impl Expansion<'_> {
                     token.text
                 ));
             }
+            let mut hidden = token.hidden;
             let mut replacement = if let Some(parameters) = &definition.parameters {
                 pending.pop_front();
-                let (arguments, omitted_variadic) =
+                let (arguments, omitted_variadic, closing) =
                     arguments(&mut pending, parameters.len(), definition.variadic)?;
+                // Only macros suppressed at both ends of a function invocation stay
+                // suppressed when its replacement meets the following input.
+                hidden.retain(|name| closing.hidden.contains(name));
                 self.substitute(definition, &arguments, omitted_variadic)?
             } else {
                 paste(replacement_tokens(&definition.replacement)?)?
             };
             self.charge(&replacement)?;
             for replacement in &mut replacement {
-                replacement.hidden.extend(token.hidden.iter().cloned());
+                replacement.hidden.extend(hidden.iter().cloned());
                 replacement.hidden.insert(token.text.clone());
                 replacement.depth = replacement.depth.max(token.depth + 1);
                 replacement.line = token.line;
@@ -116,13 +120,7 @@ impl Expansion<'_> {
             .map(|(name, tokens)| (name.as_str(), tokens.clone()))
             .collect();
         if let Some(name) = &definition.variadic_parameter {
-            let mut variadic = Vec::new();
-            for (index, argument) in arguments[parameters.len()..].iter().enumerate() {
-                if index > 0 {
-                    variadic.push(Token::new(Kind::Punctuation, ","));
-                }
-                variadic.extend(argument.iter().cloned());
-            }
+            let variadic = arguments.get(parameters.len()).cloned().unwrap_or_default();
             raw.insert(name, variadic);
         }
         let replacement = replacement_tokens(&definition.replacement)?;
@@ -206,19 +204,19 @@ fn arguments(
     pending: &mut VecDeque<Token>,
     fixed: usize,
     variadic: bool,
-) -> Result<(Vec<Vec<Token>>, bool), String> {
+) -> Result<(Vec<Vec<Token>>, bool, Token), String> {
     let mut arguments = vec![Vec::new()];
     let mut nesting = 0usize;
-    let mut closed = false;
+    let mut closing = None;
     while let Some(token) = pending.pop_front() {
         match token.text.as_str() {
             "(" => nesting += 1,
             ")" if nesting == 0 => {
-                closed = true;
+                closing = Some(token);
                 break;
             }
             ")" => nesting -= 1,
-            "," if nesting == 0 => {
+            "," if nesting == 0 && (!variadic || arguments.len() <= fixed) => {
                 arguments.push(Vec::new());
                 continue;
             }
@@ -226,9 +224,7 @@ fn arguments(
         }
         arguments.last_mut().expect("initial argument").push(token);
     }
-    if !closed {
-        return Err("unterminated function-like macro invocation".into());
-    }
+    let closing = closing.ok_or("unterminated function-like macro invocation")?;
     if fixed == 0 && arguments.len() == 1 && arguments[0].is_empty() {
         arguments.clear();
     }
@@ -240,7 +236,7 @@ fn arguments(
         ));
     }
     let omitted = variadic && arguments.len() == fixed;
-    Ok((arguments, omitted))
+    Ok((arguments, omitted, closing))
 }
 
 fn paste(tokens: Vec<Token>) -> Result<Vec<Token>, String> {

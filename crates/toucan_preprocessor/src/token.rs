@@ -126,7 +126,9 @@ pub(crate) fn normalize(source: &str) -> Result<Normalized, String> {
                 let mut closed = false;
                 while let Some(c) = chars.next() {
                     if c == '\n' {
-                        output.push(c);
+                        // A block comment is one whitespace separator, including any
+                        // physical newlines it spans. Keep byte offsets for provenance.
+                        output.push(' ');
                     } else if c == '*' && chars.peek() == Some(&'/') {
                         chars.next();
                         output.push_str("  ");

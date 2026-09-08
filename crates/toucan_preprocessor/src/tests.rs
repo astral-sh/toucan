@@ -42,6 +42,21 @@ fn arguments_prescan_and_suppress_recursive_expansion() {
 }
 
 #[test]
+fn function_invocation_suppression_ends_at_the_closing_parenthesis() {
+    let source = "\
+#define ALIAS FUNCTION
+#define FUNCTION(x) ALIAS
+ALIAS(0) ALIAS(0)(1)
+#define PASS(x) x
+PASS(ALIAS(0)) PASS(ALIAS)(0)
+";
+    assert_eq!(
+        preprocess(source),
+        "FUNCTION FUNCTION ( 1 )\nFUNCTION FUNCTION\n"
+    );
+}
+
+#[test]
 fn strings_pastes_and_empty_arguments() {
     let source = r#"
 #define STR(x) #x
@@ -113,11 +128,58 @@ fn comments_splices_and_multiline_invocations() {
 }
 
 #[test]
+fn multiline_block_comments_do_not_end_directives() {
+    let source = "\
+# /* comment
+*/ define FIRST /* more
+*/ 41
+#define ADD(x) /* comment
+*/ (x + 1)
+#if /* comment
+*/ FIRST == 41
+int value = ADD(FIRST);
+#endif
+__LINE__
+";
+    let result = Preprocessor::new(Config::default())
+        .preprocess_str(Path::new("comments.h"), source)
+        .unwrap();
+    assert_eq!(result.source, "int value = ( 41 + 1 ) ;\n10\n");
+    let value = result
+        .resolve_location(result.source.find("value").unwrap())
+        .unwrap();
+    assert_eq!((value.line, value.column), (8, 5));
+}
+
+#[test]
 fn builtin_macros_and_line_directive() {
     assert_eq!(
         preprocess("__LINE__ __FILE__\n#line 100 \"logical.h\"\n__LINE__ __FILE__\n"),
         "1 \"test.h\"\n100 \"logical.h\"\n"
     );
+}
+
+#[test]
+fn line_filenames_decode_c_escapes() {
+    let result = Preprocessor::new(Config::default())
+        .preprocess_str(
+            Path::new("physical.h"),
+            "#line 40 \"dir\\\\quoted\\\"\\142\\x2eh\"\nint value; __FILE__ __LINE__\n",
+        )
+        .unwrap();
+    assert_eq!(result.source, "int value ; \"dir\\\\quoted\\\"b.h\" 40\n");
+    let location = result.resolve_location(0).unwrap();
+    assert_eq!(location.path.as_ref(), Path::new("dir\\quoted\"b.h"));
+    assert_eq!(location.line, 40);
+    for filename in ["\\x", "\\400", "\\0", "\\xff", "\\u0061", "\\U00110000"] {
+        let source = format!("#line 1 \"{filename}\"\n__FILE__\n");
+        assert!(
+            Preprocessor::new(Config::default())
+                .preprocess_str(Path::new("test.h"), &source)
+                .is_err(),
+            "{filename}"
+        );
+    }
 }
 
 #[test]
@@ -388,6 +450,12 @@ fn differential_macro_corpus_matches_native_c_preprocessor() {
 
     let corpus = [
         "#define A 3\n#define F(x) (x+A)\n#define G F\nG(G(2))\n",
+        "#define S(...) #__VA_ARGS__\nS(a ,b) S(a, b) S(a , b) S(,)\n#define T(x,...) #__VA_ARGS__\nT(0,a ,b, c)\n",
+        "#line 40 \"dir\\\\quoted\\\"\\142\\x2eh\"\n__FILE__ __LINE__\n#line 50 \"\\u00e9\\U0001f426.h\"\n__FILE__ __LINE__\n",
+        "#define A F\n#define F(x) A\nA(0) A(0)(1)\n#define P(x) x\nP(A(0)) P(A)(0)\n",
+        "# /* comment\n*/ define A /* more\n*/ 41\n#define F(x) /* comment\n*/ (x + 1)\n#if /* comment\n*/ A == 41\nint value = F(A);\n#endif\n__LINE__\n",
+        "#define A a /* one\n two */ b\n#define S(x) #x\n#define T(x) S(x)\nT(A) S(a /* one\n two */ b)\n",
+        "#define A /* comment\n*/ 42\nint value = A;\n",
         "#define F(x) x\n#define G F\nF(G)(2) G(F)(3)\n",
         "#define F(x) x\n#define H F\nH(H)(2)\n",
         "#define A B\n#define B A\nA B A(A)\n",

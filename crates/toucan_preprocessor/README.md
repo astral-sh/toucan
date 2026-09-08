@@ -26,7 +26,8 @@ assert_eq!(result.expand_object_macro("COUNT")?.as_deref(), Some("4"));
   `__WCHAR_TYPE__` and `__WCHAR_UNSIGNED__` profile.
 - Quoted and angle-bracket includes, `include_next`, `__has_include`, and `pragma once`.
   Explicit filesystem include paths take precedence over virtual resource headers.
-- Escaped newlines, comments, digraphs, `__FILE__`, `__LINE__`, and `line` directives.
+- Escaped newlines, comments, digraphs, `__FILE__`, `__LINE__`, and `line` directives
+  with C string escape decoding for filenames.
 - `pragma pack` preservation for a downstream parser. Diagnostic and message pragmas
   are accepted without changing the generated source.
 
@@ -68,7 +69,8 @@ Unsupported features return diagnostics: trigraphs, non-ASCII identifiers, non-A
 multicharacter preprocessing character constants, `__VA_OPT__`, `_Pragma`, `__COUNTER__`,
 and unknown active directives or pragmas. Date and time macros must be supplied
 explicitly when required. Include names containing backslashes or whitespace inside
-angle brackets are rejected. This is not yet a complete C preprocessor conformance
+angle brackets are rejected. `#line` filenames must decode to UTF-8 without NUL bytes.
+This is not yet a complete C preprocessor conformance
 implementation.
 
 ## Validation
