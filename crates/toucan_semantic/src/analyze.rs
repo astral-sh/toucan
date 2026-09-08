@@ -903,6 +903,13 @@ impl Analyzer {
         let left = self.unit.resolve(left)?;
         let right = self.unit.resolve(right)?;
         match (&left.kind, &right.kind) {
+            (TypeKind::Enum(_), TypeKind::Integer(_))
+            | (TypeKind::Integer(_), TypeKind::Enum(_)) => {
+                // C11 6.7.2.2 makes an enum compatible with its selected integer
+                // type, including inside pointers and function declarations.
+                // Distinct enum tags remain distinct types.
+                Ok(self.integer_type(left, 0)? == self.integer_type(right, 0)?)
+            }
             (TypeKind::Pointer(left), TypeKind::Pointer(right)) => {
                 self.compatible_at(left, right, depth + 1)
             }
@@ -2357,7 +2364,23 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
     let bytes = source.as_bytes();
     let mut index = 0;
     let mut nesting = 0usize;
-    let mut operators = 0usize;
+    #[derive(Default)]
+    struct ExpressionDepth {
+        operators: usize,
+        child: usize,
+        sibling: usize,
+    }
+    impl ExpressionDepth {
+        fn depth(&self) -> usize {
+            self.sibling.max(self.operators + self.child)
+        }
+        fn next_expression(&mut self) {
+            self.sibling = self.depth();
+            self.operators = 0;
+            self.child = 0;
+        }
+    }
+    let mut expressions = vec![ExpressionDepth::default()];
     let mut prefix_run = 0usize;
     while index < bytes.len() {
         if matches!(bytes[index], b'+' | b'-' | b'!' | b'~' | b'*' | b'&') {
@@ -2396,6 +2419,7 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
                 index += 1;
             }
             b'(' | b'[' | b'{' => {
+                expressions.push(ExpressionDepth::default());
                 nesting += 1;
                 if nesting > 128 {
                     return Err(Error::new(
@@ -2406,12 +2430,25 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
             }
             b')' | b']' | b'}' => {
                 nesting = nesting.saturating_sub(1);
+                if expressions.len() > 1 {
+                    let depth = expressions.pop().expect("nested expression").depth();
+                    let parent = expressions.last_mut().expect("root expression");
+                    parent.child = parent.child.max(depth);
+                }
             }
-            b';' => operators = 0,
+            b';' | b',' => expressions
+                .last_mut()
+                .expect("expression frame")
+                .next_expression(),
             b'*' | b'!' | b'~' | b'+' | b'-' | b'/' | b'%' | b'&' | b'|' | b'^' | b'?' | b'<'
             | b'>' | b'=' => {
-                operators += 1;
-                if operators > 256 {
+                expressions.last_mut().expect("expression frame").operators += 1;
+                let current = expressions.last().expect("expression frame");
+                let ancestors: usize = expressions[..expressions.len() - 1]
+                    .iter()
+                    .map(|frame| frame.operators)
+                    .sum();
+                if ancestors + current.depth() > 256 {
                     return Err(Error::new(
                         index,
                         "expression or declarator exceeds the operator limit",
