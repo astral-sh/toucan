@@ -865,6 +865,7 @@ impl Analyzer {
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, types.first().map_or(0, |ty| ty.span.start))?;
         }
+        self.check_restrict(&ty, specifiers.first().map_or(0, |item| item.span.start))?;
         Ok((ty, attributes))
     }
 
@@ -1090,14 +1091,15 @@ impl Analyzer {
                             }
                         }
                     }
+                    self.check_restrict(&pointer, derived.span.start)?;
                     pointer
                 }
                 ast::DerivedDeclarator::Array(array) => {
-                    if matches!(
-                        self.unit.resolve(&ty)?.kind,
-                        TypeKind::Void | TypeKind::Function(_)
-                    ) {
-                        return Err(Error::new(derived.span.start, "invalid array element type"));
+                    if !self.is_complete_object(&ty, 0)? {
+                        return Err(Error::new(
+                            derived.span.start,
+                            "array element must have complete object type",
+                        ));
                     }
                     let length = match &array.node.size {
                         ast::ArraySize::Unknown => None,
@@ -1333,11 +1335,12 @@ impl Analyzer {
                         let (base, attributes) =
                             self.specifier_qualifiers(&field.node.specifiers)?;
                         if field.node.declarators.is_empty() {
-                            if !matches!(self.unit.resolve(&base)?.kind, TypeKind::Record(_)) {
-                                return Err(Error::new(
-                                    field.span.start,
-                                    "anonymous field must be a struct or union",
-                                ));
+                            // GNU and Clang accept declarations without members,
+                            // including nested tag definitions. Only a directly
+                            // written unnamed record declares an anonymous member.
+                            if !matches!(base.kind, TypeKind::Record(id) if self.unit.records[id].name.is_none())
+                            {
+                                continue;
                             }
                             fields.push(Field {
                                 name: None,
@@ -1403,25 +1406,38 @@ impl Analyzer {
                     }
                 }
             }
+            let mut member_names = HashSet::new();
+            let mut has_named_member = false;
             for (index, field) in fields.iter().enumerate() {
                 if matches!(
                     self.unit.resolve(&field.ty)?.kind,
                     TypeKind::Array { length: None, .. }
-                ) && (kind == RecordKind::Union || index + 1 != fields.len() || index == 0)
-                {
+                ) {
+                    if kind == RecordKind::Union || index + 1 != fields.len() || !has_named_member {
+                        return Err(Error::new(
+                            declaration.span.start,
+                            "flexible array must be the final member after a named member",
+                        ));
+                    }
+                } else if !self.is_complete_object(&field.ty, 0)? {
                     return Err(Error::new(
                         declaration.span.start,
-                        "flexible array must be the final member after a named member",
+                        "field must have complete object type",
                     ));
                 }
-                if let TypeKind::Record(field_id) = self.unit.resolve(&field.ty)?.kind
-                    && (field_id == id || self.unit.records[field_id].fields.is_none())
-                {
-                    return Err(Error::new(
-                        declaration.span.start,
-                        "field has incomplete record type",
-                    ));
-                }
+                self.check_member_names(
+                    std::slice::from_ref(field),
+                    &mut member_names,
+                    declaration.span.start,
+                    0,
+                )?;
+                // GCC also counts anonymous records containing only unnamed bitfields.
+                has_named_member |= !member_names.is_empty()
+                    || (matches!(
+                        self.unit.target,
+                        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                    ) && field.name.is_none()
+                        && field.bit_width.is_none());
             }
             self.unit.records[id].pack = self
                 .packs
@@ -1432,6 +1448,101 @@ impl Analyzer {
             self.unit.records[id].fields = Some(fields);
         }
         Ok(id)
+    }
+
+    /// Anonymous members share their containing record's member namespace.
+    fn check_member_names<'a>(
+        &'a self,
+        fields: &'a [Field],
+        names: &mut HashSet<&'a str>,
+        offset: usize,
+        depth: usize,
+    ) -> Result<(), Error> {
+        if depth >= 128 {
+            return Err(Error::new(
+                offset,
+                "anonymous member nesting exceeds the 128-level limit",
+            ));
+        }
+        for field in fields {
+            if let Some(name) = &field.name {
+                if !names.insert(name) {
+                    return Err(Error::new(offset, format!("duplicate field name `{name}`")));
+                }
+            } else if field.bit_width.is_none()
+                && let TypeKind::Record(id) = self.unit.resolve(&field.ty)?.kind
+            {
+                let record = self
+                    .unit
+                    .records
+                    .get(id)
+                    .ok_or_else(|| Error::new(offset, "invalid record identity"))?;
+                if let Some(fields) = &record.fields {
+                    self.check_member_names(fields, names, offset, depth + 1)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
+    /// Checks completeness without requiring a supported target layout.
+    fn is_complete_object(&self, ty: &Type, depth: usize) -> Result<bool, Error> {
+        if depth >= 128 {
+            return Err(Error::new(
+                0,
+                "object type nesting exceeds the 128-level limit",
+            ));
+        }
+        Ok(match &self.unit.resolve(ty)?.kind {
+            TypeKind::Void | TypeKind::Function(_) => false,
+            TypeKind::Record(id) => self
+                .unit
+                .records
+                .get(*id)
+                .ok_or_else(|| Error::new(0, "invalid record identity"))?
+                .fields
+                .is_some(),
+            TypeKind::Enum(id) => {
+                self.unit
+                    .enums
+                    .get(*id)
+                    .ok_or_else(|| Error::new(0, "invalid enum identity"))?
+                    .complete
+            }
+            TypeKind::Array { element, length } => {
+                length.is_some() && self.is_complete_object(element, depth + 1)?
+            }
+            _ => true,
+        })
+    }
+
+    /// C11 6.7.3 permits `restrict` only on pointers to object or incomplete types.
+    fn check_restrict(&self, ty: &Type, offset: usize) -> Result<(), Error> {
+        if !self.unit.qualifiers(ty)?.is_restrict {
+            return Ok(());
+        }
+        let mut resolved = self.unit.resolve(ty)?;
+        // GNU C propagates qualifiers on array typedefs to their element type.
+        if matches!(
+            self.unit.target,
+            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+        ) {
+            for _ in 0..128 {
+                let TypeKind::Array { element, .. } = &resolved.kind else {
+                    break;
+                };
+                resolved = self.unit.resolve(element)?;
+            }
+        }
+        if let TypeKind::Pointer(pointee) = &resolved.kind
+            && !matches!(self.unit.resolve(pointee)?.kind, TypeKind::Function(_))
+        {
+            return Ok(());
+        }
+        Err(Error::new(
+            offset,
+            "restrict requires a pointer to an object or incomplete type",
+        ))
     }
 
     fn enum_type(&mut self, declaration: &Node<ast::EnumType>) -> Result<usize, Error> {
