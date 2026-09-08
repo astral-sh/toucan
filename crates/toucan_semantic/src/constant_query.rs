@@ -106,6 +106,12 @@ impl Analyzer {
             }
             ast::Expression::Call(call) => {
                 let name = self.builtin_name(call);
+                if name
+                    .and_then(crate::atomic::AtomicOperation::from_name)
+                    .is_some_and(crate::atomic::AtomicOperation::is_lock_free_query)
+                {
+                    return Ok(self.eval_atomic_lock_free(call).is_ok());
+                }
                 if name == Some("__builtin_constant_p") {
                     return Ok(true);
                 }

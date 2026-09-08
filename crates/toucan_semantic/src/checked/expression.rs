@@ -168,6 +168,7 @@ operators!(
 #[non_exhaustive]
 pub enum Builtin {
     Sync(crate::sync::SyncOperation),
+    Atomic(crate::atomic::AtomicOperation),
     VaStart,
     VaEnd,
     VaCopy,
@@ -287,7 +288,13 @@ impl Builtin {
             "__builtin_ctz" => Self::CountTrailingZeros,
             "__builtin_ctzl" => Self::CountTrailingZerosLong,
             "__builtin_ctzll" => Self::CountTrailingZerosLongLong,
-            name => Self::Sync(crate::sync::SyncOperation::from_name(name)?),
+            name => {
+                if let Some(operation) = crate::atomic::AtomicOperation::from_name(name) {
+                    Self::Atomic(operation)
+                } else {
+                    Self::Sync(crate::sync::SyncOperation::from_name(name)?)
+                }
+            }
         })
     }
 }
@@ -1213,6 +1220,11 @@ impl Analyzer {
         if let Some(name) = self.builtin_name(call)
             && let Some(builtin) = Builtin::from_name(name)
         {
+            let atomic = if let Builtin::Atomic(operation) = builtin {
+                Some(self.atomic_signature(operation, call)?)
+            } else {
+                None
+            };
             let sync = if let Builtin::Sync(operation) = builtin {
                 Some((operation, self.sync_signature(operation, call)?))
             } else {
@@ -1245,7 +1257,18 @@ impl Analyzer {
                     arguments.push(self.retained_use(argument, UseContext::VariadicPack, None)?);
                     continue;
                 }
-                let (context, destination) = if let Some((operation, signature)) = &sync {
+                let (context, destination) = if let Some(signature) = &atomic {
+                    (
+                        signature.context,
+                        Some((
+                            signature.parameters[index]
+                                .as_ref()
+                                .expect("atomic argument")
+                                .clone(),
+                            signature.conversions[index],
+                        )),
+                    )
+                } else if let Some((operation, signature)) = &sync {
                     if index >= operation.required() {
                         (
                             if self.gnu_sync_profile() {

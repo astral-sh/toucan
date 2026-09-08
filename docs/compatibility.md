@@ -591,3 +591,37 @@ type checking. It does not recheck unselected expression trees. The semantic
 selection cache permits at most 65,536 distinct generic selections per input.
 The [review regression and native results](../corpus/evidence/variadic-pack-2026-09-08.json)
 record the compiler probes and the corrected repeated-work case.
+
+### GNU atomic operations
+
+The semantic library checks all scalar and generic `__atomic` load, store,
+exchange, compare-exchange, arithmetic/bitwise read-modify-write, flag, fence,
+and lock-free query operations. `checked::AtomicOperation` preserves the
+operation and exposes the positions of memory-order and weak-CAS operands;
+retained uses carry the compiler-profile argument conversions. Pointer arithmetic
+uses byte offsets. Generic operations retain their source object-pointer types
+and may require a target's atomic runtime when lowered.
+
+GCC permits same-sized generic buffers with different types and intrinsic
+pointer/integer value conversions. Clang uses its ordinary pointer constraints
+and additionally accepts Boolean RMW and float/double add/sub operations.
+GCC qualifier-discard extensions are retained explicitly, including mutation
+through a const-qualified pointer to mutable storage. Clang pointer-qualifier
+constraints receive diagnostics.
+Constant invalid memory orders and target-specific order modifiers such as x86
+HLE receive diagnostics. Runtime orders remain explicit inputs. These operations
+do not imply support for the separately diagnosed C11 `_Atomic` type ABI.
+
+`__atomic_always_lock_free` suppresses operand evaluation, while
+`__atomic_is_lock_free` evaluates its arguments. Folding only proves naturally
+aligned, null-address queries of widths 1, 2, 4 and 8 and impossible sizes; other
+address alignment and 16-byte CPU-feature cases stay unproven. Requiring an
+unproven query as a constant produces a diagnostic rather than a guessed result.
+The six `__ATOMIC_*` memory-order constants are predefined, without advertising
+optional lock-free target features. Completed atomic query checks have a
+65,536-entry limit; inputs without these queries allocate no query table.
+
+[Atomic compiler and runtime evidence](../corpus/evidence/atomic-builtins-2026-09-08.json)
+records the accepted/rejected compiler matrix, native operation checks and
+remaining source-analysis limitations. These tests establish operand semantics;
+they do not prove a code generator's concurrent-memory implementation.

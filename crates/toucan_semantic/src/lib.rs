@@ -6,6 +6,7 @@
 
 mod analyze;
 mod asm;
+mod atomic;
 mod builtins;
 pub mod checked;
 mod constant_query;

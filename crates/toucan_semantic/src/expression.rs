@@ -810,7 +810,7 @@ impl Analyzer {
         Ok(())
     }
 
-    fn check_assignment_type(
+    pub(crate) fn check_assignment_type(
         &mut self,
         destination: &Type,
         source: &Type,

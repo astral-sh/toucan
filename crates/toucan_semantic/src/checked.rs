@@ -20,6 +20,7 @@ mod query;
 pub(crate) mod references;
 pub(crate) mod statement;
 
+pub use crate::atomic::AtomicOperation;
 pub use crate::object_extent::{
     ObjectSizeFoldStage, ObjectSizeProof, ObjectSizeResult, ObjectSizeUnknown,
 };

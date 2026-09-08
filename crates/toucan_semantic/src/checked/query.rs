@@ -206,8 +206,11 @@ impl Builder {
                 | Builtin::CountTrailingZeros
                 | Builtin::CountTrailingZerosLong
                 | Builtin::CountTrailingZerosLongLong => operands(arguments),
+                Builtin::Atomic(crate::atomic::AtomicOperation::AlwaysLockFree) => Absent,
+                Builtin::Atomic(crate::atomic::AtomicOperation::IsLockFree) => operands(arguments),
                 // Clang's object-size builtins do not carry the const attribute.
-                Builtin::Sync(_)
+                Builtin::Atomic(_)
+                | Builtin::Sync(_)
                 | Builtin::ObjectSize
                 | Builtin::DynamicObjectSize
                 | Builtin::VaStart

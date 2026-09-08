@@ -99,6 +99,14 @@ impl Analyzer {
                 let selected = self.generic_expression(selection)?;
                 self.is_integer_constant_expression(selected, depth + 1)?
             }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(crate::atomic::AtomicOperation::from_name)
+                    .is_some_and(crate::atomic::AtomicOperation::is_lock_free_query) =>
+            {
+                self.eval_atomic_lock_free(call).is_ok()
+            }
             ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
                 self.eval_expect(call).is_ok()
             }
@@ -174,6 +182,14 @@ impl Analyzer {
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 self.eval(selected)
+            }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(crate::atomic::AtomicOperation::from_name)
+                    .is_some_and(crate::atomic::AtomicOperation::is_lock_free_query) =>
+            {
+                self.eval_atomic_lock_free(call)
             }
             ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
                 self.eval_expect(call)

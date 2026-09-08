@@ -1,0 +1,2278 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-08",
+  "base_commit": "109cd26",
+  "excluded_baseline": {
+    "patch": "/tmp/toucan-sync-builtins.patch",
+    "sha256": "4b6866ca1b41ce6ed5cb1038b35a673892bafdd62c28e3f8b8a3b53ec7767272"
+  },
+  "references": [
+    "https://gcc.gnu.org/onlinedocs/gcc/_005f_005fatomic-Builtins.html"
+  ],
+  "source_hashes": {
+    "crates/toucan_semantic/src/analyze.rs": "71ea2c8bff20b5fd1c5cf64f94c20c391d83176a647394562d666eeb4e3e65bf",
+    "crates/toucan_semantic/src/atomic.rs": "439f8e8299a957195c6c2d96f100b78ffed36adbf3f0eb7ad7ddd5b4bc8bb85c",
+    "crates/toucan_semantic/src/builtins.rs": "777fa3bd5419e699b558d9bed6a971d8a86b0bd12524405b92b11b317c217a19",
+    "crates/toucan_semantic/src/checked.rs": "7927f785e8ded476746b1cc1f5b0d3bfef8bf4cbc1825eef43cf0863a4f09fcb",
+    "crates/toucan_semantic/src/checked/expression.rs": "f9e10a5b4b02755a4636df0db963003e356dee34d9d480e9c3b7d49f37f87686",
+    "crates/toucan_semantic/src/checked/query.rs": "96895d445014e81c311ae4303604e6dc25f9dd4a3afb26365e593b7950c90023",
+    "crates/toucan_semantic/src/constant_query.rs": "a21b3290dfe6e31274fe9175c79acff4a192fd9394c3ce065279796e875cc1e8",
+    "crates/toucan_semantic/src/expression.rs": "41e0560e4f0a4623aa501d6a298395e99967e107deddab1aaa2ee5cdabd56c2c",
+    "crates/toucan_semantic/src/integer.rs": "dfd281258b800ac5979e0f16dd3e1b9c8c6d3dfecf369da2cb550ec1bebeafbd",
+    "crates/toucan_semantic/src/lib.rs": "39604eb65de47f223a6ee7f945f7a72bfc9b5ccbecc822f13b49fa5b9744236f",
+    "crates/toucan_semantic/tests/atomic_builtins.rs": "5da1664cd4db03aa4c98afcf6641931e4e8c0661e71f2ea1267507c1ae982ef0",
+    "crates/toucan_target/src/macros.rs": "9c824596221f424f7da3c495b207e68a176e0ff528a0f3fd5edeb61a27b8072c",
+    "docs/compatibility.md": "51bd9f7f8472feff28e2ee011c639aec8178433331ba4c35632c698f6b19f45c",
+    "fuzz/seeds/checked/atomic_builtins.h": "0d88c487f7aeedcab080b7afa3a55dbf2b37aba31e6f941aaf241f9310ff7b54",
+    "fuzz/seeds/checked/atomic_nested_address.h": "ac8a6bacd1ba516a8bcea05f0b8dae28ca3b21a51aa693df63290615563fdba4",
+    "fuzz/seeds/checked/atomic_nested_query.h": "5231cde91c073e5d7b11466f942b43b0d36042bac0377a72d00e5924f249e32d"
+  },
+  "tools": {
+    "gcc": {
+      "command": [
+        "gcc",
+        "--version"
+      ],
+      "identity": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "driver_path": "/usr/bin/gcc",
+      "driver_sha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26"
+    },
+    "clang": {
+      "command": [
+        "clang",
+        "--version"
+      ],
+      "identity": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n",
+      "driver_path": "/usr/bin/clang",
+      "driver_sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+    },
+    "rustc": {
+      "command": [
+        "rustc",
+        "-vV"
+      ],
+      "identity": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+      "driver_path": "/home/dev-user/.cargo/bin/rustc",
+      "driver_sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71"
+    }
+  },
+  "validation": {
+    "workspace_passed_tests": 369,
+    "atomic_passed_tests": 8,
+    "operations": 26,
+    "compiler_constraint_cases": 29,
+    "compiler_invocations": 174,
+    "native_executions": 4,
+    "retained_graph_cases": 15,
+    "logs": {
+      "workspace": {
+        "path": "/tmp/toucan-atomic-workspace.log",
+        "sha256": "d03c81b02ed782593d5486c0c18d82596b028fc2ee17fdd571242370a15b2cea",
+        "passed_tests": 369
+      },
+      "tests": {
+        "path": "/tmp/toucan-atomic-tests.log",
+        "sha256": "b46f4a023e747cbf4487f7e7be499e68d061e18814fa98d781f1becb4b77bcd4",
+        "passed_tests": 8
+      },
+      "clippy": {
+        "path": "/tmp/toucan-atomic-clippy.log",
+        "sha256": "38e0e9367f841a597da684e51d9fbcc89f1106551878a1b5d0477e4036b8879a",
+        "passed_tests": 0
+      },
+      "build": {
+        "path": "/tmp/toucan-atomic-build.log",
+        "sha256": "ee18ef0ea45b896c0ab6a16c07f20b719bde982162ebf49075e41f8c4ff1bf53",
+        "passed_tests": 0
+      },
+      "native-evidence": {
+        "path": "/tmp/toucan-atomic-native-evidence.log",
+        "sha256": "c1f97dcc6830ed22846f04afd657623ecaab1617ba009d8843f2d596b5d8093d",
+        "passed_tests": 1
+      },
+      "invariants": {
+        "path": "/tmp/toucan-atomic-invariants.log",
+        "sha256": "c32cf4dfb904d642abdfc050f8f6a0456f72b11ad16327f3146c5998f3e69c4e",
+        "passed_tests": 0
+      }
+    }
+  },
+  "compiler_command_templates": {
+    "gcc/x86_64-unknown-linux-gnu": [
+      "taskset",
+      "-c",
+      "2",
+      "gcc",
+      "-std=gnu11",
+      "-S",
+      "-o",
+      "/dev/null",
+      "-x",
+      "c",
+      "-"
+    ],
+    "clang/x86_64-unknown-linux-gnu": [
+      "taskset",
+      "-c",
+      "2",
+      "clang",
+      "-std=gnu11",
+      "-Werror=int-conversion",
+      "-Werror=incompatible-pointer-types",
+      "-Werror=pointer-sign",
+      "-S",
+      "-o",
+      "/dev/null",
+      "-x",
+      "c",
+      "-",
+      "-target",
+      "x86_64-unknown-linux-gnu",
+      "-emit-llvm"
+    ],
+    "clang/aarch64-unknown-linux-gnu": [
+      "taskset",
+      "-c",
+      "2",
+      "clang",
+      "-std=gnu11",
+      "-Werror=int-conversion",
+      "-Werror=incompatible-pointer-types",
+      "-Werror=pointer-sign",
+      "-S",
+      "-o",
+      "/dev/null",
+      "-x",
+      "c",
+      "-",
+      "-target",
+      "aarch64-unknown-linux-gnu",
+      "-emit-llvm"
+    ],
+    "clang/x86_64-apple-darwin": [
+      "taskset",
+      "-c",
+      "2",
+      "clang",
+      "-std=gnu11",
+      "-Werror=int-conversion",
+      "-Werror=incompatible-pointer-types",
+      "-Werror=pointer-sign",
+      "-S",
+      "-o",
+      "/dev/null",
+      "-x",
+      "c",
+      "-",
+      "-target",
+      "x86_64-apple-darwin",
+      "-emit-llvm"
+    ],
+    "clang/aarch64-apple-darwin": [
+      "taskset",
+      "-c",
+      "2",
+      "clang",
+      "-std=gnu11",
+      "-Werror=int-conversion",
+      "-Werror=incompatible-pointer-types",
+      "-Werror=pointer-sign",
+      "-S",
+      "-o",
+      "/dev/null",
+      "-x",
+      "c",
+      "-",
+      "-target",
+      "aarch64-apple-darwin",
+      "-emit-llvm"
+    ],
+    "clang/x86_64-pc-windows-msvc": [
+      "taskset",
+      "-c",
+      "2",
+      "clang",
+      "-std=gnu11",
+      "-Werror=int-conversion",
+      "-Werror=incompatible-pointer-types",
+      "-Werror=pointer-sign",
+      "-S",
+      "-o",
+      "/dev/null",
+      "-x",
+      "c",
+      "-",
+      "-target",
+      "x86_64-pc-windows-msvc",
+      "-emit-llvm"
+    ]
+  },
+  "compiler_matrix": [
+    {
+      "source": "int f(const int*p){return __atomic_load_n(p,0);}",
+      "source_sha256": "85b494bf1e3f982af39a22d5d9cd3effa46114bfed8b1c2d3ac6e4517ed0e3bf",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        }
+      ]
+    },
+    {
+      "source": "void f(const int*p){__atomic_store_n(p,1,0);}",
+      "source_sha256": "66a415798175fbb2aa230987d1de46f33f43f1eebb097db4b8053e72d0086b34",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "22758de785c34865c4755b6a25174928529ac6c5de93357a383d4ee6ddb8c482",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:1: warning: passing argument 1 of \u2018__atomic_store_4\u2019 discards \u2018const\u2019 qualifier from pointer target type [-Wdiscarded-qualifiers]\n<stdin>:1:1: note: expected \u2018volatile void *\u2019 but argument is of type \u2018const int *\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "f9f8bcdfe2c878793a7770dfb37a0291439974ab8cd5e15951f84913c7be75cf",
+          "diagnostic_excerpt": "<stdin>:1:21: error: address argument to atomic operation must be a pointer to non-const type ('const int *' invalid)\n    1 | void f(const int*p){__atomic_store_n(p,1,0);}\n      |                     ^                ~"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "f9f8bcdfe2c878793a7770dfb37a0291439974ab8cd5e15951f84913c7be75cf",
+          "diagnostic_excerpt": "<stdin>:1:21: error: address argument to atomic operation must be a pointer to non-const type ('const int *' invalid)\n    1 | void f(const int*p){__atomic_store_n(p,1,0);}\n      |                     ^                ~"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "f9f8bcdfe2c878793a7770dfb37a0291439974ab8cd5e15951f84913c7be75cf",
+          "diagnostic_excerpt": "<stdin>:1:21: error: address argument to atomic operation must be a pointer to non-const type ('const int *' invalid)\n    1 | void f(const int*p){__atomic_store_n(p,1,0);}\n      |                     ^                ~"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "f9f8bcdfe2c878793a7770dfb37a0291439974ab8cd5e15951f84913c7be75cf",
+          "diagnostic_excerpt": "<stdin>:1:21: error: address argument to atomic operation must be a pointer to non-const type ('const int *' invalid)\n    1 | void f(const int*p){__atomic_store_n(p,1,0);}\n      |                     ^                ~"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "f9f8bcdfe2c878793a7770dfb37a0291439974ab8cd5e15951f84913c7be75cf",
+          "diagnostic_excerpt": "<stdin>:1:21: error: address argument to atomic operation must be a pointer to non-const type ('const int *' invalid)\n    1 | void f(const int*p){__atomic_store_n(p,1,0);}\n      |                     ^                ~"
+        }
+      ]
+    },
+    {
+      "source": "void f(int**p){__atomic_store_n(p,7,0);}",
+      "source_sha256": "b03dbdcb74d5fad9963d9fc4898496a2f5f91178090e965a4abadc10d73e0012",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "660532701654c221a5fce40cf70ff4ff969812ad3b9d63c56a28d7f64f3ac020",
+          "diagnostic_excerpt": "<stdin>:1:35: error: incompatible integer to pointer conversion passing 'int' to parameter of type 'int *' [-Wint-conversion]\n    1 | void f(int**p){__atomic_store_n(p,7,0);}\n      |                                   ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "660532701654c221a5fce40cf70ff4ff969812ad3b9d63c56a28d7f64f3ac020",
+          "diagnostic_excerpt": "<stdin>:1:35: error: incompatible integer to pointer conversion passing 'int' to parameter of type 'int *' [-Wint-conversion]\n    1 | void f(int**p){__atomic_store_n(p,7,0);}\n      |                                   ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "660532701654c221a5fce40cf70ff4ff969812ad3b9d63c56a28d7f64f3ac020",
+          "diagnostic_excerpt": "<stdin>:1:35: error: incompatible integer to pointer conversion passing 'int' to parameter of type 'int *' [-Wint-conversion]\n    1 | void f(int**p){__atomic_store_n(p,7,0);}\n      |                                   ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "660532701654c221a5fce40cf70ff4ff969812ad3b9d63c56a28d7f64f3ac020",
+          "diagnostic_excerpt": "<stdin>:1:35: error: incompatible integer to pointer conversion passing 'int' to parameter of type 'int *' [-Wint-conversion]\n    1 | void f(int**p){__atomic_store_n(p,7,0);}\n      |                                   ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "660532701654c221a5fce40cf70ff4ff969812ad3b9d63c56a28d7f64f3ac020",
+          "diagnostic_excerpt": "<stdin>:1:35: error: incompatible integer to pointer conversion passing 'int' to parameter of type 'int *' [-Wint-conversion]\n    1 | void f(int**p){__atomic_store_n(p,7,0);}\n      |                                   ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(int**p,const int*q){__atomic_store_n(p,q,0);}",
+      "source_sha256": "85d46e63eec9f2ebe96e3f25bbf1dd72ca24f5ba6493978516b1bed42f48a2e5",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "ef8d00a4bda5869e55874232a2eedbd68ba00e3d38e1f40b278ec05d32f8f33a",
+          "diagnostic_excerpt": "<stdin>:1:47: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int**p,const int*q){__atomic_store_n(p,q,0);}\n      |                                               ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "ef8d00a4bda5869e55874232a2eedbd68ba00e3d38e1f40b278ec05d32f8f33a",
+          "diagnostic_excerpt": "<stdin>:1:47: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int**p,const int*q){__atomic_store_n(p,q,0);}\n      |                                               ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "ef8d00a4bda5869e55874232a2eedbd68ba00e3d38e1f40b278ec05d32f8f33a",
+          "diagnostic_excerpt": "<stdin>:1:47: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int**p,const int*q){__atomic_store_n(p,q,0);}\n      |                                               ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "ef8d00a4bda5869e55874232a2eedbd68ba00e3d38e1f40b278ec05d32f8f33a",
+          "diagnostic_excerpt": "<stdin>:1:47: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int**p,const int*q){__atomic_store_n(p,q,0);}\n      |                                               ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "ef8d00a4bda5869e55874232a2eedbd68ba00e3d38e1f40b278ec05d32f8f33a",
+          "diagnostic_excerpt": "<stdin>:1:47: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int**p,const int*q){__atomic_store_n(p,q,0);}\n      |                                               ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(float*p){__atomic_load_n(p,0);}",
+      "source_sha256": "5ea4a3c3435bb6a5040d124574b8bd8fe254b9eeb9ce25c9d5dd314eec83aacf",
+      "gcc_accepts": false,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "a0f03de115b2645609b9aba8064a23309bdc8dc8010c1fa742e018d67156a7dd",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:1: error: operand type \u2018float *\u2019 is incompatible with argument 1 of \u2018__atomic_load_n\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "3c80685de65d7bbb8ac00f5e5dbe2057ede2cc9d38739157943374e7f42a13d9",
+          "diagnostic_excerpt": "<stdin>:1:17: error: address argument to atomic operation must be a pointer to integer or pointer ('float *' invalid)\n    1 | void f(float*p){__atomic_load_n(p,0);}\n      |                 ^               ~"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "3c80685de65d7bbb8ac00f5e5dbe2057ede2cc9d38739157943374e7f42a13d9",
+          "diagnostic_excerpt": "<stdin>:1:17: error: address argument to atomic operation must be a pointer to integer or pointer ('float *' invalid)\n    1 | void f(float*p){__atomic_load_n(p,0);}\n      |                 ^               ~"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "3c80685de65d7bbb8ac00f5e5dbe2057ede2cc9d38739157943374e7f42a13d9",
+          "diagnostic_excerpt": "<stdin>:1:17: error: address argument to atomic operation must be a pointer to integer or pointer ('float *' invalid)\n    1 | void f(float*p){__atomic_load_n(p,0);}\n      |                 ^               ~"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "3c80685de65d7bbb8ac00f5e5dbe2057ede2cc9d38739157943374e7f42a13d9",
+          "diagnostic_excerpt": "<stdin>:1:17: error: address argument to atomic operation must be a pointer to integer or pointer ('float *' invalid)\n    1 | void f(float*p){__atomic_load_n(p,0);}\n      |                 ^               ~"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "3c80685de65d7bbb8ac00f5e5dbe2057ede2cc9d38739157943374e7f42a13d9",
+          "diagnostic_excerpt": "<stdin>:1:17: error: address argument to atomic operation must be a pointer to integer or pointer ('float *' invalid)\n    1 | void f(float*p){__atomic_load_n(p,0);}\n      |                 ^               ~"
+        }
+      ]
+    },
+    {
+      "source": "void f(_Bool*p){__atomic_fetch_add(p,1,0);}",
+      "source_sha256": "2944894089bbcb6e3954da876517e90d15b84c8316be9c37f640e232962688f0",
+      "gcc_accepts": false,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "5317fbafdf3a0eac857f936027f242488479e273d2f9f150962271b18a2507d2",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:1: error: operand type \u2018_Bool *\u2019 is incompatible with argument 1 of \u2018__atomic_fetch_add\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        }
+      ]
+    },
+    {
+      "source": "void f(float*p){__atomic_fetch_add(p,1,0);}",
+      "source_sha256": "1d94579b280bb4fa1aa755f6f269254feaa660df5f25f2f582b3fa50b6f12056",
+      "gcc_accepts": false,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "1984c93ceebdc39a6cd137237cd61d70773d6cef029c46c296969324d630a1f3",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:1: error: operand type \u2018float *\u2019 is incompatible with argument 1 of \u2018__atomic_fetch_add\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        }
+      ]
+    },
+    {
+      "source": "void f(double*p){__atomic_sub_fetch(p,1,0);}",
+      "source_sha256": "fd25fe71020bd2829294e7f2983218844a2652db05428499b2fa63facdebd903",
+      "gcc_accepts": false,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "64559b6259e2b8052449e67fc0298c7bacb63ebda32eb60836ba1895cc436a7d",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:1: error: operand type \u2018double *\u2019 is incompatible with argument 1 of \u2018__atomic_sub_fetch\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        }
+      ]
+    },
+    {
+      "source": "void f(float*p){__atomic_fetch_or(p,1,0);}",
+      "source_sha256": "804caab02e4fc766da1e1cee9378e8c3d3d20ca2c98aa398ec6060702a3531dd",
+      "gcc_accepts": false,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "d0979aefce47f52bd7d267e61fc3000d218a7f1f0498dfa973d1bf45b5dd141c",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:1: error: operand type \u2018float *\u2019 is incompatible with argument 1 of \u2018__atomic_fetch_or\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "3d3f582f57f209a777d3737c44838e1fde003fa5fafa172f1c8c134730ff3a19",
+          "diagnostic_excerpt": "<stdin>:1:17: error: address argument to atomic operation must be a pointer to integer ('float *' invalid)\n    1 | void f(float*p){__atomic_fetch_or(p,1,0);}\n      |                 ^                 ~"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "3d3f582f57f209a777d3737c44838e1fde003fa5fafa172f1c8c134730ff3a19",
+          "diagnostic_excerpt": "<stdin>:1:17: error: address argument to atomic operation must be a pointer to integer ('float *' invalid)\n    1 | void f(float*p){__atomic_fetch_or(p,1,0);}\n      |                 ^                 ~"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "3d3f582f57f209a777d3737c44838e1fde003fa5fafa172f1c8c134730ff3a19",
+          "diagnostic_excerpt": "<stdin>:1:17: error: address argument to atomic operation must be a pointer to integer ('float *' invalid)\n    1 | void f(float*p){__atomic_fetch_or(p,1,0);}\n      |                 ^                 ~"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "3d3f582f57f209a777d3737c44838e1fde003fa5fafa172f1c8c134730ff3a19",
+          "diagnostic_excerpt": "<stdin>:1:17: error: address argument to atomic operation must be a pointer to integer ('float *' invalid)\n    1 | void f(float*p){__atomic_fetch_or(p,1,0);}\n      |                 ^                 ~"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "3d3f582f57f209a777d3737c44838e1fde003fa5fafa172f1c8c134730ff3a19",
+          "diagnostic_excerpt": "<stdin>:1:17: error: address argument to atomic operation must be a pointer to integer ('float *' invalid)\n    1 | void f(float*p){__atomic_fetch_or(p,1,0);}\n      |                 ^                 ~"
+        }
+      ]
+    },
+    {
+      "source": "void f(int**p){__atomic_fetch_add(p,1,0);}",
+      "source_sha256": "2859f242549aa31cda81057f44ad753a5d2c35f2e2bd6e8880173d582e0ff8f6",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        }
+      ]
+    },
+    {
+      "source": "void f(int**p){__atomic_fetch_or(p,1,0);}",
+      "source_sha256": "3dd7ac93c8010a343173902c4f80ee86a78370fd050f1bb188d44f7f43a4fe85",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "8f5ff049de14a5455c6fe9abd455f993769a232e0a32b055a7fe57f4e95ffcad",
+          "diagnostic_excerpt": "<stdin>:1:16: error: address argument to atomic operation must be a pointer to integer ('int **' invalid)\n    1 | void f(int**p){__atomic_fetch_or(p,1,0);}\n      |                ^                 ~"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "8f5ff049de14a5455c6fe9abd455f993769a232e0a32b055a7fe57f4e95ffcad",
+          "diagnostic_excerpt": "<stdin>:1:16: error: address argument to atomic operation must be a pointer to integer ('int **' invalid)\n    1 | void f(int**p){__atomic_fetch_or(p,1,0);}\n      |                ^                 ~"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "8f5ff049de14a5455c6fe9abd455f993769a232e0a32b055a7fe57f4e95ffcad",
+          "diagnostic_excerpt": "<stdin>:1:16: error: address argument to atomic operation must be a pointer to integer ('int **' invalid)\n    1 | void f(int**p){__atomic_fetch_or(p,1,0);}\n      |                ^                 ~"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "8f5ff049de14a5455c6fe9abd455f993769a232e0a32b055a7fe57f4e95ffcad",
+          "diagnostic_excerpt": "<stdin>:1:16: error: address argument to atomic operation must be a pointer to integer ('int **' invalid)\n    1 | void f(int**p){__atomic_fetch_or(p,1,0);}\n      |                ^                 ~"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "8f5ff049de14a5455c6fe9abd455f993769a232e0a32b055a7fe57f4e95ffcad",
+          "diagnostic_excerpt": "<stdin>:1:16: error: address argument to atomic operation must be a pointer to integer ('int **' invalid)\n    1 | void f(int**p){__atomic_fetch_or(p,1,0);}\n      |                ^                 ~"
+        }
+      ]
+    },
+    {
+      "source": "void f(float*p,int*q){__atomic_load(p,q,0);}",
+      "source_sha256": "22201e3e499090652f011986ad72fda0872186852e2ec9c9296145550b21c22d",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "1b2a45e86607054a8c325d9b05ce1cf1d667145bb9c179dbdedd6b73e04c5035",
+          "diagnostic_excerpt": "<stdin>:1:39: error: incompatible pointer types passing 'int *' to parameter of type 'float *' [-Werror,-Wincompatible-pointer-types]\n    1 | void f(float*p,int*q){__atomic_load(p,q,0);}\n      |                                       ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "1b2a45e86607054a8c325d9b05ce1cf1d667145bb9c179dbdedd6b73e04c5035",
+          "diagnostic_excerpt": "<stdin>:1:39: error: incompatible pointer types passing 'int *' to parameter of type 'float *' [-Werror,-Wincompatible-pointer-types]\n    1 | void f(float*p,int*q){__atomic_load(p,q,0);}\n      |                                       ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "1b2a45e86607054a8c325d9b05ce1cf1d667145bb9c179dbdedd6b73e04c5035",
+          "diagnostic_excerpt": "<stdin>:1:39: error: incompatible pointer types passing 'int *' to parameter of type 'float *' [-Werror,-Wincompatible-pointer-types]\n    1 | void f(float*p,int*q){__atomic_load(p,q,0);}\n      |                                       ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "1b2a45e86607054a8c325d9b05ce1cf1d667145bb9c179dbdedd6b73e04c5035",
+          "diagnostic_excerpt": "<stdin>:1:39: error: incompatible pointer types passing 'int *' to parameter of type 'float *' [-Werror,-Wincompatible-pointer-types]\n    1 | void f(float*p,int*q){__atomic_load(p,q,0);}\n      |                                       ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "1b2a45e86607054a8c325d9b05ce1cf1d667145bb9c179dbdedd6b73e04c5035",
+          "diagnostic_excerpt": "<stdin>:1:39: error: incompatible pointer types passing 'int *' to parameter of type 'float *' [-Werror,-Wincompatible-pointer-types]\n    1 | void f(float*p,int*q){__atomic_load(p,q,0);}\n      |                                       ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(double*p,int*q){__atomic_load(p,q,0);}",
+      "source_sha256": "861476f3281e3be8f9781e4649ec80e8f2ff0924cbd75b1743254b2467ff2297",
+      "gcc_accepts": false,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "071299c276be315f060923a1ba5dd47d606c384e86717cec0fd5367e6e9d897b",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:24: error: size mismatch in argument 2 of \u2018__atomic_load\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "4710f9af25ad7161ad7292215c0cfe33c3d54cef687b958da7865644e206de33",
+          "diagnostic_excerpt": "<stdin>:1:40: error: incompatible pointer types passing 'int *' to parameter of type 'double *' [-Werror,-Wincompatible-pointer-types]\n    1 | void f(double*p,int*q){__atomic_load(p,q,0);}\n      |                                        ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "4710f9af25ad7161ad7292215c0cfe33c3d54cef687b958da7865644e206de33",
+          "diagnostic_excerpt": "<stdin>:1:40: error: incompatible pointer types passing 'int *' to parameter of type 'double *' [-Werror,-Wincompatible-pointer-types]\n    1 | void f(double*p,int*q){__atomic_load(p,q,0);}\n      |                                        ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "4710f9af25ad7161ad7292215c0cfe33c3d54cef687b958da7865644e206de33",
+          "diagnostic_excerpt": "<stdin>:1:40: error: incompatible pointer types passing 'int *' to parameter of type 'double *' [-Werror,-Wincompatible-pointer-types]\n    1 | void f(double*p,int*q){__atomic_load(p,q,0);}\n      |                                        ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "4710f9af25ad7161ad7292215c0cfe33c3d54cef687b958da7865644e206de33",
+          "diagnostic_excerpt": "<stdin>:1:40: error: incompatible pointer types passing 'int *' to parameter of type 'double *' [-Werror,-Wincompatible-pointer-types]\n    1 | void f(double*p,int*q){__atomic_load(p,q,0);}\n      |                                        ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "4710f9af25ad7161ad7292215c0cfe33c3d54cef687b958da7865644e206de33",
+          "diagnostic_excerpt": "<stdin>:1:40: error: incompatible pointer types passing 'int *' to parameter of type 'double *' [-Werror,-Wincompatible-pointer-types]\n    1 | void f(double*p,int*q){__atomic_load(p,q,0);}\n      |                                        ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(int*p,void*q){__atomic_load(p,q,0);}",
+      "source_sha256": "f76b46f7558a533d3fe21d8b1b7fc8f19eb02cab034424b4da16c03e3a4bc1c7",
+      "gcc_accepts": false,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "f1ef2842b8be74c5f99019b8a8e62db2788291a3c6e746ec35060a67ee66f294",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:22: error: size mismatch in argument 2 of \u2018__atomic_load\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        }
+      ]
+    },
+    {
+      "source": "void f(int*p,const int*q){__atomic_store(p,q,0);}",
+      "source_sha256": "d662e7f5dde8210f1ca3a2af278601b8ce5ab2e1093f7335a333b3bed4410d03",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "0e4dc68431e4b4384bd1121d8a4874c48a888a9bb7519c07a0eb7720a0d8746c",
+          "diagnostic_excerpt": "<stdin>:1:44: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_store(p,q,0);}\n      |                                            ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "0e4dc68431e4b4384bd1121d8a4874c48a888a9bb7519c07a0eb7720a0d8746c",
+          "diagnostic_excerpt": "<stdin>:1:44: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_store(p,q,0);}\n      |                                            ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "0e4dc68431e4b4384bd1121d8a4874c48a888a9bb7519c07a0eb7720a0d8746c",
+          "diagnostic_excerpt": "<stdin>:1:44: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_store(p,q,0);}\n      |                                            ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "0e4dc68431e4b4384bd1121d8a4874c48a888a9bb7519c07a0eb7720a0d8746c",
+          "diagnostic_excerpt": "<stdin>:1:44: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_store(p,q,0);}\n      |                                            ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "0e4dc68431e4b4384bd1121d8a4874c48a888a9bb7519c07a0eb7720a0d8746c",
+          "diagnostic_excerpt": "<stdin>:1:44: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_store(p,q,0);}\n      |                                            ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(int*p,volatile int*q){__atomic_load(p,q,0);}",
+      "source_sha256": "fa2fe2b522fce7141ac537d229b38ac370b29e49eb4a73980caab55f3e741d36",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "f175271744de80486f956ae074bc17b137f982dd9247206b45d2cf34b03b8cab",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:30: warning: argument 2 of \u2018__atomic_load\u2019 discards \u2018volatile\u2019 qualifier [-Wincompatible-pointer-types]"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "7cf252933f3ed511967df6a0ea87dc32a6c7c504d7393f38801a92dd0afc9f65",
+          "diagnostic_excerpt": "<stdin>:1:46: error: passing 'volatile int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,volatile int*q){__atomic_load(p,q,0);}\n      |                                              ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "7cf252933f3ed511967df6a0ea87dc32a6c7c504d7393f38801a92dd0afc9f65",
+          "diagnostic_excerpt": "<stdin>:1:46: error: passing 'volatile int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,volatile int*q){__atomic_load(p,q,0);}\n      |                                              ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "7cf252933f3ed511967df6a0ea87dc32a6c7c504d7393f38801a92dd0afc9f65",
+          "diagnostic_excerpt": "<stdin>:1:46: error: passing 'volatile int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,volatile int*q){__atomic_load(p,q,0);}\n      |                                              ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "7cf252933f3ed511967df6a0ea87dc32a6c7c504d7393f38801a92dd0afc9f65",
+          "diagnostic_excerpt": "<stdin>:1:46: error: passing 'volatile int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,volatile int*q){__atomic_load(p,q,0);}\n      |                                              ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "7cf252933f3ed511967df6a0ea87dc32a6c7c504d7393f38801a92dd0afc9f65",
+          "diagnostic_excerpt": "<stdin>:1:46: error: passing 'volatile int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,volatile int*q){__atomic_load(p,q,0);}\n      |                                              ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(int*p,const int*q){__atomic_load(p,q,0);}",
+      "source_sha256": "8b8b7db086c9eacbd66b544837d860c79e7c3a854b850b0bb30d97aa091a258f",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "9406d38d97da3a43c962d0cd247e2edb2604324bf3703e783db8310b693b8824",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:27: warning: argument 2 of \u2018__atomic_load\u2019 discards \u2018const\u2019 qualifier [-Wincompatible-pointer-types]"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "20e7b6acde77576f4fb4cfaec0b018dd9ec3d9ca33fdc50a864c28b78d72b884",
+          "diagnostic_excerpt": "<stdin>:1:43: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_load(p,q,0);}\n      |                                           ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "20e7b6acde77576f4fb4cfaec0b018dd9ec3d9ca33fdc50a864c28b78d72b884",
+          "diagnostic_excerpt": "<stdin>:1:43: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_load(p,q,0);}\n      |                                           ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "20e7b6acde77576f4fb4cfaec0b018dd9ec3d9ca33fdc50a864c28b78d72b884",
+          "diagnostic_excerpt": "<stdin>:1:43: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_load(p,q,0);}\n      |                                           ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "20e7b6acde77576f4fb4cfaec0b018dd9ec3d9ca33fdc50a864c28b78d72b884",
+          "diagnostic_excerpt": "<stdin>:1:43: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_load(p,q,0);}\n      |                                           ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "20e7b6acde77576f4fb4cfaec0b018dd9ec3d9ca33fdc50a864c28b78d72b884",
+          "diagnostic_excerpt": "<stdin>:1:43: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_load(p,q,0);}\n      |                                           ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(int*p,unsigned*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}",
+      "source_sha256": "57c4cd42cacc2ab35dc02f5f28e435a69046d4403c277ec407e48a09e797368b",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "cba65e5430d3a66bad80b670c19cf8a72b5c767ecb72f041b454437890fc84c8",
+          "diagnostic_excerpt": "<stdin>:1:56: error: passing 'unsigned int *' to parameter of type 'int *' converts between pointers to integer types with different sign [-Werror,-Wpointer-sign]\n    1 | void f(int*p,unsigned*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}\n      |                                                        ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "cba65e5430d3a66bad80b670c19cf8a72b5c767ecb72f041b454437890fc84c8",
+          "diagnostic_excerpt": "<stdin>:1:56: error: passing 'unsigned int *' to parameter of type 'int *' converts between pointers to integer types with different sign [-Werror,-Wpointer-sign]\n    1 | void f(int*p,unsigned*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}\n      |                                                        ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "cba65e5430d3a66bad80b670c19cf8a72b5c767ecb72f041b454437890fc84c8",
+          "diagnostic_excerpt": "<stdin>:1:56: error: passing 'unsigned int *' to parameter of type 'int *' converts between pointers to integer types with different sign [-Werror,-Wpointer-sign]\n    1 | void f(int*p,unsigned*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}\n      |                                                        ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "cba65e5430d3a66bad80b670c19cf8a72b5c767ecb72f041b454437890fc84c8",
+          "diagnostic_excerpt": "<stdin>:1:56: error: passing 'unsigned int *' to parameter of type 'int *' converts between pointers to integer types with different sign [-Werror,-Wpointer-sign]\n    1 | void f(int*p,unsigned*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}\n      |                                                        ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "cba65e5430d3a66bad80b670c19cf8a72b5c767ecb72f041b454437890fc84c8",
+          "diagnostic_excerpt": "<stdin>:1:56: error: passing 'unsigned int *' to parameter of type 'int *' converts between pointers to integer types with different sign [-Werror,-Wpointer-sign]\n    1 | void f(int*p,unsigned*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}\n      |                                                        ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(int*p,const int*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}",
+      "source_sha256": "2cad951cc5237737236710bcd4ad9f982f186dadefe96df12d76a98d46a880f2",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "5b1d08793373045a38962b8857fc2472ce58d9c1d7493d059c8884199758f8e9",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:1: warning: passing argument 2 of \u2018__atomic_compare_exchange_4\u2019 discards \u2018const\u2019 qualifier from pointer target type [-Wdiscarded-qualifiers]\n<stdin>:1:1: note: expected \u2018void *\u2019 but argument is of type \u2018const int *\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "51a9082aea386be73c315e916614e37f9339730b00b8c947de0d15455c7c5b0a",
+          "diagnostic_excerpt": "<stdin>:1:57: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}\n      |                                                         ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "51a9082aea386be73c315e916614e37f9339730b00b8c947de0d15455c7c5b0a",
+          "diagnostic_excerpt": "<stdin>:1:57: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}\n      |                                                         ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "51a9082aea386be73c315e916614e37f9339730b00b8c947de0d15455c7c5b0a",
+          "diagnostic_excerpt": "<stdin>:1:57: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}\n      |                                                         ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "51a9082aea386be73c315e916614e37f9339730b00b8c947de0d15455c7c5b0a",
+          "diagnostic_excerpt": "<stdin>:1:57: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}\n      |                                                         ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "51a9082aea386be73c315e916614e37f9339730b00b8c947de0d15455c7c5b0a",
+          "diagnostic_excerpt": "<stdin>:1:57: error: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(int*p,const int*q){__atomic_compare_exchange_n(p,q,1,0,5,2);}\n      |                                                         ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(void*p){__atomic_test_and_set(p,5);__atomic_clear(p,3);}",
+      "source_sha256": "03cbe4cd1a728331b8bcbcc75101a6e480741458ab56cd9d79c039b0eb7ecb8d",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        }
+      ]
+    },
+    {
+      "source": "void f(const char*p){__atomic_clear(p,3);}",
+      "source_sha256": "d7892709a492c9f7a3fb7f680b6d3be9a7c058c675f3232cfba7956d4037bd6c",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "23276c45ee01f0c502c7300d25a0cca3abf07ed67e55f21b7ff70b8befe9bec7",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:37: warning: passing argument 1 of \u2018__atomic_clear\u2019 discards \u2018const\u2019 qualifier from pointer target type [-Wdiscarded-qualifiers]\n<stdin>:1:37: note: expected \u2018volatile void *\u2019 but argument is of type \u2018const char *\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "e649f42c09d987872825ac7ec5d892a6d7a0fb2ef42562bdd1cd1559da8cc93b",
+          "diagnostic_excerpt": "<stdin>:1:37: error: passing 'const char *' to parameter of type 'volatile void *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(const char*p){__atomic_clear(p,3);}\n      |                                     ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "e649f42c09d987872825ac7ec5d892a6d7a0fb2ef42562bdd1cd1559da8cc93b",
+          "diagnostic_excerpt": "<stdin>:1:37: error: passing 'const char *' to parameter of type 'volatile void *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(const char*p){__atomic_clear(p,3);}\n      |                                     ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "e649f42c09d987872825ac7ec5d892a6d7a0fb2ef42562bdd1cd1559da8cc93b",
+          "diagnostic_excerpt": "<stdin>:1:37: error: passing 'const char *' to parameter of type 'volatile void *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(const char*p){__atomic_clear(p,3);}\n      |                                     ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "e649f42c09d987872825ac7ec5d892a6d7a0fb2ef42562bdd1cd1559da8cc93b",
+          "diagnostic_excerpt": "<stdin>:1:37: error: passing 'const char *' to parameter of type 'volatile void *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(const char*p){__atomic_clear(p,3);}\n      |                                     ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "e649f42c09d987872825ac7ec5d892a6d7a0fb2ef42562bdd1cd1559da8cc93b",
+          "diagnostic_excerpt": "<stdin>:1:37: error: passing 'const char *' to parameter of type 'volatile void *' discards qualifiers [-Werror,-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(const char*p){__atomic_clear(p,3);}\n      |                                     ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(float order){__atomic_thread_fence(order);}",
+      "source_sha256": "3aafebc14f8a365aad84cae77b1f94bfb2d80f46637dbc0d17e7d5fa461a99ab",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        }
+      ]
+    },
+    {
+      "source": "_Bool f(int n,void*p){return __atomic_always_lock_free(n,p);}",
+      "source_sha256": "a7127d0db4f33bb8701fceeeb396a6ba9c999aa4f9a849382a1bca249fe93330",
+      "gcc_accepts": false,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "f595c63f06f4533e3735130690a31079f9552e20a9d1224c742252e35bdb27b6",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:30: error: non-constant argument 1 to \u2018__atomic_always_lock_free\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "9a1c1f45ac601238d40ecad438d2b0c0a451ccb43f4fdd8171123dbe139197b2",
+          "diagnostic_excerpt": "<stdin>:1:30: error: cannot compile this builtin function yet\n    1 | _Bool f(int n,void*p){return __atomic_always_lock_free(n,p);}\n      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "9a1c1f45ac601238d40ecad438d2b0c0a451ccb43f4fdd8171123dbe139197b2",
+          "diagnostic_excerpt": "<stdin>:1:30: error: cannot compile this builtin function yet\n    1 | _Bool f(int n,void*p){return __atomic_always_lock_free(n,p);}\n      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "9a1c1f45ac601238d40ecad438d2b0c0a451ccb43f4fdd8171123dbe139197b2",
+          "diagnostic_excerpt": "<stdin>:1:30: error: cannot compile this builtin function yet\n    1 | _Bool f(int n,void*p){return __atomic_always_lock_free(n,p);}\n      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "9a1c1f45ac601238d40ecad438d2b0c0a451ccb43f4fdd8171123dbe139197b2",
+          "diagnostic_excerpt": "<stdin>:1:30: error: cannot compile this builtin function yet\n    1 | _Bool f(int n,void*p){return __atomic_always_lock_free(n,p);}\n      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "9a1c1f45ac601238d40ecad438d2b0c0a451ccb43f4fdd8171123dbe139197b2",
+          "diagnostic_excerpt": "<stdin>:1:30: error: cannot compile this builtin function yet\n    1 | _Bool f(int n,void*p){return __atomic_always_lock_free(n,p);}\n      |                              ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+        }
+      ]
+    },
+    {
+      "source": "void f(int n,void*p){__atomic_is_lock_free(n,p);}",
+      "source_sha256": "2c58220f492ad7ef0e5b586cd928104309f9ea24c7ae5d0460b2e28db695d716",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        }
+      ]
+    },
+    {
+      "source": "struct S{char v[3];};void f(struct S*p,struct S*q){__atomic_load(p,q,0);__atomic_store(p,q,0);__atomic_exchange(p,q,q,0);__atomic_compare_exchange(p,q,q,0,5,2);}",
+      "source_sha256": "9a8adc8412bff6155cd1df66d3a6635d3086d1cc8fd2df1f23d9f75d1531760d",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "76fcda2d07df4d3d301e37ebd89db6ac68546d27d31ad568c1b3592a2d3c715e",
+          "diagnostic_excerpt": "<stdin>:1:52: warning: misaligned atomic operation may incur significant performance penalty; the expected alignment (3 bytes) exceeds the actual alignment (1 bytes) [-Watomic-alignment]\n    1 | struct S{char v[3];};void f(struct S*p,struct S*q){__atomic_load(p,q,0);__atomic_store(p,q,0);__atomic_exchange(p,q,q,0);__atomic_compare_exchange(p,q,q,0,5,2);}\n      |                                                    ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "76fcda2d07df4d3d301e37ebd89db6ac68546d27d31ad568c1b3592a2d3c715e",
+          "diagnostic_excerpt": "<stdin>:1:52: warning: misaligned atomic operation may incur significant performance penalty; the expected alignment (3 bytes) exceeds the actual alignment (1 bytes) [-Watomic-alignment]\n    1 | struct S{char v[3];};void f(struct S*p,struct S*q){__atomic_load(p,q,0);__atomic_store(p,q,0);__atomic_exchange(p,q,q,0);__atomic_compare_exchange(p,q,q,0,5,2);}\n      |                                                    ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "76fcda2d07df4d3d301e37ebd89db6ac68546d27d31ad568c1b3592a2d3c715e",
+          "diagnostic_excerpt": "<stdin>:1:52: warning: misaligned atomic operation may incur significant performance penalty; the expected alignment (3 bytes) exceeds the actual alignment (1 bytes) [-Watomic-alignment]\n    1 | struct S{char v[3];};void f(struct S*p,struct S*q){__atomic_load(p,q,0);__atomic_store(p,q,0);__atomic_exchange(p,q,q,0);__atomic_compare_exchange(p,q,q,0,5,2);}\n      |                                                    ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "76fcda2d07df4d3d301e37ebd89db6ac68546d27d31ad568c1b3592a2d3c715e",
+          "diagnostic_excerpt": "<stdin>:1:52: warning: misaligned atomic operation may incur significant performance penalty; the expected alignment (3 bytes) exceeds the actual alignment (1 bytes) [-Watomic-alignment]\n    1 | struct S{char v[3];};void f(struct S*p,struct S*q){__atomic_load(p,q,0);__atomic_store(p,q,0);__atomic_exchange(p,q,q,0);__atomic_compare_exchange(p,q,q,0,5,2);}\n      |                                                    ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "76fcda2d07df4d3d301e37ebd89db6ac68546d27d31ad568c1b3592a2d3c715e",
+          "diagnostic_excerpt": "<stdin>:1:52: warning: misaligned atomic operation may incur significant performance penalty; the expected alignment (3 bytes) exceeds the actual alignment (1 bytes) [-Watomic-alignment]\n    1 | struct S{char v[3];};void f(struct S*p,struct S*q){__atomic_load(p,q,0);__atomic_store(p,q,0);__atomic_exchange(p,q,q,0);__atomic_compare_exchange(p,q,q,0,5,2);}\n      |                                                    ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(int(*p)[3],int(*q)[3]){__atomic_load(p,q,0);}",
+      "source_sha256": "10676ed74c4b8ca0815ad0998ecacadfb583c6d38ddaa8abad3ae18807c96fb5",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "056c2c07a3214f4ba829c506fa2fed00bc84d3cfda3df9813b3bc73bb0128f5a",
+          "diagnostic_excerpt": "<stdin>:1:31: warning: misaligned atomic operation may incur significant performance penalty; the expected alignment (12 bytes) exceeds the actual alignment (4 bytes) [-Watomic-alignment]\n    1 | void f(int(*p)[3],int(*q)[3]){__atomic_load(p,q,0);}\n      |                               ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "fe4ad6c5d1cbac4329054d1f153e9e85b3e18b9ac646164406ec88439f822907",
+          "diagnostic_excerpt": "<stdin>:1:31: warning: misaligned atomic operation may incur significant performance penalty; the expected alignment (12 bytes) exceeds the actual alignment (4 bytes) [-Watomic-alignment]\n    1 | void f(int(*p)[3],int(*q)[3]){__atomic_load(p,q,0);}\n      |                               ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "fe4ad6c5d1cbac4329054d1f153e9e85b3e18b9ac646164406ec88439f822907",
+          "diagnostic_excerpt": "<stdin>:1:31: warning: misaligned atomic operation may incur significant performance penalty; the expected alignment (12 bytes) exceeds the actual alignment (4 bytes) [-Watomic-alignment]\n    1 | void f(int(*p)[3],int(*q)[3]){__atomic_load(p,q,0);}\n      |                               ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "fe4ad6c5d1cbac4329054d1f153e9e85b3e18b9ac646164406ec88439f822907",
+          "diagnostic_excerpt": "<stdin>:1:31: warning: misaligned atomic operation may incur significant performance penalty; the expected alignment (12 bytes) exceeds the actual alignment (4 bytes) [-Watomic-alignment]\n    1 | void f(int(*p)[3],int(*q)[3]){__atomic_load(p,q,0);}\n      |                               ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "056c2c07a3214f4ba829c506fa2fed00bc84d3cfda3df9813b3bc73bb0128f5a",
+          "diagnostic_excerpt": "<stdin>:1:31: warning: misaligned atomic operation may incur significant performance penalty; the expected alignment (12 bytes) exceeds the actual alignment (4 bytes) [-Watomic-alignment]\n    1 | void f(int(*p)[3],int(*q)[3]){__atomic_load(p,q,0);}\n      |                               ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(int*p){__atomic_load_n(p,0,1);}",
+      "source_sha256": "a553d9e424f21eb8ed0c1e6bbb638c025ddc8718613122c27f6146f952b5e0b8",
+      "gcc_accepts": false,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "069ee6fd951f7df928ee6ce590801a6c9d973d327cbf195cc844c37d0f7923d2",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:15: error: too many arguments to function \u2018__atomic_load_n\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "dd6d5cd2dd190e492d0e335c0d8d4424bacf92597ae7669deb526984394fdd04",
+          "diagnostic_excerpt": "<stdin>:1:35: error: too many arguments to function call, expected 2, have 3\n    1 | void f(int*p){__atomic_load_n(p,0,1);}\n      |               ~~~~~~~~~~~~~~~     ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "dd6d5cd2dd190e492d0e335c0d8d4424bacf92597ae7669deb526984394fdd04",
+          "diagnostic_excerpt": "<stdin>:1:35: error: too many arguments to function call, expected 2, have 3\n    1 | void f(int*p){__atomic_load_n(p,0,1);}\n      |               ~~~~~~~~~~~~~~~     ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "dd6d5cd2dd190e492d0e335c0d8d4424bacf92597ae7669deb526984394fdd04",
+          "diagnostic_excerpt": "<stdin>:1:35: error: too many arguments to function call, expected 2, have 3\n    1 | void f(int*p){__atomic_load_n(p,0,1);}\n      |               ~~~~~~~~~~~~~~~     ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "dd6d5cd2dd190e492d0e335c0d8d4424bacf92597ae7669deb526984394fdd04",
+          "diagnostic_excerpt": "<stdin>:1:35: error: too many arguments to function call, expected 2, have 3\n    1 | void f(int*p){__atomic_load_n(p,0,1);}\n      |               ~~~~~~~~~~~~~~~     ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "dd6d5cd2dd190e492d0e335c0d8d4424bacf92597ae7669deb526984394fdd04",
+          "diagnostic_excerpt": "<stdin>:1:35: error: too many arguments to function call, expected 2, have 3\n    1 | void f(int*p){__atomic_load_n(p,0,1);}\n      |               ~~~~~~~~~~~~~~~     ^"
+        }
+      ]
+    },
+    {
+      "source": "void f(int*p){__atomic_store_n(p);}",
+      "source_sha256": "2be16e529254658a61c9b78994b1c72c0d0424b67c7b005c39ed3a57fad4b393",
+      "gcc_accepts": false,
+      "clang_constraint_accepts": false,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "2b07568dd6d9da2198f408de41a81b40e71c12ea4d4ca1ea1c3301b0d0b4a446",
+          "diagnostic_excerpt": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:15: error: too few arguments to function \u2018__atomic_store_n\u2019"
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "e635e7f244b25bd5a1c9c92ab503c0d7399da8d3c0c39b7fd214c1d3f87db6d8",
+          "diagnostic_excerpt": "<stdin>:1:33: error: too few arguments to function call, expected 3, have 1\n    1 | void f(int*p){__atomic_store_n(p);}\n      |               ~~~~~~~~~~~~~~~~  ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 1,
+          "diagnostic_sha256": "e635e7f244b25bd5a1c9c92ab503c0d7399da8d3c0c39b7fd214c1d3f87db6d8",
+          "diagnostic_excerpt": "<stdin>:1:33: error: too few arguments to function call, expected 3, have 1\n    1 | void f(int*p){__atomic_store_n(p);}\n      |               ~~~~~~~~~~~~~~~~  ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "e635e7f244b25bd5a1c9c92ab503c0d7399da8d3c0c39b7fd214c1d3f87db6d8",
+          "diagnostic_excerpt": "<stdin>:1:33: error: too few arguments to function call, expected 3, have 1\n    1 | void f(int*p){__atomic_store_n(p);}\n      |               ~~~~~~~~~~~~~~~~  ^"
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 1,
+          "diagnostic_sha256": "e635e7f244b25bd5a1c9c92ab503c0d7399da8d3c0c39b7fd214c1d3f87db6d8",
+          "diagnostic_excerpt": "<stdin>:1:33: error: too few arguments to function call, expected 3, have 1\n    1 | void f(int*p){__atomic_store_n(p);}\n      |               ~~~~~~~~~~~~~~~~  ^"
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 1,
+          "diagnostic_sha256": "e635e7f244b25bd5a1c9c92ab503c0d7399da8d3c0c39b7fd214c1d3f87db6d8",
+          "diagnostic_excerpt": "<stdin>:1:33: error: too few arguments to function call, expected 3, have 1\n    1 | void f(int*p){__atomic_store_n(p);}\n      |               ~~~~~~~~~~~~~~~~  ^"
+        }
+      ]
+    },
+    {
+      "source": "int f(int(*__atomic_load_n)(int,int)){return __atomic_load_n(1,2);}",
+      "source_sha256": "209ca2aab67f1bb69fe0542a6f47f1e5c3641db6c171578415ed6b901ae794e9",
+      "gcc_accepts": true,
+      "clang_constraint_accepts": true,
+      "results": [
+        {
+          "compiler_target": "gcc/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-unknown-linux-gnu",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/aarch64-apple-darwin",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        },
+        {
+          "compiler_target": "clang/x86_64-pc-windows-msvc",
+          "returncode": 0,
+          "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+          "diagnostic_excerpt": ""
+        }
+      ]
+    }
+  ],
+  "native": [
+    {
+      "command": [
+        "/usr/bin/clang",
+        "-std=gnu11",
+        "-O0",
+        "probe.c",
+        "-o",
+        "probe",
+        "-latomic"
+      ],
+      "cwd": "/tmp/.tmpn8txoy",
+      "source_sha256": "098f79521cb9bfffa577997c91d65a34f4af39159762a97cab8344b0b0648a3f",
+      "binary_sha256": "790f0ee53dc4ace246bb21021eaa1bc5eaf00c9a714382c468c2669695a11abe",
+      "binary": "/home/dev-user/.cache/toucan/atomic-probes/native/clang-O0",
+      "execution_returncode": 0,
+      "execution_stdout": "",
+      "execution_stderr": ""
+    },
+    {
+      "command": [
+        "/usr/bin/clang",
+        "-std=gnu11",
+        "-O2",
+        "probe.c",
+        "-o",
+        "probe",
+        "-latomic"
+      ],
+      "cwd": "/tmp/.tmpn8txoy",
+      "source_sha256": "098f79521cb9bfffa577997c91d65a34f4af39159762a97cab8344b0b0648a3f",
+      "binary_sha256": "b258d83d7c810feacd51315b5f47e60b17d2c1571f0f5f0f642f17bab7fc0944",
+      "binary": "/home/dev-user/.cache/toucan/atomic-probes/native/clang-O2",
+      "execution_returncode": 0,
+      "execution_stdout": "",
+      "execution_stderr": ""
+    },
+    {
+      "command": [
+        "/usr/bin/gcc",
+        "-std=gnu11",
+        "-O0",
+        "probe.c",
+        "-o",
+        "probe",
+        "-latomic"
+      ],
+      "cwd": "/tmp/.tmpn8txoy",
+      "source_sha256": "098f79521cb9bfffa577997c91d65a34f4af39159762a97cab8344b0b0648a3f",
+      "binary_sha256": "99884911f13e24db3f4cfcf3617dd26ed87314a77e63e8530fdd6e339796b3f8",
+      "binary": "/home/dev-user/.cache/toucan/atomic-probes/native/gcc-O0",
+      "execution_returncode": 0,
+      "execution_stdout": "",
+      "execution_stderr": ""
+    },
+    {
+      "command": [
+        "/usr/bin/gcc",
+        "-std=gnu11",
+        "-O2",
+        "probe.c",
+        "-o",
+        "probe",
+        "-latomic"
+      ],
+      "cwd": "/tmp/.tmpn8txoy",
+      "source_sha256": "098f79521cb9bfffa577997c91d65a34f4af39159762a97cab8344b0b0648a3f",
+      "binary_sha256": "ac1e7a6498cd7b266fc2561fd681dcacfeafb1fd78c440933795c0a861e3f40a",
+      "binary": "/home/dev-user/.cache/toucan/atomic-probes/native/gcc-O2",
+      "execution_returncode": 0,
+      "execution_stdout": "",
+      "execution_stderr": ""
+    }
+  ],
+  "query_evaluation_probes": [
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "gcc",
+        "-O0",
+        "/tmp/toucan-atomic-query.c",
+        "-latomic",
+        "-o",
+        "/home/dev-user/.cache/toucan/atomic-probes/query-gcc-O0"
+      ],
+      "compile": "",
+      "output": "always 0 0 0\nis 1 1\nconst 1 0 0 0 0 0 0\n",
+      "returncode": 0
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "gcc",
+        "-O2",
+        "/tmp/toucan-atomic-query.c",
+        "-latomic",
+        "-o",
+        "/home/dev-user/.cache/toucan/atomic-probes/query-gcc-O2"
+      ],
+      "compile": "",
+      "output": "always 0 0 0\nis 1 1\nconst 1 0 0 0 0 0 0\n",
+      "returncode": 0
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "clang",
+        "-O0",
+        "/tmp/toucan-atomic-query.c",
+        "-latomic",
+        "-o",
+        "/home/dev-user/.cache/toucan/atomic-probes/query-clang-O0"
+      ],
+      "compile": "",
+      "output": "always 0 0 0\nis 1 1\nconst 1 0 0 0 1 0 0\n",
+      "returncode": 0
+    },
+    {
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "clang",
+        "-O2",
+        "/tmp/toucan-atomic-query.c",
+        "-latomic",
+        "-o",
+        "/home/dev-user/.cache/toucan/atomic-probes/query-clang-O2"
+      ],
+      "compile": "",
+      "output": "always 0 0 0\nis 1 1\nconst 1 0 0 0 1 0 0\n",
+      "returncode": 0
+    }
+  ],
+  "alignment_probes": [
+    {
+      "source": "typedef int I __attribute__((aligned(16)));void f(I*p){_Static_assert(__alignof__(__typeof__(__atomic_load_n(p,0)))==4,\"alignment\");}",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "gcc",
+        "-std=gnu11",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/dev/null"
+      ],
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "source": "typedef int I __attribute__((aligned(16)));void f(I*p){_Static_assert(__alignof__(__typeof__(__atomic_fetch_add(p,1,0)))==4,\"alignment\");}",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "gcc",
+        "-std=gnu11",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/dev/null"
+      ],
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "source": "typedef int I __attribute__((aligned(16)));void f(I*p){_Static_assert(__alignof__(__typeof__(__atomic_exchange_n(p,1,0)))==4,\"alignment\");}",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "gcc",
+        "-std=gnu11",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/dev/null"
+      ],
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "source": "typedef int I __attribute__((aligned(16)));void f(I*p){_Static_assert(__alignof__(__typeof__(__atomic_load_n(p,0)))==16,\"alignment\");}",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "clang",
+        "-std=gnu11",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/dev/null"
+      ],
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "source": "typedef int I __attribute__((aligned(16)));void f(I*p){_Static_assert(__alignof__(__typeof__(__atomic_fetch_add(p,1,0)))==16,\"alignment\");}",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "clang",
+        "-std=gnu11",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/dev/null"
+      ],
+      "returncode": 0,
+      "stderr": ""
+    },
+    {
+      "source": "typedef int I __attribute__((aligned(16)));void f(I*p){_Static_assert(__alignof__(__typeof__(__atomic_exchange_n(p,1,0)))==16,\"alignment\");}",
+      "command": [
+        "taskset",
+        "-c",
+        "2",
+        "clang",
+        "-std=gnu11",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/dev/null"
+      ],
+      "returncode": 0,
+      "stderr": ""
+    }
+  ],
+  "gcc_qualifier_extension_probes": {
+    "raw_report": "/home/dev-user/.cache/toucan/atomic-probes/qualifiers.json",
+    "sha256": "51fd116e4f311a1bc8ec1dadcda876e1640cbb368e157be43847ea349955b729",
+    "cases": 44,
+    "all_gcc_accepted": true
+  },
+  "allocations": {
+    "baseline": {
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--extern",
+        "toucan_semantic=/home/dev-user/.cache/toucan/atomic-baseline-target/release/libtoucan_semantic.rlib",
+        "--extern",
+        "toucan_target=/home/dev-user/.cache/toucan/atomic-baseline-target/release/deps/libtoucan_target-1ae44c1205377f36.rlib",
+        "-L",
+        "dependency=/home/dev-user/.cache/toucan/atomic-baseline-target/release/deps",
+        "-O",
+        "/tmp/toucan-transparent-alias-allocations.rs",
+        "-o",
+        "/home/dev-user/.cache/toucan/atomic-probes/allocations-baseline"
+      ],
+      "source_sha256": "5a99a10a476baeb40bd13d8c0617e76777ed02c9f10d3fe73e88f36beb93c06f",
+      "binary_sha256": "210665adc9ae3c7181e79d8f3d2c3d981ae710a6ebe8aff69b423735551a82bf",
+      "result": "0: 90 allocations, 25085 bytes; 2 declarations\n1: 283 allocations, 52024 bytes; 1 declarations\n2: 13460 allocations, 2444578 bytes; 100 declarations\n3: 206 allocations, 37930 bytes; 3 declarations\n"
+    },
+    "changed": {
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--extern",
+        "toucan_semantic=/home/dev-user/.cache/toucan/atomic-target/release/libtoucan_semantic.rlib",
+        "--extern",
+        "toucan_target=/home/dev-user/.cache/toucan/atomic-target/release/deps/libtoucan_target-41aa4a05952283af.rlib",
+        "-L",
+        "dependency=/home/dev-user/.cache/toucan/atomic-target/release/deps",
+        "-O",
+        "/tmp/toucan-transparent-alias-allocations.rs",
+        "-o",
+        "/home/dev-user/.cache/toucan/atomic-probes/allocations-changed"
+      ],
+      "source_sha256": "5a99a10a476baeb40bd13d8c0617e76777ed02c9f10d3fe73e88f36beb93c06f",
+      "binary_sha256": "dbb065f5264315f6877e74bce8b37475b7f3c312ac666dd14a78b06adb9959a5",
+      "result": "0: 90 allocations, 25085 bytes; 2 declarations\n1: 283 allocations, 52024 bytes; 1 declarations\n2: 13460 allocations, 2444578 bytes; 100 declarations\n3: 206 allocations, 37930 bytes; 3 declarations\n"
+    }
+  },
+  "nested_before": {
+    "binary": "/home/dev-user/.cache/toucan/atomic-probes/toucan-before-replay-fix",
+    "binary_sha256": "1207e605b8360cbc27b4a96cdc4bb38c849bb5ccd162b971c41e7fcc5d360b55",
+    "results": [
+      {
+        "timeout_seconds": 2,
+        "name": "address",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-probes/toucan-before-replay-fix",
+          "check",
+          "/home/dev-user/.cache/toucan/atomic-probes/nested-address.c"
+        ],
+        "source_sha256": "ac8a6bacd1ba516a8bcea05f0b8dae28ca3b21a51aa693df63290615563fdba4",
+        "seconds": 2.00567149699782
+      },
+      {
+        "timeout_seconds": 2,
+        "name": "query",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-probes/toucan-before-replay-fix",
+          "check",
+          "/home/dev-user/.cache/toucan/atomic-probes/nested-query.c"
+        ],
+        "source_sha256": "5231cde91c073e5d7b11466f942b43b0d36042bac0377a72d00e5924f249e32d",
+        "seconds": 2.004611878997821
+      }
+    ]
+  },
+  "nested_after": {
+    "binary": "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+    "binary_sha256": "8f92664e685a6faf5cadc853a0919b1e1c591b01ef293741735c903fb8ef36a8",
+    "results": [
+      {
+        "name": "address",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/atomic-probes/nested-address.c"
+        ],
+        "source_sha256": "ac8a6bacd1ba516a8bcea05f0b8dae28ca3b21a51aa693df63290615563fdba4",
+        "seconds": 0.006812334002461284,
+        "returncode": 0,
+        "stderr": "Analyzed 3 declarations for x86_64-unknown-linux-gnu\n"
+      },
+      {
+        "name": "query",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/atomic-probes/nested-query.c"
+        ],
+        "source_sha256": "5231cde91c073e5d7b11466f942b43b0d36042bac0377a72d00e5924f249e32d",
+        "seconds": 0.005757915001595393,
+        "returncode": 0,
+        "stderr": "Analyzed 3 declarations for x86_64-unknown-linux-gnu\n"
+      }
+    ]
+  },
+  "retained_graph": {
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "-O",
+      "/home/dev-user/.cache/toucan/atomic-probes/invariants.rs",
+      "--extern",
+      "toucan=/home/dev-user/.cache/toucan/atomic-target/release/deps/libtoucan-dd3d12df03e38283.rlib",
+      "-L",
+      "dependency=/home/dev-user/.cache/toucan/atomic-target/release/deps",
+      "-o",
+      "/home/dev-user/.cache/toucan/atomic-probes/invariants"
+    ],
+    "source_sha256": "c70b0ca06e45d8112b4e676d90e5287e0119218a0de5088e716c03878ba34bbf",
+    "helper_sha256": "f65ad077f7f0eba7f7550951ea0d268c57d90c979ddaaa9a1577d3c464ec63a5",
+    "binary_sha256": "49ae26e11dafafb886c9ae2402433efb58a220530a3b4f99fd8f465c0a2793ab",
+    "returncode": 0,
+    "stdout": "x86_64-unknown-linux-gnu: /home/dev-user/.codex/worktrees/toucan-atomic-builtins/fuzz/seeds/checked/atomic_builtins.h passed\naarch64-unknown-linux-gnu: /home/dev-user/.codex/worktrees/toucan-atomic-builtins/fuzz/seeds/checked/atomic_builtins.h passed\nx86_64-apple-darwin: /home/dev-user/.codex/worktrees/toucan-atomic-builtins/fuzz/seeds/checked/atomic_builtins.h passed\naarch64-apple-darwin: /home/dev-user/.codex/worktrees/toucan-atomic-builtins/fuzz/seeds/checked/atomic_builtins.h passed\nx86_64-pc-windows-msvc: /home/dev-user/.codex/worktrees/toucan-atomic-builtins/fuzz/seeds/checked/atomic_builtins.h passed\nx86_64-unknown-linux-gnu: /home/dev-user/.cache/toucan/atomic-probes/nested-address.c passed\naarch64-unknown-linux-gnu: /home/dev-user/.cache/toucan/atomic-probes/nested-address.c passed\nx86_64-apple-darwin: /home/dev-user/.cache/toucan/atomic-probes/nested-address.c passed\naarch64-apple-darwin: /home/dev-user/.cache/toucan/atomic-probes/nested-address.c passed\nx86_64-pc-windows-msvc: /home/dev-user/.cache/toucan/atomic-probes/nested-address.c passed\nx86_64-unknown-linux-gnu: /home/dev-user/.cache/toucan/atomic-probes/nested-query.c passed\naarch64-unknown-linux-gnu: /home/dev-user/.cache/toucan/atomic-probes/nested-query.c passed\nx86_64-apple-darwin: /home/dev-user/.cache/toucan/atomic-probes/nested-query.c passed\naarch64-apple-darwin: /home/dev-user/.cache/toucan/atomic-probes/nested-query.c passed\nx86_64-pc-windows-msvc: /home/dev-user/.cache/toucan/atomic-probes/nested-query.c passed\n"
+  },
+  "translation_units": {
+    "baseline": "translation-unit-audit-109cd26/evidence.json",
+    "binary": "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+    "binary_sha256": "8f92664e685a6faf5cadc853a0919b1e1c591b01ef293741735c903fb8ef36a8",
+    "results": [
+      {
+        "id": "zlib-adler32",
+        "mode": "native_preprocessor",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1/adler32.c",
+          "-D_LARGEFILE64_SOURCE=1",
+          "-I/home/dev-user/.cache/toucan/corpus/build/zlib",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "returncode": 0,
+        "seconds": 0.05284389900043607,
+        "stdout": "",
+        "stderr": "Analyzed 563 declarations for x86_64-unknown-linux-gnu\n",
+        "source_sha256": "9cd1443a24ff2a3053961695bd432035c58347386a420d3388232376ebabe211",
+        "preprocessed_sha256": "dc1b73277ba848e7c926b0f3f9ce0f901386e3446237ddfb2093ed0eb86d8f0a"
+      },
+      {
+        "id": "zlib-adler32",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zlib-adler32/native.i",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "returncode": 0,
+        "seconds": 0.03921607599477284,
+        "stdout": "",
+        "stderr": "Analyzed 620 declarations for x86_64-unknown-linux-gnu\n",
+        "source_sha256": "9cd1443a24ff2a3053961695bd432035c58347386a420d3388232376ebabe211",
+        "preprocessed_sha256": "dc1b73277ba848e7c926b0f3f9ce0f901386e3446237ddfb2093ed0eb86d8f0a"
+      },
+      {
+        "id": "zlib-deflate",
+        "mode": "native_preprocessor",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1/deflate.c",
+          "-D_LARGEFILE64_SOURCE=1",
+          "-I/home/dev-user/.cache/toucan/corpus/build/zlib",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "returncode": 0,
+        "seconds": 0.07871476100262953,
+        "stdout": "",
+        "stderr": "Analyzed 595 declarations for x86_64-unknown-linux-gnu\n",
+        "source_sha256": "3b956337350f94c34987750f785587ef33d9c89ceaebb7c2afb189c956360cbe",
+        "preprocessed_sha256": "c4bdb26c5290aa468d897575e77e663bc11eee3ed4d95a8e969730018faa273f"
+      },
+      {
+        "id": "zlib-deflate",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zlib-deflate/native.i",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "returncode": 0,
+        "seconds": 0.06413811400125269,
+        "stdout": "",
+        "stderr": "Analyzed 652 declarations for x86_64-unknown-linux-gnu\n",
+        "source_sha256": "3b956337350f94c34987750f785587ef33d9c89ceaebb7c2afb189c956360cbe",
+        "preprocessed_sha256": "c4bdb26c5290aa468d897575e77e663bc11eee3ed4d95a8e969730018faa273f"
+      },
+      {
+        "id": "libgit2-alloc",
+        "mode": "native_preprocessor",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util/alloc.c",
+          "-DSHA1DC_CUSTOM_INCLUDE_SHA1_C=\"git2_util.h\"",
+          "-DSHA1DC_CUSTOM_INCLUDE_UBC_CHECK_C=\"git2_util.h\"",
+          "-DSHA1DC_NO_STANDARD_INCLUDES=1",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/llhttp",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/pcre",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/xdiff",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/zlib",
+          "-D_GNU_SOURCE",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+        "returncode": 0,
+        "seconds": 0.15240376300062053,
+        "stdout": "",
+        "stderr": "Analyzed 1440 declarations for x86_64-unknown-linux-gnu\n",
+        "source_sha256": "d647f270fdcaec18eef23a64adeb2b73ea89e4cbe2d06b7205cd999cdc24dd42",
+        "preprocessed_sha256": "a4aabdfa71b288fa62db020b95fa94d2e2547e3b6bf411cd6d9e01e60ced4496"
+      },
+      {
+        "id": "libgit2-alloc",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/libgit2-alloc/native.i",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+        "returncode": 1,
+        "seconds": 0.08465271000022767,
+        "stdout": "",
+        "stderr": "error: /usr/include/pthread.h:769:38: unsupported C attribute `returns_twice`; its ABI effect is not assumed (preprocessed byte 182855)\n",
+        "source_sha256": "d647f270fdcaec18eef23a64adeb2b73ea89e4cbe2d06b7205cd999cdc24dd42",
+        "preprocessed_sha256": "a4aabdfa71b288fa62db020b95fa94d2e2547e3b6bf411cd6d9e01e60ced4496"
+      },
+      {
+        "id": "libgit2-repository",
+        "mode": "native_preprocessor",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/libgit2/repository.c",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/libgit2",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/llhttp",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/pcre",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/xdiff",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/zlib",
+          "-D_GNU_SOURCE",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/libgit2",
+        "returncode": 0,
+        "seconds": 0.4396077189958305,
+        "stdout": "",
+        "stderr": "Analyzed 3488 declarations for x86_64-unknown-linux-gnu\n",
+        "source_sha256": "2d7ce5f5914816dd369c5336ee0e19fb11d7a0b9c3223696006344b26e133852",
+        "preprocessed_sha256": "04628515f6865b42ad22a803c0d22da6d4d28328ea6ba834b17136b03089ae73"
+      },
+      {
+        "id": "libgit2-repository",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/libgit2-repository/native.i",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/libgit2",
+        "returncode": 1,
+        "seconds": 0.1824539199951687,
+        "stdout": "",
+        "stderr": "error: /usr/include/pthread.h:769:38: unsupported C attribute `returns_twice`; its ABI effect is not assumed (preprocessed byte 182503)\n",
+        "source_sha256": "2d7ce5f5914816dd369c5336ee0e19fb11d7a0b9c3223696006344b26e133852",
+        "preprocessed_sha256": "04628515f6865b42ad22a803c0d22da6d4d28328ea6ba834b17136b03089ae73"
+      },
+      {
+        "id": "zstd-zstd_common",
+        "mode": "native_preprocessor",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/common/zstd_common.c",
+          "-DXXH_NAMESPACE=ZSTD_",
+          "-DDEBUGLEVEL=0",
+          "-DZSTD_LEGACY_SUPPORT=5",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "returncode": 0,
+        "seconds": 0.09189440599584486,
+        "stdout": "",
+        "stderr": "Analyzed 912 declarations for x86_64-unknown-linux-gnu\n",
+        "source_sha256": "f49eb8023a90d3de925373bd9ee0d36ed46b26c529840b64220397446cd73795",
+        "preprocessed_sha256": "aacbd5d25076268a1cf1ed37c2fe5d4deb8cd9fe768248e033324a56f763b4fc"
+      },
+      {
+        "id": "zstd-zstd_common",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "returncode": 1,
+        "seconds": 0.06791179200081388,
+        "stdout": "",
+        "stderr": "error: /usr/lib/gcc/x86_64-linux-gnu/13/include/mmintrin.h:66:3: unknown identifier `__builtin_ia32_emms` (preprocessed byte 2947)\n",
+        "source_sha256": "f49eb8023a90d3de925373bd9ee0d36ed46b26c529840b64220397446cd73795",
+        "preprocessed_sha256": "aacbd5d25076268a1cf1ed37c2fe5d4deb8cd9fe768248e033324a56f763b4fc"
+      },
+      {
+        "id": "zstd-zstd_compress",
+        "mode": "native_preprocessor",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/compress/zstd_compress.c",
+          "-DXXH_NAMESPACE=ZSTD_",
+          "-DDEBUGLEVEL=0",
+          "-DZSTD_LEGACY_SUPPORT=5",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "returncode": 0,
+        "seconds": 0.284338735997153,
+        "stdout": "",
+        "stderr": "Analyzed 1289 declarations for x86_64-unknown-linux-gnu\n",
+        "source_sha256": "10c315ae609d49b2fc431521aa95908086e69fd917991c5ed9a875af3d1208e8",
+        "preprocessed_sha256": "199680e00b6f0d87c8b1b0bf4f863722af176cc3dba141f1c2243b1784d98aff"
+      },
+      {
+        "id": "zstd-zstd_compress",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_compress/native.i",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "returncode": 1,
+        "seconds": 0.18516608400386758,
+        "stdout": "",
+        "stderr": "error: /usr/lib/gcc/x86_64-linux-gnu/13/include/mmintrin.h:66:3: unknown identifier `__builtin_ia32_emms` (preprocessed byte 67145)\n",
+        "source_sha256": "10c315ae609d49b2fc431521aa95908086e69fd917991c5ed9a875af3d1208e8",
+        "preprocessed_sha256": "199680e00b6f0d87c8b1b0bf4f863722af176cc3dba141f1c2243b1784d98aff"
+      },
+      {
+        "id": "sqlite-sqlite3",
+        "mode": "native_preprocessor",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/build/sqlite/sqlite3.c",
+          "-DSQLITE_THREADSAFE=0",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/sqlite",
+        "returncode": 0,
+        "seconds": 1.9956949579936918,
+        "stdout": "",
+        "stderr": "Analyzed 4981 declarations for x86_64-unknown-linux-gnu\n",
+        "source_sha256": "8498ec863ccdbaacc6cfa243d34153c02c96b110cf6bae4dbcd63fc7635d9881",
+        "preprocessed_sha256": "08e2344f85325fc453ef7098d65a1533d3d6823d7c7fc4adec445544832de4ce"
+      },
+      {
+        "id": "sqlite-sqlite3",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "taskset",
+          "-c",
+          "2",
+          "/home/dev-user/.cache/toucan/atomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/sqlite-sqlite3/native.i",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/sqlite",
+        "returncode": 1,
+        "seconds": 1.2788279369997326,
+        "stdout": "",
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/build/sqlite/sqlite3.c:36127:10: unknown identifier `__builtin_add_overflow` (preprocessed byte 510130)\n",
+        "source_sha256": "8498ec863ccdbaacc6cfa243d34153c02c96b110cf6bae4dbcd63fc7635d9881",
+        "preprocessed_sha256": "08e2344f85325fc453ef7098d65a1533d3d6823d7c7fc4adec445544832de4ce"
+      }
+    ]
+  },
+  "scope": [
+    "GCC is measured without warning-as-error flags: its atomic qualifier-discard extensions are accepted and retained. Clang pointer constraints use warning-as-error flags stated in each command.",
+    "The 26 operations include all standard GNU scalar/generic, RMW, fence, flag and lock-free families. No generated atomic machine code or concurrent-memory implementation is claimed.",
+    "Native executions use GCC and Clang at O0/O2 on x86_64 Linux, including generic 3-byte buffers via libatomic and GCC writes through qualified pointers to mutable storage.",
+    "AlwaysLockFree arguments are unevaluated; IsLockFree arguments evaluate normally. Folded Boolean constants preserve C Bool width/rank. Unknown address/16-byte feature cases remain explicit unproven results.",
+    "Invalid constant memory orders and target-specific HLE modifiers are diagnosed. C11 _Atomic type ABI remains separately unsupported.",
+    "Nested before/after timings are single boundedness repros, not project benchmark results. Both initial atomic prototypes timed out after 2 seconds; final source reuses operand types and caps query check memoization at 65536 entries.",
+    "Default allocation probes measure semantic analysis, not preprocessing; six predefined memory-order constants intentionally change the target macro set.",
+    "All seven shipped-profile C source routes pass. GCC-preprocessed SQLite advances to add_overflow; this isolated baseline predates later root returns_twice and x86 intrinsic layers, so the other GCC.i failures are preserved rather than reported as current-root results.",
+    "Generic zero-sized objects are diagnosed; native GCC rejects this case and installed Clang18 crashes in code generation. Raw crash diagnostics are retained only in the cache."
+  ],
+  "raw_reports": {
+    "constraints.json": {
+      "path": "/home/dev-user/.cache/toucan/atomic-probes/constraints.json",
+      "sha256": "b77da2213a374fffbc8c117036eda6fa07f86400a99e0b8166b78d843b4bf0e5"
+    },
+    "more.json": {
+      "path": "/home/dev-user/.cache/toucan/atomic-probes/more.json",
+      "sha256": "fb6f65d33e468d5ee4ee2a328b182f433c3b92a8277de3499b6f8345a3930cf9"
+    },
+    "matrix.json": {
+      "path": "/home/dev-user/.cache/toucan/atomic-probes/matrix.json",
+      "sha256": "3e29c47e57ac19ad15ad841f5e05313912a024c71d190125994417b845089826"
+    },
+    "qualifiers.json": {
+      "path": "/home/dev-user/.cache/toucan/atomic-probes/qualifiers.json",
+      "sha256": "51fd116e4f311a1bc8ec1dadcda876e1640cbb368e157be43847ea349955b729"
+    },
+    "query-types.json": {
+      "path": "/home/dev-user/.cache/toucan/atomic-probes/query-types.json",
+      "sha256": "a4ea71df5b0aa4c83638d9f1be001b72823ee740728bd1a2bc9effd4fd29d567"
+    },
+    "empty-object.json": {
+      "path": "/home/dev-user/.cache/toucan/atomic-probes/empty-object.json",
+      "sha256": "3650b4b713c79e2501fc7906db4502dffa89865ef524c774064db04568af76cc"
+    }
+  }
+}
