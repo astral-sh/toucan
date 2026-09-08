@@ -218,3 +218,12 @@ pointer-cast provenance, `_Generic`, and unevaluated VLA bounds. Exact replay
 checks the public retained graph on all seven compiler profiles; see the
 [alignment evidence](../corpus/evidence/expression-alignment-2026-09-08.json).
 This replay is separate from the sanitizer campaigns above.
+
+The [combined revision campaign](evidence/2026-09-08-bb6a401/summary.json) at
+`bb6a401` completed 2,547,850 executions with ASan and no findings: 1,632,314
+preprocessing, 453,296 semantic, 172,151 binding, and 290,089 checked-code inputs.
+Each campaign ran for 900 seconds on x86-64 Linux; peak RSS was 513–519 MiB.
+The archive includes original starting corpora, compressed logs, exact source and
+binary hashes, commands, and toolchain versions. LeakSanitizer was disabled under
+ptrace. These runs precede explicit C11/GNU11 modes and use the archived single-mode
+harnesses. Execution counts include rejected inputs and do not establish conformance.

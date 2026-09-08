@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "source_commit": "bb6a40178374423ffc03a0080d512f4667bfaca6",
+  "purpose": "Four sustained AddressSanitizer campaigns after the complex, binary128, vector-intrinsic and build-script adapter layers.",
+  "profiles": 7,
+  "profile_order": [
+    "x86_64-unknown-linux-gnu (GCC)",
+    "aarch64-unknown-linux-gnu (GCC)",
+    "x86_64-apple-darwin (Clang)",
+    "aarch64-apple-darwin (Clang)",
+    "x86_64-pc-windows-msvc (Clang)",
+    "x86_64-unknown-linux-gnu (Clang)",
+    "aarch64-unknown-linux-gnu (Clang)"
+  ],
+  "source_manifest": {
+    "path": "source.json",
+    "sha256": "183cd1e06c8203f660efb69049c37567f71295d1885863bcc67f60b70b8bbf02"
+  },
+  "runs": [
+    {
+      "target": "preprocess",
+      "report": "preprocess.json",
+      "sha256": "a19882da24f20012b7521a11045ceeab2be44a5f79d2f2775fe5806507b43406",
+      "statistics": {
+        "number_of_executed_units": 1632314,
+        "average_exec_per_sec": 1811,
+        "new_units_added": 6586,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 513
+      },
+      "elapsed_seconds": 901.1235054509962,
+      "initial_corpus_files": 3020,
+      "binary_sha256": "fafac26331a689d76f2e8e02486877cffc2ed0f82cd24137709f86e4bd06f4e1"
+    },
+    {
+      "target": "semantic",
+      "report": "semantic.json",
+      "sha256": "8d295a92956e53ab013f76cadfc0cb191ca63814475e651a940d5407eef8a87e",
+      "statistics": {
+        "number_of_executed_units": 453296,
+        "average_exec_per_sec": 503,
+        "new_units_added": 4094,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 513
+      },
+      "elapsed_seconds": 901.1447892379947,
+      "initial_corpus_files": 8644,
+      "binary_sha256": "a5b711c5c163882eebe4e80499b98365dd156b2357b3306effe7c319512ce2dc"
+    },
+    {
+      "target": "bindings",
+      "report": "bindings.json",
+      "sha256": "abc3c25c85f5e30b449bfcdbd9f89b8db021c57c135cd1db5f3e894bf5da7da4",
+      "statistics": {
+        "number_of_executed_units": 172151,
+        "average_exec_per_sec": 191,
+        "new_units_added": 3866,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 519
+      },
+      "elapsed_seconds": 901.193091932997,
+      "initial_corpus_files": 905,
+      "binary_sha256": "599a6114d09e369bcab09149b4976247e1b3d20809ac71773e53763cd286071d"
+    },
+    {
+      "target": "checked",
+      "report": "checked.json",
+      "sha256": "03ba17283ab53730189757e29c1b8a90a4074ebb6870a70181b197ab425ec9d6",
+      "statistics": {
+        "number_of_executed_units": 290089,
+        "average_exec_per_sec": 321,
+        "new_units_added": 5759,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 513
+      },
+      "elapsed_seconds": 901.1698982169983,
+      "initial_corpus_files": 542,
+      "binary_sha256": "5d503dc2305cfabba5409716d257190442b0b0b8414d40b253030d3a9f972d9a"
+    }
+  ],
+  "limitations": [
+    "These sources precede BMI target options, explicit C11/GNU11 modes, and function-contract changes. Campaigns used the archived single-mode harnesses.",
+    "Counts include rejected C and invalid UTF-8; they are not accepted-program counts or a conformance proof.",
+    "AddressSanitizer was enabled; LeakSanitizer was disabled because this devbox runs under ptrace.",
+    "All runs executed on x86-64 Linux. Compiler profiles are analysis inputs, not native execution on other hosts. The preprocessor harness does not select a compiler profile.",
+    "Rebuild the recorded source/toolchain or use the saved run binary. Git contains starting corpus archives and compressed logs, not the binaries. Wall-clock campaigns are not guaranteed to reproduce identical execution counts."
+  ],
+  "executions": 2547850,
+  "status": "passed"
+}

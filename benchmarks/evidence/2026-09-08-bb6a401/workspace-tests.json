@@ -1,0 +1,8 @@
+{
+  "source_commit": "bb6a40178374423ffc03a0080d512f4667bfaca6",
+  "command": "cargo test --workspace --all-features --no-fail-fast -- --include-ignored",
+  "status": "passed",
+  "reported_passing_executions": 831,
+  "note": "Includes child-process test output; this is not a count of unique tests.",
+  "log_sha256": "8dbdfc1b9371a8dfd4daca9f6e03a5945dbb2244c0e2ffd198722d9e22d321c9"
+}

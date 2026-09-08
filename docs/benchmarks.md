@@ -41,51 +41,51 @@ own process allocator.
 
 ## Recorded Linux results
 
-On 2026-09-08, commit `1d8f508` generated bindings for the four pinned public-header workloads
-faster than bindgen 0.72.1 on an AMD EPYC-Milan Linux host. Both tools used the full
-allowlists from the corpus manifest. SQLite includes both `sqlite3*` declarations
-and `SQLITE*` constants.
+On 2026-09-08, commit `bb6a401` generated bindings for the four pinned public-header
+workloads faster than bindgen 0.72.1 on an AMD EPYC-Milan Linux host. Both tools used
+the full corpus allowlists, including SQLite declarations and uppercase constants.
 
-Each result is the median of 15 subprocess runs after one warmup, with the two tools
-shuffled within each iteration and the process restricted to CPU 0. Filesystem
-caches were warm. Toucan used a release build and the system allocator. RSS is the
-median of each subprocess's maximum resident memory.
+Each result is the median of 15 subprocess runs after one warmup. Tool order was
+shuffled within each iteration, with CPU affinity restricted to CPU 0 and warm
+filesystem caches. Toucan used a release build and the system allocator. RSS is
+the median of each subprocess's maximum resident memory.
 
 | Project | Toucan | bindgen | Speedup | Toucan RSS | bindgen RSS |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [libgit2 1.9.1](../benchmarks/evidence/2026-09-08-1d8f508/libgit2.json) | 386.60 ms | 452.90 ms | 1.17× | 17.75 MiB | 100.66 MiB |
-| [SQLite 3.45.1](../benchmarks/evidence/2026-09-08-1d8f508/sqlite.json) | 174.77 ms | 335.23 ms | 1.92× | 8.95 MiB | 83.19 MiB |
-| [zlib 1.3.1](../benchmarks/evidence/2026-09-08-1d8f508/zlib.json) | 48.84 ms | 291.75 ms | 5.97× | 8.00 MiB | 79.60 MiB |
-| [zstd 1.5.7](../benchmarks/evidence/2026-09-08-1d8f508/zstd.json) | 17.81 ms | 283.03 ms | 15.89× | 5.95 MiB | 77.66 MiB |
+| [libgit2 1.9.1](../benchmarks/evidence/2026-09-08-bb6a401/libgit2.json) | 382.10 ms | 439.14 ms | 1.15× | 18.00 MiB | 100.65 MiB |
+| [sqlite 3.45.1](../benchmarks/evidence/2026-09-08-bb6a401/sqlite.json) | 170.03 ms | 320.38 ms | 1.88× | 9.44 MiB | 83.20 MiB |
+| [zlib 1.3.1](../benchmarks/evidence/2026-09-08-bb6a401/zlib.json) | 47.89 ms | 283.89 ms | 5.93× | 8.25 MiB | 79.50 MiB |
+| [zstd 1.5.7](../benchmarks/evidence/2026-09-08-bb6a401/zstd.json) | 16.98 ms | 265.56 ms | 15.64× | 6.20 MiB | 77.66 MiB |
 
-The [evidence summary](../benchmarks/evidence/2026-09-08-1d8f508/summary.json) records binary,
-source, header, and output hashes; each project links to its unchanged raw samples.
-The measured output hashes match the outputs used for correctness verification.
-The same Toucan executable passed 5,444 C/Rust comparisons and real calls into all
-four built libraries. This includes separate checks for the C expression types and
-Rust enum representations of 679 enumerators. A second C probe compared all 111
-complete records and 636 ordinary field offsets.
+The [evidence summary](../benchmarks/evidence/2026-09-08-bb6a401/summary.json) records
+binary, source, header, and output hashes, with all raw observations retained.
+The measured output hashes match the independently verified bindings. The same
+Toucan binary passed 5,444 C/Rust comparisons and real calls into all four built
+libraries. Separate C probes checked all 111 complete records and 636 ordinary
+field offsets.
 
 The bindgen comparison found matching signatures for 1,284 functions and matching
-types for three globals and 203 shared typedefs. It passed with no unexplained
-differences, but exact API equivalence remains false. The reports retain seven macro-type differences, three
-unsigned sentinel differences, SQLite's `xDlSym` callback discrepancy, extra Toucan
-constants, and differences in helper names and private bitfield storage. Independent
-C probes support the accepted type, value, and callback differences.
+types for three globals and 203 shared typedefs. There are no unexplained
+differences; exact Rust API equality remains false. The reports retain seven
+macro-type differences, three unsigned sentinel differences, SQLite's `xDlSym`
+callback discrepancy, extra Toucan constants, and differences in helper names and
+private bitfield storage. Independent C probes support the accepted type, value,
+and callback differences.
 
-These measurements include compiler profiles, Boolean macro types, variable-array
-type identities, half types, and the Clang atomic call correction. Both generators'
-outputs remain byte-identical to the [previous measured revision](../benchmarks/evidence/2026-09-08-8cb3e06/summary.json).
-Toucan's median changes range from a 2.7% decrease to a 3.9% increase across the
-four headers; these differences include shared-host variation. Correctness probes
-used CPUs 4–7 and sanitizer campaigns used CPUs 28–31, while agent work and other
-host workloads were not isolated. The earlier parser-limit regression remains
-recorded in the [paired measurements](parser-limits.md#measured-cost).
-The raw samples retain outliers from the shared host; CPU affinity did not isolate
-memory bandwidth, filesystem activity, or frequency changes.
+Both generators' outputs remain byte-identical to the
+[previous measured revision](../benchmarks/evidence/2026-09-08-1d8f508/summary.json).
+These measurements include complex and binary128 types, vector intrinsics, and
+the build-script adapter. They precede BMI target options, explicit language modes,
+and function-contract changes. The same revision completed
+[2,547,850 ASan fuzz executions](../fuzz/evidence/2026-09-08-bb6a401/summary.json)
+without findings and passed the full workspace suite including native tests.
 
-These measurements cover one machine and four workloads. They do not measure cold
-starts, in-process reuse, other platforms or allocators, or a complete C frontend.
+Independent builds used CPUs 4–15 and correctness probes used CPUs 16–19 during
+timing. This shared host did not isolate memory bandwidth, filesystem activity,
+or CPU frequency. All samples are retained. The earlier parser-limit regression
+remains recorded in the [paired measurements](parser-limits.md#measured-cost).
+These results cover four workloads on one machine; they do not measure cold
+starts, in-process reuse, other platforms or allocators, or complete source analysis.
 
 ## Allocator comparison
 
