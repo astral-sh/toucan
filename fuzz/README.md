@@ -119,6 +119,29 @@ cp fuzz/seeds/semantic/*.h /tmp/toucan-fuzz-semantic/
 cargo +nightly fuzz run semantic /tmp/toucan-fuzz-semantic -- -dict=fuzz/c.dict -max_total_time=300 -max_len=16384 -len_control=0 -timeout=5 -rss_limit_mb=1024 -print_final_stats=1
 ```
 
+## Compiler-profile sanitizer campaigns
+
+The [seven-profile campaign](evidence/2026-09-08-1d8f508/summary.json) at `1d8f508`
+completed 2,318,467 executions with AddressSanitizer and no findings:
+
+| Target | Executions | Duration | Peak RSS |
+| --- | ---: | ---: | ---: |
+| Preprocessor | 1,430,525 | 901 s | 517 MiB |
+| Semantics and layout | 441,788 | 901 s | 513 MiB |
+| Bindings | 163,821 | 901 s | 522 MiB |
+| Retained-code comparison | 282,333 | 901 s | 513 MiB |
+
+These sources include explicit compiler profiles, atomic Rust storage and call
+validation, VLA identities, half types, and `nodebug`. They precede packed enums
+and multiple/derived `__auto_type` declarations. The three target-aware harnesses
+select all seven profiles; preprocessing has no profile selector.
+
+The source manifest, saved binaries, logs, dictionary, starting corpus archives,
+and every archived input were independently checked against their hashes. Reports
+and starting archives are checked in alongside compressed logs. All runs executed
+on x86-64 Linux with LeakSanitizer disabled under ptrace. Counts include invalid
+input and do not establish complete safety or conformance.
+
 ## Retained-code differential campaign
 
 The [four-boundary campaign](evidence/2026-09-08-8cb3e06/summary.json) at `8cb3e06`
@@ -140,7 +163,7 @@ The target-aware harnesses used the five original profiles. All executions ran o
 x86-64 Linux; LeakSanitizer remained disabled under ptrace. Counts include invalid
 input and do not establish complete safety or conformance.
 
-Two [later campaigns](evidence/checked-parser-campaigns-2026-09-08.json) completed
+Two [earlier campaigns](evidence/checked-parser-campaigns-2026-09-08.json) completed
 without findings: 195,925 executions at `caf6bcf` after GNU atomic intrinsics and
 MMX, and 80,241 at `4945364` after parser limits, SSE, overflow intrinsics, and TLS.
 Each ran for 901 seconds with AddressSanitizer, a 16 KiB input limit, a five-second

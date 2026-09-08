@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "source_commit": "1d8f50818f9792dd092aa2a0b622aeeb07bdbd46",
+  "source_status": "",
+  "source_manifest_sha256": "41b26faf5d3e42773b5af74e373c99c8c17b30d4953e3e2b852fb7aec1b018cb",
+  "runner_sha256": "5a3e7dc348a58e354634c19fcd6d520edf910d123fee2500e0b4ca4e3b89aad4",
+  "target": "preprocess",
+  "profiles": null,
+  "target_selector": null,
+  "started_utc": "2026-09-08T10:27:24.411036+00:00",
+  "rustc": "rustc 1.100.0-nightly (5a2be9f5f 2026-09-06)\nbinary: rustc\ncommit-hash: 5a2be9f5f075d31e3ca5526b5b029881ce441253\ncommit-date: 2026-09-06\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0-nightly\nLLVM version: 23.1.1",
+  "cargo_fuzz": "cargo-fuzz 0.13.2",
+  "sanitizer": "address",
+  "sanitizer_options": {
+    "ASAN_OPTIONS": "detect_leaks=0",
+    "LSAN_OPTIONS": null
+  },
+  "status": "passed",
+  "build_command": [
+    "cargo",
+    "fuzz",
+    "build",
+    "preprocess",
+    "--target",
+    "x86_64-unknown-linux-gnu",
+    "--sanitizer",
+    "address"
+  ],
+  "binary_sha256": "a9f6f057966ddf52e6f4c8d63740265d7f0256fe18634d2241273dc25c9753b2",
+  "initial_corpus": {
+    "acf16909c524ad7f5fd189b280a2d7dc7406e05bb0918b8eb1216ec19424b34e": {
+      "sha256": "acf16909c524ad7f5fd189b280a2d7dc7406e05bb0918b8eb1216ec19424b34e",
+      "bytes": 257
+    },
+    "b5a30299e7f3719e7c8f2f78cba2503520d3302c07702673f2115d0e81e1f701": {
+      "sha256": "b5a30299e7f3719e7c8f2f78cba2503520d3302c07702673f2115d0e81e1f701",
+      "bytes": 155
+    },
+    "invalid-utf8": {
+      "sha256": "3a6e2b63b63b3df6ae7a377064ce76cdef6771aa5d7fc1ab5412cac661d17098",
+      "bytes": 18
+    }
+  },
+  "initial_archive_sha256": "607fd50999be1f57811311f1a3cc3775e2706f6e90dfb689cfd8ae67303a1779",
+  "command": [
+    "/home/dev-user/.cache/toucan/fuzz-1d8f508/preprocess/preprocess",
+    "/home/dev-user/.codex/worktrees/toucan-validation-atomic-abi/fuzz/corpus/preprocess",
+    "-dict=/home/dev-user/.cache/toucan/fuzz-1d8f508/preprocess/c.dict",
+    "-max_total_time=900",
+    "-max_len=16384",
+    "-len_control=0",
+    "-timeout=5",
+    "-rss_limit_mb=1024",
+    "-print_final_stats=1",
+    "-seed=20260938",
+    "-artifact_prefix=/home/dev-user/.cache/toucan/fuzz-1d8f508/preprocess/artifacts/"
+  ],
+  "exit_code": 0,
+  "wall_timeout": false,
+  "elapsed_seconds": 901.1180865580027,
+  "statistics": {
+    "number_of_executed_units": 1430525,
+    "average_exec_per_sec": 1587,
+    "new_units_added": 11043,
+    "slowest_unit_time_sec": 0,
+    "peak_rss_mb": 517
+  },
+  "log_sha256": "5c52ee3e7f012dba79306c1f30cbf323c5210bdf5302f59d1140e70f62d48158",
+  "artifacts": {},
+  "source_unchanged": true,
+  "finished_utc": "2026-09-08T10:44:46.417865+00:00",
+  "final_corpus_summary": {
+    "files": 2001,
+    "bytes": 1241044,
+    "manifest_sha256": "072828ffb58e2a1609cf6e0c0dc0b31d932974a400e36ae5e797cc512e3dd3f6",
+    "manifest_encoding": "UTF-8 JSON with sorted keys and separators comma/colon, without a trailing newline"
+  },
+  "raw_report_sha256": "8c47257f83047e80e8166033e3ad833e3b84612c25521e5e3aeeae4a9d37b0df",
+  "starting_archive": "preprocess-initial-corpus.tar.gz",
+  "compressed_log": {
+    "path": "preprocess.log.gz",
+    "sha256": "c8f46d7dcd5037598bb5a60a0dd5ccc1839876bee74065e957080949d630dade"
+  }
+}
