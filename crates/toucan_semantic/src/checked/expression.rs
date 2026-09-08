@@ -164,6 +164,8 @@ pub enum Builtin {
     ByteSwap32,
     ByteSwap64,
     ConstantQuery,
+    ObjectSize,
+    DynamicObjectSize,
     CountLeadingZeros,
     CountLeadingZerosLong,
     CountLeadingZerosLongLong,
@@ -188,6 +190,8 @@ impl Builtin {
             "__builtin_bswap32" => Self::ByteSwap32,
             "__builtin_bswap64" => Self::ByteSwap64,
             "__builtin_constant_p" => Self::ConstantQuery,
+            "__builtin_object_size" => Self::ObjectSize,
+            "__builtin_dynamic_object_size" => Self::DynamicObjectSize,
             "__builtin_clz" => Self::CountLeadingZeros,
             "__builtin_clzl" => Self::CountLeadingZerosLong,
             "__builtin_clzll" => Self::CountLeadingZerosLongLong,
@@ -1079,6 +1083,7 @@ impl Analyzer {
             && let Some(builtin) = Builtin::from_name(name)
         {
             let memory = self.memory_builtin_signature(name);
+            let object_size = self.object_size_signature(name);
             let unary_parameter = self
                 .byte_swap_type(name)
                 .or_else(|| self.bit_count_type(name));
@@ -1097,6 +1102,11 @@ impl Analyzer {
                 let (context, destination) = if let Some(signature) = &memory {
                     (
                         UseContext::Value,
+                        Some((signature.parameters[index].clone(), Conversion::Assignment)),
+                    )
+                } else if let Some(signature) = &object_size {
+                    (
+                        UseContext::UnevaluatedValue,
                         Some((signature.parameters[index].clone(), Conversion::Assignment)),
                     )
                 } else if let Some(ty) = &unary_parameter {

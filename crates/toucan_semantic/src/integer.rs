@@ -178,6 +178,18 @@ impl Analyzer {
             ast::Expression::Call(call)
                 if self
                     .builtin_name(call)
+                    .and_then(|name| self.object_size_signature(name))
+                    .is_some() =>
+            {
+                self.builtin_call_type(call)?;
+                Err(Error::new(
+                    offset,
+                    "object-size constant evaluation is unsupported; the extent remains unknown",
+                ))
+            }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
                     .and_then(|name| self.byte_swap_type(name))
                     .is_some() =>
             {

@@ -109,12 +109,14 @@ impl Analyzer {
         let memory = self.memory_builtin_signature(name);
         let byte_swap = self.byte_swap_type(name);
         let bit_count = self.bit_count_type(name);
+        let object_size = self.object_size_signature(name);
         let arity = match name {
             "__builtin_va_start" | "__builtin_va_copy" | "__builtin_expect" => 2,
             "__builtin_va_end" | "__builtin_constant_p" => 1,
             "__builtin_unreachable" | "__builtin_trap" => 0,
             _ if memory.is_some() => 3,
             _ if byte_swap.is_some() || bit_count.is_some() => 1,
+            _ if object_size.is_some() => 2,
             _ => return Ok(None),
         };
         let arguments = &call.node.arguments;
@@ -139,6 +141,20 @@ impl Analyzer {
             self.check_assignment(&parameter, &arguments[0])?;
             return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));
         }
+        if let Some(signature) = object_size {
+            for (argument, parameter) in arguments.iter().zip(&signature.parameters) {
+                self.check_assignment(parameter, argument)?;
+                if !matches!(
+                    self.unit.target,
+                    toucan_target::Target::X86_64UnknownLinuxGnu
+                        | toucan_target::Target::Aarch64UnknownLinuxGnu
+                ) {
+                    self.check_unevaluated_builtin_type_operands(argument, name)?;
+                }
+            }
+            self.check_object_size_mode(&arguments[1], &signature.parameters[1])?;
+            return Ok(Some(signature.result));
+        }
         match name {
             "__builtin_constant_p" => {
                 let ty = self.value_expression_type(&arguments[0])?;
@@ -149,7 +165,7 @@ impl Analyzer {
                 ) {
                     self.require_complete_object(&ty, arguments[0].span.start)?;
                 } else {
-                    self.check_constant_query_type_operands(&arguments[0])?;
+                    self.check_unevaluated_builtin_type_operands(&arguments[0], name)?;
                 }
                 return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));
             }

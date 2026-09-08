@@ -15,6 +15,7 @@ mod initializer;
 mod integer;
 mod ir;
 mod literals;
+mod object_size;
 mod parser_extensions;
 mod statement;
 

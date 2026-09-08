@@ -135,6 +135,21 @@ operands return an explicit unsupported diagnostic. Ordinary existing-VLA operan
 remain supported. Clang also accepts void and incomplete-record operands, which
 GCC rejects; argument checking follows the target profile.
 
+`__builtin_object_size` and `__builtin_dynamic_object_size` check their
+`const void *` and `int` parameters and return the target's `size_t`. The mode must
+be a supported constant from zero to three after conversion to `int`; GNU profiles
+also accept foldable floating and comma expressions. Retained calls distinguish
+the two operations and preserve their unevaluated arguments and conversions.
+Native probes cover pointer increments and `alloc_size` allocator calls with
+side-effecting size arguments. Variably modified written type operands have the same
+explicit Clang limitation described above.
+
+Object-size inference and allocation-provenance tracking remain unsupported.
+These query values can depend on optimization, and the dynamic form can require a
+runtime size computation. Requests to evaluate an extent as a constant return a
+diagnostic. Unknown extents are not replaced with a size or a sentinel in the
+analysis result. See [GCC's object-size contract](https://gcc.gnu.org/onlinedocs/gcc/Object-Size-Checking.html).
+
 Direct calls to `__builtin_memset`, `__builtin_memcpy`, `__builtin_memmove`, and
 `__builtin_memcmp` use their C library prototypes, including the target's `size_t`
 type and pointer qualifiers. Retained calls identify the operation and preserve

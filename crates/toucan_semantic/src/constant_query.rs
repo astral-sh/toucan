@@ -12,12 +12,14 @@ use crate::{Error, IntegerValue, TypeKind};
 impl Analyzer {
     /// Clang can evaluate a freshly written VLA bound even though the query's
     /// value operand is unevaluated. The current graph cannot express that split.
-    pub(crate) fn check_constant_query_type_operands(
+    pub(crate) fn check_unevaluated_builtin_type_operands(
         &mut self,
         expression: &Node<ast::Expression>,
+        builtin: &str,
     ) -> Result<(), Error> {
         struct Check<'a> {
             analyzer: &'a mut Analyzer,
+            builtin: &'a str,
             error: Option<Error>,
         }
         impl<'ast> Visit<'ast> for Check<'_> {
@@ -31,7 +33,13 @@ impl Analyzer {
                 }
                 let result = self.analyzer.type_name(node).and_then(|ty| {
                     if self.analyzer.unit.is_variably_modified(&ty)? {
-                        Err(Error::new(span.start, "Clang constant queries with variably modified type operands are unsupported"))
+                        Err(Error::new(
+                            span.start,
+                            format!(
+                                "Clang `{}` with variably modified type operands is unsupported",
+                                self.builtin
+                            ),
+                        ))
                     } else {
                         Ok(())
                     }
@@ -44,6 +52,7 @@ impl Analyzer {
         }
         let mut check = Check {
             analyzer: self,
+            builtin,
             error: None,
         };
         check.visit_expression(&expression.node, &expression.span);
