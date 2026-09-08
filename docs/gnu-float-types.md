@@ -35,11 +35,12 @@ still apply. GNU arithmetic on altered-alignment floating typedefs also retains
 the existing explicit unsupported diagnostic; it does not silently erase their
 observable result alignment.
 
-The old compiler-version predefines make glibc spell these types as ordinary
-typedef aliases. Toucan preserves that existing compatibility path while modern
-GNU headers use the distinct builtin types. This is an intentional compatibility
-exception: GCC 13 itself reserves these names and rejects such replacement
-typedefs. This layer does not change the advertised compiler-version macros.
+The default GNU version markers now select glibc's distinct builtin types.
+Callers overriding the version macros for older header branches can still use
+the legacy typedef spellings. This is an intentional compatibility exception:
+GCC 13 itself reserves these names and rejects such replacement typedefs.
+[Version-profile validation](compiler-version-predefines.md) exercises the
+default header route and generated calls to the installed glibc.
 
 The rules follow [GCC 13's additional floating types](https://gcc.gnu.org/onlinedocs/gcc-13.3.0/gcc/Floating-Types.html)
 and its [arithmetic and argument conversions](https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/gcc/c/c-typeck.cc).

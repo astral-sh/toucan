@@ -1,0 +1,44 @@
+{
+  "base_commit": "cd33ff624cd9335ef2127a5a09b8233d4fad9f97",
+  "workspace": {
+    "passed": 807,
+    "failed": 0,
+    "ignored": 215
+  },
+  "checked_seed_pairs": {
+    "total": 8272,
+    "accepted": 5529,
+    "matching_diagnostics": 2743
+  },
+  "headers": 8,
+  "toucan_preprocessed_tu_pairs": 14,
+  "native_preprocessed_tu_pairs": 14,
+  "unchanged_musl_outputs": 4,
+  "asan": {
+    "inputs": 11899,
+    "new_corpus_units": 10,
+    "seconds": 181.2025184570084,
+    "peak_rss_mb": 641,
+    "source_unchanged": true,
+    "findings": 0
+  },
+  "scope": "Combined eight modes, GNU floating types, DLL semantics and modern header defaults. Real-project routes use GNU11 with explicit compiler families and source-audit graph budgets on native Linux x86-64. No compiler-version overrides are present; mode/target fuzz coverage is separate from native execution. Original evidence remains tied to its source snapshots.",
+  "artifacts": {
+    "audit-build.log.gz": "81d0d7282f38bb294d0145358517b7e98712a2822b24e7ed21a6efa3d4ad1a17",
+    "binaries.json.gz": "c58ac2e7474a489a017ba7268b258e34ac556b362dfaa6abc60e91510726a8f5",
+    "build.log.gz": "a355487d9b3535a1b6c2071dd052f31b59a4eba6b1b8842b45f8585c7a6e1c26",
+    "clippy.log.gz": "e8ccf6d2df2743356d372f5026a2df1ebeedfa86884948d980e0456f3dabb255",
+    "fuzz-clippy.log.gz": "ea6bb9bd3352a9d96235e40cbe92e19b01b8f060c51055530dece3db8aa29ec1",
+    "inputs.tar.gz": "7518ffc1caa3c71b334b389e1e770f32b3ed759817f4abdcb449069834549bfd",
+    "native-projects.json.gz": "58210427de0b5b9e6cccbb9993bfcd5f06a8bd248234873609cb3966e990a518",
+    "native-projects.log.gz": "1bc7d46c48bb193476b8b2de0b41132236387c024f94957a6039e668b66dcf59",
+    "native.log.gz": "99994b5c2174255fc06ef06cfe066c1c746afa4c9052d50a5ab41eb89da27e25",
+    "projects.json.gz": "f0bd5eccc556d8308866e2ce0cea803c26f6cd24df2f0aad9a4051900966d305",
+    "projects.log.gz": "257169664d3e04c92e18b80dfbb4a61eb90553371ea41e296ea591fb7515cfed",
+    "replay.log.gz": "4535233da46e881920825de5fa8c95c1063e7853e0eb7ac2d64cdd41c2524bc2",
+    "rustdoc.log.gz": "abb80ceaddf7f0159ba5dca0331be2172126d8a02b767e16e760c95aa3af0d00",
+    "toucan-versions-root-native-projects.py": "f5768f26c34e8af4ac477fde8741ca57141e7eaff206adbacb8ae2e4c9dac485",
+    "toucan-versions-root-projects.py": "06ab97f3611461ffe0c6ca28e2fccdd7d0cffc206eab7a83390c1a4426c25bb4",
+    "workspace.log.gz": "698f791d4a316901e039ae5a80db545779494a1a1d75447d43ae89ab4127e7b7"
+  }
+}

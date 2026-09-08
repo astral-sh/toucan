@@ -12,10 +12,12 @@ impl Target {
 impl CompilerProfile {
     /// Returns deterministic predefined macros for this target, compiler, and language mode.
     ///
-    /// GNU compatibility is reported as 4.2.1. Clang profiles additionally report Clang
-    /// 4.0; Windows reports the Visual C++ 2022 ABI family. These select header syntax,
-    /// not an installed compiler. Compiler feature queries such as `__has_builtin` must be
-    /// answered by the preprocessor using the frontend's supported feature set.
+    /// GNU profiles select GCC 13.3.0 header branches. Clang profiles select Clang
+    /// 18.1.3, with GNU compatibility 4.2.1 outside Windows. Windows keeps the
+    /// Visual C++ 2022 ABI markers. These identify header compatibility profiles,
+    /// not an installed compiler or complete implementation of that release.
+    /// Compiler feature queries such as `__has_builtin` use the frontend's
+    /// supported feature set independently of these version markers.
     ///
     /// This is a supported subset of compiler predefined macros. It deliberately omits
     /// time, path, build-host, optimization, and optional instruction-set definitions.
@@ -53,8 +55,11 @@ impl CompilerProfile {
                 "1",
             );
         }
+        // Clang's Microsoft C profile omits __STDC__, including ISO language modes.
+        if target != Target::X86_64PcWindowsMsvc {
+            define("__STDC__", "1");
+        }
         for (name, value) in [
-            ("__STDC__", "1"),
             ("__STDC_HOSTED__", "1"),
             ("__CHAR_BIT__", "8"),
             ("__CHAR16_TYPE__", "unsigned short"),
@@ -122,10 +127,14 @@ impl CompilerProfile {
                 define(name, value);
             }
         } else {
+            let (major, minor, patch) = match compiler {
+                Compiler::Gnu => ("13", "3", "0"),
+                Compiler::Clang => ("4", "2", "1"),
+            };
             for (name, value) in [
-                ("__GNUC__", "4"),
-                ("__GNUC_MINOR__", "2"),
-                ("__GNUC_PATCHLEVEL__", "1"),
+                ("__GNUC__", major),
+                ("__GNUC_MINOR__", minor),
+                ("__GNUC_PATCHLEVEL__", patch),
                 ("__LP64__", "1"),
                 ("_LP64", "1"),
                 ("__SIZEOF_LONG__", "8"),
@@ -141,9 +150,9 @@ impl CompilerProfile {
                 ("__APPLE__", "1"),
                 ("__MACH__", "1"),
                 ("__clang__", "1"),
-                ("__clang_major__", "4"),
-                ("__clang_minor__", "0"),
-                ("__clang_patchlevel__", "0"),
+                ("__clang_major__", "18"),
+                ("__clang_minor__", "1"),
+                ("__clang_patchlevel__", "3"),
                 ("__WINT_TYPE__", "int"),
             ] {
                 define(name, value);
@@ -172,9 +181,9 @@ impl CompilerProfile {
         if compiler == Compiler::Clang && !apple {
             for (name, value) in [
                 ("__clang__", "1"),
-                ("__clang_major__", "4"),
-                ("__clang_minor__", "0"),
-                ("__clang_patchlevel__", "0"),
+                ("__clang_major__", "18"),
+                ("__clang_minor__", "1"),
+                ("__clang_patchlevel__", "3"),
             ] {
                 define(name, value);
             }
