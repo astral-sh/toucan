@@ -14,7 +14,8 @@ pub enum OriginKind {
     Directive,
 }
 
-/// A one-based source line and byte column, including any `#line` remapping.
+/// A source line and one-based byte column, including line directive remapping.
+/// Lines are one-based except that GNU line markers can explicitly select zero.
 ///
 /// Macro locations identify invocation sites, not definition sites or an
 /// expansion stack. A location is an anchor; it does not describe every byte of

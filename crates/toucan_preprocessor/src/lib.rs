@@ -376,6 +376,7 @@ impl Preprocessor {
         let mut pending = Vec::new();
         let mut line_adjustment = 0i64;
         let mut logical_path = path.to_owned();
+        let mut marker_paths = Vec::new();
         let mut offset = 0;
         for line in source.source.split_inclusive('\n') {
             let start = offset;
@@ -567,6 +568,32 @@ impl Preprocessor {
                     }
                     line_adjustment = number as i64 - source.line_at(offset) as i64;
                     continue;
+                }
+                _ if directive.kind == Kind::Number => {
+                    let marker = line_marker(&tokens[1..]).map_err(&fail)?;
+                    match marker.transition {
+                        1 => {
+                            if marker_paths.len() >= self.config.max_include_depth {
+                                return Err(fail("line marker nesting limit exceeded".into()));
+                            }
+                            marker_paths.push(logical_path.clone());
+                        }
+                        2 => {
+                            let parent = marker_paths.pop().ok_or_else(|| {
+                                fail("line marker cannot return without entering a file".into())
+                            })?;
+                            if marker.filename.as_deref() != Some(parent.as_path()) {
+                                return Err(fail(
+                                    "line marker return filename does not match".into(),
+                                ));
+                            }
+                        }
+                        _ => {}
+                    }
+                    if let Some(filename) = marker.filename {
+                        logical_path = filename;
+                    }
+                    line_adjustment = marker.number as i64 - source.line_at(offset) as i64;
                 }
                 _ => {
                     return Err(fail(format!(
@@ -1125,6 +1152,58 @@ fn header_name(tokens: &[Token]) -> Result<(String, bool), String> {
 }
 
 /// Decode the string literal used by `#line`, which follows ordinary C escape rules.
+/// GNU preprocessor output carries source locations as numeric directives.
+/// Its flags describe include transitions, warning policy, and C++ linkage;
+/// they do not affect this C frontend's token stream or constraint checking.
+struct LineMarker {
+    number: usize,
+    filename: Option<PathBuf>,
+    transition: u8,
+}
+
+fn line_marker(tokens: &[Token]) -> Result<LineMarker, String> {
+    let number = &tokens[0].text;
+    if !number.bytes().all(|byte| byte.is_ascii_digit()) {
+        return Err("line marker requires a decimal line number".into());
+    }
+    let number: usize = number.parse().map_err(|_| "invalid line marker number")?;
+    if number > i32::MAX as usize {
+        return Err("line marker number exceeds 2147483647".into());
+    }
+    let filename = tokens
+        .get(1)
+        .map(|token| {
+            if token.kind != Kind::String || !token.text.starts_with('"') {
+                return Err("line marker filename must be a string literal".into());
+            }
+            line_filename(&token.text).map(PathBuf::from)
+        })
+        .transpose()?;
+    let mut previous = 0;
+    let mut transition = 0;
+    for flag in tokens.iter().skip(2) {
+        let value = match flag.text.as_str() {
+            "1" => 1,
+            "2" => 2,
+            "3" => 3,
+            "4" => 4,
+            _ => return Err("invalid line marker flag".into()),
+        };
+        if value <= previous || (previous == 1 && value == 2) || (value == 4 && previous != 3) {
+            return Err("invalid line marker flag order".into());
+        }
+        if value <= 2 {
+            transition = value;
+        }
+        previous = value;
+    }
+    Ok(LineMarker {
+        number,
+        filename,
+        transition,
+    })
+}
+
 fn line_filename(literal: &str) -> Result<String, String> {
     let mut output = Vec::new();
     let mut chars = literal[1..literal.len() - 1].chars().peekable();

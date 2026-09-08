@@ -1559,3 +1559,111 @@ fn byte_character_conditions_match_native_preprocessors() {
         }
     }
 }
+
+#[test]
+fn gnu_line_markers_preserve_logical_locations() {
+    let source = "# 0 \"zero.c\"\nint zero; __LINE__ __FILE__\n# 1 \"main.c\"\n# 7 \"dir\\\\header.h\" 1 3 4\nint header; __LINE__ __FILE__\n# 20 \"main.c\" 2\nint main_value;\n# 031\n__LINE__ __FILE__\n#if 0\n# 8 \"ignored.h\" 5\n#endif\n";
+    let output = Preprocessor::new(Config::default())
+        .preprocess_str(Path::new("physical.i"), source)
+        .unwrap();
+    assert_eq!(
+        output.source,
+        "int zero ; 0 \"zero.c\"\nint header ; 7 \"dir\\\\header.h\"\nint main_value ;\n31 \"main.c\"\n"
+    );
+    for (name, path, line) in [
+        ("zero", "zero.c", 0),
+        ("header", "dir\\header.h", 7),
+        ("main_value", "main.c", 20),
+    ] {
+        let location = output
+            .resolve_location(output.source.find(name).unwrap())
+            .unwrap();
+        assert_eq!(location.path.as_ref(), Path::new(path));
+        assert_eq!((location.line, location.column), (line, 5));
+    }
+    assert!(output.dependencies.is_empty());
+    for marker in [
+        "# 0x1 \"a.h\"",
+        "# 1U \"a.h\"",
+        "# 2147483648 \"a.h\"",
+        "# 1 a",
+        "# 1 L\"a.h\"",
+        "# 1 \"a.h\" 5",
+        "# 1 \"a.h\" 4",
+        "# 1 \"a.h\" 3 1",
+        "# 1 \"a.h\" 1 2",
+        "# 1 \"a.h\" 3 3",
+        "# 1 \"a.h\" 2",
+        "# 1 \"a.h\" 1\n# 2 \"wrong.h\" 2",
+    ] {
+        assert!(
+            Preprocessor::new(Config::default())
+                .preprocess_str(Path::new("physical.i"), &format!("{marker}\nint value;\n"))
+                .is_err(),
+            "accepted {marker}"
+        );
+    }
+    let config = Config {
+        max_include_depth: 2,
+        ..Config::default()
+    };
+    let error = Preprocessor::new(config)
+        .preprocess_str(
+            Path::new("physical.i"),
+            "# 1 \"a.h\" 1\n# 1 \"b.h\" 1\n# 1 \"c.h\" 1\n",
+        )
+        .unwrap_err();
+    assert!(error.message.contains("line marker nesting limit"));
+}
+
+#[test]
+fn compiler_preprocessed_output_can_be_read_with_line_markers() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let source = "#define VALUE 7\n# 0 \"zero.c\"\nint zero = __LINE__;\n# 1 \"main.c\"\n# 7 \"header.h\" 1 3 4\nint header = VALUE;\n# 20 \"main.c\" 2\nint final = __LINE__;\n";
+    let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
+    for compiler in [gcc.as_str(), "clang"] {
+        let mut child = Command::new(compiler)
+            .args(["-E", "-x", "c", "-"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(source.as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "{compiler}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let preprocessed = String::from_utf8(output.stdout).unwrap();
+        let result = Preprocessor::new(Config::default())
+            .preprocess_str(Path::new("compiler.i"), &preprocessed)
+            .unwrap();
+        let direct = Preprocessor::new(Config::default())
+            .preprocess_str(Path::new("original.c"), source)
+            .unwrap();
+        assert_eq!(
+            crate::token::render(&crate::token::lex(&result.source).unwrap()),
+            crate::token::render(&crate::token::lex(&direct.source).unwrap())
+        );
+        for (name, path, line) in [
+            ("zero", "zero.c", 0),
+            ("header", "header.h", 7),
+            ("final", "main.c", 20),
+        ] {
+            let location = result
+                .resolve_location(result.source.find(name).unwrap())
+                .unwrap();
+            assert_eq!(location.path.as_ref(), Path::new(path), "{compiler}");
+            assert_eq!(location.line, line, "{compiler}");
+        }
+    }
+}
