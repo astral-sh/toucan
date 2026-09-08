@@ -82,6 +82,15 @@ cargo +nightly fuzz run semantic /tmp/toucan-fuzz-semantic -- -dict=fuzz/c.dict 
 
 ## Retained-code differential campaign
 
+The [definition follow-up](evidence/checked-definition-2026-09-08.json) found a
+parameter-scope assertion after 179,902 executions: `int f(int named); int f() { return 0; }`
+incorrectly inherited the declaration's parameter in the empty-list definition.
+Commit `4962937` rejects that conflicting definition. The restarted campaign,
+including the failing input, completed **243,023 executions in 901 seconds** with
+AddressSanitizer and no findings. Peak RSS was 661 MiB. The report preserves both
+runs, compiler validation, source hashes, and the fix; later intrinsic and parser
+changes require separate validation.
+
 The [retained-code campaign](evidence/checked-2026-09-08.json) completed **333,577
 inputs in 901 seconds** without new findings at commit `ad162bd`. It used an immutable source snapshot
 and copied AddressSanitizer binary, a 16 KiB mutation limit, a five-second timeout,

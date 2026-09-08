@@ -10,7 +10,10 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     for &record in unit.record_origins.keys() {
         let origin = unit.record_origin(record).unwrap();
         assert!(unit.records[record].transparent_union);
-        assert_eq!(unit.records[record].fields.as_ref().unwrap().len(), unit.records[origin].fields.as_ref().unwrap().len());
+        assert_eq!(
+            unit.records[record].fields.as_ref().unwrap().len(),
+            unit.records[origin].fields.as_ref().unwrap().len()
+        );
     }
     let mut coverage = vec![0u8; code.occurrences().len()];
     let mut scope_membership = vec![0u8; code.declarations().len()];
@@ -723,7 +726,10 @@ fn expression_use(code: &CheckedCode, operand: &ExprUse) {
     for step in operand.conversions() {
         assert!(code.ty(step.target_type()).is_some());
         if let Conversion::TransparentUnion { field } = step.kind() {
-            assert!(matches!(code.entity(field).unwrap().kind(), EntityKind::Field { .. }));
+            assert!(matches!(
+                code.entity(field).unwrap().kind(),
+                EntityKind::Field { .. }
+            ));
         }
     }
     if let Some(last) = operand.conversions().last() {
@@ -745,12 +751,16 @@ fn field_path<'a>(unit: &'a TranslationUnit, mut ty: &'a Type, path: &[usize]) -
 }
 fn array_element<'a>(unit: &'a TranslationUnit, ty: &'a Type) -> &'a Type {
     match &unit.resolve(ty).unwrap().kind {
-        TypeKind::Array { element, .. } | TypeKind::VariableArray { element } | TypeKind::Vector { element, .. } => element,
+        TypeKind::Array { element, .. }
+        | TypeKind::VariableArray { element }
+        | TypeKind::Vector { element, .. } => element,
         _ => panic!("array path needs array"),
     }
 }
 fn array_index(unit: &TranslationUnit, ty: &Type, index: u64) {
-    if let TypeKind::Vector { lanes, .. } = unit.resolve(ty).unwrap().kind { assert!(index < lanes); }
+    if let TypeKind::Vector { lanes, .. } = unit.resolve(ty).unwrap().kind {
+        assert!(index < lanes);
+    }
     if let TypeKind::Array {
         length: Some(length),
         ..
@@ -764,7 +774,9 @@ fn type_step<'a>(unit: &'a TranslationUnit, ty: &'a Type, step: &TypeStep) -> &'
         (TypeStep::Pointer, TypeKind::Pointer(pointee)) => pointee,
         (
             TypeStep::Element,
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } | TypeKind::Vector { element, .. },
+            TypeKind::Array { element, .. }
+            | TypeKind::VariableArray { element }
+            | TypeKind::Vector { element, .. },
         ) => element,
         (TypeStep::Return, TypeKind::Function(function)) => &function.return_type,
         (TypeStep::Parameter(index), TypeKind::Function(function)) => {
@@ -778,9 +790,9 @@ fn type_shape(unit: &TranslationUnit, root: &Type) {
     while let Some(ty) = pending.pop() {
         match &ty.kind {
             TypeKind::Pointer(pointee) => pending.push(pointee),
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } | TypeKind::Vector { element, .. } => {
-                pending.push(element)
-            }
+            TypeKind::Array { element, .. }
+            | TypeKind::VariableArray { element }
+            | TypeKind::Vector { element, .. } => pending.push(element),
             TypeKind::Function(function) => {
                 pending.push(&function.return_type);
                 pending.extend(function.parameters.iter().map(|parameter| &parameter.ty));
