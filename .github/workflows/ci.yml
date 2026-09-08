@@ -67,7 +67,7 @@ jobs:
           ln -s "$native_gcc" "$oracle_bin/gcc"
           echo "$oracle_bin" >> "$GITHUB_PATH"
       - name: Check native parameter-entry oracles
-        run: cargo test -p toucan_semantic --test old_style_definitions -- --include-ignored
+        run: cargo test -p toucan_semantic --test old_style_definitions -- --include-ignored --show-output
       - run: cargo test --workspace --no-fail-fast -- --include-ignored
       - run: cargo doc --workspace --no-deps
         env:

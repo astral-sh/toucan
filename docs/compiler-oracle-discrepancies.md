@@ -125,3 +125,39 @@ contains the exact sources, commands, compiler versions, equal and unequal
 bound probes, fixed-size and void-pointer cases, and primary-source hashes.
 The regression tests check retained source structure and unevaluated contexts;
 they do not require future Clang versions to reproduce this bug.
+
+## GCC 14 old-style parameter bounds
+
+```c
+int events;
+int bound(int x) { events = events * 10 + x; return 2; }
+int shape(a, b)
+    int (*b)[bound(2)];
+    int (*a)[bound(1)];
+{
+    return events;
+}
+```
+
+With zero-initialized `events`, GCC 13.3 and Clang 18 return 12. Ubuntu GCC 14.2
+(`14.2.0-4ubuntu2~24.04.1`) returns 0 at both O0 and O2. Homebrew GCC 14.4.0
+returns 0 on both native macOS architectures. The parameters remain pointers to
+variable-length arrays after adjustment, so their bounds are not discarded by
+array-to-pointer parameter adjustment. C11 [N1570](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf)
+6.9.1 paragraph 10 requires their entry effects. Either parameter evaluation order
+is accepted by the test.
+
+The equivalent prototype definition evaluates both bounds on all three local
+compiler versions. Integer and float narrowing and callback controls also pass.
+The [saved evidence](../corpus/evidence/gcc14-parameter-bounds/summary.json)
+contains original failing macOS logs, local commands, compiler versions, source,
+and binary hashes. Apple Clang passes the original macOS runtime fixture.
+
+The native fixture recognizes only the missing old-style bounds on these exact
+recorded GNU builds. It still requires successful prototype effects, narrowing,
+and callbacks, and reports the discrepancy in the dedicated CI step. Other
+outputs, crashes, and compiler versions fail normally; a compiler that fixes the
+bug passes normally. The checked graph continues to require all four bounds in
+the two definition forms. This exception supplies no runtime-equivalence evidence
+for the affected old-style definition. The new prototype control still needs its
+macOS CI run.

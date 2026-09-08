@@ -75,11 +75,14 @@ sites, inferred atomic incoming types, quota failures and C11's minimum paramete
 count. Native failures are checked for compiler crashes separately from ordinary
 constraint rejection.
 
-The checker preserves C11 source semantics for three isolated compiler defects:
+The checker preserves C11 source semantics for isolated compiler defects:
 
 - GCC 13 drops effects in an adjusted-away outer K&R array bound. Clang evaluates
   it, and both evaluate its prototype-definition equivalent. Toucan retains the
   bound's required entry effect.
+- GCC 14.2 on Linux and Homebrew GCC 14.4 on macOS also drop bounds that remain
+  in pointer-to-VLA parameters. The [recorded native discrepancy](compiler-oracle-discrepancies.md#gcc-14-old-style-parameter-bounds)
+  preserves the failing results and matching prototype controls.
 - Clang 18 discards declaration-list tags and enumerators before checking the body.
   C11 gives these declarations block scope; GCC and Toucan preserve that scope.
 - GCC 13 can forget definition parameter constraints after an intervening empty
