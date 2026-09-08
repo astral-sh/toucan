@@ -468,6 +468,7 @@ pub(crate) struct Analyzer {
     definition_parameters: Option<usize>,
     pub(crate) variably_modified_parents: Vec<Option<usize>>,
     pub(crate) function_scope: Option<crate::statement::FunctionScope>,
+    pub(crate) current_function: Option<crate::statement::FunctionContext>,
     pub(crate) block_externs: HashMap<String, Type>,
     type_names: HashMap<(usize, usize), Type>,
 }
@@ -530,6 +531,7 @@ impl Analyzer {
             definition_parameters: None,
             variably_modified_parents: Vec::new(),
             function_scope: None,
+            current_function: None,
             block_externs: HashMap::new(),
             type_names: HashMap::new(),
         }

@@ -6,15 +6,16 @@ use crate::{DeclarationKind, Error, FloatKind, IntegerValue, Qualifiers, Type, T
 
 /// An expression's type before array/function conversion, with constraints that
 /// cannot be represented by its type alone.
-struct ExpressionInfo {
-    ty: Type,
-    lvalue: bool,
-    bitfield: Option<u64>,
-    register: bool,
+#[derive(Clone)]
+pub(crate) struct ExpressionInfo {
+    pub(crate) ty: Type,
+    pub(crate) lvalue: bool,
+    pub(crate) bitfield: Option<u64>,
+    pub(crate) register: bool,
 }
 
 impl ExpressionInfo {
-    fn value(ty: Type) -> Self {
+    pub(crate) fn value(ty: Type) -> Self {
         Self {
             ty,
             lvalue: false,
@@ -42,7 +43,7 @@ impl Analyzer {
         Ok(self.expression_info(expression)?.ty)
     }
 
-    fn expression_info(
+    pub(crate) fn expression_info(
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<ExpressionInfo, Error> {
@@ -131,6 +132,7 @@ impl Analyzer {
                 let ty = self.check_initializer(&ty, &initializer, !self.in_function_body())?;
                 return Ok(ExpressionInfo::object(ty));
             }
+            ast::Expression::Statement(statement) => return self.statement_expression(statement),
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 return self.expression_info(selected);
@@ -258,7 +260,7 @@ impl Analyzer {
                     self.arithmetic_type(&left, &right, offset)?
                 } else if matches!(
                     (&left_value.kind, &right_value.kind),
-                    (TypeKind::Void, TypeKind::Void)
+                    (TypeKind::Void, _) | (_, TypeKind::Void)
                 ) {
                     Type::new(TypeKind::Void)
                 } else if matches!(
@@ -700,7 +702,11 @@ impl Analyzer {
         self.converted_type(&info, expression.span.start)
     }
 
-    fn converted_type(&self, expression: &ExpressionInfo, offset: usize) -> Result<Type, Error> {
+    pub(crate) fn converted_type(
+        &self,
+        expression: &ExpressionInfo,
+        offset: usize,
+    ) -> Result<Type, Error> {
         if expression.register
             && matches!(
                 self.unit.resolve(&expression.ty)?.kind,

@@ -3,8 +3,9 @@ use std::collections::{BTreeMap, HashSet};
 use lang_c::{ast, span::Node};
 
 use crate::analyze::{Analyzer, LexicalScope, Tag};
+use crate::expression::ExpressionInfo;
 use crate::integer::{convert, promote};
-use crate::{DeclarationKind, Error, IntegerValue, Parameter, Scope, Type, TypeKind};
+use crate::{DeclarationKind, Error, FunctionType, IntegerValue, Parameter, Scope, Type, TypeKind};
 
 /// Bindings introduced in a definition's parameter list remain visible in its body.
 pub(crate) struct FunctionScope {
@@ -16,12 +17,22 @@ pub(crate) struct FunctionScope {
     pub(crate) register: HashSet<String>,
 }
 
-struct FunctionContext {
-    return_type: Type,
+pub(crate) struct FunctionContext {
+    signature: FunctionType,
+    parameter_scope: usize,
+    statement_expressions: BTreeMap<(usize, usize), ExpressionInfo>,
+    expression_parents: Vec<Option<usize>>,
+    active_expression: Option<usize>,
     loops: usize,
     switches: Vec<SwitchContext>,
-    labels: BTreeMap<String, Option<usize>>,
-    gotos: Vec<(String, usize, Option<usize>)>,
+    labels: BTreeMap<String, JumpScope>,
+    gotos: Vec<(String, usize, JumpScope)>,
+}
+
+#[derive(Clone, Copy)]
+struct JumpScope {
+    variably_modified: Option<usize>,
+    statement_expression: Option<usize>,
 }
 
 struct SwitchContext {
@@ -29,9 +40,148 @@ struct SwitchContext {
     ranges: BTreeMap<u128, u128>,
     has_default: bool,
     variably_modified: Option<usize>,
+    statement_expression: Option<usize>,
 }
 
 impl Analyzer {
+    fn function_context(&self) -> &FunctionContext {
+        self.current_function.as_ref().expect("function context")
+    }
+
+    fn function_context_mut(&mut self) -> &mut FunctionContext {
+        self.current_function.as_mut().expect("function context")
+    }
+
+    pub(crate) fn current_function_signature(&self) -> Option<&FunctionType> {
+        self.current_function
+            .as_ref()
+            .map(|context| &context.signature)
+    }
+
+    pub(crate) fn current_function_parameter(&self, name: &str) -> Option<&Parameter> {
+        let context = self.current_function.as_ref()?;
+        let (scope, _) = self
+            .lexical_scopes
+            .iter()
+            .enumerate()
+            .rev()
+            .find(|(_, scope)| scope.names.contains_key(name))?;
+        if scope != context.parameter_scope {
+            return None;
+        }
+        context
+            .signature
+            .parameters
+            .iter()
+            .find(|parameter| parameter.name.as_deref() == Some(name))
+    }
+
+    fn jump_scope(&self) -> JumpScope {
+        JumpScope {
+            variably_modified: self.active_variably_modified(),
+            statement_expression: self.function_context().active_expression,
+        }
+    }
+
+    fn gnu_statement_expressions(&self) -> bool {
+        matches!(
+            self.unit.target,
+            toucan_target::Target::X86_64UnknownLinuxGnu
+                | toucan_target::Target::Aarch64UnknownLinuxGnu
+        )
+    }
+
+    /// Checks the block in the enclosing function's control-flow environment.
+    /// Repeated type queries reuse the result so labels and VM scopes are visited
+    /// once, while the block's lexical bindings are restored before returning.
+    pub(crate) fn statement_expression(
+        &mut self,
+        statement: &Node<ast::Statement>,
+    ) -> Result<ExpressionInfo, Error> {
+        let offset = statement.span.start;
+        let key = (offset, statement.span.end);
+        let context = self
+            .current_function
+            .as_mut()
+            .ok_or_else(|| Error::new(offset, "statement expressions require a function body"))?;
+        if let Some(result) = context.statement_expressions.get(&key) {
+            return Ok(result.clone());
+        }
+        let previous = context.active_expression;
+        let id = context.expression_parents.len();
+        context.expression_parents.push(previous);
+        context.active_expression = Some(id);
+        let result = self.with_block(|analyzer| {
+            let ast::Statement::Compound(items) = &statement.node else {
+                return Err(Error::new(
+                    offset,
+                    "statement expression requires a compound statement",
+                ));
+            };
+            let gnu = analyzer.gnu_statement_expressions();
+            let mut result = None;
+            let mut significant = 0;
+            let mut direct_expression = false;
+            for item in items {
+                match &item.node {
+                    ast::BlockItem::Declaration(declaration) => {
+                        analyzer.block_declaration(declaration, false)?;
+                        result = None;
+                        significant += 1;
+                    }
+                    ast::BlockItem::StaticAssert(assertion) => {
+                        analyzer.static_assert(assertion)?;
+                        if !gnu {
+                            result = None;
+                        }
+                    }
+                    ast::BlockItem::Statement(statement) => {
+                        if matches!(statement.node, ast::Statement::Expression(None)) {
+                            continue;
+                        }
+                        analyzer.statement(statement)?;
+                        significant += 1;
+                        direct_expression =
+                            matches!(statement.node, ast::Statement::Expression(Some(_)));
+                        result = final_expression(statement)
+                            .map(|expression| analyzer.expression_info(expression))
+                            .transpose()?;
+                    }
+                }
+            }
+            let Some(result) = result else {
+                return Ok(ExpressionInfo::value(Type::new(TypeKind::Void)));
+            };
+            if gnu && result.bitfield.is_some() {
+                return Err(Error::new(
+                    offset,
+                    "GCC statement-expression bit-field result types are unsupported",
+                ));
+            }
+            let ty = analyzer.converted_type(&result, offset)?;
+            if gnu
+                && significant == 1
+                && direct_expression
+                && result.lvalue
+                && analyzer.unit.qualifiers(&result.ty)? == crate::Qualifiers::default()
+                && !matches!(
+                    analyzer.unit.resolve(&result.ty)?.kind,
+                    TypeKind::Array { .. } | TypeKind::VariableArray { .. } | TypeKind::Function(_)
+                )
+            {
+                Ok(result)
+            } else {
+                Ok(ExpressionInfo::value(ty))
+            }
+        });
+        let context = self.function_context_mut();
+        context.active_expression = previous;
+        if let Ok(result) = &result {
+            context.statement_expressions.insert(key, result.clone());
+        }
+        result
+    }
+
     pub(crate) fn in_function_body(&self) -> bool {
         self.lexical_scopes.iter().any(|scope| scope.is_block)
     }
@@ -139,15 +289,23 @@ impl Analyzer {
             ));
         }
         self.variably_modified_parents.clear();
-        let mut context = FunctionContext {
-            return_type: function.return_type,
+        let parameters = self.function_scope.take();
+        let mut signature = *function;
+        if let Some(parameters) = &parameters {
+            signature.parameters = parameters.parameters.clone();
+        }
+        self.current_function = Some(FunctionContext {
+            signature,
+            parameter_scope: self.lexical_scopes.len(),
+            statement_expressions: BTreeMap::new(),
+            expression_parents: Vec::new(),
+            active_expression: None,
             loops: 0,
             switches: Vec::new(),
             labels: BTreeMap::new(),
             gotos: Vec::new(),
-        };
-        let parameters = self.function_scope.take();
-        self.with_block(|analyzer| {
+        });
+        let result = self.with_block(|analyzer| {
             if let Some(parameters) = parameters {
                 for id in parameters.record_ids {
                     analyzer.unit.records[id].scope = Scope::Block;
@@ -194,6 +352,17 @@ impl Analyzer {
                     )?;
                 }
             }
+            // Varargs validation relies on these names resolving to the actual
+            // definition parameters before any nested block can shadow them.
+            debug_assert!(
+                analyzer
+                    .current_function_signature()
+                    .expect("function signature")
+                    .parameters
+                    .iter()
+                    .filter_map(|parameter| parameter.name.as_deref())
+                    .all(|name| analyzer.current_function_parameter(name).is_some())
+            );
             let mut character = Type::new(TypeKind::Integer(crate::IntegerKind::Char));
             character.qualifiers.is_const = true;
             let function_name = Type::new(TypeKind::Array {
@@ -215,15 +384,12 @@ impl Analyzer {
                     "function body must be a compound statement",
                 ));
             };
-            analyzer.block_items(items, &mut context)?;
+            analyzer.block_items(items)?;
+            let context = analyzer.function_context();
+            let expression_ends = ancestry_ends(&context.expression_parents);
             // VM declarations are visited in lexical preorder. An ancestor
             // therefore contains one contiguous interval of descendant IDs.
-            let mut scope_ends: Vec<_> = (0..analyzer.variably_modified_parents.len()).collect();
-            for id in (0..scope_ends.len()).rev() {
-                if let Some(parent) = analyzer.variably_modified_parents[id] {
-                    scope_ends[parent] = scope_ends[parent].max(scope_ends[id]);
-                }
-            }
+            let scope_ends = ancestry_ends(&analyzer.variably_modified_parents);
             for (name, offset, active) in &context.gotos {
                 let Some(target) = context.labels.get(name) else {
                     return Err(Error::new(
@@ -231,17 +397,28 @@ impl Analyzer {
                         format!("goto targets undefined label `{name}`"),
                     ));
                 };
-                if target.is_some_and(|target| {
-                    active.is_none_or(|active| active < target || active > scope_ends[target])
-                }) {
+                if enters_scope(
+                    target.variably_modified,
+                    active.variably_modified,
+                    &scope_ends,
+                ) {
                     return Err(Error::new(
                         *offset,
                         "goto enters the scope of a variably modified identifier",
                     ));
                 }
+                if enters_scope(
+                    target.statement_expression,
+                    active.statement_expression,
+                    &expression_ends,
+                ) {
+                    return Err(Error::new(*offset, "goto enters a statement expression"));
+                }
             }
             Ok(())
-        })
+        });
+        self.current_function = None;
+        result
     }
 
     fn bind_local(
@@ -277,18 +454,14 @@ impl Analyzer {
         Ok(())
     }
 
-    fn block_items(
-        &mut self,
-        items: &[Node<ast::BlockItem>],
-        context: &mut FunctionContext,
-    ) -> Result<(), Error> {
+    fn block_items(&mut self, items: &[Node<ast::BlockItem>]) -> Result<(), Error> {
         for item in items {
             match &item.node {
                 ast::BlockItem::Declaration(declaration) => {
                     self.block_declaration(declaration, false)?
                 }
                 ast::BlockItem::StaticAssert(assertion) => self.static_assert(assertion)?,
-                ast::BlockItem::Statement(statement) => self.statement(statement, context)?,
+                ast::BlockItem::Statement(statement) => self.statement(statement)?,
             }
         }
         Ok(())
@@ -542,39 +715,47 @@ impl Analyzer {
         Ok(())
     }
 
+    fn with_loop(
+        &mut self,
+        check: impl FnOnce(&mut Self) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        self.function_context_mut().loops += 1;
+        let result = check(self);
+        self.function_context_mut().loops -= 1;
+        result
+    }
+
+    fn for_clauses(&mut self, iteration: &ast::ForStatement) -> Result<(), Error> {
+        if let Some(condition) = &iteration.condition {
+            self.scalar_condition(condition)?;
+        }
+        if let Some(step) = &iteration.step {
+            self.value_expression_type(step)?;
+        }
+        Ok(())
+    }
+
     fn scalar_condition(&mut self, expression: &Node<ast::Expression>) -> Result<(), Error> {
         let ty = self.value_expression_type(expression)?;
         self.require_scalar(&ty, expression.span.start)
     }
 
-    fn statement(
-        &mut self,
-        statement: &Node<ast::Statement>,
-        context: &mut FunctionContext,
-    ) -> Result<(), Error> {
+    fn statement(&mut self, statement: &Node<ast::Statement>) -> Result<(), Error> {
         self.enter_expression(statement.span.start)?;
-        let result = self.statement_inner(statement, context);
+        let result = self.statement_inner(statement);
         self.leave_expression();
         result
     }
 
-    fn substatement(
-        &mut self,
-        statement: &Node<ast::Statement>,
-        context: &mut FunctionContext,
-    ) -> Result<(), Error> {
-        self.with_block(|analyzer| analyzer.statement(statement, context))
+    fn substatement(&mut self, statement: &Node<ast::Statement>) -> Result<(), Error> {
+        self.with_block(|analyzer| analyzer.statement(statement))
     }
 
-    fn statement_inner(
-        &mut self,
-        statement: &Node<ast::Statement>,
-        context: &mut FunctionContext,
-    ) -> Result<(), Error> {
+    fn statement_inner(&mut self, statement: &Node<ast::Statement>) -> Result<(), Error> {
         let offset = statement.span.start;
         match &statement.node {
             ast::Statement::Compound(items) => {
-                self.with_block(|analyzer| analyzer.block_items(items, context))
+                self.with_block(|analyzer| analyzer.block_items(items))
             }
             ast::Statement::Expression(expression) => {
                 if let Some(expression) = expression {
@@ -583,15 +764,11 @@ impl Analyzer {
                 Ok(())
             }
             ast::Statement::Return(expression) => {
-                let void = matches!(
-                    self.unit.resolve(&context.return_type)?.kind,
-                    TypeKind::Void
-                );
+                let return_type = self.function_context().signature.return_type.clone();
+                let void = matches!(self.unit.resolve(&return_type)?.kind, TypeKind::Void);
                 match (void, expression) {
                     (true, None) => Ok(()),
-                    (false, Some(expression)) => {
-                        self.check_assignment(&context.return_type, expression)
-                    }
+                    (false, Some(expression)) => self.check_assignment(&return_type, expression),
                     (true, Some(_)) => {
                         Err(Error::new(offset, "void function cannot return a value"))
                     }
@@ -602,25 +779,34 @@ impl Analyzer {
             }
             ast::Statement::If(selection) => self.with_block(|analyzer| {
                 analyzer.scalar_condition(&selection.node.condition)?;
-                analyzer.substatement(&selection.node.then_statement, context)?;
+                analyzer.substatement(&selection.node.then_statement)?;
                 if let Some(statement) = &selection.node.else_statement {
-                    analyzer.substatement(statement, context)?;
+                    analyzer.substatement(statement)?;
                 }
                 Ok(())
             }),
             ast::Statement::While(iteration) => self.with_block(|analyzer| {
-                analyzer.scalar_condition(&iteration.node.expression)?;
-                context.loops += 1;
-                let result = analyzer.substatement(&iteration.node.statement, context);
-                context.loops -= 1;
-                result
+                if analyzer.gnu_statement_expressions() {
+                    analyzer.scalar_condition(&iteration.node.expression)?;
+                    analyzer.with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))
+                } else {
+                    analyzer.with_loop(|analyzer| {
+                        analyzer.scalar_condition(&iteration.node.expression)?;
+                        analyzer.substatement(&iteration.node.statement)
+                    })
+                }
             }),
             ast::Statement::DoWhile(iteration) => self.with_block(|analyzer| {
-                context.loops += 1;
-                let result = analyzer.substatement(&iteration.node.statement, context);
-                context.loops -= 1;
-                result?;
-                analyzer.scalar_condition(&iteration.node.expression)
+                if analyzer.gnu_statement_expressions() {
+                    analyzer
+                        .with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))?;
+                    analyzer.scalar_condition(&iteration.node.expression)
+                } else {
+                    analyzer.with_loop(|analyzer| {
+                        analyzer.substatement(&iteration.node.statement)?;
+                        analyzer.scalar_condition(&iteration.node.expression)
+                    })
+                }
             }),
             ast::Statement::For(iteration) => self.with_block(|analyzer| {
                 match &iteration.node.initializer.node {
@@ -635,39 +821,40 @@ impl Analyzer {
                         analyzer.static_assert(assertion)?
                     }
                 }
-                if let Some(condition) = &iteration.node.condition {
-                    analyzer.scalar_condition(condition)?;
+                if analyzer.gnu_statement_expressions() {
+                    analyzer.for_clauses(&iteration.node)?;
+                    analyzer.with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))
+                } else {
+                    analyzer.with_loop(|analyzer| {
+                        analyzer.for_clauses(&iteration.node)?;
+                        analyzer.substatement(&iteration.node.statement)
+                    })
                 }
-                if let Some(step) = &iteration.node.step {
-                    analyzer.value_expression_type(step)?;
-                }
-                context.loops += 1;
-                let result = analyzer.substatement(&iteration.node.statement, context);
-                context.loops -= 1;
-                result
             }),
             ast::Statement::Switch(selection) => self.with_block(|analyzer| {
                 let ty = analyzer.value_expression_type(&selection.node.expression)?;
                 let ty = promote(analyzer.integer_type(&ty, selection.node.expression.span.start)?);
+                let variably_modified = analyzer.active_variably_modified();
+                let context = analyzer.function_context_mut();
                 context.switches.push(SwitchContext {
                     ty,
                     ranges: BTreeMap::new(),
                     has_default: false,
-                    variably_modified: analyzer.active_variably_modified(),
+                    variably_modified,
+                    statement_expression: context.active_expression,
                 });
-                let result = analyzer.substatement(&selection.node.statement, context);
-                context.switches.pop();
+                let result = analyzer.substatement(&selection.node.statement);
+                analyzer.function_context_mut().switches.pop();
                 result
             }),
             ast::Statement::Labeled(labeled) => {
                 match &labeled.node.label.node {
                     ast::Label::Identifier(identifier) => {
-                        if context
+                        let scope = self.jump_scope();
+                        if self
+                            .function_context_mut()
                             .labels
-                            .insert(
-                                identifier.node.name.clone(),
-                                self.active_variably_modified(),
-                            )
+                            .insert(identifier.node.name.clone(), scope)
                             .is_some()
                         {
                             return Err(Error::new(offset, "duplicate label in function"));
@@ -675,42 +862,49 @@ impl Analyzer {
                     }
                     ast::Label::Case(expression) => {
                         let value = self.eval(expression)?;
-                        self.case_range(context, value, value, offset)?;
+                        self.case_range(value, value, offset)?;
                     }
                     ast::Label::CaseRange(range) => {
                         let low = self.eval(&range.node.low)?;
                         let high = self.eval(&range.node.high)?;
-                        self.case_range(context, low, high, offset)?;
+                        self.case_range(low, high, offset)?;
                     }
                     ast::Label::Default => {
-                        let switch = context.switches.last_mut().ok_or_else(|| {
+                        let switch = self.function_context().switches.last().ok_or_else(|| {
                             Error::new(offset, "default label is outside a switch")
                         })?;
                         self.check_switch_entry(switch, offset)?;
+                        let switch = self
+                            .function_context_mut()
+                            .switches
+                            .last_mut()
+                            .expect("checked switch");
                         if switch.has_default {
                             return Err(Error::new(offset, "duplicate default label"));
                         }
                         switch.has_default = true;
                     }
                 }
-                self.statement(&labeled.node.statement, context)
+                self.statement(&labeled.node.statement)
             }
             ast::Statement::Goto(identifier) => {
-                context.gotos.push((
+                let scope = self.jump_scope();
+                self.function_context_mut().gotos.push((
                     identifier.node.name.clone(),
                     offset,
-                    self.active_variably_modified(),
+                    scope,
                 ));
                 Ok(())
             }
             ast::Statement::Break => {
+                let context = self.function_context();
                 if context.loops == 0 && context.switches.is_empty() {
                     return Err(Error::new(offset, "break is outside a loop or switch"));
                 }
                 Ok(())
             }
             ast::Statement::Continue => {
-                if context.loops == 0 {
+                if self.function_context().loops == 0 {
                     return Err(Error::new(offset, "continue is outside a loop"));
                 }
                 Ok(())
@@ -742,6 +936,9 @@ impl Analyzer {
     }
 
     fn check_switch_entry(&self, switch: &SwitchContext, offset: usize) -> Result<(), Error> {
+        if self.function_context().active_expression != switch.statement_expression {
+            return Err(Error::new(offset, "switch enters a statement expression"));
+        }
         // Every case is lexically inside its switch. A different active node
         // means an intervening VM declaration would be skipped on entry.
         if self.active_variably_modified() != switch.variably_modified {
@@ -754,17 +951,22 @@ impl Analyzer {
     }
 
     fn case_range(
-        &self,
-        context: &mut FunctionContext,
+        &mut self,
         low: IntegerValue,
         high: IntegerValue,
         offset: usize,
     ) -> Result<(), Error> {
-        let switch = context
+        let switch = self
+            .function_context()
             .switches
-            .last_mut()
+            .last()
             .ok_or_else(|| Error::new(offset, "case label is outside a switch"))?;
         self.check_switch_entry(switch, offset)?;
+        let switch = self
+            .function_context_mut()
+            .switches
+            .last_mut()
+            .expect("checked switch");
         let sign = if switch.ty.signed {
             1u128 << (switch.ty.bits - 1)
         } else {
@@ -793,5 +995,29 @@ fn declarator_name(declarator: &Node<ast::Declarator>) -> Option<String> {
         ast::DeclaratorKind::Identifier(identifier) => Some(identifier.node.name.clone()),
         ast::DeclaratorKind::Declarator(inner) => declarator_name(inner),
         ast::DeclaratorKind::Abstract => None,
+    }
+}
+
+fn ancestry_ends(parents: &[Option<usize>]) -> Vec<usize> {
+    let mut ends: Vec<_> = (0..parents.len()).collect();
+    for id in (0..ends.len()).rev() {
+        if let Some(parent) = parents[id] {
+            ends[parent] = ends[parent].max(ends[id]);
+        }
+    }
+    ends
+}
+
+fn enters_scope(target: Option<usize>, source: Option<usize>, ends: &[usize]) -> bool {
+    target
+        .is_some_and(|target| source.is_none_or(|source| source < target || source > ends[target]))
+}
+
+/// A label can prefix the final value-producing expression statement.
+fn final_expression(statement: &Node<ast::Statement>) -> Option<&Node<ast::Expression>> {
+    match &statement.node {
+        ast::Statement::Expression(expression) => expression.as_deref(),
+        ast::Statement::Labeled(labeled) => final_expression(&labeled.node.statement),
+        _ => None,
     }
 }

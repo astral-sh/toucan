@@ -31,6 +31,7 @@ sets and C23 `u8` character constants are not implemented.
 The semantic literal tests compare values with native GCC and Clang and types and
 array bounds with Clang across all five targets. They also check malformed escapes,
 incompatible array element types, and the public decoder's input-size limit.
+
 ## Variable-length arrays
 
 Variable-length arrays retain a distinct runtime-sized type. Bounds, parameter
@@ -40,6 +41,15 @@ as an integer constant expression; its alignment is available without a runtime
 bound. Rust bindings support parameters whose outer array layer adjusts to a
 pointer, and reject remaining runtime-sized array layers. Runtime bound expressions
 and typed bodies are not yet exposed through the public IR.
+
+## GNU statement expressions
+
+Statement expressions (`({ ...; expression; })`) check their local declarations,
+expressions, and control flow within the enclosing function. Jumps into these
+blocks and jumps into VLA scopes are rejected. Their result categories and loop
+condition behavior follow the target's GCC or Clang profile. Constant evaluation
+of statement-expression bodies and GCC's precise-width bitfield result types
+remain unsupported and produce diagnostics.
 
 ## Targets
 
@@ -61,9 +71,9 @@ configuration. See CI results for changes made after that run.
 
 ## Current gaps
 
-- Bodies and initializers are type-checked. Inline assembly and GNU statement
-  expressions still require implementation; unsupported constructs
-  return diagnostics. Typed bodies are not yet exposed through the public IR.
+- Bodies and initializers are type-checked. Inline assembly still requires
+  implementation; unsupported constructs return diagnostics. Typed bodies are not
+  yet exposed through the public IR.
 - Declaration constraints still need broader conformance testing. Prototype-local
   tags retain distinct identities and are checked against GCC and Clang.
 - C++, K&R function definitions, TLS, atomic and complex

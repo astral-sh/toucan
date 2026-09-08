@@ -506,6 +506,10 @@ impl Analyzer {
             )
         };
         match &expression.node {
+            ast::Expression::Statement(_) => Err(Error::new(
+                offset,
+                "constant evaluation of statement expressions is unsupported",
+            )),
             ast::Expression::Constant(_) => Ok(ConstantKind::Arithmetic),
             ast::Expression::SizeOfTy(_)
             | ast::Expression::SizeOfVal(_)
