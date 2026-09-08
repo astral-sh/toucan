@@ -87,6 +87,49 @@ remains recorded in the [paired measurements](parser-limits.md#measured-cost).
 These results cover four workloads on one machine; they do not measure cold
 starts, in-process reuse, other platforms or allocators, or complete source analysis.
 
+## Repeated library calls
+
+`benchmarks/inprocess` compares library calls after one discarded warmup in each
+process. The timed operation includes configuration, preprocessing, parsing, and
+Rust source generation. It excludes process startup and the first libclang load.
+Both libraries use the same standalone release profile and system allocator.
+
+```console
+cargo build --release --locked --manifest-path benchmarks/inprocess/Cargo.toml
+python3 scripts/benchmark_inprocess.py benchmark-results/sqlite.json \
+  --binary benchmarks/inprocess/target/release/toucan-inprocess-benchmark \
+  --output benchmark-results/sqlite-inprocess
+```
+
+The input is a saved `scripts/benchmark.py` result containing both engines and a
+sysroot. The runner preserves its target, include directories, and allowlists.
+It checks every recorded header hash before and after measurement, and requires
+each engine's complete output to match its own reference hash. It saves generated
+source and every timing sample. The output directory must be new. These checks do
+not establish exact API equality between the two generators or inventory headers
+used only by libclang.
+
+At library commit `0342e7f`, three randomized process pairs per header each ran
+five measured calls after warmup, yielding 15 samples per engine and header. The
+shared Linux x86-64 host was pinned to CPU 3; CPU frequency and memory bandwidth
+were not isolated. The [raw evidence](../benchmarks/evidence/inprocess-0342e7f/summary.json)
+includes the source manifest, driver build log, and full generated outputs.
+
+| Project | Toucan | bindgen 0.72.1 | bindgen / Toucan |
+| --- | ---: | ---: | ---: |
+| zlib | 37.84 ms | 122.68 ms | 3.24× |
+| SQLite | 191.13 ms | 165.19 ms | 0.86× |
+| zstd | 9.08 ms | 107.92 ms | 11.88× |
+| libgit2 | 376.02 ms | 262.36 ms | 0.70× |
+
+Toucan is slower for SQLite and libgit2 in this embedding workload. The earlier
+[subprocess results](#recorded-linux-results) include startup and should not be
+used to describe repeated library calls. An independent
+[earlier library baseline at `019012e`](../benchmarks/evidence/inprocess-019012e/summary.json)
+shows the same pattern. Both runs preserve the complete output hashes from the
+existing correctness artifacts; the later implementation added language and
+compiler features without changing these four binding outputs.
+
 ## Allocator comparison
 
 A paired run at commit `f78baa8` compared the system allocator with the CLI's
