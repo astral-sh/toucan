@@ -53,7 +53,13 @@ cases. In particular, GCC defers some invalid `va_start` diagnostics until body
 lowering, so syntax-only checking cannot replace those object-generation probes.
 The [saved report](../corpus/evidence/va-arg-oracle-phases-2026-09-08.json)
 records the failure and successful upstream Clang and GCC diagnostic probes.
-Native macOS validation of the changed fixture remains pending CI.
+The [Intel](https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928026)
+and [ARM](https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928197)
+macOS jobs passed all 706 workspace tests each, including this fixture and its
+valid function-pointer control. Both Linux architectures passed 708 tests each.
+The [native validation archive](../corpus/evidence/native-2baa121/summary.json)
+preserves the logs and verifies that the tested merge tree equals `2baa121`.
+These results cover that commit; later language changes require fresh validation.
 
 ## Apple Clang SVE feature diagnostics
 

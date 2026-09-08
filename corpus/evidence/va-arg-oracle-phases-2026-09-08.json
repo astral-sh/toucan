@@ -279,5 +279,14 @@
     }
   ],
   "policy": "Use Clang syntax-only checking for this invalid function-type va_arg source. Retain object generation for every positive case and all other negatives, including GCC va_start diagnostics deferred until lowering.",
-  "native_macos_validation": "Pending CI on this change; Linux upstream Clang probes do not establish Apple behavior."
+  "native_macos_validation": {
+    "status": "passed",
+    "head": "2baa1213fb097b38502bf513d6efb222ccee8402",
+    "report": "native-2baa121/summary.json",
+    "intel_job": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928026",
+    "arm_job": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928197",
+    "tests_per_host": 706,
+    "failed": 0,
+    "ignored": 0
+  }
 }
