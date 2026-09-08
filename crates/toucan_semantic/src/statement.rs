@@ -642,6 +642,7 @@ impl Analyzer {
         let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
         if declaration.node.declarators.is_empty() {
             attributes.require_function_diagnostics(false)?;
+            attributes.require_no_weak()?;
         }
         for item in &declaration.node.declarators {
             let (name, mut ty, extra) =
@@ -664,6 +665,23 @@ impl Analyzer {
             }
             extra.require_function_diagnostics(function && !is_typedef)?;
             self.check_diagnostic_attributes(&name, &extra.diagnostic_attributes)?;
+            if extra.weak.is_some() && extra.link_name.is_some() {
+                return Err(Error::new(
+                    item.span.start,
+                    "assembly labels on block weak declarations are unsupported",
+                ));
+            }
+            let previous_symbol = extra
+                .weak
+                .and_then(|_| self.unit.declarations.iter().find(|item| item.name == name));
+            let external = !is_typedef
+                && (is_extern || function)
+                && !is_static
+                && previous_symbol.is_none_or(|item| !item.is_static);
+            let previous_definition = previous_symbol.is_some_and(|item| item.is_definition);
+            let symbol_binding =
+                self.check_symbol_binding(&name, extra.weak, external, previous_definition)?;
+
             if variably_modified && (is_extern || function) {
                 return Err(Error::new(
                     item.span.start,
@@ -857,6 +875,7 @@ impl Analyzer {
                         if let Some(site) = site {
                             checked
                                 .attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
+                            checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                         }
                     }
                     self.lexical_scopes
@@ -933,6 +952,7 @@ impl Analyzer {
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
                 checked.attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
+                checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                 let allocation = self
                     .lexical_scopes
                     .last()

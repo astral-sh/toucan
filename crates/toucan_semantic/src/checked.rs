@@ -238,6 +238,8 @@ impl From<DeclarationKind> for EntityKind {
 
 #[derive(Debug, Serialize)]
 pub struct Entity {
+    #[serde(skip_serializing_if = "crate::SymbolBinding::is_strong")]
+    pub(crate) symbol_binding: crate::SymbolBinding,
     pub(crate) body: Option<statement::BodyId>,
     pub(crate) name: Option<String>,
     pub(crate) kind: EntityKind,
@@ -264,6 +266,10 @@ pub enum Linkage {
 
 #[derive(Debug, Serialize)]
 pub struct DeclarationSite {
+    #[serde(skip_serializing_if = "crate::SymbolBinding::is_strong")]
+    pub(crate) symbol_binding: crate::SymbolBinding,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) weak_attribute: Option<SourceSpan>,
     pub(crate) body: Option<statement::BodyId>,
     pub(crate) initializer: Option<InitializerId>,
     pub(crate) type_use: bounds::TypeUseId,
@@ -603,6 +609,7 @@ impl Builder {
         )?;
         let id = EntityId(self.code.entities.len() as u32);
         self.code.entities.push(Entity {
+            symbol_binding: crate::SymbolBinding::Strong,
             body: None,
             name: name.map(str::to_owned),
             kind,
@@ -628,6 +635,8 @@ impl Builder {
         self.budget.charge(1, 6, 0, offset)?;
         let id = SiteId(self.code.declarations.len() as u32);
         self.code.declarations.push(DeclarationSite {
+            symbol_binding: self.code.entities[entity.index()].symbol_binding,
+            weak_attribute: None,
             body: None,
             initializer: None,
             type_use,
@@ -733,6 +742,7 @@ impl Builder {
             Linkage::External
         };
         self.code.entities[entity.index()].linkage = linkage;
+        self.code.entities[entity.index()].symbol_binding = declaration.symbol_binding;
         let site = self.site(
             entity,
             occurrence,
@@ -937,6 +947,13 @@ impl Builder {
             });
         }
         for (site, span) in self.code.declarations.iter_mut().zip(self.name_spans) {
+            if let Some(attribute) = &site.weak_attribute {
+                site.weak_attribute = Some(map_span(
+                    offsets,
+                    Span::span(attribute.range.start, attribute.range.end),
+                    &mut self.budget,
+                )?);
+            }
             site.name_source = span
                 .map(|span| map_span(offsets, span, &mut self.budget))
                 .transpose()?;
@@ -1147,6 +1164,25 @@ impl<'ast> Visit<'ast> for Builder {
     visit_occurrence!(visit_label, ast::Label, Label);
     visit_occurrence!(visit_string_literal, ast::StringLiteral, StringLiteral);
     visit_occurrence!(visit_gnu_asm_operand, ast::GnuAsmOperand, AsmOperand);
+}
+
+impl Builder {
+    /// Keeps explicit spelling on its declaration and merged binding on the entity.
+    pub(crate) fn attach_symbol_binding(
+        &mut self,
+        site: SiteId,
+        binding: crate::SymbolBinding,
+        attribute: Option<Span>,
+    ) {
+        let site = &mut self.code.declarations[site.index()];
+        site.symbol_binding = binding;
+        self.code.entities[site.entity.index()].symbol_binding = binding;
+        site.weak_attribute = attribute.map(|span| SourceSpan {
+            range: span.start..span.end,
+            fragments: Vec::new(),
+            synthetic: false,
+        });
+    }
 }
 
 #[cfg(test)]

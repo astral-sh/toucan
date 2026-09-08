@@ -55,6 +55,21 @@ Runtime calls retain the builtin identity and converted operand. The
 [bit-count regression report](../corpus/evidence/bit-count-intrinsics-2026-09-08.json)
 records compiler comparisons and progress through unchanged project sources.
 
+GNU `weak` declarations retain `SymbolBinding::Weak` on the canonical declaration
+and checked entity. Declaration sites preserve the binding visible there and an
+explicit attribute span. Weak binding survives compatible redeclarations and
+block-scope extern declarations; internal and automatic declarations are rejected.
+An unresolved weak symbol can have a null address, and a strong definition can
+replace a weak definition, as described by [Clang's weak attribute contract](https://clang.llvm.org/docs/AttributeReference.html#weak).
+Binding generation rejects selected weak symbols until optional symbol linkage is
+represented in the Rust output. [Native probes](../corpus/evidence/weak-symbols-2026-09-08.json)
+check missing symbols and strong overrides through generated C wrapper bindings.
+
+Weakref and alias attributes remain unsupported. Weak symbols shared by distinct
+C names through assembly labels, and assembly labels on block weak declarations,
+also produce diagnostics. Supporting those cases requires shared symbol identity
+by the final link name; treating the other C names as strong would be incorrect.
+
 The semantic layer checks declarations, expressions, initializers, and function
 bodies. Lexical scopes keep local names out of the exported declarations while
 preserving tag identities. Aggregate initialization uses a subobject cursor, so

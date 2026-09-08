@@ -117,6 +117,9 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         if let Some(ty) = declaration.declared_type_use() {
             assert!(code.type_use(ty).is_some());
         }
+        if let Some(span) = declaration.weak_attribute() {
+            source_span(source, span);
+        }
         if let Some(span) = declaration.name_source() {
             source_span(source, span);
         }

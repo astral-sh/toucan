@@ -53,6 +53,10 @@ impl Scope {
 }
 
 impl Entity {
+    /// Final symbol binding after all compatible declarations, including block externs.
+    pub fn symbol_binding(&self) -> crate::SymbolBinding {
+        self.symbol_binding
+    }
     /// Returns the definition body, including when this entity has earlier prototypes.
     pub fn body(&self) -> Option<BodyId> {
         self.body
@@ -76,6 +80,14 @@ impl Entity {
 }
 
 impl DeclarationSite {
+    /// Effective symbol binding at this declaration. Later declarations may change the entity.
+    pub fn symbol_binding(&self) -> crate::SymbolBinding {
+        self.symbol_binding
+    }
+    /// The explicit GNU weak attribute, if written on this declaration.
+    pub fn weak_attribute(&self) -> Option<&SourceSpan> {
+        self.weak_attribute.as_ref()
+    }
     /// The function body supplied by this particular declaration, if any.
     pub fn body(&self) -> Option<BodyId> {
         self.body

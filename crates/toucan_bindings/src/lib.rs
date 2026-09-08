@@ -326,6 +326,12 @@ pub fn generate_with_macros(
             blocked_functions.push(declaration.name.clone());
             continue;
         }
+        if declaration.symbol_binding == toucan_semantic::SymbolBinding::Weak {
+            return Err(Error(format!(
+                "weak symbol `{}` requires unsupported optional-symbol linkage in Rust bindings",
+                declaration.name
+            )));
+        }
         if declaration.is_static
             || (declaration.kind == DeclarationKind::Function && declaration.is_definition)
         {

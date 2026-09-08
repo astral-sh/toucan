@@ -1,0 +1,1225 @@
+{
+  "scope": "GNU weak symbol checking and public binding metadata, with selected Rust binding rejection. Native C/Rust probes execute absent weak function/object references and strong overrides of weak definitions; they do not implement native Rust extern_weak linkage or dynamic loading. Shared assembly labels across C names and block assembly labels on weak declarations are explicit unsupported cases pending shared final-symbol identity.",
+  "contract": "https://clang.llvm.org/docs/AttributeReference.html#weak",
+  "source_base": "2aa09f6a032eacc23281417c7951a3764c8a95e8",
+  "excluded_baseline_patches": {
+    "/tmp/toucan-size-t-collection.patch": "c2d0a9767f4dce1d7bfbe899c3536331c394a0b7fe720b1bd7b90155c7597373",
+    "/tmp/toucan-size-t-alignment-regression.patch": "c8fe7cb0b66bbc0435f319d8cf07cb9c0ba62f6d3a20e1a100eaa12ac034e056",
+    "/tmp/toucan-bit-count-intrinsics.patch": "9cfc604d244169701012a0669b8b4374e9176198df88670fedfba531f55377e2"
+  },
+  "source_sha256": {
+    "crates/toucan_semantic/src/weak.rs": "cc03240f3f6eabc888515d77750c9b1cac7ca7b12600ec6200d852e0c986091f",
+    "crates/toucan_semantic/src/analyze.rs": "66f8b656508dea8cfe502e95ed53baa1b5e2cf971d813d8be5297bed1f7d5131",
+    "crates/toucan_semantic/src/statement.rs": "fd871800c5577ab16b5b79f2f1ba9b0d0617d1208c3633adf4f9a6e4ceae082c",
+    "crates/toucan_semantic/src/ir.rs": "32af60b46fb2c9eda5f11517bf7e59e14723f11a39c1430c8875f0d6f617dc7d",
+    "crates/toucan_semantic/src/lib.rs": "5e68f1e7e544edefb119e587e6e65f9fda8d3f86c0fa19b7e59e7fa573b0e917",
+    "crates/toucan_semantic/src/checked.rs": "ed011835e1d38f75d3732a13a95130797f8eb7310f886d89cb648e92a20ad36c",
+    "crates/toucan_semantic/src/checked/access.rs": "7f63b95e8df86d7ba754dc8d1a34f5be68154aac5ca4eff86ac1e05d3452863b",
+    "crates/toucan_bindings/src/lib.rs": "3f882bdce473588b26705b822e1329002f59ac18835964246c2ef7565dfc9098",
+    "crates/toucan_semantic/tests/weak_symbols.rs": "1f8131e5e7aebb7aa9bc9f33e053a31b761a1952a318b03a282e705738af6b00",
+    "crates/toucan_bindings/tests/weak_symbols.rs": "c3b800f22bcf5bd2e5d7867e4bd5a88d45a6e49beb0e363c106f35501a24bfa8",
+    "fuzz/fuzz_targets/checked_invariants.rs": "8023383866af7be3af427dc78c30b1d776421891b9ebf245df73840e1813ccf8",
+    "fuzz/seeds/checked/weak_symbols.h": "f843f4689d2dfb865d84f9da82a13e2e4c2cd0b5f74b32d353ee20e218d17f2d"
+  },
+  "tools": {
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8"
+  },
+  "validation": {
+    "working_directory": "/home/dev-user/.codex/worktrees/toucan-weak-symbols",
+    "environment": {
+      "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo",
+      "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/weak-symbol-target"
+    },
+    "commands": [
+      "taskset -c 2,3 cargo test --workspace --offline",
+      "taskset -c 2,3 cargo test -p toucan_semantic --test weak_symbols --offline -- --include-ignored",
+      "taskset -c 2,3 cargo test -p toucan_bindings --test weak_symbols --offline -- --include-ignored",
+      "taskset -c 2,3 cargo clippy --workspace --all-targets --offline -- -D warnings",
+      "taskset -c 2,3 cargo fmt --all --check"
+    ],
+    "workspace_tests_passed": 317,
+    "workspace_tests_ignored": 78,
+    "focused_semantic_tests": 4,
+    "focused_binding_tests": 2,
+    "compiler_constraint_cases": {
+      "accepted": 96,
+      "rejected": 54,
+      "configurations": "native GNU GCC plus Clang targeting all five profiles"
+    },
+    "optimized_native_ffi_runs": 4,
+    "native_host": "x86_64-unknown-linux-gnu",
+    "clippy": "passed",
+    "format": "passed",
+    "logs_sha256": {
+      "/tmp/toucan-weak-workspace-tests.log": "0358b447028778cf06f7d298003b9071281dbabb05dbd075e6c814096eae839f",
+      "/tmp/toucan-weak-tests.log": "066a83c900835230228d54dc3794d0336f6099eadf7df3239610943a76294698",
+      "/tmp/toucan-weak-bindings-tests.log": "ba5d7473ecbb483eff7a05ddb05654a464f38a7777aed1b05c9aae097297d130",
+      "/tmp/toucan-weak-clippy.log": "860f50165048033d1259f5baffb6d757f544d811f477cf2a4a9650dcf2ffceb4",
+      "/tmp/toucan-weak-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "/tmp/toucan-weak-build.log": "12805e0a03c38ed80abd3996750b87e127f2146426e0fee8b3d128f001dad532",
+      "/tmp/toucan-weak-measure.log": "978e6c4719e4dc2d99c426e2c1e300682aac1a891ab02a0fc4c09823d2dd35a4",
+      "/tmp/toucan-weak-tu-audit.log": "9259e0e4946ba13d97d83a5e7636f5c551032587ced0c3a98861c6a2f3c949c3",
+      "/tmp/toucan-weak-invariants.log": "180537b96a44871fa7ae57b26149d1106686cf7784f849ff107025811cf59d80"
+    }
+  },
+  "allocations": {
+    "baseline": {
+      "allocations": {
+        "command": [
+          "rustc",
+          "--edition=2024",
+          "--extern",
+          "toucan_semantic=/home/dev-user/.cache/toucan/bit-count-target/release/deps/libtoucan_semantic-6473f2ffaadd94e0.rlib",
+          "--extern",
+          "toucan_target=/home/dev-user/.cache/toucan/bit-count-target/release/deps/libtoucan_target-41aa4a05952283af.rlib",
+          "-L",
+          "dependency=/home/dev-user/.cache/toucan/bit-count-target/release/deps",
+          "-O",
+          "/tmp/toucan-checked-allocations.rs",
+          "-o",
+          "/tmp/toucan-weak-allocations-baseline"
+        ],
+        "source_sha256": "7916eb87ad62a9bac5c872439ec078549d477ec850735541bfe305d04d46d7eb",
+        "binary_sha256": "3bac0411a45297fa8edec5198ff77b0a2afa7cce01f96729f92fc176b63f4f86",
+        "result": "0: 90 allocations, 25085 bytes; 2 declarations\n1: 283 allocations, 52024 bytes; 1 declarations\n2: 13460 allocations, 2444578 bytes; 100 declarations\n"
+      },
+      "type_size": {
+        "command": [
+          "rustc",
+          "--edition=2024",
+          "--extern",
+          "toucan_semantic=/home/dev-user/.cache/toucan/bit-count-target/release/deps/libtoucan_semantic-6473f2ffaadd94e0.rlib",
+          "--extern",
+          "toucan_target=/home/dev-user/.cache/toucan/bit-count-target/release/deps/libtoucan_target-41aa4a05952283af.rlib",
+          "-L",
+          "dependency=/home/dev-user/.cache/toucan/bit-count-target/release/deps",
+          "-O",
+          "/tmp/toucan-weak-type-size.rs",
+          "-o",
+          "/tmp/toucan-weak-type_size-baseline"
+        ],
+        "source_sha256": "422eedd1f302940b24c7602e57b9065d0bc3c47949c0be2cd777786e499a85ad",
+        "binary_sha256": "40c8facc96a8ac01c9388caa68d393752fe47630881aba83ee5ba7c79f3bb5b1",
+        "result": "Declaration=128, Type=40\n"
+      }
+    },
+    "changed": {
+      "allocations": {
+        "command": [
+          "rustc",
+          "--edition=2024",
+          "--extern",
+          "toucan_semantic=/home/dev-user/.cache/toucan/weak-symbol-target/release/deps/libtoucan_semantic-6473f2ffaadd94e0.rlib",
+          "--extern",
+          "toucan_target=/home/dev-user/.cache/toucan/weak-symbol-target/release/deps/libtoucan_target-41aa4a05952283af.rlib",
+          "-L",
+          "dependency=/home/dev-user/.cache/toucan/weak-symbol-target/release/deps",
+          "-O",
+          "/tmp/toucan-checked-allocations.rs",
+          "-o",
+          "/tmp/toucan-weak-allocations-changed"
+        ],
+        "source_sha256": "7916eb87ad62a9bac5c872439ec078549d477ec850735541bfe305d04d46d7eb",
+        "binary_sha256": "ad74f6b207d77395001e301ee932127302e4d060c1d4c563a356dea5615ce9e2",
+        "result": "0: 90 allocations, 25085 bytes; 2 declarations\n1: 283 allocations, 52024 bytes; 1 declarations\n2: 13460 allocations, 2444578 bytes; 100 declarations\n"
+      },
+      "type_size": {
+        "command": [
+          "rustc",
+          "--edition=2024",
+          "--extern",
+          "toucan_semantic=/home/dev-user/.cache/toucan/weak-symbol-target/release/deps/libtoucan_semantic-6473f2ffaadd94e0.rlib",
+          "--extern",
+          "toucan_target=/home/dev-user/.cache/toucan/weak-symbol-target/release/deps/libtoucan_target-41aa4a05952283af.rlib",
+          "-L",
+          "dependency=/home/dev-user/.cache/toucan/weak-symbol-target/release/deps",
+          "-O",
+          "/tmp/toucan-weak-type-size.rs",
+          "-o",
+          "/tmp/toucan-weak-type_size-changed"
+        ],
+        "source_sha256": "422eedd1f302940b24c7602e57b9065d0bc3c47949c0be2cd777786e499a85ad",
+        "binary_sha256": "40c8facc96a8ac01c9388caa68d393752fe47630881aba83ee5ba7c79f3bb5b1",
+        "result": "Declaration=128, Type=40\n"
+      }
+    }
+  },
+  "allocation_scope": "Three pre-existing System allocator fixtures; exact allocation counts and requested bytes match the preceding bit-count build. Declaration remains128 bytes and Type40. This is not a throughput or peak-memory claim.",
+  "invariants": {
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "-O",
+      "/tmp/toucan-weak-invariants.rs",
+      "--extern",
+      "toucan=/home/dev-user/.cache/toucan/weak-symbol-target/release/deps/libtoucan-dd3d12df03e38283.rlib",
+      "-L",
+      "dependency=/home/dev-user/.cache/toucan/weak-symbol-target/release/deps",
+      "-o",
+      "/tmp/toucan-weak-invariants"
+    ],
+    "source_sha256": "4e70371b2b40027ce87234ee7b742a96d15def13b38128f312f42c5af9d6c352",
+    "binary_sha256": "c77377489bf36084c063227740392d750ded1080202fc5d0806ec77e00fab6d1",
+    "result": "x86_64-unknown-linux-gnu: weak source spans and retained graph passed\naarch64-unknown-linux-gnu: weak source spans and retained graph passed\nx86_64-apple-darwin: weak source spans and retained graph passed\naarch64-apple-darwin: weak source spans and retained graph passed\nx86_64-pc-windows-msvc: weak source spans and retained graph passed\n"
+  },
+  "exploratory_compiler_placement_probes": [
+    {
+      "name": "extern_function",
+      "source": "extern int f(void) __attribute__((weak)); int call(void) { return f ? f() : 0; }",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "extern_object",
+      "source": "extern int x __attribute__((weak)); int read(void) { return &x ? x : 0; }",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "global_object",
+      "source": "int x __attribute__((weak));",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "defined_object",
+      "source": "int x __attribute__((weak)) = 1;",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "defined_function",
+      "source": "int __attribute__((weak)) f(void) { return 1; }",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "static_function",
+      "source": "static int f(void) __attribute__((weak));",
+      "results": {
+        "gcc": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:12: error: weak declaration of \u2018f\u2019 must be public\n    1 | static int f(void) __attribute__((weak));\n      |            ^\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:35: error: weak declaration cannot have internal linkage\n    1 | static int f(void) __attribute__((weak));\n      |                                   ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "static_object",
+      "source": "static int x __attribute__((weak));",
+      "results": {
+        "gcc": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:12: error: weak declaration of \u2018x\u2019 must be public\n    1 | static int x __attribute__((weak));\n      |            ^\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:29: error: weak declaration cannot have internal linkage\n    1 | static int x __attribute__((weak));\n      |                             ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "block_extern",
+      "source": "void f(void) { extern int x __attribute__((weak)); if (&x) x = 1; }",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "block_function",
+      "source": "void f(void) { int x(void) __attribute__((weak)); if (x) x(); }",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "block_automatic",
+      "source": "void f(void) { int x __attribute__((weak)); }",
+      "results": {
+        "gcc": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c: In function \u2018f\u2019:\n/tmp/toucan-weak-probe.c:1:20: error: weak declaration of \u2018x\u2019 must be public\n    1 | void f(void) { int x __attribute__((weak)); }\n      |                    ^\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:37: error: weak declaration cannot have internal linkage\n    1 | void f(void) { int x __attribute__((weak)); }\n      |                                     ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "block_static",
+      "source": "void f(void) { static int x __attribute__((weak)); }",
+      "results": {
+        "gcc": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c: In function \u2018f\u2019:\n/tmp/toucan-weak-probe.c:1:27: error: weak declaration of \u2018x\u2019 must be public\n    1 | void f(void) { static int x __attribute__((weak)); }\n      |                           ^\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:44: error: weak declaration cannot have internal linkage\n    1 | void f(void) { static int x __attribute__((weak)); }\n      |                                            ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "parameter",
+      "source": "void f(int x __attribute__((weak)));",
+      "results": {
+        "gcc": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:1: error: \u2018weak\u2019 attribute ignored [-Werror=attributes]\n    1 | void f(int x __attribute__((weak)));\n      | ^~~~\ncc1: some warnings being treated as errors\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "field",
+      "source": "struct S { int x __attribute__((weak)); };",
+      "results": {
+        "gcc": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:8: error: \u2018weak\u2019 attribute ignored [-Werror=attributes]\n    1 | struct S { int x __attribute__((weak)); };\n      |        ^\ncc1: some warnings being treated as errors\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:33: error: 'weak' attribute only applies to variables, functions, and classes [-Werror,-Wignored-attributes]\n    1 | struct S { int x __attribute__((weak)); };\n      |                                 ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "typedef",
+      "source": "typedef int A __attribute__((weak));",
+      "results": {
+        "gcc": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:1: error: \u2018weak\u2019 attribute ignored [-Werror=attributes]\n    1 | typedef int A __attribute__((weak));\n      | ^~~~~~~\ncc1: some warnings being treated as errors\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:30: error: 'weak' attribute only applies to variables, functions, and classes [-Werror,-Wignored-attributes]\n    1 | typedef int A __attribute__((weak));\n      |                              ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "after_definition",
+      "source": "int f(void) { return 1; } int f(void) __attribute__((weak));",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:54: error: attribute declaration must precede definition [-Werror,-Wignored-attributes]\n    1 | int f(void) { return 1; } int f(void) __attribute__((weak));\n      |                                                      ^\n/tmp/toucan-weak-probe.c:1:5: note: previous definition is here\n    1 | int f(void) { return 1; } int f(void) __attribute__((weak));\n      |     ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "after_use",
+      "source": "int f(void); int g(void) { return f(); } int f(void) __attribute__((weak));",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "after_address",
+      "source": "int f(void); int (*p)(void) = f; int f(void) __attribute__((weak));",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "previous_internal",
+      "source": "static int f(void); extern int f(void) __attribute__((weak));",
+      "results": {
+        "gcc": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:32: error: weak declaration of \u2018f\u2019 being applied to a already existing, static definition\n    1 | static int f(void); extern int f(void) __attribute__((weak));\n      |                                ^\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:55: error: weak declaration cannot have internal linkage\n    1 | static int f(void); extern int f(void) __attribute__((weak));\n      |                                                       ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "duplicate",
+      "source": "extern int f(void) __attribute__((weak, weak));",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "argument",
+      "source": "extern int f(void) __attribute__((weak(1)));",
+      "results": {
+        "gcc": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:1: error: wrong number of arguments specified for \u2018weak\u2019 attribute\n    1 | extern int f(void) __attribute__((weak(1)));\n      | ^~~~~~\n/tmp/toucan-weak-probe.c:1:1: note: expected 0, found 1\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:35: error: 'weak' attribute takes no arguments\n    1 | extern int f(void) __attribute__((weak(1)));\n      |                                   ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "weak_const",
+      "source": "const int x __attribute__((weak)) = 7; int y = x;",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:48: error: initializer element is not a compile-time constant\n    1 | const int x __attribute__((weak)) = 7; int y = x;\n      |                                                ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "weak_then_strong",
+      "source": "extern int x __attribute__((weak)); int x = 7;",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "strong_then_weak",
+      "source": "int x = 7; extern int x __attribute__((weak));",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:40: error: attribute declaration must precede definition [-Werror,-Wignored-attributes]\n    1 | int x = 7; extern int x __attribute__((weak));\n      |                                        ^\n/tmp/toucan-weak-probe.c:1:5: note: previous definition is here\n    1 | int x = 7; extern int x __attribute__((weak));\n      |     ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "block_to_file",
+      "source": "void f(void) { extern int x __attribute__((weak)); if (&x) x=1; } extern int x;",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "block_shadow",
+      "source": "static int x; void f(void) { extern int x __attribute__((weak)); }",
+      "results": {
+        "gcc": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c: In function \u2018f\u2019:\n/tmp/toucan-weak-probe.c:1:41: error: weak declaration of \u2018x\u2019 being applied to a already existing, static definition\n    1 | static int x; void f(void) { extern int x __attribute__((weak)); }\n      |                                         ^\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 1,
+          "stderr": "/tmp/toucan-weak-probe.c:1:58: error: weak declaration cannot have internal linkage\n    1 | static int x; void f(void) { extern int x __attribute__((weak)); }\n      |                                                          ^\n1 error generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    },
+    {
+      "name": "unknown_array",
+      "source": "int x[] __attribute__((weak));",
+      "results": {
+        "gcc": {
+          "code": 0,
+          "stderr": "/tmp/toucan-weak-probe.c:1:5: warning: array \u2018x\u2019 assumed to have one element\n    1 | int x[] __attribute__((weak));\n      |     ^\n",
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        },
+        "clang": {
+          "code": 0,
+          "stderr": "/tmp/toucan-weak-probe.c:1:5: warning: tentative array definition assumed to have one element\n    1 | int x[] __attribute__((weak));\n      |     ^\n1 warning generated.\n",
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-weak-probe.c"
+          ]
+        }
+      }
+    }
+  ],
+  "assembly_alias_probe": {
+    "source": "extern int a __asm__(\"shared\") __attribute__((weak));\nextern int b __asm__(\"shared\");\nint read_a(void) { return &a ? a : 0; }\nint read_b(void) { return b; }\n",
+    "source_sha256": "4ba16ff6a473fc4a2d112b53135b4dcfe0abff6bae2eaf7ecdb60d74bfbcba0f",
+    "commands": [
+      [
+        "clang",
+        "-std=c11",
+        "-S",
+        "-emit-llvm",
+        "-O2",
+        "/tmp/toucan-weak-asm.c",
+        "-o",
+        "/tmp/toucan-weak-asm.ll"
+      ],
+      [
+        "gcc",
+        "-std=c11",
+        "-S",
+        "-O2",
+        "/tmp/toucan-weak-asm.c",
+        "-o",
+        "/tmp/toucan-weak-asm.s"
+      ]
+    ],
+    "outputs_sha256": {
+      "/tmp/toucan-weak-asm.ll": "329f35d93a94d0488a75ec1d9f79b472e03944b54edafe0055d12d248ff053e6",
+      "/tmp/toucan-weak-asm.s": "7724584c0e885f69d5a98c1bbf8cd0e10b8e3619a1b445e374190f593d923684"
+    },
+    "clang_shared_symbol_ir": "@shared = extern_weak global i32, align 4",
+    "gcc_shared_symbol_assembly": ".weak shared"
+  },
+  "project_translation_units": {
+    "binary": "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+    "binary_sha256": "6987e71505a6ba7f687a56926db3d7d99114c4e888396fe6f2b107317aaeb700",
+    "cases": [
+      {
+        "case": "zlib-adler32",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1/adler32.c",
+          "-D_LARGEFILE64_SOURCE=1",
+          "-I/home/dev-user/.cache/toucan/corpus/build/zlib",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "exit_code": 0,
+        "seconds": 0.055113489001087146,
+        "stderr": "Analyzed 563 declarations for x86_64-unknown-linux-gnu\n",
+        "stdout": "",
+        "source_sha256": "9cd1443a24ff2a3053961695bd432035c58347386a420d3388232376ebabe211",
+        "preprocessed_sha256": "dc1b73277ba848e7c926b0f3f9ce0f901386e3446237ddfb2093ed0eb86d8f0a"
+      },
+      {
+        "case": "zlib-adler32",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zlib-adler32/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "exit_code": 1,
+        "seconds": 0.03530117899936158,
+        "stderr": "error: /usr/include/x86_64-linux-gnu/bits/unistd.h:28:13: unknown identifier `__builtin_constant_p` (preprocessed byte 40721)\n",
+        "stdout": "",
+        "source_sha256": "9cd1443a24ff2a3053961695bd432035c58347386a420d3388232376ebabe211",
+        "preprocessed_sha256": "dc1b73277ba848e7c926b0f3f9ce0f901386e3446237ddfb2093ed0eb86d8f0a"
+      },
+      {
+        "case": "zlib-deflate",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1/deflate.c",
+          "-D_LARGEFILE64_SOURCE=1",
+          "-I/home/dev-user/.cache/toucan/corpus/build/zlib",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "exit_code": 0,
+        "seconds": 0.07921438300036243,
+        "stderr": "Analyzed 595 declarations for x86_64-unknown-linux-gnu\n",
+        "stdout": "",
+        "source_sha256": "3b956337350f94c34987750f785587ef33d9c89ceaebb7c2afb189c956360cbe",
+        "preprocessed_sha256": "c4bdb26c5290aa468d897575e77e663bc11eee3ed4d95a8e969730018faa273f"
+      },
+      {
+        "case": "zlib-deflate",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zlib-deflate/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "exit_code": 1,
+        "seconds": 0.05515561699940008,
+        "stderr": "error: /usr/include/x86_64-linux-gnu/bits/unistd.h:28:13: unknown identifier `__builtin_constant_p` (preprocessed byte 40721)\n",
+        "stdout": "",
+        "source_sha256": "3b956337350f94c34987750f785587ef33d9c89ceaebb7c2afb189c956360cbe",
+        "preprocessed_sha256": "c4bdb26c5290aa468d897575e77e663bc11eee3ed4d95a8e969730018faa273f"
+      },
+      {
+        "case": "libgit2-alloc",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util/alloc.c",
+          "-DSHA1DC_CUSTOM_INCLUDE_SHA1_C=\"git2_util.h\"",
+          "-DSHA1DC_CUSTOM_INCLUDE_UBC_CHECK_C=\"git2_util.h\"",
+          "-DSHA1DC_NO_STANDARD_INCLUDES=1",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/llhttp",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/pcre",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/xdiff",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/zlib",
+          "-D_GNU_SOURCE",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+        "exit_code": 1,
+        "seconds": 0.15142614700016566,
+        "stderr": "error: /usr/include/x86_64-linux-gnu/sys/socket.h:80:41: unsupported C attribute `transparent_union`; its ABI effect is not assumed (preprocessed byte 122429)\n",
+        "stdout": "",
+        "source_sha256": "d647f270fdcaec18eef23a64adeb2b73ea89e4cbe2d06b7205cd999cdc24dd42",
+        "preprocessed_sha256": "a4aabdfa71b288fa62db020b95fa94d2e2547e3b6bf411cd6d9e01e60ced4496"
+      },
+      {
+        "case": "libgit2-alloc",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/libgit2-alloc/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+        "exit_code": 1,
+        "seconds": 0.07860081199760316,
+        "stderr": "error: /usr/include/x86_64-linux-gnu/bits/stdlib.h:39:15: unknown identifier `__builtin_dynamic_object_size` (preprocessed byte 43395)\n",
+        "stdout": "",
+        "source_sha256": "d647f270fdcaec18eef23a64adeb2b73ea89e4cbe2d06b7205cd999cdc24dd42",
+        "preprocessed_sha256": "a4aabdfa71b288fa62db020b95fa94d2e2547e3b6bf411cd6d9e01e60ced4496"
+      },
+      {
+        "case": "libgit2-repository",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/libgit2/repository.c",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/libgit2",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/llhttp",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/pcre",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/xdiff",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/zlib",
+          "-D_GNU_SOURCE",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/libgit2",
+        "exit_code": 1,
+        "seconds": 0.39232758099751663,
+        "stderr": "error: /usr/include/x86_64-linux-gnu/sys/socket.h:80:41: unsupported C attribute `transparent_union`; its ABI effect is not assumed (preprocessed byte 122077)\n",
+        "stdout": "",
+        "source_sha256": "2d7ce5f5914816dd369c5336ee0e19fb11d7a0b9c3223696006344b26e133852",
+        "preprocessed_sha256": "04628515f6865b42ad22a803c0d22da6d4d28328ea6ba834b17136b03089ae73"
+      },
+      {
+        "case": "libgit2-repository",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/libgit2-repository/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/libgit2",
+        "exit_code": 1,
+        "seconds": 0.18129593599951477,
+        "stderr": "error: /usr/include/x86_64-linux-gnu/bits/stdlib.h:39:15: unknown identifier `__builtin_dynamic_object_size` (preprocessed byte 43395)\n",
+        "stdout": "",
+        "source_sha256": "2d7ce5f5914816dd369c5336ee0e19fb11d7a0b9c3223696006344b26e133852",
+        "preprocessed_sha256": "04628515f6865b42ad22a803c0d22da6d4d28328ea6ba834b17136b03089ae73"
+      },
+      {
+        "case": "zstd-zstd_common",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/common/zstd_common.c",
+          "-DXXH_NAMESPACE=ZSTD_",
+          "-DDEBUGLEVEL=0",
+          "-DZSTD_LEGACY_SUPPORT=5",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "exit_code": 0,
+        "seconds": 0.10075017599956482,
+        "stderr": "Analyzed 912 declarations for x86_64-unknown-linux-gnu\n",
+        "stdout": "",
+        "source_sha256": "f49eb8023a90d3de925373bd9ee0d36ed46b26c529840b64220397446cd73795",
+        "preprocessed_sha256": "aacbd5d25076268a1cf1ed37c2fe5d4deb8cd9fe768248e033324a56f763b4fc"
+      },
+      {
+        "case": "zstd-zstd_common",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "exit_code": 1,
+        "seconds": 0.06602291500166757,
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/common/bitstream.h:273:51: C syntax error: unexpected token at \"\" line 240 column 1107, expected '<typedef_name>' (preprocessed byte 232701)\n",
+        "stdout": "",
+        "source_sha256": "f49eb8023a90d3de925373bd9ee0d36ed46b26c529840b64220397446cd73795",
+        "preprocessed_sha256": "aacbd5d25076268a1cf1ed37c2fe5d4deb8cd9fe768248e033324a56f763b4fc"
+      },
+      {
+        "case": "zstd-zstd_compress",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/compress/zstd_compress.c",
+          "-DXXH_NAMESPACE=ZSTD_",
+          "-DDEBUGLEVEL=0",
+          "-DZSTD_LEGACY_SUPPORT=5",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "exit_code": 0,
+        "seconds": 0.3061025940005493,
+        "stderr": "Analyzed 1289 declarations for x86_64-unknown-linux-gnu\n",
+        "stdout": "",
+        "source_sha256": "10c315ae609d49b2fc431521aa95908086e69fd917991c5ed9a875af3d1208e8",
+        "preprocessed_sha256": "199680e00b6f0d87c8b1b0bf4f863722af176cc3dba141f1c2243b1784d98aff"
+      },
+      {
+        "case": "zstd-zstd_compress",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_compress/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "exit_code": 1,
+        "seconds": 0.09923263200107613,
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/compress/../common/bitstream.h:273:51: C syntax error: unexpected token at \"\" line 252 column 1107, expected '<typedef_name>' (preprocessed byte 233338)\n",
+        "stdout": "",
+        "source_sha256": "10c315ae609d49b2fc431521aa95908086e69fd917991c5ed9a875af3d1208e8",
+        "preprocessed_sha256": "199680e00b6f0d87c8b1b0bf4f863722af176cc3dba141f1c2243b1784d98aff"
+      },
+      {
+        "case": "sqlite-sqlite3",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/build/sqlite/sqlite3.c",
+          "-DSQLITE_THREADSAFE=0",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/sqlite",
+        "exit_code": 1,
+        "seconds": 1.8527351560005627,
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/build/sqlite/sqlite3.c:35192:19: unknown identifier `__builtin_inff` (macro invocation; preprocessed byte 414920)\n",
+        "stdout": "",
+        "source_sha256": "8498ec863ccdbaacc6cfa243d34153c02c96b110cf6bae4dbcd63fc7635d9881",
+        "preprocessed_sha256": "08e2344f85325fc453ef7098d65a1533d3d6823d7c7fc4adec445544832de4ce"
+      },
+      {
+        "case": "sqlite-sqlite3",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/weak-symbol-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/sqlite-sqlite3/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/sqlite",
+        "exit_code": 1,
+        "seconds": 0.3933298140000261,
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/build/sqlite/sqlite3.c:24064:50: C syntax error: unexpected token at \"\" line 487 column 337, expected '<typedef_name>' (preprocessed byte 232133)\n",
+        "stdout": "",
+        "source_sha256": "8498ec863ccdbaacc6cfa243d34153c02c96b110cf6bae4dbcd63fc7635d9881",
+        "preprocessed_sha256": "08e2344f85325fc453ef7098d65a1533d3d6823d7c7fc4adec445544832de4ce"
+      }
+    ]
+  }
+}

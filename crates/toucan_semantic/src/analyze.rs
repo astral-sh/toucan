@@ -85,6 +85,7 @@ pub(crate) fn analyze_inner(
         }
         analyzer.finish_tentative_definitions()?;
         analyzer.validate_block_externs()?;
+        analyzer.validate_weak_symbol_aliases()?;
         let checked = analyzer
             .checked
             .take()
@@ -425,18 +426,28 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Attributes {
+    pub(crate) weak: Option<lang_c::span::Span>,
     pub(crate) diagnostic_attributes: Vec<crate::checked::attributes::ParsedDiagnosticAttribute>,
     pub(crate) type_use: Option<crate::checked::bounds::TypeUseId>,
     type_name_use: bool,
     packed: bool,
     alignment: Option<u64>,
-    link_name: Option<String>,
+    pub(crate) link_name: Option<String>,
     mode: Option<String>,
     calling_convention: Option<CallingConvention>,
     alias_base: bool,
 }
 
 impl Attributes {
+    pub(crate) fn require_no_weak(&self) -> Result<(), Error> {
+        if let Some(span) = self.weak {
+            return Err(Error::new(
+                span.start,
+                "weak requires an external function or object declaration",
+            ));
+        }
+        Ok(())
+    }
     pub(crate) fn require_function_diagnostics(&self, function: bool) -> Result<(), Error> {
         if !function && let Some(attribute) = self.diagnostic_attributes.first() {
             return Err(Error::new(
@@ -547,6 +558,7 @@ fn outermost_derived(
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) weak_symbols: BTreeMap<String, lang_c::span::Span>,
     pub(crate) diagnostic_kinds: HashMap<String, u8>,
     pub(crate) checked: Option<Box<CodeBuilder>>,
     pub(crate) unit: TranslationUnit,
@@ -634,6 +646,7 @@ impl Analyzer {
             function_scope: None,
             current_function: None,
             block_externs: HashMap::new(),
+            weak_symbols: BTreeMap::new(),
             type_names: HashMap::new(),
         }
     }
@@ -828,6 +841,7 @@ impl Analyzer {
                 &declaration.node.specifiers[..declaration.node.specifiers.len() - 1],
             )?;
             attributes.require_function_diagnostics(false)?;
+            attributes.require_no_weak()?;
             if attributes.packed || attributes.alignment.is_some() || attributes.mode.is_some() {
                 return Err(Error::new(
                     declaration.span.start,
@@ -849,6 +863,7 @@ impl Analyzer {
                 name,
                 ty,
                 kind: DeclarationKind::Typedef,
+                symbol_binding: crate::SymbolBinding::Strong,
                 link_name: None,
                 is_static: false,
                 is_definition: false,
@@ -874,6 +889,7 @@ impl Analyzer {
         let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
         if declaration.node.declarators.is_empty() {
             attributes.require_function_diagnostics(false)?;
+            attributes.require_no_weak()?;
         }
         for item in &declaration.node.declarators {
             let mut is_static = storage.class == Some(ast::StorageClassSpecifier::Static);
@@ -1020,7 +1036,15 @@ impl Analyzer {
                 } else {
                     self.composite_type(&previous.ty, &ty, 0)?
                 };
+                let previous_definition = previous.is_definition;
+                let symbol_binding = self.check_symbol_binding(
+                    &name,
+                    declarator_attributes.weak,
+                    kind != DeclarationKind::Typedef && !is_static,
+                    previous_definition,
+                )?;
                 let previous = &mut self.unit.declarations[previous_index];
+                previous.symbol_binding = symbol_binding;
                 previous.ty = ty;
                 previous.is_definition |= is_definition;
                 if previous.link_name.is_none() {
@@ -1028,8 +1052,15 @@ impl Analyzer {
                 }
                 previous_index
             } else {
+                let symbol_binding = self.check_symbol_binding(
+                    &name,
+                    declarator_attributes.weak,
+                    kind != DeclarationKind::Typedef && !is_static,
+                    false,
+                )?;
                 let index = self.unit.declarations.len();
                 self.unit.declarations.push(Declaration {
+                    symbol_binding,
                     name,
                     ty,
                     kind,
@@ -1071,6 +1102,11 @@ impl Analyzer {
                     site,
                     &declarator_attributes.diagnostic_attributes,
                 )?;
+                checked.attach_symbol_binding(
+                    site,
+                    self.unit.declarations[declaration_index].symbol_binding,
+                    declarator_attributes.weak,
+                );
                 let declaration = &self.unit.declarations[declaration_index];
                 checked.complete_declaration(
                     site,
@@ -1466,6 +1502,7 @@ impl Analyzer {
             checked.begin_specifier_operands(&types)?;
         }
         record_attributes.require_function_diagnostics(false)?;
+        record_attributes.require_no_weak()?;
         let mut ty = self.base_type(&types)?;
         if let Some(checked) = &mut self.checked {
             for specifier in &types {
@@ -1745,10 +1782,12 @@ impl Analyzer {
         }
         let (ty, mut attributes) = self.specifier_qualifiers(&name.specifiers)?;
         attributes.require_function_diagnostics(false)?;
+        attributes.require_no_weak()?;
         attributes.type_name_use = true;
         let (ty, type_use) = if let Some(declarator) = &name.declarator {
             let (_, ty, extra) = self.declarator(ty, declarator, &attributes)?;
             extra.require_function_diagnostics(false)?;
+            extra.require_no_weak()?;
             (ty, extra.type_use)
         } else {
             (
@@ -1778,6 +1817,7 @@ impl Analyzer {
             attributes.type_use,
             attributes.type_name_use,
         )?;
+        extra.weak = extra.weak.or(attributes.weak);
         if !attributes.diagnostic_attributes.is_empty() {
             let mut diagnostic_attributes = attributes.diagnostic_attributes.clone();
             diagnostic_attributes.append(&mut extra.diagnostic_attributes);
@@ -1872,6 +1912,7 @@ impl Analyzer {
                                     || attributes.mode.is_some()
                                     || attributes.link_name.is_some()
                                     || !attributes.diagnostic_attributes.is_empty()
+                                    || attributes.weak.is_some()
                                 {
                                     return Err(Error::new(
                                         qualifier.span.start,
@@ -2060,6 +2101,7 @@ impl Analyzer {
                         }
                         let (base, mut attributes) = self.specifiers(&parameter.node.specifiers)?;
                         attributes.require_function_diagnostics(false)?;
+                        attributes.require_no_weak()?;
                         attributes.alias_base = attributes.alias_base
                             && !parameter
                                 .node
@@ -2090,6 +2132,7 @@ impl Analyzer {
                                     attributes.type_name_use,
                                 )?;
                                 extra.require_function_diagnostics(false)?;
+                                extra.require_no_weak()?;
                                 (name, ty, extra.type_use)
                             } else {
                                 (None, base, attributes.type_use)
@@ -2102,6 +2145,7 @@ impl Analyzer {
                         let mut extra = Attributes::default();
                         self.attributes(&parameter.node.extensions, &mut extra)?;
                         extra.require_function_diagnostics(false)?;
+                        extra.require_no_weak()?;
                         parameter_type = self.apply_calling_convention(
                             parameter_type,
                             &extra,
@@ -2323,6 +2367,7 @@ impl Analyzer {
                 if inner_attributes.link_name.is_some() {
                     attributes.link_name = inner_attributes.link_name;
                 }
+                attributes.weak = attributes.weak.or(inner_attributes.weak);
                 attributes
                     .diagnostic_attributes
                     .extend(inner_attributes.diagnostic_attributes);
@@ -2439,6 +2484,7 @@ impl Analyzer {
                         let (base, attributes) =
                             self.specifier_qualifiers(&field.node.specifiers)?;
                         attributes.require_function_diagnostics(false)?;
+                        attributes.require_no_weak()?;
                         if field.node.declarators.is_empty() {
                             // GNU and Clang accept declarations without members,
                             // including nested tag definitions. Only a directly
@@ -2474,6 +2520,7 @@ impl Analyzer {
                                         (None, base.clone(), Attributes::default())
                                     };
                                 extra.require_function_diagnostics(false)?;
+                                extra.require_no_weak()?;
                                 if name.as_ref().is_some_and(|name| {
                                     fields.iter().any(|field| field.name.as_ref() == Some(name))
                                 }) {
@@ -2742,6 +2789,7 @@ impl Analyzer {
             let mut attributes = Attributes::default();
             self.attributes(&enumerator.node.extensions, &mut attributes)?;
             attributes.require_function_diagnostics(false)?;
+            attributes.require_no_weak()?;
             let value = if let Some(expression) = &enumerator.node.expression {
                 self.eval(expression)?
             } else if let Some(previous) = previous {
@@ -2920,6 +2968,7 @@ impl Analyzer {
 
     fn apply_record_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
         attributes.require_function_diagnostics(false)?;
+        attributes.require_no_weak()?;
         if !attributes.packed && attributes.alignment.is_none() {
             return Ok(());
         }
@@ -2955,6 +3004,15 @@ impl Analyzer {
                 ast::Extension::Attribute(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
                     match name {
+                        "weak" => {
+                            if !attribute.arguments.is_empty() {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "weak takes no arguments",
+                                ));
+                            }
+                            result.weak = Some(extension.span);
+                        }
                         "warning" | "error" => {
                             let kind = if name == "warning" {
                                 crate::checked::DiagnosticAttributeKind::Warning

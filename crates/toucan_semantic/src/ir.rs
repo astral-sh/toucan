@@ -250,8 +250,26 @@ pub struct EnumVariant {
     pub value: IntegerValue,
 }
 
+/// Object-file binding of a declaration with external C linkage.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub enum SymbolBinding {
+    #[default]
+    Strong,
+    /// Definitions may be replaced; an unresolved declaration may have a null address.
+    Weak,
+}
+impl SymbolBinding {
+    pub(crate) fn is_strong(&self) -> bool {
+        *self == Self::Strong
+    }
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct Declaration {
+    /// Symbol binding; applies to externally linked functions and objects.
+    #[serde(skip_serializing_if = "SymbolBinding::is_strong")]
+    pub symbol_binding: SymbolBinding,
     pub name: String,
     pub ty: Type,
     pub kind: DeclarationKind,
