@@ -137,6 +137,30 @@ Native Windows SDK and full consumer checks remain release gates. The reusable
 mode for Windows. Cross-target linking is recorded separately from execution.
 This layer adds no Windows ARM target.
 
+## Native DLL CI
+
+The [Windows DLL workflow](../.github/workflows/windows-dll.yml) runs the exact
+`native_windows_dll_data_calls_and_addresses` test on x86_64 `windows-2025`.
+It installs Rust 1.64 alongside stable, then executes 12 consumers: three header
+orders, both Rust compilers, and O0/O3. The C and Rust probes check calls, data
+mutation, and function/data address identity across two DLLs and an ordinary
+object file. CI requires a completed evidence record with all 12 executions.
+
+The job selects the runner's installed LLVM and discovers the x64 MSVC developer
+environment with `vswhere` and `vcvars64.bat`. These follow the
+[runner software manifest](https://github.com/actions/runner-images/blob/main/images/windows/Windows2025-Readme.md)
+and [Microsoft's command-line setup](https://learn.microsoft.com/en-us/cpp/build/building-on-the-command-line).
+Compiler versions are recorded on each run. The `windows-dll-x86_64-*` artifact
+contains sources, generated Rust, LLVM, import libraries, DLLs, executables,
+command outputs, and hashes; uploads run on failure too and are retained for
+90 days.
+
+To select multiple compilers when running the test locally, set
+`TOUCAN_WINDOWS_DLL_RUSTC_JSON` to a JSON array of complete `rustc.exe` paths.
+Without it, the probe uses `rustc` from `PATH`. `TOUCAN_CLANG` selects Clang, and
+`TOUCAN_WINDOWS_DLL_OUTPUT` preserves the evidence directory. Native Windows SDK
+headers and full project consumers remain separate release gates.
+
 ## Evidence
 
 The focused tests compare source acceptance with Clang, final file attributes

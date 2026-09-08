@@ -1,0 +1,13 @@
+{
+  "base": "55f12e9",
+  "source_sha256": {
+    ".github/workflows/windows-dll.yml": "87f557b22d9411766207070e117b287dd2a2756fa2f2d1f499813a8cbe9a5730",
+    "scripts/verify_windows_dll_imports.py": "8c03292b738f772c028321be015d0c7e8f716a359d58d789fa516a28088c5723",
+    "crates/toucan_cli/tests/dll_libraries.rs": "1edd111dc4530c9311685291c195acdf64b03f891e67a9f94391d636196772d8"
+  },
+  "windows_test_cross_compilation": "passed",
+  "actionlint": "passed",
+  "cross_linked_consumers": 12,
+  "native_windows_executions": 0,
+  "scope": "Local workflow, Windows-only Rust test compilation and updated COFF runner checks. The published native Windows job must supply runtime evidence."
+}

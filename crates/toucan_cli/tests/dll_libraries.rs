@@ -58,15 +58,23 @@ fn native_windows_dll_data_calls_and_addresses() {
         .unwrap_or_else(|| temporary.path().to_owned());
     let script = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("../../scripts/verify_windows_dll_imports.py");
-    let result = Command::new("python")
+    let mut command = Command::new("python");
+    command
         .arg(script)
         .arg("--toucan")
         .arg(env!("CARGO_BIN_EXE_toucan"))
         .arg("--output")
         .arg(output)
-        .arg("--native")
-        .output()
-        .unwrap();
+        .arg("--native");
+    if let Ok(rustcs) = std::env::var("TOUCAN_WINDOWS_DLL_RUSTC_JSON") {
+        let rustcs: Vec<String> = serde_json::from_str(&rustcs)
+            .expect("TOUCAN_WINDOWS_DLL_RUSTC_JSON must be an array of rustc paths");
+        assert!(!rustcs.is_empty(), "at least one rustc path is required");
+        for rustc in rustcs {
+            command.arg("--rustc").arg(rustc);
+        }
+    }
+    let result = command.output().unwrap();
     assert!(
         result.status.success(),
         "{}\n{}",

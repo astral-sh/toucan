@@ -360,6 +360,9 @@ def main() -> None:
                             "llvm_sha256": digest(destination / "consumer.ll"),
                             "executable_sha256": digest(executable),
                             "native_executed": args.native,
+                            "native_executable_sha256": digest(native)
+                            if args.native
+                            else None,
                         }
                     )
         quote = output / "quoted-library"
