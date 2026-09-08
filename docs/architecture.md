@@ -72,7 +72,9 @@ by the final link name; treating the other C names as strong would be incorrect.
 
 The semantic layer checks declarations, expressions, initializers, and function
 bodies. Lexical scopes keep local names out of the exported declarations while
-preserving tag identities. Aggregate initialization uses a subobject cursor, so
+preserving tag identities. Object storage duration is separate from type and linkage;
+thread-local declarations retain their per-thread lifetime in the analysis APIs.
+Aggregate initialization uses a subobject cursor, so
 sparse designated initializers do not expand implicitly zeroed elements. Function
 checking validates calls, assignments, returns, control-flow constraints, and labels.
 Unsupported constructs produce diagnostics; this remains an incomplete C11 implementation.

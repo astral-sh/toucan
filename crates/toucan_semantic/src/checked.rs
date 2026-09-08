@@ -260,14 +260,20 @@ pub struct Entity {
     /// Canonical file declaration, when one exists. Block externs may precede it.
     pub(crate) declaration: Option<usize>,
     pub(crate) linkage: Linkage,
+    pub(crate) storage: Storage,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub enum Storage {
+    /// Functions, types, and other entities without object storage.
     None,
+    /// An object whose lifetime belongs to a block execution.
     Automatic,
+    /// One object for the entire program execution.
     Static,
+    /// A distinct object for each thread, lasting for that thread's execution.
+    Thread,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -634,6 +640,7 @@ impl Builder {
             kind,
             declaration: None,
             linkage: Linkage::None,
+            storage: Storage::None,
         });
         self.entities.insert(key, id);
         Ok(id)
@@ -653,6 +660,7 @@ impl Builder {
         let ty = self.intern_type(ty, offset)?;
         self.budget.charge(1, 6, 0, offset)?;
         let id = SiteId(self.code.declarations.len() as u32);
+        self.code.entities[entity.index()].storage = properties.storage;
         self.code.declarations.push(DeclarationSite {
             returns_twice: self.code.entities[entity.index()].returns_twice,
             returns_twice_attribute: None,
@@ -722,6 +730,7 @@ impl Builder {
             EntityKind::Variable,
             offset,
         )?;
+        self.code.entities[entity.index()].storage = Storage::Static;
         self.bind_name(entity, offset)
     }
 
@@ -750,7 +759,9 @@ impl Builder {
         };
         let entity = self.entity(key, Some(&declaration.name), entity_kind, item.span.start)?;
         self.code.entities[entity.index()].declaration = Some(index);
-        let storage = if declaration.kind == DeclarationKind::Variable {
+        let storage = if declaration.is_thread_local {
+            Storage::Thread
+        } else if declaration.kind == DeclarationKind::Variable {
             Storage::Static
         } else {
             Storage::None

@@ -333,7 +333,7 @@ fn constant_context_roots_remain_distinct_from_runtime_fallbacks() {
         let code = analysis.checked().unwrap();
         assert!(
             code.initializers()
-                .any(|(_, initializer)| initializer.static_storage())
+                .any(|(_, initializer)| initializer.requires_constant())
         );
         // A fallback is a conditional compiler policy, not a runtime root. The
         // static initializer, enumerator and assertion remain their owning sites.

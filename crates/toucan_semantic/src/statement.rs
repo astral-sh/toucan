@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use lang_c::{ast, span::Node};
 
-use crate::analyze::{Analyzer, LexicalScope, Tag};
+use crate::analyze::{Analyzer, BlockExtern, LexicalScope, Tag, storage_specifiers};
 use crate::checked::statement::ControlKind;
 use crate::checked::{
     EntityKind, LocalDeclaration, OccurrenceKind, ScopeId, ScopeKind, Storage, declarator_name_span,
@@ -222,7 +222,9 @@ impl Analyzer {
             }
         }
         self.unit.declarations.iter().any(|declaration| {
-            declaration.name == name && declaration.kind != DeclarationKind::Typedef
+            declaration.name == name
+                && declaration.kind != DeclarationKind::Typedef
+                && !declaration.is_thread_local
         })
     }
 
@@ -573,29 +575,13 @@ impl Analyzer {
         declaration: &Node<ast::Declaration>,
         for_initializer: bool,
     ) -> Result<(), Error> {
-        let storage: Vec<_> = declaration
-            .node
-            .specifiers
-            .iter()
-            .filter_map(|specifier| {
-                if let ast::DeclarationSpecifier::StorageClass(storage) = &specifier.node {
-                    Some(&storage.node)
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if storage.len() > 1 {
+        let specifiers = storage_specifiers(&declaration.node.specifiers, self.unit.target)?;
+        let storage = specifiers.class.as_ref();
+        let thread_local = specifiers.thread_local;
+        if thread_local && storage.is_none() && !declaration.node.declarators.is_empty() {
             return Err(Error::new(
                 declaration.span.start,
-                "multiple storage classes in block declaration",
-            ));
-        }
-        let storage = storage.first().copied();
-        if storage == Some(&ast::StorageClassSpecifier::ThreadLocal) {
-            return Err(Error::new(
-                declaration.span.start,
-                "block thread-local objects are unsupported",
+                "block thread-local storage requires static or extern",
             ));
         }
         if for_initializer
@@ -667,6 +653,12 @@ impl Analyzer {
             if (!is_typedef && !function) || variably_modified {
                 self.require_no_fallthrough()?;
             }
+            if thread_local && (function || is_typedef) {
+                return Err(Error::new(
+                    item.span.start,
+                    "thread-local storage requires an object declaration",
+                ));
+            }
             extra.require_function_attributes(function && !is_typedef)?;
             self.check_diagnostic_attributes(&name, &extra.diagnostic_attributes)?;
             let returns_twice = if function && !is_typedef {
@@ -703,10 +695,10 @@ impl Analyzer {
                     "variably modified identifiers cannot have linkage",
                 ));
             }
-            if is_static && self.unit.is_variable_length_array(&ty)? {
+            if (is_static || thread_local) && self.unit.is_variable_length_array(&ty)? {
                 return Err(Error::new(
                     item.span.start,
-                    "variable-length arrays cannot have static storage duration",
+                    "variable-length arrays cannot have static or thread storage duration",
                 ));
             }
             if function
@@ -803,16 +795,26 @@ impl Analyzer {
             }
             let linked = is_extern || function;
             if function
-                && let Some(previous) = self.block_externs.get(&name).or_else(|| {
-                    self.unit
-                        .declarations
-                        .iter()
-                        .find(|declaration| declaration.name == name)
-                        .map(|declaration| &declaration.ty)
-                })
+                && let Some(previous) = self
+                    .block_externs
+                    .get(&name)
+                    .map(|previous| &previous.ty)
+                    .or_else(|| {
+                        self.unit
+                            .declarations
+                            .iter()
+                            .find(|declaration| declaration.name == name)
+                            .map(|declaration| &declaration.ty)
+                    })
             {
                 ty = self.inherit_calling_convention(ty, previous)?;
             }
+            let internal_linkage = linked
+                && self.unit.declarations.iter().any(|declaration| {
+                    declaration.name == name
+                        && declaration.kind != DeclarationKind::Typedef
+                        && declaration.is_static
+                });
             if linked {
                 if item.node.initializer.is_some() {
                     return Err(Error::new(
@@ -821,7 +823,8 @@ impl Analyzer {
                     ));
                 }
                 if let Some(previous) = self.block_externs.get(&name)
-                    && !self.compatible(previous, &ty)?
+                    && (!self.compatible(&previous.ty, &ty)?
+                        || previous.thread_local != thread_local)
                 {
                     return Err(Error::new(
                         item.span.start,
@@ -834,14 +837,22 @@ impl Analyzer {
                     .iter()
                     .find(|declaration| declaration.name == name)
                     && previous.kind != DeclarationKind::Typedef
-                    && !self.compatible(&previous.ty, &ty)?
+                    && (!self.compatible(&previous.ty, &ty)?
+                        || previous.is_thread_local != thread_local)
                 {
                     return Err(Error::new(
                         item.span.start,
                         "block extern conflicts with a file declaration",
                     ));
                 }
-                self.block_externs.insert(name.clone(), ty.clone());
+                self.block_externs.insert(
+                    name.clone(),
+                    BlockExtern {
+                        ty: ty.clone(),
+                        thread_local,
+                        is_static: internal_linkage,
+                    },
+                );
             }
             let existing = self
                 .lexical_scopes
@@ -878,6 +889,8 @@ impl Analyzer {
                                 },
                                 storage: if function {
                                     Storage::None
+                                } else if thread_local {
+                                    Storage::Thread
                                 } else {
                                     Storage::Static
                                 },
@@ -903,14 +916,21 @@ impl Analyzer {
                         .expect("block scope")
                         .parameters[index]
                         .ty = composite.clone();
-                    self.block_externs.insert(name, composite);
+                    self.block_externs.insert(
+                        name,
+                        BlockExtern {
+                            ty: composite,
+                            thread_local,
+                            is_static: internal_linkage,
+                        },
+                    );
                     continue;
                 }
             }
             self.bind_local(
                 &name,
                 ty.clone(),
-                is_static || linked,
+                (is_static || linked) && !thread_local,
                 register,
                 item.span.start,
             )?;
@@ -939,6 +959,8 @@ impl Analyzer {
                         },
                         storage: if function {
                             Storage::None
+                        } else if thread_local {
+                            Storage::Thread
                         } else if is_static || linked {
                             Storage::Static
                         } else {
@@ -955,7 +977,7 @@ impl Analyzer {
             };
             if let Some(initializer) = &item.node.initializer {
                 let (completed, storage) =
-                    self.check_object_initializer(&ty, initializer, is_static)?;
+                    self.check_object_initializer(&ty, initializer, is_static || thread_local)?;
                 ty = completed;
                 let scope = self.lexical_scopes.last_mut().expect("block scope");
                 if let Some(storage) = storage {
@@ -991,7 +1013,9 @@ impl Analyzer {
         for declaration in &self.unit.declarations {
             if let Some(previous) = self.block_externs.get(&declaration.name)
                 && declaration.kind != DeclarationKind::Typedef
-                && !self.compatible(previous, &declaration.ty)?
+                && (!self.compatible(&previous.ty, &declaration.ty)?
+                    || previous.thread_local != declaration.is_thread_local
+                    || previous.is_static != declaration.is_static)
             {
                 return Err(Error::new(
                     0,

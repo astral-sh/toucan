@@ -511,6 +511,13 @@ pub(crate) struct TagBinding {
     pub(crate) depth: usize,
 }
 
+/// A linked block declaration, also checked against later file declarations.
+pub(crate) struct BlockExtern {
+    pub(crate) ty: Type,
+    pub(crate) thread_local: bool,
+    pub(crate) is_static: bool,
+}
+
 /// Scope frames retain only new bindings; file-scope maps remain shared.
 #[derive(Default)]
 pub(crate) struct LexicalScope {
@@ -532,22 +539,27 @@ pub(crate) struct LexicalScope {
 }
 
 #[derive(Default)]
-struct StorageSpecifiers {
-    class: Option<ast::StorageClassSpecifier>,
-    thread_local: bool,
+pub(crate) struct StorageSpecifiers {
+    pub(crate) class: Option<ast::StorageClassSpecifier>,
+    pub(crate) thread_local: bool,
 }
 
 /// C11 permits one storage class, with `_Thread_local` additionally allowed
 /// beside `static` or `extern`.
-fn storage_specifiers(
+pub(crate) fn storage_specifiers(
     specifiers: &[Node<ast::DeclarationSpecifier>],
+    target: Target,
 ) -> Result<StorageSpecifiers, Error> {
     let mut storage = StorageSpecifiers::default();
+    let mut gnu_thread_local = false;
     for specifier in specifiers {
         let ast::DeclarationSpecifier::StorageClass(class) = &specifier.node else {
             continue;
         };
-        if class.node == ast::StorageClassSpecifier::ThreadLocal {
+        if matches!(
+            class.node,
+            ast::StorageClassSpecifier::ThreadLocal | ast::StorageClassSpecifier::GnuThreadLocal
+        ) {
             if storage.thread_local {
                 return Err(Error::new(
                     class.span.start,
@@ -555,6 +567,21 @@ fn storage_specifiers(
                 ));
             }
             storage.thread_local = true;
+            gnu_thread_local = class.node == ast::StorageClassSpecifier::GnuThreadLocal;
+        } else if gnu_thread_local
+            && matches!(
+                target,
+                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            )
+            && matches!(
+                class.node,
+                ast::StorageClassSpecifier::Static | ast::StorageClassSpecifier::Extern
+            )
+        {
+            return Err(Error::new(
+                class.span.start,
+                "GNU __thread must follow static or extern",
+            ));
         } else if storage.class.replace(class.node.clone()).is_some() {
             return Err(Error::new(
                 class.span.start,
@@ -626,7 +653,7 @@ pub(crate) struct Analyzer {
     pub(crate) variably_modified_parents: Vec<Option<usize>>,
     pub(crate) function_scope: Option<crate::statement::FunctionScope>,
     pub(crate) current_function: Option<crate::statement::FunctionContext>,
-    pub(crate) block_externs: HashMap<String, Type>,
+    pub(crate) block_externs: HashMap<String, BlockExtern>,
     type_names: HashMap<(usize, usize), Type>,
 }
 
@@ -867,7 +894,7 @@ impl Analyzer {
         declaration: &Node<ast::Declaration>,
         definition: bool,
     ) -> Result<(), Error> {
-        let storage = storage_specifiers(&declaration.node.specifiers)?;
+        let storage = storage_specifiers(&declaration.node.specifiers, self.unit.target)?;
         if matches!(
             storage.class,
             Some(ast::StorageClassSpecifier::Auto | ast::StorageClassSpecifier::Register)
@@ -925,6 +952,7 @@ impl Analyzer {
                 symbol_binding: crate::SymbolBinding::Strong,
                 link_name: None,
                 is_static: false,
+                is_thread_local: false,
                 is_definition: false,
                 flexible_array_storage: None,
             });
@@ -1029,14 +1057,10 @@ impl Analyzer {
             } else {
                 false
             };
-            if storage.thread_local {
+            if storage.thread_local && kind != DeclarationKind::Variable {
                 return Err(Error::new(
                     item.span.start,
-                    if kind == DeclarationKind::Variable {
-                        "thread-local objects require unsupported Rust TLS bindings"
-                    } else {
-                        "thread-local storage requires an object declaration"
-                    },
+                    "thread-local storage requires an object declaration",
                 ));
             }
             if item.node.initializer.is_some() && kind != DeclarationKind::Variable {
@@ -1084,6 +1108,12 @@ impl Analyzer {
                             ),
                         ));
                     }
+                }
+                if previous.is_thread_local != storage.thread_local {
+                    return Err(Error::new(
+                        item.span.start,
+                        format!("conflicting thread-local storage for `{name}`"),
+                    ));
                 }
                 if previous.kind != kind || !self.compatible(&previous.ty, &ty)? {
                     return Err(Error::new(
@@ -1160,6 +1190,7 @@ impl Analyzer {
                     kind,
                     link_name: declarator_attributes.link_name,
                     is_static,
+                    is_thread_local: storage.thread_local,
                     is_definition,
                     flexible_array_storage: None,
                 });
@@ -2218,7 +2249,8 @@ impl Analyzer {
                     });
                     let prototype = !function.node.parameters.is_empty();
                     for parameter in &function.node.parameters {
-                        let storage = storage_specifiers(&parameter.node.specifiers)?;
+                        let storage =
+                            storage_specifiers(&parameter.node.specifiers, self.unit.target)?;
                         if storage.thread_local
                             || !matches!(
                                 storage.class,

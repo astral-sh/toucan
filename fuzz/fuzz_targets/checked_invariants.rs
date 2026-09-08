@@ -84,7 +84,11 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     }
     for (id, entity) in code.entities() {
         if let Some(declaration) = entity.declaration() {
-            assert!(unit.declarations.get(declaration).is_some());
+            let declaration = &unit.declarations[declaration];
+            assert_eq!(
+                declaration.is_thread_local,
+                entity.storage() == Storage::Thread
+            );
         }
         if let Some(body) = entity.body() {
             assert_eq!(code.body(body).unwrap().entity(), id);
@@ -114,7 +118,8 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     }
     for (id, declaration) in code.declarations() {
         assert_eq!(scope_membership[id.index()], 1);
-        assert!(code.entity(declaration.entity()).is_some());
+        let entity = code.entity(declaration.entity()).unwrap();
+        assert_eq!(declaration.storage(), entity.storage());
         assert!(code.scope(declaration.scope()).is_some());
         assert!(code.occurrence(declaration.occurrence()).is_some());
         assert!(code.ty(declaration.ty()).is_some());
@@ -144,6 +149,10 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             assert_eq!(code.body(body).unwrap().declaration(), id);
         }
         if let Some(initializer) = declaration.initializer() {
+            assert_eq!(
+                code.initializer(initializer).unwrap().requires_constant(),
+                matches!(declaration.storage(), Storage::Static | Storage::Thread)
+            );
             assert_eq!(
                 code.initializer(initializer).unwrap().ty(),
                 declaration.ty()

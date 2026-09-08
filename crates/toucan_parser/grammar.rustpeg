@@ -592,6 +592,7 @@ storage_class_specifier0 -> StorageClassSpecifier =
     K<"extern"> { StorageClassSpecifier::Extern } /
     K<"static"> { StorageClassSpecifier::Static } /
     K<"_Thread_local"> { StorageClassSpecifier::ThreadLocal } /
+    gnu<K<"__thread">> { StorageClassSpecifier::GnuThreadLocal } /
     K<"auto"> { StorageClassSpecifier::Auto } /
     K<"register"> { StorageClassSpecifier::Register }
 

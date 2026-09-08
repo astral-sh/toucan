@@ -78,6 +78,10 @@ impl Entity {
     pub fn declaration(&self) -> Option<usize> {
         self.declaration
     }
+    /// Object lifetime, independent of internal or external linkage.
+    pub fn storage(&self) -> Storage {
+        self.storage
+    }
     /// Whether declarations of this entity share identity across scopes or files.
     pub fn linkage(&self) -> Linkage {
         self.linkage
@@ -252,9 +256,9 @@ impl Initializer {
     pub fn ty(&self) -> TypeId {
         self.ty
     }
-    /// Whether C static-storage constant-expression rules apply.
-    pub fn static_storage(&self) -> bool {
-        self.static_storage
+    /// Whether static or thread storage requires constant-expression initialization.
+    pub fn requires_constant(&self) -> bool {
+        self.requires_constant
     }
     /// Extra storage allocated for a supported flexible-array initializer.
     pub fn flexible_array_storage(&self) -> Option<&FlexibleArrayStorage> {

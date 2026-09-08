@@ -83,10 +83,10 @@ impl Analyzer {
         &mut self,
         ty: &Type,
         initializer: &Node<ast::Initializer>,
-        static_storage: bool,
+        requires_constant: bool,
     ) -> Result<Type, Error> {
         self.enter_expression(initializer.span.start)?;
-        let result = self.initializer_inner(ty, initializer.into(), static_storage, None);
+        let result = self.initializer_inner(ty, initializer.into(), requires_constant, None);
         self.leave_expression();
         result
     }
@@ -99,7 +99,7 @@ impl Analyzer {
         items: &[Node<ast::InitializerListItem>],
         owner: &Node<ast::Expression>,
         span: Span,
-        static_storage: bool,
+        requires_constant: bool,
     ) -> Result<Type, Error> {
         self.enter_expression(span.start)?;
         let result = self.initializer_inner(
@@ -109,7 +109,7 @@ impl Analyzer {
                 node: InitializerView::List(items),
                 span,
             },
-            static_storage,
+            requires_constant,
             None,
         );
         self.leave_expression();
@@ -122,21 +122,21 @@ impl Analyzer {
         &mut self,
         ty: &Type,
         initializer: &Node<ast::Initializer>,
-        static_storage: bool,
+        requires_constant: bool,
     ) -> Result<(Type, Option<FlexibleArrayStorage>), Error> {
         let TypeKind::Record(id) = self.unit.resolve(ty)?.kind else {
             return self
-                .check_initializer(ty, initializer, static_storage)
+                .check_initializer(ty, initializer, requires_constant)
                 .map(|ty| (ty, None));
         };
         let Some(fields) = self.unit.records[id].fields.as_ref() else {
             return self
-                .check_initializer(ty, initializer, static_storage)
+                .check_initializer(ty, initializer, requires_constant)
                 .map(|ty| (ty, None));
         };
         let Some((member_index, field)) = fields.iter().enumerate().next_back() else {
             return self
-                .check_initializer(ty, initializer, static_storage)
+                .check_initializer(ty, initializer, requires_constant)
                 .map(|ty| (ty, None));
         };
         let TypeKind::Array {
@@ -145,18 +145,22 @@ impl Analyzer {
         } = &self.unit.resolve(&field.ty)?.kind
         else {
             return self
-                .check_initializer(ty, initializer, static_storage)
+                .check_initializer(ty, initializer, requires_constant)
                 .map(|ty| (ty, None));
         };
         let element = (**element).clone();
         let mut flexible = FlexibleState {
             member_index,
             elements: None,
-            permitted: static_storage,
+            permitted: requires_constant,
         };
         self.enter_expression(initializer.span.start)?;
-        let result =
-            self.initializer_inner(ty, initializer.into(), static_storage, Some(&mut flexible));
+        let result = self.initializer_inner(
+            ty,
+            initializer.into(),
+            requires_constant,
+            Some(&mut flexible),
+        );
         self.leave_expression();
         let ty = result?;
         let storage = flexible
@@ -239,17 +243,17 @@ impl Analyzer {
         &mut self,
         ty: &Type,
         initializer: InitializerRef<'_>,
-        static_storage: bool,
+        requires_constant: bool,
         flexible: Option<&mut FlexibleState>,
     ) -> Result<Type, Error> {
         let retained = self
             .checked
             .as_deref_mut()
-            .map(|checked| checked.begin_initializer(initializer.origin, ty, static_storage))
+            .map(|checked| checked.begin_initializer(initializer.origin, ty, requires_constant))
             .transpose()?
             .flatten();
         let result =
-            self.initializer_inner_impl(ty, initializer, static_storage, flexible, retained)?;
+            self.initializer_inner_impl(ty, initializer, requires_constant, flexible, retained)?;
         if let Some(id) = retained {
             self.code_builder().finish_initializer(id, &result)?;
         }
@@ -260,7 +264,7 @@ impl Analyzer {
         &mut self,
         ty: &Type,
         initializer: InitializerRef<'_>,
-        static_storage: bool,
+        requires_constant: bool,
         mut flexible: Option<&mut FlexibleState>,
         retained: Option<InitializerId>,
     ) -> Result<Type, Error> {
@@ -290,7 +294,7 @@ impl Analyzer {
                     return Ok(completed);
                 }
                 self.check_assignment(ty, expression)?;
-                if static_storage {
+                if requires_constant {
                     if matches!(resolved.kind, TypeKind::Vector { .. })
                         && !matches!(expression.node, ast::Expression::CompoundLiteral(_))
                     {
@@ -353,7 +357,7 @@ impl Analyzer {
                         let child = self.code_builder().begin_initializer(
                             Origin::Written(&item.node.initializer),
                             ty,
-                            static_storage,
+                            requires_constant,
                         )?;
                         if let Some(child) = child {
                             self.retained_initializer_string(child, &completed, expression)?;
@@ -378,7 +382,7 @@ impl Analyzer {
                         ));
                     }
                     let completed =
-                        self.check_initializer(ty, &item.node.initializer, static_storage)?;
+                        self.check_initializer(ty, &item.node.initializer, requires_constant)?;
                     if let Some(id) = retained {
                         self.code_builder()
                             .initializer_entry(id, item, RetainedPath::default())?;
@@ -437,13 +441,13 @@ impl Analyzer {
                             let empty = depth == path.len()
                                 && self.empty_initializer(&item.node.initializer);
                             if !permitted
-                                && (!empty || (!static_storage && self.gnu_flexible_arrays()))
+                                && (!empty || (!requires_constant && self.gnu_flexible_arrays()))
                             {
-                                let message = if !static_storage {
+                                let message = if !requires_constant {
                                     "flexible array initialization requires static storage on this target"
                                 } else if depth == 1
                                     && flexible.is_none()
-                                    && static_storage
+                                    && requires_constant
                                     && self.gnu_flexible_arrays()
                                 {
                                     "flexible-array allocation in a compound literal or nested object is unsupported"
@@ -486,7 +490,7 @@ impl Analyzer {
                             let completed = self.check_initializer(
                                 &target,
                                 &item.node.initializer,
-                                static_storage,
+                                requires_constant,
                             )?;
                             if member_depth == Some(1)
                                 && path.len() == 1

@@ -721,3 +721,28 @@ allocate no predicate table.
 compiler constraints, native result stores and predicate effects, constant
 boundary checks, and complete SQLite/libgit2 source analysis. This is source
 semantics and retained-operation evidence; no machine-code backend is implied.
+
+### Thread-local objects
+
+C11 `_Thread_local` and GNU `__thread` work at file scope and in block declarations
+with `static` or `extern`. Every declaration of the same object must retain thread
+storage; independent block-static shadows are permitted. TLS objects require
+constant initializers, and a TLS object's address cannot initialize a static or
+thread-local pointer. String literals and addresses of ordinary static objects
+remain valid. Actual variable-length array objects cannot have thread storage;
+a block-static TLS pointer to a VLA can.
+
+GNU profiles require `static` or `extern` before `__thread`. Clang profiles accept
+its reversed-order extension. Explicit `tls_model` attributes remain unsupported;
+Toucan does not choose a target's TLS access or dynamic-loader model. The ordinary
+and retained APIs expose thread storage independently of linkage. Binding generation
+rejects selected direct TLS variables; stable Rust consumers can call generated
+bindings for C accessor functions instead.
+
+The [TLS validation](../corpus/evidence/thread-local-2026-09-08.json) includes
+GCC and five-target Clang declaration probes, constant-address rejection, retained
+source ownership, and concurrent Rust-to-C accessor calls with C-to-Rust callbacks.
+These runtime tests check native C TLS behavior through generated wrapper bindings;
+they do not execute a Toucan code generator. The storage rules follow
+[C11 sections 6.2.4, 6.7.1, 6.7.6.2 and 6.7.9](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf)
+and [GCC's TLS extension](https://gcc.gnu.org/onlinedocs/gcc/Thread-Local.html).

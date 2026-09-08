@@ -346,6 +346,12 @@ pub fn generate_with_macros(
             skipped.push(declaration.name.clone());
             continue;
         }
+        if declaration.is_thread_local {
+            return Err(Error(format!(
+                "thread-local object `{}` requires Rust TLS support; expose C accessor functions for stable Rust bindings",
+                declaration.name
+            )));
+        }
         if declaration.kind == DeclarationKind::Typedef {
             emitter.collect(&Type::new(TypeKind::Typedef(declaration.name.clone())))?;
         } else {

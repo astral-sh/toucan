@@ -146,3 +146,18 @@ not claim that a compiler retroactively annotates earlier calls. Ordinary functi
 pointers retain their ordinary C types; indirect-call target analysis remains a
 consumer responsibility. Binding generation rejects selected direct returns-twice
 functions because Rust cannot express the required caller contract.
+
+## Object storage duration
+
+`Declaration::is_thread_local` distinguishes file-scope thread-local objects from
+ordinary objects. TLS belongs to an object, not its C type. `Entity::storage()`
+and `DeclarationSite::storage()` expose `Storage::Thread`, `Static`, `Automatic`,
+or `None`; linkage remains a separate property. Block `extern` declarations share
+their linked entity, while a block-static shadow has its own identity. Source
+spelling remains available through the declaration's written type-owner occurrence.
+
+`Initializer::requires_constant()` covers both static and thread storage. It
+replaces the earlier `static_storage()` getter and serialized field. For example,
+`_Thread_local const char *text = "hello";` has a constant initializer, while
+`static int *p = &thread_object;` is invalid: a TLS address is computed for the
+current thread. Runtime address-taking is valid and retains ordinary pointer types.

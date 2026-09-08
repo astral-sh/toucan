@@ -291,7 +291,11 @@ pub struct Declaration {
     pub ty: Type,
     pub kind: DeclarationKind,
     pub link_name: Option<String>,
+    /// Whether this declaration has internal linkage.
     pub is_static: bool,
+    /// Whether each thread owns a distinct object; independent of its linkage.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub is_thread_local: bool,
     pub is_definition: bool,
     /// Storage allocated by GNU initialization of this object's flexible member.
     /// This does not change its declared type, record layout, or `sizeof` result.

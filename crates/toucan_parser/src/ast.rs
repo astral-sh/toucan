@@ -582,6 +582,8 @@ pub enum StorageClassSpecifier {
     Static,
     /// `_Thread_local`
     ThreadLocal,
+    /// GNU `__thread`; unlike `_Thread_local`, follows `static` or `extern`.
+    GnuThreadLocal,
     /// `auto`
     Auto,
     /// `register`

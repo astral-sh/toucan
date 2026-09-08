@@ -24,7 +24,7 @@ pub struct Initializer {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) scope: ScopeId,
     pub(crate) ty: TypeId,
-    pub(crate) static_storage: bool,
+    pub(crate) requires_constant: bool,
     pub(crate) flexible_array_storage: Option<FlexibleArrayStorage>,
     pub(crate) kind: InitializerKind,
 }
@@ -141,7 +141,7 @@ impl Builder {
         &mut self,
         origin: Origin<'_>,
         ty: &Type,
-        static_storage: bool,
+        requires_constant: bool,
     ) -> Result<Option<InitializerId>, Error> {
         let occurrence = self.initializer_occurrence(origin)?;
         let offset = self.parsed_spans[occurrence.index()].start;
@@ -161,7 +161,7 @@ impl Builder {
             occurrence,
             scope: self.current,
             ty,
-            static_storage,
+            requires_constant,
             flexible_array_storage: None,
             kind: InitializerKind::Pending,
         });
@@ -513,7 +513,7 @@ mod tests {
         for target in Target::ALL {
             let (_, code) = checked(source, target);
             let local = root(&code, "local");
-            assert!(!local.static_storage);
+            assert!(!local.requires_constant);
             assert!(code.types[local.ty.index()].qualifiers.is_const);
             let InitializerKind::Expression(assignment) = local.kind else {
                 panic!("assignment")
@@ -534,7 +534,7 @@ mod tests {
                     super::super::expression::Conversion::Assignment
                 ]
             );
-            assert!(root(&code, "value").static_storage);
+            assert!(root(&code, "value").requires_constant);
             assert!(matches!(
                 code.types[root(&code, "values").ty.index()].kind,
                 TypeKind::Array {
@@ -771,7 +771,7 @@ mod tests {
             let (_, code) = checked(source, target);
             for (name, count) in [("global", 2), ("local", 3)] {
                 let initializer = root(&code, name);
-                assert!(initializer.static_storage);
+                assert!(initializer.requires_constant);
                 assert_eq!(
                     initializer
                         .flexible_array_storage

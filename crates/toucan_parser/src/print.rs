@@ -301,6 +301,7 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             StorageClassSpecifier::Extern => "Extern",
             StorageClassSpecifier::Static => "Static",
             StorageClassSpecifier::ThreadLocal => "ThreadLocal",
+            StorageClassSpecifier::GnuThreadLocal => "GnuThreadLocal",
             StorageClassSpecifier::Auto => "Auto",
             StorageClassSpecifier::Register => "Register",
         });

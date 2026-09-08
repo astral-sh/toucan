@@ -19,6 +19,9 @@ The workspace publishes this fork as `toucan_parser`; `toucan_semantic` depends 
 
 `__extension__` accepts a cast expression as its operand, preserving the operand's type and value. This includes the `__extension__ (int)1` spelling used in compiler resource headers.
 
+`_Thread_local` and GNU `__thread` retain distinct storage-specifier variants,
+allowing semantic checking to apply their different ordering rules.
+
 GNU attributes on null statements have a distinct `Statement::Attribute` node.
 Semantic checking determines which statement annotations are supported; the visitor
 preserves their attributes and source spans.
@@ -46,7 +49,7 @@ Run `make` from this directory. `scripts/instrument.py` checks and instruments t
 formatting. It inserts rule/loop guards, terminal resource-failure propagation, and
 memoized clone accounting. The generated lint header permits the immediate closures
 and explicit returns required to balance recursive-rule counters on early exits.
-A normal Cargo build does not invoke Python. The checked-in parser was generated with `peg` 0.5.4 and formatted with `rustfmt` 1.9.0-stable (Rust 1.98.0); `grammar.rustfmt` fixes the output settings. Compared with the upstream parser, regeneration changes only `typeof_specifier0`, the function-declarator scope rules, the `__extension__` operand rule, GNU attribute statements, checked node/fold constructors, resource instrumentation,
+A normal Cargo build does not invoke Python. The checked-in parser was generated with `peg` 0.5.4 and formatted with `rustfmt` 1.9.0-stable (Rust 1.98.0); `grammar.rustfmt` fixes the output settings. Compared with the upstream parser, regeneration changes only `typeof_specifier0`, the function-declarator scope rules, the `__extension__` operand rule, GNU attribute statements, GNU thread storage, checked node/fold constructors, resource instrumentation,
 and the documented lint header. Review that diff when regenerating with another formatter version.
 
 The upstream reference runner reads `reftests/`. It updates expected output only when `TEST_UPDATE` is explicitly set. New parser tests cover typedef/type-expression ambiguity; semantic tests compare constraints and runtime VLA behavior with GCC and Clang.

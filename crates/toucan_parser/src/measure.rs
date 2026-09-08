@@ -315,6 +315,7 @@ enumeration!(StorageClassSpecifier {
     Extern,
     Static,
     ThreadLocal,
+    GnuThreadLocal,
     Auto,
     Register
 });
