@@ -19,6 +19,48 @@ pub(crate) struct SourceMap {
 }
 
 impl SourceMap {
+    /// Visits original fragments of a parser range. Reordered tokens cannot be
+    /// mapped by translating only the range's two endpoints. Insertions produce
+    /// an empty range anchored at their original location.
+    pub(crate) fn original_ranges(
+        &self,
+        range: std::ops::Range<usize>,
+        mut visit: impl FnMut(std::ops::Range<usize>) -> Result<(), Error>,
+    ) -> Result<(), Error> {
+        if self.segments.is_empty() {
+            return visit(range);
+        }
+        if range.is_empty() {
+            let anchor = self.original_offset(range.start);
+            return visit(anchor..anchor);
+        }
+        let first = self
+            .segments
+            .partition_point(|segment| segment.parsed <= range.start)
+            .saturating_sub(1);
+        for (index, segment) in self.segments.iter().enumerate().skip(first) {
+            if segment.parsed >= range.end {
+                break;
+            }
+            let end = self
+                .segments
+                .get(index + 1)
+                .map_or(range.end, |next| next.parsed.min(range.end));
+            let start = segment.parsed.max(range.start);
+            if start < end {
+                if segment.copied {
+                    visit(
+                        segment.original + start - segment.parsed
+                            ..segment.original + end - segment.parsed,
+                    )?;
+                } else {
+                    visit(segment.original..segment.original)?;
+                }
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn original_offset(&self, offset: usize) -> usize {
         let index = self
             .segments

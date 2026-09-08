@@ -7,6 +7,7 @@
 mod analyze;
 mod asm;
 mod builtins;
+mod checked;
 mod expression;
 mod floating;
 mod initializer;

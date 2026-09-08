@@ -3,12 +3,16 @@ use std::collections::{BTreeMap, HashSet};
 use lang_c::{ast, span::Node};
 
 use crate::analyze::{Analyzer, LexicalScope, Tag};
+use crate::checked::{
+    EntityKind, LocalDeclaration, OccurrenceKind, ScopeId, ScopeKind, Storage, declarator_name_span,
+};
 use crate::expression::ExpressionInfo;
 use crate::integer::{convert, promote};
 use crate::{DeclarationKind, Error, FunctionType, IntegerValue, Parameter, Scope, Type, TypeKind};
 
 /// Bindings introduced in a definition's parameter list remain visible in its body.
 pub(crate) struct FunctionScope {
+    pub(crate) checked_scope: Option<ScopeId>,
     pub(crate) record_ids: Vec<usize>,
     pub(crate) enum_ids: Vec<usize>,
     pub(crate) tags: Vec<(String, Tag)>,
@@ -111,7 +115,7 @@ impl Analyzer {
         let id = context.expression_parents.len();
         context.expression_parents.push(previous);
         context.active_expression = Some(id);
-        let result = self.with_block(|analyzer| {
+        let result = self.with_block(statement.span, |analyzer| {
             let ast::Statement::Compound(items) = &statement.node else {
                 return Err(Error::new(
                     offset,
@@ -218,6 +222,17 @@ impl Analyzer {
 
     fn with_block<T>(
         &mut self,
+        span: lang_c::span::Span,
+        check: impl FnOnce(&mut Self) -> Result<T, Error>,
+    ) -> Result<T, Error> {
+        self.with_scope(span, None, ScopeKind::Block, check)
+    }
+
+    fn with_scope<T>(
+        &mut self,
+        span: lang_c::span::Span,
+        reuse: Option<ScopeId>,
+        kind: ScopeKind,
         check: impl FnOnce(&mut Self) -> Result<T, Error>,
     ) -> Result<T, Error> {
         if self.lexical_scopes.len() >= 128 {
@@ -225,6 +240,9 @@ impl Analyzer {
                 0,
                 "lexical scope nesting exceeds the 128-level limit",
             ));
+        }
+        if let Some(checked) = &mut self.checked {
+            checked.enter_scope(kind, span, reuse)?;
         }
         self.lexical_scopes.push(LexicalScope {
             is_block: true,
@@ -262,7 +280,13 @@ impl Analyzer {
         );
         self.function_scope = None;
         self.capture_function_scope = true;
+        if let Some(checked) = &mut self.checked {
+            checked.definition = checked.find(OccurrenceKind::Function, definition)?;
+        }
         let result = self.declaration(&declaration, true);
+        if let Some(checked) = &mut self.checked {
+            checked.definition = None;
+        }
         self.capture_function_scope = false;
         result?;
         let declaration = self
@@ -305,7 +329,10 @@ impl Analyzer {
             labels: BTreeMap::new(),
             gotos: Vec::new(),
         });
-        let result = self.with_block(|analyzer| {
+        let reuse = parameters
+            .as_ref()
+            .and_then(|parameters| parameters.checked_scope);
+        let result = self.with_scope(definition.span, reuse, ScopeKind::Function, |analyzer| {
             if let Some(parameters) = parameters {
                 for id in parameters.record_ids {
                     analyzer.unit.records[id].scope = Scope::Block;
@@ -582,6 +609,23 @@ impl Analyzer {
                         return Err(Error::new(item.span.start, "conflicting block typedef"));
                     }
                     ty = self.composite_type(previous, &ty, 0)?;
+                    if let Some(checked) = &mut self.checked {
+                        checked.local_declaration(
+                            item,
+                            OccurrenceKind::InitDeclarator,
+                            LocalDeclaration {
+                                name: Some(&name),
+                                name_span: declarator_name_span(&item.node.declarator),
+                                ty: &ty,
+                                kind: EntityKind::Typedef,
+                                storage: Storage::None,
+                                linked: false,
+                                register: false,
+                                definition: false,
+                                allocation: None,
+                            },
+                        )?;
+                    }
                     self.lexical_scopes
                         .last_mut()
                         .expect("block scope")
@@ -594,6 +638,23 @@ impl Analyzer {
                         item.span.start,
                         "typedef conflicts with a local identifier",
                     ));
+                }
+                if let Some(checked) = &mut self.checked {
+                    checked.local_declaration(
+                        item,
+                        OccurrenceKind::InitDeclarator,
+                        LocalDeclaration {
+                            name: Some(&name),
+                            name_span: declarator_name_span(&item.node.declarator),
+                            ty: &ty,
+                            kind: EntityKind::Typedef,
+                            storage: Storage::None,
+                            linked: false,
+                            register: false,
+                            definition: false,
+                            allocation: None,
+                        },
+                    )?;
                 }
                 let previous = self.unit.constants.remove(&name);
                 let scope = self.lexical_scopes.last_mut().expect("block scope");
@@ -673,6 +734,31 @@ impl Analyzer {
                     && self.compatible(previous, &ty)?
                 {
                     let composite = self.composite_type(previous, &ty, 0)?;
+                    if let Some(checked) = &mut self.checked {
+                        checked.local_declaration(
+                            item,
+                            OccurrenceKind::InitDeclarator,
+                            LocalDeclaration {
+                                name: Some(&name),
+                                name_span: declarator_name_span(&item.node.declarator),
+                                ty: &composite,
+                                kind: if function {
+                                    EntityKind::Function
+                                } else {
+                                    EntityKind::Variable
+                                },
+                                storage: if function {
+                                    Storage::None
+                                } else {
+                                    Storage::Static
+                                },
+                                linked: true,
+                                register,
+                                definition: false,
+                                allocation: None,
+                            },
+                        )?;
+                    }
                     self.lexical_scopes
                         .last_mut()
                         .expect("block scope")
@@ -715,6 +801,37 @@ impl Analyzer {
                     item.span.start,
                     "local object requires a complete type",
                 ));
+            }
+            if let Some(checked) = &mut self.checked {
+                let allocation = self
+                    .lexical_scopes
+                    .last()
+                    .and_then(|scope| scope.flexible_array_storage.get(&name));
+                checked.local_declaration(
+                    item,
+                    OccurrenceKind::InitDeclarator,
+                    LocalDeclaration {
+                        name: Some(&name),
+                        name_span: declarator_name_span(&item.node.declarator),
+                        ty: &ty,
+                        kind: if function {
+                            EntityKind::Function
+                        } else {
+                            EntityKind::Variable
+                        },
+                        storage: if function {
+                            Storage::None
+                        } else if is_static || linked {
+                            Storage::Static
+                        } else {
+                            Storage::Automatic
+                        },
+                        linked,
+                        register,
+                        definition: !linked,
+                        allocation,
+                    },
+                )?;
             }
         }
         Ok(())
@@ -771,14 +888,14 @@ impl Analyzer {
     }
 
     fn substatement(&mut self, statement: &Node<ast::Statement>) -> Result<(), Error> {
-        self.with_block(|analyzer| analyzer.statement(statement))
+        self.with_block(statement.span, |analyzer| analyzer.statement(statement))
     }
 
     fn statement_inner(&mut self, statement: &Node<ast::Statement>) -> Result<(), Error> {
         let offset = statement.span.start;
         match &statement.node {
             ast::Statement::Compound(items) => {
-                self.with_block(|analyzer| analyzer.block_items(items))
+                self.with_block(statement.span, |analyzer| analyzer.block_items(items))
             }
             ast::Statement::Expression(expression) => {
                 if let Some(expression) = expression {
@@ -800,7 +917,7 @@ impl Analyzer {
                     }
                 }
             }
-            ast::Statement::If(selection) => self.with_block(|analyzer| {
+            ast::Statement::If(selection) => self.with_block(statement.span, |analyzer| {
                 analyzer.scalar_condition(&selection.node.condition)?;
                 analyzer.substatement(&selection.node.then_statement)?;
                 if let Some(statement) = &selection.node.else_statement {
@@ -808,7 +925,7 @@ impl Analyzer {
                 }
                 Ok(())
             }),
-            ast::Statement::While(iteration) => self.with_block(|analyzer| {
+            ast::Statement::While(iteration) => self.with_block(statement.span, |analyzer| {
                 if analyzer.gnu_statement_expressions() {
                     analyzer.scalar_condition(&iteration.node.expression)?;
                     analyzer.with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))
@@ -819,7 +936,7 @@ impl Analyzer {
                     })
                 }
             }),
-            ast::Statement::DoWhile(iteration) => self.with_block(|analyzer| {
+            ast::Statement::DoWhile(iteration) => self.with_block(statement.span, |analyzer| {
                 if analyzer.gnu_statement_expressions() {
                     analyzer
                         .with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))?;
@@ -831,7 +948,7 @@ impl Analyzer {
                     })
                 }
             }),
-            ast::Statement::For(iteration) => self.with_block(|analyzer| {
+            ast::Statement::For(iteration) => self.with_block(statement.span, |analyzer| {
                 match &iteration.node.initializer.node {
                     ast::ForInitializer::Empty => {}
                     ast::ForInitializer::Expression(expression) => {
@@ -854,7 +971,7 @@ impl Analyzer {
                     })
                 }
             }),
-            ast::Statement::Switch(selection) => self.with_block(|analyzer| {
+            ast::Statement::Switch(selection) => self.with_block(statement.span, |analyzer| {
                 let ty = analyzer.value_expression_type(&selection.node.expression)?;
                 let ty = promote(analyzer.integer_type(&ty, selection.node.expression.span.start)?);
                 let variably_modified = analyzer.active_variably_modified();

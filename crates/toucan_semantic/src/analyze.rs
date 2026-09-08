@@ -3,6 +3,11 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use lang_c::{ast, driver, span::Node};
 use toucan_target::Target;
 
+use crate::checked::{
+    Builder as CodeBuilder, CheckedCode, EntityKind, Limits as CodeLimits, LocalDeclaration,
+    OccurrenceKind, ScopeKind, Storage, declarator_name_span,
+};
+
 use crate::{
     CallingConvention, Declaration, DeclarationKind, Enum, EnumVariant, Error, Field, FloatKind,
     FunctionType, IntegerKind, IntegerValue, Parameter, Qualifiers, Record, RecordKind, Scope,
@@ -16,6 +21,14 @@ type PackEvents = Vec<(usize, Option<u64>)>;
 /// Pack pragmas are interpreted before parsing. Definition markers let binding
 /// generators omit inline functions after their bodies have been checked.
 pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
+    analyze_inner(source, target, None).map(|(unit, _)| unit)
+}
+
+pub(crate) fn analyze_inner(
+    source: &str,
+    target: Target,
+    retention: Option<CodeLimits>,
+) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
@@ -30,6 +43,13 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
     analyzer.character_literals = parsed.character_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
     let result = (|| {
+        if let Some(limits) = retention {
+            analyzer.checked = Some(Box::new(CodeBuilder::new(
+                &parsed.unit,
+                source.len(),
+                limits,
+            )?));
+        }
         for external in parsed.unit.0 {
             match external.node {
                 ast::ExternalDeclaration::Declaration(declaration) => {
@@ -45,7 +65,12 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
         }
         analyzer.finish_tentative_definitions()?;
         analyzer.validate_block_externs()?;
-        Ok(analyzer.unit)
+        let checked = analyzer
+            .checked
+            .take()
+            .map(|builder| builder.finish(&parsed.offsets))
+            .transpose()?;
+        Ok((analyzer.unit, checked))
     })();
     result.map_err(|mut error: Error| {
         error.offset = parsed.offsets.original_offset(error.offset);
@@ -457,6 +482,7 @@ fn outermost_derived(
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) checked: Option<Box<CodeBuilder>>,
     pub(crate) unit: TranslationUnit,
     pub(crate) tags: HashMap<String, TagBinding>,
     pub(crate) lexical_scopes: Vec<LexicalScope>,
@@ -520,6 +546,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            checked: None,
             unit,
             tags,
             lexical_scopes: Vec::new(),
@@ -579,8 +606,10 @@ impl Analyzer {
             .lexical_scopes
             .pop()
             .expect("prototype scope is active");
+        let checked_scope = self.checked.as_mut().map(|checked| checked.leave_scope());
         if self.capture_function_scope && !scope.is_block {
             self.function_scope = Some(crate::statement::FunctionScope {
+                checked_scope,
                 record_ids: scope.record_ids.clone(),
                 enum_ids: scope.enum_ids.clone(),
                 tags: scope
@@ -752,6 +781,21 @@ impl Analyzer {
                 is_definition: false,
                 flexible_array_storage: None,
             });
+            if let Some(checked) = &mut self.checked {
+                let index = self.unit.declarations.len() - 1;
+                checked.file_declaration(
+                    declaration,
+                    OccurrenceKind::Declaration,
+                    &self.unit.declarations[index],
+                    index,
+                    false,
+                    declaration
+                        .node
+                        .specifiers
+                        .last()
+                        .map(|specifier| specifier.span),
+                )?;
+            }
             return Ok(());
         }
         let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
@@ -922,6 +966,16 @@ impl Analyzer {
             }
             if let Some(initializer) = &item.node.initializer {
                 self.initialize_declaration(declaration_index, &initializer_type, initializer)?;
+            }
+            if let Some(checked) = &mut self.checked {
+                checked.file_declaration(
+                    item,
+                    OccurrenceKind::InitDeclarator,
+                    &self.unit.declarations[declaration_index],
+                    declaration_index,
+                    is_definition,
+                    declarator_name_span(&item.node.declarator),
+                )?;
             }
         }
         Ok(())
@@ -1682,6 +1736,9 @@ impl Analyzer {
                             "a function cannot return an array or function",
                         ));
                     }
+                    if let Some(checked) = &mut self.checked {
+                        checked.enter_scope(ScopeKind::Prototype, derived.span, None)?;
+                    }
                     self.lexical_scopes.push(LexicalScope {
                         is_definition_parameters: self.definition_parameters
                             == Some(derived.span.start),
@@ -1785,6 +1842,34 @@ impl Analyzer {
                             TypeKind::Function(_) => parameter_type.pointer(),
                             _ => parameter_type,
                         };
+                        if let Some(checked) = &mut self.checked
+                            && (name.is_some()
+                                || !matches!(
+                                    self.unit.resolve(&parameter_type)?.kind,
+                                    TypeKind::Void
+                                ))
+                        {
+                            checked.local_declaration(
+                                parameter,
+                                OccurrenceKind::Parameter,
+                                LocalDeclaration {
+                                    name: name.as_deref(),
+                                    name_span: parameter
+                                        .node
+                                        .declarator
+                                        .as_ref()
+                                        .and_then(declarator_name_span),
+                                    ty: &parameter_type,
+                                    kind: EntityKind::Parameter,
+                                    storage: Storage::Automatic,
+                                    linked: false,
+                                    register: storage.class
+                                        == Some(ast::StorageClassSpecifier::Register),
+                                    definition: false,
+                                    allocation: None,
+                                },
+                            )?;
+                        }
                         let scope = self
                             .lexical_scopes
                             .last_mut()
@@ -1977,6 +2062,16 @@ impl Analyzer {
             }
             id
         };
+        if let Some(checked) = &mut self.checked {
+            checked.tag(
+                declaration,
+                OccurrenceKind::Record,
+                self.unit.records[id].name.as_deref(),
+                Type::new(TypeKind::Record(id)),
+                declaration.node.declarations.is_some(),
+                declaration.node.identifier.as_ref().map(|name| name.span),
+            )?;
+        }
         if let Some(declarations) = &declaration.node.declarations {
             if self.unit.records[id].fields.is_some() {
                 return Err(Error::new(
@@ -2250,6 +2345,16 @@ impl Analyzer {
             }
             id
         };
+        if let Some(checked) = &mut self.checked {
+            checked.tag(
+                declaration,
+                OccurrenceKind::Enum,
+                self.unit.enums[id].name.as_deref(),
+                Type::new(TypeKind::Enum(id)),
+                !declaration.node.enumerators.is_empty(),
+                declaration.node.identifier.as_ref().map(|name| name.span),
+            )?;
+        }
         if !declaration.node.enumerators.is_empty()
             && (self.unit.enums[id].complete || !self.defining_enums.insert(id))
         {
@@ -2296,6 +2401,14 @@ impl Analyzer {
             let previous_binding = self.unit.constants.insert(name.clone(), value);
             if let Some(scope) = self.lexical_scopes.last_mut() {
                 scope.constants.push((name.clone(), previous_binding));
+            }
+            if let Some(checked) = &mut self.checked {
+                checked.enumerator(
+                    enumerator,
+                    id,
+                    self.unit.enums[id].variants.len(),
+                    &crate::integer::integer_to_type(value),
+                )?;
             }
             self.unit.enums[id]
                 .variants

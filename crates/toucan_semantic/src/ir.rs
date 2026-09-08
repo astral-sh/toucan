@@ -17,7 +17,7 @@ pub struct TranslationUnit {
 }
 
 /// A qualified C type. Typedefs and tags retain their declaration identities.
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
 pub struct Type {
     pub kind: TypeKind,
     pub qualifiers: Qualifiers,
@@ -38,14 +38,14 @@ impl Type {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Hash)]
 pub struct Qualifiers {
     pub is_const: bool,
     pub is_volatile: bool,
     pub is_restrict: bool,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
 pub enum TypeKind {
     Void,
     Bool,
@@ -67,7 +67,7 @@ pub enum TypeKind {
     Typedef(String),
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
 pub enum IntegerKind {
     Char,
     SignedChar,
@@ -84,7 +84,7 @@ pub enum IntegerKind {
     UnsignedInt128,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
 pub enum FloatKind {
     Float,
     Double,
@@ -95,7 +95,7 @@ pub enum FloatKind {
     },
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
 pub enum ExtendedFloatFormat {
     BinaryInterchange,
     BinaryExtended,
@@ -103,7 +103,7 @@ pub enum ExtendedFloatFormat {
     DecimalExtended,
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
 pub struct FunctionType {
     pub return_type: Type,
     pub parameters: Vec<Parameter>,
@@ -113,7 +113,7 @@ pub struct FunctionType {
     pub calling_convention: CallingConvention,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
 pub enum CallingConvention {
     /// The target's default C convention, with no explicit ABI attribute.
     C,
@@ -141,7 +141,7 @@ impl CallingConvention {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, Serialize)]
+#[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
 pub struct Parameter {
     pub name: Option<String>,
     pub ty: Type,
