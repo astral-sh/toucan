@@ -2,6 +2,12 @@ name: Fuzz smoke tests
 
 on:
   pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "fuzz/**"
+      - ".github/workflows/fuzz.yml"
   push:
     branches: [main]
   workflow_dispatch:
