@@ -76,6 +76,10 @@ fuzz_target!(|bytes: &[u8]| {
             assert_eq!(origins.source_file(range.end - 1), Some(mapping.path()));
             for offset in [range.start, range.end - 1] {
                 assert_eq!(
+                    origins.source_is_system_include(offset),
+                    Some(mapping.is_system_include())
+                );
+                assert_eq!(
                     origins.source_name(offset).map(std::path::Path::as_os_str),
                     Some(mapping.accessed_path().as_os_str())
                 );

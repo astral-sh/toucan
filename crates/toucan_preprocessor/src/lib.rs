@@ -5,6 +5,7 @@
 
 mod file_identity;
 mod file_origins;
+mod include_search;
 pub use file_origins::{FileMapping, FileOrigins};
 mod macro_definitions;
 pub use macro_definitions::MacroDefinition;
@@ -73,7 +74,11 @@ pub struct Config {
     pub timestamp: PreprocessingTimestamp,
     /// Permit filesystem reads for entry points, includes, and include queries.
     pub allow_filesystem: bool,
+    /// Regular search directories, before system directories.
     pub include_dirs: Vec<PathBuf>,
+    /// System search directories. A physical directory listed in both groups
+    /// belongs to this group; duplicates are normalized anew for each run.
+    pub system_include_dirs: Vec<PathBuf>,
     /// In-memory headers processed in order before the entry point.
     ///
     /// They share macros, resource limits, and source mappings with the entry point.
@@ -107,6 +112,7 @@ impl Default for Config {
             timestamp: PreprocessingTimestamp::UNIX_EPOCH,
             allow_filesystem: true,
             include_dirs: Vec::new(),
+            system_include_dirs: Vec::new(),
             forced_includes: Vec::new(),
             virtual_headers: BTreeMap::new(),
             defines: BTreeMap::new(),
@@ -296,6 +302,7 @@ impl std::error::Error for Error {}
 /// Stateful preprocessor. Each entry point starts a fresh translation unit.
 pub struct Preprocessor {
     config: Config,
+    include_search: Option<Box<include_search::SearchOrder>>,
     active_queries: u8,
     macros: BTreeMap<String, Macro>,
     dependencies: BTreeMap<PathBuf, Option<Arc<Path>>>,
@@ -320,6 +327,7 @@ struct InputFile<'a> {
     identity: &'a Path,
     accessed: &'a Path,
     main: bool,
+    system: bool,
 }
 
 impl<'a> InputFile<'a> {
@@ -329,6 +337,7 @@ impl<'a> InputFile<'a> {
             identity: path,
             accessed: path,
             main,
+            system: false,
         }
     }
 }
@@ -384,6 +393,7 @@ impl Preprocessor {
     pub fn new(config: Config) -> Self {
         Self {
             config,
+            include_search: None,
             active_queries: 0,
             macros: BTreeMap::new(),
             dependencies: BTreeMap::new(),
@@ -454,19 +464,19 @@ impl Preprocessor {
             identity: identity.as_deref().unwrap_or(&physical),
             accessed,
             main: true,
+            system: false,
         };
         let mut output = String::new();
         self.forced_includes(&mut output)?;
         for header in headers {
-            let candidate = std::iter::once((Path::new(".").join(header), None))
+            let candidate = std::iter::once((Path::new(".").join(header), None, false))
                 .chain(
-                    self.config
-                        .include_dirs
-                        .iter()
-                        .enumerate()
-                        .map(|(index, directory)| (directory.join(header), Some(index))),
+                    self.include_directories()
+                        .map(|(index, directory, system)| {
+                            (directory.join(header), Some(index), system)
+                        }),
                 )
-                .find(|(path, _)| path.is_file())
+                .find(|(path, _, _)| path.is_file())
                 .ok_or_else(|| {
                     Error::new(
                         header,
@@ -474,7 +484,7 @@ impl Preprocessor {
                         "forced header not found; configure the include paths",
                     )
                 })?;
-            self.file(&candidate.0, 0, candidate.1, &mut output)?;
+            self.file(&candidate.0, 0, candidate.1, candidate.2, &mut output)?;
         }
         self.read_file(input, file, 0, None, &mut output)?;
         Ok(self.finish(main, output))
@@ -542,6 +552,8 @@ impl Preprocessor {
     }
 
     fn reset(&mut self) -> Result<(), Error> {
+        self.include_search = None;
+        self.include_search = include_search::SearchOrder::resolve(&self.config)?;
         self.macros.clear();
         self.active_queries = self
             .config
@@ -632,6 +644,7 @@ impl Preprocessor {
         path: &Path,
         depth: usize,
         include_origin: Option<usize>,
+        system: bool,
         output: &mut String,
     ) -> Result<(), Error> {
         if depth >= self.config.max_include_depth {
@@ -664,6 +677,7 @@ impl Preprocessor {
                 identity: once_path,
                 accessed,
                 main: false,
+                system,
             },
             file,
             depth,
@@ -930,19 +944,20 @@ impl Preprocessor {
                     } else {
                         0
                     };
-                    if let Some((included, origin)) = self.find_include(
+                    if let Some((included, origin, system)) = self.find_include(
                         input.accessed,
                         &name,
                         quoted && !next,
                         start,
                         include_origin,
+                        input.system,
                     ) {
-                        self.file(&included, depth + 1, origin, output)?;
+                        self.file(&included, depth + 1, origin, system, output)?;
                     } else if let Some(source) = self
                         .config
                         .virtual_headers
                         .get(&name)
-                        .filter(|_| start <= self.config.include_dirs.len())
+                        .filter(|_| start <= self.include_directory_count())
                     {
                         if source.len()
                             > self
@@ -959,10 +974,13 @@ impl Preprocessor {
                         let name = PathBuf::from(format!("<builtin>/{name}"));
                         if !self.once.contains(&name) {
                             self.source(
-                                InputFile::named(&name, false),
+                                InputFile {
+                                    system: true,
+                                    ..InputFile::named(&name, false)
+                                },
                                 &source,
                                 depth + 1,
-                                Some(self.config.include_dirs.len()),
+                                Some(self.include_directory_count()),
                                 output,
                             )?;
                         }
@@ -987,7 +1005,12 @@ impl Preprocessor {
                         output,
                     )?;
                     if let Some(origins) = &mut self.file_origins {
-                        origins.append(output_start..output.len(), path, input.accessed);
+                        origins.append(
+                            output_start..output.len(),
+                            path,
+                            input.accessed,
+                            input.system,
+                        );
                     }
                 }
                 "line" => {
@@ -1158,7 +1181,12 @@ impl Preprocessor {
             self.output_tokens(path, line, column, &tokens[start..], output)?;
         }
         if let Some(origins) = &mut self.file_origins {
-            origins.append(output_start..output.len(), input.physical, input.accessed);
+            origins.append(
+                output_start..output.len(),
+                input.physical,
+                input.accessed,
+                input.system,
+            );
         }
         Ok(())
     }
@@ -1326,7 +1354,12 @@ impl Preprocessor {
                 )
                 .map_err(|error| error.message)?;
                 if let Some(origins) = &mut self.file_origins {
-                    origins.append(output_start..output.len(), input.physical, input.accessed);
+                    origins.append(
+                        output_start..output.len(),
+                        input.physical,
+                        input.accessed,
+                        input.system,
+                    );
                 }
             } else {
                 ordinary.push(token);
@@ -1399,14 +1432,48 @@ impl Preprocessor {
                 0
             };
             let exists = self
-                .find_include(include_path, &name, quoted && !next, start, include_origin)
+                .find_include(
+                    include_path,
+                    &name,
+                    quoted && !next,
+                    start,
+                    include_origin,
+                    false,
+                )
                 .is_some()
-                || (start <= self.config.include_dirs.len()
+                || (start <= self.include_directory_count()
                     && self.config.virtual_headers.contains_key(&name));
             replaced.push(Token::new(Kind::Number, if exists { "1" } else { "0" }));
             position += 1;
         }
         Ok(replaced)
+    }
+
+    fn include_directory_count(&self) -> usize {
+        self.include_search.as_ref().map_or_else(
+            || self.config.include_dirs.len() + self.config.system_include_dirs.len(),
+            |search| search.len(),
+        )
+    }
+
+    /// Search positions stay local to this run; configured paths remain unchanged.
+    fn include_directories(&self) -> impl Iterator<Item = (usize, &Path, bool)> {
+        (0..self.include_directory_count()).map(|position| {
+            let index = self
+                .include_search
+                .as_ref()
+                .map_or(position, |search| search.index(position));
+            let regular = self.config.include_dirs.len();
+            if index < regular {
+                (position, self.config.include_dirs[index].as_path(), false)
+            } else {
+                (
+                    position,
+                    self.config.system_include_dirs[index - regular].as_path(),
+                    true,
+                )
+            }
+        })
     }
 
     fn find_include(
@@ -1416,7 +1483,8 @@ impl Preprocessor {
         quoted: bool,
         start: usize,
         parent_origin: Option<usize>,
-    ) -> Option<(PathBuf, Option<usize>)> {
+        parent_system: bool,
+    ) -> Option<(PathBuf, Option<usize>, bool)> {
         if !self.config.allow_filesystem {
             return None;
         }
@@ -1425,15 +1493,13 @@ impl Preprocessor {
         // backslash stays an ordinary filename character on POSIX hosts.
         let path = Path::new(name);
         if path.is_absolute() {
-            return path.is_file().then(|| (path.to_owned(), None));
+            return path
+                .is_file()
+                .then(|| (path.to_owned(), None, parent_system));
         }
         // Clang preserves the parent's search origin for local quoted includes;
         // GCC restarts include_next at the beginning of its include search list.
-        let local_origin = self
-            .macros
-            .contains_key("__clang__")
-            .then_some(parent_origin)
-            .flatten();
+        let local_origin = self.clang_paths().then_some(parent_origin).flatten();
         let local = quoted.then(|| {
             (
                 accessed_parent(from)
@@ -1442,19 +1508,19 @@ impl Preprocessor {
                     .unwrap_or(Path::new("."))
                     .join(name),
                 local_origin,
+                parent_system,
             )
         });
         local
             .into_iter()
             .chain(
-                self.config
-                    .include_dirs
-                    .iter()
-                    .enumerate()
+                self.include_directories()
                     .skip(start)
-                    .map(|(index, directory)| (directory.join(name), Some(index))),
+                    .map(|(index, directory, system)| {
+                        (directory.join(name), Some(index), system || parent_system)
+                    }),
             )
-            .find(|(path, _)| path.is_file())
+            .find(|(path, _, _)| path.is_file())
     }
 
     fn define(

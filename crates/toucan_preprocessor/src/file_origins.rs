@@ -16,6 +16,7 @@ pub struct FileMapping {
     generated: Range<usize>,
     path: Arc<Path>,
     accessed: Arc<Path>,
+    system_include: bool,
 }
 
 impl FileMapping {
@@ -35,6 +36,12 @@ impl FileMapping {
     pub fn accessed_path(&self) -> &Path {
         &self.accessed
     }
+
+    /// Initial system status inherited from the includer or a system search root.
+    /// Later `system_header` pragmas and line markers are separate source state.
+    pub fn is_system_include(&self) -> bool {
+        self.system_include
+    }
 }
 
 /// Physical input files and the origins of final active macro definitions.
@@ -50,7 +57,7 @@ pub struct FileOrigins {
 }
 
 impl FileOrigins {
-    /// Ordered ranges, coalesced only when canonical path and accessed spelling match.
+    /// Ordered ranges, coalesced when paths and initial include class match.
     pub fn mappings(&self) -> &[FileMapping] {
         &self.mappings
     }
@@ -77,6 +84,17 @@ impl FileOrigins {
             .map(|entry| entry.accessed.as_ref())
     }
 
+    /// Initial include class at a generated offset; see `FileMapping::is_system_include`.
+    pub fn source_is_system_include(&self, offset: usize) -> Option<bool> {
+        let index = self
+            .mappings
+            .partition_point(|entry| entry.generated.end <= offset);
+        self.mappings
+            .get(index)
+            .filter(|entry| entry.generated.contains(&offset))
+            .map(|entry| entry.system_include)
+    }
+
     /// Source location of the last active definition; absent after `#undef`.
     /// Physical line/column values precede diagnostic line remapping.
     pub fn macro_definition(&self, name: &str) -> Option<&SourceLocation> {
@@ -92,13 +110,20 @@ impl FileOrigins {
         self.paths.intern(path)
     }
 
-    pub(crate) fn append(&mut self, generated: Range<usize>, path: &Path, accessed: &Path) {
+    pub(crate) fn append(
+        &mut self,
+        generated: Range<usize>,
+        path: &Path,
+        accessed: &Path,
+        system_include: bool,
+    ) {
         if generated.is_empty() {
             return;
         }
         if let Some(last) = self.mappings.last_mut()
             && last.path.as_ref() == path
             && last.accessed.as_os_str() == accessed.as_os_str()
+            && last.system_include == system_include
             && last.generated.end == generated.start
         {
             last.generated.end = generated.end;
@@ -110,6 +135,7 @@ impl FileOrigins {
             generated,
             path,
             accessed,
+            system_include,
         });
     }
 

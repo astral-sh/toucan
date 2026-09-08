@@ -175,7 +175,7 @@ pub(super) fn from_arguments(
     if macros.is_some() {
         config.preprocessor.predefined_macro_mode = toucan::PredefinedMacroMode::Tokens;
     }
-    config.preprocessor.include_dirs.extend(system_dirs);
+    config.preprocessor.system_include_dirs.extend(system_dirs);
     if let Some(sysroot) = sysroot {
         if sysroot.as_os_str().is_empty() {
             return Err(error("sysroot cannot be empty"));
@@ -191,10 +191,10 @@ pub(super) fn from_arguments(
         if let Some(multiarch) = multiarch {
             config
                 .preprocessor
-                .include_dirs
+                .system_include_dirs
                 .push(include.join(multiarch));
         }
-        config.preprocessor.include_dirs.push(include);
+        config.preprocessor.system_include_dirs.push(include);
     }
     Ok(config)
 }
