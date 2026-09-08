@@ -25,6 +25,10 @@ STRING_CONSTANT = re.compile(
     re.MULTILINE,
 )
 
+CSTR_CONSTANT = re.compile(
+    r"^pub const ((?:r#)?\w+): &::core::ffi::CStr =", re.MULTILINE
+)
+
 
 def digest(path: Path) -> str:
     with path.open("rb") as stream:
@@ -76,7 +80,7 @@ def execute(
 
 
 def generate_probes(
-    name: str, header: Path, source: str, metadata: dict
+    name: str, header: Path, source: str, metadata: dict, *, run_ffi: bool = True
 ) -> tuple[str, str, dict]:
     """Generate independent expressions in C and Rust, sharing only their names."""
     c = [
@@ -99,7 +103,8 @@ def generate_probes(
         "fn main() {",
     ]
     integers = INTEGER_CONSTANT.findall(source)
-    strings = STRING_CONSTANT.findall(source)
+    cstrings = set(CSTR_CONSTANT.findall(source))
+    strings = STRING_CONSTANT.findall(source) + sorted(cstrings)
     constants = set(re.findall(r"^pub const ((?:r#)?\w+):", source, re.MULTILINE))
     renamed_macros = metadata.get("renamed_macros", {})
     if renamed_macros.keys() - constants:
@@ -221,8 +226,11 @@ def generate_probes(
         c.append(
             f'printf("string.{constant}="); for (size_t i = 0; i < sizeof({expression}); i++) printf("%02x", (unsigned char)({expression})[i]); putchar(\'\\n\');'
         )
+        bytes_expression = f"b::{constant}"
+        if constant in cstrings:
+            bytes_expression += ".to_bytes_with_nul()"
         rust.append(
-            f'print!("string.{constant}="); for byte in b::{constant} {{ print!("{{byte:02x}}"); }} println!();'
+            f'print!("string.{constant}="); for byte in {bytes_expression} {{ print!("{{byte:02x}}"); }} println!();'
         )
     offset_count = 0
     for record in PROBES[name]:
@@ -244,9 +252,12 @@ def generate_probes(
             )
             offset_count += 1
     c.append("return 0; }")
-    rust.extend(
-        ["ffi_test();", "}", (ROOT / "corpus" / "ffi" / f"{name}.rs").read_text()]
-    )
+    if run_ffi:
+        rust.extend(
+            ["ffi_test();", "}", (ROOT / "corpus" / "ffi" / f"{name}.rs").read_text()]
+        )
+    else:
+        rust.append("}")
     coverage = {
         "integer_constants": len(integers),
         "enum_constants": len(enum_constants),
@@ -256,7 +267,7 @@ def generate_probes(
         "string_constants": len(strings),
         "records": len(PROBES[name]),
         "field_offsets": offset_count,
-        "ffi_fixture": str(ROOT / "corpus" / "ffi" / f"{name}.rs"),
+        "ffi_fixture": str(ROOT / "corpus" / "ffi" / f"{name}.rs") if run_ffi else None,
     }
     return "\n".join(c) + "\n", "\n".join(rust) + "\n", coverage
 

@@ -52,6 +52,18 @@ enum Command {
         /// Preserve C macro types, or infer unsigned types for nonnegative values.
         #[arg(long, value_parser = ["c", "unsigned"], default_value = "c")]
         macro_type: String,
+        /// Override an integer macro policy: NAME=c|unsigned, or PREFIX*=c|unsigned.
+        #[arg(long)]
+        macro_type_for: Vec<String>,
+        /// Omit a function by exact name or prefix ending in '*'. Repeat to add names.
+        #[arg(long = "blocklist-function")]
+        blocklist_functions: Vec<String>,
+        /// Append caller-provided Rust from a UTF-8 file, without parsing or ABI checks.
+        #[arg(long)]
+        raw_lines_file: Vec<PathBuf>,
+        /// Emit byte string macros as CStr; reject interior NUL bytes.
+        #[arg(long)]
+        generate_cstr: bool,
     },
     /// Print native preprocessor output without invoking a C compiler.
     Preprocess {
@@ -205,12 +217,37 @@ fn run(cli: Cli) -> Result<()> {
             rustified_enums,
             size_t_is_usize,
             macro_type,
+            macro_type_for,
+            blocklist_functions,
+            raw_lines_file,
+            generate_cstr,
         } => {
+            let mut macro_type_overrides = std::collections::BTreeMap::new();
+            for item in macro_type_for {
+                let (name, policy) = item
+                    .split_once('=')
+                    .context("macro policy must be NAME=c or NAME=unsigned")?;
+                anyhow::ensure!(!name.is_empty(), "macro policy name must not be empty");
+                let policy = match policy {
+                    "c" => MacroType::C,
+                    "unsigned" => MacroType::Unsigned,
+                    _ => anyhow::bail!("macro policy must be c or unsigned"),
+                };
+                macro_type_overrides.insert(name.to_owned(), policy);
+            }
+            let raw_lines = raw_lines_file
+                .iter()
+                .map(std::fs::read_to_string)
+                .collect::<Result<Vec<_>, _>>()?;
             let compilation = toucan::parse_file(&input.header, &input.config()?)?;
             let (source, metadata) = compilation.bindings(&BindingOptions {
                 allowlist,
                 rustified_enums,
                 size_t_is_usize,
+                macro_type_overrides,
+                blocklist_functions,
+                raw_lines,
+                generate_cstr,
                 macro_type: if macro_type == "unsigned" {
                     MacroType::Unsigned
                 } else {

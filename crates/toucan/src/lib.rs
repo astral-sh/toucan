@@ -175,6 +175,10 @@ pub struct Report {
     pub integer_macros: usize,
     pub string_macros: usize,
     pub skipped_declarations: Vec<String>,
+    /// Selected functions deliberately omitted by the caller's blocklist.
+    pub blocked_functions: Vec<String>,
+    /// Caller-provided Rust, excluded from declaration counts and ABI validation.
+    pub raw_lines: Vec<String>,
     pub skipped_macros: Vec<SkippedMacro>,
     /// Enum constants use the compatible enum integer type in Rust. Their C
     /// expression types are retained here for independent compiler validation.
@@ -294,6 +298,8 @@ impl Compilation {
             integer_macros,
             string_macros,
             skipped_declarations: bindings.skipped,
+            blocked_functions: bindings.blocked_functions,
+            raw_lines: bindings.raw_lines,
             skipped_macros,
             enum_constants: bindings.enum_constants,
             renamed_macros: bindings.renamed_macros,

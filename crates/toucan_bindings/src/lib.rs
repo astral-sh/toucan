@@ -24,6 +24,16 @@ pub struct Options {
     pub size_t_is_usize: bool,
     /// Choose how integer object macros are represented in Rust.
     pub macro_type: MacroType,
+    /// Integer macro policies by exact name or prefix ending in `*`. Exact names
+    /// take precedence, followed by the longest matching prefix.
+    pub macro_type_overrides: BTreeMap<String, MacroType>,
+    /// Functions to omit, by exact name or prefix ending in `*`.
+    pub blocklist_functions: Vec<String>,
+    /// Caller-provided Rust appended verbatim. These lines are not parsed or ABI
+    /// checked; callers are responsible for their validity and C compatibility.
+    pub raw_lines: Vec<String>,
+    /// Emit byte string macros as `&core::ffi::CStr`. Interior NUL bytes are errors.
+    pub generate_cstr: bool,
 }
 
 /// Integer macro representation policy; evaluation always retains the C type.
@@ -40,12 +50,37 @@ pub enum MacroType {
 impl Options {
     pub fn includes(&self, name: &str) -> bool {
         self.allowlist.is_empty()
-            || self.allowlist.iter().any(|pattern| {
-                pattern
-                    .strip_suffix('*')
-                    .map_or(pattern == name, |prefix| name.starts_with(prefix))
-            })
+            || self
+                .allowlist
+                .iter()
+                .any(|pattern| matches_name(pattern, name))
     }
+
+    fn blocks_function(&self, name: &str) -> bool {
+        self.blocklist_functions
+            .iter()
+            .any(|pattern| matches_name(pattern, name))
+    }
+
+    fn macro_policy(&self, name: &str) -> MacroType {
+        self.macro_type_overrides
+            .get(name)
+            .copied()
+            .or_else(|| {
+                self.macro_type_overrides
+                    .iter()
+                    .filter(|(pattern, _)| pattern.ends_with('*') && matches_name(pattern, name))
+                    .max_by_key(|(pattern, _)| pattern.len())
+                    .map(|(_, policy)| *policy)
+            })
+            .unwrap_or(self.macro_type)
+    }
+}
+
+fn matches_name(pattern: &str, name: &str) -> bool {
+    pattern
+        .strip_suffix('*')
+        .map_or(pattern == name, |prefix| name.starts_with(prefix))
 }
 
 #[derive(Debug)]
@@ -54,6 +89,10 @@ pub struct Bindings {
     pub declarations: usize,
     /// Internal-linkage declarations are not callable through external bindings.
     pub skipped: Vec<String>,
+    /// Functions deliberately omitted by the caller's blocklist.
+    pub blocked_functions: Vec<String>,
+    /// Caller-provided Rust, excluded from declaration counts and ABI validation.
+    pub raw_lines: Vec<String>,
     /// Enum constants are projected to their enum's compatible integer type.
     pub enum_constants: Vec<EnumConstants>,
     /// Rust-to-C names for macro constants whose identifiers were escaped or renamed.
@@ -134,6 +173,9 @@ pub fn generate_with_macros(
     let declaration_names: BTreeSet<_> = unit
         .declarations
         .iter()
+        .filter(|item| {
+            item.kind != DeclarationKind::Function || !options.blocks_function(&item.name)
+        })
         .map(|item| item.name.as_str())
         .chain(
             unit.records
@@ -184,9 +226,16 @@ pub fn generate_with_macros(
     };
     let mut selected = Vec::new();
     let mut skipped = Vec::new();
+    let mut blocked_functions = Vec::new();
     let mut seen = BTreeSet::new();
     for declaration in &unit.declarations {
         if !options.includes(&declaration.name) || !seen.insert(declaration.name.clone()) {
+            continue;
+        }
+        if declaration.kind == DeclarationKind::Function
+            && options.blocks_function(&declaration.name)
+        {
+            blocked_functions.push(declaration.name.clone());
             continue;
         }
         if declaration.is_static
@@ -365,7 +414,7 @@ pub fn generate_with_macros(
         }
         match value {
             MacroValue::Integer(value) => {
-                let emitted = normalize_macro(*value, options.macro_type)?;
+                let emitted = normalize_macro(*value, options.macro_policy(c_name))?;
                 if emitted.bits != value.bits || emitted.signed != value.signed {
                     macro_types.push(MacroIntegerType {
                         c_name: c_name.clone(),
@@ -379,23 +428,42 @@ pub fn generate_with_macros(
                 source.push_str(&integer_constant_named(&name, emitted)?);
             }
             MacroValue::String(bytes) => {
-                write!(
-                    source,
-                    "pub const {name}: &[::core::primitive::u8; {}] = &[",
-                    bytes.len() + 1
-                )
-                .unwrap();
+                if options.generate_cstr {
+                    if bytes.contains(&0) {
+                        return Err(Error(format!(
+                            "string macro `{c_name}` contains an interior NUL and cannot be emitted as CStr"
+                        )));
+                    }
+                    write!(source, "pub const {name}: &::core::ffi::CStr = unsafe {{ ::core::ffi::CStr::from_bytes_with_nul_unchecked(&[").unwrap();
+                } else {
+                    write!(
+                        source,
+                        "pub const {name}: &[::core::primitive::u8; {}] = &[",
+                        bytes.len() + 1
+                    )
+                    .unwrap();
+                }
                 for byte in bytes {
                     write!(source, "{byte}, ").unwrap();
                 }
-                source.push_str("0];\n");
+                source.push_str(if options.generate_cstr {
+                    "0]) };\n"
+                } else {
+                    "0];\n"
+                });
             }
         }
+    }
+    for line in &options.raw_lines {
+        source.push_str(line);
+        source.push('\n');
     }
     Ok(Bindings {
         source,
         declarations: selected.len(),
         skipped,
+        blocked_functions,
+        raw_lines: options.raw_lines.clone(),
         enum_constants,
         renamed_macros,
         macro_types,

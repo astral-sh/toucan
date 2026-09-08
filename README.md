@@ -192,3 +192,18 @@ validation tools as an independent reference.
 
 Toucan is licensed under either the [Apache License, Version 2.0](LICENSE-APACHE),
 or the [MIT license](LICENSE-MIT), at your option.
+
+### Consumer binding policies
+
+`BindingOptions` supports per-name `macro_type_overrides`, a function blocklist,
+caller-provided `raw_lines`, and `generate_cstr`. Name patterns are exact names or
+prefixes ending in `*`; macro policies prefer exact names, then the longest prefix.
+`CStr` generation rejects interior NUL bytes. Raw lines are appended verbatim and
+are the caller's responsibility; reports list them separately from analyzed
+declarations and record each deliberately blocked function.
+
+The CLI exposes these as `--macro-type-for 'SQLITE_TRACE_*=unsigned'`,
+`--blocklist-function NAME`, `--raw-lines-file FILE`, and `--generate-cstr`.
+[SQLite consumer validation](tools/sqlite_consumer/README.md) regenerates the
+bindings used by pinned, unmodified rusqlite and libsqlite3-sys code, then executes
+queries, callbacks, and serialization against the bundled C library.

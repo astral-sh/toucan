@@ -1,0 +1,10 @@
+[package]
+name = "toucan-sqlite-consumer"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+rusqlite = { version = "=0.40.2", default-features = false, features = ["bundled", "serialize", "trace", "functions"] }

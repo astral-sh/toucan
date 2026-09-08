@@ -16,8 +16,10 @@ on:
       - "scripts/verify_equivalence.py"
       - "scripts/probe_record_layouts.py"
       - "scripts/verify_zstd_consumer.py"
+      - "scripts/verify_sqlite_consumer.py"
       - "tools/binding_compare/**"
       - "tools/zstd_consumer/**"
+      - "tools/sqlite_consumer/**"
       - ".github/workflows/corpus.yml"
   push:
     branches: [main]
@@ -185,6 +187,21 @@ jobs:
             --target '${{ matrix.target }}' \
             --sysroot "$corpus_sysroot" \
             --output corpus/results/zstd-consumer
+
+      - name: Compile and run the real SQLite Rust consumer
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            corpus_sysroot="$(xcrun --show-sdk-path)"
+          else
+            corpus_sysroot=/
+          fi
+          "$CORPUS_PYTHON" scripts/verify_sqlite_consumer.py \
+            --toucan target/release/toucan \
+            --target '${{ matrix.target }}' \
+            --sysroot "$corpus_sysroot" \
+            --output corpus/results/sqlite-consumer
 
       - name: Upload native evidence and build logs
         if: always()

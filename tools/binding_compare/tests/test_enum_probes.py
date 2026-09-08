@@ -27,6 +27,7 @@ class EnumProbeTests(unittest.TestCase):
         rust_name="SELECTED",
         macro_name=None,
         macro_type=None,
+        extra_bindings="",
     ):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
@@ -37,6 +38,7 @@ class EnumProbeTests(unittest.TestCase):
             fixture.write_text("fn ffi_test() {}")
             bindings = (
                 f"pub const {rust_name}: ::core::primitive::{rust_type} = {value};\n"
+                + extra_bindings
             )
             metadata = {
                 "enum_constants": [
@@ -103,6 +105,26 @@ class EnumProbeTests(unittest.TestCase):
                     )
                 )
             return *outputs, coverage
+
+    def test_cstr_bytes_are_compared_with_the_original_c_literal(self):
+        for byte, matches in [(10, True), (13, False)]:
+            expected, actual, coverage = self.compile_probes(
+                '#define SELECTED 1\n#define TEXT "a\\nb"\n#define EMPTY ""\n',
+                None,
+                [],
+                "i32",
+                1,
+                macro_name="SELECTED",
+                extra_bindings=(
+                    "pub const TEXT: &::core::ffi::CStr = unsafe { "
+                    f"::core::ffi::CStr::from_bytes_with_nul_unchecked(&[97, {byte}, 98, 0])"
+                    " };\n"
+                    "pub const EMPTY: &::core::ffi::CStr = unsafe { "
+                    "::core::ffi::CStr::from_bytes_with_nul_unchecked(&[0]) };\n"
+                ),
+            )
+            self.assertEqual(expected == actual, matches)
+            self.assertEqual(coverage["string_constants"], 2)
 
     def test_normalized_macros_check_original_c_values_and_types(self):
         expected, actual, _ = self.compile_probes(
