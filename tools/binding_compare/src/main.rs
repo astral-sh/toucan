@@ -80,7 +80,55 @@ struct Context<'a> {
     aliases: BTreeMap<String, &'a Type>,
     records: BTreeSet<String>,
     record_names: BTreeMap<String, String>,
+    opaque_arrays: BTreeMap<String, (&'a Type, &'a syn::Expr)>,
     target: &'a str,
+}
+
+fn opaque_array(ty: &Type) -> Option<(String, &Type, &syn::Expr)> {
+    let Type::Path(path) = ty else { return None };
+    let segment = path.path.segments.last()?;
+    if path.qself.is_some() || segment.ident != "__BindgenOpaqueArray" {
+        return None;
+    }
+    let PathArguments::AngleBracketed(args) = &segment.arguments else {
+        return None;
+    };
+    let [
+        GenericArgument::Type(element),
+        GenericArgument::Const(length),
+    ] = args.args.iter().collect::<Vec<_>>()[..]
+    else {
+        return None;
+    };
+    Some((ty.to_token_stream().to_string(), element, length))
+}
+
+fn has_opaque_array_definition(file: &syn::File) -> bool {
+    file.items.iter().any(|item| {
+        let Item::Struct(s) = item else { return false };
+        if s.ident != "__BindgenOpaqueArray"
+            || !s.attrs.iter().any(|attr| {
+                attr.path().is_ident("repr")
+                    && attr
+                        .parse_args::<syn::Ident>()
+                        .is_ok_and(|repr| repr == "C" || repr == "transparent")
+            })
+        {
+            return false;
+        }
+        let syn::Fields::Unnamed(fields) = &s.fields else {
+            return false;
+        };
+        let Some(field) = fields.unnamed.first().filter(|_| fields.unnamed.len() == 1) else {
+            return false;
+        };
+        let Type::Array(array) = &field.ty else {
+            return false;
+        };
+        public(&field.vis)
+            && direct_path(&array.elem).as_deref() == Some("T")
+            && matches!(&array.len, syn::Expr::Path(p) if p.path.is_ident("N"))
+    })
 }
 
 fn name(ident: &syn::Ident) -> String {
@@ -124,6 +172,7 @@ impl<'a> Context<'a> {
             aliases: BTreeMap::new(),
             records: BTreeSet::new(),
             record_names: BTreeMap::new(),
+            opaque_arrays: BTreeMap::new(),
             target,
         };
         for item in &file.items {
@@ -156,12 +205,22 @@ impl<'a> Context<'a> {
             };
             ctx.record_names.insert(record.clone(), canonical);
         }
+        if has_opaque_array_definition(file) {
+            for ty in ctx.aliases.values() {
+                if let Some((key, element, length)) = opaque_array(ty) {
+                    ctx.opaque_arrays.insert(key, (element, length));
+                }
+            }
+        }
         ctx
     }
 
     fn record_target(&self, ty: &Type, depth: usize) -> Option<String> {
         if depth > 128 {
             return None;
+        }
+        if let Some((key, _, _)) = opaque_array(ty) {
+            return self.opaque_arrays.contains_key(&key).then_some(key);
         }
         let path = direct_path(ty)?;
         if self.records.contains(&path) {
@@ -234,7 +293,11 @@ impl<'a> Context<'a> {
             Type::Path(p) if p.qself.is_none() => {
                 let last = p.path.segments.last().ok_or("empty type path")?;
                 let n = name(&last.ident);
-                if let PathArguments::AngleBracketed(args) = &last.arguments {
+                if let Some((key, _, _)) = opaque_array(ty)
+                    && self.opaque_arrays.contains_key(&key)
+                {
+                    Shape::Record(key)
+                } else if let PathArguments::AngleBracketed(args) = &last.arguments {
                     let [GenericArgument::Type(inner)] = args.args.iter().collect::<Vec<_>>()[..]
                     else {
                         return Err(
@@ -473,6 +536,42 @@ fn analyze(file: &syn::File, target: &str) -> Api {
             api.unsupported.push(e.to_string());
         }
     }
+    for (key, (element, length)) in &ctx.opaque_arrays {
+        let aliases: Vec<_> = ctx
+            .aliases
+            .iter()
+            .filter(|(name, ty)| {
+                api.aliases.contains_key(*name) && ctx.record_target(ty, 0).as_ref() == Some(key)
+            })
+            .map(|(name, _)| name.clone())
+            .collect();
+        let result = (|| -> Result<Record> {
+            Ok(Record {
+                rust_name: aliases
+                    .first()
+                    .ok_or("opaque array has no public alias")?
+                    .clone(),
+                aliases: aliases.clone(),
+                kind: "struct",
+                opaque: false,
+                fields: vec![Field {
+                    name: "0".into(),
+                    rust_name: "0".into(),
+                    shape: Shape::Array {
+                        element: Box::new(ctx.shape(element, 0)?),
+                        length: array_length(length)?,
+                    },
+                }],
+                excluded_fields: Vec::new(),
+            })
+        })();
+        match result {
+            Ok(record) => {
+                api.records.insert(key.clone(), record);
+            }
+            Err(error) => api.unsupported.push(error.to_string()),
+        }
+    }
     api
 }
 
@@ -498,7 +597,11 @@ fn probe(api: &Api, bindings: &Path) -> String {
         let ty = format!("bindings::{}", rust_ident(&record.rust_name));
         s.push_str(&format!("println!(\"record\\t{{}}\\t{{}}\\t{{}}\", {key:?}, ::std::mem::size_of::<{ty}>(), ::std::mem::align_of::<{ty}>());\n"));
         for field in &record.fields {
-            let field_name = rust_ident(&field.rust_name);
+            let field_name = if field.rust_name.parse::<usize>().is_ok() {
+                field.rust_name.clone()
+            } else {
+                rust_ident(&field.rust_name)
+            };
             s.push_str(&format!("println!(\"field\\t{{}}\\t{{}}\\t{{}}\", {key:?}, {:?}, ::std::mem::offset_of!({ty}, {field_name}));\n", field.name));
         }
     }
@@ -557,6 +660,44 @@ mod tests {
             &syn::parse_file(source).unwrap(),
             "x86_64-unknown-linux-gnu",
         )
+    }
+
+    #[test]
+    fn opaque_array_aliases_preserve_storage_and_native_probes() {
+        let api = api(
+            "#[repr(C)] pub struct __BindgenOpaqueArray<T: Copy, const N: usize>(pub [T; N]);
+             pub type __gnuc_va_list = __BindgenOpaqueArray<u64, 4usize>;
+             pub type va_list = __gnuc_va_list;
+             unsafe extern \"C\" { pub fn consume(args: va_list); }",
+        );
+        assert!(api.unsupported.is_empty(), "{:?}", api.unsupported);
+        let (key, record) = api.records.first_key_value().unwrap();
+        assert_eq!(record.aliases, ["__gnuc_va_list", "va_list"]);
+        assert_eq!(
+            record.fields[0].shape,
+            Shape::Array {
+                element: Box::new(Shape::Primitive("u64".into())),
+                length: "4".into(),
+            }
+        );
+        assert_eq!(
+            api.functions["consume"].shape.parameters,
+            [Shape::Record(key.clone())]
+        );
+        let source = probe(&api, Path::new("bindings.rs"));
+        assert!(source.contains("offset_of!(bindings::r#__gnuc_va_list, 0)"));
+        syn::parse_file(&source).unwrap();
+    }
+
+    #[test]
+    fn opaque_array_storage_requires_the_expected_helper_definition() {
+        let api = api(
+            "#[repr(C)] pub struct __BindgenOpaqueArray<T: Copy, const N: usize>(pub T, pub [T; N]);
+             pub type va_list = __BindgenOpaqueArray<u64, 4usize>;
+             unsafe extern \"C\" { pub fn consume(args: va_list); }",
+        );
+        assert!(!api.unsupported.is_empty());
+        assert!(api.records.is_empty());
     }
 
     #[test]

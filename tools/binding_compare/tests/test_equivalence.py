@@ -101,6 +101,19 @@ class EquivalenceGateTests(unittest.TestCase):
         )
         self.assertTrue(gate.classify(value, {"name": "libgit2"}, set())[1])
 
+    def test_va_list_storage_requires_independent_c_validation(self):
+        value = report()
+        value["comparisons"]["native_fields"]["toucan_only"] = [
+            "__builtin_va_list_record.__stack"
+        ]
+        self.assertTrue(gate.classify(value, {"name": "sqlite"}, set())[1])
+        value["c_validated_va_list"] = True
+        self.assertFalse(gate.classify(value, {"name": "sqlite"}, set())[1])
+        value["comparisons"]["native_fields"]["toucan_only"].append(
+            "__builtin_va_list_record.unvalidated_field"
+        )
+        self.assertTrue(gate.classify(value, {"name": "sqlite"}, set())[1])
+
     def test_sqlite_exception_does_not_hide_another_field_change(self):
         callback = {
             "abi": "C",

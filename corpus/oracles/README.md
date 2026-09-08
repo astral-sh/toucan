@@ -8,7 +8,7 @@ pinned project header. It does not include generated Rust or link a library.
 | --- | --- |
 | `sqlite.c` | `sqlite3_vfs.xDlSym` returns `void (*)(void)`. A return callback that repeats the lookup's three parameters is incompatible. `sqlite3_version` has `const char` elements. |
 | `zstd.c` | `ZSTD_CONTENTSIZE_UNKNOWN` and `ZSTD_CONTENTSIZE_ERROR` are unsigned 64-bit values `2^64 - 1` and `2^64 - 2`. Representative enumerator expressions have type `int`. |
-| `libgit2.c` | `GIT_REBASE_NO_OPERATION` has unsigned `size_t` type and value `SIZE_MAX`. Representative enumerator expressions have type `int`. |
+| `libgit2.c` | `GIT_REBASE_NO_OPERATION` has unsigned `size_t` type and value `SIZE_MAX`. `GIT_OBJECT_SIZE_MAX` is an unsigned 64-bit maximum. Representative enumerator expressions have type `int`. |
 
 The enum checks concern the C expression's type. A Rust generator can choose to
 give constants the enum's compatible integer type; that is a source API choice,

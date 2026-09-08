@@ -31,7 +31,7 @@ digest, execute, native_target = _corpus.digest, _corpus.execute, _corpus.native
 PROJECTS = {"libgit2", "sqlite", "zlib", "zstd"}
 SENTINELS = {
     "zstd": {"ZSTD_CONTENTSIZE_UNKNOWN": -1, "ZSTD_CONTENTSIZE_ERROR": -2},
-    "libgit2": {"GIT_REBASE_NO_OPERATION": -1},
+    "libgit2": {"GIT_REBASE_NO_OPERATION": -1, "GIT_OBJECT_SIZE_MAX": -1},
 }
 MACRO_TYPES = {
     "zstd": {
@@ -102,6 +102,14 @@ EXTRA_CONSTANTS = {
         "GIT_REVPARSE_SINGLE",
         "GIT_STATUS_OPT_DEFAULTS",
     },
+}
+VA_LIST_RECORD = "__builtin_va_list_record"
+VA_LIST_OFFSETS = {
+    "__stack": 0,
+    "__gr_top": 8,
+    "__vr_top": 16,
+    "__gr_offs": 24,
+    "__vr_offs": 28,
 }
 
 
@@ -215,6 +223,16 @@ def classify(report: dict, project: dict, enum_names: set[str]) -> tuple[list, l
                 if category == "aliases":
                     reason = alias_reason(item, side, report, project)
                 elif (
+                    category == "native_fields"
+                    and report.get("c_validated_va_list")
+                    and item
+                    in {
+                        f"{VA_LIST_RECORD}.{field}"
+                        for field in (VA_LIST_OFFSETS if side == "toucan" else ["0"])
+                    }
+                ):
+                    reason = "C va_list fields represented by opaque array storage in bindgen; native and C layouts checked"
+                elif (
                     category in {"constants", "native_constants"}
                     and side == "toucan"
                     and item in EXTRA_CONSTANTS.get(name, set())
@@ -267,6 +285,12 @@ def classify(report: dict, project: dict, enum_names: set[str]) -> tuple[list, l
                 and sqlite_callback_difference(difference)
             ):
                 reason = "C xDlSym returns void (*)(void); bindgen repeats the lookup parameters"
+            elif (
+                category == "record_shapes"
+                and item == VA_LIST_RECORD
+                and report.get("c_validated_va_list")
+            ):
+                reason = "C va_list fields represented by opaque array storage in bindgen; native and C layouts checked"
             entry = {"category": category, "name": item, "difference": difference}
             (accepted if reason else unexpected).append(
                 {**entry, **({"reason": reason} if reason else {})}
@@ -315,6 +339,94 @@ def classify(report: dict, project: dict, enum_names: set[str]) -> tuple[list, l
             }
         )
     return accepted, unexpected
+
+
+def validate_va_list(
+    report: dict, project: dict, args, directory: Path, commands: list
+) -> dict | None:
+    """Check the concrete AArch64 va_list representation before accepting opaque storage."""
+    if args.target != "aarch64-unknown-linux-gnu" or project["name"] not in {
+        "sqlite",
+        "zlib",
+    }:
+        return None
+    difference = report["comparisons"]["record_shapes"]["different"].get(VA_LIST_RECORD)
+    pointer = {
+        "kind": "pointer",
+        "value": {"mutable": True, "pointee": primitive("void")},
+    }
+    expected = {
+        "toucan": {
+            "kind": "struct",
+            "opaque": False,
+            "fields": [
+                {"name": field, "shape": pointer if offset < 24 else primitive("i32")}
+                for field, offset in VA_LIST_OFFSETS.items()
+            ],
+        },
+        "bindgen": {
+            "kind": "struct",
+            "opaque": False,
+            "fields": [
+                {
+                    "name": "0",
+                    "shape": {
+                        "kind": "array",
+                        "value": {"element": primitive("u64"), "length": "4"},
+                    },
+                }
+            ],
+        },
+    }
+    if difference != expected:
+        return None
+    other = report["record_name_mapping"].get(VA_LIST_RECORD)
+    for side, record in (("toucan", VA_LIST_RECORD), ("bindgen", other)):
+        observed = report["native_observations"][side]
+        if observed["records"].get(record) != {"size": 32, "alignment": 8}:
+            return None
+        offsets = VA_LIST_OFFSETS if side == "toucan" else {"0": 0}
+        if any(
+            observed["fields"].get(f"{record}.{field}") != offset
+            for field, offset in offsets.items()
+        ):
+            return None
+    source = directory / "va-list-oracle.c"
+    lines = [
+        f"#include {json.dumps(project['header'])}",
+        '_Static_assert(__builtin_types_compatible_p(va_list, __builtin_va_list), "header va_list matches the compiler builtin");',
+        '_Static_assert(sizeof(__builtin_va_list) == 32, "va_list size");',
+        '_Static_assert(_Alignof(__builtin_va_list) == 8, "va_list alignment");',
+    ]
+    for field, offset in VA_LIST_OFFSETS.items():
+        c_type = "void *" if offset < 24 else "int"
+        lines.extend(
+            [
+                f'_Static_assert(__builtin_offsetof(__builtin_va_list, {field}) == {offset}, "{field} offset");',
+                f'_Static_assert(_Generic(((__builtin_va_list){{0}}).{field}, {c_type}: 1, default: 0), "{field} type");',
+            ]
+        )
+    source.write_text("\n".join(lines) + "\n")
+    command = [
+        args.cc,
+        "-std=c11",
+        "-Wall",
+        "-Wextra",
+        "-Werror",
+        "-fsyntax-only",
+        f"--sysroot={args.sysroot}",
+        str(source),
+    ]
+    for include in project["include_dirs"]:
+        command += ["-I", include]
+    execute(command, directory, "compile-va-list-oracle", commands, args.timeout)
+    return {
+        "status": "passed",
+        "source_sha256": digest(source),
+        "size": 32,
+        "alignment": 8,
+        "field_offsets": VA_LIST_OFFSETS,
+    }
 
 
 def validate_c_evidence(
@@ -510,6 +622,10 @@ def verify(project: dict, args, evidence: dict) -> dict:
             args.timeout,
         )
         report = json.loads(comparison_path.read_text())
+        va_list_proof = validate_va_list(report, project, args, directory, commands)
+        if va_list_proof:
+            result["va_list_proof"] = va_list_proof
+            report["c_validated_va_list"] = True
         for tool, inventory in report["inventory"].items():
             (args.output / f"{name}-{tool}-api.json").write_text(
                 json.dumps(inventory, indent=2) + "\n"

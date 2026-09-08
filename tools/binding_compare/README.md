@@ -55,6 +55,11 @@ bitfield storage cause a nonzero exit.
   native layouts are compared after that mapping; matching names alone is not
   sufficient. Rust keyword escaping is normalized only when the corresponding
   field uses the original keyword.
+- Bindgen's concrete `__BindgenOpaqueArray<T, N>` aliases retain their tuple
+  storage field and native size, alignment, and offset probes. On AArch64 Linux,
+  bindgen uses this representation for `va_list`; Toucan exposes its five C
+  fields. The corpus gate records that difference and requires matching native
+  layouts plus C assertions for every field before accepting it.
 - Compiled probes evaluate integer and byte-string constants without substituting
   mathematical values for overflowed or signed values. Constant types are a
   separate comparison; a value match does not hide a type difference.

@@ -3,6 +3,14 @@
 #include <stddef.h>
 #include <stdint.h>
 
+_Static_assert(GIT_OBJECT_SIZE_MAX == UINT64_MAX,
+               "maximum object size is the maximum unsigned 64-bit value");
+_Static_assert(sizeof(GIT_OBJECT_SIZE_MAX) * CHAR_BIT == 64,
+               "maximum object size is 64 bits");
+_Static_assert(_Generic(GIT_OBJECT_SIZE_MAX,
+                       unsigned long: 1, unsigned long long: 1, default: 0),
+               "maximum object size has unsigned 64-bit type");
+
 _Static_assert(GIT_REBASE_NO_OPERATION == SIZE_MAX,
                "no rebase operation is the maximum size_t value");
 _Static_assert(GIT_REBASE_NO_OPERATION == (size_t)-1,
