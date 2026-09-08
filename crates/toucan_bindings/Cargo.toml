@@ -8,6 +8,7 @@ repository.workspace = true
 description = "Rust binding generation from Toucan's C semantic model"
 
 [dependencies]
+serde.workspace = true
 thiserror.workspace = true
 toucan_semantic = { path = "../toucan_semantic" }
 toucan_target = { path = "../toucan_target" }

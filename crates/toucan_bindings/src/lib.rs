@@ -36,6 +36,28 @@ pub struct Bindings {
     pub declarations: usize,
     /// Internal-linkage declarations are not callable through external bindings.
     pub skipped: Vec<String>,
+    /// Enum constants are projected to their enum's compatible integer type.
+    pub enum_constants: Vec<EnumConstants>,
+}
+
+/// The C enum behind a group of emitted Rust constants.
+#[derive(Debug, serde::Serialize)]
+pub struct EnumConstants {
+    /// A C tag or typedef spelling, when the enum can be named outside its declaration.
+    pub c_type: Option<String>,
+    /// All original enumerator names, including those excluded by the allowlist.
+    pub variants: Vec<String>,
+    pub emitted: Vec<EnumConstant>,
+}
+
+/// An enumerator's source identity and its original C expression type.
+#[derive(Debug, serde::Serialize)]
+pub struct EnumConstant {
+    pub c_name: String,
+    pub rust_name: String,
+    /// C expression types remain independent of the Rust enum representation.
+    pub c_expression_bits: u8,
+    pub c_expression_signed: bool,
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -49,6 +71,10 @@ impl From<toucan_semantic::Error> for Error {
 }
 
 /// Generate a module suitable for `include!`, without process-global attributes.
+///
+/// Enum constants use the enum's compatible integer representation so they can
+/// be passed directly to functions taking that enum. The translation unit keeps
+/// their original C expression types for integer promotions and macro evaluation.
 pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, Error> {
     let mut emitter = Emitter {
         unit,
@@ -161,11 +187,49 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
             writeln!(source, "pub type {rust_name} = {rust_type};").unwrap();
         }
     }
+    let mut enum_owners = BTreeMap::new();
+    let mut enum_constants = Vec::new();
+    for (id, enumeration) in unit.enums.iter().enumerate() {
+        let mut emitted = Vec::new();
+        for variant in &enumeration.variants {
+            if enum_owners.insert(variant.name.as_str(), id).is_some() {
+                return Err(Error(format!("duplicate enumerator `{}`", variant.name)));
+            }
+            if options.includes(&variant.name) {
+                let value = unit.constants.get(&variant.name).ok_or_else(|| {
+                    Error(format!("missing enumerator constant `{}`", variant.name))
+                })?;
+                emitted.push(EnumConstant {
+                    c_name: variant.name.clone(),
+                    rust_name: emitter.names.identifier(&variant.name)?,
+                    c_expression_bits: value.bits,
+                    c_expression_signed: value.signed,
+                });
+            }
+        }
+        if !emitted.is_empty() {
+            enum_constants.push(EnumConstants {
+                c_type: emitter.enum_c_type(id)?,
+                variants: enumeration
+                    .variants
+                    .iter()
+                    .map(|v| v.name.clone())
+                    .collect(),
+                emitted,
+            });
+        }
+    }
     for (name, value) in &unit.constants {
         if options.includes(name) {
+            let value = if let Some(&id) = enum_owners.get(name.as_str()) {
+                let (bits, signed) = emitter.enum_integer(id)?;
+                convert_enum_constant(*value, bits, signed)?
+            } else {
+                *value
+            };
             source.push_str(&integer_constant_named(
                 &emitter.names.identifier(name)?,
-                *value,
+                value,
             )?);
         }
     }
@@ -209,6 +273,7 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
         source,
         declarations: selected.len(),
         skipped,
+        enum_constants,
     })
 }
 
@@ -218,12 +283,7 @@ pub fn integer_constant(name: &str, value: IntegerValue) -> Result<String, Error
 }
 
 fn integer_constant_named(name: &str, value: IntegerValue) -> Result<String, Error> {
-    if ![8, 16, 32, 64, 128].contains(&value.bits) {
-        return Err(Error("unsupported integer width".into()));
-    }
-    if value.bits < 128 && value.value >= (1u128 << value.bits) {
-        return Err(Error("integer constant exceeds its declared width".into()));
-    }
+    validate_integer(value)?;
     let prefix = if value.signed { 'i' } else { 'u' };
     let literal = if value.signed {
         value.signed_value().to_string()
@@ -234,6 +294,49 @@ fn integer_constant_named(name: &str, value: IntegerValue) -> Result<String, Err
         "pub const {name}: ::core::primitive::{prefix}{} = {literal};\n",
         value.bits
     ))
+}
+
+fn validate_integer(value: IntegerValue) -> Result<(), Error> {
+    if ![8, 16, 32, 64, 128].contains(&value.bits) {
+        return Err(Error("unsupported integer width".into()));
+    }
+    if value.bits < 128 && value.value >= (1u128 << value.bits) {
+        return Err(Error("integer constant exceeds its declared width".into()));
+    }
+    Ok(())
+}
+
+/// Preserve the mathematical enumerator value when changing its Rust representation.
+fn convert_enum_constant(
+    value: IntegerValue,
+    bits: u8,
+    signed: bool,
+) -> Result<IntegerValue, Error> {
+    validate_integer(value)?;
+    let mask = u128::MAX >> (128 - bits);
+    let converted = if value.signed && value.signed_value() < 0 {
+        let minimum = i128::MIN >> (128 - bits);
+        if !signed || value.signed_value() < minimum {
+            return Err(Error(
+                "enumerator does not fit its enum's integer type".into(),
+            ));
+        }
+        (value.signed_value() as u128) & mask
+    } else {
+        let maximum = if signed { mask >> 1 } else { mask };
+        if value.value > maximum {
+            return Err(Error(
+                "enumerator does not fit its enum's integer type".into(),
+            ));
+        }
+        value.value
+    };
+    Ok(IntegerValue {
+        value: converted,
+        bits,
+        signed,
+        rank: value.rank,
+    })
 }
 
 struct Emitter<'a> {
@@ -384,17 +487,37 @@ impl Emitter<'_> {
     }
 
     fn enum_type(&self, id: usize) -> Result<String, Error> {
+        let (bits, signed) = self.enum_integer(id)?;
+        Ok(format!(
+            "::core::primitive::{}{bits}",
+            if signed { 'i' } else { 'u' }
+        ))
+    }
+
+    fn enum_integer(&self, id: usize) -> Result<(u8, bool), Error> {
         let layout = self.unit.layout(&Type::new(TypeKind::Enum(id)))?;
         let signed = self.unit.target.triple().contains("msvc")
             || self.unit.enums[id]
                 .variants
                 .iter()
                 .any(|v| v.value.signed && v.value.signed_value() < 0);
-        Ok(format!(
-            "::core::primitive::{}{}",
-            if signed { 'i' } else { 'u' },
-            layout.size_bits
-        ))
+        let bits = u8::try_from(layout.size_bits)
+            .ok()
+            .filter(|bits| [8, 16, 32, 64, 128].contains(bits))
+            .ok_or_else(|| Error("unsupported enum integer width".into()))?;
+        Ok((bits, signed))
+    }
+
+    fn enum_c_type(&self, id: usize) -> Result<Option<String>, Error> {
+        if let Some(name) = &self.unit.enums[id].name {
+            return Ok(Some(format!("enum {name}")));
+        }
+        for (name, ty) in &self.unit.typedefs {
+            if self.unit.resolve(ty)?.kind == TypeKind::Enum(id) {
+                return Ok(Some(name.clone()));
+            }
+        }
+        Ok(None)
     }
 
     fn is_const(&self, ty: &Type) -> Result<bool, Error> {
@@ -961,6 +1084,100 @@ mod tests {
             let unit = analyze(input, target).unwrap();
             assert!(generate(&unit, &Options::default()).is_err(), "{input}");
         }
+    }
+
+    #[test]
+    fn enum_constants_use_the_compatible_type_without_changing_c_values() {
+        for target in Target::ALL {
+            let unit = analyze(
+                "enum Positive { POSITIVE = 3 }; typedef enum { NEGATIVE = -2, ZERO = 0 } Negative; enum { ANONYMOUS = 7 };",
+                target,
+            ).unwrap();
+            let original = unit.constants.clone();
+            let bindings = generate(&unit, &Options::default()).unwrap();
+            let positive_type = if target == Target::X86_64PcWindowsMsvc {
+                "i32"
+            } else {
+                "u32"
+            };
+            assert!(bindings.source.contains(&format!(
+                "pub const POSITIVE: ::core::primitive::{positive_type} = 3;"
+            )));
+            assert!(
+                bindings
+                    .source
+                    .contains("pub const NEGATIVE: ::core::primitive::i32 = -2;")
+            );
+            assert_eq!(unit.constants, original);
+            assert_eq!(
+                bindings.enum_constants[0].c_type.as_deref(),
+                Some("enum Positive")
+            );
+            assert_eq!(
+                bindings.enum_constants[1].c_type.as_deref(),
+                Some("Negative")
+            );
+            assert_eq!(bindings.enum_constants[2].c_type, None);
+            assert!(bindings.enum_constants[0].emitted[0].c_expression_signed);
+            assert_eq!(bindings.enum_constants[0].emitted[0].c_expression_bits, 32);
+        }
+        let unit = analyze(
+            "enum Wide { NEGATIVE = -1, WIDE = 1ULL << 40 }; enum Unsigned { UNSIGNED = 1ULL << 63 };",
+            Target::X86_64UnknownLinuxGnu,
+        ).unwrap();
+        let bindings = generate(&unit, &Options::default()).unwrap();
+        assert!(
+            bindings
+                .source
+                .contains("pub const NEGATIVE: ::core::primitive::i64 = -1;")
+        );
+        assert!(
+            bindings
+                .source
+                .contains("pub const WIDE: ::core::primitive::i64 = 1099511627776;")
+        );
+        assert!(
+            bindings
+                .source
+                .contains("pub const UNSIGNED: ::core::primitive::u64 = 9223372036854775808;")
+        );
+    }
+
+    #[test]
+    fn selected_enumerators_report_the_complete_enum_and_reject_overflow() {
+        let mut unit = analyze(
+            "typedef enum { NEGATIVE = -1, SELECTED = 3, LARGE = 1ULL << 40 } Flags;",
+            Target::X86_64UnknownLinuxGnu,
+        )
+        .unwrap();
+        let options = Options {
+            allowlist: vec!["SELECTED".into()],
+        };
+        let bindings = generate(&unit, &options).unwrap();
+        assert!(
+            bindings
+                .source
+                .contains("pub const SELECTED: ::core::primitive::i64 = 3;")
+        );
+        let metadata = &bindings.enum_constants[0];
+        assert_eq!(metadata.variants, ["NEGATIVE", "SELECTED", "LARGE"]);
+        assert_eq!(metadata.emitted.len(), 1);
+        assert_eq!(metadata.emitted[0].c_name, "SELECTED");
+        unit.constants.insert(
+            "SELECTED".into(),
+            IntegerValue {
+                value: 1u128 << 63,
+                bits: 64,
+                signed: false,
+                rank: 5,
+            },
+        );
+        assert!(
+            generate(&unit, &options)
+                .unwrap_err()
+                .0
+                .contains("does not fit")
+        );
     }
 
     #[test]

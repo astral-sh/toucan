@@ -175,6 +175,9 @@ pub struct Report {
     pub string_macros: usize,
     pub skipped_declarations: Vec<String>,
     pub skipped_macros: Vec<SkippedMacro>,
+    /// Enum constants use the compatible enum integer type in Rust. Their C
+    /// expression types are retained here for independent compiler validation.
+    pub enum_constants: Vec<toucan_bindings::EnumConstants>,
     pub timings: Timings,
 }
 
@@ -198,6 +201,7 @@ impl Compilation {
             string_macros: 0,
             skipped_declarations: bindings.skipped,
             skipped_macros: Vec::new(),
+            enum_constants: bindings.enum_constants,
             timings: self.timings.clone(),
         };
         for (name, definition) in &self.preprocessed.macros {

@@ -35,6 +35,12 @@ fn compiled_bindings_preserve_aggregate_and_callback_abi() {
         struct Self { int self; int __toucan_self; int __anonymous_3; union { int value; }; };
         typedef int __toucan_Self;
         enum super { crate = 3 };
+        enum Positive { POSITIVE_ZERO = 0, POSITIVE_THREE = 3 };
+        typedef enum { NEGATIVE_TWO = -2, NEGATIVE_ZERO = 0 } Negative;
+        enum Wide { WIDE_NEGATIVE = -1, WIDE_VALUE = 1ULL << 40 };
+        enum Positive positive_roundtrip(enum Positive value);
+        Negative negative_roundtrip(Negative value);
+        enum Wide wide_roundtrip(enum Wide value);
         typedef int __toucan_super;
         extern int __toucan_crate;
         int _(void);
@@ -77,6 +83,9 @@ fn compiled_bindings_preserve_aggregate_and_callback_abi() {
         int __toucan_crate = 5;
         int __toucan__ = 7;
         int _(void) { return 11; }
+        enum Positive positive_roundtrip(enum Positive value) { return value; }
+        Negative negative_roundtrip(Negative value) { return value; }
+        enum Wide wide_roundtrip(enum Wide value) { return value; }
         int reserved_check(struct Self *value, self a, self_alias b, __toucan_self c) {
             return value->self == a && value->__toucan_self == b && value->__anonymous_3 == c && value->value == crate;
         }
@@ -136,8 +145,14 @@ fn compiled_bindings_preserve_aggregate_and_callback_abi() {
                 let b: self_alias = 2;
                 let c: __toucan_self = 3;
                 assert_eq!(reserved_check(&mut names, a, b, c), 1);
-                let tag: __toucan_super_ = __toucan_crate_ as __toucan_super_;
+                let tag: __toucan_super_ = __toucan_crate_;
                 assert_eq!(tag, 3);
+                assert_eq!(positive_roundtrip(POSITIVE_THREE), POSITIVE_THREE);
+                assert_eq!(positive_roundtrip(POSITIVE_ZERO), POSITIVE_ZERO);
+                assert_eq!(negative_roundtrip(NEGATIVE_TWO), NEGATIVE_TWO);
+                assert_eq!(negative_roundtrip(NEGATIVE_ZERO), NEGATIVE_ZERO);
+                assert_eq!(wide_roundtrip(WIDE_NEGATIVE), WIDE_NEGATIVE);
+                assert_eq!(wide_roundtrip(WIDE_VALUE), WIDE_VALUE);
                 assert_eq!(__toucan___(), 11);
                 let global = __toucan_crate;
                 assert_eq!(global, 5);

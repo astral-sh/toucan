@@ -73,7 +73,9 @@ def execute(
         entry["seconds"] = time.monotonic() - started
 
 
-def generate_probes(name: str, header: Path, source: str) -> tuple[str, str, dict]:
+def generate_probes(
+    name: str, header: Path, source: str, metadata: dict
+) -> tuple[str, str, dict]:
     """Generate independent expressions in C and Rust, sharing only their names."""
     c = [
         f"#include {json.dumps(str(header))}",
@@ -102,20 +104,58 @@ def generate_probes(name: str, header: Path, source: str) -> tuple[str, str, dic
         raise RuntimeError(
             f"constant probe coverage is incomplete: {len(integers)} integers, unrecognized declarations {sorted(constants - covered)}"
         )
+    enum_constants = {}
+    for index, enumeration in enumerate(metadata["enum_constants"]):
+        c_type = enumeration["c_type"]
+        if c_type is None:
+            # Unnameable anonymous enums have no C type spelling. Let the C
+            # compiler choose a representation from every original enumerator.
+            # Values and signedness never come from the generated Rust output.
+            c_type = f"enum toucan_probe_enum_{index}"
+            variants = ", ".join(
+                f"toucan_probe_enum_{index}_{i} = {variant}"
+                for i, variant in enumerate(enumeration["variants"])
+            )
+            c.append(f"{c_type} {{ {variants} }};")
+        for constant in enumeration["emitted"]:
+            rust_name = constant["rust_name"]
+            if rust_name not in constants or rust_name in enum_constants:
+                raise RuntimeError(f"invalid enum constant metadata: {rust_name}")
+            enum_constants[rust_name] = (c_type, constant)
     for constant, sign, bits in integers:
+        expression = constant
+        if constant in enum_constants:
+            c_type, projection = enum_constants[constant]
+            c_name = projection["c_name"]
+            expression = f"({c_type})({c_name})"
+            # Also retain the original enumerator-expression check: C often
+            # types `POSITIVE_ENUMERATOR` as int while its enum is unsigned.
+            c.append(
+                f'printf("enum_expression_size.{constant}=%zu\\n", sizeof({c_name}));'
+            )
+            rust.append(
+                f'println!("enum_expression_size.{constant}={projection["c_expression_bits"] // 8}");'
+            )
+            c.append(
+                f'printf("enum_expression_signed.{constant}=%d\\n", _Generic(({c_name}), unsigned char: 0, unsigned short: 0, unsigned int: 0, unsigned long: 0, unsigned long long: 0, unsigned __int128: 0, default: 1));'
+            )
+            rust.append(
+                f'println!("enum_expression_signed.{constant}={int(projection["c_expression_signed"])}");'
+            )
         printer = "print_signed" if sign == "i" else "print_unsigned"
         cast = "__int128" if sign == "i" else "unsigned __int128"
         c.append(
-            f"printf(\"constant.{constant}=\"); {printer}(({cast})({constant})); putchar('\\n');"
+            f"printf(\"constant.{constant}=\"); {printer}(({cast})({expression})); putchar('\\n');"
         )
         rust.append(f'println!("constant.{constant}={{}}", b::{constant});')
-        # C sizeof and _Generic independently validate the inferred constant type.
-        c.append(f'printf("constant_size.{constant}=%zu\\n", sizeof({constant}));')
+        # For enumerators, validate the projected enum type independently from
+        # the original C expression type. Macros keep their C expression type.
+        c.append(f'printf("constant_size.{constant}=%zu\\n", sizeof({expression}));')
         rust.append(
             f'println!("constant_size.{constant}={{}}", core::mem::size_of_val(&b::{constant}));'
         )
         c.append(
-            f'printf("constant_signed.{constant}=%d\\n", _Generic(({constant}), unsigned char: 0, unsigned short: 0, unsigned int: 0, unsigned long: 0, unsigned long long: 0, unsigned __int128: 0, default: 1));'
+            f'printf("constant_signed.{constant}=%d\\n", _Generic(({expression}), unsigned char: 0, unsigned short: 0, unsigned int: 0, unsigned long: 0, unsigned long long: 0, unsigned __int128: 0, default: 1));'
         )
         rust.append(f'println!("constant_signed.{constant}={int(sign == "i")}");')
     for constant in strings:
@@ -150,6 +190,10 @@ def generate_probes(name: str, header: Path, source: str) -> tuple[str, str, dic
     )
     coverage = {
         "integer_constants": len(integers),
+        "enum_constants": len(enum_constants),
+        "anonymous_enum_projections": sum(
+            enumeration["c_type"] is None for enumeration in metadata["enum_constants"]
+        ),
         "string_constants": len(strings),
         "records": len(PROBES[name]),
         "field_offsets": offset_count,
@@ -230,7 +274,9 @@ def verify(project: dict, args: argparse.Namespace) -> dict:
         }
         result["bindings_sha256"] = digest(bindings)
         result["bindings_bytes"] = bindings.stat().st_size
-        c, rust, coverage = generate_probes(name, header, bindings.read_text())
+        c, rust, coverage = generate_probes(
+            name, header, bindings.read_text(), metadata
+        )
         result["coverage"] = coverage
         (directory / "probe.c").write_text(c)
         (directory / "probe.rs").write_text(rust)

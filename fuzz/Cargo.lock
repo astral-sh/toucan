@@ -206,6 +206,7 @@ dependencies = [
 name = "toucan_bindings"
 version = "0.0.1"
 dependencies = [
+ "serde",
  "thiserror",
  "toucan_semantic",
  "toucan_target",
