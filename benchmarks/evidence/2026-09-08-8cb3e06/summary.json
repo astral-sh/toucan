@@ -1,0 +1,506 @@
+{
+  "schema_version": 1,
+  "source_commit": "8cb3e0679ea7bb2868aac0574c13a9ff8b141724",
+  "binary_sha256": {
+    "toucan": "4cbc234dbeba8484488bb511551353287f48fdc9161ac18ea3aac31bf4b1ac35",
+    "bindgen": "076fc0b776f69a8390305da44b57853aa104609f8df6a29512c345396b97c293"
+  },
+  "source_files_sha256": {
+    "Cargo.lock": "594033bb582c0b360972ddf8433037bb42e288dc6204a65c51632845ee4ddc7e",
+    "Cargo.toml": "fd951542ebcc65c584e78e35d26749d3559399117b8e9a86d5df1b1b527a5d17",
+    "crates/toucan/Cargo.toml": "402d149f1f171ec8e4cb84416ea91981099b9fd10f8933e0e1ce9236795a43b1",
+    "crates/toucan/src/lib.rs": "dee7cdbee8b4c2b93232f87ce0cb1c0aebecccef4f845050357de98566cd4f15",
+    "crates/toucan_bindings/Cargo.toml": "1d23e833f728f59625fdf57c4bdc6e22d6a3f2a6aa0f344b12d9cb12ebda125c",
+    "crates/toucan_bindings/src/lib.rs": "aad3adbde395aa97d19dfb636bab865ba86638e44ca23474a73495ee320269ff",
+    "crates/toucan_cli/Cargo.toml": "7c07eaf664af1d126771d67f9f0b74e33992528095782979d46cda2c109cda2d",
+    "crates/toucan_cli/src/main.rs": "095f4714f27f75817662ea3b363ee65323d7442ada6710de4becfc2b55f6d9e9",
+    "crates/toucan_layout/Cargo.toml": "e4741aabf789841b0aa9eb7184422f2973da9ce6ebbaa94935183ced976c3427",
+    "crates/toucan_layout/src/builder/common.rs": "c1fa587f74a2c61ed99175bb6b327f0e2da6b1f0e2bb968ba669909b2435e987",
+    "crates/toucan_layout/src/builder/mod.rs": "e2609344f112fd01860ad2fc65834473dc7c028d846a9b641846fa7830ebb125",
+    "crates/toucan_layout/src/builder/msvc.rs": "271454534df329737fd69c6b5a787125a9e42a992afc1989ca88413030264739",
+    "crates/toucan_layout/src/builder/sysv_like/mingw.rs": "135b06f6384152e66d753b5091c820c6519a30eab283b4b8a7eebf751015c2d6",
+    "crates/toucan_layout/src/builder/sysv_like/mod.rs": "ec2f10ec5cb75dba9521fc6e71858f9df74da3acc483395c3e707e9d9840364c",
+    "crates/toucan_layout/src/builder/sysv_like/sysv.rs": "bfd7238eb3820cce9951e197afc3fe663e88f7a1a70f99fc90fc85d62eb081f2",
+    "crates/toucan_layout/src/layout.rs": "83a366fd4e5786afec932ee18b5f74bfdee52c470355f2fc98d5c824d848d078",
+    "crates/toucan_layout/src/lib.rs": "4685082a5c6d4055f29312a212a5722b3af5fbd4faca0b128402ac20f35e94f7",
+    "crates/toucan_layout/src/result.rs": "53b5fd6340cdbf394609f978f20c09b5e3755b2fa196ba6ff1cf9e3a63ec8a3f",
+    "crates/toucan_layout/src/target.rs": "1dc4b6b6ccc0f24766aa6e1d78b9e686645560c78c2387b2d1b793711dce335c",
+    "crates/toucan_layout/src/tests.rs": "be404ef95c037c8101579245fe8d0f53c707f5874e23f6bb72c9f6a17b09ce77",
+    "crates/toucan_layout/src/util.rs": "12476b43e943ba8eb1bd2976bbde40c07fa16ec7b4ce4d95bdf9ac00dffe2b5a",
+    "crates/toucan_layout/src/visitor.rs": "c3288eb855aad2084e13081479f6078f32c3032645a16c75e5a1d73e3c8e5000",
+    "crates/toucan_parser/Cargo.toml": "31c0321d4edbdfcc9ac886e6d37c4fde6f7d6a4609525decab4ee569cef8ef18",
+    "crates/toucan_parser/src/ast.rs": "6e4471ed7ffdbe97bd0dea90e2e1be090cd745c981c7f1762744a204bc04ea09",
+    "crates/toucan_parser/src/astutil.rs": "76b3ea93154ccf1be356a5b8e4dbf1deb6a4e826d995436b33fb3fdb86f66f9b",
+    "crates/toucan_parser/src/bin/dump.rs": "d291595ddb23b6da5b7caaae46634d7e04f05495b19258d1aeecca8616af998c",
+    "crates/toucan_parser/src/bin/meminfo.rs": "28614fb48cc4a3870ed8f847f13e9b6dd3568f599689cbcb9d36331eae8b0571",
+    "crates/toucan_parser/src/driver.rs": "69b1e465292aac63b4af9ea32119df757e732c6b247d21d7a9d1d71582efbf11",
+    "crates/toucan_parser/src/env.rs": "abd0e0f1f036de80e7dfbbc4ac78ac866ab77d3e4af9302c547cfaf1b77e8dac",
+    "crates/toucan_parser/src/lib.rs": "931a9a9d4cd3b9793dafefaf5e72dbbe23a2ad248ed7d10cb74c35d574c13969",
+    "crates/toucan_parser/src/limits.rs": "11463bf3ae7c7714b4c9ad19f7f2ddf836b91880e621a40464c376dd14c06aa2",
+    "crates/toucan_parser/src/loc.rs": "2e6629ee87f17c940ca857d17d1f1b8368c1869323ff5991e6d3482bbe7d598e",
+    "crates/toucan_parser/src/measure.rs": "c53016f289b75e141572c428fe961e039c25588c77c271d00c5fa9ce48ec41b3",
+    "crates/toucan_parser/src/parser.rs": "a04c56979f8f26b602fb3684e59778de483fd970076ee532aaff9d8fb436fa3a",
+    "crates/toucan_parser/src/print.rs": "50d810f549297ebed1dccc44e805ad20d4c37ac177976aabfe365fcdce6a487f",
+    "crates/toucan_parser/src/span.rs": "55709b3ec6a74577ed4b333f635779daf78471ec4861f30857a1a53955e02052",
+    "crates/toucan_parser/src/strings.rs": "2e17029e259b73cecd5bda0a9db6a8b90f0f9efe957fc4c4f14fe66bff76a0e3",
+    "crates/toucan_parser/src/tests.rs": "f337be247d6c8a45d326926ff99976933523c3c3a343bee75dabca83e0de23ed",
+    "crates/toucan_parser/src/visit.rs": "64dcf1a8796ab3f4fb65d23b1851e09a5626a89b19c6c8cf55c0eb342c3f666d",
+    "crates/toucan_preprocessor/Cargo.toml": "c6a1cd9f72f26cbfe79ca6742acc7d55f576719de1d5f74d3b9a0f1d56cd315c",
+    "crates/toucan_preprocessor/src/expand.rs": "9e059ee0ed804c72bad40b66a2d83552b441060d42bbb9249273a7d5b65ed85f",
+    "crates/toucan_preprocessor/src/expression.rs": "ad9a4b57e41017f11337b403acb224224261c4c068b26da10d269fc3c141d1b3",
+    "crates/toucan_preprocessor/src/lib.rs": "a04cede422cb80332f4904b567e35cf15db06ccbeccf91d236199c3c48112900",
+    "crates/toucan_preprocessor/src/provenance.rs": "b924ad4df444cd1127fc6334654d8921f784710088fa0843ef72de35a3de10a6",
+    "crates/toucan_preprocessor/src/tests.rs": "4d8268f417e5200aa95ba0cd47e93681a1d1499bb0afe59cc37112fc8b31addf",
+    "crates/toucan_preprocessor/src/timestamp.rs": "5e52c2b812d3fd88263dd35d51c13a9c8d9b35192d5d985e1b9d2a2536d769fe",
+    "crates/toucan_preprocessor/src/token.rs": "05643f0dc6f7d45ece3e04c45bc4743542adef83d7f6c50310739afc00090b8f",
+    "crates/toucan_semantic/Cargo.toml": "2b3dadae603732769df9019546d3c67c3db2d97ae573930cb0831cf89dca1789",
+    "crates/toucan_semantic/src/analyze.rs": "a6531522165a084535b3b697521fd63a6d06b493c57f293bcfa2bbe81c4f15cf",
+    "crates/toucan_semantic/src/arm.rs": "e235d9a25099ca01a69a6c48c64d08a11efe80221159782e0756c3ad198db7f4",
+    "crates/toucan_semantic/src/asm.rs": "92b625b8e53f5d04bac58728803448e3ced7e17d1961452110d9a11d00c3c6ce",
+    "crates/toucan_semantic/src/atomic.rs": "eff408843e2e80534e8d6d2f8ab3d6cf141f4a5046f47990f2c6330e33cdd738",
+    "crates/toucan_semantic/src/atomic_type.rs": "1a6ae11341256996ce5a4ad25899d987fa9bdb6c393be36a68008ed61ec6f3c1",
+    "crates/toucan_semantic/src/auto_type.rs": "e6a24d17ba51d661b26ff10aaf4a0c1ce02e4e5155da7254945e8d95ba52e4f3",
+    "crates/toucan_semantic/src/builtins.rs": "c7c9de795376fc96ed8eca6a7306bbb74048117507907741b8eec86057f7ca50",
+    "crates/toucan_semantic/src/c11_atomic.rs": "9e7b0288bff9de6815ea8ea78ea71d1905b850efdccb05371bc1230b467f3509",
+    "crates/toucan_semantic/src/checked.rs": "a0a21042c92a867f7ef6d7e6232500b2294160224f5296b67788f77b17d0b081",
+    "crates/toucan_semantic/src/checked/access.rs": "95aad73d4c5f02844d9cc3d489d08f00b18bfc4eb04e157a139524f5f6e32d7f",
+    "crates/toucan_semantic/src/checked/attributes.rs": "879851957cada1bffb55c2b3c80cc5f78e62f4bfe7dd8e789901a146a78b4276",
+    "crates/toucan_semantic/src/checked/bounds.rs": "15319aebc9a4141fea94407db9145dc35612d02993cd4f605d262c2718e762e5",
+    "crates/toucan_semantic/src/checked/expression.rs": "287bc007a7cfba95d13a1c8d7ca690d9356d2b97997a51db9f1ad7522908c11c",
+    "crates/toucan_semantic/src/checked/inference.rs": "b226756d7e02cac83e54fea0a7519602987541cd2363d67744416ecda7a85b50",
+    "crates/toucan_semantic/src/checked/initializer.rs": "b7e349e02a78bab2df9367c9add3ab0c93913e6b457014cd777ededa92c326c1",
+    "crates/toucan_semantic/src/checked/ownership.rs": "3e3cfb191227f6e9b35536552e06447fd8e3cf85466c1b1682846f27b3f22c6e",
+    "crates/toucan_semantic/src/checked/query.rs": "c8d4f6c28c653cbf6125bc1571c5c188ad46c9ecaa2fd37ca895e4cced9d1f82",
+    "crates/toucan_semantic/src/checked/references.rs": "16d7798669dcbf74858b550f91d26502f9e696a6f9f234515a2f12aa729c6cd3",
+    "crates/toucan_semantic/src/checked/statement.rs": "298d45ba09aa3029ce680426b57ab08121ece4afe349c25b31267df0a53a6a7f",
+    "crates/toucan_semantic/src/constant_query.rs": "743bcc92a8a58ec272cdb4e8d81244e621fd8f094f49338c5194250e83b67de1",
+    "crates/toucan_semantic/src/expression.rs": "c6ce81930b4fbb12552a9e7ab182caec3e00d881bee1927571e9747734bdc65a",
+    "crates/toucan_semantic/src/floating.rs": "469783b7caaf96fe99a1899da2e00a81bc34202803e873aae3a52543d674f268",
+    "crates/toucan_semantic/src/floating_tests.rs": "858241d29e75a105a28433cd1afeca31996923488c0ed36c68e803c2bf9c4958",
+    "crates/toucan_semantic/src/fortified.rs": "1fc0ac4fcabe0dba5714a308918f22ef50f2eb0855a4782770e7e96290c9cdc9",
+    "crates/toucan_semantic/src/initializer.rs": "0670e238b89145eeeff23b113ac5823f01a87622ee4eed3668ccf284dc21724a",
+    "crates/toucan_semantic/src/integer.rs": "dbaa0cc77eaa03619c04e4ab2cce1bc365195d035b2866ea5d29a276ebee3426",
+    "crates/toucan_semantic/src/introspection.rs": "cfe91a02a0bd8cbc5f04d2dad35e5aec79216f2168cfb44b870d9daeb3a5585e",
+    "crates/toucan_semantic/src/ir.rs": "a50503583bcb4147f0e3032578b2b27773ca3082e97e0d4cdcbfcf82a4111454",
+    "crates/toucan_semantic/src/lib.rs": "974aa13f92c207e563578f0687961ddf7bc4979be028de8e86d97cc8dde25478",
+    "crates/toucan_semantic/src/literals.rs": "578657d1c11d5aef3c487dc9f3a58f1dd42b1bdaa9c92e8353d568683ead8fcb",
+    "crates/toucan_semantic/src/object_extent.rs": "ed42bab69cbf13454c5ec6993928bf5bc89da93f12208d47836191bb211a80a9",
+    "crates/toucan_semantic/src/object_size.rs": "2f7640410c0092ce0c58d95ae396de392ae0897e82b4479f058224a783746eb8",
+    "crates/toucan_semantic/src/overflow.rs": "d00e5772d033e5350ca5c8431077d1f76b50df7295c680ee22e505941174aeb0",
+    "crates/toucan_semantic/src/parser_extensions.rs": "2e2edd79482c0e712bf3c521a113d05cf8d3587d49d3c9436b0371d961d0f4da",
+    "crates/toucan_semantic/src/returns_twice.rs": "74625e4a9ec40b69428c9655e72fc641dbca8452c1dcf00da2d9fe83bbc029ae",
+    "crates/toucan_semantic/src/statement.rs": "3b5b9a11aedcf1b3e107c131375653d126d50c4d2c12d9a4851936a35e7a87a5",
+    "crates/toucan_semantic/src/sync.rs": "b834b7de9f2a9a573228568003f91687691620b19c100b131da09dd26b6d7ac8",
+    "crates/toucan_semantic/src/transparent_union.rs": "72b73883c50fd19f234ff3f285e145e9116e15325ca69f84b1c104490abebcba",
+    "crates/toucan_semantic/src/variadic_pack.rs": "12453b3d9d0402017127f9bb27e1e3c43fa73ba9ca8547da6a5f953fea3336be",
+    "crates/toucan_semantic/src/vector.rs": "63cc6227523ef910e174f4c984492f381eb61d35feecbfc3e9f7c133933e4005",
+    "crates/toucan_semantic/src/weak.rs": "cc03240f3f6eabc888515d77750c9b1cac7ca7b12600ec6200d852e0c986091f",
+    "crates/toucan_semantic/src/x86.rs": "0be409483cf24051c50768d1551079655f2f0d9df4eea5dfe8ee4169c5a06a83",
+    "crates/toucan_source/Cargo.toml": "dcd01a2a28a398180cf90e41f5d3c4d2dea68e52579ea033e49767fa7a44d906",
+    "crates/toucan_source/src/lib.rs": "d51303a95804152678ea0199f6a6d2662528e92a2a815e5bfd52bc45d4518b29",
+    "crates/toucan_target/Cargo.toml": "b92b8ad8bcdb2cac700773adbeac775fee5ec4b13326325d215f6cb461c71005",
+    "crates/toucan_target/src/lib.rs": "6ecd27e54c4b398803df1e04fd7e513a9dcbb5fa0328cdaa502947d40247124c",
+    "crates/toucan_target/src/macros.rs": "fcb74acac65e92900f1b3ad78f328462764ee15591958a0c1c902f89cd17f78f",
+    "scripts/benchmark.py": "7e7c238a0f1f6b34d5c1c8a57c91646d30abbb853e8a16b4f1b267e2a1cda7f3",
+    "crates/toucan_layout/build.rs": "abb803fb2d181c8871da3c8f19ab04ce743b6f0c8e9cb1a889063460c3dce329"
+  },
+  "environment": {
+    "platform": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
+    "cpu_model": "AMD EPYC-Milan Processor",
+    "allowed_cpus": [
+      0
+    ],
+    "target": "x86_64-unknown-linux-gnu",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "toucan": "toucan 0.0.1",
+    "bindgen": "bindgen 0.72.1"
+  },
+  "configuration": {
+    "allocator": "system",
+    "build": "release",
+    "warmups": 1,
+    "iterations": 15,
+    "order_seed": 20260907,
+    "cache": "warm",
+    "scope": "Subprocess startup and public-header binding generation with full corpus allowlists; report and correctness invocations are not timed."
+  },
+  "correctness": {
+    "native": {
+      "path": "native.json",
+      "sha256": "aa935f3b316dd92bb438e955ae4157c368450e3847a2407132a77d479ed2fee0"
+    },
+    "equivalence": {
+      "path": "equivalence.json",
+      "sha256": "72d0f2968ac030f2bde1949706b123314a553998c33fa548ac10a5bbf7ab0343"
+    },
+    "layouts": {
+      "path": "layouts.json",
+      "sha256": "f1ae5ee24b5443312645848d3b72373f30beb585d3af5aaefaf70caebdaa3428"
+    }
+  },
+  "projects": [
+    {
+      "name": "libgit2",
+      "version": "1.9.1",
+      "raw": "libgit2.json",
+      "raw_sha256": "5e9682de58c65571e6f1203a7ac851b523a5d0692e23026fd589dd5135f162df",
+      "summary": {
+        "toucan": {
+          "wall_ms": {
+            "median": 384.455649,
+            "minimum": 365.465911,
+            "maximum": 463.586996
+          },
+          "output_bytes": {
+            "median": 250206,
+            "minimum": 250206,
+            "maximum": 250206
+          },
+          "peak_rss_kib": {
+            "median": 18176,
+            "minimum": 18176,
+            "maximum": 18176
+          }
+        },
+        "bindgen": {
+          "wall_ms": {
+            "median": 456.081128,
+            "minimum": 438.717076,
+            "maximum": 491.250816
+          },
+          "output_bytes": {
+            "median": 240046,
+            "minimum": 240046,
+            "maximum": 240046
+          },
+          "peak_rss_kib": {
+            "median": 103068,
+            "minimum": 103064,
+            "maximum": 103072
+          }
+        }
+      },
+      "speedup": 1.1863036196406624,
+      "correctness_output_sha256": {
+        "toucan": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+        "bindgen": "8e8f818e14459442a615f359fd7b24f9001f89c6c4fd980c1459c11d9f133e94"
+      },
+      "outputs_match_correctness": true,
+      "source_commit": "0060d9cf5666f015b1067129bd874c6cc4c9c7ac",
+      "archive_sha256": "4a7944d8439cccac187ef0ff4085556f198d85225eef55686b3dfb3413e0d0f1",
+      "c_rust_comparisons": 3342,
+      "api_counts": {
+        "functions": {
+          "common": 844,
+          "equal": 844
+        },
+        "globals": {
+          "common": 0,
+          "equal": 0
+        },
+        "constants": {
+          "common": 666,
+          "equal": 661
+        },
+        "aliases": {
+          "common": 158,
+          "equal": 158
+        },
+        "record_shapes": {
+          "common": 141,
+          "equal": 141
+        },
+        "native_records": {
+          "common": 85,
+          "equal": 85
+        },
+        "native_fields": {
+          "common": 432,
+          "equal": 432
+        },
+        "native_constants": {
+          "common": 666,
+          "equal": 665
+        }
+      },
+      "accepted_differences": 247,
+      "unexpected_differences": 0,
+      "complete_records": 85,
+      "ordinary_field_offsets": 432
+    },
+    {
+      "name": "sqlite",
+      "version": "3.45.1",
+      "raw": "sqlite.json",
+      "raw_sha256": "2953f2d305ff92d3b1eabb8b9d10c7e9afec02adfb046a17eee12739fb612d4e",
+      "summary": {
+        "toucan": {
+          "wall_ms": {
+            "median": 179.673025,
+            "minimum": 170.227102,
+            "maximum": 286.551137
+          },
+          "output_bytes": {
+            "median": 103325,
+            "minimum": 103325,
+            "maximum": 103325
+          },
+          "peak_rss_kib": {
+            "median": 9160,
+            "minimum": 8900,
+            "maximum": 9416
+          }
+        },
+        "bindgen": {
+          "wall_ms": {
+            "median": 333.833335,
+            "minimum": 326.967564,
+            "maximum": 356.74886
+          },
+          "output_bytes": {
+            "median": 99027,
+            "minimum": 99027,
+            "maximum": 99027
+          },
+          "peak_rss_kib": {
+            "median": 84940,
+            "minimum": 84932,
+            "maximum": 85196
+          }
+        }
+      },
+      "speedup": 1.8580047561396598,
+      "correctness_output_sha256": {
+        "toucan": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+        "bindgen": "b1256b05045b851fddd96870c77d47a532c04d009420eca3a7b47a11c56e6532"
+      },
+      "outputs_match_correctness": true,
+      "source_commit": "189e44dfecdc7868bb860dfb5d98eab371318c37",
+      "archive_sha256": "c05d9dc99e90c35f021ebf0b6b0a36d44714088ba77f84022eb22784d6123c7e",
+      "c_rust_comparisons": 1419,
+      "api_counts": {
+        "functions": {
+          "common": 291,
+          "equal": 291
+        },
+        "globals": {
+          "common": 3,
+          "equal": 3
+        },
+        "constants": {
+          "common": 463,
+          "equal": 463
+        },
+        "aliases": {
+          "common": 9,
+          "equal": 9
+        },
+        "record_shapes": {
+          "common": 29,
+          "equal": 28
+        },
+        "native_records": {
+          "common": 19,
+          "equal": 19
+        },
+        "native_fields": {
+          "common": 161,
+          "equal": 161
+        },
+        "native_constants": {
+          "common": 463,
+          "equal": 463
+        }
+      },
+      "accepted_differences": 4,
+      "unexpected_differences": 0,
+      "complete_records": 19,
+      "ordinary_field_offsets": 161
+    },
+    {
+      "name": "zlib",
+      "version": "1.3.1",
+      "raw": "zlib.json",
+      "raw_sha256": "4ae3a4f17db4edce62a4fcba82184f6fb0f40d73fb76b063163288adfd373644",
+      "summary": {
+        "toucan": {
+          "wall_ms": {
+            "median": 48.152186,
+            "minimum": 46.584198,
+            "maximum": 67.740363
+          },
+          "output_bytes": {
+            "median": 14774,
+            "minimum": 14774,
+            "maximum": 14774
+          },
+          "peak_rss_kib": {
+            "median": 8192,
+            "minimum": 7936,
+            "maximum": 8192
+          }
+        },
+        "bindgen": {
+          "wall_ms": {
+            "median": 293.94606,
+            "minimum": 281.80349,
+            "maximum": 337.006561
+          },
+          "output_bytes": {
+            "median": 14966,
+            "minimum": 14966,
+            "maximum": 14966
+          },
+          "peak_rss_kib": {
+            "median": 81508,
+            "minimum": 81408,
+            "maximum": 81664
+          }
+        }
+      },
+      "speedup": 6.1045216098808055,
+      "correctness_output_sha256": {
+        "toucan": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+        "bindgen": "034eca198db1f6376cf6ab7d01fe2d84d553ebfb6d244214089dce8806b5f89a"
+      },
+      "outputs_match_correctness": true,
+      "source_commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+      "archive_sha256": "2c547ae1e001c09db5d0a9d0e157f75dc55151757923cc611a08630391af81bc",
+      "c_rust_comparisons": 140,
+      "api_counts": {
+        "functions": {
+          "common": 81,
+          "equal": 81
+        },
+        "globals": {
+          "common": 0,
+          "equal": 0
+        },
+        "constants": {
+          "common": 37,
+          "equal": 37
+        },
+        "aliases": {
+          "common": 22,
+          "equal": 22
+        },
+        "record_shapes": {
+          "common": 5,
+          "equal": 5
+        },
+        "native_records": {
+          "common": 4,
+          "equal": 4
+        },
+        "native_fields": {
+          "common": 34,
+          "equal": 34
+        },
+        "native_constants": {
+          "common": 37,
+          "equal": 37
+        }
+      },
+      "accepted_differences": 4,
+      "unexpected_differences": 0,
+      "complete_records": 4,
+      "ordinary_field_offsets": 34
+    },
+    {
+      "name": "zstd",
+      "version": "1.5.7",
+      "raw": "zstd.json",
+      "raw_sha256": "c9b04358e1e2a5e4f7bcc9a9b6ab507abbed8f310889ee142633ed6c45fcc9c1",
+      "summary": {
+        "toucan": {
+          "wall_ms": {
+            "median": 17.146094,
+            "minimum": 16.078891,
+            "maximum": 22.045526
+          },
+          "output_bytes": {
+            "median": 16799,
+            "minimum": 16799,
+            "maximum": 16799
+          },
+          "peak_rss_kib": {
+            "median": 6092,
+            "minimum": 5832,
+            "maximum": 6348
+          }
+        },
+        "bindgen": {
+          "wall_ms": {
+            "median": 275.251081,
+            "minimum": 266.386094,
+            "maximum": 429.380828
+          },
+          "output_bytes": {
+            "median": 16719,
+            "minimum": 16719,
+            "maximum": 16719
+          },
+          "peak_rss_kib": {
+            "median": 79524,
+            "minimum": 79520,
+            "maximum": 79784
+          }
+        }
+      },
+      "speedup": 16.053281931150032,
+      "correctness_output_sha256": {
+        "toucan": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+        "bindgen": "559220a3dc71b2a7d96fa61f1fb032f3c5e305414077c805c6c322b28ef80459"
+      },
+      "outputs_match_correctness": true,
+      "source_commit": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+      "archive_sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+      "c_rust_comparisons": 543,
+      "api_counts": {
+        "functions": {
+          "common": 68,
+          "equal": 68
+        },
+        "globals": {
+          "common": 0,
+          "equal": 0
+        },
+        "constants": {
+          "common": 110,
+          "equal": 105
+        },
+        "aliases": {
+          "common": 14,
+          "equal": 14
+        },
+        "record_shapes": {
+          "common": 7,
+          "equal": 7
+        },
+        "native_records": {
+          "common": 3,
+          "equal": 3
+        },
+        "native_fields": {
+          "common": 9,
+          "equal": 9
+        },
+        "native_constants": {
+          "common": 110,
+          "equal": 108
+        }
+      },
+      "accepted_differences": 19,
+      "unexpected_differences": 0,
+      "complete_records": 3,
+      "ordinary_field_offsets": 9
+    }
+  ],
+  "limitations": [
+    "These results identify commit8cb3e06 and do not measure subsequent implementation layers.",
+    "Four header workloads on one shared Linux host; no claim about complete source analysis, cold caches, in-process reuse or other platforms.",
+    "Affinity was CPU0. Other builds and fuzzing ran concurrently on the shared host; no exclusive core reservation or memory-bandwidth control was available. All samples and outliers are retained.",
+    "No allocation counts are measured. RSS is the median of subprocess maxima.",
+    "The accepted API differences are independently C-validated, but exact Rust API equality remains false."
+  ]
+}

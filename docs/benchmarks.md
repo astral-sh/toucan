@@ -41,7 +41,7 @@ own process allocator.
 
 ## Recorded Linux results
 
-On 2026-09-08, commit `4945364` generated bindings for the four pinned public-header workloads
+On 2026-09-08, commit `8cb3e06` generated bindings for the four pinned public-header workloads
 faster than bindgen 0.72.1 on an AMD EPYC-Milan Linux host. Both tools used the full
 allowlists from the corpus manifest. SQLite includes both `sqlite3*` declarations
 and `SQLITE*` constants.
@@ -53,12 +53,12 @@ median of each subprocess's maximum resident memory.
 
 | Project | Toucan | bindgen | Speedup | Toucan RSS | bindgen RSS |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [libgit2 1.9.1](../benchmarks/evidence/2026-09-08-4945364/libgit2.json) | 394.64 ms | 464.33 ms | 1.18× | 17.75 MiB | 100.66 MiB |
-| [SQLite 3.45.1](../benchmarks/evidence/2026-09-08-4945364/sqlite.json) | 173.75 ms | 330.77 ms | 1.90× | 8.93 MiB | 83.20 MiB |
-| [zlib 1.3.1](../benchmarks/evidence/2026-09-08-4945364/zlib.json) | 48.70 ms | 295.86 ms | 6.08× | 8.00 MiB | 79.75 MiB |
-| [zstd 1.5.7](../benchmarks/evidence/2026-09-08-4945364/zstd.json) | 16.90 ms | 279.00 ms | 16.51× | 5.95 MiB | 77.91 MiB |
+| [libgit2 1.9.1](../benchmarks/evidence/2026-09-08-8cb3e06/libgit2.json) | 384.46 ms | 456.08 ms | 1.19× | 17.75 MiB | 100.65 MiB |
+| [SQLite 3.45.1](../benchmarks/evidence/2026-09-08-8cb3e06/sqlite.json) | 179.67 ms | 333.83 ms | 1.86× | 8.95 MiB | 82.95 MiB |
+| [zlib 1.3.1](../benchmarks/evidence/2026-09-08-8cb3e06/zlib.json) | 48.15 ms | 293.95 ms | 6.10× | 8.00 MiB | 79.60 MiB |
+| [zstd 1.5.7](../benchmarks/evidence/2026-09-08-8cb3e06/zstd.json) | 17.15 ms | 275.25 ms | 16.05× | 5.95 MiB | 77.66 MiB |
 
-The [evidence summary](../benchmarks/evidence/2026-09-08-4945364/summary.json) records binary,
+The [evidence summary](../benchmarks/evidence/2026-09-08-8cb3e06/summary.json) records binary,
 source, header, and output hashes; each project links to its unchanged raw samples.
 The measured output hashes match the outputs used for correctness verification.
 The same Toucan executable passed 5,444 C/Rust comparisons and real calls into all
@@ -73,10 +73,13 @@ unsigned sentinel differences, SQLite's `xDlSym` callback discrepancy, extra Tou
 constants, and differences in helper names and private bitfield storage. Independent
 C probes support the accepted type, value, and callback differences.
 
-Compared with [the previous measured revision](../benchmarks/evidence/2026-09-08-4ac7511/summary.json),
-Toucan’s medians increased by 12–17% as checking and parser resource limits expanded.
-This comparison includes intervening changes and shared-host variation; the
-[paired parser-limit measurements](parser-limits.md#measured-cost) isolate that layer.
+These measurements include atomic types, type introspection, ARM declarations,
+native atomic headers, and plain `__auto_type` inference. Both generators’ outputs
+remain byte-identical to the [previous measured revision](../benchmarks/evidence/2026-09-08-4945364/summary.json).
+Toucan’s median changes range from a 2.6% decrease to a 3.4% increase across the four
+headers; these differences include shared-host variation. Other builds and fuzzing
+ran concurrently, so these are not isolated latency measurements. The earlier
+parser-limit regression remains recorded in the [paired measurements](parser-limits.md#measured-cost).
 The raw samples retain outliers from the shared host; CPU affinity did not isolate
 memory bandwidth, filesystem activity, or frequency changes.
 

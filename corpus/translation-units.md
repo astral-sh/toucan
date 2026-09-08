@@ -76,12 +76,14 @@ whole-project acceptance or optimizer/code-generator equivalence.
 
 ## Recorded result
 
-The [Linux x86-64 evidence](evidence/translation-units-4945364.json) checks frontend
-revision `494536458133e4b7a8e80bee4a8880b80ec5f82d`. All seven inputs complete through
+The [Linux x86-64 evidence](evidence/translation-units-8cb3e06.json) checks frontend
+revision `8cb3e0679ea7bb2868aac0574c13a9ff8b141724`. All seven inputs complete through
 both preprocessing routes, with retention disabled and enabled: 28 successful
 analyses. All fourteen retention pairs have identical full declaration hashes.
 The audit ran with `--require both` and the manifest's unchanged resource limits,
-including the new parser work and backtracking limits.
+including parser work and backtracking limits. This revision includes atomic
+types, type introspection, ARM declarations, native atomic headers, and plain
+`__auto_type` inference.
 
 The evidence uses path parameters for cache, checkout, output and probe locations,
 and shares one indexed table of dependency hashes. Full logs, preprocessing files,
@@ -96,13 +98,13 @@ analysis remains slower than GCC on these larger source inputs.
 
 | Translation unit | GCC syntax check (s) | Toucan normal (s) | Toucan retained (s) |
 | --- | ---: | ---: | ---: |
-| zlib-adler32 | 0.067 | 0.119 | 0.118 |
-| zlib-deflate | 0.065 | 0.115 | 0.166 |
-| libgit2-alloc | 0.116 | 0.216 | 0.266 |
-| libgit2-repository | 0.215 | 0.617 | 0.767 |
-| zstd-zstd_common | 0.065 | 0.165 | 0.166 |
-| zstd-zstd_compress | 0.165 | 0.416 | 0.617 |
-| sqlite-sqlite3 | 0.516 | 2.825 | 4.581 |
+| zlib-adler32 | 0.065 | 0.115 | 0.115 |
+| zlib-deflate | 0.065 | 0.115 | 0.165 |
+| libgit2-alloc | 0.115 | 0.216 | 0.266 |
+| libgit2-repository | 0.215 | 0.617 | 0.868 |
+| zstd-zstd_common | 0.065 | 0.165 | 0.216 |
+| zstd-zstd_compress | 0.170 | 0.466 | 0.773 |
+| sqlite-sqlite3 | 0.566 | 3.031 | 5.096 |
 
 These are single audit observations, not a controlled throughput benchmark. Times
 include process startup and timeout supervision; Toucan also streams declaration
