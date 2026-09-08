@@ -28,6 +28,9 @@ use token::{Kind, Token, lex, lex_limited, normalize, render};
 /// Include search paths, predefined macros, and per-translation-unit resource limits.
 #[derive(Clone, Debug)]
 pub struct Config {
+    /// Whether plain C char is unsigned when interpreting ordinary character
+    /// constants in #if. Macro definitions do not change this data-model setting.
+    pub char_unsigned: bool,
     /// Fixed UTC timestamp for `__DATE__` and `__TIME__`. Defaults to the Unix
     /// epoch for reproducible embedding. The library never reads the clock or
     /// `SOURCE_DATE_EPOCH`; callers supply another timestamp explicitly.
@@ -55,6 +58,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            char_unsigned: false,
             timestamp: PreprocessingTimestamp::UNIX_EPOCH,
             allow_filesystem: true,
             include_dirs: Vec::new(),
@@ -852,6 +856,7 @@ impl Preprocessor {
         expression::evaluate(
             &self.has_include(path, include_path, include_origin, expanded)?,
             wchar_unsigned,
+            self.config.char_unsigned,
         )
     }
 

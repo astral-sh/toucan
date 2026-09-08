@@ -22,7 +22,11 @@ assert_eq!(result.expand_object_macro("COUNT")?.as_deref(), Some("4"));
 - Object and function macros, argument prescanning, recursive expansion suppression,
   stringification, token pasting, variadics, and GNU comma elision.
 - Conditional groups and `defined`, with checked `intmax_t`/`uintmax_t` arithmetic and
-  short-circuit evaluation. ASCII wide character constants use the explicit target
+  short-circuit evaluation. Ordinary character constants accept octal and hexadecimal
+  escapes for every byte value. `Config::char_unsigned` selects the target's plain-char
+  model independently of macro redefinitions; the integrated frontend sets it from
+  the selected target. Preprocessing promotions use `uintmax_t` on unsigned-char
+  targets, as in GCC and Clang. ASCII wide character constants use the explicit
   `__WCHAR_TYPE__` and `__WCHAR_UNSIGNED__` profile.
 - Quoted and angle-bracket includes, `include_next`, `__has_include`, and `pragma once`.
   Explicit filesystem include paths take precedence over virtual resource headers.
@@ -108,8 +112,8 @@ output have configurable budgets. Include and expansion depth are bounded; prepr
 expressions additionally reject nesting beyond 128 parser frames. These are work and
 input limits, not a process memory quota.
 
-Unsupported features return diagnostics: non-ASCII identifiers, non-ASCII or
-multicharacter preprocessing character constants, `__VA_OPT__`, and unknown active
+Unsupported features return diagnostics: non-ASCII identifiers, literal non-ASCII
+or multicharacter preprocessing character constants, non-ASCII wide constants, `__VA_OPT__`, and unknown active
 directives or pragmas. Header names retain literal backslashes; they are not decoded
 as C strings. Filesystem lookups use host path conventions, including when target
 macros describe another platform. Virtual header keys match the written name exactly.

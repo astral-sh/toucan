@@ -27,6 +27,7 @@ pub struct Config {
 impl Config {
     pub fn new(target: Target) -> Self {
         let mut preprocessor = PreprocessorConfig {
+            char_unsigned: !target.char_is_signed(),
             defines: target.predefined_macros(),
             ..PreprocessorConfig::default()
         };

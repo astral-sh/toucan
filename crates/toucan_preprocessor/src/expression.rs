@@ -24,12 +24,17 @@ impl Value {
 }
 
 /// Evaluate C preprocessing expressions using intmax_t and uintmax_t arithmetic.
-pub(crate) fn evaluate(tokens: &[Token], wchar_unsigned: Option<bool>) -> Result<bool, String> {
+pub(crate) fn evaluate(
+    tokens: &[Token],
+    wchar_unsigned: Option<bool>,
+    char_unsigned: bool,
+) -> Result<bool, String> {
     let mut parser = Parser {
         tokens,
         position: 0,
         depth: 0,
         wchar_unsigned,
+        char_unsigned,
     };
     let result = parser.expression(0, true)?;
     if parser.position != tokens.len() {
@@ -46,6 +51,7 @@ struct Parser<'a> {
     position: usize,
     depth: usize,
     wchar_unsigned: Option<bool>,
+    char_unsigned: bool,
 }
 
 impl Parser<'_> {
@@ -179,24 +185,34 @@ impl Parser<'_> {
             Kind::Identifier => Ok(Value::signed(0)),
             Kind::Number => integer(&token.text),
             Kind::Character => {
-                let (text, unsigned) = if let Some(text) = token.text.strip_prefix('L') {
+                let (text, unsigned, ordinary) = if let Some(text) = token.text.strip_prefix('L') {
                     (
                         text,
                         self.wchar_unsigned.ok_or(
                             "wide character constants require the target's __WCHAR_TYPE__ macro",
                         )?,
+                        false,
                     )
                 } else if let Some(text) = token
                     .text
                     .strip_prefix('u')
                     .or_else(|| token.text.strip_prefix('U'))
                 {
-                    (text, true)
+                    (text, true, false)
                 } else {
-                    (token.text.as_str(), false)
+                    (token.text.as_str(), self.char_unsigned, true)
+                };
+                let value = character(text, ordinary)?;
+                // Preprocessing widens all integer types before promotion.
+                // GCC and Clang therefore use uintmax_t for a character when
+                // plain char is unsigned, including ordinary ASCII characters.
+                let value = if ordinary && !self.char_unsigned {
+                    i64::from(value as u8 as i8)
+                } else {
+                    value
                 };
                 Ok(Value {
-                    bits: character(text)? as u64,
+                    bits: value as u64,
                     unsigned,
                 })
             }
@@ -239,7 +255,7 @@ fn integer(text: &str) -> Result<Value, String> {
     Ok(Value { bits, unsigned })
 }
 
-fn character(text: &str) -> Result<i64, String> {
+fn character(text: &str, ordinary: bool) -> Result<i64, String> {
     let body = &text[1..text.len() - 1];
     let mut chars = body.chars();
     let value = match chars.next() {
@@ -271,10 +287,15 @@ fn character(text: &str) -> Result<i64, String> {
         Some(c) if c.is_ascii() => i64::from(u32::from(c)),
         _ => return Err("non-ASCII or empty character constant in #if".into()),
     };
-    if chars.next().is_some() || value > 127 {
-        return Err(
-            "multicharacter and non-ASCII character constants in #if are not supported".into(),
-        );
+    if chars.next().is_some() {
+        return Err("multicharacter constants in #if are not supported".into());
+    }
+    if value > if ordinary { 255 } else { 127 } {
+        return Err(if ordinary {
+            "numeric character escape in #if exceeds one byte".into()
+        } else {
+            "wide non-ASCII character constants in #if are not supported".into()
+        });
     }
     Ok(value)
 }
@@ -391,11 +412,11 @@ mod tests {
             "0b10 == 2",
         ] {
             assert!(
-                evaluate(&lex(expression).unwrap(), None).unwrap(),
+                evaluate(&lex(expression).unwrap(), None, false).unwrap(),
                 "{expression}"
             );
         }
-        assert!(!evaluate(&lex("-1 < 1U").unwrap(), None).unwrap());
+        assert!(!evaluate(&lex("-1 < 1U").unwrap(), None, false).unwrap());
         for expression in [
             "1 / 0",
             "1 << 64",
@@ -405,7 +426,7 @@ mod tests {
             "1 2",
         ] {
             assert!(
-                evaluate(&lex(expression).unwrap(), None).is_err(),
+                evaluate(&lex(expression).unwrap(), None, false).is_err(),
                 "{expression}"
             );
         }

@@ -1467,3 +1467,95 @@ fn check_native_header_paths(compare_compiler: bool) {
         expected.split_whitespace().collect::<Vec<_>>()
     );
 }
+
+fn byte_character_conditions(unsigned: bool) -> String {
+    use std::fmt::Write;
+    let mut source = String::from("#undef __CHAR_UNSIGNED__\n#define __CHAR_UNSIGNED__ 0\n");
+    for byte in 0u16..=255 {
+        let value = if unsigned {
+            i16::from(byte as u8)
+        } else {
+            i16::from(byte as u8 as i8)
+        };
+        writeln!(source, "#if '\\x{byte:x}' != {value} || '\\{byte:03o}' != {value}\n#error incorrect byte {byte}\n#endif").unwrap();
+    }
+    writeln!(
+        source,
+        "#if ('\\0' - 1 > 0) != {}\n#error incorrect preprocessing character promotion\n#endif",
+        u8::from(unsigned)
+    )
+    .unwrap();
+    source.push_str("#if 'A' == '\\301'\n#error SQLite EBCDIC branch selected for an ASCII target\n#endif\nbyte_conditions_passed\n");
+    source
+}
+
+#[test]
+fn byte_character_escapes_follow_explicit_plain_char_signedness() {
+    for unsigned in [false, true] {
+        let result = Preprocessor::new(Config {
+            char_unsigned: unsigned,
+            ..Config::default()
+        })
+        .preprocess_str(Path::new("bytes.h"), &byte_character_conditions(unsigned))
+        .unwrap();
+        assert_eq!(result.source, "byte_conditions_passed\n");
+    }
+    for literal in [r"'\x100'", r"'\400'", r"'\x'", "'ab'"] {
+        assert!(
+            Preprocessor::new(Config::default())
+                .preprocess_str(Path::new("invalid.h"), &format!("#if {literal}\n#endif\n"))
+                .is_err(),
+            "{literal}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires GCC and Clang; run with --include-ignored"]
+fn byte_character_conditions_match_native_preprocessors() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    for compiler in [
+        std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into()),
+        "clang".into(),
+    ] {
+        for unsigned in [false, true] {
+            let mut process = Command::new(&compiler)
+                .args([
+                    "-E",
+                    "-P",
+                    "-x",
+                    "c",
+                    "-std=c11",
+                    "-pedantic-errors",
+                    if unsigned {
+                        "-funsigned-char"
+                    } else {
+                        "-fsigned-char"
+                    },
+                    "-",
+                ])
+                .stdin(Stdio::piped())
+                .stdout(Stdio::piped())
+                .stderr(Stdio::piped())
+                .spawn()
+                .unwrap();
+            process
+                .stdin
+                .take()
+                .unwrap()
+                .write_all(byte_character_conditions(unsigned).as_bytes())
+                .unwrap();
+            let output = process.wait_with_output().unwrap();
+            assert!(
+                output.status.success(),
+                "{compiler}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(
+                String::from_utf8(output.stdout).unwrap().trim(),
+                "byte_conditions_passed"
+            );
+        }
+    }
+}
