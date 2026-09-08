@@ -211,6 +211,9 @@ pub struct Report {
     pub skipped_declarations: Vec<String>,
     /// Selected functions deliberately omitted by the caller's blocklist.
     pub blocked_functions: Vec<String>,
+    /// Caller-owned external types; their Rust definitions are not frontend-verified.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub blocked_types: Vec<toucan_bindings::ExternalType>,
     /// Caller-provided Rust, excluded from declaration counts and ABI validation.
     pub raw_lines: Vec<String>,
     pub skipped_macros: Vec<SkippedMacro>,
@@ -431,6 +434,7 @@ impl Compilation {
             string_macros,
             skipped_declarations: bindings.skipped,
             blocked_functions: bindings.blocked_functions,
+            blocked_types: bindings.blocked_types,
             raw_lines: bindings.raw_lines,
             skipped_macros,
             enum_constants: bindings.enum_constants,

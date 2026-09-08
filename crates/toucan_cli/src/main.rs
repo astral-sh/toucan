@@ -63,6 +63,9 @@ enum Command {
         /// Omit a function by exact name or prefix ending in '*'. Repeat to add names.
         #[arg(long = "blocklist-function")]
         blocklist_functions: Vec<String>,
+        /// Use caller-supplied Rust definitions for matching C types.
+        #[arg(long = "blocklist-type")]
+        blocklist_types: Vec<String>,
         /// Append caller-provided Rust from a UTF-8 file, without parsing or ABI checks.
         #[arg(long)]
         raw_lines_file: Vec<PathBuf>,
@@ -256,6 +259,7 @@ fn run(cli: Cli) -> Result<()> {
             macro_type,
             macro_type_for,
             blocklist_functions,
+            blocklist_types,
             raw_lines_file,
             generate_cstr,
             rust_target,
@@ -286,6 +290,7 @@ fn run(cli: Cli) -> Result<()> {
                 helper_namespace,
                 macro_type_overrides,
                 blocklist_functions,
+                blocklist_types,
                 raw_lines,
                 generate_cstr,
                 rust_target,

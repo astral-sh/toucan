@@ -52,19 +52,22 @@ fn ordered_headers_include_paths_and_options_generate_one_module() {
 }
 
 #[test]
-fn declared_blocked_types_and_unsupported_patterns_are_explicit_errors() {
+fn external_types_are_referenced_and_unsupported_patterns_are_explicit_errors() {
     let dir = tempfile::tempdir().unwrap();
     let header = dir.path().join("input.h");
     std::fs::write(&header, "typedef int Replacement; void f(Replacement);\n").unwrap();
     let builder = Builder::default().header(header.to_str().unwrap());
-    assert!(
-        builder
-            .clone()
-            .blocklist_type("Replacement")
-            .generate()
-            .unwrap_err()
-            .to_string()
-            .contains("external Rust type replacements")
+    let bindings = builder
+        .clone()
+        .blocklist_type("Replacement")
+        .raw_line("pub type Replacement = ::core::ffi::c_int;")
+        .generate()
+        .unwrap();
+    assert_eq!(bindings.report().blocked_types.len(), 1);
+    assert!(bindings.report().blocked_types[0].referenced);
+    assert_eq!(
+        bindings.to_string().matches("pub type Replacement").count(),
+        1
     );
     assert!(
         builder

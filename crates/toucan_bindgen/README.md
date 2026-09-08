@@ -23,18 +23,20 @@ generated declarations can target Rust 1.64 or later.
 
 `Builder` supports ordered `header` calls, `clang_arg`/`clang_args`, `use_core`,
 `size_t_is_usize`, `rust_target`, `layout_tests`, `raw_line`,
-`blocklist_function`, and `rustified_enum(".*")`. Generation returns bindings
+`blocklist_function`, `blocklist_type`, and `rustified_enum(".*")`. Generation returns bindings
 with `Display`, `write_to_file`, and a `report()` containing omitted macros and
 dependencies. Compile-time ABI assertions remain enabled when runtime layout
 tests are disabled.
 
 Function blocklists accept exact identifiers or prefixes ending in `.*`, with
 optional anchors. Other regular expressions and selective Rust enum conversion
-produce errors. A type blocklist succeeds when no declared type matches; a
-matching type produces an explicit error because external Rust type replacements
-are not yet implemented. This covers zstd's defensive `max_align_t` blocklist
-with Toucan's fallback `stddef.h`. These boundaries are not general bindgen API
-compatibility.
+produce errors. Type blocklists omit matching definitions and preserve their
+uses under the names listed in `report().blocked_types`. Supply those Rust types
+with imports or `raw_line`. The blocklist is not recursive: an independently
+named dependency can still be emitted. Blocked anonymous enum typedefs also omit
+their enum constants; a blocked alias of a named enum does not block that enum.
+See [external types](../../docs/external-types.md) for layout and ABI contracts.
+These boundaries are not general bindgen API compatibility.
 
 The default representation uses `usize` for compatible `size_t`, unsigned types
 for nonnegative integer macros, core paths, and Rust 1.64 syntax. Select enum

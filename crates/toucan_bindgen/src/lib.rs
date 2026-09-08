@@ -52,7 +52,6 @@ impl Default for RustTarget {
 pub struct Builder {
     headers: Vec<String>,
     arguments: Vec<String>,
-    blocked_types: Vec<String>,
     options: BindingOptions,
     error: Option<String>,
 }
@@ -62,7 +61,6 @@ impl Default for Builder {
         Self {
             headers: Vec::new(),
             arguments: Vec::new(),
-            blocked_types: Vec::new(),
             options: BindingOptions {
                 size_t_is_usize: true,
                 macro_type: MacroType::Unsigned,
@@ -140,13 +138,14 @@ impl Builder {
         self
     }
 
-    /// Record a type blocklist. Matching declared types currently require an error.
+    /// Omit matching definitions and refer to caller-provided Rust types.
     ///
-    /// Absent types are accepted, including a build script's defensive max_align_t
-    /// blocklist. Supplying arbitrary external Rust type replacements is not yet supported.
+    /// Use `raw_line` or imports to provide the reported Rust names. The caller
+    /// owns representation, validity, and call-ABI compatibility; generated layout
+    /// assertions alone cannot prove that contract.
     pub fn blocklist_type(mut self, pattern: impl AsRef<str>) -> Self {
         match identifier_pattern(pattern.as_ref()) {
-            Ok(pattern) => self.blocked_types.push(pattern),
+            Ok(pattern) => self.options.blocklist_types.push(pattern),
             Err(error) => self.fail(error),
         }
         self
@@ -183,28 +182,6 @@ impl Builder {
         }
         let compilation =
             toucan::parse_source(Path::new("__toucan_bindgen__.h"), &source, &config)?;
-        let unit = compilation.unit();
-        for name in unit
-            .typedefs
-            .keys()
-            .map(String::as_str)
-            .chain(
-                unit.records
-                    .iter()
-                    .filter_map(|record| record.name.as_deref()),
-            )
-            .chain(unit.enums.iter().filter_map(|item| item.name.as_deref()))
-        {
-            if self
-                .blocked_types
-                .iter()
-                .any(|pattern| matches_identifier(pattern, name))
-            {
-                return Err(configuration(format!(
-                    "blocklisted type `{name}` is declared; external Rust type replacements are not supported yet"
-                )));
-            }
-        }
         let (source, report) = compilation.bindings(&self.options)?;
         Ok(Bindings { source, report })
     }
@@ -253,12 +230,6 @@ fn identifier_pattern(pattern: &str) -> Result<String, String> {
     } else {
         name.into()
     })
-}
-
-fn matches_identifier(pattern: &str, name: &str) -> bool {
-    pattern
-        .strip_suffix('*')
-        .map_or(pattern == name, |prefix| name.starts_with(prefix))
 }
 
 fn host_target() -> Option<Target> {
