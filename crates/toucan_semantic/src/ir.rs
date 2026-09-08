@@ -119,9 +119,18 @@ pub struct Parameter {
     pub ty: Type,
 }
 
+/// The scope in which a tag was introduced. Prototype tags retain their type
+/// identities, but their names are unavailable at file scope.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub enum Scope {
+    File,
+    Prototype,
+}
+
 #[derive(Clone, Debug, Serialize)]
 pub struct Record {
     pub name: Option<String>,
+    pub scope: Scope,
     pub kind: RecordKind,
     /// None denotes an incomplete declaration; Some([]) is an empty GNU record.
     pub fields: Option<Vec<Field>>,
@@ -150,6 +159,7 @@ pub struct Field {
 #[derive(Clone, Debug, Serialize)]
 pub struct Enum {
     pub name: Option<String>,
+    pub scope: Scope,
     pub variants: Vec<EnumVariant>,
 }
 

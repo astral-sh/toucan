@@ -264,6 +264,8 @@ impl Analyzer {
             ast::Expression::Identifier(identifier) => {
                 if let Some(value) = self.unit.constants.get(&identifier.node.name) {
                     *value
+                } else if let Some(ty) = self.parameter_type(&identifier.node.name) {
+                    return Ok(ty.clone());
                 } else if let Some(declaration) = self
                     .unit
                     .declarations

@@ -5,7 +5,7 @@ use toucan_target::Target;
 
 use crate::{
     CallingConvention, Declaration, DeclarationKind, Enum, EnumVariant, Error, Field, FloatKind,
-    FunctionType, IntegerKind, IntegerValue, Parameter, Qualifiers, Record, RecordKind,
+    FunctionType, IntegerKind, IntegerValue, Parameter, Qualifiers, Record, RecordKind, Scope,
     TranslationUnit, Type, TypeKind,
 };
 
@@ -285,10 +285,33 @@ struct Attributes {
     mode: Option<String>,
 }
 
+#[derive(Clone, Copy)]
+enum Tag {
+    Record(usize),
+    Enum(usize),
+}
+
+#[derive(Clone, Copy)]
+struct TagBinding {
+    tag: Tag,
+    depth: usize,
+}
+
+/// Only bindings introduced in a prototype need to be saved and restored.
+/// Existing file-scope maps are shared even for headers with many prototypes.
+#[derive(Default)]
+struct PrototypeScope {
+    tags: Vec<(String, Option<TagBinding>)>,
+    constants: Vec<(String, Option<IntegerValue>)>,
+    /// A parameter index, or None for an enumerator in the ordinary namespace.
+    names: HashMap<String, Option<usize>>,
+    parameters: Vec<Parameter>,
+}
+
 pub(crate) struct Analyzer {
     pub(crate) unit: TranslationUnit,
-    record_tags: HashMap<String, usize>,
-    enum_tags: HashMap<String, usize>,
+    tags: HashMap<String, TagBinding>,
+    prototype_scopes: Vec<PrototypeScope>,
     packs: PackEvents,
     record_attributes: HashSet<usize>,
     nesting: usize,
@@ -322,26 +345,85 @@ impl Analyzer {
     }
 
     fn from_unit(unit: TranslationUnit) -> Self {
-        let record_tags = unit
+        let tags = unit
             .records
             .iter()
             .enumerate()
-            .filter_map(|(id, record)| record.name.clone().map(|name| (name, id)))
-            .collect();
-        let enum_tags = unit
-            .enums
-            .iter()
-            .enumerate()
-            .filter_map(|(id, value)| value.name.clone().map(|name| (name, id)))
+            .filter(|(_, record)| record.scope == Scope::File)
+            .filter_map(|(id, record)| record.name.clone().map(|name| (name, Tag::Record(id))))
+            .chain(
+                unit.enums
+                    .iter()
+                    .enumerate()
+                    .filter(|(_, value)| value.scope == Scope::File)
+                    .filter_map(|(id, value)| value.name.clone().map(|name| (name, Tag::Enum(id)))),
+            )
+            .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
             unit,
-            record_tags,
-            enum_tags,
+            tags,
+            prototype_scopes: Vec::new(),
             packs: Vec::new(),
             record_attributes: HashSet::new(),
             nesting: 0,
         }
+    }
+
+    fn scope(&self) -> Scope {
+        if self.prototype_scopes.is_empty() {
+            Scope::File
+        } else {
+            Scope::Prototype
+        }
+    }
+
+    fn bind_tag(&mut self, name: String, tag: Tag) {
+        let previous = self.tags.insert(
+            name.clone(),
+            TagBinding {
+                tag,
+                depth: self.prototype_scopes.len(),
+            },
+        );
+        if let Some(scope) = self.prototype_scopes.last_mut() {
+            scope.tags.push((name, previous));
+        }
+    }
+
+    pub(crate) fn parameter_type(&self, name: &str) -> Option<&Type> {
+        self.prototype_scopes
+            .iter()
+            .rev()
+            .find_map(|scope| {
+                scope
+                    .names
+                    .get(name)
+                    .map(|index| index.map(|index| &scope.parameters[index].ty))
+            })
+            .flatten()
+    }
+
+    fn leave_prototype(&mut self) -> Vec<Parameter> {
+        let scope = self
+            .prototype_scopes
+            .pop()
+            .expect("prototype scope is active");
+        for (name, previous) in scope.tags.into_iter().rev() {
+            if let Some(previous) = previous {
+                self.tags.insert(name, previous);
+            } else {
+                self.tags.remove(&name);
+            }
+        }
+        for (name, previous) in scope.constants.into_iter().rev() {
+            if let Some(previous) = previous {
+                self.unit.constants.insert(name, previous);
+            } else {
+                self.unit.constants.remove(&name);
+            }
+        }
+        scope.parameters
     }
 
     fn install_builtin_va_list(&mut self) {
@@ -383,6 +465,7 @@ impl Analyzer {
         let id = self.unit.records.len();
         self.unit.records.push(Record {
             name: Some("__toucan_va_list_tag".into()),
+            scope: Scope::File,
             kind: RecordKind::Struct,
             fields: Some(
                 fields
@@ -995,7 +1078,10 @@ impl Analyzer {
                             "a function cannot return an array or function",
                         ));
                     }
-                    let mut parameters = Vec::new();
+                    self.prototype_scopes.push(PrototypeScope {
+                        parameters: Vec::with_capacity(function.node.parameters.len()),
+                        ..PrototypeScope::default()
+                    });
                     let prototype = !function.node.parameters.is_empty();
                     for parameter in &function.node.parameters {
                         let (base, _) = self.specifiers(&parameter.node.specifiers)?;
@@ -1021,11 +1107,30 @@ impl Analyzer {
                             TypeKind::Function(_) => parameter_type.pointer(),
                             _ => parameter_type,
                         };
-                        parameters.push(Parameter {
+                        let scope = self
+                            .prototype_scopes
+                            .last_mut()
+                            .expect("prototype scope is active");
+                        if let Some(name) = &name {
+                            if scope
+                                .names
+                                .insert(name.clone(), Some(scope.parameters.len()))
+                                .is_some()
+                            {
+                                return Err(Error::new(
+                                    parameter.span.start,
+                                    format!("duplicate parameter `{name}`"),
+                                ));
+                            }
+                            let previous = self.unit.constants.remove(name);
+                            scope.constants.push((name.clone(), previous));
+                        }
+                        scope.parameters.push(Parameter {
                             name,
                             ty: parameter_type,
                         });
                     }
+                    let mut parameters = self.leave_prototype();
                     if parameters.len() == 1
                         && parameters[0].name.is_none()
                         && matches!(self.unit.resolve(&parameters[0].ty)?.kind, TypeKind::Void)
@@ -1119,11 +1224,20 @@ impl Analyzer {
         } else {
             RecordKind::Union
         };
-        let id = if let Some(id) = name
+        let binding = name
             .as_ref()
-            .and_then(|name| self.record_tags.get(name))
-            .copied()
-        {
+            .and_then(|name| self.tags.get(name))
+            .filter(|binding| {
+                declaration.node.declarations.is_none()
+                    || binding.depth == self.prototype_scopes.len()
+            });
+        let id = if let Some(binding) = binding {
+            let Tag::Record(id) = binding.tag else {
+                return Err(Error::new(
+                    declaration.span.start,
+                    "tag used as both record and enum",
+                ));
+            };
             if self.unit.records[id].kind != kind {
                 return Err(Error::new(
                     declaration.span.start,
@@ -1132,15 +1246,6 @@ impl Analyzer {
             }
             id
         } else {
-            if name
-                .as_ref()
-                .is_some_and(|name| self.enum_tags.contains_key(name))
-            {
-                return Err(Error::new(
-                    declaration.span.start,
-                    "tag used as both record and enum",
-                ));
-            }
             let id = self.unit.records.len();
             let pack = self
                 .packs
@@ -1150,6 +1255,7 @@ impl Analyzer {
                 .and_then(|(_, pack)| *pack);
             self.unit.records.push(Record {
                 name: name.clone(),
+                scope: self.scope(),
                 kind,
                 fields: None,
                 packed: false,
@@ -1157,7 +1263,7 @@ impl Analyzer {
                 pack,
             });
             if let Some(name) = name {
-                self.record_tags.insert(name, id);
+                self.bind_tag(name, Tag::Record(id));
             }
             id
         };
@@ -1285,29 +1391,30 @@ impl Analyzer {
             .identifier
             .as_ref()
             .map(|name| name.node.name.clone());
-        let id = if let Some(id) = name
+        let binding = name
             .as_ref()
-            .and_then(|name| self.enum_tags.get(name))
-            .copied()
-        {
-            id
-        } else {
-            if name
-                .as_ref()
-                .is_some_and(|name| self.record_tags.contains_key(name))
-            {
+            .and_then(|name| self.tags.get(name))
+            .filter(|binding| {
+                declaration.node.enumerators.is_empty()
+                    || binding.depth == self.prototype_scopes.len()
+            });
+        let id = if let Some(binding) = binding {
+            let Tag::Enum(id) = binding.tag else {
                 return Err(Error::new(
                     declaration.span.start,
                     "tag used as both record and enum",
                 ));
-            }
+            };
+            id
+        } else {
             let id = self.unit.enums.len();
             self.unit.enums.push(Enum {
                 name: name.clone(),
+                scope: self.scope(),
                 variants: Vec::new(),
             });
             if let Some(name) = name {
-                self.enum_tags.insert(name, id);
+                self.bind_tag(name, Tag::Enum(id));
             }
             id
         };
@@ -1337,20 +1444,27 @@ impl Analyzer {
                 value
             };
             let name = enumerator.node.identifier.node.name.clone();
-            if self.unit.constants.contains_key(&name)
-                || self.unit.typedefs.contains_key(&name)
-                || self
-                    .unit
-                    .declarations
-                    .iter()
-                    .any(|declaration| declaration.name == name)
-            {
+            let duplicate = if let Some(scope) = self.prototype_scopes.last_mut() {
+                scope.names.insert(name.clone(), None).is_some()
+            } else {
+                self.unit.constants.contains_key(&name)
+                    || self.unit.typedefs.contains_key(&name)
+                    || self
+                        .unit
+                        .declarations
+                        .iter()
+                        .any(|declaration| declaration.name == name)
+            };
+            if duplicate {
                 return Err(Error::new(
                     enumerator.span.start,
                     format!("duplicate enumerator `{name}`"),
                 ));
             }
-            self.unit.constants.insert(name.clone(), value);
+            let previous_binding = self.unit.constants.insert(name.clone(), value);
+            if let Some(scope) = self.prototype_scopes.last_mut() {
+                scope.constants.push((name.clone(), previous_binding));
+            }
             self.unit.enums[id]
                 .variants
                 .push(EnumVariant { name, value });
