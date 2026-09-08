@@ -45,7 +45,7 @@ impl FileMapping {
 pub struct FileOrigins {
     mappings: Vec<FileMapping>,
     macros: BTreeMap<String, (SourceLocation, Arc<Path>)>,
-    paths: BTreeSet<PathName>,
+    paths: PathNames,
 }
 
 impl FileOrigins {
@@ -88,12 +88,7 @@ impl FileOrigins {
     }
 
     fn intern_path(&mut self, path: &Path) -> Arc<Path> {
-        if let Some(path) = self.paths.get(path.as_os_str()) {
-            return Arc::clone(&path.0);
-        }
-        let path: Arc<Path> = Arc::from(path);
-        self.paths.insert(PathName(Arc::clone(&path)));
-        path
+        self.paths.intern(path)
     }
 
     pub(crate) fn append(&mut self, generated: Range<usize>, path: &Path, accessed: &Path) {
@@ -143,6 +138,21 @@ impl FileOrigins {
 
     pub(crate) fn undefine(&mut self, name: &str) {
         self.macros.remove(name);
+    }
+}
+
+/// Shared path storage that preserves exact source-name spelling.
+#[derive(Clone, Debug, Default)]
+pub(crate) struct PathNames(BTreeSet<PathName>);
+
+impl PathNames {
+    pub(crate) fn intern(&mut self, path: &Path) -> Arc<Path> {
+        if let Some(path) = self.0.get(path.as_os_str()) {
+            return Arc::clone(&path.0);
+        }
+        let path: Arc<Path> = Arc::from(path);
+        self.0.insert(PathName(Arc::clone(&path)));
+        path
     }
 }
 

@@ -213,3 +213,22 @@ it. Existing source, include, token, and expansion limits still apply. Clang's
 first-name cache shares the ordinary dependency index and retains an additional
 path only when the first name differs from its canonical identity. `push_macro`
 and `pop_macro` remain unsupported directives.
+
+### Optional macro definition history
+
+`Config::record_macro_definitions` captures successful active `#define` directives
+in `Preprocessed::macro_definitions()`. Entries retain the name, unexpanded
+parameters and replacement, physical source location, and exact access spelling.
+The catalog includes source-based forced and virtual headers, excludes configured
+predefined macros, preserves repeated definitions, and survives later `#undef`.
+Every preprocessing entry point starts a fresh catalog. Disabled capture returns
+`None`; enabled capture of a source without definitions returns an empty slice.
+
+The final macro environment and normal expansion rules stay unchanged. Consumers
+can apply their own declaration-order policy to the historical records. Capture
+is independent of file-origin mapping and allocates no catalog when disabled.
+Before each copy, it checks a conservative retained-data estimate against
+`max_source_bytes`, charging entry storage, owned strings and parameters, and both
+path spellings per occurrence even when those paths are shared. This is a data
+budget, not a bound on allocator overhead or process memory. Existing source,
+token, include, and expansion limits continue to apply.

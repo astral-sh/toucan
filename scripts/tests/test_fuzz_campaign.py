@@ -35,7 +35,7 @@ class FuzzCampaignTests(unittest.TestCase):
             b"a" * 2560,
         ]:
             seeds = list(campaign.seed_preprocessor_policies(source))
-            self.assertEqual(len(seeds), 40)
+            self.assertEqual(len(seeds), 80)
             self.assertEqual({(sum(seed) >> 9) % 5 for seed in seeds}, set(range(5)))
             self.assertEqual(
                 {
@@ -44,15 +44,17 @@ class FuzzCampaignTests(unittest.TestCase):
                         bool(sum(seed) & 0x100),
                         sum(seed) & 1,
                         bool(sum(seed) & 2),
+                        bool(sum(seed) & 4),
                     )
                     for seed in seeds
                 },
                 {
-                    (comment, trigraph, dialect, scope)
+                    (comment, trigraph, dialect, scope, history)
                     for comment in range(5)
                     for trigraph in (False, True)
                     for dialect in range(2)
                     for scope in (False, True)
+                    for history in (False, True)
                 },
             )
             self.assertTrue(

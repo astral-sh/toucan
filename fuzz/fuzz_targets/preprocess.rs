@@ -34,6 +34,7 @@ fuzz_target!(|bytes: &[u8]| {
     let config = toucan::PreprocessorConfig {
         allow_filesystem: false,
         record_file_origins: true,
+        record_macro_definitions: selector & 4 != 0,
         feature_queries: Some(toucan::FeatureQueries::new(
             if selector & 1 == 0 {
                 toucan::QueryDialect::Gnu
@@ -80,6 +81,17 @@ fuzz_target!(|bytes: &[u8]| {
             if let Some(location) = origins.macro_definition(name) {
                 assert!(location.line > 0 && location.column > 0);
                 assert!(origins.macro_definition_name(name).is_some());
+            }
+        }
+        if let Some(definitions) = output.macro_definitions() {
+            assert!(definitions.len() <= 4096);
+            for definition in definitions {
+                let location = definition.location();
+                assert!(location.line > 0 && location.column > 0);
+                assert_eq!(location.kind, toucan::OriginKind::Directive);
+                assert_eq!(location.path.as_ref(), std::path::Path::new("fuzz-input.h"));
+                assert_eq!(definition.accessed_path(), location.path.as_ref());
+                assert!(!definition.name().is_empty());
             }
         }
     }
