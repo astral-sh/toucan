@@ -384,6 +384,10 @@ fn compiler_signatures_and_constraints_match_every_profile() {
         let output = compiler_input(
             Command::new(&gcc).args([
                 "-std=gnu11",
+                // GNU intrinsic conversions follow GCC's permissive pointer rules.
+                // GCC 14 promotes these warnings to errors unless made explicit.
+                "-Wno-error=incompatible-pointer-types",
+                "-Wno-error=int-conversion",
                 "-Werror=implicit-function-declaration",
                 "-S",
                 "-o",

@@ -704,7 +704,12 @@ source prototype. Generic arguments retain their original integer types;
 typed aliases retain conversions to target `int`, `long`, or `long long`.
 Result-pointer writes remain effectful. GCC pointer/qualifier extensions for
 typed aliases are represented as intrinsic argument conversions. Clang generic
-Boolean results use one-bit arithmetic precision despite eight-bit C storage.
+Boolean results use one-bit arithmetic precision despite eight-bit C storage. The
+GNU conversion policy matches GCC 13 and later GCC with
+`-Wno-error=incompatible-pointer-types -Wno-error=int-conversion` for these
+intrinsics. [GCC 14 changed their default diagnostic severity](https://gcc.gnu.org/gcc-14/porting_to.html);
+the native oracle sets these flags explicitly while leaving unknown builtins and
+invalid generic result types as errors.
 
 GNU `_p` predicates retain a discarded-value use for their third argument.
 Bitfield width and signedness determine representability; plain values are
