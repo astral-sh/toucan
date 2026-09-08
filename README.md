@@ -89,6 +89,11 @@ toucan inspect api.h --output api.json
 bodies within the supported scope. Unsupported constructs produce diagnostics. `inspect` writes the semantic representation as versioned
 JSON. The library API and JSON schema are experimental.
 
+The CLI captures one UTC timestamp for `__DATE__` and `__TIME__`. Set
+`SOURCE_DATE_EPOCH` to Unix seconds for reproducible output; malformed values fail
+before writing output. For example, `SOURCE_DATE_EPOCH=0 toucan preprocess api.h`
+uses `"Jan  1 1970"` and `"00:00:00"`. `TZ` and locale do not change these macros.
+
 ### System headers and cross-compilation
 
 Toucan uses the selected target's data model and predefined macros, independently
@@ -110,6 +115,11 @@ The shell invokes `xcrun` in this example. Toucan itself does not launch it. Cho
 See the [compatibility matrix](docs/compatibility.md#targets) for target coverage.
 
 ## Use the library
+
+Library configuration defaults to the Unix epoch for `__DATE__` and `__TIME__` and
+never reads a clock or `SOURCE_DATE_EPOCH`. Set `config.preprocessor.timestamp`
+with `PreprocessingTimestamp::from_unix_seconds` to choose another value; see
+[translation timestamps](crates/toucan_preprocessor/README.md#translation-timestamps).
 
 Use `crates/toucan` as a Cargo path dependency. This example preprocesses an in-memory
 header with filesystem access disabled and generates bindings:

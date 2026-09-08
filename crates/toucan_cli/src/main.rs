@@ -123,6 +123,17 @@ impl Input {
             None => host_target()?,
         };
         let mut config = Config::new(target);
+        config.preprocessor.timestamp = match std::env::var("SOURCE_DATE_EPOCH") {
+            Ok(value) => value.parse().context("invalid SOURCE_DATE_EPOCH")?,
+            Err(std::env::VarError::NotPresent) => {
+                let seconds = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .context("system clock is before the Unix epoch")?
+                    .as_secs();
+                toucan::PreprocessingTimestamp::from_unix_seconds(seconds)?
+            }
+            Err(error) => return Err(error).context("invalid SOURCE_DATE_EPOCH"),
+        };
         config.preprocessor.include_dirs = self.include_dirs.clone();
         config.preprocessor.max_tokens = self.max_tokens;
         if let Some(sysroot) = &self.sysroot {

@@ -60,3 +60,153 @@ fn failed_generation_preserves_existing_output() {
         "existing bindings\n"
     );
 }
+
+#[test]
+fn source_date_epoch_controls_preprocessing_and_bindings() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("date.h");
+    let output = directory.path().join("bindings.rs");
+    std::fs::write(&header, "#include \"inner.h\"\nconst char date[] = __DATE__;\n#define BUILD_DATE __DATE__\n#define BUILD_TIME __TIME__\n").unwrap();
+    std::fs::write(
+        directory.path().join("inner.h"),
+        "const char time[] = __TIME__;\n",
+    )
+    .unwrap();
+    for (epoch, date, time) in [
+        ("0", "Jan  1 1970", "00:00:00"),
+        ("1709251199", "Feb 29 2024", "23:59:59"),
+    ] {
+        let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
+            .env("SOURCE_DATE_EPOCH", epoch)
+            .env("TZ", "Pacific/Honolulu")
+            .env("PATH", directory.path())
+            .arg("preprocess")
+            .arg(&header)
+            .output()
+            .unwrap();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let source = String::from_utf8(result.stdout).unwrap();
+        assert!(
+            source.contains(&format!("const char time [ ] = \"{time}\" ;")),
+            "{source}"
+        );
+        assert!(
+            source.contains(&format!("const char date [ ] = \"{date}\" ;")),
+            "{source}"
+        );
+    }
+    let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
+        .env("SOURCE_DATE_EPOCH", "0")
+        .arg("bindgen")
+        .arg(&header)
+        .args(["--allowlist", "BUILD*", "--generate-cstr"])
+        .arg("--output")
+        .arg(&output)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let source = std::fs::read_to_string(&output).unwrap();
+    assert!(
+        source.contains("pub const BUILD_DATE: &::core::ffi::CStr"),
+        "{source}"
+    );
+    assert!(
+        source.contains("pub const BUILD_TIME: &::core::ffi::CStr"),
+        "{source}"
+    );
+}
+
+#[test]
+fn invalid_source_date_epoch_preserves_existing_output() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("date.h");
+    let output = directory.path().join("bindings.rs");
+    std::fs::write(&header, "int value;\n").unwrap();
+    std::fs::write(&output, "existing bindings\n").unwrap();
+    let mut invalid: Vec<std::ffi::OsString> = [
+        "",
+        "-1",
+        "+1",
+        " 1",
+        "1 ",
+        "1.5",
+        "253402300800",
+        "18446744073709551616",
+    ]
+    .into_iter()
+    .map(Into::into)
+    .collect();
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStringExt;
+        invalid.push(std::ffi::OsString::from_vec(vec![0xff]));
+    }
+    for epoch in invalid {
+        let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
+            .env("SOURCE_DATE_EPOCH", &epoch)
+            .arg("bindgen")
+            .arg(&header)
+            .arg("--output")
+            .arg(&output)
+            .output()
+            .unwrap();
+        assert!(!result.status.success(), "{epoch:?}");
+        assert!(String::from_utf8_lossy(&result.stderr).contains("invalid SOURCE_DATE_EPOCH"));
+        assert_eq!(
+            std::fs::read_to_string(&output).unwrap(),
+            "existing bindings\n"
+        );
+    }
+}
+
+#[test]
+fn cli_captures_the_current_utc_time_without_source_date_epoch() {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    use toucan::{PreprocessingTimestamp, Preprocessor, PreprocessorConfig};
+
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("clock.h");
+    std::fs::write(&header, "__DATE__ __TIME__\n").unwrap();
+    let before = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
+        .env_remove("SOURCE_DATE_EPOCH")
+        .env("TZ", "Pacific/Honolulu")
+        .arg("preprocess")
+        .arg(&header)
+        .output()
+        .unwrap();
+    let after = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap()
+        .as_secs();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let actual = String::from_utf8(result.stdout).unwrap();
+    let matched = (before..=after).any(|seconds| {
+        let config = PreprocessorConfig {
+            timestamp: PreprocessingTimestamp::from_unix_seconds(seconds).unwrap(),
+            ..PreprocessorConfig::default()
+        };
+        actual.ends_with(
+            &Preprocessor::new(config)
+                .preprocess_str(&header, "__DATE__ __TIME__\n")
+                .unwrap()
+                .source,
+        )
+    });
+    assert!(matched, "{actual}");
+}

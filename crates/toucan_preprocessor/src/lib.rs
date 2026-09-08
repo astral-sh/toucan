@@ -6,6 +6,7 @@
 mod expand;
 mod expression;
 mod provenance;
+mod timestamp;
 mod token;
 
 #[cfg(test)]
@@ -19,6 +20,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 pub use provenance::{OriginKind, SourceLocation, SourceMapping};
+pub use timestamp::{PreprocessingTimestamp, TimestampError};
 
 use expand::Expansion;
 use token::{Kind, Token, lex, lex_limited, normalize, render};
@@ -26,6 +28,10 @@ use token::{Kind, Token, lex, lex_limited, normalize, render};
 /// Include search paths, predefined macros, and per-translation-unit resource limits.
 #[derive(Clone, Debug)]
 pub struct Config {
+    /// Fixed UTC timestamp for `__DATE__` and `__TIME__`. Defaults to the Unix
+    /// epoch for reproducible embedding. The library never reads the clock or
+    /// `SOURCE_DATE_EPOCH`; callers supply another timestamp explicitly.
+    pub timestamp: PreprocessingTimestamp,
     /// Permit filesystem reads for entry points, includes, and include queries.
     pub allow_filesystem: bool,
     pub include_dirs: Vec<PathBuf>,
@@ -49,6 +55,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            timestamp: PreprocessingTimestamp::UNIX_EPOCH,
             allow_filesystem: true,
             include_dirs: Vec::new(),
             forced_includes: Vec::new(),
@@ -117,13 +124,13 @@ impl Preprocessed {
     ///
     /// Function macros and undefined names return `None`. An unused macro with an
     /// invalid replacement can fail here without invalidating the translation unit.
+    /// `__DATE__` and `__TIME__` use the translation unit's configured timestamp.
     /// Stateful `__COUNTER__` and `_Pragma` expansions are rejected in this read-only query.
     pub fn expand_object_macro(&self, name: &str) -> Result<Option<String>, Error> {
-        let Some(definition) = self.macros.get(name) else {
-            return Ok(None);
-        };
-        if definition.parameters.is_some() {
-            return Ok(None);
+        match self.macros.get(name) {
+            Some(definition) if definition.parameters.is_some() => return Ok(None),
+            None if !matches!(name, "__DATE__" | "__TIME__") => return Ok(None),
+            _ => {}
         }
         let mut expansion = Expansion {
             macros: &self.macros,
@@ -1071,6 +1078,8 @@ fn is_builtin(name: &str) -> bool {
         name,
         "__FILE__"
             | "__LINE__"
+            | "__DATE__"
+            | "__TIME__"
             | "__COUNTER__"
             | "_Pragma"
             | "__has_include"

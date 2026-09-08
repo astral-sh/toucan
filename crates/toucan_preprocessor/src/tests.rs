@@ -1,7 +1,238 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::{Config, ForcedInclude, Preprocessor};
+use crate::{Config, ForcedInclude, PreprocessingTimestamp, Preprocessor};
+
+const TIMESTAMPS: &[(u64, &str, &str)] = &[
+    (0, "Jan  1 1970", "00:00:00"),
+    (694_923, "Jan  9 1970", "01:02:03"),
+    (822_896, "Jan 10 1970", "12:34:56"),
+    (946_684_799, "Dec 31 1999", "23:59:59"),
+    (951_782_400, "Feb 29 2000", "00:00:00"),
+    (1_709_251_199, "Feb 29 2024", "23:59:59"),
+    (4_107_542_399, "Feb 28 2100", "23:59:59"),
+    (4_107_542_400, "Mar  1 2100", "00:00:00"),
+    (13_574_608_496, "Feb 29 2400", "12:34:56"),
+    (253_402_300_799, "Dec 31 9999", "23:59:59"),
+];
+
+#[test]
+fn date_time_formats_validated_utc_timestamps() {
+    for &(seconds, date, time) in TIMESTAMPS {
+        let timestamp = PreprocessingTimestamp::from_unix_seconds(seconds).unwrap();
+        assert_eq!(timestamp.unix_seconds(), seconds);
+        let result = Preprocessor::new(Config {
+            timestamp,
+            ..Config::default()
+        })
+        .preprocess_str(Path::new("stamp.h"), "__DATE__ __TIME__\n")
+        .unwrap();
+        assert_eq!(result.source, format!("\"{date}\" \"{time}\"\n"));
+        assert_eq!(
+            result.expand_object_macro("__DATE__").unwrap(),
+            Some(format!("\"{date}\""))
+        );
+        assert_eq!(
+            result.expand_object_macro("__TIME__").unwrap(),
+            Some(format!("\"{time}\""))
+        );
+    }
+    assert_eq!(
+        PreprocessingTimestamp::default(),
+        PreprocessingTimestamp::UNIX_EPOCH
+    );
+    assert_eq!(
+        preprocess("__DATE__ __TIME__\n"),
+        "\"Jan  1 1970\" \"00:00:00\"\n"
+    );
+    for invalid in [
+        "",
+        "-1",
+        "+1",
+        " 1",
+        "1 ",
+        "1.0",
+        "1e2",
+        "١",
+        "253402300800",
+        "18446744073709551616",
+    ] {
+        assert!(
+            invalid.parse::<PreprocessingTimestamp>().is_err(),
+            "{invalid:?}"
+        );
+    }
+    assert!(PreprocessingTimestamp::from_unix_seconds(u64::MAX).is_err());
+    assert_eq!(
+        "0001"
+            .parse::<PreprocessingTimestamp>()
+            .unwrap()
+            .unix_seconds(),
+        1
+    );
+}
+
+#[test]
+fn date_time_share_configuration_across_includes_queries_and_resets() {
+    let timestamp = PreprocessingTimestamp::from_unix_seconds(951_782_400).unwrap();
+    let config = Config {
+        timestamp,
+        allow_filesystem: false,
+        virtual_headers: BTreeMap::from([(
+            "inner.h".into(),
+            "#line 40 \"logical.h\"\nBUILD_DATE BUILD_TIME\n".into(),
+        )]),
+        forced_includes: vec![ForcedInclude {
+            path: "forced.h".into(),
+            source:
+                "#define BUILD_DATE __DATE__\n#define BUILD_TIME __TIME__\nBUILD_DATE BUILD_TIME\n"
+                    .into(),
+        }],
+        ..Config::default()
+    };
+    let source = "#if !defined(__DATE__) || !defined(__TIME__)\n#error missing standard macro\n#endif\n#ifdef __TIMESTAMP__\n#error unsupported extension advertised\n#endif\n#include <inner.h>\n  BUILD_DATE BUILD_TIME\n";
+    let mut preprocessor = Preprocessor::new(config);
+    for _ in 0..2 {
+        let result = preprocessor
+            .preprocess_str(Path::new("entry.h"), source)
+            .unwrap();
+        assert_eq!(result.source, "\"Feb 29 2000\" \"00:00:00\"\n".repeat(3));
+        for (name, expected) in [
+            ("BUILD_DATE", "\"Feb 29 2000\""),
+            ("BUILD_TIME", "\"00:00:00\""),
+        ] {
+            assert_eq!(
+                result.expand_object_macro(name).unwrap().as_deref(),
+                Some(expected)
+            );
+        }
+        let origins: Vec<_> = result
+            .mappings
+            .iter()
+            .map(|m| {
+                (
+                    &m.origin.path,
+                    m.origin.line,
+                    m.origin.column,
+                    m.origin.kind,
+                )
+            })
+            .collect();
+        assert_eq!(origins.len(), 6);
+        for (index, (path, line, column, kind)) in origins.into_iter().enumerate() {
+            let (expected_path, expected_line, columns) = match index / 2 {
+                0 => ("forced.h", 3, [1, 12]),
+                1 => ("logical.h", 40, [1, 12]),
+                _ => ("entry.h", 8, [3, 14]),
+            };
+            assert_eq!(
+                (path.as_ref(), line, column),
+                (Path::new(expected_path), expected_line, columns[index % 2])
+            );
+            assert_eq!(kind, crate::OriginKind::MacroInvocation);
+        }
+    }
+}
+
+#[test]
+fn date_time_obey_builtin_redefinition_and_expansion_rules() {
+    for name in ["__DATE__", "__TIME__"] {
+        for source in [
+            format!("#define {name} \"override\"\n"),
+            format!("#undef {name}\n"),
+        ] {
+            assert!(
+                Preprocessor::new(Config::default())
+                    .preprocess_str(Path::new("bad.h"), &source)
+                    .is_err()
+            );
+        }
+        let config = Config {
+            defines: BTreeMap::from([(name.into(), "\"override\"".into())]),
+            ..Config::default()
+        };
+        let error = Preprocessor::new(config)
+            .preprocess_str(Path::new("empty.h"), "")
+            .unwrap_err();
+        assert_eq!(error.path, Path::new("<predefined>"));
+        assert!(error.message.contains("reserved macro"));
+    }
+    assert_eq!(
+        preprocess("#define S(x) #x\n#define C(a,b) a##b\nS(__DATE__) C(__TI,ME__)\n"),
+        "\"__DATE__\" \"00:00:00\"\n"
+    );
+    assert!(
+        Preprocessor::new(Config::default())
+            .preprocess_str(Path::new("mtime.h"), "__TIMESTAMP__\n")
+            .unwrap_err()
+            .message
+            .contains("file modification timestamps")
+    );
+    assert_eq!(
+        preprocess("#define __TIMESTAMP__ \"provided\"\n__TIMESTAMP__\n"),
+        "\"provided\"\n"
+    );
+}
+
+#[test]
+fn date_time_match_native_preprocessor() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let mut timestamps: Vec<_> = TIMESTAMPS.iter().map(|&(seconds, _, _)| seconds).collect();
+    // Sample the whole supported range, beyond the explicit calendar boundaries.
+    let mut state = 0x1234_5678_u64;
+    for _ in 0..48 {
+        state = state
+            .wrapping_mul(6_364_136_223_846_793_005)
+            .wrapping_add(1);
+        timestamps.push(state % (PreprocessingTimestamp::MAX_UNIX_SECONDS + 1));
+    }
+    let source = "#if !defined(__DATE__) || !defined(__TIME__)\n#error missing standard macro\n#endif\n#define DATE __DATE__\n#define TIME __TIME__\nDATE TIME\n#line 90 \"remapped.h\"\nDATE TIME\n";
+    for seconds in timestamps {
+        let mut child = Command::new(std::env::var_os("CC").unwrap_or_else(|| "cc".into()))
+            .args(["-E", "-P", "-std=c11", "-pedantic-errors", "-x", "c", "-"])
+            .env("SOURCE_DATE_EPOCH", seconds.to_string())
+            .env("TZ", "Pacific/Honolulu")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(source.as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let expected = String::from_utf8(output.stdout).unwrap();
+        let config = Config {
+            timestamp: PreprocessingTimestamp::from_unix_seconds(seconds).unwrap(),
+            ..Config::default()
+        };
+        let actual = Preprocessor::new(config)
+            .preprocess_str(Path::new("date.h"), source)
+            .unwrap();
+        assert_eq!(
+            actual
+                .source
+                .lines()
+                .filter(|line| !line.is_empty())
+                .collect::<Vec<_>>(),
+            expected
+                .lines()
+                .filter(|line| !line.is_empty())
+                .collect::<Vec<_>>(),
+            "timestamp {seconds}"
+        );
+    }
+}
 
 fn preprocess(source: &str) -> String {
     Preprocessor::new(Config::default())

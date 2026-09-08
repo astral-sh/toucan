@@ -26,7 +26,7 @@ assert_eq!(result.expand_object_macro("COUNT")?.as_deref(), Some("4"));
   `__WCHAR_TYPE__` and `__WCHAR_UNSIGNED__` profile.
 - Quoted and angle-bracket includes, `include_next`, `__has_include`, and `pragma once`.
   Explicit filesystem include paths take precedence over virtual resource headers.
-- Trigraphs, escaped newlines, comments, digraphs, `__FILE__`, `__LINE__`, the GNU
+- Trigraphs, escaped newlines, comments, digraphs, `__FILE__`, `__LINE__`, `__DATE__`, `__TIME__`, the GNU
   `__COUNTER__` extension, and `line` directives
   with C string escape decoding for filenames.
 - `_Pragma` operators, including macro-generated directives, share `pragma once`
@@ -49,6 +49,43 @@ unit. Counters reset at each preprocessing entry point.
 Set `Config::allow_filesystem` to `false` to restrict an embedded or fuzzed preprocessor
 to in-memory source and virtual headers. Filesystem entry points then return an error,
 and include queries cannot observe local files.
+
+## Translation timestamps
+
+`Config::timestamp` fixes the UTC value of `__DATE__` and `__TIME__` for the entire
+translation unit, including forced includes and final-environment macro queries.
+**The library default is the Unix epoch**, yielding `"Jan  1 1970"` and
+`"00:00:00"`. Reusing a preprocessor retains its configured timestamp. The library
+does not read the clock, `SOURCE_DATE_EPOCH`, the locale, or the host time zone.
+
+Supply a reproducible timestamp explicitly:
+
+```rust
+use toucan_preprocessor::{Config, PreprocessingTimestamp};
+
+let config = Config {
+    timestamp: PreprocessingTimestamp::from_unix_seconds(951_782_400)?,
+    ..Config::default()
+};
+// __DATE__ is "Feb 29 2000"; __TIME__ is "00:00:00".
+# Ok::<(), toucan_preprocessor::TimestampError>(())
+```
+
+Timestamps are whole Unix seconds in `0..=253402300799`, ending at
+9999-12-31 23:59:59 UTC. Parsing accepts nonempty ASCII decimal digits, with no
+sign, whitespace, or fraction. Date strings use English month abbreviations and
+space-padded days, as specified for the [standard C macros](https://gcc.gnu.org/onlinedocs/cpp/Standard-Predefined-Macros.html).
+Both macros are always defined. Source redefinitions, `#undef`, and replacements
+through `Config::defines` are rejected, as for `__LINE__`; configure the timestamp
+instead. Expansion locations identify the macro invocation.
+
+The Toucan **CLI** supplies one captured wall-clock timestamp by default. When
+[`SOURCE_DATE_EPOCH`](https://reproducible-builds.org/specs/source-date-epoch/) is set,
+it supplies that value instead; invalid values fail before writing output. Both
+CLI paths use UTC, independent of `TZ` and locale. The GNU `__TIMESTAMP__` extension
+depends on file modification times and remains unsupported. It is not advertised
+by `defined` or `#ifdef`; expanding it produces a diagnostic unless the caller
+has supplied an ordinary macro replacement.
 
 ## Source locations
 
@@ -73,8 +110,7 @@ input limits, not a process memory quota.
 
 Unsupported features return diagnostics: non-ASCII identifiers, non-ASCII or
 multicharacter preprocessing character constants, `__VA_OPT__`, and unknown active
-directives or pragmas. Date and time macros must be supplied
-explicitly when required. Header names retain literal backslashes; they are not decoded
+directives or pragmas. Header names retain literal backslashes; they are not decoded
 as C strings. Filesystem lookups use host path conventions, including when target
 macros describe another platform. Virtual header keys match the written name exactly.
 Whitespace inside angle brackets is rejected. Empty names and NUL bytes are rejected.

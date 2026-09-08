@@ -57,13 +57,20 @@ impl Expansion<'_> {
                 self.location = previous_location;
                 continue;
             }
-            if matches!(token.text.as_str(), "__LINE__" | "__FILE__" | "__COUNTER__") {
+            if matches!(
+                token.text.as_str(),
+                "__LINE__" | "__FILE__" | "__COUNTER__" | "__DATE__" | "__TIME__"
+            ) {
                 let previous_location = self.location;
                 self.location = Some((token.line, token.column));
                 let mut replacement = if token.text == "__LINE__" {
                     Token::new(Kind::Number, token.line.to_string())
                 } else if token.text == "__FILE__" {
                     Token::new(Kind::String, quote(&self.file.to_string_lossy()))
+                } else if token.text == "__DATE__" {
+                    Token::new(Kind::String, self.config.timestamp.date_literal())
+                } else if token.text == "__TIME__" {
+                    Token::new(Kind::String, self.config.timestamp.time_literal())
                 } else {
                     let counter = self.counter.as_mut().ok_or(
                         "__COUNTER__ cannot be evaluated from the final macro environment",
@@ -82,13 +89,10 @@ impl Expansion<'_> {
                 continue;
             }
             let Some(definition) = self.macros.get(&token.text) else {
-                if matches!(
-                    token.text.as_str(),
-                    "__DATE__" | "__TIME__" | "__TIMESTAMP__"
-                ) {
+                if token.text == "__TIMESTAMP__" {
                     self.location = Some((token.line, token.column));
                     return Err(format!(
-                        "unsupported builtin `{}`; configure deterministic date/time macros explicitly",
+                        "unsupported builtin `{}`; file modification timestamps are not implemented",
                         token.text
                     ));
                 }
