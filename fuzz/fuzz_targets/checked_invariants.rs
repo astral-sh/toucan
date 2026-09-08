@@ -337,7 +337,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             }
             ExprKind::BuiltinFunction(operation) => {
                 assert_eq!(unit.compiler, toucan::Compiler::Gnu);
-                assert!(!operation.library_symbol().is_empty());
+                assert!(!operation.symbol().is_empty());
                 assert!(matches!(
                     unit.resolve(code.ty(expression.ty()).unwrap())
                         .unwrap()
@@ -521,6 +521,22 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 }
                 if let Some(link) = link_name {
                     assert!(link.len() <= 1_048_576);
+                }
+                if *builtin == Builtin::Prefetch {
+                    assert!(!arguments.is_empty());
+                    if unit.compiler == toucan::Compiler::Clang {
+                        assert!(arguments.len() <= 3);
+                    }
+                    assert!(arguments.iter().all(|a| matches!(
+                        a.context(),
+                        UseContext::Value | UseContext::VariadicPack
+                    )));
+                    assert!(matches!(
+                        unit.resolve(code.ty(arguments[0].effective_type()).unwrap())
+                            .unwrap()
+                            .kind,
+                        TypeKind::Pointer(_)
+                    ));
                 }
                 if let Builtin::Allocation(operation) = builtin {
                     use toucan::semantic::AllocationOperation;

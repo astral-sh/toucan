@@ -192,7 +192,7 @@ impl Analyzer {
             if gnu
                 && significant == 1
                 && direct_expression
-                && result.lvalue
+                && result.is_lvalue()
                 && analyzer.unit.qualifiers(&result.ty)? == crate::Qualifiers::default()
                 && !matches!(
                     analyzer.unit.resolve(&result.ty)?.kind,
@@ -750,7 +750,7 @@ impl Analyzer {
                         .block_externs
                         .get(&name)
                         .is_some_and(|prior| prior.is_static);
-                let builtin = self.allocation_declaration(
+                let builtin = self.builtin_function_declaration(
                     &name,
                     &mut ty,
                     external,
@@ -760,7 +760,10 @@ impl Analyzer {
                 )?;
                 if builtin
                     && self.unit.compiler == toucan_target::Compiler::Gnu
-                    && name != "__builtin_free"
+                    && matches!(
+                        name.as_str(),
+                        "__builtin_malloc" | "__builtin_calloc" | "__builtin_realloc"
+                    )
                     && extra.c11_noreturn.is_none()
                 {
                     extra.noreturn = None;
@@ -1332,7 +1335,9 @@ impl Analyzer {
     }
 
     fn scalar_condition(&mut self, expression: &Node<ast::Expression>) -> Result<(), Error> {
-        let ty = self.value_expression_type(expression)?;
+        let info = self.expression_info(expression)?;
+        info.check_prefetch_value_operation(expression.span.start)?;
+        let ty = self.converted_type(&info, expression.span.start)?;
         self.require_scalar(&ty, expression.span.start)
     }
 

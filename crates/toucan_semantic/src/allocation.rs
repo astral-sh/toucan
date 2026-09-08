@@ -7,8 +7,8 @@ use serde::Serialize;
 use toucan_target::{Compiler, Target};
 
 use crate::{
-    CallingConvention, Error, FunctionType, IntegerKind, Parameter, Type, TypeKind,
-    analyze::Analyzer,
+    BuiltinFunction, CallingConvention, Error, FunctionType, IntegerKind, Parameter, Type,
+    TypeKind, analyze::Analyzer,
 };
 
 /// Allocation operations with the ordinary C library's parameter and result types.
@@ -46,8 +46,8 @@ impl Default for Evaluation {
 
 #[derive(Default)]
 pub(crate) struct Symbols {
-    file: [Option<String>; 4],
-    scopes: HashMap<usize, [Option<String>; 4]>,
+    file: [Option<String>; 5],
+    scopes: HashMap<usize, [Option<String>; 5]>,
     bytes: usize,
 }
 
@@ -58,10 +58,6 @@ impl Signature {
 }
 
 impl AllocationOperation {
-    fn index(self) -> usize {
-        self as usize
-    }
-
     pub(crate) fn from_name(name: &str) -> Option<Self> {
         Self::from_library_name(name.strip_prefix("__builtin_")?)
     }
@@ -166,7 +162,7 @@ impl Analyzer {
         value
     }
 
-    pub(crate) fn allocation_symbol(&self, operation: AllocationOperation) -> &str {
+    pub(crate) fn allocation_symbol(&self, operation: BuiltinFunction) -> &str {
         if let Some(symbols) = &self.allocation_symbols {
             for depth in (1..=self.lexical_scopes.len()).rev() {
                 if let Some(Some(symbol)) = symbols
@@ -187,15 +183,13 @@ impl Analyzer {
                 .declarations
                 .iter()
                 .find(|declaration| {
-                    !declaration.is_static
-                        && declaration.name.strip_prefix("__builtin_")
-                            == Some(operation.library_symbol())
+                    !declaration.is_static && declaration.name == operation.source_name()
                 })
                 .and_then(|declaration| declaration.link_name.as_deref())
         {
             return link;
         }
-        operation.library_symbol()
+        operation.symbol()
     }
 
     pub(crate) fn leave_allocation_scope(&mut self) {
@@ -208,13 +202,13 @@ impl Analyzer {
 
     fn allocation_label(
         &mut self,
-        operation: AllocationOperation,
+        operation: BuiltinFunction,
         label: Option<&str>,
         offset: usize,
     ) -> Result<String, Error> {
         let inherited = self.allocation_symbol(operation);
         if self.unit.compiler == Compiler::Gnu {
-            return Ok(operation.library_symbol().to_owned());
+            return Ok(operation.symbol().to_owned());
         }
         let Some(label) = label else {
             return Ok(inherited.to_owned());
@@ -222,10 +216,14 @@ impl Analyzer {
         if self.allocation_evaluation.unevaluated_depth != 0 {
             return Err(Error::new(
                 offset,
-                "allocation builtin asm declarations inside unevaluated operands are unsupported",
+                if operation == BuiltinFunction::Prefetch {
+                    "prefetch builtin asm declarations inside unevaluated operands are unsupported"
+                } else {
+                    "allocation builtin asm declarations inside unevaluated operands are unsupported"
+                },
             ));
         }
-        if inherited != operation.library_symbol() && inherited != label {
+        if inherited != operation.symbol() && inherited != label {
             return Err(Error::new(
                 offset,
                 "conflicting asm label for allocation builtin",
@@ -261,11 +259,11 @@ impl Analyzer {
 
     /// Whether lookup still denotes the predefined function, rather than a
     /// local object, typedef, internal function, or GNU replacement prototype.
-    pub(crate) fn allocation_reference(
+    pub(crate) fn builtin_function_reference(
         &self,
         name: &str,
-    ) -> Result<Option<AllocationOperation>, Error> {
-        let Some(operation) = AllocationOperation::from_name(name) else {
+    ) -> Result<Option<BuiltinFunction>, Error> {
+        let Some(operation) = BuiltinFunction::from_name(name) else {
             return Ok(None);
         };
         for scope in self.lexical_scopes.iter().rev() {
@@ -287,12 +285,7 @@ impl Analyzer {
                     return Ok(None);
                 }
                 return Ok(self
-                    .compatible(
-                        ty,
-                        &Type::new(TypeKind::Function(Box::new(
-                            operation.signature(self.unit.target),
-                        ))),
-                    )?
+                    .builtin_function_matches(operation, ty)?
                     .then_some(operation));
             }
         }
@@ -304,22 +297,64 @@ impl Analyzer {
                 return Ok(None);
             }
             return Ok(self
-                .compatible(
-                    &declaration.ty,
-                    &Type::new(TypeKind::Function(Box::new(
-                        operation.signature(self.unit.target),
-                    ))),
-                )?
+                .builtin_function_matches(operation, &declaration.ty)?
                 .then_some(operation));
         }
         Ok(Some(operation))
     }
 
-    pub(crate) fn allocation_call_type(
-        &mut self,
-        operation: AllocationOperation,
-        call: &Node<ast::CallExpression>,
-    ) -> Result<Type, Error> {
+    fn builtin_function_matches(
+        &self,
+        operation: BuiltinFunction,
+        ty: &Type,
+    ) -> Result<bool, Error> {
+        let resolved = self.unit.resolve(ty)?;
+        if operation == BuiltinFunction::Prefetch
+            && self.unit.compiler == Compiler::Gnu
+            && let TypeKind::Function(function) = &resolved.kind
+            && function.prototype
+            && function.variadic
+            && function.parameters.len() == 1
+            && function.calling_convention == CallingConvention::C
+            && matches!(
+                self.unit.resolve(&function.return_type)?.kind,
+                TypeKind::Void
+            )
+            && let TypeKind::Pointer(pointee) = &self.unit.resolve(&function.parameters[0].ty)?.kind
+            && matches!(self.unit.resolve(pointee)?.kind, TypeKind::Void)
+        {
+            return Ok(true);
+        }
+        self.compatible(
+            ty,
+            &Type::new(TypeKind::Function(Box::new(
+                operation.signature(self.unit.target),
+            ))),
+        )
+    }
+
+    pub(crate) fn builtin_function_type(
+        &self,
+        operation: BuiltinFunction,
+    ) -> Result<FunctionType, Error> {
+        let name = operation.source_name();
+        let ty = self.parameter_type(name).or_else(|| {
+            self.unit
+                .declarations
+                .iter()
+                .find(|d| d.name == name)
+                .map(|d| &d.ty)
+        });
+        if operation == BuiltinFunction::Prefetch
+            && let Some(ty) = ty
+            && let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind
+        {
+            return Ok((**function).clone());
+        }
+        Ok(operation.signature(self.unit.target))
+    }
+
+    pub(crate) fn mark_builtin_function_use(&mut self, operation: BuiltinFunction) {
         if self.unit.compiler == Compiler::Clang {
             if self.allocation_evaluation.evaluated {
                 self.allocation_uses |= 1 << operation.index();
@@ -327,6 +362,14 @@ impl Analyzer {
                 self.allocation_evaluation.deferred |= 1 << operation.index();
             }
         }
+    }
+
+    pub(crate) fn allocation_call_type(
+        &mut self,
+        operation: AllocationOperation,
+        call: &Node<ast::CallExpression>,
+    ) -> Result<Type, Error> {
+        self.mark_builtin_function_use(BuiltinFunction::Allocation(operation));
         let signature = operation.parameters(self.unit.target);
         if call.node.arguments.len() != signature.arity {
             return Err(Error::new(
@@ -346,7 +389,7 @@ impl Analyzer {
 
     /// Complete compatible builtin prototypes and preserve compiler-specific
     /// replacement rules. Internal declarations use the ordinary C namespace.
-    pub(crate) fn allocation_declaration(
+    pub(crate) fn builtin_function_declaration(
         &mut self,
         name: &str,
         ty: &mut Type,
@@ -358,7 +401,7 @@ impl Analyzer {
         if !external {
             return Ok(false);
         }
-        let Some(operation) = AllocationOperation::from_name(name) else {
+        let Some(operation) = BuiltinFunction::from_name(name) else {
             return Ok(false);
         };
         let mut resolved = self.unit.resolve(ty)?.clone();
@@ -382,7 +425,7 @@ impl Analyzer {
             operation.signature(self.unit.target),
         )));
         let prototype = function.prototype;
-        if !self.compatible(&resolved, &expected)? {
+        if !self.builtin_function_matches(operation, &resolved)? {
             if self.unit.compiler == Compiler::Clang {
                 return Err(Error::new(
                     offset,
@@ -397,7 +440,11 @@ impl Analyzer {
                 "identifier-list definitions of allocation builtins are unsupported",
             ));
         }
-        *ty = crate::noescape::composite_type!(self, &resolved, &expected, 0)?;
+        *ty = if operation == BuiltinFunction::Prefetch {
+            resolved
+        } else {
+            crate::noescape::composite_type!(self, &resolved, &expected, 0)?
+        };
         *link_name = Some(self.allocation_label(operation, link_name.as_deref(), offset)?);
         Ok(true)
     }

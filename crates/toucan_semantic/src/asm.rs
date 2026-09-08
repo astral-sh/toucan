@@ -161,7 +161,7 @@ impl Analyzer {
                     self.unit.resolve(&info.ty)?.kind,
                     TypeKind::Array { .. } | TypeKind::VariableArray { .. }
                 ) {
-                    if !info.lvalue || self.contains_const(&info.ty, 0)? {
+                    if !info.is_lvalue() || self.contains_const(&info.ty, 0)? {
                         return Err(Error::new(
                             operand.span.start,
                             "asm output requires a modifiable lvalue",
@@ -230,7 +230,7 @@ impl Analyzer {
                     && (location.fixed.is_empty()
                         || location.fixed.iter().any(|name| !clobbers.contains(*name)));
                 let memory = location.memory
-                    && operand.info.lvalue
+                    && operand.info.is_lvalue()
                     && operand.info.bitfield.is_none()
                     && !operand.info.register
                     && self

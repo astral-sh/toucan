@@ -146,7 +146,7 @@ fn gnu_builtin_addresses_retain_library_identity() {
             .unwrap()
             .expressions()
             .filter_map(|(_, expression)| match expression.kind() {
-                ExprKind::BuiltinFunction(operation) => Some(operation.library_symbol()),
+                ExprKind::BuiltinFunction(operation) => Some(operation.symbol()),
                 _ => None,
             })
             .collect::<Vec<_>>();

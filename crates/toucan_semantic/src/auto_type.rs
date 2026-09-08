@@ -263,18 +263,20 @@ impl Analyzer {
         self.require_complete_object(&ty, expression.span.start)?;
         let mut type_use = if self.checked.is_some() {
             let value = self.retained_use(expression, UseContext::Value, None)?;
-            Some(if preserves_atomic && info.lvalue && !reuses_prior_type {
-                self.code_builder().wrap_type_use(
-                    value.type_use(),
-                    &ty,
-                    TypeStep::AtomicValue,
-                    None,
-                    expression.span.start,
-                )?
-            } else {
-                self.code_builder()
-                    .retype_use(value.type_use(), &ty, expression.span.start)?
-            })
+            Some(
+                if preserves_atomic && info.is_lvalue() && !reuses_prior_type {
+                    self.code_builder().wrap_type_use(
+                        value.type_use(),
+                        &ty,
+                        TypeStep::AtomicValue,
+                        None,
+                        expression.span.start,
+                    )?
+                } else {
+                    self.code_builder()
+                        .retype_use(value.type_use(), &ty, expression.span.start)?
+                },
+            )
         } else {
             None
         };

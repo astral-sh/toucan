@@ -140,9 +140,15 @@ impl Analyzer {
         call: &Node<ast::CallExpression>,
     ) -> Result<Option<Type>, Error> {
         if let ast::Expression::Identifier(identifier) = &call.node.callee.node
-            && let Some(operation) = self.allocation_reference(&identifier.node.name)?
+            && let Some(operation) = self.builtin_function_reference(&identifier.node.name)?
         {
-            return self.allocation_call_type(operation, call).map(Some);
+            return match operation {
+                crate::BuiltinFunction::Allocation(operation) => {
+                    self.allocation_call_type(operation, call)
+                }
+                crate::BuiltinFunction::Prefetch => self.prefetch_call_type(call),
+            }
+            .map(Some);
         }
         let Some(name) = self.builtin_name(call) else {
             return Ok(None);

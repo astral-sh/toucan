@@ -1068,3 +1068,7 @@ remaining control-flow diagnostic limits.
 The four C allocation builtins use target-correct prototypes, converted argument
 uses, and explicit library-symbol identity. See [allocation builtins](allocation-builtins.md)
 for GNU/Clang declaration rules and remaining ownership/deallocator-contract limits.
+
+Generic data prefetch uses compiler-specific constant checking and preserves
+argument effects; see [prefetch semantics](prefetch.md). GNU lowering obligations
+remain explicit when source checking cannot establish a constant hint.

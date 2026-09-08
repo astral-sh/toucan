@@ -1457,7 +1457,7 @@ impl Analyzer {
                         .block_externs
                         .get(&name)
                         .is_some_and(|prior| prior.is_static);
-                let builtin = self.allocation_declaration(
+                let builtin = self.builtin_function_declaration(
                     &name,
                     &mut ty,
                     external,
@@ -1467,7 +1467,10 @@ impl Analyzer {
                 )?;
                 if builtin
                     && self.unit.compiler == Compiler::Gnu
-                    && name != "__builtin_free"
+                    && matches!(
+                        name.as_str(),
+                        "__builtin_malloc" | "__builtin_calloc" | "__builtin_realloc"
+                    )
                     && declarator_attributes.c11_noreturn.is_none()
                 {
                     declarator_attributes.noreturn = None;
@@ -1681,8 +1684,7 @@ impl Analyzer {
                 previous.ty = ty;
                 previous.is_definition |= is_definition;
                 if previous.link_name.is_none()
-                    || (!is_static
-                        && crate::AllocationOperation::from_name(&previous.name).is_some())
+                    || (!is_static && crate::BuiltinFunction::from_name(&previous.name).is_some())
                 {
                     previous.link_name = declarator_attributes.link_name;
                 }

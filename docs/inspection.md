@@ -165,3 +165,8 @@ to checked expressions. A `BuiltinCall` may also contain an explicit declaration
 entity, a captured `noreturn` promise, and a compiler-honored `link_name` override.
 These optional fields are additive in checked schema 5; ordinary declaration
 symbols continue to use `link_name` in schema 3.
+
+Prefetch calls retain all argument conversions, including GNU extra arguments.
+`BuiltinFunction` now distinguishes allocation functions and GNU prefetch function
+addresses. Allocation identities keep their existing serialized strings; `Prefetch`
+is an additional identity. See [prefetch semantics](prefetch.md).

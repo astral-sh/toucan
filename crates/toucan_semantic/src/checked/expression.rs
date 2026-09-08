@@ -10,7 +10,7 @@ use super::{
     ScopeId, TypeId,
 };
 use crate::analyze::Analyzer;
-use crate::expression::ExpressionInfo;
+use crate::expression::{ExpressionCategory, ExpressionInfo};
 use crate::integer::integer_to_type;
 use crate::{DecodedString, Error, FloatKind, IntegerKind, IntegerValue, Type, TypeKind};
 
@@ -113,6 +113,8 @@ pub struct Expression {
     pub(crate) register: bool,
     pub(crate) vector_element: bool,
     pub(crate) volatile_place: bool,
+    #[serde(skip)]
+    pub(crate) prefetch_designator: bool,
     pub(crate) kind: ExprKind,
 }
 
@@ -183,6 +185,7 @@ operators!(
 #[non_exhaustive]
 pub enum Builtin {
     Allocation(crate::AllocationOperation),
+    Prefetch,
     /// GNU one- or two-vector shuffle. The last argument is an integer mask;
     /// each mask lane selects modulo the concatenated input lane count. All
     /// operands are evaluated once in ordinary unspecified argument order.
@@ -268,6 +271,9 @@ impl Builtin {
     }
 
     fn from_name(name: &str) -> Option<Self> {
+        if name == "__builtin_prefetch" {
+            return Some(Self::Prefetch);
+        }
         if let Some(operation) = crate::AllocationOperation::from_name(name) {
             return Some(Self::Allocation(operation));
         }
@@ -394,8 +400,8 @@ pub enum ExprKind {
     },
     String(DecodedString),
     Name(EntityId),
-    /// GNU function reference to the corresponding C library symbol.
-    BuiltinFunction(crate::AllocationOperation),
+    /// GNU function reference with an explicit external symbol identity.
+    BuiltinFunction(crate::BuiltinFunction),
     Unary {
         operator: Unary,
         operand: ExprUse,
@@ -674,7 +680,11 @@ impl Builder {
         let expression = &self.code.expressions[id.index()];
         ExpressionInfo {
             ty: self.code.types[expression.ty.index()].clone(),
-            lvalue: expression.category == ValueCategory::ObjectLvalue,
+            category: if expression.prefetch_designator {
+                ExpressionCategory::PrefetchDesignator
+            } else {
+                ExpressionCategory::from_lvalue(expression.category == ValueCategory::ObjectLvalue)
+            },
             bitfield: expression.bitfield,
             register: expression.register,
             vector_element: expression.vector_element,
@@ -834,7 +844,7 @@ impl Builder {
             ty,
             category: if properties.function {
                 ValueCategory::FunctionDesignator
-            } else if info.lvalue {
+            } else if info.is_lvalue() {
                 ValueCategory::ObjectLvalue
             } else {
                 ValueCategory::Value
@@ -843,6 +853,7 @@ impl Builder {
             register: info.register,
             vector_element: info.vector_element,
             volatile_place: properties.volatile_lvalue,
+            prefetch_designator: info.is_prefetch_designator(),
             kind,
         });
         self.expression_builder
@@ -906,8 +917,8 @@ impl Analyzer {
                     Some(Conversion::ArrayDecay)
                 }
                 TypeKind::Function(_) => Some(Conversion::FunctionDecay),
-                TypeKind::Atomic(_) if info.lvalue => Some(Conversion::AtomicLoad),
-                _ if info.lvalue => Some(Conversion::Lvalue),
+                TypeKind::Atomic(_) if info.is_lvalue() => Some(Conversion::AtomicLoad),
+                _ if info.is_lvalue() => Some(Conversion::Lvalue),
                 _ => None,
             };
             ty = self.converted_type(&info, offset)?;
@@ -1144,11 +1155,13 @@ impl Analyzer {
                 ExprKind::String(decoded)
             }
             ast::Expression::Identifier(identifier)
-                if self.allocation_reference(&identifier.node.name)?.is_some() =>
+                if self
+                    .builtin_function_reference(&identifier.node.name)?
+                    .is_some() =>
             {
                 ExprKind::BuiltinFunction(
-                    self.allocation_reference(&identifier.node.name)?
-                        .expect("checked allocation builtin"),
+                    self.builtin_function_reference(&identifier.node.name)?
+                        .expect("checked builtin function"),
                 )
             }
             ast::Expression::Identifier(identifier) => {
@@ -1221,7 +1234,7 @@ impl Analyzer {
                         };
                         (UseContext::ReadModifyWrite, destination)
                     } else if operator == Unary::Address
-                        || matches!(operator, Unary::Real | Unary::Imaginary) && info.lvalue
+                        || matches!(operator, Unary::Real | Unary::Imaginary) && info.is_lvalue()
                     {
                         (UseContext::Place, None)
                     } else if matches!(operator, Unary::Plus | Unary::Minus | Unary::Complement)
@@ -1522,7 +1535,7 @@ impl Analyzer {
                     .map(|expression| {
                         self.retained_use_by_id(
                             expression,
-                            if info.lvalue {
+                            if info.is_lvalue() {
                                 UseContext::Place
                             } else {
                                 UseContext::Value
@@ -1537,8 +1550,8 @@ impl Analyzer {
             }
         };
         let function = matches!(self.unit.resolve(&info.ty)?.kind, TypeKind::Function(_));
-        let volatile_lvalue =
-            info.lvalue && (info.volatile_place || self.unit.qualifiers(&info.ty)?.is_volatile);
+        let volatile_lvalue = info.is_lvalue()
+            && (info.volatile_place || self.unit.qualifiers(&info.ty)?.is_volatile);
         let atomic_access = match &kind {
             ExprKind::Unary {
                 operand,
@@ -1588,13 +1601,14 @@ impl Analyzer {
         if self.builtin_name(call) == Some("__builtin_shufflevector") {
             return self.retain_shuffle_vector(call);
         }
-        let allocation = if let ast::Expression::Identifier(identifier) = &call.node.callee.node {
-            self.allocation_reference(&identifier.node.name)?
-                .map(|operation| (identifier.node.name.as_str(), operation))
-        } else {
-            None
-        };
-        if let Some(name) = allocation
+        let function_builtin =
+            if let ast::Expression::Identifier(identifier) = &call.node.callee.node {
+                self.builtin_function_reference(&identifier.node.name)?
+                    .map(|operation| (identifier.node.name.as_str(), operation))
+            } else {
+                None
+            };
+        if let Some(name) = function_builtin
             .map(|(name, _)| name)
             .or_else(|| self.builtin_name(call))
             && let Some(builtin) = Builtin::from_name(name)
@@ -1629,15 +1643,21 @@ impl Analyzer {
             } else {
                 None
             };
-            let allocation =
-                allocation.map(|(_, operation)| operation.parameters(self.unit.target));
-            let declaration = allocation
-                .as_ref()
-                .and_then(|_| self.code_builder().entity_for_name(name));
-            let noreturn = allocation.is_some() && self.visible_noreturn(name);
-            let link_name = if let Builtin::Allocation(operation) = builtin {
+            let allocation = function_builtin.and_then(|(_, operation)| match operation {
+                crate::BuiltinFunction::Allocation(operation) => {
+                    Some(operation.parameters(self.unit.target))
+                }
+                crate::BuiltinFunction::Prefetch => None,
+            });
+            let prefetch = (builtin == Builtin::Prefetch)
+                .then(|| self.builtin_function_type(crate::BuiltinFunction::Prefetch))
+                .transpose()?;
+            let declaration =
+                function_builtin.and_then(|_| self.code_builder().entity_for_name(name));
+            let noreturn = function_builtin.is_some() && self.visible_noreturn(name);
+            let link_name = if let Some((_, operation)) = function_builtin {
                 let link = self.allocation_symbol(operation);
-                if link != operation.library_symbol() {
+                if link != operation.symbol() {
                     let bytes = link.len();
                     self.code_builder().budget.charge(0, 0, bytes, offset)?;
                     Some(self.allocation_symbol(operation).to_owned())
@@ -1669,15 +1689,26 @@ impl Analyzer {
                 TypeKind::Array { .. }
             );
             for (index, argument) in call.node.arguments.iter().enumerate() {
-                if fortified
-                    .as_ref()
-                    .is_some_and(|signature| signature.variadic)
+                if (prefetch.is_some()
+                    || fortified
+                        .as_ref()
+                        .is_some_and(|signature| signature.variadic))
                     && self.argument_pack(argument)?
                 {
                     arguments.push(self.retained_use(argument, UseContext::VariadicPack, None)?);
                     continue;
                 }
-                let (context, destination) = if let Some(signature) = &allocation {
+                let (context, destination) = if let Some(signature) = &prefetch {
+                    let (destination, conversion) = if index == 0 {
+                        (signature.parameters[0].ty.clone(), Conversion::Assignment)
+                    } else {
+                        (
+                            self.default_argument_type(argument)?,
+                            Conversion::DefaultArgument,
+                        )
+                    };
+                    (UseContext::Value, Some((destination, conversion)))
+                } else if let Some(signature) = &allocation {
                     (
                         UseContext::Value,
                         Some((
