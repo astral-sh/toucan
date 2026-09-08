@@ -251,6 +251,7 @@ fn parameter_sites_survive_query_replay_and_c11_minimum_parameter_count() {
 fn constraints_and_parameter_entry_values_match_native_compilers() {
     use std::process::Command;
     let temp = tempfile::tempdir().unwrap();
+    let mut runtime_failures = Vec::new();
     for compiler in ["gcc", "clang"] {
         let version = Command::new(compiler).arg("--version").output().unwrap();
         assert!(version.status.success());
@@ -299,13 +300,14 @@ fn constraints_and_parameter_entry_values_match_native_compilers() {
             );
         }
         let source = r#"
+int printf(const char *, ...);
 int events;
 int bound(int x){events=events*10+x;return 2;}
 int shape(a,b) int (*b)[bound(2)];int (*a)[bound(1)]; {return events;}
 double narrow(a,b) unsigned char a;float b;{return (double)a+(double)b;}
 int callback(a,f) int a;int f(int);{return f(a);}
 int next(int x){return x+1;}
-int main(void){int a[2];int order=shape(&a,&a);return (order!=12&&order!=21)||narrow(257,16777217.0)!=16777217.0||callback(3,next)!=4;}
+int main(void){int a[2];int order=shape(&a,&a);double value=narrow(257,16777217.0);int called=callback(3,next);printf("order=%d narrow=%.17g callback=%d\n",order,value,called);return (order!=12&&order!=21)||value!=16777217.0||called!=4;}
 "#;
         let path = temp.path().join("runtime.c");
         std::fs::write(&path, source).unwrap();
@@ -323,12 +325,22 @@ int main(void){int a[2];int order=shape(&a,&a);return (order!=12&&order!=21)||na
                 "{compiler}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
-            assert!(
-                Command::new(&exe).status().unwrap().success(),
-                "{compiler}: {opt}"
-            );
+            let executed = Command::new(&exe).output().unwrap();
+            if !executed.status.success() {
+                runtime_failures.push(format!(
+                    "{compiler} {opt}: {}\nstdout: {}\nstderr: {}",
+                    executed.status,
+                    String::from_utf8_lossy(&executed.stdout),
+                    String::from_utf8_lossy(&executed.stderr),
+                ));
+            }
         }
     }
+    assert!(
+        runtime_failures.is_empty(),
+        "{}",
+        runtime_failures.join("\n")
+    );
 }
 
 fn assert_regular_compiler_result(output: &std::process::Output, compiler: &str, source: &str) {
