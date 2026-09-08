@@ -27,6 +27,19 @@ impl Analyzer {
         Some(Type::new(TypeKind::Integer(kind)))
     }
 
+    /// Fixed-width bit-count builtins convert to their declared unsigned C parameter.
+    /// The canonical long type supplies the target-dependent width in both checking
+    /// and retained argument conversions.
+    pub(crate) fn bit_count_type(&self, name: &str) -> Option<Type> {
+        let kind = match name {
+            "__builtin_clz" | "__builtin_ctz" => IntegerKind::UnsignedInt,
+            "__builtin_clzl" | "__builtin_ctzl" => IntegerKind::UnsignedLong,
+            "__builtin_clzll" | "__builtin_ctzll" => IntegerKind::UnsignedLongLong,
+            _ => return None,
+        };
+        Some(Type::new(TypeKind::Integer(kind)))
+    }
+
     /// Library builtins use the target's ordinary C parameter conversions.
     /// Keep this signature shared with retained argument-use construction.
     pub(crate) fn memory_builtin_signature(&self, name: &str) -> Option<MemorySignature> {
@@ -95,12 +108,13 @@ impl Analyzer {
         };
         let memory = self.memory_builtin_signature(name);
         let byte_swap = self.byte_swap_type(name);
+        let bit_count = self.bit_count_type(name);
         let arity = match name {
             "__builtin_va_start" | "__builtin_va_copy" | "__builtin_expect" => 2,
             "__builtin_va_end" | "__builtin_constant_p" => 1,
             "__builtin_unreachable" | "__builtin_trap" => 0,
             _ if memory.is_some() => 3,
-            _ if byte_swap.is_some() => 1,
+            _ if byte_swap.is_some() || bit_count.is_some() => 1,
             _ => return Ok(None),
         };
         let arguments = &call.node.arguments;
@@ -120,6 +134,10 @@ impl Analyzer {
         if let Some(ty) = byte_swap {
             self.check_assignment(&ty, &arguments[0])?;
             return Ok(Some(ty));
+        }
+        if let Some(parameter) = bit_count {
+            self.check_assignment(&parameter, &arguments[0])?;
+            return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));
         }
         match name {
             "__builtin_constant_p" => {
@@ -249,6 +267,46 @@ impl Analyzer {
         self.convert_arithmetic(second, &ty, call.span.start)?;
         self.convert_arithmetic(first, &ty, call.span.start)?
             .integer(call.span.start)
+    }
+
+    /// Counts only after parameter conversion. GCC leaves zero undefined, including
+    /// a nonzero wider value that becomes zero when converted to the parameter.
+    pub(crate) fn eval_bit_count(
+        &mut self,
+        call: &Node<ast::CallExpression>,
+    ) -> Result<IntegerValue, Error> {
+        let offset = call.span.start;
+        let result = self
+            .builtin_call_type(call)?
+            .ok_or_else(|| Error::new(offset, "expected builtin bit count"))?;
+        let name = self
+            .builtin_name(call)
+            .ok_or_else(|| Error::new(offset, "expected builtin bit count"))?;
+        let parameter = self
+            .bit_count_type(name)
+            .ok_or_else(|| Error::new(offset, "expected builtin bit count"))?;
+        let value = self.eval_arithmetic(&call.node.arguments[0])?;
+        let value = self
+            .convert_arithmetic(value, &parameter, offset)?
+            .integer(offset)?;
+        if value.value == 0 {
+            return Err(Error::new(
+                offset,
+                format!("{name} has an undefined result for zero"),
+            ));
+        }
+        let count = if name.starts_with("__builtin_clz") {
+            value.value.leading_zeros() - (128 - u32::from(value.bits))
+        } else {
+            value.value.trailing_zeros()
+        };
+        let result = self.integer_type(&result, offset)?;
+        Ok(IntegerValue::new(
+            u128::from(count),
+            result.bits,
+            result.signed,
+            result.rank,
+        ))
     }
 
     /// Converts the input before swapping exactly the prototype's number of bytes.

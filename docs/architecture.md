@@ -48,6 +48,13 @@ APFloat evaluator with the selected target's format, including x87 and binary128
 `long double`. Arithmetic constant evaluation is separate from C's stricter integer
 constant-expression rules; no host floating representation substitutes for the target.
 
+The fixed-argument GNU `clz`/`ctz` builtins and their `l`/`ll` variants use unsigned
+C parameter conversions and return `int`. Constant evaluation diagnoses zero after
+conversion, following [GCC's undefined-result contract](https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html).
+Runtime calls retain the builtin identity and converted operand. The
+[bit-count regression report](../corpus/evidence/bit-count-intrinsics-2026-09-08.json)
+records compiler comparisons and progress through unchanged project sources.
+
 The semantic layer checks declarations, expressions, initializers, and function
 bodies. Lexical scopes keep local names out of the exported declarations while
 preserving tag identities. Aggregate initialization uses a subobject cursor, so

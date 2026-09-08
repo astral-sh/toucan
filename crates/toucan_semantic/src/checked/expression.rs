@@ -164,6 +164,12 @@ pub enum Builtin {
     ByteSwap32,
     ByteSwap64,
     ConstantQuery,
+    CountLeadingZeros,
+    CountLeadingZerosLong,
+    CountLeadingZerosLongLong,
+    CountTrailingZeros,
+    CountTrailingZerosLong,
+    CountTrailingZerosLongLong,
 }
 impl Builtin {
     fn from_name(name: &str) -> Option<Self> {
@@ -182,6 +188,12 @@ impl Builtin {
             "__builtin_bswap32" => Self::ByteSwap32,
             "__builtin_bswap64" => Self::ByteSwap64,
             "__builtin_constant_p" => Self::ConstantQuery,
+            "__builtin_clz" => Self::CountLeadingZeros,
+            "__builtin_clzl" => Self::CountLeadingZerosLong,
+            "__builtin_clzll" => Self::CountLeadingZerosLongLong,
+            "__builtin_ctz" => Self::CountTrailingZeros,
+            "__builtin_ctzl" => Self::CountTrailingZerosLong,
+            "__builtin_ctzll" => Self::CountTrailingZerosLongLong,
             _ => return None,
         })
     }
@@ -1067,7 +1079,9 @@ impl Analyzer {
             && let Some(builtin) = Builtin::from_name(name)
         {
             let memory = self.memory_builtin_signature(name);
-            let byte_swap = self.byte_swap_type(name);
+            let unary_parameter = self
+                .byte_swap_type(name)
+                .or_else(|| self.bit_count_type(name));
             let callee_occurrence = self
                 .code_builder()
                 .find(OccurrenceKind::Expression, &call.node.callee)?
@@ -1085,7 +1099,7 @@ impl Analyzer {
                         UseContext::Value,
                         Some((signature.parameters[index].clone(), Conversion::Assignment)),
                     )
-                } else if let Some(ty) = &byte_swap {
+                } else if let Some(ty) = &unary_parameter {
                     (
                         UseContext::Value,
                         Some((ty.clone(), Conversion::Assignment)),
@@ -1414,6 +1428,70 @@ mod tests {
                     Builtin::ByteSwap64
                 ]
             );
+        }
+    }
+
+    #[test]
+    fn bit_counts_retain_target_parameter_conversions_and_int_results() {
+        let operations = [
+            (
+                "__builtin_clz",
+                Builtin::CountLeadingZeros,
+                IntegerKind::UnsignedInt,
+            ),
+            (
+                "__builtin_clzl",
+                Builtin::CountLeadingZerosLong,
+                IntegerKind::UnsignedLong,
+            ),
+            (
+                "__builtin_clzll",
+                Builtin::CountLeadingZerosLongLong,
+                IntegerKind::UnsignedLongLong,
+            ),
+            (
+                "__builtin_ctz",
+                Builtin::CountTrailingZeros,
+                IntegerKind::UnsignedInt,
+            ),
+            (
+                "__builtin_ctzl",
+                Builtin::CountTrailingZerosLong,
+                IntegerKind::UnsignedLong,
+            ),
+            (
+                "__builtin_ctzll",
+                Builtin::CountTrailingZerosLongLong,
+                IntegerKind::UnsignedLongLong,
+            ),
+        ];
+        for target in Target::ALL {
+            for (name, expected, parameter) in operations {
+                let code = checked(
+                    &format!("int f(short value) {{ return {name}(value); }}"),
+                    target,
+                );
+                let mut found = 0;
+                for expression in &code.expressions {
+                    let ExprKind::BuiltinCall {
+                        builtin, arguments, ..
+                    } = &expression.kind
+                    else {
+                        continue;
+                    };
+                    found += 1;
+                    assert_eq!(*builtin, expected);
+                    scalar(&code, expression.ty, IntegerKind::Int);
+                    assert_eq!(arguments.len(), 1);
+                    assert_eq!(arguments[0].context, UseContext::Value);
+                    scalar(&code, arguments[0].effective_type, parameter);
+                    assert_eq!(
+                        kinds(&arguments[0]),
+                        [Conversion::Lvalue, Conversion::Assignment]
+                    );
+                }
+                assert_eq!(found, 1);
+            }
         }
     }
 

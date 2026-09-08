@@ -183,6 +183,14 @@ impl Analyzer {
             {
                 self.eval_byte_swap(call)
             }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(|name| self.bit_count_type(name))
+                    .is_some() =>
+            {
+                self.eval_bit_count(call)
+            }
             ast::Expression::Cast(cast) => {
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 let destination = self.integer_type(&ty, offset)?;
