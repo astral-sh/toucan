@@ -14,13 +14,57 @@ python3 scripts/verify_zstd_consumer.py \
   --output corpus/results/zstd-consumer
 ```
 
-The harness copies the pinned sys crate into its cache and replaces its binding
-includes with fresh, unmodified Toucan output. The upstream C build script,
-library sources, features, and Rust wrappers remain unchanged. It then compiles
-the real wrappers and runs both bulk and streaming compression round trips, with
-a checksum enabled for the streaming API. The dependency graph has no bindgen or
-libclang requirement. JSON evidence records package checksums, source and output
-hashes, commands, and results.
+The harness builds and runs the consumer twice: first with upstream's checked-in
+bindings, then with fresh, unmodified Toucan output in the binding files selected
+by upstream's `src/lib.rs`. The crate root, C build script, library sources, and
+Rust wrappers remain unchanged. It checks the locked package sources, checksums,
+and resolved features, then compares the runtime results. The dependency graph
+has no bindgen or libclang requirement.
+
+JSON evidence records commands, generated bindings, package and source hashes,
+and rustc dependency files proving that both selected generated binding files
+were compiled. Only those two files may differ from the upstream sys crate.
+This is a native execution check: `--target` must match the Rust compiler's host.
+
+## Feature profiles
+
+The default invocation keeps zstd's default Cargo features. Repeat `--profile`
+to run a matrix; CI runs all four profiles with current Rust and Rust 1.64:
+
+```console
+python3 scripts/verify_zstd_consumer.py \
+  --toucan target/release/toucan \
+  --target x86_64-unknown-linux-gnu --sysroot / \
+  --profile default --profile experimental --profile zstdmt \
+  --profile experimental-zstdmt \
+  --output corpus/results/zstd-consumer
+```
+
+| Profile | Additional runtime checks |
+| --- | --- |
+| `default` | Bulk and checksum-enabled streaming round trips; dictionary training, prepared dictionary compression/decompression, dictionary IDs, and rejection without the dictionary |
+| `experimental` | Magicless frames with matching decoder configuration; experimental COVER dictionary training, passing a nested parameter record by value |
+| `zstdmt` | Two-worker streaming compression over almost six MiB with one-MiB jobs and a checksum |
+| `experimental-zstdmt` | All of the above plus a shared thread pool; frame progression reports multiple completed jobs and exact input/output byte counts |
+
+Each profile runs the default checks too. Every compressed frame and trained
+dictionary is saved and compared byte for byte between upstream and Toucan runs;
+JSON evidence records their SHA-256 hashes. Worker completion timing is not compared.
+The experimental profile generates `bindings_zstd_experimental.rs` and
+`bindings_zdict_experimental.rs`; the other profiles generate `bindings_zstd.rs`
+and `bindings_zdict.rs`. Experimental generation uses the upstream defines
+`ZSTD_STATIC_LINKING_ONLY`, `ZDICT_STATIC_LINKING_ONLY`, and
+`ZSTD_RUST_BINDINGS_EXPERIMENTAL`. No bindings are concatenated or edited afterward.
+
+The inspected Ruff manifests enable zstd through
+[`ty_project` → `ty_vendored` → `zip/zstd`](https://github.com/astral-sh/ruff/blob/e7adf82ff005f3ab3051c363464cf65bf8a6e2f3/crates/ty_vendored/Cargo.toml).
+The inspected uv manifests enable it through
+[`async-compression`, `astral_async_zip`, and `reqwest`](https://github.com/astral-sh/uv/blob/d28a3ee3d0f7122b0da64b0226d2e173e7d23747/Cargo.toml).
+Neither workspace requests `experimental` or `zstdmt` in those manifests; the
+corresponding locked dependencies forward ordinary zstd support. This manifest
+inspection is not a build of the complete Ruff or uv feature graph. The fixture
+tests zstd's defaults plus the explicit profiles above, independently of those
+workspace choices.
 
 The [upstream generation profile](https://github.com/gyscos/zstd-rs/blob/434ca4cb364e8a81846a2d99d430977e07b15a52/zstd-safe/zstd-sys/build.rs#L17)
 requests Rust enums and `size_t` as `usize`. The wrappers also expect unsigned
@@ -29,17 +73,25 @@ integer aliases cannot compile those Rust callers. Toucan exposes the options as
 `--rustified-enums`, `--size-t-is-usize`, and `--macro-type unsigned`; its default
 representation preserves C integer expression types.
 
-CI checks both the current compiler and Rust 1.64 on the native corpus targets.
-Consumer paths using zstd's experimental, seekable, or multithreaded features need
-separate coverage.
+The independently generated files use `--helper-namespace zstd` and
+`--helper-namespace zdict` to keep anonymous types and layout-test names distinct
+within upstream's module. This option preserves public C names and record-local
+fields. With `--size-t-is-usize`, an implicit `size_t` dependency outside the
+allowlist is lowered directly to `usize`; an explicitly selected `size_t` alias
+is still emitted. Other shared public types still require caller coordination
+when combining separately generated files.
+
+Seekable APIs and other zstd feature combinations still need separate coverage.
+These runs demonstrate the checked Rust wrappers, layouts, and executed API
+paths; they are not complete zstd API coverage or a throughput benchmark.
 
 ## Rust 1.64
 
 Generation requests `--rust-target 1.64`, matching upstream's build script. Every
 generated field-offset test runs with the compiler used by the consumer; size and
 alignment assertions remain compile-time checks. To use an installed Rust 1.64
-toolchain, add `--rust-toolchain 1.64.0` to the command above. This also builds and
-runs the same optimized consumer with upstream's checked-in bindings as a baseline.
+toolchain, add `--rust-toolchain 1.64.0` to either command above. Every profile
+builds and runs the same optimized consumer against both sets of bindings.
 
 The lock uses Cargo's version 3 format and pins Rust 1.64-compatible build
 dependencies: cc 1.4.2, find-msvc-tools 0.1.10, jobserver 0.1.32, libc 0.2.183,

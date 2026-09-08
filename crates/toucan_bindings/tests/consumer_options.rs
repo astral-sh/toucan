@@ -124,3 +124,178 @@ fn rust_enum_variants_and_usize_match_native_c_calls() {
         "a C compiler is required for this differential test"
     );
 }
+
+#[test]
+fn helper_namespaces_reject_invalid_identifiers() {
+    let unit = analyze(
+        "typedef struct { int value; } Item;",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    for namespace in ["", "9prefix", "a::b", "a-b", "é", "x\n"] {
+        assert!(
+            generate(
+                &unit,
+                &Options {
+                    helper_namespace: Some(namespace.into()),
+                    ..Options::default()
+                }
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("ASCII identifier")
+        );
+    }
+}
+
+#[test]
+fn implicit_size_t_is_inlined_only_when_requested() {
+    let unit = analyze(
+        "typedef unsigned long size_t; size_t length(size_t value);",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    for normalize in [false, true] {
+        for explicit in [false, true] {
+            let mut allowlist = vec!["length".into()];
+            if explicit {
+                allowlist.push("size_t".into());
+            }
+            let bindings = generate(
+                &unit,
+                &Options {
+                    allowlist,
+                    size_t_is_usize: normalize,
+                    ..Options::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                bindings.source.contains("pub type size_t"),
+                !normalize || explicit
+            );
+            assert_eq!(
+                bindings.source.contains("arg0: ::core::primitive::usize"),
+                normalize && !explicit
+            );
+        }
+    }
+    let invalid = analyze(
+        "typedef int size_t; size_t length(void);",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    assert!(
+        generate(
+            &invalid,
+            &Options {
+                allowlist: vec!["length".into()],
+                size_t_is_usize: true,
+                ..Options::default()
+            }
+        )
+        .is_err()
+    );
+}
+
+#[test]
+#[ignore = "requires native rustc; run with --include-ignored"]
+fn independent_binding_files_share_a_module_without_helper_collisions() {
+    let target = match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") => Target::X86_64UnknownLinuxGnu,
+        ("aarch64", "linux") => Target::Aarch64UnknownLinuxGnu,
+        ("x86_64", "macos") => Target::X86_64AppleDarwin,
+        ("aarch64", "macos") => Target::Aarch64AppleDarwin,
+        ("x86_64", "windows") => Target::X86_64PcWindowsMsvc,
+        _ => return,
+    };
+    let directory = tempfile::tempdir().unwrap();
+    for prefix in ["first", "second"] {
+        let source = format!(
+            "typedef {size_type} size_t;\n\
+             typedef int __toucan_{prefix}_record_1;\n\
+             typedef int __toucan_{prefix}_enum_0;\n\
+             void __toucan_{prefix}_layout_1(void);\n\
+             typedef struct {{ size_t count; struct {{ long long value; }} nested;\n\
+                 unsigned low:3; unsigned high:5; enum {{ {prefix}_off, {prefix}_on }} state;\n\
+                 union {{ int integer; float floating; }}; }} {prefix}_Item;\n\
+             typedef {prefix}_Item {prefix}_Alias;\n",
+            size_type = if target == Target::X86_64PcWindowsMsvc {
+                "unsigned long long"
+            } else {
+                "unsigned long"
+            }
+        );
+        let unit = analyze(&source, target).unwrap();
+        let bindings = generate(
+            &unit,
+            &Options {
+                allowlist: vec![format!("{prefix}_*"), format!("__toucan_{prefix}_*")],
+                helper_namespace: Some(prefix.into()),
+                size_t_is_usize: true,
+                rust_target: toucan_bindings::RustTarget::RUST_1_64,
+                ..Options::default()
+            },
+        )
+        .unwrap();
+        assert!(
+            bindings
+                .source
+                .contains(&format!("pub struct __toucan_{prefix}_record_1_")),
+            "{}",
+            bindings.source
+        );
+        assert!(
+            bindings
+                .source
+                .contains(&format!("fn __toucan_{prefix}_layout_1_"))
+        );
+        std::fs::write(
+            directory.path().join(format!("{prefix}.rs")),
+            bindings.source,
+        )
+        .unwrap();
+    }
+    let source = r#"
+        #![allow(dead_code, non_camel_case_types, non_snake_case, non_upper_case_globals)]
+        include!("first.rs");
+        include!("second.rs");
+        #[test]
+        fn independent_records() {
+            let mut first: first_Alias = unsafe { core::mem::zeroed() };
+            let mut second: second_Item = unsafe { core::mem::zeroed() };
+            first.count = usize::MAX;
+            second.count = 42;
+            first.nested.value = -123;
+            second.nested.value = 456;
+            first.set_low(7); second.set_low(3);
+            assert_eq!(first.low(), 7); assert_eq!(second.low(), 3);
+            assert_eq!(first.count, usize::MAX); assert_eq!(second.count, 42);
+            assert_eq!(first.nested.value, -123); assert_eq!(second.nested.value, 456);
+        }
+    "#;
+    let input = directory.path().join("combined.rs");
+    let executable = directory.path().join("combined");
+    std::fs::write(&input, source).unwrap();
+    let mut command = match std::env::var("TOUCAN_TEST_RUST_TOOLCHAIN") {
+        Ok(toolchain) => {
+            let mut command = Command::new("rustup");
+            command.args(["run", &toolchain, "rustc"]);
+            command
+        }
+        Err(_) => Command::new("rustc"),
+    };
+    let result = command
+        .args(["--edition=2021", "--test", "-D", "improper_ctypes"])
+        .arg(&input)
+        .arg("-o")
+        .arg(&executable)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(Command::new(executable).status().unwrap().success());
+}

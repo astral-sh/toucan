@@ -49,6 +49,9 @@ enum Command {
         /// Represent a pointer-sized unsigned size_t typedef as Rust usize.
         #[arg(long)]
         size_t_is_usize: bool,
+        /// Namespace generated helper types and tests when including multiple binding files.
+        #[arg(long)]
+        helper_namespace: Option<String>,
         /// Preserve C macro types, or infer unsigned types for nonnegative values.
         #[arg(long, value_parser = ["c", "unsigned"], default_value = "c")]
         macro_type: String,
@@ -219,6 +222,7 @@ fn run(cli: Cli) -> Result<()> {
             deny_skipped_macros,
             rustified_enums,
             size_t_is_usize,
+            helper_namespace,
             macro_type,
             macro_type_for,
             blocklist_functions,
@@ -248,6 +252,7 @@ fn run(cli: Cli) -> Result<()> {
                 allowlist,
                 rustified_enums,
                 size_t_is_usize,
+                helper_namespace,
                 macro_type_overrides,
                 blocklist_functions,
                 raw_lines,

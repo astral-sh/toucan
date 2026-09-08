@@ -22,6 +22,10 @@ pub struct Options {
     pub rustified_enums: bool,
     /// Represent a pointer-sized unsigned `size_t` typedef as Rust `usize`.
     pub size_t_is_usize: bool,
+    /// Namespace synthetic types and layout tests when including multiple
+    /// independently generated files in one Rust module. Public C names and
+    /// record-local fields are unchanged. Use a nonempty ASCII identifier.
+    pub helper_namespace: Option<String>,
     /// Choose how integer object macros are represented in Rust.
     pub macro_type: MacroType,
     /// Integer macro policies by exact name or prefix ending in `*`. Exact names
@@ -232,6 +236,16 @@ pub fn generate_with_macros(
     options: &Options,
     macros: &BTreeMap<String, Option<MacroValue>>,
 ) -> Result<Bindings, Error> {
+    if let Some(namespace) = &options.helper_namespace
+        && (namespace.is_empty()
+            || !namespace.bytes().enumerate().all(|(index, byte)| {
+                byte == b'_' || byte.is_ascii_alphabetic() || (index > 0 && byte.is_ascii_digit())
+            }))
+    {
+        return Err(Error(
+            "helper namespace must be a nonempty ASCII identifier".into(),
+        ));
+    }
     let declaration_names: BTreeSet<_> = unit
         .declarations
         .iter()
@@ -375,7 +389,11 @@ pub fn generate_with_macros(
             .ok_or_else(|| Error(format!("missing typedef `{name}`")))?;
         let rust_name = emitter.names.identifier(name)?;
         let rust_type = if options.size_t_is_usize && name == "size_t" {
-            emitter.size_t_type(ty)?
+            let rust_type = emitter.size_t_type(ty)?;
+            if !options.includes(name) {
+                continue;
+            }
+            rust_type
         } else if let TypeKind::Function(function) = &unit.resolve(ty)?.kind {
             emitter.check_function(function)?;
             format!(
@@ -783,7 +801,7 @@ impl Emitter<'_> {
                 return self.names.identifier(name);
             }
         }
-        self.synthetic_name(&format!("__toucan_record_{id}"))
+        self.synthetic_name(&self.helper_name("record", id))
     }
 
     fn enum_name(&self, id: usize) -> Result<String, Error> {
@@ -821,7 +839,7 @@ impl Emitter<'_> {
                 return self.names.identifier(name);
             }
         }
-        self.synthetic_name(&format!("__toucan_enum_{id}"))
+        self.synthetic_name(&self.helper_name("enum", id))
     }
 
     /// Emit the selected enum representation, retaining aliases for repeated values.
@@ -907,25 +925,16 @@ impl Emitter<'_> {
         Ok("::core::primitive::usize".into())
     }
 
+    fn helper_name(&self, kind: &str, id: usize) -> String {
+        match &self.options.helper_namespace {
+            Some(namespace) => format!("__toucan_{namespace}_{kind}_{id}"),
+            None => format!("__toucan_{kind}_{id}"),
+        }
+    }
+
     fn synthetic_name(&self, stem: &str) -> Result<String, Error> {
         let mut candidate = stem.to_owned();
-        while self.unit.typedefs.contains_key(&candidate)
-            || self
-                .unit
-                .declarations
-                .iter()
-                .any(|item| item.name == candidate)
-            || self
-                .unit
-                .records
-                .iter()
-                .any(|item| item.scope == Scope::File && item.name.as_ref() == Some(&candidate))
-            || self
-                .unit
-                .enums
-                .iter()
-                .any(|item| item.scope == Scope::File && item.name.as_ref() == Some(&candidate))
-        {
+        while self.names.original.contains(&candidate) {
             candidate.push('_');
         }
         identifier(&candidate)
@@ -1093,7 +1102,10 @@ impl Emitter<'_> {
             TypeKind::Enum(id) => self.enum_name(*id)?,
             TypeKind::Typedef(name) => {
                 // A C function typedef denotes the function, not a nullable pointer.
-                if let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind {
+                if self.options.size_t_is_usize && name == "size_t" && !self.options.includes(name)
+                {
+                    self.size_t_type(ty)?
+                } else if let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind {
                     self.check_function_at(function, depth + 1)?;
                     format!(
                         "unsafe extern \"{}\" fn{}",
@@ -1394,7 +1406,7 @@ impl Emitter<'_> {
         writeln!(source, "const _: () = {{\n    assert!(::core::mem::size_of::<{name}>() == {});\n    assert!(::core::mem::align_of::<{name}>() == {});", layout.size_bits / 8, layout.alignment_bits / 8).unwrap();
         let runtime_offsets = self.options.rust_target.minor < 77;
         if runtime_offsets {
-            let mut test_name = format!("__toucan_layout_{id}");
+            let mut test_name = self.helper_name("layout", id);
             while self.names.original.contains(&test_name) {
                 test_name.push('_');
             }

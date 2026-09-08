@@ -187,6 +187,7 @@ jobs:
             --toucan target/release/toucan \
             --target '${{ matrix.target }}' \
             --sysroot "$corpus_sysroot" \
+            --profile default --profile experimental --profile zstdmt --profile experimental-zstdmt \
             --output corpus/results/zstd-consumer
 
       - name: Compile and run the real SQLite Rust consumer
@@ -227,6 +228,7 @@ jobs:
             --sysroot "$corpus_sysroot" \
             --rust-toolchain 1.64.0 \
             --cache corpus/cache/zstd-consumer-msrv \
+            --profile default --profile experimental --profile zstdmt --profile experimental-zstdmt \
             --output corpus/results/zstd-consumer-msrv
 
       - name: Upload native evidence and build logs
@@ -240,6 +242,9 @@ jobs:
             corpus/results/**/*.stderr
             corpus/results/**/*.rs
             corpus/results/**/*.c
+            corpus/results/**/*.d
+            corpus/results/**/*.zst
+            corpus/results/**/*.dict
             corpus/cache/prepared.json
             corpus/cache/logs/
           if-no-files-found: error

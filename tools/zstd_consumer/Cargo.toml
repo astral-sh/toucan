@@ -7,5 +7,9 @@ publish = false
 
 [workspace]
 
+[features]
+experimental = ["zstd/experimental"]
+zstdmt = ["zstd/zstdmt"]
+
 [dependencies]
 zstd = "=0.13.3"
