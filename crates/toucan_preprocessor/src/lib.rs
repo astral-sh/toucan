@@ -330,7 +330,8 @@ impl Preprocessor {
                     let matches = if !active {
                         false
                     } else if directive.text == "if" {
-                        self.condition(&logical_path, rest).map_err(&fail)?
+                        self.condition(&logical_path, path, include_origin, rest)
+                            .map_err(&fail)?
                     } else {
                         let name = identifier(rest).map_err(&fail)?;
                         let defined = self.macros.contains_key(name) || is_builtin(name);
@@ -356,7 +357,9 @@ impl Preprocessor {
                     }
                     let matches = condition.parent_active
                         && !condition.taken
-                        && self.condition(&logical_path, rest).map_err(&fail)?;
+                        && self
+                            .condition(&logical_path, path, include_origin, rest)
+                            .map_err(&fail)?;
                     condition.active = matches;
                     condition.taken |= matches;
                 }
@@ -550,7 +553,13 @@ impl Preprocessor {
         result
     }
 
-    fn condition(&mut self, path: &Path, tokens: &[Token]) -> Result<bool, String> {
+    fn condition(
+        &mut self,
+        path: &Path,
+        include_path: &Path,
+        include_origin: Option<usize>,
+        tokens: &[Token],
+    ) -> Result<bool, String> {
         let mut replaced = Vec::new();
         let mut position = 0;
         while position < tokens.len() {
@@ -576,7 +585,7 @@ impl Preprocessor {
                 position += 1;
             }
         }
-        let replaced = self.has_include(path, replaced)?;
+        let replaced = self.has_include(path, include_path, include_origin, replaced)?;
         let expanded = self.expand(path, replaced)?;
         let wchar_unsigned = self.macros.get("__WCHAR_TYPE__").map(|definition| {
             self.macros.contains_key("__WCHAR_UNSIGNED__")
@@ -585,21 +594,39 @@ impl Preprocessor {
                     .split_whitespace()
                     .any(|token| token == "unsigned")
         });
-        expression::evaluate(&self.has_include(path, expanded)?, wchar_unsigned)
+        expression::evaluate(
+            &self.has_include(path, include_path, include_origin, expanded)?,
+            wchar_unsigned,
+        )
     }
 
-    fn has_include(&mut self, path: &Path, expanded: Vec<Token>) -> Result<Vec<Token>, String> {
+    fn has_include(
+        &mut self,
+        path: &Path,
+        include_path: &Path,
+        include_origin: Option<usize>,
+        expanded: Vec<Token>,
+    ) -> Result<Vec<Token>, String> {
         let mut replaced = Vec::new();
         let mut position = 0;
         while position < expanded.len() {
-            if expanded[position].text != "__has_include" {
+            let builtin = expanded[position].text.as_str();
+            if !matches!(builtin, "__has_include" | "__has_include_next") {
                 replaced.push(expanded[position].clone());
                 position += 1;
                 continue;
             }
+            // Clang restarts include-next queries produced by macro expansion;
+            // direct queries retain the including file's search position.
+            let origin =
+                if self.macros.contains_key("__clang__") && !expanded[position].hidden.is_empty() {
+                    None
+                } else {
+                    include_origin
+                };
             position += 1;
             if expanded.get(position).is_none_or(|token| token.text != "(") {
-                return Err("__has_include requires parenthesized header name".into());
+                return Err(format!("{builtin} requires parenthesized header name"));
             }
             position += 1;
             let start = position;
@@ -610,7 +637,7 @@ impl Preprocessor {
                 position += 1;
             }
             if position == expanded.len() {
-                return Err("unterminated __has_include expression".into());
+                return Err(format!("unterminated {builtin} expression"));
             }
             let (name, quoted) = if let Ok(header) = header_name(&expanded[start..position]) {
                 header
@@ -618,8 +645,17 @@ impl Preprocessor {
                 let tokens = self.expand(path, expanded[start..position].to_vec())?;
                 header_name(&tokens)?
             };
-            let exists = self.find_include(path, &name, quoted, 0, None).is_some()
-                || self.config.virtual_headers.contains_key(&name);
+            let next = builtin == "__has_include_next";
+            let start = if next {
+                origin.map_or(0, |index| index + 1)
+            } else {
+                0
+            };
+            let exists = self
+                .find_include(include_path, &name, quoted && !next, start, include_origin)
+                .is_some()
+                || (start <= self.config.include_dirs.len()
+                    && self.config.virtual_headers.contains_key(&name));
             replaced.push(Token::new(Kind::Number, if exists { "1" } else { "0" }));
             position += 1;
         }
@@ -776,7 +812,10 @@ fn identifier(tokens: &[Token]) -> Result<&str, String> {
 }
 
 fn is_builtin(name: &str) -> bool {
-    matches!(name, "__FILE__" | "__LINE__" | "__has_include")
+    matches!(
+        name,
+        "__FILE__" | "__LINE__" | "__has_include" | "__has_include_next"
+    )
 }
 
 fn header_name(tokens: &[Token]) -> Result<(String, bool), String> {

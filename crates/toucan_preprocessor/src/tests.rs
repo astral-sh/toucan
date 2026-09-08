@@ -151,6 +151,35 @@ fn literal_header_names_do_not_expand_macros() {
 }
 
 #[test]
+fn include_queries_stop_after_virtual_headers() {
+    let config = Config {
+        allow_filesystem: false,
+        virtual_headers: BTreeMap::from([(
+            "virtual.h".into(),
+            "#if !defined(__has_include_next)\n#error missing builtin\n#endif\n\
+             #if __has_include_next(<virtual.h>)\n#error queried the current header\n\
+             #elif __has_include(<virtual.h>)\nfound\n#endif\n"
+                .into(),
+        )]),
+        ..Config::default()
+    };
+    let result = Preprocessor::new(config)
+        .preprocess_str(Path::new("test.h"), "#include <virtual.h>\n")
+        .unwrap();
+    assert_eq!(result.source, "found\n");
+    for source in [
+        "#if __has_include_next <virtual.h>\n#endif\n",
+        "#if __has_include_next(<virtual.h>\n#endif\n",
+    ] {
+        assert!(
+            Preprocessor::new(Config::default())
+                .preprocess_str(Path::new("test.h"), source)
+                .is_err()
+        );
+    }
+}
+
+#[test]
 fn incompatible_redefinitions_and_malformed_directives_fail() {
     for source in [
         "#define VALUE 1\n#define VALUE 2\n",
@@ -372,17 +401,41 @@ fn include_next_tracks_search_origin_and_quoted_local_includes() {
     for path in [&first, &second, &third] {
         fs::create_dir(path).unwrap();
     }
-    fs::write(directory.join("main.h"), "#include <layer.h>\n").unwrap();
+    fs::write(directory.join("local-only.h"), "").unwrap();
+    fs::write(
+        directory.join("main.h"),
+        "#line 20 \"renamed/main.h\"\n\
+         #if !__has_include(\"local-only.h\")\n#error lost physical path\n#endif\n\
+         #include <layer.h>\n",
+    )
+    .unwrap();
     fs::write(first.join("layer.h"), "#ifndef FIRST_LAYER\n#define FIRST_LAYER\nfirst\n#include \"helper.h\"\n#else\nrevisited\n#include_next <layer.h>\n#endif\n").unwrap();
-    fs::write(first.join("helper.h"), "#include_next <layer.h>\n").unwrap();
-    fs::write(second.join("layer.h"), "second\n#include_next <layer.h>\n").unwrap();
-    fs::write(third.join("layer.h"), "third\n").unwrap();
+    fs::write(
+        first.join("helper.h"),
+        "#line 20 \"renamed/helper.h\"\n\
+         #if !__has_include(\"helper.h\")\n#error lost physical path\n#endif\n\
+         #if __has_include_next(\"helper.h\")\nquery_restarts\n#endif\n\
+         #define NEXT_HEADER <layer.h>\n\
+         #if __has_include_next(NEXT_HEADER)\n#include_next NEXT_HEADER\n\
+         #else\n#error missing next header\n#endif\n",
+    )
+    .unwrap();
+    fs::write(
+        second.join("layer.h"),
+        "second\n#if __has_include_next(<layer.h>)\n#include_next <layer.h>\n\
+         #else\n#error missing resource header\n#endif\n",
+    )
+    .unwrap();
+    let final_header = "#if __has_include_next(<layer.h>)\n#error found another header\n#endif\n\
+                        #define NEXT __has_include_next\n\
+                        #if NEXT(<layer.h>)\nquery_macro_restarts\n#endif\nthird\n";
+    fs::write(third.join("layer.h"), final_header).unwrap();
     let compiler = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
     let version = Command::new(&compiler).arg("--version").output().unwrap();
     let clang = String::from_utf8_lossy(&version.stdout).contains("clang");
     let config = Config {
         include_dirs: vec![first.clone(), second.clone()],
-        virtual_headers: BTreeMap::from([("layer.h".into(), "third\n".into())]),
+        virtual_headers: BTreeMap::from([("layer.h".into(), final_header.into())]),
         defines: if clang {
             BTreeMap::from([("__clang__".into(), "1".into())])
         } else {
@@ -396,9 +449,9 @@ fn include_next_tracks_search_origin_and_quoted_local_includes() {
     assert_eq!(
         result.source,
         if clang {
-            "first\nsecond\nthird\n"
+            "first\nsecond\nquery_macro_restarts\nthird\n"
         } else {
-            "first\nrevisited\nsecond\nthird\n"
+            "first\nquery_restarts\nrevisited\nsecond\nthird\n"
         }
     );
     assert_eq!(result.dependencies.len(), 4);
