@@ -282,6 +282,8 @@ def verify(project: dict, args: argparse.Namespace) -> dict:
             rust_command.extend(["-C", f"link-arg={helper_object}"])
         for library in project["libraries"]:
             archive = Path(library)
+            if not archive.name.startswith("lib") or archive.suffix != ".a":
+                raise RuntimeError(f"unsupported native archive name: {archive}")
             # Let rustc place native archives before their runtime dependencies.
             # Raw link-args go after libc and lose symbols under --as-needed
             # (notably AArch64's stack protector runtime).
@@ -290,7 +292,7 @@ def verify(project: dict, args: argparse.Namespace) -> dict:
                     "-L",
                     f"native={archive.parent}",
                     "-l",
-                    f"static:+verbatim={archive.name}",
+                    f"static={archive.stem[3:]}",
                 ]
             )
         if platform.system() == "Linux":
