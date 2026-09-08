@@ -1,7 +1,7 @@
 use std::collections::BTreeMap;
 use std::path::Path;
 
-use crate::{Config, Preprocessor};
+use crate::{Config, ForcedInclude, Preprocessor};
 
 fn preprocess(source: &str) -> String {
     Preprocessor::new(Config::default())
@@ -139,6 +139,58 @@ fn virtual_headers_once_and_macro_includes() {
         result.expand_object_macro("VALUE").unwrap().as_deref(),
         Some("7")
     );
+}
+
+#[test]
+fn forced_includes_share_macros_limits_and_source_locations() {
+    let config = Config {
+        allow_filesystem: false,
+        forced_includes: vec![
+            ForcedInclude {
+                path: "compiler.h".into(),
+                source: "#define TYPE int\ntypedef TYPE word;\n".into(),
+            },
+            ForcedInclude {
+                path: "config.h".into(),
+                source: "#define VALUE 7\nTYPE configured;\n".into(),
+            },
+        ],
+        ..Config::default()
+    };
+    let mut preprocessor = Preprocessor::new(config.clone());
+    for _ in 0..2 {
+        let result = preprocessor
+            .preprocess_str(Path::new("user.h"), "\nword value[VALUE];\n#undef TYPE\n")
+            .unwrap();
+        assert_eq!(
+            result.source,
+            "typedef int word ;\nint configured ;\nword value [ 7 ] ;\n"
+        );
+        for (text, path, line) in [
+            ("typedef", "compiler.h", 2),
+            ("configured", "config.h", 2),
+            ("value", "user.h", 2),
+        ] {
+            let origin = result
+                .resolve_location(result.source.find(text).unwrap())
+                .unwrap();
+            assert_eq!(origin.path.as_ref(), Path::new(path));
+            assert_eq!(origin.line, line);
+        }
+        assert!(result.dependencies.is_empty());
+    }
+
+    let mut limited = config;
+    limited.max_source_bytes = limited
+        .forced_includes
+        .iter()
+        .map(|include| include.source.len())
+        .sum();
+    let error = Preprocessor::new(limited)
+        .preprocess_str(Path::new("user.h"), "word value;")
+        .unwrap_err();
+    assert!(error.message.contains("source byte limit"));
+    assert_eq!(error.path, Path::new("user.h"));
 }
 
 #[test]

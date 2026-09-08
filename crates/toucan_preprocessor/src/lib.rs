@@ -29,6 +29,12 @@ pub struct Config {
     /// Permit filesystem reads for entry points, includes, and include queries.
     pub allow_filesystem: bool,
     pub include_dirs: Vec<PathBuf>,
+    /// In-memory headers processed in order before the entry point.
+    ///
+    /// They share macros, resource limits, and source mappings with the entry point.
+    /// Their paths locate diagnostics and resolve quoted includes; their contents
+    /// are used directly, even when filesystem access is disabled.
+    pub forced_includes: Vec<ForcedInclude>,
     /// Resource headers consulted after the caller's include directories.
     pub virtual_headers: BTreeMap<String, String>,
     pub defines: BTreeMap<String, String>,
@@ -44,6 +50,7 @@ impl Default for Config {
         Self {
             allow_filesystem: true,
             include_dirs: Vec::new(),
+            forced_includes: Vec::new(),
             virtual_headers: BTreeMap::new(),
             defines: BTreeMap::new(),
             max_include_depth: 64,
@@ -52,6 +59,13 @@ impl Default for Config {
             max_source_bytes: 64 * 1024 * 1024,
         }
     }
+}
+
+/// An in-memory header included before the translation unit's entry point.
+#[derive(Clone, Debug)]
+pub struct ForcedInclude {
+    pub path: PathBuf,
+    pub source: String,
 }
 
 /// A macro definition. Parameters exclude the optional variadic parameter.
@@ -214,6 +228,7 @@ impl Preprocessor {
         }
         self.reset()?;
         let mut output = String::new();
+        self.forced_includes(&mut output)?;
         self.file(path, 0, None, &mut output)?;
         Ok(self.finish(path, output))
     }
@@ -222,8 +237,18 @@ impl Preprocessor {
     pub fn preprocess_str(&mut self, name: &Path, source: &str) -> Result<Preprocessed, Error> {
         self.reset()?;
         let mut output = String::new();
+        self.forced_includes(&mut output)?;
         self.source(name, source, 0, None, &mut output)?;
         Ok(self.finish(name, output))
+    }
+
+    fn forced_includes(&mut self, output: &mut String) -> Result<(), Error> {
+        for include in self.config.forced_includes.clone() {
+            if !self.once.contains(&include.path) {
+                self.source(&include.path, &include.source, 0, None, output)?;
+            }
+        }
+        Ok(())
     }
 
     fn reset(&mut self) -> Result<(), Error> {

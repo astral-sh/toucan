@@ -9,7 +9,7 @@ use std::time::{Duration, Instant};
 
 pub use toucan_bindings::{Bindings, Options as BindingOptions};
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
-pub use toucan_preprocessor::{OriginKind, SourceLocation, SourceMapping};
+pub use toucan_preprocessor::{ForcedInclude, OriginKind, SourceLocation, SourceMapping};
 pub use toucan_semantic::{self as semantic, TranslationUnit};
 pub use toucan_source as source;
 pub use toucan_target::{self as target, Target};
@@ -35,8 +35,15 @@ impl Config {
             "__has_extension(x)",
             "__has_c_attribute(x)",
             "__has_declspec_attribute(x)",
+            "__building_module(x)",
         ] {
             preprocessor.defines.insert(name.into(), "0".into());
+        }
+        if target != Target::X86_64PcWindowsMsvc {
+            preprocessor.forced_includes.push(ForcedInclude {
+                path: "<builtin>/integer-types.h".into(),
+                source: include_str!("../resources/integer-types.h").into(),
+            });
         }
         preprocessor.virtual_headers.extend([
             (

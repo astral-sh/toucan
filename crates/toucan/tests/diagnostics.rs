@@ -41,6 +41,10 @@ fn syntax_errors_resolve_to_nested_filesystem_headers() {
     let inner = directory.0.join("nested/inner.h");
     std::fs::write(&inner, "\n\nint broken(;\n").unwrap();
     let config = Config::new(Target::X86_64UnknownLinuxGnu);
+    let preprocessed = toucan::Preprocessor::new(config.preprocessor.clone())
+        .preprocess(&directory.0.join("main.h"))
+        .unwrap();
+    let expected_offset = preprocessed.source.rfind(';').unwrap();
     let diagnostic = semantic_error(toucan::parse_file(&directory.0.join("main.h"), &config));
     let origin = diagnostic.origin.as_ref().unwrap();
     assert_eq!(origin.path.as_ref(), std::fs::canonicalize(inner).unwrap());
@@ -49,16 +53,20 @@ fn syntax_errors_resolve_to_nested_filesystem_headers() {
         (3, 12, OriginKind::Token)
     );
     assert!(diagnostic.error.message.contains("C syntax error"));
-    assert_eq!(diagnostic.error.offset, 13);
+    assert_eq!(diagnostic.error.offset, expected_offset);
     assert!(diagnostic.to_string().contains("inner.h:3:12:"));
-    assert!(diagnostic.to_string().contains("preprocessed byte 13"));
+    assert!(
+        diagnostic
+            .to_string()
+            .contains(&format!("preprocessed byte {expected_offset}"))
+    );
     let source = std::error::Error::source(&diagnostic).unwrap();
     assert_eq!(
         source
             .downcast_ref::<toucan::semantic::Error>()
             .unwrap()
             .offset,
-        13
+        expected_offset
     );
 }
 
