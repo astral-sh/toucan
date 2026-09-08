@@ -20,6 +20,8 @@ pub struct Env {
     pub extensions_msvc: bool,
     pub clang_calling_conventions: bool,
     pub gnu_float128_typedef: bool,
+    /// GCC admits UTF-prefixed literals in GNU99 as a language extension.
+    pub gnu_unicode_literals: bool,
     pub reserved: HashSet<&'static str>,
     // Parameter scopes are normally discarded at the end of their declarators.
     // A definition temporarily saves them until its declarator identifies which
@@ -40,6 +42,7 @@ impl Env {
             extensions_msvc: false,
             clang_calling_conventions: false,
             gnu_float128_typedef: false,
+            gnu_unicode_literals: false,
             symbols: vec![HashMap::default()],
             reserved,
         }
@@ -60,6 +63,7 @@ impl Env {
             extensions_msvc: false,
             clang_calling_conventions: false,
             gnu_float128_typedef: true,
+            gnu_unicode_literals: true,
             symbols: vec![symbols],
             reserved,
         }
@@ -93,6 +97,7 @@ impl Env {
             extensions_msvc: false,
             clang_calling_conventions: true,
             gnu_float128_typedef: false,
+            gnu_unicode_literals: gnu_types,
             symbols: vec![symbols],
             reserved,
         }
@@ -167,8 +172,8 @@ impl Env {
         }
         self.standard = standard;
         for (name, enabled) in [
-            ("inline", standard == Standard::C11 || self.gnu_keywords),
-            ("restrict", standard == Standard::C11),
+            ("inline", standard != Standard::C90 || self.gnu_keywords),
+            ("restrict", standard != Standard::C90),
         ] {
             if enabled {
                 self.reserved.insert(name);

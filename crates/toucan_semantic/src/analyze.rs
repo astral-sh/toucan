@@ -382,10 +382,19 @@ fn parse(
         cpp_command: String::new(),
         cpp_options: Vec::new(),
         gnu_keywords: language_mode.is_gnu(),
-        standard: if language_mode.is_c90() {
-            driver::Standard::C90
-        } else {
-            driver::Standard::C11
+        standard: match language_mode {
+            toucan_target::LanguageMode::C90 | toucan_target::LanguageMode::Gnu90 => {
+                driver::Standard::C90
+            }
+            toucan_target::LanguageMode::C99 | toucan_target::LanguageMode::Gnu99 => {
+                driver::Standard::C99
+            }
+            toucan_target::LanguageMode::C11 | toucan_target::LanguageMode::Gnu11 => {
+                driver::Standard::C11
+            }
+            toucan_target::LanguageMode::C17 | toucan_target::LanguageMode::Gnu17 => {
+                driver::Standard::C17
+            }
         },
         extensions_msvc: target == Target::X86_64PcWindowsMsvc,
         flavor: match compiler {

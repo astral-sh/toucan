@@ -18,9 +18,9 @@ musl x86-64 and AArch64, then Clang on those two musl targets. Preprocessing has
 selector. Archived campaigns using modulo five or seven retain their selector contracts;
 replaying their exact bytes with the new harness can select a different profile.
 Record the harness source and selector count with each campaign. The same byte sum's
-bits 8 and 9 select GNU11, C11, GNU90, or C90: `(sum(input bytes) >> 8) & 3`
-indexes that order. This is language selector version 2. Older two-mode campaigns
-retain their original contract; use their saved binary to reproduce it. No input
+bits 8 through 10 select GNU11, C11, GNU90, C90, GNU99, C99, GNU17, or C17:
+`(sum(input bytes) >> 8) & 7` indexes that order. This is language selector
+version 3. Older two-mode and four-mode campaigns retain their original contract; use their saved binary to reproduce it. No input
 prefix is consumed. The preprocessing
 harness uses bit 8 to disable or enable trigraph replacement, and bit 0 selects
 GNU (clear) or Clang (set) feature-query argument rules with a small test catalog.
@@ -31,10 +31,10 @@ bytes remain intact. The runner appends block-comment padding to cover all 40
 comment/query/trigraph/scope combinations for every preprocessing seed. Older
 preprocessing campaigns always enabled line comments; replay their saved binary
 to preserve that behavior. Its selectors are independent of the semantic targets'
-four-mode selector. Scope-punctuator tokenization is selected independently by
+eight-mode selector. Scope-punctuator tokenization is selected independently by
 `sum(input bytes) & 2`; preprocessing selector version 3 records this addition.
 It has no physical target profile. The campaign runner pads each seed with a comment to cover every compiler
-profile in all four language modes, including both trigraph settings and query dialects for preprocessing. The
+profile in all eight language modes, including all independent preprocessing settings. The
 reported profile count must match the compiled harness's `CompilerProfile::ALL`.
 Older archived sources retain their recorded selector contracts. The `checked`
 target compares analysis with and without retained code. Successful results must have
@@ -253,3 +253,15 @@ composition passed 6,834 inputs in 121.566 seconds with 602 MiB peak RSS and no
 artifacts. All 11 profiles and four language modes are seeded without changing
 source bytes. Each run retains its initial corpus, dictionary, source manifest,
 commands, and logs; the original failing input remains archived.
+
+## C99 and C17 campaign
+
+The runner verifies all 88 profile/mode settings for each of 137 seed files,
+preserving every original source byte. Eight preprocessing seeds retain their
+40 independent query, comment, trigraph, and scope-punctuator settings.
+
+The [recorded campaign](evidence/c99-c17-2026-09-08/mutations/evidence.json.gz)
+executes 22,764 inputs in 301 seconds, adds 792 corpus units, and reaches 624 MiB
+peak RSS without artifacts. The initial 7,834-input replay is preserved separately;
+its runtime was largely spent initializing the expanded seed set. Both runs retain
+source hashes, starting corpora, dictionaries, commands, and toolchain identities.

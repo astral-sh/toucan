@@ -166,7 +166,7 @@ float_format -> FloatFormat =
     { FloatFormat::Double }
 
 character_constant -> String =
-    c:$(("L" / c11<[uU]>)? "'" character+ "'") { String::from(c) }
+    c:$(("L" / unicode<[uU]>)? "'" character+ "'") { String::from(c) }
 
 character = [^'\\\n] / escape_sequence
 
@@ -181,7 +181,7 @@ pub string_literal -> Node<Vec<String>> = s:node<list1<string_literal0>> { s }
 string_literal0 -> String =
     s:$(encoding_prefix? "\"" string_char* "\"") { String::from(s) }
 
-encoding_prefix = "L" / c11<"u8" / [uU]>
+encoding_prefix = "L" / unicode<"u8" / [uU]>
 
 string_char = [^"\\\n] / escape_sequence
 
@@ -790,7 +790,7 @@ type_qualifier -> Node<TypeQualifier> = node<type_qualifier0>
 
 type_qualifier0 -> TypeQualifier =
     K<"const"    / gnu<"__const">> { TypeQualifier::Const } /
-    (c11<K<"restrict">> / K<gnu<"__restrict" "__"?>>) { TypeQualifier::Restrict } /
+    (c99<K<"restrict">> / K<gnu<"__restrict" "__"?>>) { TypeQualifier::Restrict } /
     K<"volatile" / gnu<"__volatile" "__"?>> { TypeQualifier::Volatile } /
     clang<K<"_Nonnull">> { TypeQualifier::Nonnull } /
     clang<K<"_Null_unspecified">> { TypeQualifier::NullUnspecified } /
@@ -1589,6 +1589,8 @@ gnu_keyword_guard = {? if env.gnu_keywords { Ok(()) } else { Err("GNU keywords d
 
 c90<E> = &c90_guard e:E { e }
 c90_guard = {? if env.standard == ::driver::Standard::C90 { Ok(()) } else { Err("C90 syntax disabled") } }
-c11<E> = &c11_guard e:E { e }
-c11_guard = {? if env.standard == ::driver::Standard::C11 { Ok(()) } else { Err("C11 syntax disabled") } }
-inline_guard = {? if env.standard == ::driver::Standard::C11 || env.gnu_keywords { Ok(()) } else { Err("inline keyword disabled") } }
+c99<E> = &c99_guard e:E { e }
+c99_guard = {? if env.standard != ::driver::Standard::C90 { Ok(()) } else { Err("C99 syntax disabled") } }
+unicode<E> = &unicode_guard e:E { e }
+unicode_guard = {? if matches!(env.standard, ::driver::Standard::C11 | ::driver::Standard::C17) || (env.standard == ::driver::Standard::C99 && env.gnu_keywords && env.gnu_unicode_literals) { Ok(()) } else { Err("UTF-prefixed literals disabled") } }
+inline_guard = {? if env.standard != ::driver::Standard::C90 || env.gnu_keywords { Ok(()) } else { Err("inline keyword disabled") } }

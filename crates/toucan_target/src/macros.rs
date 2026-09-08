@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{Compiler, CompilerProfile, Target};
+use crate::{Compiler, CompilerProfile, LanguageMode, Target};
 
 impl Target {
     /// Deterministic C11 macros for the target's default compiler profile.
@@ -10,7 +10,7 @@ impl Target {
 }
 
 impl CompilerProfile {
-    /// Returns deterministic predefined macros for this target's C11 header profile.
+    /// Returns deterministic predefined macros for this target, compiler, and language mode.
     ///
     /// GNU compatibility is reported as 4.2.1. Clang profiles additionally report Clang
     /// 4.0; Windows reports the Visual C++ 2022 ABI family. These select header syntax,
@@ -30,16 +30,22 @@ impl CompilerProfile {
         if standard && target != Target::X86_64PcWindowsMsvc {
             define("__STRICT_ANSI__", "1");
         }
-        if self.language_mode().is_c11() {
-            define("__STDC_VERSION__", "201112L");
+        match self.language_mode() {
+            LanguageMode::C90 | LanguageMode::Gnu90 => {}
+            LanguageMode::C99 | LanguageMode::Gnu99 => define("__STDC_VERSION__", "199901L"),
+            LanguageMode::C11 | LanguageMode::Gnu11 => define("__STDC_VERSION__", "201112L"),
+            LanguageMode::C17 | LanguageMode::Gnu17 => define("__STDC_VERSION__", "201710L"),
         }
-        if compiler == Compiler::Clang || self.language_mode().is_c11() {
+        if compiler == Compiler::Clang
+            || self.language_mode().is_c11()
+            || self.language_mode() == LanguageMode::Gnu99
+        {
             define("__STDC_UTF_16__", "1");
             define("__STDC_UTF_32__", "1");
         }
         if target != Target::X86_64PcWindowsMsvc {
             define(
-                if self.language_mode().is_c11() {
+                if !self.language_mode().is_c90() {
                     "__GNUC_STDC_INLINE__"
                 } else {
                     "__GNUC_GNU_INLINE__"

@@ -38,16 +38,16 @@ def corpus_manifest(corpus):
 
 
 def seed_profiles(data, profiles, modes=2):
-    """Keep source bytes intact while selecting each profile in two or four modes."""
-    if modes not in (2, 4):
-        raise ValueError("expected two or four language modes")
+    """Keep source bytes intact while selecting each profile in two, four, or eight modes."""
+    if modes not in (2, 4, 8):
+        raise ValueError("expected two, four, or eight language modes")
     prefix, suffix = data + b"\n/* profile ", b" */\n"
     total = sum(prefix) + sum(suffix)
     count = profiles or 1
     for mode in range(modes):
         for profile in range(count):
-            # Overlapping ASCII ranges cover the 512- or 1024-value mode period.
-            # Thirty-two padding bytes suffice for all supported profile counts.
+            # Overlapping ASCII ranges cover the 512-, 1024-, or 2048-value mode period.
+            # Sixty-four padding bytes suffice for all supported profile counts.
             padding = next(
                 b" " * spaces + bytes([byte])
                 for spaces in range(8 * modes)
@@ -161,8 +161,8 @@ def main():
         else "sum(input bytes) % profiles",
         "language_mode_selector": None
         if args.target == "preprocess"
-        else "(sum(input bytes) >> 8) & 3: 0=gnu11, 1=c11, 2=gnu90, 3=c90",
-        "language_mode_selector_version": None if args.target == "preprocess" else 2,
+        else "(sum(input bytes) >> 8) & 7: 0=gnu11, 1=c11, 2=gnu90, 3=c90, 4=gnu99, 5=c99, 6=gnu17, 7=c17",
+        "language_mode_selector_version": None if args.target == "preprocess" else 3,
         "query_dialect_selector": "sum(input bytes) & 1: 0=gnu, 1=clang"
         if args.target == "preprocess"
         else None,
@@ -240,7 +240,7 @@ def main():
             seeds = (
                 seed_preprocessor_policies(path.read_bytes())
                 if args.target == "preprocess"
-                else seed_profiles(path.read_bytes(), report["profiles"], modes=4)
+                else seed_profiles(path.read_bytes(), report["profiles"], modes=8)
             )
             for data in seeds:
                 (corpus / hashlib.sha256(data).hexdigest()).write_bytes(data)

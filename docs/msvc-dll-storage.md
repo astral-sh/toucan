@@ -20,7 +20,7 @@ it and an object or function definition changes it into an export. Local extern
 redeclarations inherit the visible storage. Attributes written after a real
 definition are ignored. Tentative object definitions remain a separate case.
 Microsoft C also retains earlier external linkage when a later declaration is
-written `static`, in all four supported language modes. This follows Clang's
+written `static`, in every supported language mode. This follows Clang's
 non-pedantic Microsoft compatibility rules; `-pedantic-errors` rejects that
 extension.
 

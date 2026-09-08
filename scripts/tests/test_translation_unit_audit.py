@@ -115,8 +115,11 @@ class TranslationUnitAuditTests(unittest.TestCase):
             (["-std=c89"], "c90", []),
             (["-std=gnu89"], "gnu90", []),
             (["-std=iso9899:1990"], "c90", []),
-            (["-std=c17", "-std=c90"], "c90", ["-std=c17"]),
-            (["-std=c90", "-std=c17"], "gnu11", ["-std=c17"]),
+            (["-std=c23", "-std=c90"], "c90", ["-std=c23"]),
+            (["-std=c90", "-std=c23"], "gnu11", ["-std=c23"]),
+            (["-std=c90", "-std=c99"], "c99", []),
+            (["-std=gnu99", "-std=c18"], "c17", []),
+            (["-std=gnu18", "-std=iso9899:1999"], "c99", []),
         ]:
             profile = audit.toucan_flags(flags, Path.cwd())
             self.assertEqual(profile["language_mode"], mode)

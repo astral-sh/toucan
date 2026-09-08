@@ -117,7 +117,7 @@ def instrument(source):
         re.MULTILINE | re.DOTALL,
     )
     source, count = rules.subn(lambda m: m[1] + wrap(m[2], "    ") + m[3], source)
-    require(count == 248, count)
+    require(count == 249, count)
 
     exports = re.compile(
         r"pub fn (\w+)<'input>\(__input: &'input str, env: &mut Env\) -> ParseResult<([^\n]+)> \{\n.*?\n\}",

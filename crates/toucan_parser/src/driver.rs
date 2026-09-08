@@ -35,7 +35,9 @@ pub struct Config {
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum Standard {
     C90,
+    C99,
     C11,
+    C17,
 }
 
 impl Config {

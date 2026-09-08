@@ -14,7 +14,8 @@ let profile = CompilerProfile::new(Target::X86_64UnknownLinuxGnu, Compiler::Clan
 let config = Config::with_profile(profile);
 ```
 
-The CLI and build-script adapter accept C90, GNU90, C11, and GNU11. For example,
+The CLI and build-script adapter accept C90, GNU90, C99, GNU99, C11, GNU11,
+C17, and GNU17. For example,
 use `.clang_arg("-std=c90")` for a C90 build. `c89` and `iso9899:1990` are aliases
 for C90; `gnu89` is an alias for GNU90. The last standard option wins. A compiler profile
 owns the mode; checked translation units retain it so constant-evaluation
@@ -47,7 +48,7 @@ Clang applies enabled trigraph replacement to those bodies; GNU does not.
 Definitions cannot splice into another definition or forced include.
 
 C90 and GNU90 omit `__STDC_VERSION__`. They define `__GNUC_GNU_INLINE__` where
-C11 modes define `__GNUC_STDC_INLINE__`; Windows defines neither. GCC C90 omits
+C99 and later modes define `__GNUC_STDC_INLINE__`; Windows defines neither. GCC C90 omits
 `__STDC_UTF_16__` and `__STDC_UTF_32__`, while Clang keeps both macros. ISO C90 has
 the same strict-mode platform macros and trigraph defaults as ISO C11.
 
@@ -72,8 +73,8 @@ and [driver option order](https://github.com/llvm/llvm-project/blob/llvmorg-18.1
 
 ## Coverage and remaining modes
 
-Inspection and binding reports retain `language_mode`, spelled `c90`, `gnu90`,
-`c11`, or `gnu11`.
+Inspection and binding reports retain the selected `language_mode` using its
+canonical spelling, such as `c99`, `gnu99`, `c17`, or `gnu17`.
 The experimental inspection versions remain 3 (declarations) and 5 (checked
 code). Older serialized compiler profiles default a missing field to GNU11.
 Declaration debug hashes change because the unit records this explicit field;
@@ -81,7 +82,8 @@ generated Rust binding bytes are independent of the metadata.
 
 C90 uses `inline` as an identifier; GNU90 reserves it. Both permit `restrict` as
 an identifier and retain the underscored alternatives `__inline__` and
-`__restrict__`. UTF-prefixed literals require a C11 mode. The compiler profiles
+`__restrict__`. UTF-prefixed literals require C11 or later, except that the GNU compiler profile
+also accepts them in GNU99. Clang rejects these literals in both C99 modes. The compiler profiles
 retain non-pedantic extensions such as `_Atomic`, `_Generic`, compound literals,
 designated initializers, and variable-length arrays. GCC rejects declarations
 in a C90 `for` initializer; Clang accepts them as an extension.
@@ -121,12 +123,76 @@ default. [Inline-definition ownership](inline-functions.md) follows the selected
 language mode and compiler, including GNU attributes, later declarations, and
 Microsoft coalescing. Binding generation retains its existing definition filter.
 
-C99, C17, C23 and corresponding GNU modes are not modeled. Unsupported
+C23 and GNU23 are not modeled. Unsupported
 standard flags remain errors in the CLI and build-script adapter. The source
 audit records its selected analysis mode and leaves unmodeled compiler flags
 visible. Libgit2's original `-std=c90` now selects C90. GNU's omitted-middle
 conditional expression (`x ?: y`) remains tracked conformance work.
 Assembly bodies on Windows retain their existing explicit unsupported diagnostic.
+
+## C99 and C17
+
+C99 and GNU99 reserve `inline` and `restrict`, enable ordinary line comments and
+`for` declarations, and use the modern inline-definition rules. They define
+`__STDC_VERSION__=199901L`. Their decimal integer candidates follow the C11
+profile, including the existing rejection of oversized unsuffixed decimal
+constants outside C90; native warning recovery is not silently applied.
+
+C17 and GNU17 define `__STDC_VERSION__=201710L`. They share the supported C11
+syntax and semantic rules. The pinned GCC manual states that its C17 corrections
+also apply in C11 and only the version macro differs; Clang's pinned language
+standard flags retain the C99 and C11 rules. These modes select a compiler
+profile and supported feature set, rather than claiming complete ISO conformance.
+
+GCC enables UTF-prefixed literals and `__STDC_UTF_16__`/`__STDC_UTF_32__` in GNU99;
+it omits the macros and rejects those literals in ISO C99. Clang defines the UTF
+macros in C99 while rejecting UTF-prefixed literals until C11. Both compiler
+profiles retain their non-pedantic C11 extensions in C99, including `_Atomic`,
+`_Generic`, `_Static_assert`, alignment, and thread-local storage. Clang's
+`__has_feature` reports these C11 features only from C11 onward;
+`__has_extension` reports the supported extensions in the earlier modes.
+
+Aliases shared by the modeled compilers include `c9x`, `iso9899:1999`, and
+`iso9899:199x` for C99; `gnu9x` for GNU99; `c18`, `iso9899:2017`, and
+`iso9899:2018` for C17; and `gnu18` for GNU17. The C11 aliases `c1x`,
+`iso9899:2011`, and `gnu1x` are also accepted. Unsupported standard options remain
+visible in source audits and are rejected by the CLI and build-script adapter.
+
+Primary sources: [GCC 13.3 C standards](https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/gcc/doc/standards.texi),
+[Clang 18.1.3 standards](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/include/clang/Basic/LangStandards.def),
+and [Clang feature predicates](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/include/clang/Basic/Features.def).
+
+### C99/C17 validation
+
+The [mode evidence](../corpus/evidence/c99-c17-2026-09-08/summary.json) records
+2,944 native syntax/predefine/query observations, 174 option controls, and 1,176
+inline-symbol checks for the new modes. Focused tests compare 800 source
+admission decisions with GCC 13.3 and Clang 18.1.3. Eight linked C/Rust probes
+exercise all four new modes with both native compilers and Rust 1.64, including
+inline helpers, `restrict`, loops, constants, and struct arguments and returns.
+
+All eight routes through the 220-program corpus accept 219 programs and pass
+all 211 strict-C11 control cases. The remaining exploratory difference is an
+assignment that discards `const`; the native compilers reject it in pedantic
+C11. No tool or oracle-pipeline failures occurred. The archive preserves each
+original source, command, diagnostic, and preprocessed input.
+
+The workspace passes 785 tests, with 207 opt-in tests ignored in that run. The
+native tests run separately. Both Python harness suites pass (32 and 27 tests).
+All seven real-project translation units pass both preprocessing routes with
+ordinary/retained parity. Seven paired benchmark rounds on those inputs retain
+byte-identical complete declarations; median time ratios span 0.960–1.021.
+These measurements ran on a shared host alongside other validation and do not
+establish a speedup. Baseline and candidate binaries use separate build caches
+and pass a distinguishing GNU99 literal control before measurement.
+
+The [sanitizer evidence](../fuzz/evidence/c99-c17-2026-09-08/) includes the first
+expanded-corpus replay and a longer mutation campaign. The final run executes
+22,764 inputs in 301 seconds with 624 MiB peak RSS, 792 new corpus units, no
+artifacts, and unchanged source hashes. All 88 compiler/mode settings are seeded
+without changing source bytes. These bounded runs include rejected programs and
+do not establish complete conformance or safety. LeakSanitizer remains disabled
+in this ptrace environment.
 
 ## C90/GNU90 validation
 

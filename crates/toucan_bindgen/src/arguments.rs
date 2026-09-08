@@ -311,7 +311,7 @@ mod tests {
             vec!["-target"],
             vec!["-I"],
             vec!["-x", "c++"],
-            vec!["-std=c99"],
+            vec!["-std=c23"],
             vec!["--target=wasm32-unknown-unknown"],
         ] {
             let arguments = arguments.into_iter().map(str::to_owned).collect::<Vec<_>>();
@@ -326,6 +326,25 @@ mod tests {
         assert_eq!(config.target(), Target::Aarch64UnknownLinuxGnu);
         assert_eq!(config.preprocessor.include_dirs[0], PathBuf::from(&args[1]));
     }
+    #[test]
+    fn modern_standard_aliases_preserve_last_option_and_version_macros() {
+        for (spelling, mode, version) in [
+            ("c99", LanguageMode::C99, "199901L"),
+            ("c9x", LanguageMode::C99, "199901L"),
+            ("iso9899:1999", LanguageMode::C99, "199901L"),
+            ("gnu9x", LanguageMode::Gnu99, "199901L"),
+            ("c17", LanguageMode::C17, "201710L"),
+            ("c18", LanguageMode::C17, "201710L"),
+            ("iso9899:2018", LanguageMode::C17, "201710L"),
+            ("gnu18", LanguageMode::Gnu17, "201710L"),
+        ] {
+            let args = vec!["-std=c90".into(), format!("-std={spelling}")];
+            let config = from_arguments(&args, Some("x86_64-unknown-linux-gnu")).unwrap();
+            assert_eq!(config.language_mode(), mode);
+            assert_eq!(config.preprocessor.defines["__STDC_VERSION__"], version);
+        }
+    }
+
     #[test]
     fn mode_predefines_and_explicit_macros_preserve_driver_order() {
         for (args, mode, strict, trigraphs) in [

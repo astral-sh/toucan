@@ -209,6 +209,21 @@ def toucan_flags(flags: list[str], cwd: Path) -> dict:
                 "iso9899:1990": "c90",
                 "gnu90": "gnu90",
                 "gnu89": "gnu90",
+                "c99": "c99",
+                "c9x": "c99",
+                "iso9899:1999": "c99",
+                "iso9899:199x": "c99",
+                "gnu99": "gnu99",
+                "gnu9x": "gnu99",
+                "c17": "c17",
+                "c18": "c17",
+                "iso9899:2017": "c17",
+                "iso9899:2018": "c17",
+                "gnu17": "gnu17",
+                "gnu18": "gnu17",
+                "c1x": "c11",
+                "iso9899:2011": "c11",
+                "gnu1x": "gnu11",
             }
             if mode in modes:
                 language_mode = modes[mode]

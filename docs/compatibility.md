@@ -1032,7 +1032,7 @@ macOS and ARM calls remain CI gates.
 
 ### Language modes
 
-[C90, GNU90, C11, and GNU11](language-modes.md) select syntax, declaration rules,
+[C90 through C17 and their GNU modes](language-modes.md) select syntax, declaration rules,
 standard-mode macros, and trigraph defaults independently of the compiler family.
 GNU11 is the default. C90 supports implicit-int declarations and ordinary
 implicit function declarations, including retained scope and call records.

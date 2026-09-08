@@ -230,7 +230,7 @@ fn profile_language_mode_round_trips_and_old_profiles_default_to_gnu11() {
         "gnu89".parse::<LanguageMode>().unwrap(),
         LanguageMode::Gnu90
     );
-    assert!("c17".parse::<LanguageMode>().is_err());
+    assert!("c23".parse::<LanguageMode>().is_err());
 }
 
 #[test]

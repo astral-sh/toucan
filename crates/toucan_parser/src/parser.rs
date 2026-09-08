@@ -1754,7 +1754,7 @@ fn __parse_character_constant<'input>(__input: &'input str, __state: &mut ParseS
                         Failed => {
                             let __seq_res = {
                                 __state.suppress_fail += 1;
-                                let __assert_res = __parse_c11_guard(__input, __state, __pos, env);
+                                let __assert_res = __parse_unicode_guard(__input, __state, __pos, env);
                                 __state.suppress_fail -= 1;
                                 match __assert_res {
                                     Matched(_, __value) => Matched(__pos, __value),
@@ -2120,7 +2120,7 @@ fn __parse_encoding_prefix<'input>(__input: &'input str, __state: &mut ParseStat
             Failed => {
                 let __seq_res = {
                     __state.suppress_fail += 1;
-                    let __assert_res = __parse_c11_guard(__input, __state, __pos, env);
+                    let __assert_res = __parse_unicode_guard(__input, __state, __pos, env);
                     __state.suppress_fail -= 1;
                     match __assert_res {
                         Matched(_, __value) => Matched(__pos, __value),
@@ -12224,7 +12224,7 @@ fn __parse_type_qualifier0<'input>(__input: &'input str, __state: &mut ParseStat
                         let __choice_res = {
                             let __seq_res = {
                                 __state.suppress_fail += 1;
-                                let __assert_res = __parse_c11_guard(__input, __state, __pos, env);
+                                let __assert_res = __parse_c99_guard(__input, __state, __pos, env);
                                 __state.suppress_fail -= 1;
                                 match __assert_res {
                                     Matched(_, __value) => Matched(__pos, __value),
@@ -24342,15 +24342,39 @@ fn __parse_c90_guard<'input>(__input: &'input str, __state: &mut ParseState<'inp
     if __state.budget.failure.is_some() { Failed } else { result }
 }
 
-fn __parse_c11_guard<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<()> {
+fn __parse_c99_guard<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<()> {
     #![allow(non_snake_case, unused)]
     if !__state.budget.enter(__pos) { return Failed; }
     let result = (|| {
     match {
-        if env.standard == ::driver::Standard::C11 {
+        if env.standard != ::driver::Standard::C90 {
             Ok(())
         } else {
-            Err("C11 syntax disabled")
+            Err("C99 syntax disabled")
+        }
+    } {
+        Ok(res) => Matched(__pos, res),
+        Err(expected) => {
+            __state.mark_failure(__pos, expected);
+            Failed
+        }
+    }
+
+    })();
+    let end = match &result { Matched(end, _) => Some(*end), Failed => None };
+    __state.budget.leave(__pos, end);
+    if __state.budget.failure.is_some() { Failed } else { result }
+}
+
+fn __parse_unicode_guard<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<()> {
+    #![allow(non_snake_case, unused)]
+    if !__state.budget.enter(__pos) { return Failed; }
+    let result = (|| {
+    match {
+        if matches!(env.standard, ::driver::Standard::C11 | ::driver::Standard::C17) || (env.standard == ::driver::Standard::C99 && env.gnu_keywords && env.gnu_unicode_literals) {
+            Ok(())
+        } else {
+            Err("UTF-prefixed literals disabled")
         }
     } {
         Ok(res) => Matched(__pos, res),
@@ -24371,7 +24395,7 @@ fn __parse_inline_guard<'input>(__input: &'input str, __state: &mut ParseState<'
     if !__state.budget.enter(__pos) { return Failed; }
     let result = (|| {
     match {
-        if env.standard == ::driver::Standard::C11 || env.gnu_keywords {
+        if env.standard != ::driver::Standard::C90 || env.gnu_keywords {
             Ok(())
         } else {
             Err("inline keyword disabled")

@@ -103,7 +103,16 @@ def main():
             (args.clang, "x86_64-unknown-linux-gnu", "clang"),
             (args.clang, "x86_64-pc-windows-msvc", "msvc"),
         ]:
-            for mode in ["c90", "gnu90", "c11", "gnu11"]:
+            for mode in [
+                "c90",
+                "gnu90",
+                "c99",
+                "gnu99",
+                "c11",
+                "gnu11",
+                "c17",
+                "gnu17",
+            ]:
                 key = f"{family}:{'gnu90' if mode.endswith('90') else 'gnu11'}"
                 for case in cases:
                     record = probe(case, compiler, target, mode, output)

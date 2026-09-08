@@ -18,7 +18,11 @@ fuzz_target!(|bytes: &[u8]| {
             toucan::LanguageMode::C11,
             toucan::LanguageMode::Gnu90,
             toucan::LanguageMode::C90,
-        ][(selector >> 8) & 3]);
+            toucan::LanguageMode::Gnu99,
+            toucan::LanguageMode::C99,
+            toucan::LanguageMode::Gnu17,
+            toucan::LanguageMode::C17,
+        ][(selector >> 8) & 7]);
     let mut config = toucan::Config::with_profile(profile);
     config.preprocessor.allow_filesystem = false;
     config.preprocessor.max_tokens = 4096;

@@ -581,7 +581,9 @@ pub struct FieldLayout {
 /// A target selection or object layout failure.
 #[derive(Debug, Error)]
 pub enum LayoutError {
-    #[error("unsupported C language mode `{0}`; expected c90, gnu90, c11, or gnu11")]
+    #[error(
+        "unsupported C language mode `{0}`; expected c90, gnu90, c99, gnu99, c11, gnu11, c17, or gnu17"
+    )]
     UnsupportedLanguageModeName(String),
     #[error("unsupported compiler `{0}`; expected gcc or clang")]
     UnsupportedCompilerName(String),
