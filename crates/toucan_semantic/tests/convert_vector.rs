@@ -196,14 +196,6 @@ _Static_assert(__builtin_convertvector((I4){1,2,3,4},F4)[0]==1,"lane");
         false,
     ),
     (
-        "static_init",
-        r#"typedef int I4 __attribute__((vector_size(16))); typedef unsigned U4 __attribute__((vector_size(16))); typedef float F4 __attribute__((vector_size(16))); typedef short S4 __attribute__((vector_size(8))); typedef double D2 __attribute__((vector_size(16))); typedef int I2 __attribute__((vector_size(8))); typedef _Float16 H4 __attribute__((vector_size(8))); typedef I4 AI4 __attribute__((aligned(32)));
-F4 x=__builtin_convertvector((I4){1,2,3,4},F4);
-"#,
-        false,
-        false,
-    ),
-    (
         "query_sideeffects",
         r#"typedef int I4 __attribute__((vector_size(16))); typedef unsigned U4 __attribute__((vector_size(16))); typedef float F4 __attribute__((vector_size(16))); typedef short S4 __attribute__((vector_size(8))); typedef double D2 __attribute__((vector_size(16))); typedef int I2 __attribute__((vector_size(8))); typedef _Float16 H4 __attribute__((vector_size(8))); typedef I4 AI4 __attribute__((aligned(32)));
 int n; enum{X=__builtin_constant_p(__builtin_convertvector((n++,(I4){1}),F4))};
@@ -226,6 +218,21 @@ fn vector_conversion_constraints_match_compiler_profiles() {
                 "{name}: {profile:?}"
             );
         }
+    }
+}
+#[test]
+fn static_conversion_has_an_explicit_frontend_limitation() {
+    // Apple Clang accepts this extension, while upstream Clang 18 rejects it.
+    // This is a missing evaluator feature, not a universal C constraint.
+    let source = include_str!("fixtures/static_convert_vector.c");
+    for profile in CompilerProfile::ALL {
+        let error = check(source, profile).unwrap_err();
+        assert!(
+            error
+                .message
+                .contains("static vector expression evaluation is unsupported"),
+            "{profile:?}: {error}"
+        );
     }
 }
 #[test]

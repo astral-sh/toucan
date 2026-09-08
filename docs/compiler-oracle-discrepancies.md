@@ -159,5 +159,20 @@ and callbacks, and reports the discrepancy in the dedicated CI step. Other
 outputs, crashes, and compiler versions fail normally; a compiler that fixes the
 bug passes normally. The checked graph continues to require all four bounds in
 the two definition forms. This exception supplies no runtime-equivalence evidence
-for the affected old-style definition. The new prototype control still needs its
-macOS CI run.
+for the affected old-style definition. The prototype controls subsequently passed on both native macOS architectures;
+the logs are retained with the [vector-initializer observations](../corpus/evidence/vector-initializer-oracles-2026-09-08/summary.json).
+
+## Static vector conversions across Clang releases
+
+Apple Clang 17 (`clang-1700.0.13.5`) accepts a file-scope float-vector initializer
+formed by converting an integer-vector compound literal. GCC 13.3 and upstream
+Clang 18.1.3 reject the same source. Both macOS unit jobs exposed the stale
+assumption that this extension must be rejected by every Clang release.
+
+The [recorded source and compiler observations](../corpus/evidence/vector-initializer-oracles-2026-09-08/summary.json)
+preserve both macOS logs and fresh local diagnostics. Toucan currently diagnoses
+static vector-expression evaluation as unsupported; that is an implementation
+gap, separate from the native compiler's source constraints. The focused regression
+requires that explicit diagnostic. Native conversion constraints and runtime lane
+checks remain enabled. Static vector evaluation and compiler-version differences
+need their own implementation and value probes before broader support is claimed.

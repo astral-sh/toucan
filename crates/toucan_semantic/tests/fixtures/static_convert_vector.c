@@ -1,0 +1,2 @@
+typedef int I4 __attribute__((vector_size(16))); typedef unsigned U4 __attribute__((vector_size(16))); typedef float F4 __attribute__((vector_size(16))); typedef short S4 __attribute__((vector_size(8))); typedef double D2 __attribute__((vector_size(16))); typedef int I2 __attribute__((vector_size(8))); typedef _Float16 H4 __attribute__((vector_size(8))); typedef I4 AI4 __attribute__((aligned(32)));
+F4 x=__builtin_convertvector((I4){1,2,3,4},F4);
