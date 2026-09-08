@@ -11,7 +11,7 @@ fn ordered_headers_include_paths_and_options_generate_one_module() {
     .unwrap();
     let builder = Builder::default()
         .header("first.h")
-        .header("second.h")
+        .header(dir.path().join("second.h").to_str().unwrap())
         .clang_args([
             "-I",
             dir.path().to_str().unwrap(),

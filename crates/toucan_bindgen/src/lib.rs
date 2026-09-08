@@ -7,9 +7,12 @@
 //! unless an explicit `--target` argument overrides it.
 
 mod arguments;
+pub mod callbacks;
+mod selection;
 
 use std::fmt;
-use std::path::Path;
+use std::path::{Path, PathBuf};
+use std::rc::Rc;
 
 use toucan::{BindingOptions, Compiler, CompilerProfile, Config, MacroType, Target};
 
@@ -53,6 +56,8 @@ pub struct Builder {
     headers: Vec<String>,
     arguments: Vec<String>,
     options: BindingOptions,
+    allowlist_files: Vec<String>,
+    callbacks: Vec<Rc<dyn callbacks::ParseCallbacks>>,
     error: Option<String>,
 }
 
@@ -67,6 +72,8 @@ impl Default for Builder {
                 rust_target: RustTarget::default().0,
                 ..BindingOptions::default()
             },
+            allowlist_files: Vec::new(),
+            callbacks: Vec::new(),
             error: None,
         }
     }
@@ -76,6 +83,20 @@ impl Builder {
     /// Add a header, in translation-unit order.
     pub fn header(mut self, header: impl Into<String>) -> Self {
         self.headers.push(header.into());
+        self
+    }
+
+    /// Select declarations physically originating in matching headers. Patterns
+    /// are Rust regular expressions anchored to the compiler-visible access name. Dependencies
+    /// are included; logical `#line` filenames do not change file selection.
+    pub fn allowlist_file(mut self, pattern: impl AsRef<str>) -> Self {
+        self.allowlist_files.push(pattern.as_ref().into());
+        self
+    }
+
+    /// Register caller-thread policies. Later callbacks are consulted first.
+    pub fn parse_callbacks(mut self, callback: Box<dyn callbacks::ParseCallbacks>) -> Self {
+        self.callbacks.push(Rc::from(callback));
         self
     }
 
@@ -184,26 +205,37 @@ impl Builder {
     }
 
     /// Preprocess all headers together and generate bindings using the selected target.
-    pub fn generate(self) -> Result<Bindings, BindgenError> {
+    pub fn generate(mut self) -> Result<Bindings, BindgenError> {
         if let Some(error) = self.error {
             return Err(configuration(error));
         }
         if self.headers.is_empty() {
             return Err(configuration("at least one header is required"));
         }
-        let config = arguments::configuration(&self.arguments)?;
-        let mut source = String::new();
-        for header in self.headers {
-            if header.is_empty() || header.contains(['"', '\n', '\r', '\0']) {
-                return Err(configuration(
-                    "header name cannot be empty or contain quotes, newlines, or NUL",
-                ));
-            }
-            use fmt::Write;
-            writeln!(source, "#include \"{header}\"").unwrap();
+        let files = selection::file_patterns(&self.allowlist_files)?;
+        let mut config = arguments::configuration(&self.arguments)?;
+        config.analysis.retain_declaration_origins = files.is_some() || !self.callbacks.is_empty();
+        config.preprocessor.record_file_origins = files.is_some();
+        let paths = self
+            .headers
+            .into_iter()
+            .map(|header| {
+                if header.is_empty() || header.contains('\0') {
+                    return Err(configuration("header name cannot be empty or contain NUL"));
+                }
+                Ok(PathBuf::from(header))
+            })
+            .collect::<Result<Vec<_>, _>>()?;
+        let compilation = toucan::parse_files(&paths, &config)?;
+        if config.analysis.retain_declaration_origins {
+            self.options.emit_function_definitions = true;
+            selection::apply(
+                &compilation,
+                files.as_ref(),
+                &self.callbacks,
+                &mut self.options,
+            )?;
         }
-        let compilation =
-            toucan::parse_source(Path::new("__toucan_bindgen__.h"), &source, &config)?;
         let (source, report) = compilation.bindings(&self.options)?;
         Ok(Bindings { source, report })
     }

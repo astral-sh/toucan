@@ -32,6 +32,7 @@ pub struct DeclarationOrigin {
     definition: bool,
     external: bool,
     reference: bool,
+    inline: bool,
 }
 
 impl DeclarationOrigin {
@@ -49,6 +50,13 @@ impl DeclarationOrigin {
     /// Such uses are not independent header allowlist roots.
     pub fn is_reference(&self) -> bool {
         self.reference
+    }
+
+    /// Inline fact at this occurrence: GNU records the written specifier, while
+    /// Clang also inherits earlier inline declarations. A later inline definition
+    /// remains a separate occurrence of the same target.
+    pub fn is_inline(&self) -> bool {
+        self.inline
     }
 
     /// Whether this occurrence supplies a definition.
@@ -80,7 +88,7 @@ impl DeclarationOrigins {
 }
 
 pub(crate) struct Builder {
-    entries: Vec<(DeclarationTarget, Span, bool, bool, bool)>,
+    entries: Vec<(DeclarationTarget, Span, bool, bool, bool, bool)>,
 }
 
 impl Builder {
@@ -97,6 +105,7 @@ impl Builder {
         definition: bool,
         external: bool,
         reference: bool,
+        inline: bool,
     ) -> Result<(), Error> {
         if self.entries.len() == MAX_ORIGINS {
             return Err(Error::new(
@@ -105,13 +114,13 @@ impl Builder {
             ));
         }
         self.entries
-            .push((target, source, definition, external, reference));
+            .push((target, source, definition, external, reference, inline));
         Ok(())
     }
 
     /// Standalone `struct S;`/`enum E;` declarations redeclare visible tags.
     pub(crate) fn standalone_tag(&mut self, source: Span) {
-        if let Some((_, span, _, _, reference)) = self.entries.last_mut()
+        if let Some((_, span, _, _, reference, _)) = self.entries.last_mut()
             && span.start == source.start
         {
             *reference = false;
@@ -123,7 +132,7 @@ impl Builder {
         let mut entries = self
             .entries
             .into_iter()
-            .map(|(target, span, definition, external, reference)| {
+            .map(|(target, span, definition, external, reference, inline)| {
                 let source = crate::checked::map_source_span(offsets, span, |_, bytes| {
                     fragment_bytes = fragment_bytes
                         .checked_add(bytes)
@@ -142,6 +151,7 @@ impl Builder {
                     definition,
                     external,
                     reference,
+                    inline,
                 })
             })
             .collect::<Result<Vec<_>, Error>>()?;

@@ -1816,6 +1816,9 @@ impl Analyzer {
                     .function_options
                     .insert(declaration_index, options.clone());
             }
+            let origin_inline = self.declaration_origins.is_some()
+                && kind == DeclarationKind::Function
+                && self.origin_function_inline(&self.unit.declarations[declaration_index].name);
             if let Some(origins) = &mut self.declaration_origins {
                 origins.push(
                     crate::DeclarationTarget::Declaration(declaration_index),
@@ -1823,6 +1826,7 @@ impl Analyzer {
                     is_definition,
                     kind != DeclarationKind::Typedef && !is_static,
                     false,
+                    origin_inline,
                 )?;
             }
             let checked_site = if let Some(checked) = &mut self.checked {
@@ -3976,6 +3980,7 @@ impl Analyzer {
                 declaration.node.declarations.is_some(),
                 false,
                 reference,
+                false,
             )?;
         }
         if let Some(checked) = &mut self.checked {
@@ -4342,6 +4347,7 @@ impl Analyzer {
                 !declaration.node.enumerators.is_empty(),
                 false,
                 reference,
+                false,
             )?;
         }
         if let Some(checked) = &mut self.checked {
@@ -4415,6 +4421,7 @@ impl Analyzer {
                     },
                     enumerator.node.identifier.span,
                     true,
+                    false,
                     false,
                     false,
                 )?;

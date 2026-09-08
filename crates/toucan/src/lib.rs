@@ -10,7 +10,9 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions, RustTarget};
+pub use toucan_bindings::{
+    BindingSelection, Bindings, MacroType, Options as BindingOptions, RustTarget,
+};
 pub use toucan_preprocessor::{
     CommandLineMacroNormalizer, FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude,
     LineComments, MacroDefinition, OriginKind, PredefinedMacroMode, QueryDialect, SourceLocation,
@@ -350,10 +352,10 @@ impl Compilation {
         let mut floating_macros = 0;
         let mut string_macros = 0;
         for (name, definition) in &self.preprocessed.macros {
-            if !options.includes(name)
+            if !options.includes_macro(name)
                 || (name.starts_with("__")
                     && !declared_names.contains(name.as_str())
-                    && options.allowlist.is_empty())
+                    && options.selects_all())
             {
                 continue;
             }

@@ -116,3 +116,39 @@ fn tag_references_are_distinct_from_new_and_standalone_declarations() {
     assert_eq!(tags[1].target(), tags[3].target());
     assert_eq!(tags[1].target(), tags[5].target());
 }
+
+#[test]
+fn inline_origin_facts_keep_written_and_inherited_occurrences() {
+    let source = "int f(int); inline int f(int); int f(int x){return x;}";
+    for profile in CompilerProfile::ALL {
+        let analysis = analyze_with_profile(
+            source,
+            profile,
+            &AnalysisOptions {
+                retain_declaration_origins: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let entries: Vec<_> = analysis
+            .declaration_origins()
+            .unwrap()
+            .entries()
+            .iter()
+            .filter(|origin| matches!(origin.target(), DeclarationTarget::Declaration(_)))
+            .collect();
+        assert_eq!(entries.len(), 3);
+        assert_eq!(
+            entries
+                .iter()
+                .map(|origin| origin.is_inline())
+                .collect::<Vec<_>>(),
+            [
+                false,
+                true,
+                profile.compiler() == toucan_target::Compiler::Clang
+            ]
+        );
+        assert!(entries[2].is_definition());
+    }
+}

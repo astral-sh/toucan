@@ -96,3 +96,47 @@ For complete application paths, `scripts/verify_astral_builder.py` builds pinned
 ty and uv through zstd-sys's unchanged build script and compares their compression
 tests and CLI behavior. The [consumer guide](../../docs/astral-consumers.md#run-the-unchanged-bindgen-build-script)
 describes the manifest-only activation and source/lock/artifact checks.
+
+## Physical header selection and generated names
+
+`allowlist_file(pattern)` accepts Rust regular expressions anchored to the whole
+compiler-visible access name, before diagnostic `#line` remapping. Repeated patterns select their union. Logical `#line` names
+have no effect. Selection keeps tag and ordinary namespaces separate; required
+type dependencies are included. A nonmatching pattern selects no declarations.
+The adapter captures a lightweight declaration/file catalog for this policy,
+without retaining checked expressions, bodies, or initializers.
+
+`parse_callbacks(Box<dyn callbacks::ParseCallbacks>)` supports
+`generated_name_override(ItemInfo)`. Callbacks run synchronously on the calling
+thread and may contain `Rc` or `RefCell`; they need not be `Send` or `Sync`.
+Callbacks are tried newest first until one returns a name, before file filtering.
+Compatible redeclarations are visited in source order. The first selected
+occurrence supplies the emitted name, while the original C symbol remains its
+`link_name`. Only functions and externally linked objects use this callback;
+inline function candidates are excluded before invocation, while static function
+prototypes still invoke it. Generated names must be ASCII identifiers, use
+Toucan's existing reserved-identifier escaping, and cannot collide with another
+selected Rust value.
+
+This first policy layer follows final active macro definitions. In particular,
+`#undef` removes a macro and a replacement definition supplies the final value.
+Pinned bindgen 0.72.1 instead parses macro definitions sequentially and preserves
+previous parsed values through `#undef`; matching that behavior is separate adapter
+work. The unchanged AWS-LC 0.44.0 crypto-only configuration examined here has no
+redefinition/undef history difference: its 7,900 selected definitions have identical
+first and final replacements and file-selection membership. This control concerns
+definition history, independently of macro expression/type policy.
+`push_macro` and `pop_macro` remain unsupported.
+
+Origin-aware selection emits ordinary externally linked C function definitions
+and excludes inline candidates. The unrestricted legacy Builder path still uses
+the core emitter's definition-skipping policy; a separate default eligibility
+layer will close that compatibility gap without enabling full origin capture.
+Enum naming/derive/comment/format policies are independent APIs and are not added
+by file selection or callbacks.
+
+Relative main names such as `root.h` and included names such as `./a.h` remain
+available to file patterns. Ordered headers use native `-include` processing for
+all but the last main header. Dependencies keep canonical filesystem identities;
+symlink-relative lookup and compiler-visible access spelling follow the selected
+compiler's file-name rules.

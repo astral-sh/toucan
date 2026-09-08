@@ -8,6 +8,10 @@
 mod atomic;
 mod complex;
 mod external;
+mod renaming;
+mod selection;
+
+pub use selection::BindingSelection;
 
 pub use external::{ExternalType, ExternalTypeKind};
 
@@ -21,8 +25,17 @@ use toucan_semantic::{
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
-    /// Exact names or prefixes ending in `*`. Empty selects all declarations.
+    /// Exact names or prefixes ending in `*`. Empty selects all unless explicit roots are supplied.
     pub allowlist: Vec<String>,
+    /// Owner-local roots selected independently of C identifier spelling.
+    /// Name allowlists and explicit roots are combined; `Some(empty)` selects no roots.
+    pub selection: Option<Box<BindingSelection>>,
+    /// Rust names for functions and external objects, keyed by original C spelling.
+    /// Native symbol names remain unchanged. Selected value-name collisions are errors.
+    pub generated_names: BTreeMap<String, String>,
+    /// Emit externally linked functions even when their C definition is present.
+    /// The caller must still link the C object providing that definition.
+    pub emit_function_definitions: bool,
     /// Emit Rust enums with named variants instead of integer aliases. Values
     /// outside the declared variants are invalid Rust enum values.
     pub rustified_enums: bool,
@@ -123,7 +136,7 @@ pub enum MacroType {
 
 impl Options {
     pub fn includes(&self, name: &str) -> bool {
-        self.allowlist.is_empty()
+        self.selects_all()
             || self
                 .allowlist
                 .iter()
@@ -308,6 +321,36 @@ pub fn generate_with_macros(
     unit.validate_function_options()?;
     unit.validate_parameter_contracts()?;
     options.validate_dll_import_libraries()?;
+    options.validate_generated_names(unit)?;
+    if let Some(selection) = &options.selection {
+        selection.validate(unit)?;
+    }
+    // A selected typedef declaration also explicitly selects its alias name.
+    // Normalize only this opt-in case; ordinary generation keeps borrowed options.
+    let normalized = options.selection.as_ref().and_then(|roots| {
+        let aliases: Vec<_> = roots
+            .declarations
+            .iter()
+            .filter_map(|&id| {
+                let declaration = &unit.declarations[id];
+                (declaration.kind == DeclarationKind::Typedef
+                    && !roots.typedefs.contains(&declaration.name))
+                .then_some(&declaration.name)
+            })
+            .collect();
+        if aliases.is_empty() {
+            return None;
+        }
+        let mut normalized = options.clone();
+        normalized
+            .selection
+            .as_mut()
+            .unwrap()
+            .typedefs
+            .extend(aliases.into_iter().cloned());
+        Some(normalized)
+    });
+    let options = normalized.as_ref().unwrap_or(options);
     if let Some(namespace) = &options.helper_namespace
         && (namespace.is_empty()
             || !namespace.bytes().enumerate().all(|(index, byte)| {
@@ -321,25 +364,41 @@ pub fn generate_with_macros(
     let declaration_names: BTreeSet<_> = unit
         .declarations
         .iter()
-        .filter(|item| {
-            item.kind != DeclarationKind::Function || !options.blocks_function(&item.name)
+        .enumerate()
+        .filter(|(index, item)| {
+            (item.kind != DeclarationKind::Function || !options.blocks_function(&item.name))
+                && (options.selection.is_none()
+                    || options.includes_declaration(*index, &item.name, item.kind))
         })
-        .map(|item| item.name.as_str())
+        .map(|(_, item)| item.name.as_str())
         .chain(
             unit.records
                 .iter()
-                .filter(|item| item.scope == Scope::File)
-                .filter_map(|item| item.name.as_deref()),
+                .enumerate()
+                .filter(|(id, item)| {
+                    item.scope == Scope::File
+                        && (options.selection.is_none()
+                            || options.includes_record(*id, item.name.as_deref()))
+                })
+                .filter_map(|(_, item)| item.name.as_deref()),
         )
         .chain(
             unit.enums
                 .iter()
-                .filter(|item| item.scope == Scope::File)
-                .filter_map(|item| item.name.as_deref()),
+                .enumerate()
+                .filter(|(id, item)| {
+                    item.scope == Scope::File
+                        && (options.selection.is_none()
+                            || options.includes_enum(*id, item.name.as_deref()))
+                })
+                .filter_map(|(_, item)| item.name.as_deref()),
         )
         .collect();
     for (name, value) in macros {
-        if value.is_some() && options.includes(name) && declaration_names.contains(name.as_str()) {
+        if value.is_some()
+            && options.includes_macro(name)
+            && declaration_names.contains(name.as_str())
+        {
             return Err(Error(format!(
                 "macro `{name}` conflicts with a C declaration; their Rust names cannot both be emitted"
             )));
@@ -355,6 +414,7 @@ pub fn generate_with_macros(
                 .chain(unit.typedefs.keys().map(String::as_str))
                 .chain(unit.constants.keys().map(String::as_str))
                 .chain(macros.keys().map(String::as_str))
+                .chain(options.generated_names.values().map(String::as_str))
                 .chain(
                     unit.records
                         .iter()
@@ -381,15 +441,17 @@ pub fn generate_with_macros(
     let mut skipped = Vec::new();
     let mut blocked_functions = Vec::new();
     let mut seen = BTreeSet::new();
-    for declaration in &unit.declarations {
-        if !options.includes(&declaration.name) || !seen.insert(declaration.name.clone()) {
+    for (index, declaration) in unit.declarations.iter().enumerate() {
+        if !options.includes_declaration(index, &declaration.name, declaration.kind)
+            || !seen.insert(declaration.name.clone())
+        {
             continue;
         }
         // These reserved names are normally compiler aliases injected by the facade.
         // With an old Rust target, omit them as implicit selection roots. Dependencies
         // and explicit selections still reach the ABI representation check.
         if options.rust_target.minor < 78
-            && options.allowlist.is_empty()
+            && options.selects_all()
             && declaration.kind == DeclarationKind::Typedef
             && matches!(declaration.name.as_str(), "__int128_t" | "__uint128_t")
         {
@@ -434,6 +496,7 @@ pub fn generate_with_macros(
         if declaration.is_static
             || (declaration.kind == DeclarationKind::Function
                 && declaration.is_definition
+                && !options.emit_function_definitions
                 && declaration.dll_storage_class != Some(toucan_semantic::DllStorageClass::Import))
         {
             skipped.push(declaration.name.clone());
@@ -458,6 +521,7 @@ pub fn generate_with_macros(
         }
         selected.push(declaration);
     }
+    emitter.validate_generated_collisions(&selected, macros)?;
     let mut dll_symbols = BTreeMap::new();
     for declaration in &selected {
         if declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
@@ -477,12 +541,7 @@ pub fn generate_with_macros(
         }
     }
     for (id, record) in unit.records.iter().enumerate() {
-        if record.scope == Scope::File
-            && record
-                .name
-                .as_ref()
-                .is_some_and(|name| options.includes(name))
-        {
+        if record.scope == Scope::File && options.includes_record(id, record.name.as_deref()) {
             let ty = Type::new(TypeKind::Record(id));
             if !emitter.register_external(&ty, false, false)? {
                 emitter.collect(&ty)?;
@@ -491,13 +550,15 @@ pub fn generate_with_macros(
     }
     for (id, enumeration) in unit.enums.iter().enumerate() {
         if enumeration.scope == Scope::File
-            && enumeration
-                .name
-                .as_ref()
-                .is_some_and(|name| options.includes(name))
+            && options.includes_enum(id, enumeration.name.as_deref())
             && !emitter.register_external(&Type::new(TypeKind::Enum(id)), false, false)?
         {
             emitter.enums.insert(id);
+        }
+    }
+    if let Some(selection) = &options.selection {
+        for name in &selection.typedefs {
+            emitter.collect_use_at(&Type::new(TypeKind::Typedef(name.clone())), 0, false)?;
         }
     }
     emitter.prepare_atomic_records()?;
@@ -540,7 +601,7 @@ pub fn generate_with_macros(
         let rust_name = emitter.names.identifier(name)?;
         let rust_type = if options.size_t_is_usize && name == "size_t" {
             let rust_type = emitter.size_t_type(ty)?;
-            if !options.includes(name) {
+            if !options.includes_typedef(name) {
                 continue;
             }
             rust_type
@@ -573,7 +634,7 @@ pub fn generate_with_macros(
             if enum_owners.insert(variant.name.as_str(), id).is_some() {
                 return Err(Error(format!("duplicate enumerator `{}`", variant.name)));
             }
-            if options.includes(&variant.name) && !macros.contains_key(&variant.name) {
+            if options.includes_constant(&variant.name) && !macros.contains_key(&variant.name) {
                 let value = unit.constants.get(&variant.name).ok_or_else(|| {
                     Error(format!("missing enumerator constant `{}`", variant.name))
                 })?;
@@ -601,7 +662,7 @@ pub fn generate_with_macros(
         if emitter.blocked_enumerator(name) {
             continue;
         }
-        if options.includes(name) && !macros.contains_key(name) {
+        if options.includes_constant(name) && !macros.contains_key(name) {
             let value = if let Some(&id) = enum_owners.get(name.as_str()) {
                 let (bits, signed) = emitter.enum_integer(id)?;
                 convert_enum_constant(*value, bits, signed)?
@@ -621,7 +682,7 @@ pub fn generate_with_macros(
     };
     let mut active_block = None;
     for declaration in &selected {
-        let name = emitter.names.identifier(&declaration.name)?;
+        let name = emitter.generated_name(&declaration.name)?;
         let abi = match declaration.kind {
             DeclarationKind::Typedef => continue,
             DeclarationKind::Function => {
@@ -698,7 +759,7 @@ pub fn generate_with_macros(
     let mut renamed_macros = BTreeMap::new();
     let mut macro_types = Vec::new();
     for (name, value) in macros {
-        if !options.includes(name) {
+        if !options.includes_macro(name) {
             continue;
         }
         let Some(value) = value else {
@@ -1473,7 +1534,7 @@ impl Emitter<'_> {
             TypeKind::Enum(id) => self.enum_name(*id)?,
             TypeKind::Typedef(name) => {
                 // A C function typedef denotes the function, not a nullable pointer.
-                if self.options.size_t_is_usize && name == "size_t" && !self.options.includes(name)
+                if self.options.size_t_is_usize && name == "size_t" && !self.options.includes_typedef(name)
                 {
                     self.size_t_type(ty)?
                 } else if let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind {

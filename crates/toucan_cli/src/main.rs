@@ -400,6 +400,9 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 .collect::<Result<Vec<_>, _>>()?;
             let compilation = toucan::parse_file(&input.header, &input.config(arguments, false)?)?;
             let (source, metadata) = compilation.bindings(&BindingOptions {
+                selection: None,
+                generated_names: Default::default(),
+                emit_function_definitions: false,
                 no_layout_tests: false,
                 allowlist,
                 rustified_enums,

@@ -282,6 +282,15 @@ impl Analyzer {
         }
     }
 
+    /// Effective inline state at the most recently checked declaration.
+    pub(crate) fn origin_function_inline(&self, name: &str) -> bool {
+        self.inline_registry
+            .as_ref()
+            .and_then(|registry| registry.histories.get(name))
+            .and_then(|history| history.declarations.last())
+            .is_some_and(|declaration| declaration.inlined)
+    }
+
     /// Later declarations can force a C11 or GNU inline body to own the external
     /// definition. Finalize after the entire translation unit has been checked.
     pub(crate) fn finish_inline_definitions(&mut self) -> Result<(), Error> {
