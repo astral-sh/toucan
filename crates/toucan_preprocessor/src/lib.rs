@@ -9,6 +9,9 @@ pub use file_origins::{FileMapping, FileOrigins};
 mod macro_definitions;
 pub use macro_definitions::MacroDefinition;
 use macro_definitions::MacroDefinitions;
+mod macro_redefinitions;
+use macro_redefinitions::{DefinitionLocation, MacroRedefinitions};
+pub use macro_redefinitions::{MacroRedefinition, MacroRedefinitionPolicy};
 
 mod comments;
 mod definitions;
@@ -46,6 +49,8 @@ pub struct Config {
     /// Capture successful written definitions in order, including later-undefined macros.
     /// The conservative retained-data estimate is bounded by `max_source_bytes`.
     pub record_macro_definitions: bool,
+    /// Strict by default. Compatibility replacement retains bounded diagnostics.
+    pub macro_redefinition_policy: MacroRedefinitionPolicy,
     /// Optional compiler feature-query operators. Standalone default: disabled.
     pub feature_queries: Option<FeatureQueries>,
     /// Replace trigraphs before physical line splicing. Standalone default: C11.
@@ -92,6 +97,7 @@ impl Default for Config {
         Self {
             record_file_origins: false,
             record_macro_definitions: false,
+            macro_redefinition_policy: MacroRedefinitionPolicy::Strict,
             feature_queries: None,
             trigraphs: true,
             scope_punctuator: false,
@@ -151,6 +157,7 @@ pub struct Preprocessed {
     pub mappings: Vec<SourceMapping>,
     file_origins: Option<Box<FileOrigins>>,
     macro_definitions: Option<Box<MacroDefinitions>>,
+    macro_redefinitions: Option<Box<MacroRedefinitions>>,
     config: Config,
     active_queries: u8,
     path: PathBuf,
@@ -171,6 +178,14 @@ impl Preprocessed {
         self.macro_definitions
             .as_deref()
             .map(MacroDefinitions::entries)
+    }
+
+    /// Accepted incompatible definitions in order. None means strict policy;
+    /// an empty slice means compatibility mode saw no incompatible definitions.
+    pub fn macro_redefinitions(&self) -> Option<&[MacroRedefinition]> {
+        self.macro_redefinitions
+            .as_deref()
+            .map(MacroRedefinitions::entries)
     }
 
     /// Whether the final environment contains a macro or active predefined operator.
@@ -295,6 +310,7 @@ pub struct Preprocessor {
     mappings: Vec<SourceMapping>,
     file_origins: Option<Box<FileOrigins>>,
     macro_definitions: Option<Box<MacroDefinitions>>,
+    macro_redefinitions: Option<Box<MacroRedefinitions>>,
 }
 
 /// Separates the read path, shared file identity, access spelling, and main-file rules.
@@ -382,6 +398,7 @@ impl Preprocessor {
             mappings: Vec::new(),
             file_origins: None,
             macro_definitions: None,
+            macro_redefinitions: None,
         }
     }
 
@@ -543,6 +560,9 @@ impl Preprocessor {
         self.mappings.clear();
         self.file_origins = self.config.record_file_origins.then(Box::default);
         self.macro_definitions = self.config.record_macro_definitions.then(Box::default);
+        self.macro_redefinitions = (self.config.macro_redefinition_policy
+            == MacroRedefinitionPolicy::RecordAndReplace)
+            .then(Box::default);
         self.source_bytes =
             self.config
                 .defines
@@ -586,7 +606,7 @@ impl Preprocessor {
             )
             .map_err(|message| Error::new(Path::new("<predefined>"), 1, message))?;
             self.tokens += definition.len();
-            self.define(&definition)
+            self.define(&definition, None)
                 .map_err(|message| Error::new(Path::new("<predefined>"), 1, message))?;
         }
         Ok(())
@@ -600,6 +620,7 @@ impl Preprocessor {
             mappings: std::mem::take(&mut self.mappings),
             file_origins: self.file_origins.take(),
             macro_definitions: self.macro_definitions.take(),
+            macro_redefinitions: self.macro_redefinitions.take(),
             config: self.config.clone(),
             active_queries: self.active_queries,
             path: path.to_owned(),
@@ -847,7 +868,16 @@ impl Preprocessor {
                 }
                 _ if !active => {}
                 "define" => {
-                    self.define(rest).map_err(&fail)?;
+                    let location = if self.macro_redefinitions.is_some() {
+                        rest.first().map(|name| DefinitionLocation {
+                            input,
+                            line: source.line_at(start + name.offset),
+                            column: source.column_at(start + name.offset),
+                        })
+                    } else {
+                        None
+                    };
+                    self.define(rest, location).map_err(&fail)?;
                     if let Some(definitions) = &mut self.macro_definitions {
                         let name = &rest[0];
                         definitions
@@ -1427,7 +1457,11 @@ impl Preprocessor {
             .find(|(path, _)| path.is_file())
     }
 
-    fn define(&mut self, tokens: &[Token]) -> Result<(), String> {
+    fn define(
+        &mut self,
+        tokens: &[Token],
+        location: Option<DefinitionLocation<'_>>,
+    ) -> Result<(), String> {
         let name = tokens
             .first()
             .filter(|token| token.kind == Kind::Identifier)
@@ -1522,10 +1556,14 @@ impl Preprocessor {
         if let Some(previous) = self.macros.get(&name.text)
             && !equivalent(previous, &definition, self.config.scope_punctuator)?
         {
-            return Err(format!(
-                "incompatible redefinition of macro `{}`",
-                name.text
-            ));
+            if let Some(records) = &mut self.macro_redefinitions {
+                records.record(&name.text, location, self.config.max_source_bytes)?;
+            } else {
+                return Err(format!(
+                    "incompatible redefinition of macro `{}`",
+                    name.text
+                ));
+            }
         }
         if let Some(kind) = FeatureQuery::from_name(&name.text) {
             self.active_queries &= !kind.bit();

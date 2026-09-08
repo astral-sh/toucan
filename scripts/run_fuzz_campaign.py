@@ -68,7 +68,7 @@ def archive_initial_corpus(corpus, output):
 
 
 def seed_preprocessor_policies(data):
-    """Select all 80 comment/query/trigraph/scope/macro-history settings."""
+    """Select all 160 comment/query/trigraph/scope/history/redefinition settings."""
     prefix, suffix = data + b"\n/* profile ", b" */\n"
     total = sum(prefix) + sum(suffix)
     for comments in range(5):
@@ -76,20 +76,22 @@ def seed_preprocessor_policies(data):
             for dialect in range(2):
                 for scope in (False, True):
                     for history in (False, True):
-                        # Five comment policies repeat after 2560 checksum values.
-                        # Cover that period without introducing a comment end.
-                        padding = next(
-                            b" " * spaces + bytes([byte])
-                            for spaces in range(81)
-                            for byte in range(33, 127)
-                            if byte not in (42, 47)
-                            and (total + 32 * spaces + byte) & 1 == dialect
-                            and bool((total + 32 * spaces + byte) & 2) == scope
-                            and bool((total + 32 * spaces + byte) & 4) == history
-                            and bool((total + 32 * spaces + byte) & 0x100) == trigraphs
-                            and ((total + 32 * spaces + byte) >> 9) % 5 == comments
-                        )
-                        yield prefix + padding + suffix
+                        for redefine in (False, True):
+                            # Five comment policies repeat after 2560 checksum values.
+                            # Cover that period without introducing a comment end.
+                            padding = next(
+                                b" " * spaces + bytes([byte])
+                                for spaces in range(81)
+                                for byte in range(33, 127)
+                                if byte not in (42, 47)
+                                and (total + 32 * spaces + byte) & 1 == dialect
+                                and bool((total + 32 * spaces + byte) & 2) == scope
+                                and bool((total + 32 * spaces + byte) & 4) == history
+                                and bool((total + 32 * spaces + byte) & 8) == redefine
+                                and bool((total + 32 * spaces + byte) & 0x100) == trigraphs
+                                and ((total + 32 * spaces + byte) >> 9) % 5 == comments
+                            )
+                            yield prefix + padding + suffix
 
 
 def run_fuzzer(command, root, output, seconds):
@@ -179,7 +181,10 @@ def main():
         "trigraph_selector": "sum(input bytes) & 0x100 != 0"
         if args.target == "preprocess"
         else None,
-        "preprocessor_selector_version": 4 if args.target == "preprocess" else None,
+        "preprocessor_selector_version": 5 if args.target == "preprocess" else None,
+        "macro_redefinition_selector": "sum(input bytes) & 8 != 0: record incompatible replacements; otherwise strict"
+        if args.target == "preprocess"
+        else None,
         "macro_definition_history_selector": "sum(input bytes) & 4 != 0"
         if args.target == "preprocess"
         else None,

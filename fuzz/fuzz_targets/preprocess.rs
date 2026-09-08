@@ -35,6 +35,11 @@ fuzz_target!(|bytes: &[u8]| {
         allow_filesystem: false,
         record_file_origins: true,
         record_macro_definitions: selector & 4 != 0,
+        macro_redefinition_policy: if selector & 8 == 0 {
+            toucan::MacroRedefinitionPolicy::Strict
+        } else {
+            toucan::MacroRedefinitionPolicy::RecordAndReplace
+        },
         feature_queries: Some(toucan::FeatureQueries::new(
             if selector & 1 == 0 {
                 toucan::QueryDialect::Gnu
@@ -83,6 +88,17 @@ fuzz_target!(|bytes: &[u8]| {
                 assert!(origins.macro_definition_name(name).is_some());
             }
         }
+        assert_eq!(output.macro_redefinitions().is_some(), selector & 8 != 0);
+        if let Some(records) = output.macro_redefinitions() {
+            assert!(records.len() <= 4096);
+            for record in records {
+                let location = record.location().expect("all definitions are source input");
+                assert!(location.line > 0 && location.column > 0);
+                assert_eq!(location.path.as_ref(), std::path::Path::new("fuzz-input.h"));
+                assert_eq!(record.accessed_path(), Some(location.path.as_ref()));
+                assert!(!record.name().is_empty());
+            }
+        }
         if let Some(definitions) = output.macro_definitions() {
             assert!(definitions.len() <= 4096);
             for definition in definitions {
@@ -95,4 +111,9 @@ fuzz_target!(|bytes: &[u8]| {
             }
         }
     }
+    let reset = preprocessor
+        .preprocess_str(std::path::Path::new("reset.h"), "")
+        .expect("empty source after reset");
+    assert_eq!(reset.macro_redefinitions().is_some(), selector & 8 != 0);
+    assert!(reset.macro_redefinitions().is_none_or(<[_]>::is_empty));
 });

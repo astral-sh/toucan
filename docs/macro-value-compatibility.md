@@ -67,10 +67,12 @@ Additional probes distinguish successful reference values from four reference
 aborts on out-of-range characters. Nine focused tests pass normally and under
 AddressSanitizer, including 2,048 bounded malformed inputs and growth limits.
 
-Toucan's strict preprocessor still rejects incompatible macro redefinitions that
-Clang admits with a warning. The two reference rows exercising that difference
-use independently captured definitions for this evaluator-only comparison; they
-do not establish full-pipeline acceptance. An explicit compatibility policy with
-retained diagnostics is separate work. Enum constants are excluded from the
-macro-only comparison. Final Builder output and unchanged-source AWS-LC builds
-remain integration gates.
+The frozen evaluator capture used strict preprocessing, so its two incompatible
+redefinition rows use independently captured definitions. The explicit
+`MacroRedefinitionPolicy::RecordAndReplace` policy now accepts those sources and
+retains diagnostics. Its [separate capture](../corpus/evidence/macro-redefinitions-2026-09-08/README.md)
+preserves the same values across all 48 complete history inputs. Binding reports
+retain accepted redefinitions with their current physical source location;
+configured definitions have no invented location. The ordinary strict policy is
+unchanged. Enum constants are excluded from the macro-only comparison. Final
+Builder output and unchanged-source AWS-LC builds remain integration gates.

@@ -232,3 +232,21 @@ Before each copy, it checks a conservative retained-data estimate against
 path spellings per occurrence even when those paths are shared. This is a data
 budget, not a bound on allocator overhead or process memory. Existing source,
 token, include, and expansion limits continue to apply.
+
+### Incompatible macro redefinitions
+
+`Config::macro_redefinition_policy` defaults to `MacroRedefinitionPolicy::Strict`,
+which preserves the existing error for an incompatible active definition.
+`RecordAndReplace` uses the new definition and retains a diagnostic record in
+`Preprocessed::macro_redefinitions()`. Equal definitions, inactive directives, and
+a new definition after `#undef` create no redefinition record. Optional definition
+history still records every successful written definition.
+
+Each record identifies the macro and its current physical/accessed source site.
+Configured predefined definitions have no source site. Prior locations are not
+inferred. Strict mode returns `None`; compatibility mode returns a possibly empty
+slice. Every entry point resets records, including after a failed run. Retained
+entry/name/path payload is checked against `max_source_bytes` before allocation,
+independently of the optional history budget. Record exhaustion is a preprocessing
+error. [Evidence](../../corpus/evidence/macro-redefinitions-2026-09-08/README.md)
+covers compiler warnings, expanded output, history, reset, and bounds.

@@ -16,8 +16,8 @@ pub use toucan_bindings::{
 };
 pub use toucan_preprocessor::{
     CommandLineMacroNormalizer, FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude,
-    LineComments, MacroDefinition, OriginKind, PredefinedMacroMode, QueryDialect, SourceLocation,
-    SourceMapping,
+    LineComments, MacroDefinition, MacroRedefinition, MacroRedefinitionPolicy, OriginKind,
+    PredefinedMacroMode, QueryDialect, SourceLocation, SourceMapping,
 };
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};
@@ -262,6 +262,12 @@ pub struct Report {
     /// Caller-provided Rust, excluded from declaration counts and ABI validation.
     pub raw_lines: Vec<String>,
     pub skipped_macros: Vec<SkippedMacro>,
+    /// Incompatible macro definitions accepted by an explicit preprocessing policy.
+    #[serde(
+        skip_serializing_if = "Vec::is_empty",
+        serialize_with = "serialize_macro_redefinitions"
+    )]
+    pub macro_redefinitions: Vec<MacroRedefinition>,
     /// Enum constants use the compatible enum integer type in Rust. Their C
     /// expression types are retained here for independent compiler validation.
     pub enum_constants: Vec<toucan_bindings::EnumConstants>,
@@ -276,6 +282,34 @@ pub struct Report {
 pub struct SkippedMacro {
     pub name: String,
     pub reason: String,
+}
+
+/// Serialize borrowed physical locations without imposing serde on the preprocessor.
+fn serialize_macro_redefinitions<S: serde::Serializer>(
+    records: &[MacroRedefinition],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    #[derive(serde::Serialize)]
+    struct Location<'a> {
+        path: &'a Path,
+        accessed_path: Option<&'a Path>,
+        line: usize,
+        column: usize,
+    }
+    #[derive(serde::Serialize)]
+    struct Definition<'a> {
+        name: &'a str,
+        source: Option<Location<'a>>,
+    }
+    serializer.collect_seq(records.iter().map(|record| Definition {
+        name: record.name(),
+        source: record.location().map(|location| Location {
+            path: &location.path,
+            accessed_path: record.accessed_path(),
+            line: location.line,
+            column: location.column,
+        }),
+    }))
 }
 
 impl Compilation {
@@ -553,6 +587,11 @@ impl Compilation {
             blocked_types: bindings.blocked_types,
             raw_lines: bindings.raw_lines,
             skipped_macros,
+            macro_redefinitions: self
+                .preprocessed
+                .macro_redefinitions()
+                .unwrap_or_default()
+                .to_vec(),
             enum_constants: bindings.enum_constants,
             renamed_macros: bindings.renamed_macros,
             macro_types: bindings.macro_types,
