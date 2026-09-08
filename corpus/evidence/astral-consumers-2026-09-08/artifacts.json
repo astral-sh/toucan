@@ -1,0 +1,60 @@
+{
+  "schema_version": 1,
+  "scope": "The complete build-and-runtime runner passed for both pinned projects using cached archives and dependencies. Four locked builds and both runtime comparisons ran through the final script entry point. Selected dependency files and build stderr are retained; raw Cargo JSON remains in the recorded local cache. This is native x86-64 Linux consumer coverage, not the full workspace test suites or a performance benchmark.",
+  "report_sha256": "5627472db3ee1622d62a1c8afa502399074e3ecd17a3ba4ebbe95e09d1c2a556",
+  "runner_sha256": "85da3e3cd505053ddd0c17f92f60b5b6264d195929ea683f375978fcfceb26a1",
+  "manifest_sha256": "c2a7eba0706cf8bd19631804110f3cbaa0fade06b325a5615b47dd8dfd131a33",
+  "command": "CARGO_HOME=/home/dev-user/.cache/toucan/cargo CARGO_BUILD_JOBS=4 taskset -c 4-11 python3 scripts/verify_astral_consumers.py --project all --offline --cache /home/dev-user/.cache/toucan/project-consumers --output /home/dev-user/.cache/toucan/astral-runner-complete --zstd-source /home/dev-user/.cache/toucan/zstd-58e12d4/zstd-sys --zstd-evidence /home/dev-user/.cache/toucan/zstd-58e12d4-results/evidence.json",
+  "artifacts": [
+    {
+      "recorded_path": "/home/dev-user/.cache/toucan/astral-runner-complete/ty/upstream-dep-info/zstd_sys-21d71e1ce1a75a44.d",
+      "path": "ty/upstream-dep-info/zstd_sys-21d71e1ce1a75a44.d",
+      "sha256": "d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2"
+    },
+    {
+      "recorded_path": "/home/dev-user/.cache/toucan/astral-runner-complete/ty/upstream-dep-info/zstd_sys-fff0f1aed6e3ed9b.d",
+      "path": "ty/upstream-dep-info/zstd_sys-fff0f1aed6e3ed9b.d",
+      "sha256": "47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c"
+    },
+    {
+      "recorded_path": "/home/dev-user/.cache/toucan/astral-runner-complete/ty/generated-dep-info/zstd_sys-a6a3e9a2053310f4.d",
+      "path": "ty/generated-dep-info/zstd_sys-a6a3e9a2053310f4.d",
+      "sha256": "cbe67611addd061c2be7cf7bcb44d2702cb2ad15d3fd6bea4f73cf82689221c7"
+    },
+    {
+      "recorded_path": "/home/dev-user/.cache/toucan/astral-runner-complete/ty/generated-dep-info/zstd_sys-7efe1def8681a072.d",
+      "path": "ty/generated-dep-info/zstd_sys-7efe1def8681a072.d",
+      "sha256": "27888bbd274156f4555715905df5ed1031f0c32cf57fe69fe9bcda4a7182519b"
+    },
+    {
+      "recorded_path": "/home/dev-user/.cache/toucan/astral-runner-complete/ty/upstream.stderr",
+      "path": "ty/upstream.stderr",
+      "sha256": "3e95f8b806a4d38422f100de67a9eb863e411092e0bc000b9676e52f1f2a98d6"
+    },
+    {
+      "recorded_path": "/home/dev-user/.cache/toucan/astral-runner-complete/ty/generated.stderr",
+      "path": "ty/generated.stderr",
+      "sha256": "97c8f8c371a0f488a0f351eed2af1f82b50f31db65964a6c720d45c6db33eaf6"
+    },
+    {
+      "recorded_path": "/home/dev-user/.cache/toucan/astral-runner-complete/uv/upstream-dep-info/zstd_sys-4e75c4015752c8db.d",
+      "path": "uv/upstream-dep-info/zstd_sys-4e75c4015752c8db.d",
+      "sha256": "9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135"
+    },
+    {
+      "recorded_path": "/home/dev-user/.cache/toucan/astral-runner-complete/uv/generated-dep-info/zstd_sys-dcbdbc051700bd11.d",
+      "path": "uv/generated-dep-info/zstd_sys-dcbdbc051700bd11.d",
+      "sha256": "059c1449f1cb463ede83c55caa3c1e63f1570067e6566307ece51e91a0a08876"
+    },
+    {
+      "recorded_path": "/home/dev-user/.cache/toucan/astral-runner-complete/uv/upstream.stderr",
+      "path": "uv/upstream.stderr",
+      "sha256": "3dbebdfe57c58e155ac8a657a434094c1504a64a2cee500df8a6e14e483660d2"
+    },
+    {
+      "recorded_path": "/home/dev-user/.cache/toucan/astral-runner-complete/uv/generated.stderr",
+      "path": "uv/generated.stderr",
+      "sha256": "825325d1dba4a0b13e2a90e26a106bbc56856947737b406c2d6709af4e2e1e69"
+    }
+  ]
+}

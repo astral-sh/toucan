@@ -1,0 +1,18 @@
+{
+  "ty": {
+    "repository": "astral-sh/ruff",
+    "revision": "e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+    "archive_sha256": "babff09f8302fb18bc0ba465983801acccb2035777f8ff43b1da1f25a9c23e5b",
+    "license": "MIT",
+    "package": "ty",
+    "binary": "ty"
+  },
+  "uv": {
+    "repository": "astral-sh/uv",
+    "revision": "d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+    "archive_sha256": "9ef2613de29543b8e1975837ed1483d245db4fefaaa9f79507fc87a0dfc63af0",
+    "license": "MIT OR Apache-2.0",
+    "package": "uv",
+    "binary": "uv"
+  }
+}

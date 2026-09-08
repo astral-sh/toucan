@@ -1,0 +1,8 @@
+/home/dev-user/.cache/toucan/project-consumers/uv-target/debug/deps/zstd_sys-4e75c4015752c8db.d: /home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/src/lib.rs /home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/src/bindings_zstd.rs
+
+/home/dev-user/.cache/toucan/project-consumers/uv-target/debug/deps/libzstd_sys-4e75c4015752c8db.rlib: /home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/src/lib.rs /home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/src/bindings_zstd.rs
+
+/home/dev-user/.cache/toucan/project-consumers/uv-target/debug/deps/libzstd_sys-4e75c4015752c8db.rmeta: /home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/src/lib.rs /home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/src/bindings_zstd.rs
+
+/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/src/lib.rs:
+/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/src/bindings_zstd.rs:
