@@ -187,7 +187,33 @@ impl Target {
                 element_type: Box::new(self.lower(element, depth + 1)?),
                 num_elements: *length,
             }),
-            TypeVariant::Enum(values) => abi::TypeVariant::Enum(values.clone()),
+            TypeVariant::Enum(values) => {
+                let (minimum, maximum) =
+                    values.iter().fold((0, 0), |(minimum, maximum), &value| {
+                        (minimum.min(value), maximum.max(value))
+                    });
+                let signed = minimum < 0;
+                let maximum_64 = if signed {
+                    i128::from(i64::MAX)
+                } else {
+                    i128::from(u64::MAX)
+                };
+                if matches!(self, Self::X86_64AppleDarwin | Self::Aarch64AppleDarwin)
+                    && (minimum < i128::from(i64::MIN) || maximum > maximum_64)
+                {
+                    // Clang only offers a lossy, diagnosed recovery for larger enum ranges.
+                    return Err(LayoutError::UnsupportedEnumRange(self));
+                }
+                let mut values = values.clone();
+                if signed {
+                    // repc counts positive values without a sign bit, even when another
+                    // variant is negative. The complement forces it to reserve that bit
+                    // for the largest positive value. Keep this an enum so its alignment
+                    // annotations and its use as a bitfield retain their ABI rules.
+                    values.push(!maximum);
+                }
+                abi::TypeVariant::Enum(values)
+            }
             TypeVariant::Typedef(inner) => {
                 abi::TypeVariant::Typedef(Box::new(self.lower(inner, depth + 1)?))
             }
@@ -463,6 +489,8 @@ pub enum LayoutError {
         target: Target,
         builtin: BuiltinType,
     },
+    #[error("enumeration value range is unsupported for target `{0}`")]
+    UnsupportedEnumRange(Target),
     #[error("type nesting exceeds the layout limit of 256")]
     NestingLimit,
     #[error("bitfields must have integer or enumeration types")]

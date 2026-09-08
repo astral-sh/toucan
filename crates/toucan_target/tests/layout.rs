@@ -135,6 +135,74 @@ fn union_and_array_layouts() {
 }
 
 #[test]
+fn enum_layouts_cover_signed_and_unsigned_boundaries() {
+    for target in Target::ALL
+        .into_iter()
+        .filter(|target| *target != Target::X86_64PcWindowsMsvc)
+    {
+        for (minimum, maximum, packed, bits) in [
+            (0, i128::from(u32::MAX), false, 32),
+            (-1, i128::from(i32::MAX), false, 32),
+            (-1, i128::from(i32::MAX) + 1, false, 64),
+            (-1, i128::from(u32::MAX), false, 64),
+            (i128::from(i32::MIN) - 1, 0, false, 64),
+            (-1, i128::from(i64::MAX), false, 64),
+            (0, i128::from(u64::MAX), false, 64),
+            (-128, 127, true, 8),
+            (-1, 128, true, 16),
+            (-1, 255, true, 16),
+            (-1, 32767, true, 16),
+            (-1, 32768, true, 32),
+            (-1, 65535, true, 32),
+            (0, 255, true, 8),
+        ] {
+            let ty = Type {
+                annotations: if packed {
+                    vec![Annotation::Packed]
+                } else {
+                    vec![]
+                },
+                variant: TypeVariant::Enum(vec![minimum, maximum]),
+            };
+            let layout = target.layout(&ty).unwrap();
+            assert_eq!(
+                (layout.size_bits, layout.alignment_bits),
+                (bits, bits),
+                "{target}: {minimum}..={maximum}, packed={packed}"
+            );
+        }
+    }
+}
+
+#[test]
+fn wide_enum_layouts_follow_compiler_profiles() {
+    for values in [
+        vec![-1, i128::from(u64::MAX)],
+        vec![0, 1_i128 << 100],
+        vec![i128::MIN, 0],
+        vec![i128::MIN, i128::MAX],
+    ] {
+        let ty = Type {
+            annotations: vec![],
+            variant: TypeVariant::Enum(values),
+        };
+        for target in [
+            Target::X86_64UnknownLinuxGnu,
+            Target::Aarch64UnknownLinuxGnu,
+        ] {
+            let layout = target.layout(&ty).unwrap();
+            assert_eq!((layout.size_bits, layout.alignment_bits), (128, 128));
+        }
+        for target in [Target::X86_64AppleDarwin, Target::Aarch64AppleDarwin] {
+            assert!(matches!(
+                target.layout(&ty),
+                Err(LayoutError::UnsupportedEnumRange(_))
+            ));
+        }
+    }
+}
+
+#[test]
 fn invalid_input_returns_errors() {
     let target = Target::X86_64UnknownLinuxGnu;
     assert!(matches!(

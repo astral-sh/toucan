@@ -116,6 +116,7 @@ fn assertions(target: Target) -> String {
             writeln!(source, "_Static_assert(__builtin_offsetof(struct {name}, {field}) == {offset}, \"{name}.{field} offset\");").unwrap();
         }
     }
+    enum_assertions(target, &mut source);
     for (name, builtin) in [
         ("char", B::Char),
         ("short", B::Short),
@@ -148,6 +149,166 @@ fn assertions(target: Target) -> String {
     )
     .unwrap();
     source
+}
+
+fn enum_assertions(target: Target, source: &mut String) {
+    for (name, values, packed) in [
+        ("unsigned_limit", vec![0, i128::from(u32::MAX)], false),
+        ("mixed_limit", vec![-1, i128::from(u32::MAX)], false),
+        ("signed_limit", vec![-1, i128::from(i64::MAX)], false),
+        ("wide_unsigned", vec![0, i128::from(u64::MAX)], false),
+        ("packed_byte", vec![-128, 127], true),
+        ("packed_mixed_byte", vec![-1, 128], true),
+        ("packed_mixed_short", vec![-1, 65535], true),
+        ("packed_unsigned_byte", vec![0, 255], true),
+    ] {
+        // MSVC diagnoses enumerators outside the range of int instead of widening them.
+        if target == Target::X86_64PcWindowsMsvc
+            && values.iter().any(|&value| i32::try_from(value).is_err())
+        {
+            continue;
+        }
+        let attribute = if packed {
+            "__attribute__((packed)) "
+        } else {
+            ""
+        };
+        writeln!(
+            source,
+            "enum {attribute}{name} {{ {name}_min = {}, {name}_max = {}ULL }};",
+            values[0], values[1]
+        )
+        .unwrap();
+        let ty = Type {
+            annotations: if packed {
+                vec![Annotation::Packed]
+            } else {
+                vec![]
+            },
+            variant: TypeVariant::Enum(values),
+        };
+        let layout = target.layout(&ty).unwrap();
+        writeln!(
+            source,
+            "_Static_assert(sizeof(enum {name}) == {}, \"{name} size\");",
+            layout.size_bytes()
+        )
+        .unwrap();
+        writeln!(
+            source,
+            "_Static_assert(_Alignof(enum {name}) == {}, \"{name} alignment\");",
+            layout.alignment_bytes()
+        )
+        .unwrap();
+
+        for bitfield in [false, true] {
+            let suffix = if bitfield { "bits" } else { "record" };
+            let width = if bitfield {
+                format!(":{}", layout.size_bits)
+            } else {
+                String::new()
+            };
+            writeln!(
+                source,
+                "struct {name}_{suffix} {{ char first; enum {name} value{width}; char last; }};"
+            )
+            .unwrap();
+            let layout = target
+                .layout(&record(
+                    vec![
+                        field(B::Char, None),
+                        Field {
+                            ty: ty.clone(),
+                            annotations: vec![],
+                            named: true,
+                            bit_width: bitfield.then_some(layout.size_bits),
+                        },
+                        field(B::Char, None),
+                    ],
+                    vec![],
+                ))
+                .unwrap();
+            writeln!(
+                source,
+                "_Static_assert(sizeof(struct {name}_{suffix}) == {}, \"{name}_{suffix} size\");",
+                layout.size_bytes()
+            )
+            .unwrap();
+            writeln!(source, "_Static_assert(_Alignof(struct {name}_{suffix}) == {}, \"{name}_{suffix} alignment\");", layout.alignment_bytes()).unwrap();
+            for (index, field_name) in [(1, "value"), (2, "last")] {
+                if bitfield && index == 1 {
+                    continue;
+                }
+                let offset = layout.fields[index].unwrap().offset_bits / 8;
+                writeln!(source, "_Static_assert(__builtin_offsetof(struct {name}_{suffix}, {field_name}) == {offset}, \"{name}_{suffix}.{field_name} offset\");").unwrap();
+            }
+        }
+    }
+}
+
+#[cfg(all(
+    target_os = "linux",
+    any(target_arch = "x86_64", target_arch = "aarch64")
+))]
+#[test]
+#[ignore = "requires GCC with __int128 enum support; run with --include-ignored"]
+fn gcc_wide_enum_layouts() {
+    let target = if cfg!(target_arch = "aarch64") {
+        Target::Aarch64UnknownLinuxGnu
+    } else {
+        Target::X86_64UnknownLinuxGnu
+    };
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("wide-enums.c");
+    let mut source = String::new();
+    for (name, declaration, values) in [
+        (
+            "mixed",
+            "enum mixed { NEG = -1, MAX = 0xffffffffffffffffULL };",
+            vec![-1, i128::from(u64::MAX)],
+        ),
+        (
+            "positive",
+            "enum positive { BIG = (__int128)1 << 100 };",
+            vec![1_i128 << 100],
+        ),
+        (
+            "negative",
+            "enum negative { MIN = -((__int128)1 << 126) - ((__int128)1 << 126) };",
+            vec![i128::MIN],
+        ),
+    ] {
+        let layout = target
+            .layout(&Type {
+                annotations: vec![],
+                variant: TypeVariant::Enum(values),
+            })
+            .unwrap();
+        writeln!(source, "{declaration}").unwrap();
+        writeln!(
+            source,
+            "_Static_assert(sizeof(enum {name}) == {}, \"{name} size\");",
+            layout.size_bytes()
+        )
+        .unwrap();
+        writeln!(
+            source,
+            "_Static_assert(_Alignof(enum {name}) == {}, \"{name} alignment\");",
+            layout.alignment_bytes()
+        )
+        .unwrap();
+    }
+    std::fs::write(&path, source).unwrap();
+    let output = Command::new("gcc")
+        .args(["-std=c11", "-Werror", "-fsyntax-only"])
+        .arg(path)
+        .output()
+        .expect("GCC must be available for the 128-bit enum probe");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[test]
