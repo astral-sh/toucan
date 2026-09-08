@@ -578,14 +578,12 @@ impl Analyzer {
                 } else if let (TypeKind::Pointer(left), TypeKind::Pointer(right)) =
                     (&left_value.kind, &right_value.kind)
                 {
-                    if matches!(
-                        self.unit.resolve(left)?.kind,
-                        TypeKind::Void | TypeKind::Function(_)
-                    ) || !self.compatible(&self.unqualified(left)?, &self.unqualified(right)?)?
+                    if matches!(self.unit.resolve(left)?.kind, TypeKind::Function(_))
+                        || !self.compatible(&self.unqualified(left)?, &self.unqualified(right)?)?
                     {
                         return Err(Error::new(
                             offset,
-                            "relational comparison requires compatible object pointer operands",
+                            "relational comparison requires compatible object or void pointer operands",
                         ));
                     }
                 } else {

@@ -98,6 +98,11 @@ Clang, converting a qualified `void *` to a function pointer does not qualify th
 function type. Other incompatible pointed-to types and multiple pointer levels
 remain errors. These function-pointer conversions are an extension to C11.
 
+Relational comparisons between qualified `void *` operands follow the GNU
+extension used by SQLite. Retained comparisons preserve the combined pointer
+qualifiers. Relational comparisons between distinct pointed-to types and between
+function pointers remain unsupported.
+
 ## Compiler intrinsics
 
 The `stdarg.h` built-ins check argument-list types using the target's array,
