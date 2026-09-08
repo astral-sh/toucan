@@ -190,6 +190,9 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
     let mut enum_owners = BTreeMap::new();
     let mut enum_constants = Vec::new();
     for (id, enumeration) in unit.enums.iter().enumerate() {
+        if enumeration.scope != toucan_semantic::Scope::File {
+            continue;
+        }
         let mut emitted = Vec::new();
         for variant in &enumeration.variants {
             if enum_owners.insert(variant.name.as_str(), id).is_some() {
@@ -509,6 +512,9 @@ impl Emitter<'_> {
     }
 
     fn enum_c_type(&self, id: usize) -> Result<Option<String>, Error> {
+        if self.unit.enums[id].scope != toucan_semantic::Scope::File {
+            return Ok(None);
+        }
         if let Some(name) = &self.unit.enums[id].name {
             return Ok(Some(format!("enum {name}")));
         }
