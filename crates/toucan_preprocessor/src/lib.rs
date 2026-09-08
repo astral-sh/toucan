@@ -116,6 +116,7 @@ impl Preprocessed {
     ///
     /// Function macros and undefined names return `None`. An unused macro with an
     /// invalid replacement can fail here without invalidating the translation unit.
+    /// Stateful `__COUNTER__` and `_Pragma` expansions are rejected in this read-only query.
     pub fn expand_object_macro(&self, name: &str) -> Result<Option<String>, Error> {
         let Some(definition) = self.macros.get(name) else {
             return Ok(None);
@@ -131,10 +132,18 @@ impl Preprocessed {
             produced_bytes: 0,
             recursion: 0,
             location: None,
+            counter: None,
         };
         expansion
             .expand(vec![Token::new(Kind::Identifier, name)])
-            .map(|tokens| Some(render(&tokens)))
+            .and_then(|tokens| {
+                if tokens.iter().any(|token| token.kind == Kind::Pragma) {
+                    return Err(
+                        "_Pragma cannot be evaluated from the final macro environment".into(),
+                    );
+                }
+                Ok(Some(render(&tokens)))
+            })
             .map_err(|message| Error::new(&self.path, 1, message))
     }
 }
@@ -189,6 +198,7 @@ pub struct Preprocessor {
     source_bytes: usize,
     expansion_bytes: usize,
     output_tokens: usize,
+    counter: u64,
     mappings: Vec<SourceMapping>,
 }
 
@@ -213,6 +223,7 @@ impl Preprocessor {
             source_bytes: 0,
             expansion_bytes: 0,
             output_tokens: 0,
+            counter: 0,
             mappings: Vec::new(),
         }
     }
@@ -260,6 +271,7 @@ impl Preprocessor {
         self.source_bytes = 0;
         self.expansion_bytes = 0;
         self.output_tokens = 0;
+        self.counter = 0;
         self.mappings.clear();
         self.source_bytes =
             self.config
@@ -382,7 +394,7 @@ impl Preprocessor {
                 }
                 continue;
             }
-            self.flush(&logical_path, &mut pending, output)?;
+            self.flush(&logical_path, path, &mut pending, output)?;
             let Some(directive) = tokens.get(1) else {
                 continue;
             };
@@ -396,7 +408,7 @@ impl Preprocessor {
                     let matches = if !active {
                         false
                     } else if directive.text == "if" {
-                        self.condition(&logical_path, path, include_origin, rest)
+                        self.condition(&logical_path, path, include_origin, rest, output)
                             .map_err(&fail)?
                     } else {
                         let name = identifier(rest).map_err(&fail)?;
@@ -424,7 +436,7 @@ impl Preprocessor {
                     let matches = condition.parent_active
                         && !condition.taken
                         && self
-                            .condition(&logical_path, path, include_origin, rest)
+                            .condition(&logical_path, path, include_origin, rest, output)
                             .map_err(&fail)?;
                     condition.active = matches;
                     condition.taken |= matches;
@@ -512,40 +524,17 @@ impl Preprocessor {
                     }
                 }
                 "error" => return Err(fail(format!("#error {}", render(rest)))),
-                "pragma" => match rest.first().map(|token| token.text.as_str()) {
-                    Some("once") if rest.len() == 1 => {
-                        let path = if self.config.allow_filesystem {
-                            fs::canonicalize(path).unwrap_or_else(|_| path.to_owned())
-                        } else {
-                            path.to_owned()
-                        };
-                        self.once.insert(path);
-                    }
-                    Some("pack") => {
-                        if output.len().saturating_add(line.len()) > self.config.max_source_bytes {
-                            return Err(fail("output byte limit exceeded".into()));
-                        }
-                        let generated_start = output.len();
-                        output.push_str("#pragma ");
-                        output.push_str(&render(rest));
-                        output.push('\n');
-                        self.mappings.push(SourceMapping {
-                            generated: generated_start..output.len(),
-                            origin: SourceLocation {
-                                path: Arc::from(logical_path.as_path()),
-                                line: logical_line,
-                                column: tokens[0].column,
-                                kind: OriginKind::Directive,
-                            },
-                        });
-                    }
-                    Some("GCC" | "clang")
-                        if rest.get(1).is_some_and(|token| {
-                            matches!(token.text.as_str(), "diagnostic" | "system_header")
-                        }) => {}
-                    Some("message") => {}
-                    _ => return Err(fail(format!("unsupported pragma: {}", render(rest)))),
-                },
+                "pragma" => self.pragma(
+                    path,
+                    SourceLocation {
+                        path: Arc::from(logical_path.as_path()),
+                        line: logical_line,
+                        column: tokens[0].column,
+                        kind: OriginKind::Directive,
+                    },
+                    rest,
+                    output,
+                )?,
                 "line" => {
                     let expanded = self.expand(&logical_path, rest.to_vec()).map_err(&fail)?;
                     let Some(number) = expanded.first() else {
@@ -583,12 +572,67 @@ impl Preprocessor {
                 "unterminated #if group",
             ));
         }
-        self.flush(&logical_path, &mut pending, output)
+        self.flush(&logical_path, path, &mut pending, output)
+    }
+
+    fn pragma(
+        &mut self,
+        physical_path: &Path,
+        origin: SourceLocation,
+        tokens: &[Token],
+        output: &mut String,
+    ) -> Result<(), Error> {
+        let fail = |message| Error::at(&origin.path, origin.line, origin.column, message);
+        match tokens.first().map(|token| token.text.as_str()) {
+            None => {}
+            Some("once") if tokens.len() == 1 => {
+                let path = if self.config.allow_filesystem {
+                    fs::canonicalize(physical_path).unwrap_or_else(|_| physical_path.to_owned())
+                } else {
+                    physical_path.to_owned()
+                };
+                self.once.insert(path);
+            }
+            Some("pack") => {
+                let directive = format!("#pragma {}\n", render(tokens));
+                if output.len().saturating_add(directive.len()) > self.config.max_source_bytes {
+                    return Err(fail("output byte limit exceeded"));
+                }
+                self.output_tokens = self
+                    .output_tokens
+                    .saturating_add(tokens.len())
+                    .saturating_add(2);
+                if self.output_tokens > self.config.max_tokens {
+                    return Err(fail("output token limit exceeded"));
+                }
+                let start = output.len();
+                output.push_str(&directive);
+                self.mappings.push(SourceMapping {
+                    generated: start..output.len(),
+                    origin,
+                });
+            }
+            Some("GCC" | "clang")
+                if tokens.get(1).is_some_and(|token| {
+                    matches!(token.text.as_str(), "diagnostic" | "system_header")
+                }) => {}
+            Some("message") => {}
+            _ => {
+                return Err(Error::at(
+                    &origin.path,
+                    origin.line,
+                    origin.column,
+                    format!("unsupported pragma: {}", render(tokens)),
+                ));
+            }
+        }
+        Ok(())
     }
 
     fn flush(
         &mut self,
         path: &Path,
+        physical_path: &Path,
         pending: &mut Vec<Token>,
         output: &mut String,
     ) -> Result<(), Error> {
@@ -598,13 +642,57 @@ impl Preprocessor {
         let line = pending[0].line;
         let column = pending[0].column;
         let tokens = self.expand_at(path, std::mem::take(pending))?;
+        let mut start = 0;
+        for (index, token) in tokens.iter().enumerate() {
+            if token.kind != Kind::Pragma {
+                continue;
+            }
+            if start != index {
+                self.output_tokens(path, line, column, &tokens[start..index], output)?;
+            }
+            let payload = lex(&token.text)
+                .map_err(|message| Error::at(path, token.line, token.column, message))?;
+            self.pragma(
+                physical_path,
+                SourceLocation {
+                    path: Arc::from(path),
+                    line: token.line,
+                    column: token.column,
+                    kind: if token.expanded {
+                        OriginKind::MacroInvocation
+                    } else {
+                        OriginKind::Directive
+                    },
+                },
+                &payload,
+                output,
+            )?;
+            start = index + 1;
+        }
+        if start < tokens.len() || tokens.is_empty() {
+            self.output_tokens(path, line, column, &tokens[start..], output)?;
+        }
+        Ok(())
+    }
+
+    fn output_tokens(
+        &mut self,
+        path: &Path,
+        line: usize,
+        column: usize,
+        tokens: &[Token],
+        output: &mut String,
+    ) -> Result<(), Error> {
         self.output_tokens = self.output_tokens.saturating_add(tokens.len());
         if self.output_tokens > self.config.max_tokens {
             return Err(Error::new(path, line, "output token limit exceeded"));
         }
-        let bytes = tokens.iter().fold(output.len(), |bytes, token| {
-            bytes.saturating_add(token.text.len()).saturating_add(1)
-        });
+        let bytes = tokens
+            .iter()
+            .fold(output.len(), |bytes, token| {
+                bytes.saturating_add(token.text.len()).saturating_add(1)
+            })
+            .saturating_add(usize::from(tokens.is_empty()));
         if bytes > self.config.max_source_bytes {
             return Err(Error::new(path, line, "output byte limit exceeded"));
         }
@@ -671,10 +759,12 @@ impl Preprocessor {
             produced_bytes: self.expansion_bytes,
             recursion: 0,
             location: None,
+            counter: Some(self.counter),
         };
         let result = expansion.expand(tokens);
         self.expansion_tokens = expansion.produced;
         self.expansion_bytes = expansion.produced_bytes;
+        self.counter = expansion.counter.expect("translation unit counter");
         result.map_err(|message| {
             let (line, column) = expansion.location.unwrap_or(fallback);
             Error::at(path, line, column, message)
@@ -687,6 +777,7 @@ impl Preprocessor {
         include_path: &Path,
         include_origin: Option<usize>,
         tokens: &[Token],
+        output: &mut String,
     ) -> Result<bool, String> {
         let mut replaced = Vec::new();
         let mut position = 0;
@@ -715,6 +806,34 @@ impl Preprocessor {
         }
         let replaced = self.has_include(path, include_path, include_origin, replaced)?;
         let expanded = self.expand(path, replaced)?;
+        let mut ordinary = Vec::with_capacity(expanded.len());
+        for token in expanded {
+            if token.kind == Kind::Pragma {
+                if !self.macros.contains_key("__clang__") {
+                    return Err("_Pragma is not supported in GCC preprocessing conditions".into());
+                }
+                let payload = lex(&token.text)?;
+                self.pragma(
+                    include_path,
+                    SourceLocation {
+                        path: Arc::from(path),
+                        line: token.line,
+                        column: token.column,
+                        kind: if token.expanded {
+                            OriginKind::MacroInvocation
+                        } else {
+                            OriginKind::Directive
+                        },
+                    },
+                    &payload,
+                    output,
+                )
+                .map_err(|error| error.message)?;
+            } else {
+                ordinary.push(token);
+            }
+        }
+        let expanded = ordinary;
         let wchar_unsigned = self.macros.get("__WCHAR_TYPE__").map(|definition| {
             self.macros.contains_key("__WCHAR_UNSIGNED__")
                 || definition
@@ -942,7 +1061,12 @@ fn identifier(tokens: &[Token]) -> Result<&str, String> {
 fn is_builtin(name: &str) -> bool {
     matches!(
         name,
-        "__FILE__" | "__LINE__" | "__has_include" | "__has_include_next"
+        "__FILE__"
+            | "__LINE__"
+            | "__COUNTER__"
+            | "_Pragma"
+            | "__has_include"
+            | "__has_include_next"
     )
 }
 

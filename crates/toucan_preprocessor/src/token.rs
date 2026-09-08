@@ -9,6 +9,7 @@ pub(crate) enum Kind {
     Punctuation,
     Placemark,
     Paste,
+    Pragma,
 }
 
 #[derive(Clone, Debug)]
@@ -48,61 +49,97 @@ impl Token {
 
 pub(crate) struct Normalized {
     pub source: String,
-    line_changes: Vec<(usize, usize)>,
+    /// Breakpoints at which translation phases changed the original byte offset.
+    source_offsets: Vec<(usize, usize)>,
+    line_starts: Vec<usize>,
 }
 
 impl Normalized {
-    pub(crate) fn line_at(&self, offset: usize) -> usize {
-        self.line_changes[self
-            .line_changes
+    fn original_offset(&self, offset: usize) -> usize {
+        let (generated, original) = self.source_offsets[self
+            .source_offsets
             .partition_point(|(start, _)| *start <= offset)
-            - 1]
-        .1
+            - 1];
+        original + offset - generated
+    }
+
+    pub(crate) fn line_at(&self, offset: usize) -> usize {
+        let original = self.original_offset(offset);
+        self.line_starts.partition_point(|start| *start <= original)
     }
 
     pub(crate) fn column_at(&self, offset: usize) -> usize {
-        let line_start = self.line_changes[self
-            .line_changes
-            .partition_point(|(start, _)| *start <= offset)
-            - 1]
-        .0;
-        offset - line_start + 1
+        let original = self.original_offset(offset);
+        let line = self.line_starts.partition_point(|start| *start <= original) - 1;
+        original - self.line_starts[line] + 1
     }
 }
 
-/// Remove escaped newlines and comments, retaining physical source line locations.
+/// Apply trigraph replacement before escaped-newline removal, then replace
+/// comments. Compact offset breakpoints retain original physical coordinates.
 pub(crate) fn normalize(source: &str) -> Result<Normalized, String> {
-    if source.contains("??") {
-        for suffix in ['=', '/', '\'', '(', ')', '!', '<', '>', '-'] {
-            if source.contains(&format!("??{suffix}")) {
-                return Err("trigraphs are not supported".into());
-            }
-        }
-    }
+    let bytes = source.as_bytes();
     let mut spliced = String::with_capacity(source.len());
-    let mut line_changes = vec![(0, 1)];
-    let mut line = 1;
-    let mut chars = source.chars().peekable();
-    while let Some(c) = chars.next() {
-        if c == '\\' {
-            let mut lookahead = chars.clone();
-            if lookahead.peek() == Some(&'\r') {
-                lookahead.next();
+    let mut source_offsets = vec![(0, 0)];
+    let mut line_starts = vec![0];
+    line_starts.extend(
+        bytes
+            .iter()
+            .enumerate()
+            .filter_map(|(index, byte)| (*byte == b'\n').then_some(index + 1)),
+    );
+    let mut index = 0;
+    while index < bytes.len() {
+        let trigraph = if bytes[index..].starts_with(b"??") {
+            bytes.get(index + 2).and_then(|third| match third {
+                b'=' => Some('#'),
+                b'/' => Some('\\'),
+                b'\'' => Some('^'),
+                b'(' => Some('['),
+                b')' => Some(']'),
+                b'!' => Some('|'),
+                b'<' => Some('{'),
+                b'>' => Some('}'),
+                b'-' => Some('~'),
+                _ => None,
+            })
+        } else {
+            None
+        };
+        let character =
+            trigraph.unwrap_or_else(|| source[index..].chars().next().expect("remaining source"));
+        let width = if trigraph.is_some() {
+            3
+        } else {
+            character.len_utf8()
+        };
+        let following = index + width;
+        let newline = if bytes[following..].starts_with(b"\r\n") {
+            2
+        } else {
+            usize::from(bytes.get(following) == Some(&b'\n'))
+        };
+        if character == '\\' && newline != 0 {
+            index = following + newline;
+            source_offsets.push((spliced.len(), index));
+        } else {
+            spliced.push(character);
+            index = following;
+            if trigraph.is_some() {
+                source_offsets.push((spliced.len(), index));
             }
-            if lookahead.next() == Some('\n') {
-                chars = lookahead;
-                line += 1;
-                line_changes.push((spliced.len(), line));
-                continue;
-            }
-        }
-        spliced.push(c);
-        if c == '\n' {
-            line += 1;
-            line_changes.push((spliced.len(), line));
         }
     }
-    let source = spliced;
+    Ok(Normalized {
+        source: replace_comments(&spliced)?,
+        source_offsets,
+        line_starts,
+    })
+}
+
+/// Replace comments without repeating translation phases one and two. `_Pragma`
+/// payloads enter preprocessing after those phases have already completed.
+pub(crate) fn replace_comments(source: &str) -> Result<String, String> {
     let mut chars = source.chars().peekable();
     let mut output = String::with_capacity(source.len());
     while let Some(c) = chars.next() {
@@ -161,10 +198,7 @@ pub(crate) fn normalize(source: &str) -> Result<Normalized, String> {
             _ => output.push(c),
         }
     }
-    Ok(Normalized {
-        source: output,
-        line_changes,
-    })
+    Ok(output)
 }
 
 pub(crate) fn lex(source: &str) -> Result<Vec<Token>, String> {

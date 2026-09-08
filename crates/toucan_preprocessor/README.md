@@ -26,19 +26,25 @@ assert_eq!(result.expand_object_macro("COUNT")?.as_deref(), Some("4"));
   `__WCHAR_TYPE__` and `__WCHAR_UNSIGNED__` profile.
 - Quoted and angle-bracket includes, `include_next`, `__has_include`, and `pragma once`.
   Explicit filesystem include paths take precedence over virtual resource headers.
-- Escaped newlines, comments, digraphs, `__FILE__`, `__LINE__`, and `line` directives
+- Trigraphs, escaped newlines, comments, digraphs, `__FILE__`, `__LINE__`, the GNU
+  `__COUNTER__` extension, and `line` directives
   with C string escape decoding for filenames.
-- `pragma pack` preservation for a downstream parser. Diagnostic and message pragmas
+- `_Pragma` operators, including macro-generated directives, share `pragma once`
+  handling and `pragma pack` preservation with ordinary directives. Diagnostic and message pragmas
   are accepted without changing the generated source.
 
 The `__clang__` predefined macro selects Clang's `include_next` behavior for quoted
 local helper headers. Otherwise, these headers use GCC's search behavior. Standard
 include directories and compiler feature-query macros are not inferred from the host.
+The same profile selects Clang's support for `_Pragma` inside preprocessing conditions;
+GCC rejects that use.
 
 Each call starts a fresh translation unit. The result contains expanded source, final
 macro definitions, and canonical paths of the filesystem dependencies actually read.
 Object macros are expanded on request; an invalid unused macro need not invalidate the
-header.
+header. Final-environment macro queries reject `__COUNTER__` and `_Pragma` because
+these operations require the state and directive ordering of an active translation
+unit. Counters reset at each preprocessing entry point.
 
 Set `Config::allow_filesystem` to `false` to restrict an embedded or fuzzed preprocessor
 to in-memory source and virtual headers. Filesystem entry points then return an error,
@@ -65,9 +71,9 @@ output have configurable budgets. Include and expansion depth are bounded; prepr
 expressions additionally reject nesting beyond 128 parser frames. These are work and
 input limits, not a process memory quota.
 
-Unsupported features return diagnostics: trigraphs, non-ASCII identifiers, non-ASCII or
-multicharacter preprocessing character constants, `__VA_OPT__`, `_Pragma`, `__COUNTER__`,
-and unknown active directives or pragmas. Date and time macros must be supplied
+Unsupported features return diagnostics: non-ASCII identifiers, non-ASCII or
+multicharacter preprocessing character constants, `__VA_OPT__`, and unknown active
+directives or pragmas. Date and time macros must be supplied
 explicitly when required. Include names containing backslashes or whitespace inside
 angle brackets are rejected. `#line` filenames must decode to UTF-8 without NUL bytes.
 This is not yet a complete C preprocessor conformance

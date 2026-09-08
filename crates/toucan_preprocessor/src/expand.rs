@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::path::Path;
 
-use crate::token::{Kind, Token, lex};
+use crate::token::{Kind, Token, lex, replace_comments};
 use crate::{Config, Macro};
 
 pub(crate) struct Expansion<'a> {
@@ -12,6 +12,8 @@ pub(crate) struct Expansion<'a> {
     pub produced_bytes: usize,
     pub recursion: usize,
     pub location: Option<(usize, usize)>,
+    /// None for immutable queries of the final macro environment.
+    pub counter: Option<u64>,
 }
 
 impl Expansion<'_> {
@@ -34,23 +36,55 @@ impl Expansion<'_> {
                 output.push(token);
                 continue;
             }
-            if matches!(token.text.as_str(), "__LINE__" | "__FILE__") {
+            if token.text == "_Pragma" {
+                let previous_location = self.location;
+                self.location = Some((token.line, token.column));
+                if pending.pop_front().is_none_or(|token| token.text != "(") {
+                    return Err("_Pragma requires a parenthesized string literal".into());
+                }
+                let (arguments, _, _) = arguments(&mut pending, 1, false)?;
+                let argument = self.expand(arguments.into_iter().next().expect("one argument"))?;
+                let [literal] = argument.as_slice() else {
+                    return Err("_Pragma requires exactly one string literal".into());
+                };
+                let payload = pragma_text(literal)?;
+                let payload = lex(&replace_comments(&payload)?)?;
+                self.charge(&payload)?;
+                let mut directive = token;
+                directive.kind = Kind::Pragma;
+                directive.text = crate::token::render(&payload);
+                output.push(directive);
+                self.location = previous_location;
+                continue;
+            }
+            if matches!(token.text.as_str(), "__LINE__" | "__FILE__" | "__COUNTER__") {
+                let previous_location = self.location;
+                self.location = Some((token.line, token.column));
                 let mut replacement = if token.text == "__LINE__" {
                     Token::new(Kind::Number, token.line.to_string())
-                } else {
+                } else if token.text == "__FILE__" {
                     Token::new(Kind::String, quote(&self.file.to_string_lossy()))
+                } else {
+                    let counter = self.counter.as_mut().ok_or(
+                        "__COUNTER__ cannot be evaluated from the final macro environment",
+                    )?;
+                    let value = *counter;
+                    *counter = counter.checked_add(1).ok_or("__COUNTER__ overflow")?;
+                    Token::new(Kind::Number, value.to_string())
                 };
                 replacement.line = token.line;
                 replacement.column = token.column;
                 replacement.expanded = true;
                 replacement.space = token.space;
+                self.charge(std::slice::from_ref(&replacement))?;
                 output.push(replacement);
+                self.location = previous_location;
                 continue;
             }
             let Some(definition) = self.macros.get(&token.text) else {
                 if matches!(
                     token.text.as_str(),
-                    "_Pragma" | "__COUNTER__" | "__DATE__" | "__TIME__" | "__TIMESTAMP__"
+                    "__DATE__" | "__TIME__" | "__TIMESTAMP__"
                 ) {
                     self.location = Some((token.line, token.column));
                     return Err(format!(
@@ -124,6 +158,9 @@ impl Expansion<'_> {
             raw.insert(name, variadic);
         }
         let replacement = replacement_tokens(&definition.replacement)?;
+        // Prescan each argument once. Repeated substitution duplicates the result,
+        // including _Pragma directives, without incrementing __COUNTER__ again.
+        let mut expanded_arguments: BTreeMap<&str, Vec<Token>> = BTreeMap::new();
         let mut substituted = Vec::new();
         let mut position = 0;
         while position < replacement.len() {
@@ -153,8 +190,14 @@ impl Expansion<'_> {
                 // GNU's comma-elision extension applies only when the argument is omitted.
                 if !omitted_variadic {
                     substituted.push(token.clone());
-                    let expanded =
-                        self.expand(raw[replacement[position + 2].text.as_str()].clone())?;
+                    let name = replacement[position + 2].text.as_str();
+                    let expanded = if let Some(expanded) = expanded_arguments.get(name) {
+                        expanded.clone()
+                    } else {
+                        let expanded = self.expand(raw[name].clone())?;
+                        expanded_arguments.insert(name, expanded.clone());
+                        expanded
+                    };
                     self.charge(&expanded)?;
                     substituted.extend(expanded);
                 }
@@ -166,8 +209,12 @@ impl Expansion<'_> {
                         .is_some_and(|token| token.text == "##");
                 let mut argument = if pasted {
                     argument.clone()
+                } else if let Some(expanded) = expanded_arguments.get(token.text.as_str()) {
+                    expanded.clone()
                 } else {
-                    self.expand(argument.clone())?
+                    let expanded = self.expand(argument.clone())?;
+                    expanded_arguments.insert(token.text.as_str(), expanded.clone());
+                    expanded
                 };
                 if argument.is_empty() && pasted {
                     argument.push(Token::new(Kind::Placemark, ""));
@@ -281,6 +328,28 @@ fn replacement_tokens(text: &str) -> Result<Vec<Token>, String> {
         }
     }
     Ok(tokens)
+}
+
+/// C11 _Pragma removes only escaped quotes and backslashes; other string escapes
+/// are passed unchanged to pragma processing instead of being interpreted again.
+fn pragma_text(token: &Token) -> Result<String, String> {
+    if token.kind != Kind::String {
+        return Err("_Pragma requires a string literal".into());
+    }
+    let literal = token.text.strip_prefix('L').unwrap_or(&token.text);
+    if !literal.starts_with('"') {
+        return Err("_Pragma permits only ordinary or L-prefixed strings".into());
+    }
+    let mut result = String::new();
+    let mut chars = literal[1..literal.len() - 1].chars().peekable();
+    while let Some(character) = chars.next() {
+        if character == '\\' && chars.peek().is_some_and(|next| matches!(next, '\\' | '"')) {
+            result.push(chars.next().expect("peeked escape"));
+        } else {
+            result.push(character);
+        }
+    }
+    Ok(result)
 }
 
 fn quote(text: &str) -> String {

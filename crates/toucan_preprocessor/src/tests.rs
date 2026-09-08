@@ -450,6 +450,15 @@ fn differential_macro_corpus_matches_native_c_preprocessor() {
 
     let corpus = [
         "#define A 3\n#define F(x) (x+A)\n#define G F\nG(G(2))\n",
+        "#define F() 1\nF _Pragma(\"pack(1)\") ()\n",
+        "#define E(x)\n#define F(x) E(x)\nF(_Pragma(\"pack(1)\"))\n",
+        "#define F(a,b) b a\nF(__COUNTER__,__COUNTER__)\n",
+        "??=define F(x) x ??! x\nint a??(2??); F(1) ??' ??- ??< ??>\n\"??/n\"\n",
+        "??=define X 4??/\n2\nX __LINE__\n// ignored??/\nstill ignored\n__LINE__\n",
+        "#define DO(x) _Pragma(#x)\nDO(pack(push,1))\nstruct S { char x; int y; };\nDO(pack(pop))\n",
+        "#define F(x) x x\nF(int a; _Pragma(\"pack(1)\") int b;)\n",
+        "#define ARG \"pack(push,2)\"\n_Pragma(ARG)\n_Pragma(L\"pack(pop)\")\n_Pragma(\"pack/**/(1)\")\n",
+        "#define F(x) x x\n#define IGNORE(x)\nF(F(__COUNTER__)) IGNORE(__COUNTER__) __COUNTER__\n",
         "#define S(...) #__VA_ARGS__\nS(a ,b) S(a, b) S(a , b) S(,)\n#define T(x,...) #__VA_ARGS__\nT(0,a ,b, c)\n",
         "#line 40 \"dir\\\\quoted\\\"\\142\\x2eh\"\n__FILE__ __LINE__\n#line 50 \"\\u00e9\\U0001f426.h\"\n__FILE__ __LINE__\n",
         "#define A F\n#define F(x) A\nA(0) A(0)(1)\n#define P(x) x\nP(A(0)) P(A)(0)\n",
@@ -469,7 +478,16 @@ fn differential_macro_corpus_matches_native_c_preprocessor() {
     ];
     for source in corpus {
         let mut child = Command::new(std::env::var_os("CC").unwrap_or_else(|| "cc".into()))
-            .args(["-E", "-P", "-undef", "-std=gnu11", "-x", "c", "-"])
+            .args([
+                "-E",
+                "-P",
+                "-undef",
+                "-std=gnu11",
+                "-trigraphs",
+                "-x",
+                "c",
+                "-",
+            ])
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::piped())
@@ -833,4 +851,181 @@ fn macro_expansion_failures_report_the_invocation_after_prior_declarations() {
         (Path::new("broken.h"), 3, 4)
     );
     assert!(error.message.contains("expects 1 arguments"));
+}
+
+#[test]
+fn trigraphs_precede_splicing_and_retain_original_columns() {
+    let source = "int x??(2??);\nint y??/\nname;\n// ignored??/\nstill ignored\n__LINE__\n";
+    let result = Preprocessor::new(Config::default())
+        .preprocess_str(Path::new("tri.h"), source)
+        .unwrap();
+    assert_eq!(result.source, "int x [ 2 ] ; int yname ; 6\n");
+    for (needle, line, column) in [
+        ("[", 1, 6),
+        ("2", 1, 9),
+        ("]", 1, 10),
+        (";", 1, 13),
+        ("yname", 2, 5),
+    ] {
+        let location = result
+            .resolve_location(result.source.find(needle).unwrap())
+            .unwrap();
+        assert_eq!((location.line, location.column), (line, column), "{needle}");
+    }
+    let semicolon = result
+        .resolve_location(result.source.rfind(';').unwrap())
+        .unwrap();
+    assert_eq!((semicolon.line, semicolon.column), (3, 5));
+}
+
+#[test]
+fn pragma_operators_preserve_order_and_share_pragma_once_identity() {
+    let source = "#define DO(x) _Pragma(#x)\nint before; DO(pack(push, 1)) struct S { char x; int y; }; DO(pack(pop))\n";
+    let result = Preprocessor::new(Config::default())
+        .preprocess_str(Path::new("pragma.h"), source)
+        .unwrap();
+    assert_eq!(
+        result.source,
+        "int before ;\n#pragma pack ( push , 1 )\nstruct S { char x ; int y ; } ;\n#pragma pack ( pop )\n"
+    );
+    let location = result
+        .resolve_location(result.source.find("#pragma").unwrap())
+        .unwrap();
+    assert_eq!(
+        (location.line, location.column, location.kind),
+        (2, 13, crate::OriginKind::MacroInvocation)
+    );
+    let config = Config {
+        allow_filesystem: false,
+        virtual_headers: BTreeMap::from([(
+            "once.h".into(),
+            "#line 40 \"logical.h\"\n_Pragma(\"once\")\nint once;\n".into(),
+        )]),
+        ..Config::default()
+    };
+    let result = Preprocessor::new(config)
+        .preprocess_str(
+            Path::new("main.h"),
+            "#include <once.h>\n#include <once.h>\n",
+        )
+        .unwrap();
+    assert_eq!(result.source, "int once ;\n");
+    let origin = result.resolve_location(0).unwrap();
+    assert_eq!(
+        (origin.path.as_ref(), origin.line),
+        (Path::new("logical.h"), 41)
+    );
+}
+
+#[test]
+fn counter_expands_each_argument_once_and_resets_per_translation_unit() {
+    let mut preprocessor = Preprocessor::new(Config::default());
+    let source = "#define F(x) x x\n#define S(x) #x\n#define IGNORE(x)\nF(F(__COUNTER__)) IGNORE(__COUNTER__) __COUNTER__ S(__COUNTER__) __COUNTER__\n";
+    for _ in 0..2 {
+        assert_eq!(
+            preprocessor
+                .preprocess_str(Path::new("counter.h"), source)
+                .unwrap()
+                .source,
+            "0 0 0 0 1 \"__COUNTER__\" 2\n"
+        );
+    }
+    let result = preprocessor
+        .preprocess_str(
+            Path::new("counter.h"),
+            "#define C __COUNTER__\n#define P _Pragma(\"pack(1)\")\n",
+        )
+        .unwrap();
+    assert!(
+        result
+            .expand_object_macro("C")
+            .unwrap_err()
+            .message
+            .contains("final macro environment")
+    );
+    assert!(
+        result
+            .expand_object_macro("P")
+            .unwrap_err()
+            .message
+            .contains("final macro environment")
+    );
+}
+
+#[test]
+fn pragma_operator_errors_and_work_are_bounded() {
+    for source in [
+        "_Pragma",
+        "_Pragma()",
+        "_Pragma(1)",
+        "_Pragma(\"pack(1)\", \"pack(2)\")",
+        "_Pragma(\"unknown_abi\")",
+    ] {
+        assert!(
+            Preprocessor::new(Config::default())
+                .preprocess_str(Path::new("invalid.h"), source)
+                .is_err(),
+            "{source}"
+        );
+    }
+    let source = "#define P _Pragma(\"pack(push,1)\")\nP P P P P P P P P P\n";
+    let config = Config {
+        max_tokens: 30,
+        ..Config::default()
+    };
+    assert!(
+        Preprocessor::new(config)
+            .preprocess_str(Path::new("limit.h"), source)
+            .unwrap_err()
+            .message
+            .contains("token limit")
+    );
+    let error = Preprocessor::new(Config::default())
+        .preprocess_str(
+            Path::new("real.h"),
+            "#define BAD _Pragma(\"unknown_abi\")\n#line 90 \"logical.h\"\n  BAD\n",
+        )
+        .unwrap_err();
+    assert_eq!(
+        (error.path.as_path(), error.line, error.column),
+        (Path::new("logical.h"), 90, 3)
+    );
+}
+
+#[test]
+fn pragma_conditions_follow_the_compiler_profile() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+    let source = "#if _Pragma(\"pack(1)\") 1\nint value;\n#endif\n";
+    let compiler = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
+    let version = Command::new(&compiler).arg("--version").output().unwrap();
+    let clang = String::from_utf8_lossy(&version.stdout).contains("clang");
+    let mut config = Config::default();
+    if clang {
+        config.defines.insert("__clang__".into(), "1".into());
+    }
+    let actual = Preprocessor::new(config).preprocess_str(Path::new("condition.h"), source);
+    let mut child = Command::new(compiler)
+        .args(["-E", "-P", "-std=c11", "-x", "c", "-"])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .unwrap();
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(source.as_bytes())
+        .unwrap();
+    let expected = child.wait_with_output().unwrap();
+    assert_eq!(actual.is_ok(), expected.status.success());
+    if let Ok(actual) = actual {
+        assert_eq!(
+            crate::token::render(&crate::token::lex(&actual.source).unwrap()),
+            crate::token::render(
+                &crate::token::lex(&String::from_utf8(expected.stdout).unwrap()).unwrap()
+            )
+        );
+    }
 }
