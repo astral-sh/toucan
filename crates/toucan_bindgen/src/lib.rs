@@ -157,6 +157,28 @@ impl Builder {
         self
     }
 
+    /// Associate matching C `dllimport` declarations with one native DLL library.
+    ///
+    /// Patterns use the same exact-name or trailing `.*` syntax as `blocklist_function`.
+    /// Exact names take precedence, then the longest prefix; a later identical
+    /// pattern replaces its library. Only selected imported declarations receive
+    /// `#[link]`, on their actual foreign block. No library is inferred from C.
+    pub fn dll_import_library(
+        mut self,
+        pattern: impl AsRef<str>,
+        library: impl Into<String>,
+    ) -> Self {
+        match identifier_pattern(pattern.as_ref()) {
+            Ok(pattern) => {
+                self.options
+                    .dll_import_libraries
+                    .insert(pattern, library.into());
+            }
+            Err(error) => self.fail(error),
+        }
+        self
+    }
+
     fn fail(&mut self, message: impl Into<String>) {
         self.error.get_or_insert_with(|| message.into());
     }

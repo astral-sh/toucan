@@ -34,7 +34,7 @@ enum Command {
     /// Generate Rust declarations and supported macro constants.
     Bindgen {
         #[command(flatten)]
-        input: Input,
+        input: Box<Input>,
         /// Write bindings to a file instead of standard output.
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -71,6 +71,9 @@ enum Command {
         /// Append caller-provided Rust from a UTF-8 file, without parsing or ABI checks.
         #[arg(long)]
         raw_lines_file: Vec<PathBuf>,
+        /// Link selected dllimport symbols: NAME=LIBRARY or PREFIX*=LIBRARY. Repeat for multiple DLLs.
+        #[arg(long = "dll-import-library", value_name = "PATTERN=LIBRARY")]
+        dll_import_libraries: Vec<String>,
         /// Emit byte string macros as CStr; reject interior NUL bytes.
         #[arg(long)]
         generate_cstr: bool,
@@ -344,6 +347,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
             blocklist_functions,
             blocklist_types,
             raw_lines_file,
+            dll_import_libraries,
             generate_cstr,
             rust_target,
         } => {
@@ -360,6 +364,15 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 };
                 macro_type_overrides.insert(name.to_owned(), policy);
             }
+            let dll_import_libraries = dll_import_libraries
+                .into_iter()
+                .map(|rule| {
+                    let (pattern, library) = rule
+                        .split_once('=')
+                        .context("DLL import library rule must be PATTERN=LIBRARY")?;
+                    Ok((pattern.to_owned(), library.to_owned()))
+                })
+                .collect::<anyhow::Result<std::collections::BTreeMap<_, _>>>()?;
             let raw_lines = raw_lines_file
                 .iter()
                 .map(std::fs::read_to_string)
@@ -375,6 +388,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 blocklist_functions,
                 blocklist_types,
                 raw_lines,
+                dll_import_libraries,
                 generate_cstr,
                 rust_target,
                 macro_type: if macro_type == "unsigned" {

@@ -1015,7 +1015,7 @@ fn imported_data_requires_scoped_linkage_and_imported_inline_keeps_its_symbol() 
     assert!(
         error
             .to_string()
-            .contains("scoped DLL linkage configuration"),
+            .contains("matching DLL import library rule"),
         "{error}"
     );
     let (bindings, _) = parsed

@@ -118,3 +118,43 @@ fn musl_sysroots_use_the_selected_libc_include_directory() {
         assert!(source.contains("pub fn accept("));
     }
 }
+
+#[test]
+fn dll_library_rules_use_builder_patterns_and_explicit_scope() {
+    let dir = tempfile::tempdir().unwrap();
+    let header = dir.path().join("api.h");
+    std::fs::write(&header,"__declspec(dllimport) int api_value; __declspec(dllimport) int api_special; __declspec(dllimport) int omitted(void); int ordinary(void);").unwrap();
+    let builder = Builder::default()
+        .header(header.to_str().unwrap())
+        .clang_arg("--target=x86_64-pc-windows-msvc")
+        .blocklist_function("omitted")
+        .dll_import_library("api_.*", "old")
+        .dll_import_library("^api_.*$", "alpha")
+        .dll_import_library("^api_special$", "beta");
+    let source = builder.clone().generate().unwrap().to_string();
+    assert!(source.contains("name = \"alpha\""));
+    assert!(source.contains("name = \"beta\""));
+    assert!(!source.contains("name = \"old\""));
+    assert!(!source.contains("pub fn omitted"));
+    assert!(
+        source.contains("}\n\nextern \"C\" {\n    pub fn ordinary("),
+        "{source}"
+    );
+    assert!(
+        builder
+            .clone()
+            .dll_import_library("api_[a-z]", "bad")
+            .generate()
+            .unwrap_err()
+            .to_string()
+            .contains("regex syntax")
+    );
+    assert!(
+        builder
+            .dll_import_library("api_.*", "")
+            .generate()
+            .unwrap_err()
+            .to_string()
+            .contains("nonempty")
+    );
+}

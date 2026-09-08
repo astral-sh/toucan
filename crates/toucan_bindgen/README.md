@@ -38,6 +38,14 @@ their enum constants; a blocked alias of a named enum does not block that enum.
 See [external types](../../docs/external-types.md) for layout and ABI contracts.
 These boundaries are not general bindgen API compatibility.
 
+Toucan additionally provides `dll_import_library(pattern, library)` for checked
+Microsoft DLL imports. It accepts the same exact-name or trailing `.*` patterns
+as the blocklists. Exact names win, then the longest prefix; repeating a pattern
+replaces its library. It attaches Rust's `#[link]` to the matching imported
+symbols' foreign blocks. Selected imported data needs a matching rule. Other
+symbols remain outside that annotation. See [DLL storage](../../docs/msvc-dll-storage.md)
+for multiple-library scope, linker search paths, and native validation.
+
 The default representation uses `usize` for compatible `size_t`, unsigned types
 for nonnegative integer macros, core paths, and Rust 1.64 syntax. Select enum
 variants explicitly: Rust enums cannot represent arbitrary integer values.

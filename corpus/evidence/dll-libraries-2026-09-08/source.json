@@ -1,0 +1,15 @@
+{
+  "base": "91ad36d3b8a52fa5b8eea9a4f8c9c188a478554d",
+  "files": {
+    "crates/toucan/tests/dll_libraries.rs": "81ad6de3590ea3c7cadfc843ff18d7a329ce69234b9bc9f31bf004fa9507a18f",
+    "crates/toucan/tests/dll_storage.rs": "5fddde742191060754c3c1d084878ec2f9234a625ca4500f62a18f36c91cf567",
+    "crates/toucan_bindgen/README.md": "9d60df7e505f0bb33e157736f0c52eb02feb27b1ea78de1a590d91fba820b5f6",
+    "crates/toucan_bindgen/src/lib.rs": "f12f3f1bb8d0fbaaa16ca69938c457e95fd8e3d299833fb2a67b9526f5d957bd",
+    "crates/toucan_bindgen/tests/builder.rs": "fe6ac6c53ef0226fe9285a5f04faabd6a21bcc69411dc127112211f09e3cb0c2",
+    "crates/toucan_bindings/src/lib.rs": "d665eb440805e685de6897e170a5fb6abd9eb9f1a75171286b9a39a6bab2e6ee",
+    "crates/toucan_cli/src/main.rs": "01352464781d479c29e69342401cb07d5b88c09bf30fe3e1dce7335440a6a4b6",
+    "crates/toucan_cli/tests/dll_libraries.rs": "40d8e23b30fbcf318421c3d7fe013dab0d24e3c0388c34bca7cc695990406ad0",
+    "docs/msvc-dll-storage.md": "9395e08b36263cfd9e162e06d0c39050de6b462aba94b884debf500eaa6ac49e",
+    "scripts/verify_windows_dll_imports.py": "09d1d1e48f3b0a8f1990ff042a59662f62dc81ade192210e7e6fad1f804f248c"
+  }
+}

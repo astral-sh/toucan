@@ -45,6 +45,11 @@ pub struct Options {
     /// Caller-provided Rust appended verbatim. These lines are not parsed or ABI
     /// checked; callers are responsible for their validity and C compatibility.
     pub raw_lines: Vec<String>,
+    /// DLL library names for imported declarations, selected by exact C name or
+    /// trailing `*` prefix. Exact names win, then the longest matching prefix.
+    /// Rules apply only to selected declarations carrying `dllimport`; `*` is an
+    /// explicit default. A later insertion for the same pattern replaces it.
+    pub dll_import_libraries: BTreeMap<String, String>,
     /// Emit byte string macros as `&core::ffi::CStr`. Interior NUL bytes are errors.
     /// Wide string macros retain typed code-unit arrays.
     pub generate_cstr: bool,
@@ -125,6 +130,48 @@ impl Options {
                 .any(|pattern| matches_name(pattern, name))
     }
 
+    fn dll_import_library(&self, name: &str) -> Option<&str> {
+        self.dll_import_libraries
+            .get(name)
+            .or_else(|| {
+                self.dll_import_libraries
+                    .iter()
+                    .filter_map(|(pattern, library)| {
+                        pattern
+                            .strip_suffix('*')
+                            .filter(|prefix| name.starts_with(prefix))
+                            .map(|prefix| (prefix.len(), library))
+                    })
+                    .max_by_key(|(length, _)| *length)
+                    .map(|(_, library)| library)
+            })
+            .map(String::as_str)
+    }
+
+    fn validate_dll_import_libraries(&self) -> Result<(), Error> {
+        for (pattern, library) in &self.dll_import_libraries {
+            let prefix = pattern.strip_suffix('*').unwrap_or(pattern);
+            if (prefix.is_empty() && pattern != "*")
+                || !prefix.bytes().enumerate().all(|(index, byte)| {
+                    byte == b'_'
+                        || byte.is_ascii_alphabetic()
+                        || (index > 0 && byte.is_ascii_digit())
+                })
+            {
+                return Err(Error(format!(
+                    "DLL import pattern `{pattern}` must be an exact C name or trailing '*' prefix"
+                )));
+            }
+            if library.is_empty() || library.chars().any(char::is_control) {
+                return Err(Error(
+                    "DLL import library names must be nonempty and contain no control characters"
+                        .into(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn blocks_function(&self, name: &str) -> bool {
         self.blocklist_functions
             .iter()
@@ -171,6 +218,7 @@ pub struct Bindings {
     pub blocked_types: Vec<ExternalType>,
     /// Caller-provided Rust, excluded from declaration counts and ABI validation.
     pub raw_lines: Vec<String>,
+
     /// Enum constants are projected to their enum's compatible integer type.
     pub enum_constants: Vec<EnumConstants>,
     /// Rust-to-C names for macro constants whose identifiers were escaped or renamed.
@@ -259,6 +307,7 @@ pub fn generate_with_macros(
 ) -> Result<Bindings, Error> {
     unit.validate_function_options()?;
     unit.validate_parameter_contracts()?;
+    options.validate_dll_import_libraries()?;
     if let Some(namespace) = &options.helper_namespace
         && (namespace.is_empty()
             || !namespace.bytes().enumerate().all(|(index, byte)| {
@@ -375,9 +424,10 @@ pub fn generate_with_macros(
         }
         if declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
             && declaration.kind == DeclarationKind::Variable
+            && options.dll_import_library(&declaration.name).is_none()
         {
             return Err(Error(format!(
-                "dllimport object `{}` requires a DLL library name attached to its Rust foreign block; scoped DLL linkage configuration is unsupported",
+                "dllimport object `{}` requires a matching DLL import library rule for its Rust foreign block",
                 declaration.name
             )));
         }
@@ -407,6 +457,24 @@ pub fn generate_with_macros(
             emitter.collect(&declaration.ty)?;
         }
         selected.push(declaration);
+    }
+    let mut dll_symbols = BTreeMap::new();
+    for declaration in &selected {
+        if declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
+            && let Some(library) = options.dll_import_library(&declaration.name)
+        {
+            let symbol = declaration
+                .link_name
+                .as_deref()
+                .unwrap_or(&declaration.name);
+            if let Some(previous) = dll_symbols.insert(symbol, library)
+                && previous != library
+            {
+                return Err(Error(format!(
+                    "DLL import symbol `{symbol}` has conflicting library rules `{previous}` and `{library}`"
+                )));
+            }
+        }
     }
     for (id, record) in unit.records.iter().enumerate() {
         if record.scope == Scope::File
@@ -551,7 +619,7 @@ pub fn generate_with_macros(
     } else {
         "extern"
     };
-    let mut active_abi = None;
+    let mut active_block = None;
     for declaration in &selected {
         let name = emitter.names.identifier(&declaration.name)?;
         let abi = match declaration.kind {
@@ -564,12 +632,23 @@ pub fn generate_with_macros(
             }
             DeclarationKind::Variable => "C",
         };
-        if active_abi != Some(abi) {
-            if active_abi.is_some() {
+        let library = (declaration.dll_storage_class
+            == Some(toucan_semantic::DllStorageClass::Import))
+        .then(|| options.dll_import_library(&declaration.name))
+        .flatten();
+        let block = (abi, library);
+        if active_block != Some(block) {
+            if active_block.is_some() {
                 source.push_str("}\n");
             }
-            writeln!(source, "\n{extern_keyword} {abi:?} {{").unwrap();
-            active_abi = Some(abi);
+            if let Some(library) = library {
+                // Debug string formatting emits an escaped Rust string literal.
+                writeln!(source, "\n#[link(name = {library:?}, kind = \"dylib\")]").unwrap();
+                writeln!(source, "{extern_keyword} {abi:?} {{").unwrap();
+            } else {
+                writeln!(source, "\n{extern_keyword} {abi:?} {{").unwrap();
+            }
+            active_block = Some(block);
         }
         match declaration.kind {
             DeclarationKind::Typedef => {}
@@ -611,7 +690,7 @@ pub fn generate_with_macros(
             }
         }
     }
-    if active_abi.is_some() {
+    if active_block.is_some() {
         source.push_str("}\n");
     } else {
         writeln!(source, "\n{extern_keyword} \"C\" {{\n}}").unwrap();

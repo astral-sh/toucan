@@ -87,20 +87,55 @@ Its COFF output contains a weak function definition, but its LLVM output combine
 frontend retains the source import and weak-ownership facts separately. These
 facts do not establish that emitting the same LLVM attributes is valid.
 
-## Rust bindings and remaining gates
+## Rust bindings
 
-Selected imported data currently produces an explicit unsupported-linkage
-diagnostic. Rust needs `#[link(name = "...", kind = "dylib")]` on the actual
-foreign block to generate an imported data reference. A linker argument alone,
-an empty separate foreign block, or a preceding attribute that instead attaches
-to a type does not supply that storage. A later binding-configuration layer must
-accept the caller's library name and attach it to the correct declarations.
+Map the imported C names to their native library names explicitly. With the
+builder, patterns use its existing exact-name or trailing `.*` convention:
 
-Imported function declarations and imported inline bodies can be selected.
-Ordinary function linkage can use an import-library thunk; this layer does not
-claim function-address identity with a direct DLL import. Native Windows SDK,
-consumer, and runtime checks remain release gates. This change adds no Windows
-ARM target or native Windows execution claim.
+```rust
+let bindings = toucan_bindgen::Builder::default()
+    .header("api.h")
+    .clang_arg("--target=x86_64-pc-windows-msvc")
+    .dll_import_library("api_.*", "api")
+    .dll_import_library("api_special", "extension")
+    .generate()?;
+```
+
+The CLI uses exact names or trailing `*` prefixes:
+
+```console
+toucan bindgen api.h --target x86_64-pc-windows-msvc \
+  --dll-import-library 'api_*=api' \
+  --dll-import-library 'api_special=extension'
+```
+
+Library callers can set `BindingOptions::dll_import_libraries`, a map from those
+same CLI patterns to library names. Exact names take precedence over prefixes;
+the longest matching prefix wins. A later rule for an identical pattern replaces
+its value. `*` is an explicit default for all selected imports; there is no
+implicit default. Patterns match C names before Rust identifier or linker-symbol
+renaming. Selected aliases of one linker symbol must choose the same library.
+
+Generation groups foreign declarations by their calling convention and chosen
+library, preserving declaration order. It puts
+`#[link(name = "...", kind = "dylib")]` on each actual matching foreign block.
+Types, ordinary external declarations, exports, and unselected imports do not
+receive that annotation. Empty library names and control characters are rejected;
+other characters are escaped as Rust string literals. The caller still supplies
+library search paths and distributes the required DLLs.
+
+Selected imported data without a matching rule produces a diagnostic. A linker
+argument alone, an empty separate foreign block, or a preceding attribute that
+attaches to a type does not produce the required imported-data reference.
+Imported functions without a rule retain ordinary external linkage, which can
+use an import-library thunk. Supply a rule to request direct DLL import for their
+addresses as well as calls. The annotation supplies Rust's import storage and
+native library requirement; final symbol resolution still belongs to the linker.
+
+Native Windows SDK and full consumer checks remain release gates. The reusable
+[DLL probe](../scripts/verify_windows_dll_imports.py) has an explicit `--native`
+mode for Windows. Cross-target linking is recorded separately from execution.
+This layer adds no Windows ARM target.
 
 ## Evidence
 
@@ -122,7 +157,13 @@ ASan checks after integrating those corrections.
 Separate COFF probes link a real C DLL and import library against C, Rust 1.64,
 and current Rust consumers. Bindgen 0.72.1 reproduces the same imported-data
 linking limitation across data-first, function-first, and typedef-first headers.
-Those probes validate compilation and linking; no PE executable was run.
+Those earlier probes validate compilation and linking; no PE executable was run.
+The [scoped-library evidence](../corpus/evidence/dll-libraries-2026-09-08/summary.json)
+records generated consumers against two DLLs, ordinary object linkage, all three
+header orders, Rust 1.64/current, O0/O3, and the explicit execution status.
+The [integrated library checks](../corpus/evidence/dll-libraries-root-integration-2026-09-08/summary.json)
+repeat those 12 cross-linked consumers after the declaration corrections and
+confirm that the eight existing project and musl binding outputs are unchanged.
 
 Compiler rules were checked against Clang 18's
 [declaration redeclaration handling](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/lib/Sema/SemaDecl.cpp)

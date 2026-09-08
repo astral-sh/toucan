@@ -1,0 +1,20 @@
+{
+  "base_commit": "b7e703742bcf9e5115e2c1ba7841abfac00d50c3",
+  "affected_crate_tests": {
+    "passed": 187,
+    "failed": 0,
+    "ignored": 61
+  },
+  "cross_linked_consumers": 12,
+  "native_windows_executions": 0,
+  "unchanged_binding_outputs": 8,
+  "frontend_sha256": "14dba00779cd523d17e357a863b917ec9c3680a25b2adc212f620e1943d85280",
+  "artifacts": {
+    "bindings.json.gz": "34d8443b7ac6cbb58d2c43279670c5b5488913fd1f8a8662f78615c9425d2a6d",
+    "build.log.gz": "8e025ebd2dfbc16d0ac0c2fd769e12bd89e4915edab78630d9bc3e695b140da8",
+    "clippy.log.gz": "1214297fd375e361422174c79a43adfdb4da8ca7bfaed51a4fd20b6e423c0171",
+    "coff.log.gz": "ee9c6ba4a6eedd2bc0537d4f74b8699e3acb29131bcb63f6300636b8a7e47726",
+    "coff.tar.gz": "ec6a3504621d9cc0d71eaddbb6151992afb250930260262b2bc8b03b9941aed1",
+    "tests.log.gz": "be17cc55569f5db7eec2bcd497440230cf20cc7367a95d69caaa0b8ed6d75b44"
+  }
+}
