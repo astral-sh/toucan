@@ -35,13 +35,16 @@ changes pass.
 ## Current gaps
 
 - Function bodies and variable initializers are parsed but not type-checked.
-- Prototype-local tag scopes and the complete set of C declaration constraints need
-  further conformance work.
+- Declaration constraints still need broader conformance testing. Prototype-local
+  tags retain distinct identities and are checked against GCC and Clang.
 - C++, K&R function definitions, variable-length arrays, TLS, atomic and complex
   types, unsupported calling conventions, and unknown ABI attributes are rejected.
 - Extended floating-point types retain their identity but do not have supported
   layout or binding representations. `long double` has a target layout, but its Rust
   binding representation is not implemented.
+- Large enum constants follow the target's GCC or Clang profile, including their
+  types during and after the definition. Apple enum ranges requiring more than
+  64 bits and values that cannot be represented without truncation are rejected.
 - Rust bindings reject union bitfields, records containing bitfields passed by value,
   field-level alignment, and combined packing and explicit record alignment.
 - Function-like macros and object macros that are not supported integer or ordinary
@@ -79,6 +82,11 @@ The selected API names, independent probe coverage, compiler versions, header
 checksums, and commands are recorded with the result. Successful probes establish
 the tested constants and representations. They do not validate every declaration
 constraint or every possible call to those APIs.
+
+The [dependency audit](../corpus/evidence/dependency-audit-2026-09-08.json) found no
+known RustSec advisories in the workspace, fuzzing, or comparison tool lockfiles on
+2026-09-08. It records the database revision and lockfile checksums; yanked package
+status was not checked.
 
 ## Requirements for a production release
 

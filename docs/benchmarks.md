@@ -11,12 +11,13 @@ with a fixed seed. Each command has a 60-second timeout, configurable with `--ti
 cargo build --release -p toucan_cli
 python3 scripts/benchmark.py /path/to/sqlite3.h \
   --target x86_64-unknown-linux-gnu --sysroot / \
-  --allowlist 'sqlite3*' --bindgen /path/to/bindgen \
+  --allowlist 'sqlite3*' --allowlist 'SQLITE*' --bindgen /path/to/bindgen \
   --iterations 15 --output benchmark-results/sqlite.json
 ```
 
 Use the same target resource headers with `-I` for both tools. Bindgen runs without
-doc comments, layout tests, or rustfmt. Toucan currently always emits compile-time
+doc comments, layout tests, or rustfmt, with enum name prefixes disabled and signed
+macro constants by default, matching the API comparison configuration. Toucan emits compile-time
 layout assertions. Matching function names is a useful scope check, but does not
 prove identical types, signatures, or complete output equivalence.
 
