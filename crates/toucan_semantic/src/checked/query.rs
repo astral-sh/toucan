@@ -248,7 +248,9 @@ impl Builder {
                 | Builtin::VfprintfChecked => Present,
                 Builtin::Memcmp => Unresolved.combine(operands(arguments)),
                 // These intrinsics are rejected on Clang profiles.
-                Builtin::VaArgPack | Builtin::VaArgPackLength => Unresolved,
+                Builtin::VaArgPack | Builtin::VaArgPackLength | Builtin::VectorShuffle => {
+                    Unresolved
+                }
             },
             ExprKind::VaArg { .. } => Present,
             ExprKind::Generic { arms, selected, .. } => {

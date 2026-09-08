@@ -136,6 +136,9 @@ impl Analyzer {
         let Some(name) = self.builtin_name(call) else {
             return Ok(None);
         };
+        if name == "__builtin_shuffle" {
+            return self.shuffle_call_type(call).map(Some);
+        }
         if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
             return self.x86_call_type(intrinsic, call).map(Some);
         }

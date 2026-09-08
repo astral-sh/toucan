@@ -372,35 +372,62 @@ with 1-byte pointer alignment. Native GCC/Clang tests exercise memory access and
 callbacks in both directions with current Rust and Rust 1.64; this proves pointer
 FFI behavior, not execution of Toucan's retained expression graph.
 
-## x86 MMX intrinsics
+## x86 MMX, SSE, and SSE2 intrinsics
 
-The 59 builtin names used by GCC 13.3's `mmintrin.h` have explicit signatures and
-retained `Builtin::X86` identities. This covers packing, arithmetic, comparisons,
-shifts, bitwise operations, vector construction/extraction, and `emms`. Non-x86
-targets reject these names. Ordinary declarations can shadow them; the builtin
-itself is not an addressable function or an exported binding.
+The 287 builtin names used by GCC 13.3's `mmintrin.h`, `xmmintrin.h`, and
+`emmintrin.h` have explicit signatures and retained `Builtin::X86` identities.
+They cover arithmetic, packing, comparisons, shifts, vector construction and
+extraction, loads/stores, fences, and floating-point control-register access.
+Non-x86 targets reject these names. Ordinary declarations can shadow them; the
+builtin itself is not an exported binding.
 
-`X86Intrinsic::signature` exposes the target profile's C types. GCC and Clang
-use different vector element types for bitwise operations and shift counts.
-Clang also permits equal-sized vector reinterpret conversions in these arguments,
-retained as `IntrinsicArgument`; GCC requires compatible vector types.
-`required_features` records MMX, and additionally SSE2 for `paddq`/`psubq`.
-The fixed x86-64 profiles enable those instruction sets. Per-function target
-attributes and disabling CPU features remain unsupported configuration.
+`X86Intrinsic::from_name` identifies a spelling and `signature` exposes the target
+profile's C types. The pinned Clang profile supports 213 of these names; GCC-only
+spellings receive an explicit diagnostic there. GCC and Clang use different vector
+types for several bitwise operations, shift counts, and memory arguments. Clang
+permits equal-sized vector reinterpret conversions in these arguments, retained as
+`IntrinsicArgument`; GCC requires compatible vector types. `required_features`
+records MMX, SSE, and SSE2 requirements. The fixed x86-64 profiles enable these
+instruction sets. Per-function target attributes and disabling CPU features remain
+unsupported configuration.
 
-Immediate constraints are available through `immediate_constraints`, including
-the argument index, inclusive range, and compiler stage. `vec_ext_v2si` requires
-an index in 0..=1 after conversion to `int`. Clang requires an integer constant
-expression during checking. GCC accepts source expressions that only become valid
-after inlining, so successful analysis preserves an `AfterInlining` obligation;
-a consumer must discharge it before emitting instructions. Runtime shift counts
-are valid, including the builtins whose names end in `i`.
+Immediate constraints include argument index, inclusive range, divisibility, and
+compiler stage. Clang checks integer constant expressions during analysis. GCC
+may only resolve a valid operand after inlining, so analysis preserves an
+`AfterInlining` obligation; consumers must discharge it before emitting
+instructions. The bounds apply after conversion to the formal parameter type.
+For example:
+
+- `vec_ext_v2si` requires index 0..=1.
+- GNU `pslldqi128`/`psrldqi128` take a bit count in 0..=2040 divisible by 8.
+- GNU shuffle immediates retain a full converted `int` and use the instruction's
+  low selector bits. Clang `shufps`/`shufpd` require 0..=255/0..=3. Clang `pshufw`
+  converts its constant to `char` first; all resulting byte patterns are valid.
+- GNU `prefetch` requires all three hint operands to become constants. Its
+  `conditional_immediate_constraints` require locality 2 or 3 when the final
+  argument is 1, selecting instruction prefetch. With the default CPU profile,
+  that mode is a no-op; enabling the instruction requires separate target-feature
+  and addressing support. Data-prefetch locality outside 0..=3 uses zero, as GCC
+  specifies through its diagnostic. Address evaluation must still be preserved.
+
+Runtime packed-lane shift counts remain valid, including the builtin names ending
+in `i`. Instruction identities retain memory/control effects; Clang's ordinary
+side-effect classification is exposed separately from architectural effects.
+
+GNU `__builtin_shuffle` has a separate `Builtin::VectorShuffle` identity. It takes
+one or two vectors of the same type and an integer mask with the same lane count
+and element size. Mask values select modulo the concatenated input length, including
+negative indices. The result preserves the first input's typedef alignment; each
+argument is evaluated once with ordinary unspecified argument order. Clang does
+not provide this spelling.
 
 These operations are type checked and retained, without SIMD constant folding or
-machine-code generation. Compiler reference programs verify the descriptor
-semantics; they do not execute Toucan's retained graph. Rust bindings continue to
-reject vectors passed by value. The [MMX probe record](../corpus/evidence/mmx-intrinsics-2026-09-08.json)
-records the compiler sources, target checks, untouched header, and native results.
+machine-code generation. Rust bindings continue to reject vectors passed by value.
+The [MMX probe record](../corpus/evidence/mmx-intrinsics-2026-09-08.json) and
+[SSE probe record](../corpus/evidence/sse-intrinsics-2026-09-08.json) record exact
+compiler signatures, native reference programs, untouched headers, and real zstd
+translation units. Reference programs execute compiler-generated code, not Toucan's
+retained graph.
 
 ## Legacy atomic intrinsics
 

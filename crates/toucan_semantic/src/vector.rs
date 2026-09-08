@@ -272,3 +272,62 @@ impl Analyzer {
         }))
     }
 }
+
+impl Analyzer {
+    /// GNU shuffle masks select lanes modulo the concatenated input length.
+    /// Every argument is evaluated once, with ordinary unspecified argument order.
+    pub(crate) fn shuffle_call_type(
+        &mut self,
+        call: &Node<ast::CallExpression>,
+    ) -> Result<Type, Error> {
+        let offset = call.span.start;
+        if !self.gnu_vector_profile() {
+            return Err(Error::new(
+                offset,
+                "__builtin_shuffle requires a GNU compiler profile",
+            ));
+        }
+        if !matches!(call.node.arguments.len(), 2 | 3) {
+            return Err(Error::new(
+                offset,
+                "__builtin_shuffle requires one or two input vectors and a mask vector",
+            ));
+        }
+        let mut types = Vec::with_capacity(call.node.arguments.len());
+        for argument in &call.node.arguments {
+            types.push(self.value_expression_type(argument)?);
+        }
+        let first = &types[0];
+        let TypeKind::Vector { element, lanes } = &first.kind else {
+            return Err(Error::new(
+                offset,
+                "__builtin_shuffle input must be a vector",
+            ));
+        };
+        if types.len() == 3 && !self.compatible(first, &types[1])? {
+            return Err(Error::new(
+                call.node.arguments[1].span.start,
+                "__builtin_shuffle input vectors must have the same element type and lane count",
+            ));
+        }
+        let mask = types.last().expect("shuffle mask");
+        let valid_mask = if let TypeKind::Vector {
+            element: mask_element,
+            lanes: mask_lanes,
+        } = &mask.kind
+        {
+            matches!(self.unit.resolve(mask_element)?.kind, TypeKind::Integer(_))
+                && mask_lanes == lanes
+                && self.unit.layout(mask_element)?.size_bits == self.unit.layout(element)?.size_bits
+        } else {
+            false
+        };
+        if !valid_mask {
+            return Err(Error::new(
+                call.node.arguments.last().expect("shuffle mask").span.start,
+                "__builtin_shuffle mask must be an integer vector with the input's lane count and element size",
+            ));
+        }
+        Ok(first.clone())
+    }
+}

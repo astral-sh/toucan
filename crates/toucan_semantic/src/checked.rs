@@ -25,7 +25,10 @@ pub use crate::object_extent::{
     ObjectSizeFoldStage, ObjectSizeProof, ObjectSizeResult, ObjectSizeUnknown,
 };
 pub use crate::sync::SyncOperation;
-pub use crate::x86::{ImmediateConstraint, ImmediateStage, X86Feature, X86Intrinsic, X86Signature};
+pub use crate::x86::{
+    ConditionalImmediateConstraint, ImmediateConstraint, ImmediateStage, X86Feature, X86Intrinsic,
+    X86Signature,
+};
 pub use attributes::{DiagnosticAttribute, DiagnosticAttributeKind};
 pub use bounds::{
     Bound, BoundEvaluation, BoundId, BoundInput, BoundSite, BoundValue, Extent, FunctionUse,

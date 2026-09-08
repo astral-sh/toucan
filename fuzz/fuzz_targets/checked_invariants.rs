@@ -344,6 +344,16 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     for constraint in intrinsic.immediate_constraints(unit.target) {
                         assert!(constraint.argument() < arguments.len());
                         assert!(constraint.minimum() <= constraint.maximum());
+                        assert!(constraint.multiple_of() > 0);
+                    }
+                    for constraint in intrinsic.conditional_immediate_constraints(unit.target) {
+                        assert!(constraint.condition().0 < arguments.len());
+                        assert!(constraint.requirement().argument() < arguments.len());
+                        assert!(
+                            constraint.requirement().minimum()
+                                <= constraint.requirement().maximum()
+                        );
+                        assert!(constraint.requirement().multiple_of() > 0);
                     }
                 }
                 for argument in arguments {

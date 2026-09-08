@@ -1,0 +1,633 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-08",
+  "scope": "GNU shuffle and the 228 additional SSE/SSE2 builtin spellings used by GCC 13 xmmintrin.h/emmintrin.h",
+  "base_commit": "f78baa8dc399daceabeeead4878482fc7f53a33e",
+  "excluded_baseline_layers": [
+    {
+      "path": "/tmp/toucan-mmx-intrinsics.patch",
+      "bytes": 97221,
+      "sha256": "14ec8fe3f8901af3b567cddaabb5fe4486e518a02225c6b9fcea14a8aba28a00"
+    },
+    {
+      "path": "/tmp/toucan-aligned-pointer-conversions.patch",
+      "bytes": 1155,
+      "sha256": "b2318f3b3ea430035d476feb801f9a4d90aae67bbc7bd4b9aea52b8ce47acc26"
+    }
+  ],
+  "compiler_sources": [
+    {
+      "url": "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-13.3.0/gcc/config/i386/i386-builtin.def",
+      "file": "i386-builtin.def",
+      "sha256": "07bdaee583616731e8fbdf259989c632ee42c557197f98a2511fb3b02fbfb38c",
+      "bytes": 552687
+    },
+    {
+      "url": "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-13.3.0/gcc/config/i386/i386-builtin-types.def",
+      "file": "i386-builtin-types.def",
+      "sha256": "a182453234d88fabff8cd4f9590ee4a2b5d9bc5601b7c81780975757e0d30354",
+      "bytes": 58873
+    },
+    {
+      "url": "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-13.3.0/gcc/config/i386/i386-builtins.cc",
+      "file": "i386-builtins.cc",
+      "sha256": "770b8adea70ad9ca37bde54eec667827b278aaf463a987b669a7e2e11b0bf992",
+      "bytes": 77645
+    },
+    {
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-18.1.3/clang/include/clang/Basic/BuiltinsX86.def",
+      "file": "clang-BuiltinsX86.def",
+      "bytes": 166601,
+      "sha256": "a58a99a1cb16b5da264895a83f88a29bb8d42ed1dc624b5fe828b88eda6f9537"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-18.1.3/clang/include/clang/Basic/BuiltinsX86_64.def",
+      "file": "clang-BuiltinsX86_64.def",
+      "bytes": 9699,
+      "sha256": "92e1f778e6532e828838664dea029cf6517e6135425b6f99cc961ca289c5b329"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-13.3.0/gcc/config/i386/i386-expand.cc",
+      "file": "i386-expand.cc",
+      "bytes": 685602,
+      "sha256": "5387227322b563dbab57e9e22b13a92b5f378129f10cb5f586e3f2822bd1ff00"
+    }
+  ],
+  "compiler_identities": [
+    {
+      "command": [
+        "gcc",
+        "--version"
+      ],
+      "status": 0,
+      "stdout": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "clang",
+        "--version"
+      ],
+      "status": 0,
+      "stdout": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "rustc",
+        "--version"
+      ],
+      "status": 0,
+      "stdout": "rustc 1.98.1 (48a229cea 2026-09-01)\n",
+      "stderr": ""
+    }
+  ],
+  "source_files": [
+    {
+      "path": "crates/toucan_semantic/src/builtins.rs",
+      "sha256": "3e88c90b4ca4002937afa13aef3ebebd3922486500a6c76b42ebfff18bc9e5fc",
+      "bytes": 18174
+    },
+    {
+      "path": "crates/toucan_semantic/src/checked.rs",
+      "sha256": "e3b72f8b482aeb4255d011294257d6102509cc9016b75ba8a8b838fe3405c92b",
+      "bytes": 54189
+    },
+    {
+      "path": "crates/toucan_semantic/src/checked/expression.rs",
+      "sha256": "096f56cd68fbb9cdbd5c8ed80df69a9e79f17473c8c4b5423c112156c5974899",
+      "bytes": 95432
+    },
+    {
+      "path": "crates/toucan_semantic/src/checked/query.rs",
+      "sha256": "e747997da1a88e54bc88f1fc751f9de9c55b9511e716133a08550e9c6a4fee44",
+      "bytes": 12363
+    },
+    {
+      "path": "crates/toucan_semantic/src/vector.rs",
+      "sha256": "31a2144a7a0a37589e159342265430170a08d4f81b995264518b9e8e3d6fa21f",
+      "bytes": 12522
+    },
+    {
+      "path": "crates/toucan_semantic/src/x86.rs",
+      "sha256": "de1fe8734845c2fb19f764fe96ec770adecc95b8e576535efb9d425ae2d35f13",
+      "bytes": 47768
+    },
+    {
+      "path": "crates/toucan_semantic/tests/fixtures/sse_builtin_names.txt",
+      "sha256": "8656fddd2a37be72f8fe089373396392856ca660bd30da1471afe299257847b9",
+      "bytes": 5432
+    },
+    {
+      "path": "crates/toucan_semantic/tests/sse_intrinsics.rs",
+      "sha256": "0dfca9f2ecaadae53c03792940eeb11a11cf23acf11a898835769c371d30ca74",
+      "bytes": 17492
+    },
+    {
+      "path": "crates/toucan_semantic/tests/vector_shuffle.rs",
+      "sha256": "432aec85ffc1cce52e8b5ace7bafcc232d7f337133e1ca7e1ad21822bc9c6202",
+      "bytes": 6003
+    },
+    {
+      "path": "docs/compatibility.md",
+      "sha256": "18b253f04d82776731f606000e82170bee713a74c9dfb8f52af8bb5e0c8fa6a9",
+      "bytes": 41073
+    },
+    {
+      "path": "fuzz/fuzz_targets/checked_invariants.rs",
+      "sha256": "6f772974caa427d88badd0e2911aa70053abb767272159d0352e002f26e666c3",
+      "bytes": 34523
+    },
+    {
+      "path": "fuzz/seeds/checked/gnu_vector_shuffle.h",
+      "sha256": "a1ff3dff9a377868f46b1df5b844d765476a2a0905b2f725f8d8e438831b5878",
+      "bytes": 224
+    },
+    {
+      "path": "fuzz/seeds/checked/sse_deferred_prefetch.h",
+      "sha256": "44bd4d552df66730866b90b4d444c50d5bfd41852b618ab2bd62d22903126837",
+      "bytes": 214
+    },
+    {
+      "path": "fuzz/seeds/checked/sse_intrinsics.h",
+      "sha256": "229012cb5ea76e8ba34d4c670b6538776c58c753426fe212075118535bce4d81",
+      "bytes": 297
+    }
+  ],
+  "frontend_binary": {
+    "path": "/home/dev-user/.cache/toucan/x86-intrinsics-target/debug/toucan",
+    "bytes": 59333944,
+    "sha256": "1a17629d88c67a3103463a11d4f725f2ef6fb8c4b4ec42a73c94653550837c7e"
+  },
+  "validation": {
+    "focused_tests": {
+      "command": [
+        "cargo",
+        "test",
+        "-p",
+        "toucan_semantic",
+        "--test",
+        "sse_intrinsics",
+        "--test",
+        "vector_shuffle",
+        "--test",
+        "x86_intrinsics",
+        "--",
+        "--include-ignored"
+      ],
+      "passed": 15,
+      "new_sse_shuffle_tests": 8,
+      "existing_mmx_tests": 7,
+      "log": {
+        "path": "/tmp/toucan-sse-tests.log",
+        "bytes": 1882,
+        "sha256": "a058b5ed9fb91630cbd2acdf696c03e4d0bb05d5e1665542e7b4acbd19f2cd80"
+      }
+    },
+    "workspace": {
+      "command": [
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-features"
+      ],
+      "passed": 377,
+      "failed": 0,
+      "ignored": 110,
+      "log": {
+        "path": "/tmp/toucan-sse-workspace.log",
+        "bytes": 67169,
+        "sha256": "23c277ee05172ba2455933c0fc2ad025bfe4016f692478730876f82ad4cb7232"
+      }
+    },
+    "clippy": {
+      "command": [
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "log": {
+        "path": "/tmp/toucan-sse-clippy.log",
+        "bytes": 187,
+        "sha256": "16a9956c3002e783f17630d1b7e0182c96f3191a944c379ec2c4d4f7fd9547ff"
+      }
+    },
+    "rustdoc": {
+      "command": [
+        "cargo",
+        "doc",
+        "--workspace",
+        "--all-features",
+        "--no-deps"
+      ],
+      "environment": {
+        "RUSTDOCFLAGS": "-D warnings"
+      },
+      "log": {
+        "path": "/tmp/toucan-sse-rustdoc.log",
+        "bytes": 943,
+        "sha256": "f3e97b5ce92ffaba78ff33855b1da2150c92f28d23ee6f94fbcbac53eb0a7482"
+      }
+    }
+  },
+  "signatures": {
+    "additional_gnu_builtins": 228,
+    "additional_clang_builtins": 154,
+    "combined_with_mmx_gnu_builtins": 287,
+    "combined_with_mmx_clang_builtins": 213,
+    "gcc_exact_function_type_assertions": 228,
+    "gcc_object_generation": "Functions return intrinsic results so pure calls cannot disappear solely because their values are unused.",
+    "clang_exact_ast_formal_signatures": 462,
+    "clang_unsupported_spelling_checks": 222,
+    "clang_targets": [
+      "x86_64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "x86_64-pc-windows-msvc"
+    ],
+    "aarch64_compiler_rejections": 2,
+    "formal_ast_report": {
+      "path": "/home/dev-user/.cache/toucan/x86-intrinsic-probes/sse-clang-formal-types.json",
+      "bytes": 208702,
+      "sha256": "d9a0480a8ea4f0f41682a51fb276cc71d63e33eaf1d047340e900c4c6b14c43e"
+    },
+    "formal_ast_source": {
+      "path": "/home/dev-user/.cache/toucan/x86-intrinsic-probes/sse-clang-signatures.c",
+      "bytes": 10083,
+      "sha256": "43d4973566538cc39762475e42c4dfd5795757eb1aac4cc8129392e32ce77fa6"
+    },
+    "absence_report": {
+      "path": "/home/dev-user/.cache/toucan/x86-intrinsic-probes/sse-clang-unavailable.json",
+      "bytes": 265227,
+      "sha256": "2efaacf2ff02a03174e38791ab666048c12e3ab6cb8e45dff0282fde71d841d7"
+    },
+    "ast_commands": [
+      [
+        "clang",
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "-Xclang",
+        "-ast-dump=json",
+        "-x",
+        "c",
+        "-"
+      ],
+      [
+        "clang",
+        "-target",
+        "x86_64-apple-darwin",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "-Xclang",
+        "-ast-dump=json",
+        "-x",
+        "c",
+        "-"
+      ],
+      [
+        "clang",
+        "-target",
+        "x86_64-pc-windows-msvc",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "-Xclang",
+        "-ast-dump=json",
+        "-x",
+        "c",
+        "-"
+      ]
+    ],
+    "absence_command": [
+      "clang",
+      "-target",
+      "x86_64-unknown-linux-gnu",
+      "-std=gnu11",
+      "-fsyntax-only",
+      "-x",
+      "c",
+      "-"
+    ],
+    "note": "AST formal types are checked independently of call acceptance because Clang permits lax same-size vector argument conversions."
+  },
+  "immediate_probes": {
+    "reproducible_test": "deferred_immediate_boundaries_match_compiler_lowering",
+    "boundary_cases": 12,
+    "compiler_invocations": 48,
+    "additional_reports": [
+      {
+        "path": "/home/dev-user/.cache/toucan/x86-intrinsic-probes/sse-initial-immediates.json",
+        "bytes": 242081,
+        "sha256": "f95f78d72061027774c63bc0d00749f636fe769820c83106ee72438e666eb743"
+      },
+      {
+        "path": "/home/dev-user/.cache/toucan/x86-intrinsic-probes/sse-shift-prefetch-followup.json",
+        "bytes": 22112,
+        "sha256": "22be124e068472179e510380946849cc7906a3aebbcce4bf10ab942a5ebee534"
+      }
+    ],
+    "rules": [
+      "GNU shuffle selectors use low instruction bits after int conversion; Clang validates shufps/shufpd ranges and converts pshufw through char.",
+      "GNU whole-register byte-shift count is a converted int from 0 to 2040 divisible by 8, checked after inlining.",
+      "GNU prefetch hint arguments must become constants; instruction selector 1 additionally requires locality 2 or 3. Without configured prefetchi/address support GCC emits a NOP for valid instruction hints."
+    ]
+  },
+  "native_reference": {
+    "sse_programs": 4,
+    "sse_compilers": [
+      "GCC13.3.0",
+      "Clang18.1.3"
+    ],
+    "optimization": [
+      "-O0",
+      "-O2"
+    ],
+    "shuffle_programs": 2,
+    "shuffle_compiler": "GCC13.3.0",
+    "sse_behavior": [
+      "float square roots",
+      "float lane shuffles",
+      "comparison masks",
+      "truncating float-to-int lanes",
+      "signed packing saturation",
+      "masked byte stores",
+      "non-temporal integer stores and fences",
+      "control-register roundtrip"
+    ],
+    "shuffle_behavior": [
+      "one/two input modulo indexing including negative masks",
+      "first-input alignment",
+      "unsigned mask type acceptance"
+    ],
+    "scope": "Executes compiler reference programs. Toucan checks the same source; this is not execution of Toucan IR."
+  },
+  "headers": {
+    "preprocess_command": [
+      "gcc",
+      "-E",
+      "-P",
+      "-x",
+      "c",
+      "-"
+    ],
+    "preprocess_stdin_template": "#include <HEADER>\n",
+    "original_headers": [
+      {
+        "path": "/usr/lib/gcc/x86_64-linux-gnu/13/include/xmmintrin.h",
+        "bytes": 44605,
+        "sha256": "4d2692d6300753823cc3d761c4254f6e053e60ec721beed0b90961a4130bad4b"
+      },
+      {
+        "path": "/usr/lib/gcc/x86_64-linux-gnu/13/include/emmintrin.h",
+        "bytes": 52354,
+        "sha256": "e49e99cb09f4f7d94d0bc21cffba7c9eb328b903603eadf795b24b646c5257f0"
+      }
+    ],
+    "declarations_each": 777,
+    "results": [
+      {
+        "header": "xmmintrin.h",
+        "input": {
+          "path": "/home/dev-user/.cache/toucan/x86-intrinsic-probes/xmmintrin.h.i",
+          "bytes": 122943,
+          "sha256": "ca2b38a952c65462aa480feaaa52b0c277ef247dc777598c6e4271ca2071a761"
+        },
+        "command": [
+          "/home/dev-user/.cache/toucan/x86-intrinsics-target/debug/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/x86-intrinsic-probes/xmmintrin.h.i",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "status": 0,
+        "stdout": "",
+        "stderr": "Analyzed 777 declarations for x86_64-unknown-linux-gnu\n"
+      },
+      {
+        "header": "xmmintrin.h",
+        "input": {
+          "path": "/home/dev-user/.cache/toucan/x86-intrinsic-probes/xmmintrin.h.i",
+          "bytes": 122943,
+          "sha256": "ca2b38a952c65462aa480feaaa52b0c277ef247dc777598c6e4271ca2071a761"
+        },
+        "command": [
+          "/home/dev-user/.cache/toucan/x86-intrinsics-target/debug/toucan",
+          "inspect",
+          "/home/dev-user/.cache/toucan/x86-intrinsic-probes/xmmintrin.h.i",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--checked-code",
+          "-o",
+          "/home/dev-user/.cache/toucan/x86-intrinsic-probes/xmmintrin.h.checked.json"
+        ],
+        "status": 0,
+        "stdout": "",
+        "stderr": ""
+      },
+      {
+        "header": "emmintrin.h",
+        "input": {
+          "path": "/home/dev-user/.cache/toucan/x86-intrinsic-probes/emmintrin.h.i",
+          "bytes": 122943,
+          "sha256": "0670c921c7ccc4600fca19a24e164e725e114e38e32e07c16053ff4b06dc8ed8"
+        },
+        "command": [
+          "/home/dev-user/.cache/toucan/x86-intrinsics-target/debug/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/x86-intrinsic-probes/emmintrin.h.i",
+          "--target",
+          "x86_64-unknown-linux-gnu"
+        ],
+        "status": 0,
+        "stdout": "",
+        "stderr": "Analyzed 777 declarations for x86_64-unknown-linux-gnu\n"
+      },
+      {
+        "header": "emmintrin.h",
+        "input": {
+          "path": "/home/dev-user/.cache/toucan/x86-intrinsic-probes/emmintrin.h.i",
+          "bytes": 122943,
+          "sha256": "0670c921c7ccc4600fca19a24e164e725e114e38e32e07c16053ff4b06dc8ed8"
+        },
+        "command": [
+          "/home/dev-user/.cache/toucan/x86-intrinsics-target/debug/toucan",
+          "inspect",
+          "/home/dev-user/.cache/toucan/x86-intrinsic-probes/emmintrin.h.i",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--checked-code",
+          "-o",
+          "/home/dev-user/.cache/toucan/x86-intrinsic-probes/emmintrin.h.checked.json"
+        ],
+        "status": 0,
+        "stdout": "",
+        "stderr": ""
+      }
+    ]
+  },
+  "real_zstd": [
+    {
+      "id": "zstd-zstd_common",
+      "version": "1.5.7",
+      "archive_sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+      "source_sha256": "f49eb8023a90d3de925373bd9ee0d36ed46b26c529840b64220397446cd73795",
+      "original_source": "lib/common/zstd_common.c",
+      "input": {
+        "path": "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i",
+        "bytes": 284316,
+        "sha256": "aacbd5d25076268a1cf1ed37c2fe5d4deb8cd9fe768248e033324a56f763b4fc"
+      },
+      "preprocessing_flags": [
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wcast-qual",
+        "-Wcast-align",
+        "-Wshadow",
+        "-Wstrict-aliasing=1",
+        "-Wswitch-enum",
+        "-Wdeclaration-after-statement",
+        "-Wstrict-prototypes",
+        "-Wundef",
+        "-Wpointer-arith",
+        "-Wvla",
+        "-Wformat=2",
+        "-Winit-self",
+        "-Wfloat-equal",
+        "-Wwrite-strings",
+        "-Wredundant-decls",
+        "-Wmissing-prototypes",
+        "-Wc++-compat",
+        "-Wa,--noexecstack",
+        "-DXXH_NAMESPACE=ZSTD_",
+        "-DDEBUGLEVEL=0",
+        "-DZSTD_LEGACY_SUPPORT=5"
+      ],
+      "command": [
+        "/home/dev-user/.cache/toucan/x86-intrinsics-target/debug/toucan",
+        "check",
+        "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i",
+        "--target",
+        "x86_64-unknown-linux-gnu"
+      ],
+      "status": 0,
+      "stdout": "",
+      "stderr": "Analyzed 1424 declarations for x86_64-unknown-linux-gnu\n"
+    },
+    {
+      "id": "zstd-zstd_compress",
+      "version": "1.5.7",
+      "archive_sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+      "source_sha256": "10c315ae609d49b2fc431521aa95908086e69fd917991c5ed9a875af3d1208e8",
+      "original_source": "lib/compress/zstd_compress.c",
+      "input": {
+        "path": "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_compress/native.i",
+        "bytes": 703814,
+        "sha256": "199680e00b6f0d87c8b1b0bf4f863722af176cc3dba141f1c2243b1784d98aff"
+      },
+      "preprocessing_flags": [
+        "-O3",
+        "-Wall",
+        "-Wextra",
+        "-Wcast-qual",
+        "-Wcast-align",
+        "-Wshadow",
+        "-Wstrict-aliasing=1",
+        "-Wswitch-enum",
+        "-Wdeclaration-after-statement",
+        "-Wstrict-prototypes",
+        "-Wundef",
+        "-Wpointer-arith",
+        "-Wvla",
+        "-Wformat=2",
+        "-Winit-self",
+        "-Wfloat-equal",
+        "-Wwrite-strings",
+        "-Wredundant-decls",
+        "-Wmissing-prototypes",
+        "-Wc++-compat",
+        "-Wa,--noexecstack",
+        "-DXXH_NAMESPACE=ZSTD_",
+        "-DDEBUGLEVEL=0",
+        "-DZSTD_LEGACY_SUPPORT=5"
+      ],
+      "command": [
+        "/home/dev-user/.cache/toucan/x86-intrinsics-target/debug/toucan",
+        "check",
+        "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_compress/native.i",
+        "--target",
+        "x86_64-unknown-linux-gnu"
+      ],
+      "status": 0,
+      "stdout": "",
+      "stderr": "Analyzed 1859 declarations for x86_64-unknown-linux-gnu\n"
+    }
+  ],
+  "retained_replay": {
+    "cases": 35,
+    "accepted": 10,
+    "matching_rejections": 25,
+    "results": [
+      "/home/dev-user/.cache/toucan/x86-intrinsic-probes/xmmintrin.h.i x86_64-unknown-linux-gnu: accepted, graph verified",
+      "/home/dev-user/.cache/toucan/x86-intrinsic-probes/xmmintrin.h.i aarch64-unknown-linux-gnu: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "/home/dev-user/.cache/toucan/x86-intrinsic-probes/xmmintrin.h.i x86_64-apple-darwin: matching rejection: incompatible assignment or argument types",
+      "/home/dev-user/.cache/toucan/x86-intrinsic-probes/xmmintrin.h.i aarch64-apple-darwin: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "/home/dev-user/.cache/toucan/x86-intrinsic-probes/xmmintrin.h.i x86_64-pc-windows-msvc: matching rejection: incompatible assignment or argument types",
+      "/home/dev-user/.cache/toucan/x86-intrinsic-probes/emmintrin.h.i x86_64-unknown-linux-gnu: accepted, graph verified",
+      "/home/dev-user/.cache/toucan/x86-intrinsic-probes/emmintrin.h.i aarch64-unknown-linux-gnu: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "/home/dev-user/.cache/toucan/x86-intrinsic-probes/emmintrin.h.i x86_64-apple-darwin: matching rejection: incompatible assignment or argument types",
+      "/home/dev-user/.cache/toucan/x86-intrinsic-probes/emmintrin.h.i aarch64-apple-darwin: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "/home/dev-user/.cache/toucan/x86-intrinsic-probes/emmintrin.h.i x86_64-pc-windows-msvc: matching rejection: incompatible assignment or argument types",
+      "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i x86_64-unknown-linux-gnu: accepted, graph verified",
+      "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i aarch64-unknown-linux-gnu: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i x86_64-apple-darwin: matching rejection: incompatible assignment or argument types",
+      "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i aarch64-apple-darwin: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i x86_64-pc-windows-msvc: matching rejection: incompatible assignment or argument types",
+      "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_compress/native.i x86_64-unknown-linux-gnu: accepted, graph verified",
+      "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_compress/native.i aarch64-unknown-linux-gnu: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_compress/native.i x86_64-apple-darwin: matching rejection: incompatible assignment or argument types",
+      "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_compress/native.i aarch64-apple-darwin: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_compress/native.i x86_64-pc-windows-msvc: matching rejection: incompatible assignment or argument types",
+      "fuzz/seeds/checked/sse_intrinsics.h x86_64-unknown-linux-gnu: accepted, graph verified",
+      "fuzz/seeds/checked/sse_intrinsics.h aarch64-unknown-linux-gnu: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "fuzz/seeds/checked/sse_intrinsics.h x86_64-apple-darwin: accepted, graph verified",
+      "fuzz/seeds/checked/sse_intrinsics.h aarch64-apple-darwin: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "fuzz/seeds/checked/sse_intrinsics.h x86_64-pc-windows-msvc: accepted, graph verified",
+      "fuzz/seeds/checked/gnu_vector_shuffle.h x86_64-unknown-linux-gnu: accepted, graph verified",
+      "fuzz/seeds/checked/gnu_vector_shuffle.h aarch64-unknown-linux-gnu: accepted, graph verified",
+      "fuzz/seeds/checked/gnu_vector_shuffle.h x86_64-apple-darwin: matching rejection: __builtin_shuffle requires a GNU compiler profile",
+      "fuzz/seeds/checked/gnu_vector_shuffle.h aarch64-apple-darwin: matching rejection: __builtin_shuffle requires a GNU compiler profile",
+      "fuzz/seeds/checked/gnu_vector_shuffle.h x86_64-pc-windows-msvc: matching rejection: __builtin_shuffle requires a GNU compiler profile",
+      "fuzz/seeds/checked/sse_deferred_prefetch.h x86_64-unknown-linux-gnu: accepted, graph verified",
+      "fuzz/seeds/checked/sse_deferred_prefetch.h aarch64-unknown-linux-gnu: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "fuzz/seeds/checked/sse_deferred_prefetch.h x86_64-apple-darwin: matching rejection: this x86 intrinsic spelling is unavailable in the target's Clang compiler profile",
+      "fuzz/seeds/checked/sse_deferred_prefetch.h aarch64-apple-darwin: matching rejection: x86 instruction intrinsics require an x86-64 target profile",
+      "fuzz/seeds/checked/sse_deferred_prefetch.h x86_64-pc-windows-msvc: matching rejection: this x86 intrinsic spelling is unavailable in the target's Clang compiler profile"
+    ],
+    "logs": [
+      {
+        "path": "/tmp/toucan-sse-retained-replay.log",
+        "bytes": 4014,
+        "sha256": "03bb0e24eac67f194575ebac910498c06066fdc75a5d036c08e3fb7bc76d371a"
+      },
+      {
+        "path": "/tmp/toucan-sse-seed-replay.log",
+        "bytes": 2696,
+        "sha256": "aeef5942b3d982ce9edba61f38d6c6f85514938d4202d77f5b81ea563135da51"
+      }
+    ],
+    "scope": "Normal build, fixed inputs on all five profiles; no sanitizer or mutation-fuzzing claim. Foreign compiler/ABI header inputs are expected to reject."
+  },
+  "limitations": [
+    "Source acceptance can leave documented GNU immediate obligations pending until lowering.",
+    "No SIMD constant evaluator or machine-code backend.",
+    "No per-function target attributes, wider vectors, or configurable extra CPU instruction sets.",
+    "Stable Rust vector by-value ABI remains rejected."
+  ],
+  "licensing": "Pinned GCC/LLVM sources and system headers were inspected, not vendored. The implementation records signature facts and checks independent compiler outputs; this evidence does not relicense those source files."
+}

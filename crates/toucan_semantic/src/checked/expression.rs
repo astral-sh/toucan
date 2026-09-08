@@ -167,6 +167,10 @@ operators!(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub enum Builtin {
+    /// GNU one- or two-vector shuffle. The last argument is an integer mask;
+    /// each mask lane selects modulo the concatenated input lane count. All
+    /// operands are evaluated once in ordinary unspecified argument order.
+    VectorShuffle,
     X86(crate::x86::X86Intrinsic),
     Sync(crate::sync::SyncOperation),
     Atomic(crate::atomic::AtomicOperation),
@@ -234,6 +238,7 @@ impl Builtin {
 
     fn from_name(name: &str) -> Option<Self> {
         Some(match name {
+            "__builtin_shuffle" => Self::VectorShuffle,
             "__builtin_va_start" => Self::VaStart,
             "__builtin_va_end" => Self::VaEnd,
             "__builtin_va_copy" => Self::VaCopy,
@@ -1354,6 +1359,8 @@ impl Analyzer {
                             Conversion::Assignment,
                         )),
                     )
+                } else if builtin == Builtin::VectorShuffle {
+                    (UseContext::Value, None)
                 } else if builtin == Builtin::ConstantQuery {
                     (UseContext::UnevaluatedValue, None)
                 } else if builtin == Builtin::VaStart && index == 1 {
