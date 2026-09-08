@@ -115,11 +115,15 @@ fn retained_queries_keep_unevaluated_conversions_and_existing_vla_bounds() {
                 }
                 found.push(*builtin);
                 assert_eq!(arguments.len(), 2);
-                assert!(
-                    arguments
-                        .iter()
-                        .all(|argument| argument.context() == UseContext::UnevaluatedValue)
+                assert_eq!(
+                    arguments[0].context(),
+                    if gnu_target(target) || *builtin == Builtin::DynamicObjectSize {
+                        UseContext::UnevaluatedValue
+                    } else {
+                        UseContext::CompilerQuery
+                    }
                 );
+                assert_eq!(arguments[1].context(), UseContext::UnevaluatedValue);
                 assert_eq!(
                     code.ty(arguments[1].effective_type()).unwrap().kind,
                     TypeKind::Integer(IntegerKind::Int)
@@ -143,7 +147,7 @@ fn retained_queries_keep_unevaluated_conversions_and_existing_vla_bounds() {
 }
 
 #[test]
-fn fresh_vla_types_are_suppressed_on_gnu_and_explicit_on_clang() {
+fn fresh_vla_types_are_checked_on_every_profile() {
     for name in NAMES {
         for pointer in ["(int (*)[n++])0", "(void *)(unsigned long)sizeof(int[n++])"] {
             let source = format!("unsigned long long f(int n) {{return {name}({pointer},0);}}");
@@ -159,18 +163,8 @@ fn fresh_vla_types_are_suppressed_on_gnu_and_explicit_on_clang() {
                             .all(|(_, bound)| bound.evaluation() == BoundEvaluation::Unevaluated)
                     );
                 } else {
-                    assert!(
-                        result
-                            .unwrap_err()
-                            .message
-                            .contains("variably modified type operands")
-                    );
-                    assert!(
-                        analyze(&source, target)
-                            .unwrap_err()
-                            .message
-                            .contains("variably modified type operands")
-                    );
+                    result.unwrap();
+                    analyze(&source, target).unwrap();
                 }
             }
         }

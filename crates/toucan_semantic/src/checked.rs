@@ -16,6 +16,7 @@ pub(crate) mod bounds;
 pub(crate) mod expression;
 pub(crate) mod initializer;
 mod ownership;
+mod query;
 pub(crate) mod references;
 pub(crate) mod statement;
 
@@ -34,6 +35,7 @@ pub use initializer::{
     InitializerKind, Subobject,
 };
 pub use ownership::{TypeOperand, TypeOperandEvaluation, TypeOperandId, TypeOperandInput};
+pub use query::{QueryEvaluation, QuerySideEffects, QuerySuppression};
 pub use references::{Reference, ReferenceKind};
 pub use statement::{
     Assembly, AssemblyLocation, AssemblyOperand, AssemblyText, Assertion, AssertionId, BlockItem,

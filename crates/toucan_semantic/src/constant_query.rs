@@ -1,64 +1,11 @@
 //! Conservative constant knowledge, without optimizer-dependent propagation.
 
-use lang_c::{
-    ast,
-    span::{Node, Span},
-    visit::{self, Visit},
-};
+use lang_c::{ast, span::Node};
 
 use crate::analyze::Analyzer;
 use crate::{Error, IntegerValue, TypeKind};
 
 impl Analyzer {
-    /// Clang can evaluate a freshly written VLA bound even though the query's
-    /// value operand is unevaluated. The current graph cannot express that split.
-    pub(crate) fn check_unevaluated_builtin_type_operands(
-        &mut self,
-        expression: &Node<ast::Expression>,
-        builtin: &str,
-    ) -> Result<(), Error> {
-        struct Check<'a> {
-            analyzer: &'a mut Analyzer,
-            builtin: &'a str,
-            error: Option<Error>,
-        }
-        impl<'ast> Visit<'ast> for Check<'_> {
-            fn visit_attribute(&mut self, _: &'ast ast::Attribute, _: &'ast Span) {
-                // Attribute arguments are metadata, not value/type evaluation.
-            }
-
-            fn visit_type_name(&mut self, node: &'ast ast::TypeName, span: &'ast Span) {
-                if self.error.is_some() {
-                    return;
-                }
-                let result = self.analyzer.type_name(node).and_then(|ty| {
-                    if self.analyzer.unit.is_variably_modified(&ty)? {
-                        Err(Error::new(
-                            span.start,
-                            format!(
-                                "Clang `{}` with variably modified type operands is unsupported",
-                                self.builtin
-                            ),
-                        ))
-                    } else {
-                        Ok(())
-                    }
-                });
-                match result {
-                    Ok(()) => visit::visit_type_name(self, node, span),
-                    Err(error) => self.error = Some(error),
-                }
-            }
-        }
-        let mut check = Check {
-            analyzer: self,
-            builtin,
-            error: None,
-        };
-        check.visit_expression(&expression.node, &expression.span);
-        check.error.map_or(Ok(()), Err)
-    }
-
     pub(crate) fn eval_constant_query(
         &mut self,
         call: &Node<ast::CallExpression>,

@@ -54,6 +54,9 @@ pub enum UseContext {
     ReadModifyWrite,
     Unevaluated,
     UnevaluatedValue,
+    /// Conditional scalar evaluation governed by the enclosing builtin's
+    /// [`super::QueryEvaluation`]. Ordinary value conversions are preserved.
+    CompilerQuery,
 }
 
 #[derive(Debug, Serialize)]
@@ -319,6 +322,8 @@ pub enum ExprKind {
     },
     BuiltinCall {
         builtin: Builtin,
+        /// Present only for constant and object-size query intrinsics.
+        query_evaluation: Option<super::QueryEvaluation>,
         callee_occurrence: OccurrenceId,
         arguments: Vec<ExprUse>,
     },
@@ -388,8 +393,14 @@ enum State {
     Complete(ExprId),
 }
 
+struct ExpressionProperties {
+    function: bool,
+    volatile_lvalue: bool,
+}
+
 #[derive(Default)]
 pub(super) struct ExpressionBuilder {
+    pub(super) query_summaries: Vec<super::query::QuerySummary>,
     states: HashMap<OccurrenceId, State>,
     assignments: HashMap<(ExprId, TypeId), AssignmentId>,
     statement_results: HashMap<OccurrenceId, Option<ExprId>>,
@@ -561,7 +572,7 @@ impl Builder {
         &mut self,
         occurrence: OccurrenceId,
         info: &ExpressionInfo,
-        function: bool,
+        properties: ExpressionProperties,
         kind: ExprKind,
         explicit_type_use: Option<super::bounds::TypeUseId>,
         written_type: (Option<super::bounds::TypeUseId>, Option<OccurrenceId>),
@@ -574,6 +585,18 @@ impl Builder {
         self.budget
             .charge(1, 4 + usize::from(type_name.is_some()), 0, offset)?;
         let id = ExprId(self.code.expressions.len() as u32);
+        self.budget.charge(
+            0,
+            0,
+            std::mem::size_of::<super::query::QuerySummary>(),
+            offset,
+        )?;
+        self.expression_builder
+            .query_summaries
+            .push(super::query::QuerySummary {
+                effects: self.query_effects(&kind),
+                volatile_lvalue: properties.volatile_lvalue,
+            });
         self.code.expressions.push(Expression {
             type_use,
             type_name_use,
@@ -581,7 +604,7 @@ impl Builder {
             occurrence,
             scope: self.current,
             ty,
-            category: if function {
+            category: if properties.function {
                 ValueCategory::FunctionDesignator
             } else if info.lvalue {
                 ValueCategory::ObjectLvalue
@@ -642,7 +665,10 @@ impl Analyzer {
         let mut ty = info.ty.clone();
         if matches!(
             context,
-            UseContext::Value | UseContext::UnevaluatedValue | UseContext::ReadModifyWrite
+            UseContext::Value
+                | UseContext::UnevaluatedValue
+                | UseContext::ReadModifyWrite
+                | UseContext::CompilerQuery
         ) {
             let conversion = match self.unit.resolve(&info.ty)?.kind {
                 TypeKind::Array { .. } | TypeKind::VariableArray { .. } => {
@@ -1128,10 +1154,14 @@ impl Analyzer {
             }
         };
         let function = matches!(self.unit.resolve(&info.ty)?.kind, TypeKind::Function(_));
+        let volatile_lvalue = info.lvalue && self.unit.qualifiers(&info.ty)?.is_volatile;
         self.code_builder().finish_expression(
             occurrence,
             info,
-            function,
+            ExpressionProperties {
+                function,
+                volatile_lvalue,
+            },
             kind,
             explicit_type_use,
             (type_name_use, type_name),
@@ -1211,8 +1241,13 @@ impl Analyzer {
                 };
                 arguments.push(self.retained_use(argument, context, destination)?);
             }
+            let query_evaluation = self.retained_query_evaluation(builtin, call, &arguments)?;
+            if query_evaluation.is_some_and(super::QueryEvaluation::may_evaluate) {
+                arguments[0].context = UseContext::CompilerQuery;
+            }
             return Ok(ExprKind::BuiltinCall {
                 builtin,
+                query_evaluation,
                 callee_occurrence,
                 arguments,
             });
@@ -1599,6 +1634,7 @@ mod tests {
                     builtin,
                     arguments,
                     callee_occurrence,
+                    ..
                 } = &expression.kind
                 else {
                     continue;

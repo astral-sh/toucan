@@ -65,7 +65,8 @@ pub struct TypeUse {
 pub enum BoundEvaluation {
     Constant,
     /// Required when the enclosing declaration or expression is evaluated.
-    /// Conditional and short-circuit parents still govern whether it is reached.
+    /// Conditional, short-circuit, and compiler-query parents still govern
+    /// whether it is reached; this is not an unconditional execution claim.
     Required,
     Prototype,
     Unevaluated,
@@ -255,9 +256,7 @@ impl Builder {
             kind,
             ExprKind::AlignOf(_)
                 | ExprKind::BuiltinCall {
-                    builtin: super::Builtin::ConstantQuery
-                        | super::Builtin::ObjectSize
-                        | super::Builtin::DynamicObjectSize,
+                    query_evaluation: Some(super::QueryEvaluation::Unevaluated(_)),
                     ..
                 }
         ) {

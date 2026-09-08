@@ -105,7 +105,7 @@ fn constant_queries_prove_supported_folds_without_optimizer_assumptions() {
 }
 
 #[test]
-fn written_vla_types_have_an_explicit_clang_boundary() {
+fn written_vla_types_are_checked_on_every_profile() {
     for operand in [
         "sizeof(int[n++])",
         "sizeof(int (*)[n++])",
@@ -115,10 +115,6 @@ fn written_vla_types_have_an_explicit_clang_boundary() {
     ] {
         let source = format!("int f(int n) {{return __builtin_constant_p({operand});}}");
         for target in Target::ALL {
-            let gnu = matches!(
-                target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-            );
             for retain_code in [false, true] {
                 let result = analyze_with_options(
                     &source,
@@ -128,16 +124,7 @@ fn written_vla_types_have_an_explicit_clang_boundary() {
                         ..Default::default()
                     },
                 );
-                if gnu {
-                    result.unwrap();
-                } else {
-                    assert!(
-                        result
-                            .unwrap_err()
-                            .message
-                            .contains("variably modified type operands")
-                    );
-                }
+                result.unwrap();
             }
         }
     }

@@ -256,9 +256,7 @@ impl Builder {
             kind,
             ExprKind::AlignOf(_)
                 | ExprKind::BuiltinCall {
-                    builtin: super::Builtin::ConstantQuery
-                        | super::Builtin::ObjectSize
-                        | super::Builtin::DynamicObjectSize,
+                    query_evaluation: Some(super::QueryEvaluation::Unevaluated(_)),
                     ..
                 }
         ) {

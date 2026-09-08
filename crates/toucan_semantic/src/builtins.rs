@@ -205,13 +205,6 @@ impl Analyzer {
         if let Some(signature) = object_size {
             for (argument, parameter) in arguments.iter().zip(&signature.parameters) {
                 self.check_assignment(parameter, argument)?;
-                if !matches!(
-                    self.unit.target,
-                    toucan_target::Target::X86_64UnknownLinuxGnu
-                        | toucan_target::Target::Aarch64UnknownLinuxGnu
-                ) {
-                    self.check_unevaluated_builtin_type_operands(argument, name)?;
-                }
             }
             self.check_object_size_mode(&arguments[1], &signature.parameters[1])?;
             return Ok(Some(signature.result));
@@ -225,8 +218,6 @@ impl Analyzer {
                         | toucan_target::Target::Aarch64UnknownLinuxGnu
                 ) {
                     self.require_complete_object(&ty, arguments[0].span.start)?;
-                } else {
-                    self.check_unevaluated_builtin_type_operands(&arguments[0], name)?;
                 }
                 return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));
             }

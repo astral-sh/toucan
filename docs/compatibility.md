@@ -140,25 +140,42 @@ constants, literal strings, supported pointer casts, and folded conditional or
 short-circuit expressions. Object-value propagation, statement-expression values,
 and compound-literal values are not proofs. This policy does not predict GCC or
 Clang optimization: both compilers can change a local-variable query from zero to
-one at `-O2`. The retained query preserves its unevaluated value operand and C
-array/function conversions. See [GCC's constant-query contract](https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html).
+one at `-O2`. The retained query preserves its operand and C array/function
+conversions. See [GCC's constant-query contract](https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html).
 
-GCC-profile queries suppress nested VLA bounds and `typeof` operands. Clang can
-evaluate a fresh VLA bound inside an otherwise unevaluated query, as in
-`__builtin_constant_p(sizeof(int[n++]))`. Until the graph represents that split
-evaluation context, Clang-profile queries with variably modified written type
-operands return an explicit unsupported diagnostic. Ordinary existing-VLA operands
-remain supported. Clang also accepts void and incomplete-record operands, which
-GCC rejects; argument checking follows the target profile.
+GCC-profile queries suppress nested VLA bounds and `typeof` operands. Clang uses a
+conditional scalar-evaluation fallback. For example,
+`__builtin_constant_p(sizeof(int[n++]))` can increment `n`, and
+`__builtin_constant_p(sizeof *(p++))` can advance a pointer to a VLA. Clang first
+attempts constant evaluation of the intrinsic. If that does not finish, it checks
+for ordinary operand side effects, deliberately ignoring `sizeof` and `_Alignof`
+children, and emits the scalar operand only if the gate permits it. Ordinary side
+effects anywhere in the operand, including dead conditional branches, suppress
+this fallback. The fallback itself honors short-circuit and conditional execution.
+Clang also accepts void and incomplete-record operands, which GCC rejects.
+
+Retained `QueryEvaluation` and `UseContext::CompilerQuery` describe this boundary;
+no query result predicts that a compiler reaches its fallback. Required constant
+expressions have no runtime fallback. The existing expression tree retains guards,
+VLA `sizeof` operands, fresh type bounds, and nested queries without duplicating
+side effects or imposing an order on unsequenced operands. Individual bound and
+`typeof` evaluation facts remain subject to their enclosing expression's reachability
+and query policy. The gate is explicitly unresolved for ordinary calls (whose
+`pure`/`const` attributes are not retained), compound literals, and statement
+expressions. Consumers must preserve both possibilities in those cases; this API
+does not claim optimizer-equivalent effect analysis. See Clang 18's
+[query code generation](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/CodeGen/CGBuiltin.cpp)
+and [ordinary-side-effect test](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/AST/Expr.cpp).
 
 `__builtin_object_size` and `__builtin_dynamic_object_size` check their
 `const void *` and `int` parameters and return the target's `size_t`. The mode must
 be a supported constant from zero to three after conversion to `int`; GNU profiles
 also accept foldable floating and comma expressions. Retained calls distinguish
-the two operations and preserve their unevaluated arguments and conversions.
-Native probes cover pointer increments and `alloc_size` allocator calls with
-side-effecting size arguments. Variably modified written type operands have the same
-explicit Clang limitation described above.
+the two operations and preserve their argument conversions and query evaluation
+policy. Clang mode three suppresses the scalar fallback; other modes use the same
+side-effect gate and constant-fold boundary described above. Native probes cover
+pointer increments, fresh VLA type operands, and `alloc_size` allocator calls with
+side-effecting size arguments.
 
 Object-size inference and allocation-provenance tracking remain unsupported.
 These query values can depend on optimization, and the dynamic form can require a
