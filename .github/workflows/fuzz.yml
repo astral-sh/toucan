@@ -39,7 +39,12 @@ jobs:
           for fuzz_target in preprocess semantic bindings checked; do
             mkdir -p "fuzz/corpus/$fuzz_target"
             cp "fuzz/seeds/$fuzz_target/"*.h "fuzz/corpus/$fuzz_target/"
+            max_length=16384
+            if [[ "$fuzz_target" == bindings ]]; then
+              max_length=8192
+            fi
             cargo fuzz run "$fuzz_target" "fuzz/corpus/$fuzz_target" -- \
+              -dict=fuzz/c.dict -max_len="$max_length" -len_control=0 \
               -max_total_time=60 -timeout=5 -rss_limit_mb=1024 -print_final_stats=1 \
               2>&1 | tee "fuzz/logs/$fuzz_target.log"
           done

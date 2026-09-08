@@ -2,10 +2,13 @@
 
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &str| {
-    if data.len() > 16_384 {
+fuzz_target!(|bytes: &[u8]| {
+    if bytes.len() > 16_384 {
         return;
     }
+    let Ok(data) = std::str::from_utf8(bytes) else {
+        return;
+    };
     let config = toucan::PreprocessorConfig {
         allow_filesystem: false,
         max_tokens: 4096,

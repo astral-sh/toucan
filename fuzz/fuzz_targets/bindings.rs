@@ -2,11 +2,18 @@
 
 use libfuzzer_sys::fuzz_target;
 
-fuzz_target!(|data: &str| {
-    if data.len() > 8192 {
+fuzz_target!(|bytes: &[u8]| {
+    if bytes.len() > 8192 {
         return;
     }
-    let mut config = toucan::Config::new(toucan::Target::X86_64UnknownLinuxGnu);
+    let Ok(data) = std::str::from_utf8(bytes) else {
+        return;
+    };
+    let selector = bytes
+        .iter()
+        .fold(0usize, |sum, byte| sum.wrapping_add(usize::from(*byte)));
+    let target = toucan::Target::ALL[selector % toucan::Target::ALL.len()];
+    let mut config = toucan::Config::new(target);
     config.preprocessor.allow_filesystem = false;
     config.preprocessor.max_tokens = 4096;
     config.preprocessor.max_source_bytes = 65_536;

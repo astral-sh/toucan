@@ -10,15 +10,21 @@ cargo +nightly fuzz run checked -- -max_total_time=60
 ```
 
 Targets exercise UTF-8 input, bounded preprocessing, declaration analysis, layout,
-and binding generation. The `checked` target selects among all five target profiles
-and compares analysis with and without retained code. Successful results must have
+and binding generation. Semantic, binding, and checked-code targets select among
+all five target profiles using the sum of input bytes modulo five. The `checked`
+target compares analysis with and without retained code. Successful results must have
 identical declarations; invalid inputs must produce the same diagnostic, except
 when the separate retention limits are reached. It also exercises layout queries
-on the retained analysis owner. This target explicitly rejects invalid UTF-8 so
-the reproducer bytes are exactly the source used for analysis and target selection.
+on the retained analysis owner. All targets reject invalid UTF-8, so saved reproducer
+bytes are exactly the source used for preprocessing, analysis, binding generation,
+and target selection.
 Invalid input may return a diagnostic; panics, aborts,
 timeouts, and sanitizer failures are findings. Minimize failures and add regression
 tests before fixing them. Short local runs are smoke tests, not a completed fuzz campaign.
+
+CI uses the C dictionary and immediately permits each harness's maximum input size:
+16 KiB for preprocessing and analysis, 8 KiB for binding generation. The smoke
+runs still last 60 seconds per target; they are not sustained campaigns.
 
 The preprocessing targets disable filesystem access. Includes can resolve only to
 the configured in-memory resource headers.
