@@ -94,6 +94,7 @@ fn analyze_on_parser_stack(
         analyzer.prepare_typedef_alignments(&parsed.unit, &source)?;
         analyzer.prepare_array_identities(&parsed.unit, &source)?;
         analyzer.prepare_late_function_targets(&parsed.unit, &source)?;
+        analyzer.prepare_inline_definitions(&parsed.unit, &source)?;
         if let Some(limits) = retention {
             analyzer.checked = Some(Box::new(CodeBuilder::new(
                 &parsed.unit,
@@ -120,6 +121,7 @@ fn analyze_on_parser_stack(
         analyzer.validate_weak_symbol_aliases()?;
         analyzer.validate_returns_twice_aliases()?;
         analyzer.finish_inline_targets()?;
+        analyzer.finish_inline_definitions()?;
         let checked = analyzer
             .checked
             .take()
@@ -622,6 +624,9 @@ pub(crate) struct Attributes {
     pub(crate) target_attributes: Vec<crate::target_features::ParsedTarget>,
     pub(crate) minimum_vector_width: Vec<crate::target_features::ParsedMinimumVectorWidth>,
     pub(crate) always_inline: Option<(lang_c::span::Span, bool)>,
+    pub(crate) gnu_inline: Option<(lang_c::span::Span, bool)>,
+    /// Written keyword and whether its compiler rejects non-function subjects.
+    pub(crate) inline_specifier: Option<(lang_c::span::Span, bool)>,
     pub(crate) no_inline: Option<(lang_c::span::Span, bool)>,
     pub(crate) noescape: Vec<(lang_c::span::Span, bool)>,
     pub(crate) type_noreturn: bool,
@@ -681,6 +686,15 @@ impl Attributes {
         Ok(())
     }
     pub(crate) fn require_function_attributes(&self, function: bool) -> Result<(), Error> {
+        if !function && let Some((span, true)) = self.inline_specifier {
+            return Err(Error::new(
+                span.start,
+                "inline requires a function declaration",
+            ));
+        }
+        if function && let Some((span, true)) = self.gnu_inline {
+            return Err(Error::new(span.start, "gnu_inline takes no arguments"));
+        }
         if !function && let Some(attribute) = self.minimum_vector_width.first() {
             return Err(Error::new(
                 attribute.span.start,
@@ -745,6 +759,10 @@ pub(crate) struct BlockExtern {
 /// Scope frames retain only new bindings; file-scope maps remain shared.
 #[derive(Default)]
 pub(crate) struct LexicalScope {
+    /// GNU attribute consistency follows each binding scope, including attributes
+    /// inherited by its first declaration. Most scopes need no inline state.
+    #[allow(clippy::box_collection)]
+    pub(crate) gnu_inline: Option<Box<HashMap<String, crate::inline::GnuDeclaration>>>,
     // Most scopes have no alignment annotations; keep their inline state one pointer.
     #[allow(clippy::box_collection)]
     pub(crate) alignments: Option<Box<HashMap<String, crate::DeclarationAlignment>>>,
@@ -867,6 +885,7 @@ struct DeclaratorContext<'a> {
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) inline_registry: Option<Box<crate::inline::Registry>>,
     pub(crate) allocation_uses: u8,
     pub(crate) allocation_evaluation: crate::allocation::Evaluation,
     pub(crate) allocation_symbols: Option<Box<crate::allocation::Symbols>>,
@@ -970,6 +989,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            inline_registry: None,
             allocation_uses: 0,
             allocation_evaluation: Default::default(),
             allocation_symbols: None,
@@ -1254,6 +1274,7 @@ impl Analyzer {
                 ));
             }
             self.unit.declarations.push(Declaration {
+                function_definition_kind: None,
                 alignment: crate::DeclarationAlignment::default(),
                 name,
                 ty,
@@ -1539,6 +1560,32 @@ impl Analyzer {
                     self.check_old_style_redeclaration(index, &ty, item.span.start)?;
                 }
             }
+            let repeated_inline_body = if kind == DeclarationKind::Function {
+                self.record_inline_declaration(
+                    &name,
+                    crate::inline::DeclarationFacts {
+                        offset: item.span.start,
+                        site: None,
+                        inline_source: declarator_attributes.inline_specifier.map(|(span, _)| span),
+                        gnu_source: declarator_attributes.gnu_inline.map(|(span, _)| span),
+                        file_scope: true,
+                        written_inline: declarator_attributes.inline_specifier.is_some(),
+                        written_extern: storage.class == Some(ast::StorageClassSpecifier::Extern),
+                        written_gnu_inline: declarator_attributes.inline_specifier.is_some()
+                            && declarator_attributes.gnu_inline.is_some(),
+                        body: definition,
+                        internal: is_static
+                            || ((storage.class.is_none()
+                                || storage.class == Some(ast::StorageClassSpecifier::Extern))
+                                && previous_index
+                                    .is_some_and(|index| self.unit.declarations[index].is_static)),
+                        inlined: false,
+                        gnu_inline: false,
+                    },
+                )?
+            } else {
+                false
+            };
             let written_alignment = if is_typedef {
                 crate::DeclarationAlignment::default()
             } else {
@@ -1634,7 +1681,7 @@ impl Analyzer {
                             format!("conflicting linkage for `{name}`"),
                         ));
                     }
-                    if is_definition && previous.is_definition {
+                    if is_definition && previous.is_definition && !repeated_inline_body {
                         return Err(Error::new(
                             item.span.start,
                             format!("multiple definitions of `{name}`"),
@@ -1666,7 +1713,13 @@ impl Analyzer {
                 let previous_definition = previous.is_definition;
                 let symbol_binding = self.check_symbol_binding(
                     &name,
-                    declarator_attributes.weak,
+                    self.inline_weak_attribute(
+                        &name,
+                        declarator_attributes.weak,
+                        kind == DeclarationKind::Function,
+                        declarator_attributes.inline_specifier.is_some(),
+                        previous_definition,
+                    ),
                     kind != DeclarationKind::Typedef && !is_static,
                     previous_definition,
                 )?;
@@ -1692,7 +1745,13 @@ impl Analyzer {
             } else {
                 let symbol_binding = self.check_symbol_binding(
                     &name,
-                    declarator_attributes.weak,
+                    self.inline_weak_attribute(
+                        &name,
+                        declarator_attributes.weak,
+                        kind == DeclarationKind::Function,
+                        declarator_attributes.inline_specifier.is_some(),
+                        false,
+                    ),
                     kind != DeclarationKind::Typedef && !is_static,
                     false,
                 )?;
@@ -1704,6 +1763,7 @@ impl Analyzer {
                 }
                 let index = self.unit.declarations.len();
                 self.unit.declarations.push(Declaration {
+                    function_definition_kind: None,
                     alignment,
                     returns_twice,
                     noreturn,
@@ -1745,6 +1805,11 @@ impl Analyzer {
             } else {
                 None
             };
+            if kind == DeclarationKind::Function && self.inline_registry.is_some() {
+                self.inline_file_declaration(declaration_index);
+                let name = self.unit.declarations[declaration_index].name.clone();
+                self.inline_declaration_site(&name, checked_site);
+            }
             if kind == DeclarationKind::Variable
                 && !is_definition
                 && storage.class != Some(ast::StorageClassSpecifier::Extern)
@@ -2263,6 +2328,10 @@ impl Analyzer {
                 {
                     attributes.noreturn = Some(specifier.span);
                     attributes.c11_noreturn = Some(specifier.span);
+                }
+                ast::DeclarationSpecifier::Function(specifier) => {
+                    attributes.inline_specifier =
+                        Some((specifier.span, self.unit.compiler == Compiler::Clang));
                 }
                 ast::DeclarationSpecifier::Alignment(alignment) => {
                     let value = self.alignment_operand(|analyzer| match &alignment.node {
@@ -2858,6 +2927,9 @@ impl Analyzer {
             crate::target_features::merge_inline(extra.always_inline, attributes.always_inline);
         extra.no_inline =
             crate::target_features::merge_inline(extra.no_inline, attributes.no_inline);
+        extra.gnu_inline =
+            crate::target_features::merge_inline(extra.gnu_inline, attributes.gnu_inline);
+        extra.inline_specifier = extra.inline_specifier.or(attributes.inline_specifier);
         extra.nodebug_arguments = extra.nodebug_arguments.or(attributes.nodebug_arguments);
         if name.is_some() {
             self.check_nodebug_function_like(&ty, &extra)?;
@@ -3171,6 +3243,7 @@ impl Analyzer {
         let mut minimum_vector_width = Vec::new();
         let mut always_inline = None;
         let mut no_inline = None;
+        let mut gnu_inline = None;
         let mut noescape = Vec::new();
         let mut type_noreturn = false;
         let split = declaration
@@ -3217,6 +3290,10 @@ impl Analyzer {
                                 no_inline = crate::target_features::merge_inline(
                                     no_inline,
                                     attributes.no_inline,
+                                );
+                                gnu_inline = crate::target_features::merge_inline(
+                                    gnu_inline,
+                                    attributes.gnu_inline,
                                 );
                                 if alias_base {
                                     merge_convention(
@@ -3621,6 +3698,8 @@ impl Analyzer {
             crate::target_features::merge_inline(attributes.always_inline, always_inline);
         attributes.no_inline =
             crate::target_features::merge_inline(attributes.no_inline, no_inline);
+        attributes.gnu_inline =
+            crate::target_features::merge_inline(attributes.gnu_inline, gnu_inline);
         attributes.target_type_name = type_name;
         if type_name && self.unit.compiler == Compiler::Clang {
             attributes.mode = None;
@@ -3689,6 +3768,13 @@ impl Analyzer {
                     attributes.no_inline,
                     inner_attributes.no_inline,
                 );
+                attributes.gnu_inline = crate::target_features::merge_inline(
+                    attributes.gnu_inline,
+                    inner_attributes.gnu_inline,
+                );
+                attributes.inline_specifier = attributes
+                    .inline_specifier
+                    .or(inner_attributes.inline_specifier);
                 attributes.weak = attributes.weak.or(inner_attributes.weak);
                 attributes.returns_twice =
                     attributes.returns_twice.or(inner_attributes.returns_twice);
@@ -4508,6 +4594,19 @@ impl Analyzer {
                                 result.always_inline,
                                 Some((extension.span, !attribute.arguments.is_empty())),
                             )
+                        }
+                        Some(crate::attributes::Attribute::GnuInline) => {
+                            let arguments = !attribute.arguments.is_empty();
+                            if arguments && self.unit.compiler == Compiler::Gnu {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "gnu_inline takes no arguments",
+                                ));
+                            }
+                            result.gnu_inline = crate::target_features::merge_inline(
+                                result.gnu_inline,
+                                Some((extension.span, arguments)),
+                            );
                         }
                         Some(crate::attributes::Attribute::NoInline) => {
                             result.no_inline = crate::target_features::merge_inline(

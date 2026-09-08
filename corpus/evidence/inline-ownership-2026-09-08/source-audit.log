@@ -1,0 +1,15 @@
+zlib-adler32 toucan accepted parity=True
+zlib-adler32 compiler_preprocessed accepted parity=True
+zlib-deflate toucan accepted parity=True
+zlib-deflate compiler_preprocessed accepted parity=True
+libgit2-alloc toucan accepted parity=True
+libgit2-alloc compiler_preprocessed accepted parity=True
+libgit2-repository toucan accepted parity=True
+libgit2-repository compiler_preprocessed accepted parity=True
+zstd-zstd_common toucan accepted parity=True
+zstd-zstd_common compiler_preprocessed accepted parity=True
+zstd-zstd_compress toucan accepted parity=True
+zstd-zstd_compress compiler_preprocessed accepted parity=True
+sqlite-sqlite3 toucan accepted parity=True
+sqlite-sqlite3 compiler_preprocessed accepted parity=True
+/home/dev-user/.cache/toucan/inline-source-audit-final/evidence.json

@@ -825,8 +825,18 @@ impl Analyzer {
                 && !is_static
                 && previous_symbol.is_none_or(|item| !item.is_static);
             let previous_definition = previous_symbol.is_some_and(|item| item.is_definition);
-            let symbol_binding =
-                self.check_symbol_binding(&name, extra.weak, external, previous_definition)?;
+            let symbol_binding = self.check_symbol_binding(
+                &name,
+                self.inline_weak_attribute(
+                    &name,
+                    extra.weak,
+                    function && !is_typedef,
+                    extra.inline_specifier.is_some(),
+                    previous_definition,
+                ),
+                external,
+                previous_definition,
+            )?;
 
             if variably_modified && (is_extern || function) {
                 return Err(Error::new(
@@ -959,6 +969,26 @@ impl Analyzer {
                     let declaration = &self.unit.declarations[index];
                     declaration.kind != DeclarationKind::Typedef && declaration.is_static
                 });
+            if function && !is_typedef {
+                self.record_inline_declaration(
+                    &name,
+                    crate::inline::DeclarationFacts {
+                        offset: item.span.start,
+                        site: None,
+                        inline_source: extra.inline_specifier.map(|(span, _)| span),
+                        gnu_source: extra.gnu_inline.map(|(span, _)| span),
+                        file_scope: false,
+                        written_inline: extra.inline_specifier.is_some(),
+                        written_extern: is_extern,
+                        written_gnu_inline: extra.inline_specifier.is_some()
+                            && extra.gnu_inline.is_some(),
+                        body: false,
+                        internal: internal_linkage,
+                        inlined: false,
+                        gnu_inline: false,
+                    },
+                )?;
+            }
             if linked {
                 let previous = self.visible_linked_alignment(&name).or_else(|| {
                     self.block_externs
@@ -1087,6 +1117,7 @@ impl Analyzer {
                     if !function {
                         self.object_alignment_sugar(&mut composite, &ty)?;
                     }
+                    let mut inline_site = None;
                     if let Some(checked) = &mut self.checked {
                         let site = checked.local_declaration(
                             item,
@@ -1113,6 +1144,7 @@ impl Analyzer {
                                 allocation: None,
                             },
                         )?;
+                        inline_site = site;
                         if let Some(site) = site {
                             checked.attach_alignment(site, written_alignment, alignment)?;
                             if linked && let Some(index) = previous_file {
@@ -1139,6 +1171,9 @@ impl Analyzer {
                             checked.attach_noreturn(site, noreturn, extra.noreturn)?;
                             checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                         }
+                    }
+                    if function {
+                        self.inline_declaration_site(&name, inline_site);
                     }
                     self.retain_local_alignment(&name, alignment);
                     self.lexical_scopes
@@ -1251,6 +1286,9 @@ impl Analyzer {
                     item.span.start,
                     "local object requires a complete type",
                 ));
+            }
+            if function && !is_typedef {
+                self.inline_declaration_site(&name, checked_site);
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
                 if let Some(inference) = &inference {

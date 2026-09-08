@@ -1,0 +1,5 @@
+   Compiling toucan_semantic v0.0.1 (/home/dev-user/code/oss/toucan/crates/toucan_semantic)
+   Compiling toucan_bindings v0.0.1 (/home/dev-user/code/oss/toucan/crates/toucan_bindings)
+   Compiling toucan v0.0.1 (/home/dev-user/code/oss/toucan/crates/toucan)
+   Compiling toucan-fuzz v0.0.0 (/home/dev-user/code/oss/toucan/fuzz)
+    Finished `release` profile [optimized + debuginfo] target(s) in 1m 08s

@@ -70,6 +70,7 @@ impl Analyzer {
         let name = name.to_owned();
         if self.lexical_scopes.is_empty() {
             self.unit.declarations.push(Declaration {
+                function_definition_kind: None,
                 alignment: Default::default(),
                 returns_twice: false,
                 noreturn: false,

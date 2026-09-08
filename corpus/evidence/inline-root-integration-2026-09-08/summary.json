@@ -1,0 +1,34 @@
+{
+  "base_commit": "89ea27a6d2b75327fc84b4631e3da4a2626862a7",
+  "integrated_patch_sha256": "d80953ff35f037818339d48f1cef3f943a51f50989af0a219680eab885903ff0",
+  "workspace": {
+    "passed": 781,
+    "ignored": 205
+  },
+  "checked_seed_pairs": {
+    "total": 3916,
+    "accepted": 2690,
+    "matching_diagnostics": 1226
+  },
+  "unchanged_binding_outputs": 8,
+  "asan": {
+    "inputs": 19662,
+    "seconds": 181.11030666199804,
+    "peak_rss_mb": 609,
+    "source_unchanged": true,
+    "findings": 0
+  },
+  "scope": "Root composition with C90, Microsoft declaration alignment, allocation/prefetch and compiler queries. Original native/source/benchmark evidence and subsequent native integration checks remain tied to their recorded source snapshots.",
+  "artifacts": {
+    "bindings.json.gz": "a76edae17c8f4b66e6b6945d1470b99f2862525783f738c498a8cd3020064bac",
+    "check.log.gz": "8cef6db14c27da460d70cfdd9fd560bdf0f0ea1a2e97115f022801d211d0214a",
+    "cli-identity.json.gz": "4e3ba909346381e9f6f2535f6b95d038ab9058d9b31badf2cb9bb7eaffbb7ec2",
+    "clippy.log.gz": "8c15a9fc3a73e3ed875360b60cf784fb80f92421ca1b21fa3f1fc0455435ed65",
+    "fuzz-clippy.log.gz": "c72a63ce1c230c706bce2f39526a3e291ad026505b167bf625d3f27128c7e0fc",
+    "outputs.log.gz": "5eb66c9db48a066db12641e6ec1c636589994a95f89485c88b4a18e98778ef45",
+    "python.log.gz": "49e74013d36270f7c95633ad45ad2755894b87da33bc7b1c9ea95a934f794597",
+    "release-identity.json.gz": "6144fcd595c825cf1804e05a2ef081c6d7f47050bfa56517feb35ed7d9c773b6",
+    "replay.log.gz": "4d89b93f7970920702ccb31b566614b447ecd05ded7b4d5e28b1ab9362527041",
+    "workspace.log.gz": "3d0229a9c86a33fcd4b97d7225fe7b7b961ae0caa29f82d9a83bd9897fd6c685"
+  }
+}

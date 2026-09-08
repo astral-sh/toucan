@@ -117,8 +117,9 @@ C90 decimal integer constants consider unsigned `long` before `long long`, as
 the native profiles do. Values above the supported integer range and signed
 MS-compatible `LL` overflow recovery remain errors. C11's existing rejection of
 implicit declarations is unchanged, including cases GCC only warns about by
-default. Inline-definition ownership and its language-specific constraints are
-separate pending work; this layer does not claim them from the inline predefines.
+default. [Inline-definition ownership](inline-functions.md) follows the selected
+language mode and compiler, including GNU attributes, later declarations, and
+Microsoft coalescing. Binding generation retains its existing definition filter.
 
 C99, C17, C23 and corresponding GNU modes are not modeled. Unsupported
 standard flags remain errors in the CLI and build-script adapter. The source

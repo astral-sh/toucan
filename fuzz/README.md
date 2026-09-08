@@ -241,3 +241,15 @@ The archive includes original starting corpora, compressed logs, exact source an
 binary hashes, commands, and toolchain versions. LeakSanitizer was disabled under
 ptrace. These runs precede explicit C11/GNU11 modes and use the archived single-mode
 harnesses. Execution counts include rejected inputs and do not establish conformance.
+
+## Inline ownership replay
+
+The [inline ownership evidence](evidence/inline-ownership-2026-09-08) preserves
+three runs. The first exposed an outdated harness assertion equating every body
+with the entity's latest body. The corrected invariant checks superseded bodies,
+their original declaration sites, the later canonical body, and inline source
+annotations. The core run passed 8,388 inputs; the final run including weak
+composition passed 6,834 inputs in 121.566 seconds with 602 MiB peak RSS and no
+artifacts. All 11 profiles and four language modes are seeded without changing
+source bytes. Each run retains its initial corpus, dictionary, source manifest,
+commands, and logs; the original failing input remains archived.

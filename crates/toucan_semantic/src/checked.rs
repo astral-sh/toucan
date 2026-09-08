@@ -16,12 +16,15 @@ pub(crate) mod bounds;
 pub(crate) mod expression;
 mod inference;
 pub(crate) mod initializer;
+mod inline;
 mod ownership;
 mod query;
 pub(crate) mod references;
 mod shuffle;
 pub(crate) mod statement;
 pub(crate) mod target;
+
+pub use inline::FunctionInlineSite;
 
 pub use crate::alignof::{AlignmentKind, AlignmentOperand};
 pub use crate::atomic::AtomicOperation;
@@ -381,6 +384,8 @@ pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> O
 #[derive(Debug, Serialize)]
 pub struct CheckedCode {
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) function_inline: BTreeMap<usize, inline::FunctionInlineSite>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub(crate) function_options: BTreeMap<usize, target::FunctionOptionSite>,
     #[serde(skip)]
     pub(crate) function_option_entities: BTreeMap<usize, usize>,
@@ -481,6 +486,7 @@ impl Builder {
             expression_builder: expression::ExpressionBuilder::default(),
             statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
+                function_inline: BTreeMap::new(),
                 function_options: BTreeMap::new(),
                 function_option_entities: BTreeMap::new(),
                 inline_targets: BTreeMap::new(),
@@ -1076,6 +1082,7 @@ impl Builder {
         self.finish_diagnostic_attributes(offsets)?;
         self.finish_noescape_attributes(offsets)?;
         self.finish_function_option_spans(offsets)?;
+        self.finish_inline_spans(offsets)?;
         self.finish_initializer_coverage()?;
         self.finish_bounds(offsets)?;
         self.finish_type_ownership()?;

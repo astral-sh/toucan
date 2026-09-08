@@ -407,6 +407,10 @@ impl SymbolBinding {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Declaration {
+    /// Ownership of a function body, independently of `is_definition`, which
+    /// continues to indicate a checked body or an initialized object.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function_definition_kind: Option<crate::FunctionDefinitionKind>,
     /// Explicit object/function alignment, independent of the declared C type.
     #[serde(skip_serializing_if = "crate::DeclarationAlignment::is_empty")]
     pub alignment: crate::DeclarationAlignment,

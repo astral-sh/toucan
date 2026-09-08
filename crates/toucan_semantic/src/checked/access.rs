@@ -72,7 +72,10 @@ impl Entity {
     pub fn symbol_binding(&self) -> crate::SymbolBinding {
         self.symbol_binding
     }
-    /// Returns the definition body, including when this entity has earlier prototypes.
+    /// Returns the latest checked definition body. Earlier GNU extern-inline
+    /// bodies remain accessible through their declaration sites and `bodies()`.
+    /// A body can be inline-only; inspect its definition kind before assuming it
+    /// supplies an external symbol.
     pub fn body(&self) -> Option<BodyId> {
         self.body
     }
@@ -346,6 +349,11 @@ impl InitializerCoverage {
 }
 
 impl FunctionBody {
+    /// Which definition this body contributes, independently of whether a call
+    /// is inlined. Other written bodies remain accessible through their sites.
+    pub fn definition_kind(&self) -> crate::FunctionDefinitionKind {
+        self.definition_kind
+    }
     /// The function identity shared with earlier compatible prototypes.
     pub fn entity(&self) -> EntityId {
         self.entity

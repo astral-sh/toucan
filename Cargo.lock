@@ -489,6 +489,7 @@ version = "0.0.1"
 dependencies = [
  "rustc_apfloat",
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
  "toucan_parser",

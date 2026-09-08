@@ -2,7 +2,7 @@
 //! lists are visited once; record and expression references are never expanded.
 
 use toucan::semantic::checked::*;
-use toucan::semantic::{Analysis, TranslationUnit, Type, TypeKind};
+use toucan::semantic::{Analysis, FunctionDefinitionKind, TranslationUnit, Type, TypeKind};
 
 pub(super) fn check(analysis: &Analysis, source: &str) {
     let unit = analysis.unit();
@@ -147,7 +147,11 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             );
         }
         if let Some(body) = entity.body() {
-            assert_eq!(code.body(body).unwrap().entity(), id);
+            let body = code.body(body).unwrap();
+            assert_eq!(body.entity(), id);
+            assert_ne!(body.definition_kind(), FunctionDefinitionKind::Superseded);
+            let declaration = &unit.declarations[entity.declaration().unwrap()];
+            assert_eq!(declaration.function_definition_kind, Some(body.definition_kind()));
         }
         match entity.kind() {
             EntityKind::Record(record) => {
@@ -796,8 +800,22 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             _ => panic!("unfinished or unhandled initializer"),
         }
     }
+    for site in code.function_inline_sites() {
+        let declaration = code.declaration(site.declaration()).unwrap();
+        assert_eq!(code.entity(declaration.entity()).unwrap().kind(), EntityKind::Function);
+        assert_eq!(code.function_inline_site(site.declaration()).unwrap().declaration(), site.declaration());
+        for span in [site.inline_specifier(), site.gnu_inline_attribute()].into_iter().flatten() {
+            source_span(source, span);
+        }
+    }
     for (id, body) in code.bodies() {
-        assert_eq!(code.entity(body.entity()).unwrap().body(), Some(id));
+        let latest = code.entity(body.entity()).unwrap().body().unwrap();
+        if body.definition_kind() == FunctionDefinitionKind::Superseded {
+            assert!(latest.index() > id.index());
+            assert_eq!(code.body(latest).unwrap().entity(), body.entity());
+        } else {
+            assert_eq!(latest, id);
+        }
         assert_eq!(
             code.declaration(body.declaration()).unwrap().body(),
             Some(id)

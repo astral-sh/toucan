@@ -1033,7 +1033,7 @@ macOS and ARM calls remain CI gates.
 standard-mode macros, and trigraph defaults independently of the compiler family.
 GNU11 is the default. C90 supports implicit-int declarations and ordinary
 implicit function declarations, including retained scope and call records.
-Implicit library builtin signatures, inline-definition ownership, and GNU
+Implicit library builtin signatures and GNU
 omitted-middle conditional expressions remain tracked gaps. Selecting an ISO
 mode does not enable pedantic diagnostics.
 
@@ -1072,3 +1072,12 @@ for GNU/Clang declaration rules and remaining ownership/deallocator-contract lim
 Generic data prefetch uses compiler-specific constant checking and preserves
 argument effects; see [prefetch semantics](prefetch.md). GNU lowering obligations
 remain explicit when source checking cannot establish a constant hint.
+
+### Inline definition ownership
+
+[Inline function metadata](inline-functions.md) distinguishes external, internal,
+inline-only, optional weak, superseded, and Microsoft coalesced bodies. The checker validates
+redeclarations and GNU-inline attributes against compiler and language rules;
+retained bodies and written source annotations remain accessible after later
+declarations change ownership. Binding generation keeps its existing handling
+of definitions.
