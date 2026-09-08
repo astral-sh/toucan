@@ -1,0 +1,22 @@
+{
+  "base": "1be727f",
+  "files": {
+    "crates/toucan_preprocessor/src/definitions.rs": "cc98cc05604a42ebe598af172d3965593d321ae68bdb4d9ee9d3635145352b47",
+    "crates/toucan_preprocessor/src/expand.rs": "4cec9630a02df63fc85d85c48211e58fb5a60e90b09ebc46d8034cc761f06bb3",
+    "crates/toucan_preprocessor/src/lib.rs": "917342c16efc8be4173383979961f914835b704e9bf2856787998df56b3074bc",
+    "crates/toucan_preprocessor/src/token.rs": "d4074e234a3195e58902af7789336360a8d0baf3c483f550463c1fc5544b0353",
+    "crates/toucan_preprocessor/src/comments.rs": "ebd36b8f75d7536bbde906b3634d400ea58805676d298c9cc26597c59d7c65f7",
+    "crates/toucan_preprocessor/tests/c90_comments.rs": "d5e1235dcab621038b8303056974f8e92aef7337490892ada813dd66aecfb729",
+    "docs/c90-comments.md": "d49d7ad94b78ce97f264580e4fa1ec29ddf0fe89d22082bf9e241da907f99eba",
+    "corpus/evidence/c90-comments-2026-09-08/all-preprocessor-native.log": "86a863133f9eea931d6df318374276e7c7a7a00f058982e8b4e6a574e167d895",
+    "corpus/evidence/c90-comments-2026-09-08/c90-native.log": "d02b350b973c45b8230a54f8b4f64782924ad515395ae2cbfbcf2ef832c91afa",
+    "corpus/evidence/c90-comments-2026-09-08/clippy.log": "5e3111ca985ea031a5007df94d535e8b6747a7860dcfb067b6a99483abf3453c",
+    "corpus/evidence/c90-comments-2026-09-08/comment-state.json": "b44263f7d63232db535daa28500b2a806c83b2862893af205ebeead105061b87",
+    "corpus/evidence/c90-comments-2026-09-08/comments.json": "986cc46f126f76dc4a3f99223ff00d5222d2dee5f538f64fb02f7fd5b20d0564",
+    "corpus/evidence/c90-comments-2026-09-08/definition-comments.json": "280898555076c10c8098671742213e6b711e2d8c90dafacc9b1e825002b93ad7",
+    "corpus/evidence/c90-comments-2026-09-08/directive-comments.json": "cf32b7180cc9c7c1e38c87abeda4a8be53e7bf2fa0ed1f3b41c2ad7dea0aa67d",
+    "corpus/evidence/c90-comments-2026-09-08/division.h": "dada0654095c6e5640477ffdd5d6a3beffa3080ee9067a6f2da9896d763e8bc7",
+    "corpus/evidence/c90-comments-2026-09-08/extension.h": "4963020574dc1e83b70060bec37a8616c6ab9b1c01bd89f0736bdb77398b71e0",
+    "corpus/evidence/c90-comments-2026-09-08/versions.json": "06b771c77278c3bc8981b9479b44bf08a2de2de18089945cc684023d74149356"
+  }
+}

@@ -3,6 +3,7 @@
 //! The caller supplies the target's include paths and predefined macros. No host
 //! compiler is invoked, and missing includes and unsupported directives are errors.
 
+mod comments;
 mod definitions;
 mod expand;
 mod expression;
@@ -21,7 +22,8 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
-pub use definitions::PredefinedMacroMode;
+pub use comments::LineComments;
+pub use definitions::{CommandLineMacroNormalizer, PredefinedMacroMode};
 pub use provenance::{OriginKind, SourceLocation, SourceMapping};
 pub use queries::{FeatureQueries, FeatureQuery, FeatureQueryProvider, QueryDialect};
 pub use timestamp::{PreprocessingTimestamp, TimestampError};
@@ -36,6 +38,8 @@ pub struct Config {
     pub feature_queries: Option<FeatureQueries>,
     /// Replace trigraphs before physical line splicing. Standalone default: C11.
     pub trigraphs: bool,
+    /// Line-comment policy. Defaults to C99-and-later behavior.
+    pub line_comments: LineComments,
     /// How predefined replacement strings are interpreted; physical headers and
     /// forced includes always follow the ordinary source translation phases.
     pub predefined_macro_mode: PredefinedMacroMode,
@@ -71,6 +75,7 @@ impl Default for Config {
         Self {
             feature_queries: None,
             trigraphs: true,
+            line_comments: LineComments::Enabled,
             predefined_macro_mode: PredefinedMacroMode::Tokens,
             char_unsigned: false,
             timestamp: PreprocessingTimestamp::UNIX_EPOCH,
@@ -345,6 +350,7 @@ impl Preprocessor {
                 "source byte limit exceeded",
             ));
         }
+        let mut comments = comments::CommentState::new(self.config.line_comments);
         for (name, replacement) in self.config.defines.clone() {
             if self.config.predefined_macro_mode != PredefinedMacroMode::Tokens
                 && name.contains(['\r', '\n'])
@@ -360,6 +366,7 @@ impl Preprocessor {
                 &definition,
                 self.config.predefined_macro_mode,
                 self.config.trigraphs,
+                &mut comments,
             )
             .map_err(|message| Error::new(Path::new("<predefined>"), 1, message))?;
             let definition = lex_limited(
@@ -431,8 +438,12 @@ impl Preprocessor {
         if self.source_bytes > self.config.max_source_bytes {
             return Err(Error::new(path, 1, "source byte limit exceeded"));
         }
-        let source = normalize(source, self.config.trigraphs)
-            .map_err(|message| Error::new(path, 1, message))?;
+        let source = normalize(
+            source,
+            self.config.trigraphs,
+            &mut comments::CommentState::new(self.config.line_comments),
+        )
+        .map_err(|message| Error::new(path, 1, message))?;
         let mut conditions: Vec<Conditional> = Vec::new();
         let mut pending = Vec::new();
         let mut line_adjustment = 0i64;
@@ -461,6 +472,13 @@ impl Preprocessor {
             let active = conditions.last().is_none_or(|condition| condition.active);
             if tokens.first().is_none_or(|token| token.text != "#") {
                 if active {
+                    if matches!(
+                        self.config.line_comments,
+                        LineComments::GnuC90 | LineComments::GnuC90Preprocessing
+                    ) && token::adjacent_slashes(&tokens)
+                    {
+                        return Err(fail("C++ style comments are not allowed in ISO C90".into()));
+                    }
                     if let Some(token) = tokens.first_mut() {
                         token.space = !pending.is_empty();
                     }
@@ -473,6 +491,13 @@ impl Preprocessor {
                 continue;
             };
             let rest = &tokens[2..];
+            if active
+                && directive.text == "pragma"
+                && self.config.line_comments == LineComments::GnuC90
+                && token::adjacent_slashes(rest)
+            {
+                return Err(fail("C++ style comments are not allowed in ISO C90".into()));
+            }
             match directive.text.as_str() {
                 "if" | "ifdef" | "ifndef" => {
                     if conditions.len() >= self.config.max_include_depth.saturating_mul(4).min(256)

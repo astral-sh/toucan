@@ -1,5 +1,8 @@
 use std::collections::BTreeSet;
 
+use crate::LineComments;
+use crate::comments::CommentState;
+
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Kind {
     Identifier,
@@ -77,7 +80,11 @@ impl Normalized {
 
 /// Apply trigraph replacement before escaped-newline removal, then replace
 /// comments. Compact offset breakpoints retain original physical coordinates.
-pub(crate) fn normalize(source: &str, trigraphs: bool) -> Result<Normalized, String> {
+pub(crate) fn normalize(
+    source: &str,
+    trigraphs: bool,
+    comments: &mut CommentState,
+) -> Result<Normalized, String> {
     let bytes = source.as_bytes();
     let mut spliced = String::with_capacity(source.len());
     let mut source_offsets = vec![(0, 0)];
@@ -131,7 +138,7 @@ pub(crate) fn normalize(source: &str, trigraphs: bool) -> Result<Normalized, Str
         }
     }
     Ok(Normalized {
-        source: replace_comments(&spliced)?,
+        source: replace_comments_with(&spliced, comments)?,
         source_offsets,
         line_starts,
     })
@@ -139,12 +146,24 @@ pub(crate) fn normalize(source: &str, trigraphs: bool) -> Result<Normalized, Str
 
 /// Replace comments without repeating translation phases one and two. `_Pragma`
 /// payloads enter preprocessing after those phases have already completed.
-pub(crate) fn replace_comments(source: &str) -> Result<String, String> {
+pub(crate) fn replace_comments(source: &str, mode: LineComments) -> Result<String, String> {
+    replace_comments_with(source, &mut CommentState::new(mode))
+}
+
+/// Adjacent slash punctuators remaining after phase three, excluding literals and
+/// a slash followed by a block comment. Macro expansion does not use this check.
+pub(crate) fn adjacent_slashes(tokens: &[Token]) -> bool {
+    tokens.windows(2).any(|pair| {
+        pair[0].text == "/" && pair[1].text == "/" && pair[1].offset == pair[0].offset + 1
+    })
+}
+
+fn replace_comments_with(source: &str, comments: &mut CommentState) -> Result<String, String> {
     let mut chars = source.chars().peekable();
     let mut output = String::with_capacity(source.len());
     while let Some(c) = chars.next() {
         match (c, chars.peek().copied()) {
-            ('/', Some('/')) => {
+            ('/', Some('/')) if comments.line_comment(chars.clone().nth(1)) => {
                 chars.next();
                 output.push_str("  ");
                 for c in chars.by_ref() {

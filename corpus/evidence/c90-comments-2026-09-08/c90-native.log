@@ -1,0 +1,13 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.08s
+     Running tests/c90_comments.rs (/home/dev-user/.cache/toucan/c90-target/debug/deps/c90_comments-bc19f531a93a2332)
+
+running 6 tests
+test c90_slashes_preserve_division_and_macro_tokens ... ok
+test ordered_definition_budget_counts_removed_comments ... ok
+test clang_extension_state_is_per_file_including_skipped_groups ... ok
+test ordered_definitions_preserve_comment_state_after_undefinition ... ok
+test compiler_and_preprocessing_comment_policies_are_distinct ... ok
+test comment_policies_match_native_compilation_and_preprocessing ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.26s
+

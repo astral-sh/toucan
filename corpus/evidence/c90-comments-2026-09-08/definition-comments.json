@@ -1,0 +1,322 @@
+[
+  {
+    "compiler": "gcc",
+    "phase": "-E",
+    "options": [
+      "-DA=1//first",
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "-DA=1//first",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n_Static_assert(6/ 2==3,\"B\");\n",
+    "stderr": ""
+  },
+  {
+    "compiler": "gcc",
+    "phase": "-E",
+    "options": [
+      "-DB=6//**/2",
+      "-DA=1//first"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "-DB=6//**/2",
+      "-DA=1//first",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n_Static_assert(6/ 2==3,\"B\");\n",
+    "stderr": ""
+  },
+  {
+    "compiler": "gcc",
+    "phase": "-E",
+    "options": [
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n_Static_assert(6/ 2==3,\"B\");\n",
+    "stderr": ""
+  },
+  {
+    "compiler": "gcc",
+    "phase": "-E",
+    "options": [
+      "-DA=1//first",
+      "-UA",
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "-DA=1//first",
+      "-UA",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n_Static_assert(6/ 2==3,\"B\");\n",
+    "stderr": ""
+  },
+  {
+    "compiler": "gcc",
+    "phase": "-fsyntax-only",
+    "options": [
+      "-DA=1//first",
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "-DA=1//first",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "compiler": "gcc",
+    "phase": "-fsyntax-only",
+    "options": [
+      "-DB=6//**/2",
+      "-DA=1//first"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "-DB=6//**/2",
+      "-DA=1//first",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "compiler": "gcc",
+    "phase": "-fsyntax-only",
+    "options": [
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "compiler": "gcc",
+    "phase": "-fsyntax-only",
+    "options": [
+      "-DA=1//first",
+      "-UA",
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "-DA=1//first",
+      "-UA",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "compiler": "clang-18",
+    "phase": "-E",
+    "options": [
+      "-DA=1//first",
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "-DA=1//first",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\" 2\n_Static_assert(6/ 2==3,\"B\");\n",
+    "stderr": ""
+  },
+  {
+    "compiler": "clang-18",
+    "phase": "-E",
+    "options": [
+      "-DB=6//**/2",
+      "-DA=1//first"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "-DB=6//**/2",
+      "-DA=1//first",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\" 2\n_Static_assert(6/ 2==3,\"B\");\n",
+    "stderr": ""
+  },
+  {
+    "compiler": "clang-18",
+    "phase": "-E",
+    "options": [
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\" 2\n_Static_assert(6/ 2==3,\"B\");\n",
+    "stderr": ""
+  },
+  {
+    "compiler": "clang-18",
+    "phase": "-E",
+    "options": [
+      "-DA=1//first",
+      "-UA",
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "-DA=1//first",
+      "-UA",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/definition.c\" 2\n_Static_assert(6/ 2==3,\"B\");\n",
+    "stderr": ""
+  },
+  {
+    "compiler": "clang-18",
+    "phase": "-fsyntax-only",
+    "options": [
+      "-DA=1//first",
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "-DA=1//first",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "/home/dev-user/.cache/toucan/c90-probes/definition.c:1:16: error: static assertion failed due to requirement '6 == 3': B\n    1 | _Static_assert(B==3,\"B\");\n      |                ^~~~\n<command line>:2:11: note: expanded from macro 'B'\n    2 | #define B 6//**/2\n      |           ^\n1 error generated.\n"
+  },
+  {
+    "compiler": "clang-18",
+    "phase": "-fsyntax-only",
+    "options": [
+      "-DB=6//**/2",
+      "-DA=1//first"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "-DB=6//**/2",
+      "-DA=1//first",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "compiler": "clang-18",
+    "phase": "-fsyntax-only",
+    "options": [
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "compiler": "clang-18",
+    "phase": "-fsyntax-only",
+    "options": [
+      "-DA=1//first",
+      "-UA",
+      "-DB=6//**/2"
+    ],
+    "source": "_Static_assert(B==3,\"B\");\n",
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "-DA=1//first",
+      "-UA",
+      "-DB=6//**/2",
+      "/home/dev-user/.cache/toucan/c90-probes/definition.c"
+    ],
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "/home/dev-user/.cache/toucan/c90-probes/definition.c:1:16: error: static assertion failed due to requirement '6 == 3': B\n    1 | _Static_assert(B==3,\"B\");\n      |                ^~~~\n<command line>:3:11: note: expanded from macro 'B'\n    3 | #define B 6//**/2\n      |           ^\n1 error generated.\n"
+  }
+]

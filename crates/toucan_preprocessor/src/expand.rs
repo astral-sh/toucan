@@ -49,7 +49,12 @@ impl Expansion<'_> {
                     return Err("_Pragma requires exactly one string literal".into());
                 };
                 let payload = pragma_text(literal)?;
-                let payload = lex(&replace_comments(&payload)?)?;
+                let payload = lex(&replace_comments(&payload, self.config.line_comments)?)?;
+                if self.config.line_comments == crate::LineComments::GnuC90
+                    && crate::token::adjacent_slashes(&payload)
+                {
+                    return Err("C++ style comments are not allowed in ISO C90".into());
+                }
                 self.charge(&payload)?;
                 let mut directive = token;
                 directive.kind = Kind::Pragma;

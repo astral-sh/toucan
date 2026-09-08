@@ -1,0 +1,84 @@
+   Compiling toucan_preprocessor v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_preprocessor)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 1.06s
+     Running unittests src/lib.rs (/home/dev-user/.cache/toucan/c90-target/debug/deps/toucan_preprocessor-78ee6c5f02b7e8bc)
+
+running 48 tests
+test expression::tests::c_integer_conversions_and_short_circuiting ... ok
+test tests::arguments_prescan_and_suppress_recursive_expansion ... ok
+test tests::builtin_macros_and_line_directive ... ok
+test tests::comments_splices_and_multiline_invocations ... ok
+test tests::configuration_function_macros_and_translation_unit_reset ... ok
+test tests::conditionals_are_checked_and_short_circuit ... ok
+test tests::counter_expands_each_argument_once_and_resets_per_translation_unit ... ok
+test tests::date_time_formats_validated_utc_timestamps ... ok
+test tests::date_time_obey_builtin_redefinition_and_expansion_rules ... ok
+test tests::date_time_share_configuration_across_includes_queries_and_resets ... ok
+test tests::digraphs_preserve_spelling_during_stringification_and_pasting ... ok
+test tests::filesystem_access_can_be_disabled_for_embedding ... ok
+test tests::expansion_and_include_limits_bound_work ... ok
+test tests::forced_includes_share_macros_limits_and_source_locations ... ok
+test tests::function_invocation_suppression_ends_at_the_closing_parenthesis ... ok
+test tests::gnu_line_markers_preserve_logical_locations ... ok
+test tests::cumulative_bytes_and_expression_nesting_are_bounded ... ok
+test tests::incompatible_redefinitions_and_malformed_directives_fail ... ok
+test tests::include_queries_stop_after_virtual_headers ... ok
+test tests::line_filenames_decode_c_escapes ... ok
+test tests::invalid_quoted_header_names_are_diagnosed ... ok
+test tests::macro_expansion_failures_report_the_invocation_after_prior_declarations ... ok
+test tests::literal_header_names_do_not_expand_macros ... ok
+test tests::multiline_block_comments_do_not_end_directives ... ok
+test tests::pack_directives_survive_preprocessing ... ok
+test tests::object_and_function_macros_rescan_with_following_input ... ok
+test tests::physical_lines_survive_splices_and_comments ... ok
+test tests::pragma_operator_errors_and_work_are_bounded ... ok
+test tests::provenance_covers_directives_empty_expansions_and_utf8_boundaries ... ok
+test tests::variadic_macros_distinguish_empty_and_omitted_arguments ... ok
+test tests::strings_pastes_and_empty_arguments ... ok
+test tests::pragma_operators_preserve_order_and_share_pragma_once_identity ... ok
+test tests::wide_character_signedness_uses_the_target_profile ... ok
+test tests::provenance_distinguishes_source_tokens_from_macro_invocations ... ok
+test tests::virtual_headers_once_and_macro_includes ... ok
+test tests::provenance_maps_nested_includes_and_external_macro_definitions ... ok
+test tests::native_header_paths_use_host_filesystem_semantics ... ok
+test tests::provenance_retains_spliced_columns_and_line_remapping ... ok
+test tests::virtual_header_paths_preserve_raw_backslashes ... ok
+test tests::trigraphs_precede_splicing_and_retain_original_columns ... ok
+test tests::byte_character_escapes_follow_explicit_plain_char_signedness ... ok
+test tests::pragma_conditions_follow_the_compiler_profile ... ok
+test tests::native_header_paths_match_c_compiler ... ok
+test tests::include_next_tracks_search_origin_and_quoted_local_includes ... ok
+test tests::compiler_preprocessed_output_can_be_read_with_line_markers ... ok
+test tests::byte_character_conditions_match_native_preprocessors ... ok
+test tests::differential_macro_corpus_matches_native_c_preprocessor ... ok
+test tests::date_time_match_native_preprocessor ... ok
+
+test result: ok. 48 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.68s
+
+     Running tests/c90_comments.rs (/home/dev-user/.cache/toucan/c90-target/debug/deps/c90_comments-bc19f531a93a2332)
+
+running 6 tests
+test ordered_definition_budget_counts_removed_comments ... ok
+test clang_extension_state_is_per_file_including_skipped_groups ... ok
+test compiler_and_preprocessing_comment_policies_are_distinct ... ok
+test c90_slashes_preserve_division_and_macro_tokens ... ok
+test ordered_definitions_preserve_comment_state_after_undefinition ... ok
+test comment_policies_match_native_compilation_and_preprocessing ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 1.30s
+
+     Running tests/feature_queries.rs (/home/dev-user/.cache/toucan/c90-target/debug/deps/feature_queries-f94ae56347273249)
+
+running 4 tests
+test query_overrides_survive_final_macro_queries_and_reset_per_entry_point ... ok
+test query_expansion_charges_budgets_and_preserves_invocation_locations ... ok
+test query_arguments_and_rescanning_use_the_configured_dialect ... ok
+test feature_query_syntax_values_and_effects_match_compilers ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 9.21s
+
+   Doc-tests toucan_preprocessor
+
+running 0 tests
+
+test result: ok. 0 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+

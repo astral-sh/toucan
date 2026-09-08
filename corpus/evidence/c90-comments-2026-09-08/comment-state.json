@@ -1,0 +1,426 @@
+[
+  {
+    "name": "inactive_enables",
+    "source": "#if 0\n// extension\n#endif\nint x=6 //**/ 2;\n",
+    "compiler": "gcc",
+    "preprocess": false,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "inactive_enables",
+    "source": "#if 0\n// extension\n#endif\nint x=6 //**/ 2;\n",
+    "compiler": "gcc",
+    "preprocess": true,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n\n\n\nint x=6 / 2;\n",
+    "stderr": ""
+  },
+  {
+    "name": "inactive_enables",
+    "source": "#if 0\n// extension\n#endif\nint x=6 //**/ 2;\n",
+    "compiler": "clang-18",
+    "preprocess": false,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "/home/dev-user/.cache/toucan/c90-probes/state.c:4:8: error: expected ';' after top level declarator\n    4 | int x=6 //**/ 2;\n      |        ^\n      |        ;\n1 error generated.\n"
+  },
+  {
+    "name": "inactive_enables",
+    "source": "#if 0\n// extension\n#endif\nint x=6 //**/ 2;\n",
+    "compiler": "clang-18",
+    "preprocess": true,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n\n\n\nint x=6 / 2;\n",
+    "stderr": ""
+  },
+  {
+    "name": "macro_enables",
+    "source": "#define UNUSED 1 // extension\nint x=6 //**/ 2;\n",
+    "compiler": "gcc",
+    "preprocess": false,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "macro_enables",
+    "source": "#define UNUSED 1 // extension\nint x=6 //**/ 2;\n",
+    "compiler": "gcc",
+    "preprocess": true,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n\nint x=6 / 2;\n",
+    "stderr": ""
+  },
+  {
+    "name": "macro_enables",
+    "source": "#define UNUSED 1 // extension\nint x=6 //**/ 2;\n",
+    "compiler": "clang-18",
+    "preprocess": false,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "/home/dev-user/.cache/toucan/c90-probes/state.c:2:8: error: expected ';' after top level declarator\n    2 | int x=6 //**/ 2;\n      |        ^\n      |        ;\n1 error generated.\n"
+  },
+  {
+    "name": "macro_enables",
+    "source": "#define UNUSED 1 // extension\nint x=6 //**/ 2;\n",
+    "compiler": "clang-18",
+    "preprocess": true,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n\nint x=6 / 2;\n",
+    "stderr": ""
+  },
+  {
+    "name": "include_does_not_enable",
+    "source": "#include \"extension.h\"\n_Static_assert(6 //**/ 2 == 3,\"division\");\n",
+    "compiler": "gcc",
+    "preprocess": false,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "In file included from /home/dev-user/.cache/toucan/c90-probes/state.c:1:\n/home/dev-user/.cache/toucan/c90-probes/extension.h:1:1: error: C++ style comments are not allowed in ISO C90\n    1 | // header extension\n      | ^\n/home/dev-user/.cache/toucan/c90-probes/extension.h:1:1: note: (this will be reported only once per input file)\n"
+  },
+  {
+    "name": "include_does_not_enable",
+    "source": "#include \"extension.h\"\n_Static_assert(6 //**/ 2 == 3,\"division\");\n",
+    "compiler": "gcc",
+    "preprocess": true,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 1,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/extension.h\" 1\n# 2 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n_Static_assert(6 / 2 == 3,\"division\");\n",
+    "stderr": "In file included from /home/dev-user/.cache/toucan/c90-probes/state.c:1:\n/home/dev-user/.cache/toucan/c90-probes/extension.h:1:1: error: C++ style comments are not allowed in ISO C90\n    1 | // header extension\n      | ^\n/home/dev-user/.cache/toucan/c90-probes/extension.h:1:1: note: (this will be reported only once per input file)\n"
+  },
+  {
+    "name": "include_does_not_enable",
+    "source": "#include \"extension.h\"\n_Static_assert(6 //**/ 2 == 3,\"division\");\n",
+    "compiler": "clang-18",
+    "preprocess": false,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "include_does_not_enable",
+    "source": "#include \"extension.h\"\n_Static_assert(6 //**/ 2 == 3,\"division\");\n",
+    "compiler": "clang-18",
+    "preprocess": true,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/extension.h\" 1\n// header extension\n# 2 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n_Static_assert(6 / 2 == 3,\"division\");\n",
+    "stderr": ""
+  },
+  {
+    "name": "parent_does_not_enable_include",
+    "source": "// extension\n#include \"division.h\"\n_Static_assert(HEADER==3,\"division\");\n",
+    "compiler": "gcc",
+    "preprocess": false,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 1,
+    "stdout": "",
+    "stderr": "/home/dev-user/.cache/toucan/c90-probes/state.c:1:1: error: C++ style comments are not allowed in ISO C90\n    1 | // extension\n      | ^\n/home/dev-user/.cache/toucan/c90-probes/state.c:1:1: note: (this will be reported only once per input file)\n"
+  },
+  {
+    "name": "parent_does_not_enable_include",
+    "source": "// extension\n#include \"division.h\"\n_Static_assert(HEADER==3,\"division\");\n",
+    "compiler": "gcc",
+    "preprocess": true,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 1,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/division.h\" 1\nenum { HEADER = 6 / 2 };\n# 3 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n_Static_assert(HEADER==3,\"division\");\n",
+    "stderr": "/home/dev-user/.cache/toucan/c90-probes/state.c:1:1: error: C++ style comments are not allowed in ISO C90\n    1 | // extension\n      | ^\n/home/dev-user/.cache/toucan/c90-probes/state.c:1:1: note: (this will be reported only once per input file)\n"
+  },
+  {
+    "name": "parent_does_not_enable_include",
+    "source": "// extension\n#include \"division.h\"\n_Static_assert(HEADER==3,\"division\");\n",
+    "compiler": "clang-18",
+    "preprocess": false,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "parent_does_not_enable_include",
+    "source": "// extension\n#include \"division.h\"\n_Static_assert(HEADER==3,\"division\");\n",
+    "compiler": "clang-18",
+    "preprocess": true,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n// extension\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/division.h\" 1\nenum { HEADER = 6 / 2 };\n# 3 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n_Static_assert(HEADER==3,\"division\");\n",
+    "stderr": ""
+  },
+  {
+    "name": "inactive_quote_comment",
+    "source": "#if 0\n\" // not comment\n#endif\nint x=6 //**/ 2;\n",
+    "compiler": "gcc",
+    "preprocess": false,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": "/home/dev-user/.cache/toucan/c90-probes/state.c:2:1: warning: missing terminating \" character\n    2 | \" // not comment\n      | ^\n"
+  },
+  {
+    "name": "inactive_quote_comment",
+    "source": "#if 0\n\" // not comment\n#endif\nint x=6 //**/ 2;\n",
+    "compiler": "gcc",
+    "preprocess": true,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n\n\n\nint x=6 / 2;\n",
+    "stderr": "/home/dev-user/.cache/toucan/c90-probes/state.c:2:1: warning: missing terminating \" character\n    2 | \" // not comment\n      | ^\n"
+  },
+  {
+    "name": "inactive_quote_comment",
+    "source": "#if 0\n\" // not comment\n#endif\nint x=6 //**/ 2;\n",
+    "compiler": "clang-18",
+    "preprocess": false,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "inactive_quote_comment",
+    "source": "#if 0\n\" // not comment\n#endif\nint x=6 //**/ 2;\n",
+    "compiler": "clang-18",
+    "preprocess": true,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n\n\n\nint x=6 / 2;\n",
+    "stderr": ""
+  },
+  {
+    "name": "inactive_block_comment",
+    "source": "#if 0\n/* // not comment */\n#endif\n_Static_assert(6 //**/ 2==3,\"division\");\n",
+    "compiler": "gcc",
+    "preprocess": false,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "inactive_block_comment",
+    "source": "#if 0\n/* // not comment */\n#endif\n_Static_assert(6 //**/ 2==3,\"division\");\n",
+    "compiler": "gcc",
+    "preprocess": true,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n\n\n\n_Static_assert(6 / 2==3,\"division\");\n",
+    "stderr": ""
+  },
+  {
+    "name": "inactive_block_comment",
+    "source": "#if 0\n/* // not comment */\n#endif\n_Static_assert(6 //**/ 2==3,\"division\");\n",
+    "compiler": "clang-18",
+    "preprocess": false,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "inactive_block_comment",
+    "source": "#if 0\n/* // not comment */\n#endif\n_Static_assert(6 //**/ 2==3,\"division\");\n",
+    "compiler": "clang-18",
+    "preprocess": true,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n\n\n\n_Static_assert(6 / 2==3,\"division\");\n",
+    "stderr": ""
+  },
+  {
+    "name": "command_does_not_enable_file",
+    "source": "_Static_assert(6 //**/ 2==3,\"division\");\n",
+    "compiler": "gcc",
+    "preprocess": false,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-fsyntax-only",
+      "-DA=1//first",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "command_does_not_enable_file",
+    "source": "_Static_assert(6 //**/ 2==3,\"division\");\n",
+    "compiler": "gcc",
+    "preprocess": true,
+    "command": [
+      "gcc",
+      "-std=c90",
+      "-E",
+      "-DA=1//first",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 0 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 0 \"<built-in>\"\n# 0 \"<command-line>\"\n# 1 \"/usr/include/stdc-predef.h\" 1 3 4\n# 0 \"<command-line>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n_Static_assert(6 / 2==3,\"division\");\n",
+    "stderr": ""
+  },
+  {
+    "name": "command_does_not_enable_file",
+    "source": "_Static_assert(6 //**/ 2==3,\"division\");\n",
+    "compiler": "clang-18",
+    "preprocess": false,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-fsyntax-only",
+      "-DA=1//first",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "",
+    "stderr": ""
+  },
+  {
+    "name": "command_does_not_enable_file",
+    "source": "_Static_assert(6 //**/ 2==3,\"division\");\n",
+    "compiler": "clang-18",
+    "preprocess": true,
+    "command": [
+      "clang-18",
+      "-std=c90",
+      "-E",
+      "-DA=1//first",
+      "/home/dev-user/.cache/toucan/c90-probes/state.c"
+    ],
+    "exit_code": 0,
+    "stdout": "# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\"\n# 1 \"<built-in>\" 1\n# 1 \"<built-in>\" 3\n# 387 \"<built-in>\" 3\n# 1 \"<command line>\" 1\n# 1 \"<built-in>\" 2\n# 1 \"/home/dev-user/.cache/toucan/c90-probes/state.c\" 2\n_Static_assert(6 / 2==3,\"division\");\n",
+    "stderr": ""
+  }
+]
