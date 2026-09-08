@@ -620,6 +620,7 @@ impl Analyzer {
                     "an object cannot have void type",
                 ));
             }
+            let initializer_type = ty.clone();
             if let Some(previous_index) = self
                 .unit
                 .declarations
@@ -643,6 +644,13 @@ impl Analyzer {
                     if previous.link_name.is_none() {
                         previous.link_name = declarator_attributes.link_name;
                     }
+                    if let Some(initializer) = &item.node.initializer {
+                        self.initialize_declaration(
+                            previous_index,
+                            &initializer_type,
+                            initializer,
+                        )?;
+                    }
                     continue;
                 }
             }
@@ -654,6 +662,13 @@ impl Analyzer {
                 is_static,
                 is_definition: definition || item.node.initializer.is_some(),
             });
+            if let Some(initializer) = &item.node.initializer {
+                self.initialize_declaration(
+                    self.unit.declarations.len() - 1,
+                    &initializer_type,
+                    initializer,
+                )?;
+            }
         }
         Ok(())
     }
@@ -1491,7 +1506,7 @@ impl Analyzer {
     }
 
     /// Checks completeness without requiring a supported target layout.
-    fn is_complete_object(&self, ty: &Type, depth: usize) -> Result<bool, Error> {
+    pub(crate) fn is_complete_object(&self, ty: &Type, depth: usize) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
                 0,

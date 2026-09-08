@@ -104,6 +104,15 @@ impl Analyzer {
                     length: Some(decoded.len() as u64 + 1),
                 })));
             }
+            ast::Expression::CompoundLiteral(literal) => {
+                let ty = self.type_name(&literal.node.type_name.node)?;
+                let initializer = Node::new(
+                    ast::Initializer::List(literal.node.initializer_list.clone()),
+                    literal.span,
+                );
+                let ty = self.check_initializer(&ty, &initializer, false)?;
+                return Ok(ExpressionInfo::object(ty));
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 return self.expression_info(selected);
