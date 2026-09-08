@@ -97,6 +97,10 @@ either ordered constant lane selections or a dynamic mask. Static undefined
 lanes and unevaluated index expressions remain explicit. This adds an expression
 variant in checked schema 5; it does not change declaration-only schema 3.
 
+`Builtin::X86(X86Intrinsic::Undef128)` identifies Clang’s stable unspecified vector result.
+Its signature has no arguments or ISA requirements; the builtin identity does
+not imply that its result is a C constant. See [unspecified vector values](undefined-vectors.md).
+
 ## Migration from version 4
 
 Checked-code version 5 changes `ExprKind::AlignOf` from a tuple carrying one

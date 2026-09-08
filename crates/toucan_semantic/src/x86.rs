@@ -1,4 +1,4 @@
-//! Exact source signatures for the supported x86 instruction intrinsics.
+//! Exact source signatures for the supported x86 intrinsics.
 //!
 //! Signature facts follow GCC 13.3's i386 builtin descriptors and Clang 18.1.3's
 //! BuiltinsX86.def. The provenance and compiler probes are recorded in the corpus.
@@ -194,10 +194,10 @@ fn pointer(mut element: Type, constant: bool) -> Type {
 struct Descriptor {
     name: &'static str,
     features: &'static [X86Feature],
-    gcc: (IntrinsicType, &'static [IntrinsicType]),
+    gcc: Option<(IntrinsicType, &'static [IntrinsicType])>,
     clang: Option<(IntrinsicType, &'static [IntrinsicType])>,
 }
-macro_rules! clang_signature {
+macro_rules! intrinsic_signature {
     (Unsupported, []) => { None };
     ($result:ident, [$($parameter:ident),*]) => {
         Some((IntrinsicType::$result, &[$(IntrinsicType::$parameter),*]))
@@ -207,7 +207,7 @@ macro_rules! intrinsics {
     ($($variant:ident, $name:literal, [$($feature:ident),*],
        $gcc_return:ident, [$($gcc_parameter:ident),*],
        $clang_return:ident, [$($clang_parameter:ident),*];)*) => {
-        /// An instruction intrinsic, distinct from an ordinary external function.
+        /// A target intrinsic, distinct from an ordinary external function.
         /// Its argument evaluation and conversions are retained in `BuiltinCall`.
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
         #[non_exhaustive]
@@ -222,14 +222,15 @@ macro_rules! intrinsics {
                 match self { $(Self::$variant => &Descriptor {
                     name: $name,
                     features: &[$(X86Feature::$feature),*],
-                    gcc: (IntrinsicType::$gcc_return, &[$(IntrinsicType::$gcc_parameter),*]),
-                    clang: clang_signature!($clang_return, [$($clang_parameter),*]),
+                    gcc: intrinsic_signature!($gcc_return, [$($gcc_parameter),*]),
+                    clang: intrinsic_signature!($clang_return, [$($clang_parameter),*]),
                 }),* }
             }
         }
     }
 }
 intrinsics! {
+    Undef128, "__builtin_ia32_undef128", [], Unsupported, [], V2Double, [];
     Emms, "__builtin_ia32_emms", [Mmx], Void, [], Void, [];
     Packssdw, "__builtin_ia32_packssdw", [Mmx], V4Short, [V2Int, V2Int], V4Short, [V2Int, V2Int];
     Packsswb, "__builtin_ia32_packsswb", [Mmx], V8Char, [V4Short, V4Short], V8Char, [V4Short, V4Short];
@@ -523,6 +524,14 @@ impl X86Intrinsic {
     pub fn name(self) -> &'static str {
         self.descriptor().name
     }
+    /// Whether the intrinsic produces a stable value with unspecified bits.
+    /// Each result must remain stable when reused. It must not become LLVM
+    /// per-use `undef` or `poison`, and it is not a C arithmetic constant.
+    /// Clang 18 implements `Undef128` with zero; that lowering choice is separate
+    /// from the source contract exposed here.
+    pub fn has_unspecified_result(self) -> bool {
+        self == Self::Undef128
+    }
     /// Instruction sets needed by evaluated uses. Unevaluated calls do not
     /// themselves require instructions to execute.
     pub fn required_features(self) -> &'static [X86Feature] {
@@ -542,7 +551,7 @@ impl X86Intrinsic {
         let target = profile.target();
         let descriptor = self.descriptor();
         let (result, parameters) = match (target, profile.compiler()) {
-            (Target::X86_64UnknownLinuxGnu, toucan_target::Compiler::Gnu) => descriptor.gcc,
+            (Target::X86_64UnknownLinuxGnu, toucan_target::Compiler::Gnu) => descriptor.gcc?,
             (
                 Target::X86_64UnknownLinuxGnu
                 | Target::X86_64AppleDarwin
@@ -713,7 +722,7 @@ impl Analyzer {
                 call.span.start,
                 if matches!(self.unit.target, Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin) {
                     "x86 instruction intrinsics require an x86-64 target profile"
-                } else { "this x86 intrinsic spelling is unavailable in the target's Clang compiler profile" },
+                } else { "this x86 intrinsic spelling is unavailable in the selected compiler profile" },
             )
         })?;
         if signature.parameters.len() != call.node.arguments.len() {

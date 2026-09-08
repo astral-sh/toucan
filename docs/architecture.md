@@ -219,3 +219,7 @@ differ even when the C call representation agrees.
 Fixed-vector shuffle expressions retain operand evaluation and normalized lane
 selections separately; see [vector shuffles](vector-shuffles.md) for compiler
 rules and representation limits.
+
+The x86 Clang undefined-vector intrinsic preserves a stable unspecified result
+through its retained identity; it is neither a C constant nor LLVM per-use undef.
+See [unspecified vector values](undefined-vectors.md).
