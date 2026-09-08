@@ -7,17 +7,34 @@ behavior from the checked graph's source semantics.
 
 ## Apple Clang atomic-copy crash
 
-Apple Clang 17.0.0 (`clang-1700.0.13.5`) crashed while syntax-checking the combined
-atomic-copy fixture in the [Intel macOS run](https://github.com/astral-sh/toucan/actions/runs/34215630050/job/102026583137).
-The driver reported a frontend segmentation fault. GCC 13 and upstream Clang 18
-accept that source locally, and its runtime checks pass at O0 and O2.
+Apple Clang 17.0.0 (`clang-1700.0.13.5`) crashes on this pointer-to-atomic-pointer cast:
 
-The native oracle checks separate scalar, pointer, record, assignment, and inferred
-initialization cases before the combined fixture. It collects all failures before
-reporting them, so one compiler crash does not hide the other cases. A crash or
-abnormal driver exit cannot satisfy an expected rejection. The Apple failure
-remains a failing gate pending isolation; it is not recorded as C rejection or
-successful conformance.
+```c
+void f(int n) {
+    _Atomic(int *) p = (_Atomic(int *))&n;
+}
+```
+
+The [isolated Intel macOS run](https://github.com/astral-sh/toucan/actions/runs/34216957132/job/102030873020)
+reproduced the crash in initialization, assignment, inferred initialization, and
+both runtime optimization levels. Scalar and record copies passed. The driver
+returns exit code 1 with a frontend segmentation-fault diagnostic; this is a
+compiler failure, not source rejection. Upstream Clang 17 and 18 accept the exact
+combined source for Linux and both Darwin targets, compile its runtime fixture,
+and execute it successfully on native x86-64 Linux.
+
+For this recorded Apple build, the atomic-copy fixture uses upstream Clang 18 on
+the same host for the exact crashing cast cases. Set
+`TOUCAN_ATOMIC_POINTER_CLANG` to that compiler's path when running the native tests
+locally; macOS CI installs `llvm@18` and sets it explicitly. The fixture checks the
+replacement's version. Missing compilers, crashes, unexpected diagnostics, and
+runtime failures still fail the test. Other Apple versions use the original oracle.
+
+Apple Clang continues to check the remaining cases, including atomic pointer
+copies from function results at O0 and O2. The cast cases do not establish
+compatibility with the affected Apple compiler. The
+[saved report](../corpus/evidence/apple-atomic-pointer-oracle-2026-09-08.json)
+preserves the failing job, exact sources, flags, and upstream probe results.
 
 ## Apple Clang SVE feature diagnostics
 

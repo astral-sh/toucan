@@ -50,6 +50,16 @@ jobs:
           fi
           echo "$native_gcc_version"
           clang --version
+          if [[ "$(clang --version)" == *"Apple clang version 17.0.0 (clang-1700.0.13.5)"* ]]; then
+            # This Apple build crashes on atomic pointer casts. Keep it for the
+            # other oracles; use upstream Clang for those exact source cases.
+            if ! brew list --versions llvm@18 >/dev/null; then
+              brew install llvm@18
+            fi
+            atomic_pointer_clang="$(brew --prefix llvm@18)/bin/clang"
+            "$atomic_pointer_clang" --version
+            echo "TOUCAN_ATOMIC_POINTER_CLANG=$atomic_pointer_clang" >> "$GITHUB_ENV"
+          fi
           echo "TOUCAN_GCC=$native_gcc" >> "$GITHUB_ENV"
           # Existing probes that invoke `gcc` must also use GNU GCC on macOS.
           oracle_bin="$RUNNER_TEMP/toucan-c-oracles"
