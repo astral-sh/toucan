@@ -279,6 +279,7 @@ fn run(cli: Cli) -> Result<()> {
                 .collect::<Result<Vec<_>, _>>()?;
             let compilation = toucan::parse_file(&input.header, &input.config()?)?;
             let (source, metadata) = compilation.bindings(&BindingOptions {
+                no_layout_tests: false,
                 allowlist,
                 rustified_enums,
                 size_t_is_usize,

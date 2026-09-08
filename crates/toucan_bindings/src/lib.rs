@@ -45,6 +45,9 @@ pub struct Options {
     /// Minimum Rust version for generated declarations. Defaults to Rust 1.96.
     /// Caller-provided raw lines are outside this contract.
     pub rust_target: RustTarget,
+    /// Omit generated runtime field-offset tests on Rust releases before 1.77.
+    /// Compile-time size, alignment, and supported offset assertions remain enabled.
+    pub no_layout_tests: bool,
 }
 
 /// Minimum supported Rust release for generated declarations.
@@ -1821,6 +1824,10 @@ impl Emitter<'_> {
         }
         writeln!(source, "const _: () = {{\n    assert!(::core::mem::size_of::<{name}>() == {});\n    assert!(::core::mem::align_of::<{name}>() == {});", layout.size_bits / 8, layout.alignment_bits / 8).unwrap();
         let runtime_offsets = self.options.rust_target.minor < 77;
+        if runtime_offsets && self.options.no_layout_tests {
+            source.push_str("};\n\n");
+            return Ok(());
+        }
         if runtime_offsets {
             let mut test_name = self.helper_name("layout", id);
             while self.names.original.contains(&test_name) {

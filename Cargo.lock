@@ -429,6 +429,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "toucan_bindgen"
+version = "0.0.1"
+dependencies = [
+ "shlex",
+ "tempfile",
+ "thiserror",
+ "toucan",
+]
+
+[[package]]
 name = "toucan_bindings"
 version = "0.0.1"
 dependencies = [

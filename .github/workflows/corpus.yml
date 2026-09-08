@@ -20,6 +20,7 @@ on:
       - "scripts/verify_equivalence.py"
       - "scripts/probe_record_layouts.py"
       - "scripts/verify_zstd_consumer.py"
+      - "scripts/verify_bindgen_builder.py"
       - "scripts/verify_rust_target.py"
       - "scripts/verify_sqlite_consumer.py"
       - "tools/binding_compare/**"
@@ -210,6 +211,14 @@ jobs:
             --sysroot "$corpus_sysroot" \
             --profile default --profile experimental --profile zstdmt --profile experimental-zstdmt \
             --output corpus/results/zstd-consumer
+
+      - name: Run zstd's unchanged binding build script
+        shell: bash
+        run: |
+          "$CORPUS_PYTHON" scripts/verify_bindgen_builder.py \
+            --target '${{ matrix.target }}' \
+            --cache corpus/cache/bindgen-builder \
+            --output corpus/results/bindgen-builder
 
       - name: Compile and run the real SQLite Rust consumer
         shell: bash

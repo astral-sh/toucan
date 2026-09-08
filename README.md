@@ -81,6 +81,13 @@ The report retains original C macro types when a representation option changes
 them. The [zstd consumer test](tools/zstd_consumer) exercises these options through
 the unmodified `zstd` and `zstd-safe` Rust APIs.
 
+### Existing binding build scripts
+
+The experimental [toucan_bindgen adapter](crates/toucan_bindgen) supports the
+builder calls used by the pinned zstd-sys build script. It selects Cargo's target
+and generates bindings during the build without libclang. The adapter documents
+its supported arguments and API subset; unsupported options produce errors.
+
 ## Analyze headers
 
 Each command accepts `--target`, `--compiler`, `--sysroot`, `-I`, `-D`, and `-U`.
