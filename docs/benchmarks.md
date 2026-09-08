@@ -41,7 +41,7 @@ own process allocator.
 
 ## Recorded Linux results
 
-On 2026-09-08, Toucan generated bindings for the four pinned public-header workloads
+On 2026-09-08, commit `4ac7511` generated bindings for the four pinned public-header workloads
 faster than bindgen 0.72.1 on an AMD EPYC-Milan Linux host. Both tools used the full
 allowlists from the corpus manifest. SQLite includes both `sqlite3*` declarations
 and `SQLITE*` constants.
@@ -53,12 +53,12 @@ median of each subprocess's maximum resident memory.
 
 | Project | Toucan | bindgen | Speedup | Toucan RSS | bindgen RSS |
 | --- | ---: | ---: | ---: | ---: | ---: |
-| [libgit2 1.9.1](../benchmarks/evidence/2026-09-08/libgit2.json) | 321.02 ms | 438.80 ms | 1.37× | 15.25 MiB | 100.91 MiB |
-| [SQLite 3.45.1](../benchmarks/evidence/2026-09-08/sqlite.json) | 137.42 ms | 310.36 ms | 2.26× | 6.50 MiB | 83.44 MiB |
-| [zlib 1.3.1](../benchmarks/evidence/2026-09-08/zlib.json) | 38.28 ms | 272.86 ms | 7.13× | 5.50 MiB | 80.09 MiB |
-| [zstd 1.5.7](../benchmarks/evidence/2026-09-08/zstd.json) | 12.99 ms | 255.99 ms | 19.70× | 3.93 MiB | 78.15 MiB |
+| [libgit2 1.9.1](../benchmarks/evidence/2026-09-08-4ac7511/libgit2.json) | 351.84 ms | 439.93 ms | 1.25× | 16.50 MiB | 100.65 MiB |
+| [SQLite 3.45.1](../benchmarks/evidence/2026-09-08-4ac7511/sqlite.json) | 148.65 ms | 317.22 ms | 2.13× | 7.65 MiB | 83.20 MiB |
+| [zlib 1.3.1](../benchmarks/evidence/2026-09-08-4ac7511/zlib.json) | 42.82 ms | 285.05 ms | 6.66× | 6.50 MiB | 79.75 MiB |
+| [zstd 1.5.7](../benchmarks/evidence/2026-09-08-4ac7511/zstd.json) | 14.89 ms | 286.93 ms | 19.28× | 4.92 MiB | 77.90 MiB |
 
-The [evidence summary](../benchmarks/evidence/2026-09-08/summary.json) records binary,
+The [evidence summary](../benchmarks/evidence/2026-09-08-4ac7511/summary.json) records binary,
 source, header, and output hashes; each project links to its unchanged raw samples.
 The measured output hashes match the outputs used for correctness verification.
 The same Toucan executable passed 5,444 C/Rust comparisons and real calls into all
@@ -72,6 +72,11 @@ differences, but exact API equivalence remains false. The reports retain seven m
 unsigned sentinel differences, SQLite's `xDlSym` callback discrepancy, extra Toucan
 constants, and differences in helper names and private bitfield storage. Independent
 C probes support the accepted type, value, and callback differences.
+
+Compared with the [earlier snapshot](../benchmarks/evidence/2026-09-08/summary.json),
+Toucan’s medians increased by 8–15% across these workloads as checking expanded.
+The raw samples retain outliers from the shared host; CPU affinity did not isolate
+memory bandwidth, filesystem activity, or frequency changes.
 
 These measurements cover one machine and four workloads. They do not measure cold
 starts, in-process reuse, other platforms or allocators, or a complete C frontend.
