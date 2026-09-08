@@ -120,16 +120,11 @@ fn main(){unsafe{
                 String::from_utf8_lossy(&output.stderr)
             );
             for rust_optimization in [0, 3] {
-                let output = Command::new(&rustc)
+                let mut command = Command::new(&rustc);
+                toucan_test_support::link_c_object(&mut command, &temp.path().join("api.o"));
+                let output = command
                     .current_dir(temp.path())
-                    .args([
-                        "--edition=2021",
-                        "main.rs",
-                        "-C",
-                        "link-arg=api.o",
-                        "-o",
-                        "consumer",
-                    ])
+                    .args(["--edition=2021", "main.rs", "-o", "consumer"])
                     .arg("-C")
                     .arg(format!("opt-level={rust_optimization}"))
                     .output()

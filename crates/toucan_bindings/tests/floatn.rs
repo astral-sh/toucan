@@ -142,9 +142,10 @@ fn main(){unsafe{
         );
         for ro in ["0", "3"] {
             let binary = d.path().join("calls");
-            let out = Command::new(&rustc)
-                .args(["--edition=2021", "-C", &format!("opt-level={ro}"), "-C"])
-                .arg(format!("link-arg={}", object.display()))
+            let mut command = Command::new(&rustc);
+            toucan_test_support::link_c_object(&mut command, &object);
+            let out = command
+                .args(["--edition=2021", "-C", &format!("opt-level={ro}")])
                 .arg(&rust)
                 .arg("-o")
                 .arg(&binary)

@@ -73,9 +73,9 @@ fn bindings_call_omitted_conditionals_with_single_evaluation() {
             if let Ok(toolchain) = std::env::var("TOUCAN_TEST_RUST_TOOLCHAIN") {
                 rustc.arg(format!("+{toolchain}"));
             }
+            toucan_test_support::link_c_object(&mut rustc, &object);
             let output = rustc
-                .args(["--edition=2021", "-C"])
-                .arg(format!("link-arg={}", object.display()))
+                .arg("--edition=2021")
                 .arg(&rust)
                 .arg("-o")
                 .arg(&executable)
