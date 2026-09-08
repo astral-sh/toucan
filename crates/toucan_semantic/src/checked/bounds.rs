@@ -101,8 +101,12 @@ pub enum BoundValue {
     },
     PrototypeStar,
     /// Compatibility does not prove that these runtime values are equal.
+    /// C11 6.2.7 and 6.7.6.2 impose additional runtime requirements; forming a
+    /// composite from an unevaluated runtime bound can have undefined behavior.
     Composite {
         inputs: Vec<BoundInput>,
+        /// The source conditional's condition, if any. This is provenance, not
+        /// an instruction to select one input as the resulting runtime bound.
         selection: Option<ExprId>,
     },
 }

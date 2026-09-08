@@ -37,11 +37,10 @@ a concrete type. Plain Clang inference from an already atomic initializer is
 supported and tested. Exact atomic rvalue copies preserve that type without an
 atomic load; ordinary atomic lvalue initializers retain their load conversion.
 
-A separate existing VLA issue is tracked by the compiler probes: a conditional
-expression with pointer-to-VLA casts can evaluate bound expressions in both arms
-under Clang, including without `__auto_type`. The current retained conditional
-representation does not yet describe that extra type evaluation. The inferred
-declaration links the original conditional; it does not resolve that issue.
+Clang 18 can incorrectly evaluate a bound in an unselected conditional arm,
+including in ordinary declarations without `__auto_type`. Toucan retains C11's
+selected-arm semantics. The [compiler-oracle discrepancy](compiler-oracle-discrepancies.md)
+is recorded separately from frontend conformance.
 
 The implementation follows [GCC's `__auto_type` contract](https://gcc.gnu.org/onlinedocs/gcc/Typeof.html)
 and pinned [GCC 13.3 declaration parsing](https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/gcc/c/c-parser.cc),
