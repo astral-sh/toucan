@@ -23,6 +23,11 @@ semantic inputs, and 25,192 binding inputs, with no findings in the final 61-sec
 runs. An earlier semantic run found a parser timeout; the declaration analyzer now
 rejects the pathological prefix run and has a regression test for it.
 
+A [later semantic smoke run](evidence/semantic-2026-09-08.json) processed 1,019,653
+inputs in 181 seconds with no findings. Its report records the tested source and
+binary hashes, seed, resource limits, and final libFuzzer statistics. The default
+maximum mutation length was 4,096 bytes.
+
 AddressSanitizer was enabled. LeakSanitizer was disabled for these local runs because
 it cannot inspect processes in the development environment's ptrace sandbox. CI
 runs the default sanitizer configuration. These small runs leave substantial work
