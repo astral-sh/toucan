@@ -91,3 +91,8 @@ function declaration. This is the explicit hint in bits, not the backend's
 computed vector width. Checked option sites additionally retain the ordered
 written hints and their source spans. Absent hints omit these optional fields;
 this is additive within the experimental schemas 3 and 4.
+
+Checked expression output may include `ShuffleVector`: two value operands plus
+either ordered constant lane selections or a dynamic mask. Static undefined
+lanes and unevaluated index expressions remain explicit. This adds an expression
+variant within experimental schema 4; it does not change the default schema.

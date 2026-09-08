@@ -397,6 +397,12 @@ pub enum ExprKind {
         callee_occurrence: OccurrenceId,
         arguments: Vec<ExprUse>,
     },
+    /// Vector operands are each evaluated once, with no imposed relative order.
+    ShuffleVector {
+        callee_occurrence: OccurrenceId,
+        operands: [ExprUse; 2],
+        mask: super::ShuffleMask,
+    },
     VaArg {
         list: ExprUse,
         requested_type: TypeId,
@@ -499,6 +505,9 @@ impl Builder {
             let id = ExprId(index as u32);
             let extra = match expression.kind {
                 ExprKind::BuiltinCall {
+                    callee_occurrence, ..
+                }
+                | ExprKind::ShuffleVector {
                     callee_occurrence, ..
                 } => Some((callee_occurrence, Coverage::BuiltinCallee(id))),
                 ExprKind::AddressIndirection { indirection, .. } => {
@@ -648,6 +657,13 @@ impl Builder {
         let range =
             |id: ExprId| self.parsed_spans[self.code.expressions[id.index()].occurrence.index()];
         match kind {
+            ExprKind::ShuffleVector {
+                mask: super::ShuffleMask::Constant(indices),
+                ..
+            } => indices
+                .iter()
+                .map(|index| range(index.operand.expression))
+                .collect(),
             ExprKind::Generic {
                 control,
                 arms,
@@ -1423,6 +1439,9 @@ impl Analyzer {
 
     fn retain_call(&mut self, call: &Node<ast::CallExpression>) -> Result<ExprKind, Error> {
         let offset = call.span.start;
+        if self.builtin_name(call) == Some("__builtin_shufflevector") {
+            return self.retain_shuffle_vector(call);
+        }
         if let Some(name) = self.builtin_name(call)
             && let Some(builtin) = Builtin::from_name(name)
         {

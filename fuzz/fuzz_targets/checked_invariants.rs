@@ -382,6 +382,47 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     expression_use(code, argument);
                 }
             }
+            ExprKind::ShuffleVector {
+                callee_occurrence,
+                operands,
+                mask,
+            } => {
+                assert!(code.occurrence(*callee_occurrence).is_some());
+                for operand in operands {
+                    expression_use(code, operand);
+                }
+                let TypeKind::Vector { lanes: first, .. } =
+                    code.ty(operands[0].effective_type()).unwrap().kind
+                else {
+                    panic!("shuffle first operand")
+                };
+                let TypeKind::Vector { lanes: second, .. } =
+                    code.ty(operands[1].effective_type()).unwrap().kind
+                else {
+                    panic!("shuffle second operand")
+                };
+                let TypeKind::Vector { lanes: result, .. } = code.ty(expression.ty()).unwrap().kind
+                else {
+                    panic!("shuffle result")
+                };
+                match mask {
+                    ShuffleMask::Constant(indices) => {
+                        assert_eq!(indices.len() as u64, result);
+                        for index in indices {
+                            expression_use(code, index.operand());
+                            assert_eq!(index.operand().context(), UseContext::UnevaluatedValue);
+                            if let ShuffleLane::Index(lane) = index.lane() {
+                                assert!(lane < first + second);
+                            }
+                        }
+                    }
+                    ShuffleMask::Dynamic => {
+                        assert_eq!(first, second);
+                        assert_eq!(result, first);
+                    }
+                    _ => panic!("unhandled shuffle mask"),
+                }
+            }
             ExprKind::BuiltinCall {
                 callee_occurrence,
                 arguments,
@@ -785,7 +826,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 assert_eq!(code.expression(*id).unwrap().occurrence(), row.occurrence())
             }
             ExpressionStatus::BuiltinCallee(id) => assert!(
-                matches!(code.expression(*id).unwrap().kind(), ExprKind::BuiltinCall { callee_occurrence, .. } if *callee_occurrence == row.occurrence())
+                matches!(code.expression(*id).unwrap().kind(), ExprKind::BuiltinCall { callee_occurrence, .. } | ExprKind::ShuffleVector {callee_occurrence, ..} if *callee_occurrence == row.occurrence())
             ),
             ExpressionStatus::CanceledIndirection(id) => assert!(
                 matches!(code.expression(*id).unwrap().kind(), ExprKind::AddressIndirection { indirection, .. } if *indirection == row.occurrence())

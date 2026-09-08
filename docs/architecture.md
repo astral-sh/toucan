@@ -215,3 +215,7 @@ records native C/Rust calls, Miri validity checks, LLVM argument attributes,
 cross-target padding differences, and Rust 1.64 compilation. Projected parameters
 expose carrier types to Rust callers; bindgen’s union-shaped parameter APIs can
 differ even when the C call representation agrees.
+
+Fixed-vector shuffle expressions retain operand evaluation and normalized lane
+selections separately; see [vector shuffles](vector-shuffles.md) for compiler
+rules and representation limits.

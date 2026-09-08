@@ -354,3 +354,177 @@ impl Analyzer {
         Ok(first.clone())
     }
 }
+
+/// Cached only for calls that use the shuffle intrinsic. Input expressions and
+/// lane type operands are checked once while their lexical scopes are visible.
+pub(crate) struct ShuffleVectorSignature {
+    pub(crate) result: Type,
+    pub(crate) indices: Option<Vec<crate::checked::ShuffleLane>>,
+}
+
+impl Analyzer {
+    pub(crate) fn shuffle_vector_signature(
+        &mut self,
+        call: &Node<ast::CallExpression>,
+    ) -> Result<&ShuffleVectorSignature, Error> {
+        let key = (call.span.start, call.span.end);
+        if !self.shuffle_vectors.contains_key(&key) {
+            if self.shuffle_vectors.len() >= 65_536 {
+                return Err(Error::new(
+                    call.span.start,
+                    "shuffle expression count exceeds the 65536-entry limit",
+                ));
+            }
+            let signature = self.check_shuffle_vector(call)?;
+            self.shuffle_vectors.insert(key, signature);
+        }
+        Ok(&self.shuffle_vectors[&key])
+    }
+
+    fn check_shuffle_vector(
+        &mut self,
+        call: &Node<ast::CallExpression>,
+    ) -> Result<ShuffleVectorSignature, Error> {
+        use crate::checked::ShuffleLane;
+        let arguments = &call.node.arguments;
+        let offset = call.span.start;
+        if arguments.len() < 2 {
+            return Err(Error::new(
+                offset,
+                "__builtin_shufflevector requires two vector operands",
+            ));
+        }
+        let first = self.value_expression_type(&arguments[0])?;
+        let second = self.value_expression_type(&arguments[1])?;
+        let (
+            TypeKind::Vector {
+                element,
+                lanes: first_lanes,
+                ..
+            },
+            TypeKind::Vector {
+                element: second_element,
+                lanes: second_lanes,
+                ..
+            },
+        ) = (&first.kind, &second.kind)
+        else {
+            return Err(Error::new(
+                offset,
+                "__builtin_shufflevector requires fixed-size vector operands",
+            ));
+        };
+        for input in [&first, &second] {
+            if self.unit.layout(input)?.size_bytes() > 16 {
+                return Err(Error::new(
+                    offset,
+                    "vectors larger than 16 bytes require unsupported target-feature configuration",
+                ));
+            }
+        }
+        if arguments.len() == 2 {
+            if self.gnu_vector_profile() {
+                return Err(Error::new(
+                    offset,
+                    "GNU __builtin_shufflevector requires scalar lane indices",
+                ));
+            }
+            if first_lanes != second_lanes
+                || !matches!(
+                    self.unit.resolve(second_element)?.kind,
+                    TypeKind::Integer(_)
+                )
+            {
+                return Err(Error::new(
+                    arguments[1].span.start,
+                    "shuffle mask must be an integer vector with the input's lane count",
+                ));
+            }
+            return Ok(ShuffleVectorSignature {
+                result: first,
+                indices: None,
+            });
+        }
+        if if self.gnu_vector_profile() {
+            !self.same_type(element, second_element, 0)?
+        } else {
+            !self.same_type(&first, &second, 0)?
+        } {
+            return Err(Error::new(
+                arguments[1].span.start,
+                if self.gnu_vector_profile() {
+                    "shuffle input vectors must have the same element type"
+                } else {
+                    "Clang shuffle input vectors must have the same type"
+                },
+            ));
+        }
+        let lanes = (arguments.len() - 2) as u64;
+        if !lanes.is_power_of_two() {
+            return Err(Error::new(
+                offset,
+                if self.gnu_vector_profile() {
+                    "GNU shuffle results require a power-of-two lane count"
+                } else {
+                    "Clang shuffle results with non-power-of-two lane counts require unsupported padded vector layouts"
+                },
+            ));
+        }
+        let bytes = self
+            .unit
+            .layout(element)?
+            .size_bytes()
+            .checked_mul(lanes)
+            .ok_or_else(|| Error::new(offset, "shuffle result size overflow"))?;
+        let result = if !self.gnu_vector_profile() && lanes == *first_lanes {
+            first.clone()
+        } else {
+            // GNU canonicalizes the vector type, including NEON identity and
+            // typedef alignment. Clang preserves those only for unchanged width.
+            self.vector_type((**element).clone(), bytes, offset)?
+        };
+        let input_lanes = first_lanes
+            .checked_add(*second_lanes)
+            .ok_or_else(|| Error::new(offset, "shuffle input lane count overflow"))?;
+        let mut indices = Vec::with_capacity(arguments.len() - 2);
+        for index in &arguments[2..] {
+            let checkpoint = self.sve_feature_checkpoint();
+            if !self.is_integer_constant_expression(index, 0)? {
+                if self.gnu_vector_profile()
+                    && matches!(
+                        self.value_expression_type(index)?.kind,
+                        TypeKind::Pointer(_)
+                    )
+                {
+                    return Err(Error::new(
+                        index.span.start,
+                        "GNU pointer-valued shuffle lane indices are unsupported",
+                    ));
+                }
+                return Err(Error::new(
+                    index.span.start,
+                    "shuffle lane index must be an integer constant expression",
+                ));
+            }
+            let value = self.eval(index)?;
+            self.discard_sve_feature_uses(checkpoint);
+            let lane = if value.signed && value.signed_value() == -1 {
+                ShuffleLane::Undefined
+            } else if (value.signed && value.signed_value() < 0)
+                || value.value >= u128::from(input_lanes)
+            {
+                return Err(Error::new(
+                    index.span.start,
+                    "shuffle lane index is outside the concatenated input vectors",
+                ));
+            } else {
+                ShuffleLane::Index(value.value as u64)
+            };
+            indices.push(lane);
+        }
+        Ok(ShuffleVectorSignature {
+            result,
+            indices: Some(indices),
+        })
+    }
+}

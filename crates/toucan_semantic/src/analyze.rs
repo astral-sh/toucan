@@ -703,6 +703,7 @@ struct DeclaratorContext<'a> {
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) shuffle_vectors: BTreeMap<(usize, usize), crate::vector::ShuffleVectorSignature>,
     pub(crate) old_style_definitions: crate::old_style::Definitions,
     pub(crate) lexical_function_options: BTreeMap<usize, BTreeMap<String, crate::FunctionOptions>>,
     pub(crate) definition_options: Option<(crate::FunctionOptions, Option<usize>)>,
@@ -793,6 +794,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            shuffle_vectors: BTreeMap::new(),
             old_style_definitions: crate::old_style::Definitions::default(),
             lexical_function_options: BTreeMap::new(),
             definition_options: None,

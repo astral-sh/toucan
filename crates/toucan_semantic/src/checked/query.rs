@@ -185,6 +185,22 @@ impl Builder {
             } => Unresolved
                 .combine(self.query_use_effects(callee))
                 .combine(operands(arguments)),
+            ExprKind::ShuffleVector {
+                operands: values,
+                mask,
+                ..
+            } => {
+                let effects = operands(values);
+                if let super::ShuffleMask::Constant(indices) = mask {
+                    // Clang's syntactic side-effect gate visits all children,
+                    // even though index expressions do not execute at runtime.
+                    indices.iter().fold(effects, |effects, index| {
+                        effects.combine(self.query_use_effects(&index.operand))
+                    })
+                } else {
+                    effects
+                }
+            }
             ExprKind::BuiltinCall {
                 builtin, arguments, ..
             } => match builtin {

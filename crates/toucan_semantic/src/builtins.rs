@@ -136,6 +136,11 @@ impl Analyzer {
         let Some(name) = self.builtin_name(call) else {
             return Ok(None);
         };
+        if name == "__builtin_shufflevector" {
+            return self
+                .shuffle_vector_signature(call)
+                .map(|signature| Some(signature.result.clone()));
+        }
         if name == "__builtin_shuffle" {
             return self.shuffle_call_type(call).map(Some);
         }

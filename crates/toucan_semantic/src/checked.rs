@@ -19,6 +19,7 @@ pub(crate) mod initializer;
 mod ownership;
 mod query;
 pub(crate) mod references;
+mod shuffle;
 pub(crate) mod statement;
 pub(crate) mod target;
 
@@ -52,6 +53,7 @@ pub use initializer::{
 pub use ownership::{TypeOperand, TypeOperandEvaluation, TypeOperandId, TypeOperandInput};
 pub use query::{QueryEvaluation, QuerySideEffects, QuerySuppression};
 pub use references::{Reference, ReferenceKind};
+pub use shuffle::{ShuffleIndex, ShuffleLane, ShuffleMask};
 pub use statement::{
     Assembly, AssemblyLocation, AssemblyOperand, AssemblyText, Assertion, AssertionId, BlockItem,
     BodyId, Coverage as StatementStatus, DeclarationGroup, DeclarationGroupId, ForInitializer,
