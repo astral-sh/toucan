@@ -239,17 +239,33 @@ fn declspec_bindings_match_equivalent_checked_gnu_attributes() {
 #[test]
 fn declspec_queries_and_unsupported_attributes_keep_their_boundaries() {
     for profile in CompilerProfile::ALL {
-        for name in ["align", "noreturn", "noinline"] {
+        for name in [
+            "align",
+            "noreturn",
+            "noinline",
+            "__align__",
+            "__noreturn__",
+            "__noinline__",
+        ] {
             assert_eq!(
                 toucan::semantic::has_declspec_attribute(profile, name),
                 u64::from(profile.target() == Target::X86_64PcWindowsMsvc)
             );
         }
-        for name in ["__align__", "deprecated", "dllimport", "thread", "unknown"] {
+        for name in [
+            "_align_",
+            "__align",
+            "align__",
+            "deprecated",
+            "dllimport",
+            "thread",
+            "unknown",
+        ] {
             assert_eq!(toucan::semantic::has_declspec_attribute(profile, name), 0);
         }
     }
     for source in [
+        "__declspec(__align__(16)) int x;",
         "enum __declspec(align(16)) E{A};",
         "__declspec(align(16)) typedef void F(void);",
         "__declspec(dllimport) int x;",

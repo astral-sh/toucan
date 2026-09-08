@@ -29,7 +29,7 @@ pub use queries::{FeatureQueries, FeatureQuery, FeatureQueryProvider, QueryDiale
 pub use timestamp::{PreprocessingTimestamp, TimestampError};
 
 use expand::Expansion;
-use token::{Kind, Token, lex, lex_limited, normalize, render};
+use token::{Kind, Token, lex_limited, lex_with_scope, normalize, render};
 
 /// Include search paths, predefined macros, and per-translation-unit resource limits.
 #[derive(Clone, Debug)]
@@ -38,6 +38,10 @@ pub struct Config {
     pub feature_queries: Option<FeatureQueries>,
     /// Replace trigraphs before physical line splicing. Standalone default: C11.
     pub trigraphs: bool,
+    /// Lex `::` as one punctuator, as in GNU C modes and all Clang C modes.
+    /// Defaults to strict C tokenization; adjacent colon pairs still retain the
+    /// identity required by GNU attribute-query syntax.
+    pub scope_punctuator: bool,
     /// Line-comment policy. Defaults to C99-and-later behavior.
     pub line_comments: LineComments,
     /// How predefined replacement strings are interpreted; physical headers and
@@ -75,6 +79,7 @@ impl Default for Config {
         Self {
             feature_queries: None,
             trigraphs: true,
+            scope_punctuator: false,
             line_comments: LineComments::Enabled,
             predefined_macro_mode: PredefinedMacroMode::Tokens,
             char_unsigned: false,
@@ -372,6 +377,7 @@ impl Preprocessor {
             let definition = lex_limited(
                 &prepared,
                 self.config.max_tokens.saturating_sub(self.tokens),
+                self.config.scope_punctuator,
             )
             .map_err(|message| Error::new(Path::new("<predefined>"), 1, message))?;
             self.tokens += definition.len();
@@ -455,8 +461,12 @@ impl Preprocessor {
             offset += line.len();
             let logical_line = (source.line_at(start) as i64 + line_adjustment) as usize;
             let fail = |message| Error::new(&logical_path, logical_line, message);
-            let mut tokens = lex_limited(line, self.config.max_tokens.saturating_sub(self.tokens))
-                .map_err(&fail)?;
+            let mut tokens = lex_limited(
+                line,
+                self.config.max_tokens.saturating_sub(self.tokens),
+                self.config.scope_punctuator,
+            )
+            .map_err(&fail)?;
             for token in &mut tokens {
                 token.line =
                     (source.line_at(start + token.offset) as i64 + line_adjustment) as usize;
@@ -780,7 +790,7 @@ impl Preprocessor {
             if start != index {
                 self.output_tokens(path, line, column, &tokens[start..index], output)?;
             }
-            let payload = lex(&token.text)
+            let payload = lex_with_scope(&token.text, self.config.scope_punctuator)
                 .map_err(|message| Error::at(path, token.line, token.column, message))?;
             self.pragma(
                 physical_path,
@@ -945,7 +955,7 @@ impl Preprocessor {
                 if !self.macros.contains_key("__clang__") {
                     return Err("_Pragma is not supported in GCC preprocessing conditions".into());
                 }
-                let payload = lex(&token.text)?;
+                let payload = lex_with_scope(&token.text, self.config.scope_punctuator)?;
                 self.pragma(
                     include_path,
                     SourceLocation {
@@ -1180,7 +1190,7 @@ impl Preprocessor {
             replacement: spelling,
         };
         if let Some(previous) = self.macros.get(&name.text)
-            && !equivalent(previous, &definition)?
+            && !equivalent(previous, &definition, self.config.scope_punctuator)?
         {
             return Err(format!(
                 "incompatible redefinition of macro `{}`",
@@ -1375,12 +1385,12 @@ fn line_filename(literal: &str) -> Result<String, String> {
     String::from_utf8(output).map_err(|_| "non-UTF-8 #line filenames are not supported".into())
 }
 
-fn equivalent(left: &Macro, right: &Macro) -> Result<bool, String> {
+fn equivalent(left: &Macro, right: &Macro, scope_punctuator: bool) -> Result<bool, String> {
     if left.parameters != right.parameters || left.variadic_parameter != right.variadic_parameter {
         return Ok(false);
     }
-    let left = lex(&left.replacement)?;
-    let right = lex(&right.replacement)?;
+    let left = lex_with_scope(&left.replacement, scope_punctuator)?;
+    let right = lex_with_scope(&right.replacement, scope_punctuator)?;
     Ok(left.len() == right.len()
         && left
             .iter()

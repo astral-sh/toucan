@@ -20,6 +20,8 @@ pub(crate) struct Token {
     pub kind: Kind,
     pub text: String,
     pub space: bool,
+    /// First half of a lexically adjacent `::` pair in strict C tokenization.
+    pub colon_scope: bool,
     pub hidden: BTreeSet<String>,
     pub depth: usize,
     pub line: usize,
@@ -35,6 +37,7 @@ impl Token {
             kind,
             text: text.into(),
             space: false,
+            colon_scope: false,
             hidden: BTreeSet::new(),
             depth: 0,
             line: 1,
@@ -220,11 +223,20 @@ fn replace_comments_with(source: &str, comments: &mut CommentState) -> Result<St
     Ok(output)
 }
 
+#[cfg(test)]
 pub(crate) fn lex(source: &str) -> Result<Vec<Token>, String> {
-    lex_limited(source, 1_000_000)
+    lex_with_scope(source, false)
 }
 
-pub(crate) fn lex_limited(source: &str, max_tokens: usize) -> Result<Vec<Token>, String> {
+pub(crate) fn lex_with_scope(source: &str, scope_punctuator: bool) -> Result<Vec<Token>, String> {
+    lex_limited(source, 1_000_000, scope_punctuator)
+}
+
+pub(crate) fn lex_limited(
+    source: &str,
+    max_tokens: usize,
+    scope_punctuator: bool,
+) -> Result<Vec<Token>, String> {
     let bytes = source.as_bytes();
     let mut output = Vec::new();
     let mut index = 0;
@@ -308,11 +320,11 @@ pub(crate) fn lex_limited(source: &str, max_tokens: usize) -> Result<Vec<Token>,
             const PUNCTUATORS: &[&str] = &[
                 "%:%:", ">>=", "<<=", "...", "##", "->", "++", "--", "<<", ">>", "<=", ">=", "==",
                 "!=", "&&", "||", "*=", "/=", "%=", "+=", "-=", "&=", "^=", "|=", "<:", ":>", "<%",
-                "%>", "%:",
+                "%>", "%:", "::",
             ];
             if let Some(punctuator) = PUNCTUATORS
                 .iter()
-                .find(|p| source[index..].starts_with(**p))
+                .find(|p| (**p != "::" || scope_punctuator) && source[index..].starts_with(**p))
             {
                 index += punctuator.len();
             } else {
@@ -334,6 +346,7 @@ pub(crate) fn lex_limited(source: &str, max_tokens: usize) -> Result<Vec<Token>,
         let mut token = Token::new(kind, spelling);
         token.original = original;
         token.space = space;
+        token.colon_scope = spelling == ":" && bytes.get(index) == Some(&b':');
         token.offset = start;
         output.push(token);
         space = false;

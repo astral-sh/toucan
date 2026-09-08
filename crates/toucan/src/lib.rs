@@ -56,6 +56,8 @@ impl Config {
         let target = profile.target();
         let mut preprocessor = PreprocessorConfig {
             feature_queries: Some(features::queries(profile)),
+            scope_punctuator: profile.compiler() == Compiler::Clang
+                || profile.language_mode().is_gnu(),
             trigraphs: profile.default_trigraphs(),
             line_comments: if profile.language_mode() == LanguageMode::C90 {
                 match profile.compiler() {
@@ -73,17 +75,6 @@ impl Config {
             defines: profile.predefined_macros(),
             ..PreprocessorConfig::default()
         };
-        // These predicates advertise only implemented syntax/semantics. They are
-        // independent of the GNU version used for header compatibility.
-        for name in [
-            "__has_feature(x)",
-            "__has_extension(x)",
-            "__has_c_attribute(x)",
-            "__has_declspec_attribute(x)",
-            "__building_module(x)",
-        ] {
-            preprocessor.defines.insert(name.into(), "0".into());
-        }
         if target != Target::X86_64PcWindowsMsvc {
             preprocessor.forced_includes.push(ForcedInclude {
                 path: "<builtin>/integer-types.h".into(),

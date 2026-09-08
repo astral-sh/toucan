@@ -30,9 +30,14 @@ impl DeclspecAttribute {
 }
 
 /// Whether a Microsoft attribute has checked source semantics in this profile.
-/// Microsoft names are exact: GNU-style surrounding underscores are not aliases.
+/// Queries accept paired surrounding double underscores, as Clang does.
+/// Written Microsoft attribute names still use exact source spellings.
 /// Diagnostic-only deprecation annotations are parsed but return zero here.
 pub fn has_declspec_attribute(profile: CompilerProfile, name: &str) -> u64 {
+    let name = name
+        .strip_prefix("__")
+        .and_then(|name| name.strip_suffix("__"))
+        .unwrap_or(name);
     u64::from(
         profile.target() == Target::X86_64PcWindowsMsvc
             && matches!(

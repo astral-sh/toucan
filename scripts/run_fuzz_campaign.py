@@ -68,24 +68,26 @@ def archive_initial_corpus(corpus, output):
 
 
 def seed_preprocessor_policies(data):
-    """Append a block comment selecting all 20 comment/query/trigraph settings."""
+    """Append a block comment selecting all 40 comment/query/trigraph/scope settings."""
     prefix, suffix = data + b"\n/* profile ", b" */\n"
     total = sum(prefix) + sum(suffix)
     for comments in range(5):
         for trigraphs in (False, True):
             for dialect in range(2):
-                # Five comment policies repeat after 2560 checksum values. This
-                # padding covers that period without introducing a comment end.
-                padding = next(
-                    b" " * spaces + bytes([byte])
-                    for spaces in range(81)
-                    for byte in range(33, 127)
-                    if byte not in (42, 47)
-                    and (total + 32 * spaces + byte) & 1 == dialect
-                    and bool((total + 32 * spaces + byte) & 0x100) == trigraphs
-                    and ((total + 32 * spaces + byte) >> 9) % 5 == comments
-                )
-                yield prefix + padding + suffix
+                for scope in (False, True):
+                    # Five comment policies repeat after 2560 checksum values. This
+                    # padding covers that period without introducing a comment end.
+                    padding = next(
+                        b" " * spaces + bytes([byte])
+                        for spaces in range(81)
+                        for byte in range(33, 127)
+                        if byte not in (42, 47)
+                        and (total + 32 * spaces + byte) & 1 == dialect
+                        and bool((total + 32 * spaces + byte) & 2) == scope
+                        and bool((total + 32 * spaces + byte) & 0x100) == trigraphs
+                        and ((total + 32 * spaces + byte) >> 9) % 5 == comments
+                    )
+                    yield prefix + padding + suffix
 
 
 def run_fuzzer(command, root, output, seconds):
@@ -167,7 +169,10 @@ def main():
         "trigraph_selector": "sum(input bytes) & 0x100 != 0"
         if args.target == "preprocess"
         else None,
-        "preprocessor_selector_version": 2 if args.target == "preprocess" else None,
+        "preprocessor_selector_version": 3 if args.target == "preprocess" else None,
+        "scope_punctuator_selector": "sum(input bytes) & 2 != 0"
+        if args.target == "preprocess"
+        else None,
         "comment_policy_selector": "(sum(input bytes) >> 9) % 5: 0=enabled, 1=gcc-c90-compile, 2=gcc-c90-preprocess, 3=clang-c90-compile, 4=clang-c90-preprocess"
         if args.target == "preprocess"
         else None,

@@ -6,10 +6,13 @@ use std::sync::{Arc, LazyLock};
 #[derive(Debug)]
 struct Catalog;
 impl toucan::FeatureQueryProvider for Catalog {
-    fn query(&self, _: toucan::FeatureQuery, _: Option<&str>, name: &str) -> u64 {
+    fn query(&self, kind: toucan::FeatureQuery, _: Option<&str>, name: &str) -> u64 {
         // A small immutable test catalog exercises both query results. The
         // production frontend supplies its semantic catalog separately.
-        u64::from(matches!(name, "aligned" | "__aligned__" | "__builtin_bswap32"))
+        match kind {
+            toucan::FeatureQuery::CAttribute if name == "fallthrough" => 201910,
+            _ => u64::from(matches!(name, "aligned" | "__aligned__" | "align" | "c_atomic" | "__builtin_bswap32")),
+        }
     }
 }
 static CATALOG: LazyLock<Arc<dyn toucan::FeatureQueryProvider>> =
@@ -30,6 +33,7 @@ fuzz_target!(|bytes: &[u8]| {
             Arc::clone(&CATALOG),
         )),
         trigraphs: selector & 0x100 != 0,
+        scope_punctuator: selector & 2 != 0,
         line_comments: [
             toucan::LineComments::Enabled,
             toucan::LineComments::GnuC90,

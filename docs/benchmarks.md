@@ -186,3 +186,24 @@ small increase in memory. The default remains the system allocator; library user
 choose their process allocator. This was a shared host with concurrent verification
 work, warm caches, and uncontrolled CPU frequency. These measurements predate the
 later atomic/MMX and parser changes and do not measure macOS or Windows allocators.
+
+## Compiler query integration
+
+The [combined query revision](../benchmarks/evidence/compiler-queries-2026-09-08/evidence.json)
+compares the integrated C90, Microsoft declaration, allocation, and query layers
+with the optimized literal-evaluation revision `daa1c0f`. Three randomized process
+triples each measure five library calls after a discarded warmup. All complete
+outputs and pinned header dependencies match their references. The system
+allocator is used; other processes and CPU frequency on this shared host are
+uncontrolled. These measurements are not isolated attribution to query handling.
+
+| Header | Previous Toucan | Combined Toucan | bindgen 0.72.1 |
+| --- | ---: | ---: | ---: |
+| zlib | 31.40 ms | 33.90 ms | 130.38 ms |
+| SQLite | 50.84 ms | 51.86 ms | 165.50 ms |
+| zstd | 8.50 ms | 8.95 ms | 116.69 ms |
+| libgit2 | 278.83 ms | 295.25 ms | 280.41 ms |
+
+The combined revision is 2–8% slower than the earlier Toucan revision in this
+run. Libgit2 is about 5% slower than bindgen; the other three headers remain
+faster. Raw samples and the capture script are archived alongside the summary.

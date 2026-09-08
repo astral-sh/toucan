@@ -22,7 +22,9 @@ declaration subject makes the attribute ineffective. SAL operands remain opaque.
 not aliases for Microsoft attribute names.
 
 `has_declspec_attribute` reports checked support for `align`, `noreturn`, and
-`noinline` in the MSVC profile. It returns zero for deprecation and string
+`noinline` in the MSVC profile. Query names also accept paired surrounding double
+underscores, matching Clang; written source attributes keep the exact spellings
+described above. The query returns zero for deprecation and string
 annotations. It does not assert support for every vendor extension or target ABI.
 
 ## Placement and alignment

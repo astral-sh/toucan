@@ -55,6 +55,36 @@ Set `Config::allow_filesystem` to `false` to restrict an embedded or fuzzed prep
 to in-memory source and virtual headers. Filesystem entry points then return an error,
 and include queries cannot observe local files.
 
+## Compiler feature queries
+
+`Config::feature_queries` accepts an immutable, caller-supplied capability catalog.
+GNU query rules enable `__has_builtin`, `__has_attribute`, and `__has_c_attribute`.
+Clang rules also enable `__has_feature`, `__has_extension`,
+`__has_declspec_attribute`, and `__building_module`. The standalone default leaves
+these operators undefined. The library does not infer capabilities from host tools
+or compiler identity macros.
+
+Feature, extension, and module queries read one unexpanded identifier. Attribute
+queries expand their arguments; builtin queries expand arguments under GNU rules.
+C-attribute queries accept `namespace::name`; GNU attribute queries do too.
+Namespace separators are read before expanding that token. Ordinary wrapper-macro
+argument prescanning still applies. Providers receive names and namespaces with
+their original spelling and return numeric values; Clang results greater than one
+carry the compiler's `L` suffix.
+
+`Config::scope_punctuator` controls whether `::` is one preprocessing token.
+Enable it for Clang and GNU language modes. Its default is `false`, matching strict
+C tokenization: adjacent colons retain their lexical identity for GNU namespace
+queries, while pasting two colons is invalid. Whitespace-separated colons and
+colons joined by argument substitution do not become a namespace separator.
+This setting is independent of query availability and predefined macro overrides.
+
+Source `#define`/`#undef` and configuration overrides replace or remove operators.
+Entry points restore the configured initial state; final-environment macro queries
+observe the final operator state. Malformed active queries diagnose even on the
+unevaluated side of `0 && query()`. Inactive directive groups do not evaluate them.
+Expanded `_Pragma` directives inside query arguments remain unsupported.
+
 ## Translation timestamps
 
 `Config::timestamp` fixes the UTC value of `__DATE__` and `__TIME__` for the entire
