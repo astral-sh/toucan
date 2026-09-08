@@ -47,6 +47,14 @@ pub(crate) fn analyze_inner(
     target: Target,
     retention: Option<CodeLimits>,
 ) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
+    crate::with_parser_stack(|| analyze_on_parser_stack(source, target, retention))?
+}
+
+fn analyze_on_parser_stack(
+    source: &str,
+    target: Target,
+    retention: Option<CodeLimits>,
+) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
@@ -124,7 +132,15 @@ pub fn evaluate_arithmetic(
     })
 }
 
-fn evaluate_expression<Value>(
+fn evaluate_expression<Value: Send>(
+    unit: &TranslationUnit,
+    expression: &str,
+    evaluate: impl FnOnce(&mut Analyzer, &Node<ast::Expression>) -> Result<Value, Error> + Send,
+) -> Result<Value, Error> {
+    crate::with_parser_stack(|| evaluate_on_parser_stack(unit, expression, evaluate))?
+}
+
+fn evaluate_on_parser_stack<Value>(
     unit: &TranslationUnit,
     expression: &str,
     evaluate: impl FnOnce(&mut Analyzer, &Node<ast::Expression>) -> Result<Value, Error>,
@@ -228,7 +244,6 @@ fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
     }
     let original = source;
     let source = strip_comments(source)?;
-    check_parse_limits(&source)?;
     let adapted = crate::parser_extensions::adapt(&source)?;
     let source = adapted.source;
     let config = driver::Config {
@@ -2431,6 +2446,12 @@ impl Analyzer {
                     ));
                 }
             };
+            // A flat parser declarator creates a nested semantic type. Validate
+            // each new layer before a later modifier or retained node clones it.
+            self.unit.is_variably_modified(&ty).map_err(|mut error| {
+                error.offset = derived.span.start;
+                error
+            })?;
             if let (Some(checked), Some(current)) = (&mut self.checked, type_use) {
                 use crate::checked::bounds::TypeStep;
                 type_use = Some(match &derived.node {
@@ -3620,188 +3641,6 @@ fn prepare_source(source: &str) -> Result<(String, PackEvents), Error> {
 
 /// Bounds recursive parser work before constructing the external parser's AST.
 /// This scanner treats quoted strings and comments as indivisible tokens.
-fn check_parse_limits(source: &str) -> Result<(), Error> {
-    if source.len() > 16 * 1024 * 1024 {
-        return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
-    }
-    let bytes = source.as_bytes();
-    let mut index = 0;
-    let mut nesting = 0usize;
-    let mut grouping = 0usize;
-    let mut pending_colons = vec![0usize];
-    let mut active_colons = 0usize;
-    // lang-c recursively parses labels and unbraced control flow before our
-    // semantic depth checks run. Count introducers across a whole outer brace
-    // region, including siblings: semicolons do not end dangling-else chains.
-    let mut control_tokens = 0usize;
-    #[derive(Default)]
-    struct ExpressionDepth {
-        operators: usize,
-        child: usize,
-        sibling: usize,
-    }
-    impl ExpressionDepth {
-        fn depth(&self) -> usize {
-            self.sibling.max(self.operators + self.child)
-        }
-        fn next_expression(&mut self) {
-            self.sibling = self.depth();
-            self.operators = 0;
-            self.child = 0;
-        }
-    }
-    let mut expressions = vec![ExpressionDepth::default()];
-    let mut prefix_run = 0usize;
-    while index < bytes.len() {
-        if matches!(bytes[index], b'+' | b'-' | b'!' | b'~' | b'*' | b'&') {
-            prefix_run += 1;
-            if prefix_run > 16 {
-                return Err(Error::new(
-                    index,
-                    "consecutive prefix operators exceed the 16-operator limit",
-                ));
-            }
-        } else if !(bytes[index].is_ascii_whitespace()
-            || bytes[index].is_ascii_alphabetic()
-            || bytes[index] == b'_'
-            || (bytes[index] == b'/' && matches!(bytes.get(index + 1), Some(b'/' | b'*'))))
-        {
-            prefix_run = 0;
-        }
-        match bytes[index] {
-            b'\'' | b'"' => {
-                let quote = bytes[index];
-                index += 1;
-                while index < bytes.len() && bytes[index] != quote {
-                    if bytes[index] == b'\\' {
-                        index += 1;
-                    }
-                    index += 1;
-                }
-            }
-            b'/' if bytes.get(index + 1) == Some(&b'/') => {
-                while index < bytes.len() && bytes[index] != b'\n' {
-                    index += 1;
-                }
-            }
-            b'/' if bytes.get(index + 1) == Some(&b'*') => {
-                index += 2;
-                while index + 1 < bytes.len() && !(bytes[index] == b'*' && bytes[index + 1] == b'/')
-                {
-                    index += 1;
-                }
-                index += 1;
-            }
-            b'(' | b'[' | b'{' => {
-                if bytes[index] == b'{' {
-                    pending_colons.push(0);
-                } else {
-                    grouping += 1;
-                }
-                expressions.push(ExpressionDepth::default());
-                nesting += 1;
-                if nesting > 128 {
-                    return Err(Error::new(
-                        index,
-                        "syntactic nesting exceeds the 128-level limit",
-                    ));
-                }
-            }
-            b')' | b']' | b'}' => {
-                if bytes[index] == b'}' {
-                    if pending_colons.len() > 1 {
-                        active_colons -= pending_colons.pop().expect("brace region");
-                    }
-                    if pending_colons.len() == 1 {
-                        control_tokens = 0;
-                    }
-                } else {
-                    grouping = grouping.saturating_sub(1);
-                }
-                nesting = nesting.saturating_sub(1);
-                if expressions.len() > 1 {
-                    let depth = expressions.pop().expect("nested expression").depth();
-                    let parent = expressions.last_mut().expect("root expression");
-                    parent.child = parent.child.max(depth);
-                }
-            }
-            b':' => {
-                *pending_colons.last_mut().expect("root region") += 1;
-                active_colons += 1;
-            }
-            byte if byte.is_ascii_alphabetic() || byte == b'_' => {
-                let start = index;
-                while bytes
-                    .get(index + 1)
-                    .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
-                {
-                    index += 1;
-                }
-                if matches!(
-                    &source[start..=index],
-                    "if" | "else" | "for" | "while" | "do" | "switch"
-                ) {
-                    control_tokens += 1;
-                }
-                if matches!(
-                    &source[start..=index],
-                    "sizeof" | "_Alignof" | "__alignof" | "__alignof__" | "__extension__"
-                ) {
-                    prefix_run += 1;
-                    if prefix_run > 16 {
-                        return Err(Error::new(
-                            start,
-                            "consecutive prefix operators exceed the 16-operator limit",
-                        ));
-                    }
-                } else {
-                    prefix_run = 0;
-                }
-            }
-            b';' | b',' => {
-                if bytes[index] == b';' && grouping == 0 {
-                    // A completed statement ends its label chain. Keep labels
-                    // in parent braces and across for-header semicolons active.
-                    let current = pending_colons.last_mut().expect("root region");
-                    active_colons -= *current;
-                    *current = 0;
-                }
-                expressions
-                    .last_mut()
-                    .expect("expression frame")
-                    .next_expression();
-            }
-            b'*' | b'!' | b'~' | b'+' | b'-' | b'/' | b'%' | b'&' | b'|' | b'^' | b'?' | b'<'
-            | b'>' | b'=' => {
-                expressions.last_mut().expect("expression frame").operators += 1;
-                let current = expressions.last().expect("expression frame");
-                let ancestors: usize = expressions[..expressions.len() - 1]
-                    .iter()
-                    .map(|frame| frame.operators)
-                    .sum();
-                if ancestors + current.depth() > 256 {
-                    return Err(Error::new(
-                        index,
-                        "expression or declarator exceeds the operator limit",
-                    ));
-                }
-            }
-            _ => {}
-        }
-        if control_tokens + active_colons > 1024 {
-            return Err(Error::new(
-                index,
-                "control-flow introducers and pending colons exceed the 1024-token limit within an outer brace region",
-            ));
-        }
-        index += 1;
-    }
-    Ok(())
-}
-
-/// Adapts legal GNU attribute spelling to lang-c's grammar. It requires adjacent
-/// double parentheses and attributes before the `struct` keyword. Replacements
-/// preserve total byte length, so diagnostics outside an attribute remain stable.
 fn normalize_attributes(source: &str) -> (String, HashSet<usize>) {
     let mut record_attributes = HashSet::new();
     let mut bytes = source.as_bytes().to_vec();

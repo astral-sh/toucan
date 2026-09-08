@@ -69,7 +69,7 @@ fn flat_initializers_and_arguments_have_independent_expression_budgets() {
         Target::X86_64UnknownLinuxGnu,
     )
     .unwrap_err();
-    assert!(error.message.contains("operator limit"), "{error}");
+    assert!(error.message.contains("parser AstDepth limit"), "{error}");
 }
 
 #[test]

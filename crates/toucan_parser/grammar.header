@@ -8,6 +8,8 @@
     clippy::flat_map_identity,
     clippy::len_zero,
     clippy::needless_lifetimes,
+    clippy::needless_return,
+    clippy::redundant_closure_call,
     clippy::redundant_field_names,
     clippy::single_match,
     clippy::type_complexity,

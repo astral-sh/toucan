@@ -371,7 +371,7 @@ fn malformed_prefix_runs_do_not_trigger_parser_backtracking() {
         analyze(&source, TARGET)
             .unwrap_err()
             .message
-            .contains("prefix operators")
+            .contains("parser BacktrackingSteps limit")
     );
 }
 

@@ -1,7 +1,7 @@
 # toucan_parser
 
 The C parser used by Toucan, derived from [lang-c 0.15.1](https://github.com/vickenty/lang-c/tree/58e4ccf07bf9794af8111b06b6643e80fd31bff2).
-Toucan uses `driver::parse_preprocessed`; preprocessing, semantic checking, source limits, and checked-code retention live in the other workspace crates. This crate retains the upstream parser AST and is not the public checked-code interface.
+Toucan uses `driver::parse_preprocessed`; preprocessing, semantic checking, and checked-code retention live in the other workspace crates. The parser enforces its own input, work, backtracking, recursion, owned-tree, and memoization limits. This crate retains the upstream parser AST and is not the public checked-code interface.
 
 ## Upstream source
 
@@ -23,6 +23,12 @@ GNU attributes on null statements have a distinct `Statement::Attribute` node.
 Semantic checking determines which statement annotations are supported; the visitor
 preserves their attributes and source spans.
 
+Parsing uses a bounded scoped worker stack; `driver::with_parser_stack` reuses one
+worker for a batch of calls. `driver::parse_preprocessed_with_limits` accepts limits
+and returns source-positioned resource diagnostics. `ParseStatistics` records actual
+accounted work. The AST representation is unchanged. See
+[parser limits](../../docs/parser-limits.md) for the accounting and tests.
+
 The package name and imports in examples and development binaries are updated. Handwritten code has mechanical fixes for current Rust and Clippy warnings. Two local lint allowances preserve the existing AST representation and `Span::span` API. The generated header enumerates the Clippy style lints produced by the pinned generator. The crate forbids unsafe Rust. No generator is run during ordinary builds.
 
 ## Regeneration
@@ -36,6 +42,11 @@ cargo fmt -p toucan_parser --check
 cargo test -p toucan_parser
 ```
 
-Run `make` from this directory. The checked-in parser was generated with `peg` 0.5.4 and formatted with `rustfmt` 1.9.0-stable (Rust 1.98.0); `grammar.rustfmt` fixes the output settings. Compared with the upstream parser, regeneration changes only `typeof_specifier0`, the function-declarator scope rules, the `__extension__` operand rule, GNU attribute statements, and the documented lint header. Review that diff when regenerating with another formatter version.
+Run `make` from this directory. `scripts/instrument.py` checks and instruments the pinned generated templates after
+formatting. It inserts rule/loop guards, terminal resource-failure propagation, and
+memoized clone accounting. The generated lint header permits the immediate closures
+and explicit returns required to balance recursive-rule counters on early exits.
+A normal Cargo build does not invoke Python. The checked-in parser was generated with `peg` 0.5.4 and formatted with `rustfmt` 1.9.0-stable (Rust 1.98.0); `grammar.rustfmt` fixes the output settings. Compared with the upstream parser, regeneration changes only `typeof_specifier0`, the function-declarator scope rules, the `__extension__` operand rule, GNU attribute statements, checked node/fold constructors, resource instrumentation,
+and the documented lint header. Review that diff when regenerating with another formatter version.
 
 The upstream reference runner reads `reftests/`. It updates expected output only when `TEST_UPDATE` is explicitly set. New parser tests cover typedef/type-expression ambiguity; semantic tests compare constraints and runtime VLA behavior with GCC and Clang.

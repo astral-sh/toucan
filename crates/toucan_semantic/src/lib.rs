@@ -53,6 +53,16 @@ impl Error {
     }
 }
 
+/// Runs related analysis and constant-evaluation calls on one parser stack.
+///
+/// This amortizes worker creation for tools evaluating many macros. Each parse
+/// keeps independent limits and lexical state; nested sessions reuse the stack.
+/// The worker is joined before return, and panics propagate to the caller.
+pub fn with_parser_stack<T: Send>(operation: impl FnOnce() -> T + Send) -> Result<T, Error> {
+    lang_c::driver::with_parser_stack(operation)
+        .map_err(|error| Error::new(0, format!("unable to create parser worker thread: {error}")))
+}
+
 /// Controls optional semantic retention. The default checks all supported C code
 /// without allocating the retained graph.
 #[derive(Clone, Copy, Debug, Default)]

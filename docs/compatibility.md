@@ -558,8 +558,8 @@ it does not cover subsequent changes or establish complete safety.
 
 ## Requirements for a production release
 
-Complete the declaration and expression conformance work; replace or establish
-reliable limits for pathological parser backtracking; extend the target/header
+Complete the declaration and expression conformance work; extend independent review
+and adversarial testing of the [parser resource limits](parser-limits.md); extend the target/header
 matrix; run sustained fuzzing and independent safety review; validate distribution
 and allocator configurations; and define a stable API and diagnostics contract.
 The [development plan](development.md) records the broader acceptance criteria.

@@ -357,3 +357,10 @@ mod pegviz {
     pub fn marker_start(_: &str) {}
     pub fn marker_stop() {}
 }
+
+#[test]
+fn standalone_string_rule_uses_resource_accounting() {
+    let mut env = ::env::Env::with_core();
+    let value = ::parser::string_literal("\"one\" \"two\"", &mut env).unwrap();
+    assert_eq!(value.node, ["\"one\"", "\"two\""]);
+}

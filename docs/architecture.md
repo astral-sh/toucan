@@ -103,8 +103,11 @@ libraries use whichever allocator their embedding application selects.
 
 Preprocessing bounds source bytes, include depth, tokens, expansion depth, and output.
 Filesystem access can be disabled for an in-memory embedding. Syntax and semantic
-traversals have nesting limits. Fuzzing has already identified parser backtracking
-cases; the guards are not a proof of bounded runtime for every possible input.
+traversals have nesting limits. The generated parser also counts total work and
+steps without forward progress, validates owned-tree depth before folding or
+cloning, and runs on a bounded scoped stack. [Parser limits](parser-limits.md)
+describes the accounting and its validation; these counters are not wall-time or
+allocator-RSS limits.
 
 ## Consumer boundaries
 

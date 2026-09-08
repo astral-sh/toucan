@@ -286,16 +286,12 @@ Apple's byte-order header is covered by the macOS corpus jobs.
 
 ## Parser resource limits
 
-Parsing rejects excessive nesting before entering the recursive C parser. Within
-one outer brace region, at most 1,024 control-flow introducers (`if`, `else`,
-`for`, `while`, `do`, `switch`) and pending colons are allowed together. A
-terminating semicolon clears the current label chain; labels in enclosing braces
-and across `for` headers remain counted. Each separate function body receives a
-fresh budget. Comments and literals do not consume it.
-
-This conservative limit also rejects very large flat control-flow bodies with a
-diagnostic. It prevents deeply chained labels and unbraced statements from
-overflowing the parser stack before semantic nesting checks can run.
+The parser bounds work, backtracking steps, recursive rule depth, owned AST depth,
+memoized clone cost, and construction metadata. Parsing and semantic traversal use
+a bounded worker stack; binding generation shares one scoped session across its
+macro evaluations. Large flat function bodies are accepted, and genuinely excessive
+inputs return source-positioned resource diagnostics. See [parser limits](docs/parser-limits.md)
+for defaults, embedding APIs, C11 nesting coverage, and validation.
 
 ### GNU vector types
 

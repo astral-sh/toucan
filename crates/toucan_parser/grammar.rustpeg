@@ -13,7 +13,7 @@ use span::{Node, Span};
 
 box<ex> = e:ex { Box::new(e) }
 
-node<ex> = l:#position e:ex r:#position { Node::new(e, Span::span(l, r)) }
+node<ex> = l:#position e:ex r:#position {? __state.budget.node(e, Span::span(l, r)) }
 
 // Lists of elements.
 list0<ex> = e:ex ** _ { e }
@@ -209,7 +209,7 @@ generic_selection -> GenericSelection =
 generic_association -> GenericAssociation =
     t:type_name _ ":" _ e:assignment_expression {
         let span = Span::span(t.span.start, e.span.end);
-        GenericAssociation::Type(Node::new(GenericAssociationType {
+        GenericAssociation::Type(checked_node!(__state.budget, GenericAssociationType {
             type_name: t,
             expression: e,
         }, span))
@@ -224,7 +224,7 @@ postfix_expression -> Box<Node<Expression>> = box<node<postfix_expression0>>
 
 #[cache]
 postfix_expression0 -> Expression =
-    e:node<postfix_expression1> _ t:list0<node<postfix_expressionT>> { apply_ops(t, e).node }
+    e:node<postfix_expression1> _ t:list0<node<postfix_expressionT>> {? checked_apply_ops(t, e, &mut __state.budget).map(|e| e.node) }
 
 postfix_expression1 -> Expression =
     compound_literal /
@@ -237,7 +237,7 @@ postfix_expressionT -> Operation =
     o:node<postfix_operator> { Operation::Unary(o) }
 
 index_operator -> Operation =
-    i:node<index_operator0> { Operation::Binary(Node::new(BinaryOperator::Index, i.span), i.node) }
+    i:node<index_operator0> { Operation::Binary(checked_node!(__state.budget, BinaryOperator::Index, i.span), i.node) }
 
 index_operator0 -> Node<Expression> =
     "[" _ e:node<expression0> _ "]" { e }
@@ -362,24 +362,24 @@ cast_expression_inner -> CastExpression =
 binary_expression -> Box<Node<Expression>> = box<binary_expression0>
 
 binary_expression0 -> Node<Expression> = #infix<binary_operand> {
-#L  x o:infix<"||"> y { infix(o, BinaryOperator::LogicalOr, x, y) }
-#L  x o:infix<"&&"> y { infix(o, BinaryOperator::LogicalAnd, x, y) }
-#L  x o:infix<"|"> y { infix(o, BinaryOperator::BitwiseOr, x, y) }
-#L  x o:infix<"^"> y { infix(o, BinaryOperator::BitwiseXor, x, y) }
-#L  x o:infix<"&"!"&"> y { infix(o, BinaryOperator::BitwiseAnd, x, y) }
-#L  x o:infix<"=="> y { infix(o, BinaryOperator::Equals, x, y) }
-    x o:infix<"!="> y { infix(o, BinaryOperator::NotEquals, x, y) }
-#L  x o:infix<"<"> y { infix(o, BinaryOperator::Less, x, y) }
-    x o:infix<">"> y { infix(o, BinaryOperator::Greater, x, y) }
-    x o:infix<"<="> y { infix(o, BinaryOperator::LessOrEqual, x, y) }
-    x o:infix<">="> y { infix(o, BinaryOperator::GreaterOrEqual, x, y) }
-#L  x o:infix<"<<"> y { infix(o, BinaryOperator::ShiftLeft, x, y) }
-    x o:infix<">>"> y { infix(o, BinaryOperator::ShiftRight, x, y) }
-#L  x o:infix<"+"> y { infix(o, BinaryOperator::Plus, x, y) }
-    x o:infix<"-"> y { infix(o, BinaryOperator::Minus, x, y) }
-#L  x o:infix<"*"> y { infix(o, BinaryOperator::Multiply, x, y) }
-    x o:infix<"/"> y { infix(o, BinaryOperator::Divide, x, y) }
-    x o:infix<"%"> y { infix(o, BinaryOperator::Modulo, x, y) }
+#L  x o:infix<"||"> y { match checked_infix(o, BinaryOperator::LogicalOr, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+#L  x o:infix<"&&"> y { match checked_infix(o, BinaryOperator::LogicalAnd, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+#L  x o:infix<"|"> y { match checked_infix(o, BinaryOperator::BitwiseOr, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+#L  x o:infix<"^"> y { match checked_infix(o, BinaryOperator::BitwiseXor, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+#L  x o:infix<"&"!"&"> y { match checked_infix(o, BinaryOperator::BitwiseAnd, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+#L  x o:infix<"=="> y { match checked_infix(o, BinaryOperator::Equals, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+    x o:infix<"!="> y { match checked_infix(o, BinaryOperator::NotEquals, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+#L  x o:infix<"<"> y { match checked_infix(o, BinaryOperator::Less, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+    x o:infix<">"> y { match checked_infix(o, BinaryOperator::Greater, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+    x o:infix<"<="> y { match checked_infix(o, BinaryOperator::LessOrEqual, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+    x o:infix<">="> y { match checked_infix(o, BinaryOperator::GreaterOrEqual, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+#L  x o:infix<"<<"> y { match checked_infix(o, BinaryOperator::ShiftLeft, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+    x o:infix<">>"> y { match checked_infix(o, BinaryOperator::ShiftRight, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+#L  x o:infix<"+"> y { match checked_infix(o, BinaryOperator::Plus, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+    x o:infix<"-"> y { match checked_infix(o, BinaryOperator::Minus, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+#L  x o:infix<"*"> y { match checked_infix(o, BinaryOperator::Multiply, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+    x o:infix<"/"> y { match checked_infix(o, BinaryOperator::Divide, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
+    x o:infix<"%"> y { match checked_infix(o, BinaryOperator::Modulo, x, y, &mut __state.budget) { Ok(node) => node, Err(_) => return Failed } }
 }
 
 infix<ex> = _ n:node<ex> _ { n }
@@ -396,7 +396,7 @@ conditional_expression0 -> Expression =
     a:binary_expression0 _ t:conditional_expressionT? {
         if let Some((b, c)) = t {
             let span = Span::span(a.span.start, c.span.end);
-            Expression::Conditional(Box::new(Node::new(ConditionalExpression {
+            Expression::Conditional(Box::new(checked_node!(__state.budget, ConditionalExpression {
                 condition: Box::new(a),
                 then_expression: b,
                 else_expression: c,
@@ -555,7 +555,7 @@ init_declarator -> InitDeclarator =
     d:init_declarator_declarator _ e:gnu<init_declarator_gnu>? _ i:node<init_declarator_init>?
     {
         InitDeclarator {
-            declarator: with_ext(d, e),
+            declarator: checked_with_ext!(__state.budget, d, e),
             initializer: i,
         }
     }
@@ -577,7 +577,7 @@ type_declarator -> InitDeclarator =
     {
         env.handle_declarator(&d, Symbol::Typename);
         InitDeclarator {
-            declarator: with_ext(d, e),
+            declarator: checked_with_ext!(__state.budget, d, e),
             initializer: None,
         }
     }
@@ -683,13 +683,13 @@ specifier_qualifier_qualifier0 -> SpecifierQualifier =
 struct_declarator -> StructDeclarator =
     d:declarator? _ ":" _ e:constant_expression a:gnu<attribute_specifier_list>? {
         StructDeclarator {
-            declarator: d.map(|d| with_ext(d, a)),
+            declarator: match d { Some(d) => Some(checked_with_ext!(__state.budget, d, a)), None => None },
             bit_width: Some(e),
         }
     } /
     d:declarator _ a:gnu<attribute_specifier_list>? {
         StructDeclarator {
-            declarator: Some(with_ext(d, a)),
+            declarator: Some(checked_with_ext!(__state.budget, d, a)),
             bit_width: None,
         }
     }
@@ -894,14 +894,14 @@ abstract_declarator0 -> Declarator =
     } /
     p:list0<pointer> k:#position _ d:list1<derived_abstract_declarator> {
         Declarator {
-            kind: Node::new(DeclaratorKind::Abstract, Span::span(k, k)),
+            kind: checked_node!(__state.budget, DeclaratorKind::Abstract, Span::span(k, k)),
             derived: concat(p, d),
             extensions: Vec::new(),
         }
     } /
     p:list1<pointer> k:#position {
         Declarator {
-            kind: Node::new(DeclaratorKind::Abstract, Span::span(k, k)),
+            kind: checked_node!(__state.budget, DeclaratorKind::Abstract, Span::span(k, k)),
             derived: p,
             extensions: Vec::new(),
         }
@@ -1011,7 +1011,7 @@ array_designator -> Designator =
         match b {
             Some(b) => {
                 let span = Span::span(a.span.start, b.span.end);
-                Designator::Range(Node::new(RangeDesignator { from: a, to: b }, span))
+                Designator::Range(checked_node!(__state.budget, RangeDesignator { from: a, to: b }, span))
             }
             None => Designator::Index(a),
         }
@@ -1069,7 +1069,7 @@ label -> Label =
         match b {
             Some(b) => {
                 let span = Span::span(a.span.start, b.span.end);
-                Label::CaseRange(Node::new(CaseRange { low: a, high: Box::new(b) }, span))
+                Label::CaseRange(checked_node!(__state.budget, CaseRange { low: a, high: Box::new(b) }, span))
             }
             None => Label::Case(a),
         }
@@ -1349,7 +1349,7 @@ keyword_expression -> Expression =
         let ident = Identifier {
             name: k.node.to_string(),
         };
-        Expression::Identifier(Box::new(Node::new(ident, k.span)))
+        Expression::Identifier(Box::new(checked_node!(__state.budget, ident, k.span)))
     }
 
 keyword_expression0 =

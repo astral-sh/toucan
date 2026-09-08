@@ -262,6 +262,18 @@ impl Compilation {
     /// report identifies selected macros that were not emitted. With no allowlist,
     /// reserved `__` macros are omitted unless they shadow a declaration.
     pub fn bindings(&self, options: &BindingOptions) -> Result<(String, Report), Error> {
+        semantic::with_parser_stack(|| self.bindings_on_parser_stack(options)).map_err(|error| {
+            SemanticError {
+                error,
+                origin: None,
+            }
+        })?
+    }
+
+    fn bindings_on_parser_stack(
+        &self,
+        options: &BindingOptions,
+    ) -> Result<(String, Report), Error> {
         let declared_names: BTreeSet<_> = self
             .unit()
             .declarations

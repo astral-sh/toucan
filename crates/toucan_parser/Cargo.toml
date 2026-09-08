@@ -7,7 +7,7 @@ license.workspace = true
 repository.workspace = true
 authors = ["Vickenty Fesunov <kent@setattr.net>"]
 description = "C parser used by Toucan, derived from lang-c"
-include = ["/src/**/*.rs", "/reftests/*.c", "/tests/**/*.rs", "/grammar.*", "/Makefile", "/Cargo.toml", "/LICENSE*", "/README.md", "/UPSTREAM.md"]
+include = ["/src/**/*.rs", "/scripts/*.py", "/reftests/*.c", "/tests/**/*.rs", "/grammar.*", "/Makefile", "/Cargo.toml", "/LICENSE*", "/README.md", "/UPSTREAM.md"]
 
 [features]
 dev-pegviz = []

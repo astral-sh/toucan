@@ -55,14 +55,14 @@ fn keyword_prefix_runs_are_bounded_before_parser_recursion() {
         "sizeof // gap\n",
         "__extension__ + ",
     ] {
-        for count in [17, 4096] {
-            let source = format!("int f(void) {{ return {}0; }}", prefix.repeat(count));
-            let error = analyze(&source, Target::X86_64UnknownLinuxGnu).unwrap_err();
-            assert!(
-                error.message.contains("prefix operators"),
-                "{prefix}: {error}"
-            );
-        }
+        let ordinary = format!("int f(void) {{ return {}0; }}", prefix.repeat(17));
+        analyze(&ordinary, Target::X86_64UnknownLinuxGnu).unwrap();
+        let source = format!("int f(void) {{ return {}0; }}", prefix.repeat(4096));
+        let error = analyze(&source, Target::X86_64UnknownLinuxGnu).unwrap_err();
+        assert!(
+            error.message.contains("parser RuleDepth limit"),
+            "{prefix}: {error}"
+        );
     }
     let source = format!(
         "int f(void) {{ {} return 0; }}",
@@ -73,7 +73,7 @@ fn keyword_prefix_runs_are_bounded_before_parser_recursion() {
         !analyze(&source, Target::X86_64UnknownLinuxGnu)
             .unwrap_err()
             .message
-            .contains("prefix operators")
+            .contains("parser RuleDepth limit")
     );
 }
 
