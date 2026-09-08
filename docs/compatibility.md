@@ -66,6 +66,16 @@ omissions an error. Internal-linkage declarations and function definitions are
 reported as skipped. They are not exposed as callable externs. A function definition can still have an
 exported symbol; generating bindings for definitions is outside the current scope.
 
+## Rust consumer compatibility
+
+ABI equivalence alone does not guarantee that existing Rust callers compile.
+The optional Rust enum, `size_t`, and integer macro policies are tested with
+unmodified `zstd` and `zstd-safe` wrappers using freshly generated bindings for
+`zstd-sys`. The [consumer fixture](../tools/zstd_consumer/README.md) pins the
+versions used by the inspected Ruff and uv checkouts and exercises bulk and
+streaming compression. Its evidence is separate from the default-output bindgen
+comparison below.
+
 ## Recorded evidence
 
 The [upstream corpus](../corpus/README.md) processes untouched public headers from

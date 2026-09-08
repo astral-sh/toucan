@@ -8,7 +8,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-pub use toucan_bindings::{Bindings, Options as BindingOptions};
+pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions};
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
 pub use toucan_preprocessor::{ForcedInclude, OriginKind, SourceLocation, SourceMapping};
 pub use toucan_semantic::{self as semantic, TranslationUnit};
@@ -181,6 +181,8 @@ pub struct Report {
     pub enum_constants: Vec<toucan_bindings::EnumConstants>,
     /// Rust-to-C names for macro constants whose identifiers were escaped or renamed.
     pub renamed_macros: BTreeMap<String, String>,
+    /// C expression types retained when an explicit macro policy changes the Rust type.
+    pub macro_types: Vec<toucan_bindings::MacroIntegerType>,
     pub timings: Timings,
 }
 
@@ -295,6 +297,7 @@ impl Compilation {
             skipped_macros,
             enum_constants: bindings.enum_constants,
             renamed_macros: bindings.renamed_macros,
+            macro_types: bindings.macro_types,
             timings: self.timings.clone(),
         };
         Ok((source, report))

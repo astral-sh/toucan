@@ -133,6 +133,19 @@ def generate_probes(
             if rust_name not in constants or rust_name in enum_constants:
                 raise RuntimeError(f"invalid enum constant metadata: {rust_name}")
             enum_constants[rust_name] = (c_type, constant)
+    macro_types = {}
+    integer_types = {name: (sign == "i", int(bits)) for name, sign, bits in integers}
+    for projection in metadata.get("macro_types", []):
+        rust_name = projection["rust_name"]
+        if (
+            rust_name not in integer_types
+            or rust_name in enum_constants
+            or rust_name in macro_types
+            or integer_types[rust_name]
+            != (projection["rust_signed"], projection["rust_bits"])
+        ):
+            raise RuntimeError(f"invalid macro integer metadata: {rust_name}")
+        macro_types[rust_name] = projection
     for constant, sign, bits in integers:
         expression = renamed_macros.get(constant, constant)
         if constant in enum_constants:
@@ -148,11 +161,45 @@ def generate_probes(
                 f'println!("enum_expression_size.{constant}={projection["c_expression_bits"] // 8}");'
             )
             c.append(
-                f'printf("enum_expression_signed.{constant}=%d\\n", _Generic(({c_name}), unsigned char: 0, unsigned short: 0, unsigned int: 0, unsigned long: 0, unsigned long long: 0, unsigned __int128: 0, default: 1));'
+                f'printf("enum_expression_signed.{constant}=%d\\n", _Generic(({c_name}), _Bool: 0, char: ((char)-1 < 0), unsigned char: 0, unsigned short: 0, unsigned int: 0, unsigned long: 0, unsigned long long: 0, unsigned __int128: 0, default: 1));'
             )
             rust.append(
                 f'println!("enum_expression_signed.{constant}={int(projection["c_expression_signed"])}");'
             )
+        elif constant in macro_types:
+            projection = macro_types[constant]
+            c_name = projection["c_name"]
+            c.append(
+                f'printf("macro_expression_size.{constant}=%zu\\n", sizeof({c_name}));'
+            )
+            rust.append(
+                f'println!("macro_expression_size.{constant}={projection["c_bits"] // 8}");'
+            )
+            c.append(
+                f'printf("macro_expression_signed.{constant}=%d\\n", _Generic(({c_name}), _Bool: 0, char: ((char)-1 < 0), unsigned char: 0, unsigned short: 0, unsigned int: 0, unsigned long: 0, unsigned long long: 0, unsigned __int128: 0, default: 1));'
+            )
+            rust.append(
+                f'println!("macro_expression_signed.{constant}={int(projection["c_signed"])}");'
+            )
+            # Compare the original C value before any representation cast, so a
+            # truncating or sign-changing normalization cannot pass this oracle.
+            printer = "print_signed" if projection["c_signed"] else "print_unsigned"
+            cast = "__int128" if projection["c_signed"] else "unsigned __int128"
+            c.append(
+                f"printf(\"macro_expression_value.{constant}=\"); {printer}(({cast})({c_name})); putchar('\\n');"
+            )
+            rust.append(
+                f'println!("macro_expression_value.{constant}={{}}", b::{constant});'
+            )
+            c_type = {
+                "8": "char",
+                "16": "short",
+                "32": "int",
+                "64": "long long",
+                "128": "__int128",
+            }[bits]
+            c_type = ("signed " if sign == "i" else "unsigned ") + c_type
+            expression = f"({c_type})({c_name})"
         printer = "print_signed" if sign == "i" else "print_unsigned"
         cast = "__int128" if sign == "i" else "unsigned __int128"
         c.append(
@@ -166,7 +213,7 @@ def generate_probes(
             f'println!("constant_size.{constant}={{}}", core::mem::size_of_val(&b::{constant}));'
         )
         c.append(
-            f'printf("constant_signed.{constant}=%d\\n", _Generic(({expression}), unsigned char: 0, unsigned short: 0, unsigned int: 0, unsigned long: 0, unsigned long long: 0, unsigned __int128: 0, default: 1));'
+            f'printf("constant_signed.{constant}=%d\\n", _Generic(({expression}), _Bool: 0, char: ((char)-1 < 0), unsigned char: 0, unsigned short: 0, unsigned int: 0, unsigned long: 0, unsigned long long: 0, unsigned __int128: 0, default: 1));'
         )
         rust.append(f'println!("constant_signed.{constant}={int(sign == "i")}");')
     for constant in strings:

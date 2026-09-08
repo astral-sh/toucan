@@ -66,6 +66,15 @@ Self-aliases such as `#define VALUE VALUE` retain the enum representation. Macro
 that conflict with other declaration names produce a diagnostic. The report maps
 renamed Rust macro constants back to their original C names.
 
+Existing Rust wrappers may require a particular source representation. Use
+`--rustified-enums` for named Rust enum variants, `--size-t-is-usize` for `size_t`,
+and `--macro-type unsigned` to infer unsigned types for nonnegative macro values.
+The default preserves C macro types. Rust enums accept only declared variants;
+keep integer aliases for APIs that pass arbitrary values or combine flags.
+The report retains original C macro types when a representation option changes
+them. The [zstd consumer test](tools/zstd_consumer) exercises these options through
+the unmodified `zstd` and `zstd-safe` Rust APIs.
+
 ## Analyze headers
 
 Each command accepts `--target`, `--sysroot`, `-I`, `-D`, and `-U`:
@@ -121,6 +130,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     )?;
     let (bindings, report) = compilation.bindings(&BindingOptions {
         allowlist: vec!["api_*".into()],
+        ..Default::default()
     })?;
 
     assert!(report.skipped_declarations.is_empty());

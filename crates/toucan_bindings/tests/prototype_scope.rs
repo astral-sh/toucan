@@ -15,6 +15,7 @@ fn local_tags_and_enumerators_do_not_match_global_allowlists() {
         &unit,
         &Options {
             allowlist: vec!["Hidden".into(), "Local".into(), "LOCAL".into()],
+            ..Default::default()
         },
     )
     .unwrap();
@@ -25,6 +26,7 @@ fn local_tags_and_enumerators_do_not_match_global_allowlists() {
         &unit,
         &Options {
             allowlist: vec!["f".into()],
+            ..Default::default()
         },
     )
     .unwrap();
@@ -44,6 +46,7 @@ fn local_tags_and_enumerators_do_not_match_global_allowlists() {
         &unit,
         &Options {
             allowlist: vec!["S".into()],
+            ..Default::default()
         },
     )
     .unwrap();
@@ -62,6 +65,7 @@ fn local_names_do_not_rename_global_identifiers() {
         &unit,
         &Options {
             allowlist: vec!["self".into()],
+            ..Default::default()
         },
     )
     .unwrap();

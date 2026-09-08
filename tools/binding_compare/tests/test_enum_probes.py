@@ -26,6 +26,7 @@ class EnumProbeTests(unittest.TestCase):
         *,
         rust_name="SELECTED",
         macro_name=None,
+        macro_type=None,
     ):
         with tempfile.TemporaryDirectory() as temporary:
             directory = Path(temporary)
@@ -56,6 +57,18 @@ class EnumProbeTests(unittest.TestCase):
             if macro_name is not None:
                 metadata["enum_constants"] = []
                 metadata["renamed_macros"] = {rust_name: macro_name}
+            if macro_type is not None:
+                metadata["enum_constants"] = []
+                metadata["macro_types"] = [
+                    {
+                        "c_name": macro_name or "SELECTED",
+                        "rust_name": rust_name,
+                        "c_bits": macro_type[0],
+                        "c_signed": macro_type[1],
+                        "rust_bits": int(rust_type[1:]),
+                        "rust_signed": rust_type.startswith("i"),
+                    }
+                ]
             with (
                 patch.object(probes, "ROOT", directory),
                 patch.dict(probes.PROBES, {"probe": []}),
@@ -90,6 +103,30 @@ class EnumProbeTests(unittest.TestCase):
                     )
                 )
             return *outputs, coverage
+
+    def test_normalized_macros_check_original_c_values_and_types(self):
+        expected, actual, _ = self.compile_probes(
+            "#define SELECTED ((_Bool)1)\n", None, [], "u8", 1, macro_name="SELECTED"
+        )
+        self.assertEqual(expected, actual)
+        expected, actual, _ = self.compile_probes(
+            "#define SELECTED 5LL\n", None, [], "u32", 5, macro_type=(64, True)
+        )
+        self.assertEqual(expected, actual)
+        for replacement, value in [("-1LL", 4294967295), ("(1LL << 40)", 0)]:
+            with self.subTest(replacement=replacement):
+                expected, actual, _ = self.compile_probes(
+                    f"#define SELECTED {replacement}\n",
+                    None,
+                    [],
+                    "u32",
+                    value,
+                    macro_type=(64, True),
+                )
+                self.assertNotEqual(
+                    expected["macro_expression_value.SELECTED"],
+                    actual["macro_expression_value.SELECTED"],
+                )
 
     def test_renamed_macros_use_their_original_c_names(self):
         for c_name, rust_name in [("self", "__toucan_self_"), ("type", "r#type")]:

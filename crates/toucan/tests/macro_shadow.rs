@@ -56,6 +56,7 @@ fn reserved_macro_names_are_checked_when_shadowing_or_explicitly_selected() {
         let (source, _) = compilation
             .bindings(&BindingOptions {
                 allowlist: vec![pattern.into()],
+                ..Default::default()
             })
             .unwrap();
         assert!(source.contains("pub const __EXPLICIT: ::core::primitive::i32 = 3;"));

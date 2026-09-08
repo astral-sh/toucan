@@ -17,6 +17,24 @@ use toucan_semantic::{
 pub struct Options {
     /// Exact names or prefixes ending in `*`. Empty selects all declarations.
     pub allowlist: Vec<String>,
+    /// Emit Rust enums with named variants instead of integer aliases. Values
+    /// outside the declared variants are invalid Rust enum values.
+    pub rustified_enums: bool,
+    /// Represent a pointer-sized unsigned `size_t` typedef as Rust `usize`.
+    pub size_t_is_usize: bool,
+    /// Choose how integer object macros are represented in Rust.
+    pub macro_type: MacroType,
+}
+
+/// Integer macro representation policy; evaluation always retains the C type.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum MacroType {
+    /// Preserve the C expression's width and signedness.
+    #[default]
+    C,
+    /// Use the smallest unsigned 32-, 64-, or 128-bit type for nonnegative values.
+    /// Negative values retain their C type. Values are never truncated.
+    Unsigned,
 }
 
 impl Options {
@@ -40,6 +58,19 @@ pub struct Bindings {
     pub enum_constants: Vec<EnumConstants>,
     /// Rust-to-C names for macro constants whose identifiers were escaped or renamed.
     pub renamed_macros: BTreeMap<String, String>,
+    /// Macro expression types whose Rust representation differs from C.
+    pub macro_types: Vec<MacroIntegerType>,
+}
+
+/// Original and emitted integer types for an explicitly normalized macro.
+#[derive(Debug, serde::Serialize)]
+pub struct MacroIntegerType {
+    pub c_name: String,
+    pub rust_name: String,
+    pub c_bits: u8,
+    pub c_signed: bool,
+    pub rust_bits: u8,
+    pub rust_signed: bool,
 }
 
 /// An evaluated object-like macro. String bytes exclude the terminating NUL.
@@ -126,6 +157,7 @@ pub fn generate_with_macros(
     }
     let mut emitter = Emitter {
         unit,
+        options,
         names: Names::new(
             unit.declarations
                 .iter()
@@ -212,13 +244,7 @@ pub fn generate_with_macros(
         emitter.record(id, &mut source)?;
     }
     for &id in &emitter.enums {
-        writeln!(
-            source,
-            "pub type {} = {};",
-            emitter.enum_name(id)?,
-            emitter.enum_type(id)?
-        )
-        .unwrap();
+        emitter.enumeration(id, &mut source)?;
     }
     for name in &emitter.aliases {
         let ty = unit
@@ -226,7 +252,9 @@ pub fn generate_with_macros(
             .get(name)
             .ok_or_else(|| Error(format!("missing typedef `{name}`")))?;
         let rust_name = emitter.names.identifier(name)?;
-        let rust_type = if let TypeKind::Function(function) = &unit.resolve(ty)?.kind {
+        let rust_type = if options.size_t_is_usize && name == "size_t" {
+            emitter.size_t_type(ty)?
+        } else if let TypeKind::Function(function) = &unit.resolve(ty)?.kind {
             emitter.check_function(function)?;
             format!("unsafe extern \"C\" fn{}", emitter.signature(function)?)
         } else {
@@ -322,6 +350,7 @@ pub fn generate_with_macros(
     }
     source.push_str("}\n");
     let mut renamed_macros = BTreeMap::new();
+    let mut macro_types = Vec::new();
     for (name, value) in macros {
         if !options.includes(name) {
             continue;
@@ -336,7 +365,18 @@ pub fn generate_with_macros(
         }
         match value {
             MacroValue::Integer(value) => {
-                source.push_str(&integer_constant_named(&name, *value)?);
+                let emitted = normalize_macro(*value, options.macro_type)?;
+                if emitted.bits != value.bits || emitted.signed != value.signed {
+                    macro_types.push(MacroIntegerType {
+                        c_name: c_name.clone(),
+                        rust_name: name.clone(),
+                        c_bits: value.bits,
+                        c_signed: value.signed,
+                        rust_bits: emitted.bits,
+                        rust_signed: emitted.signed,
+                    });
+                }
+                source.push_str(&integer_constant_named(&name, emitted)?);
             }
             MacroValue::String(bytes) => {
                 write!(
@@ -358,6 +398,25 @@ pub fn generate_with_macros(
         skipped,
         enum_constants,
         renamed_macros,
+        macro_types,
+    })
+}
+
+fn normalize_macro(value: IntegerValue, policy: MacroType) -> Result<IntegerValue, Error> {
+    validate_integer(value)?;
+    if policy == MacroType::C || (value.signed && value.signed_value() < 0) {
+        return Ok(value);
+    }
+    Ok(IntegerValue {
+        bits: if value.value <= u32::MAX as u128 {
+            32
+        } else if value.value <= u64::MAX as u128 {
+            64
+        } else {
+            128
+        },
+        signed: false,
+        ..value
     })
 }
 
@@ -425,6 +484,7 @@ fn convert_enum_constant(
 
 struct Emitter<'a> {
     unit: &'a TranslationUnit,
+    options: &'a Options,
     names: Names,
     records: BTreeSet<usize>,
     enums: BTreeSet<usize>,
@@ -526,6 +586,18 @@ impl Emitter<'_> {
             .enums
             .get(id)
             .ok_or_else(|| Error("invalid enum identity".into()))?;
+        if self.options.rustified_enums
+            && enumeration.scope == Scope::File
+            && enumeration.name.is_none()
+        {
+            for declaration in &self.unit.declarations {
+                if declaration.kind == DeclarationKind::Typedef
+                    && self.unit.resolve(&declaration.ty)?.kind == TypeKind::Enum(id)
+                {
+                    return self.names.identifier(&declaration.name);
+                }
+            }
+        }
         if enumeration.scope == Scope::File
             && let Some(name) = &enumeration.name
         {
@@ -544,6 +616,84 @@ impl Emitter<'_> {
             }
         }
         self.synthetic_name(&format!("__toucan_enum_{id}"))
+    }
+
+    /// Emit the selected enum representation, retaining aliases for repeated values.
+    fn enumeration(&self, id: usize, source: &mut String) -> Result<(), Error> {
+        let name = self.enum_name(id)?;
+        if !self.options.rustified_enums {
+            writeln!(source, "pub type {name} = {};", self.enum_type(id)?).unwrap();
+            return Ok(());
+        }
+        let enumeration = &self.unit.enums[id];
+        if enumeration.variants.is_empty() {
+            return Err(Error(
+                "an empty C enum cannot be represented as a Rust enum".into(),
+            ));
+        }
+        let (bits, signed) = self.enum_integer(id)?;
+        let prefix = if signed { 'i' } else { 'u' };
+        writeln!(source, "#[repr({prefix}{bits})]\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\npub enum {name} {{").unwrap();
+        let variant_names = Names::new(
+            self.names.original.iter().map(String::as_str).chain(
+                enumeration
+                    .variants
+                    .iter()
+                    .map(|variant| variant.name.as_str()),
+            ),
+        );
+        let mut values: BTreeMap<u128, String> = BTreeMap::new();
+        let mut aliases = Vec::new();
+        for variant in &enumeration.variants {
+            let rust_name = variant_names.identifier(&variant.name)?;
+            let value = convert_enum_constant(variant.value, bits, signed)?;
+            if let Some(canonical) = values.get(&value.value) {
+                aliases.push((rust_name, canonical.clone()));
+            } else {
+                values.insert(value.value, rust_name.clone());
+                let literal = if signed {
+                    value.signed_value().to_string()
+                } else {
+                    value.value.to_string()
+                };
+                writeln!(source, "    {rust_name} = {literal},").unwrap();
+            }
+        }
+        source.push_str("}\n");
+        if !aliases.is_empty() {
+            writeln!(source, "impl {name} {{").unwrap();
+            for (alias, canonical) in aliases {
+                writeln!(source, "    pub const {alias}: Self = Self::{canonical};").unwrap();
+            }
+            source.push_str("}\n");
+        }
+        let layout = self.unit.layout(&Type::new(TypeKind::Enum(id)))?;
+        writeln!(source, "const _: () = {{\n    assert!(::core::mem::size_of::<{name}>() == {});\n    assert!(::core::mem::align_of::<{name}>() == {});\n}};", layout.size_bits / 8, layout.alignment_bits / 8).unwrap();
+        Ok(())
+    }
+
+    /// Require the real C typedef to have the same unsigned representation as usize.
+    fn size_t_type(&self, ty: &Type) -> Result<String, Error> {
+        let TypeKind::Integer(kind) = &self.unit.resolve(ty)?.kind else {
+            return Err(Error(
+                "size_t must be an unsigned integer to use usize".into(),
+            ));
+        };
+        if !matches!(
+            kind,
+            IntegerKind::UnsignedChar
+                | IntegerKind::UnsignedShort
+                | IntegerKind::UnsignedInt
+                | IntegerKind::UnsignedLong
+                | IntegerKind::UnsignedLongLong
+                | IntegerKind::UnsignedInt128
+        ) || self.unit.layout(ty)?.size_bits != self.unit.target.pointer_width()
+        {
+            return Err(Error(
+                "size_t must be a pointer-sized unsigned integer to use usize".into(),
+            ));
+        }
+        Ok("::core::primitive::usize".into())
     }
 
     fn synthetic_name(&self, stem: &str) -> Result<String, Error> {
@@ -1151,6 +1301,7 @@ mod tests {
             &unit,
             &Options {
                 allowlist: vec!["walk".into()],
+                ..Default::default()
             },
         )
         .unwrap();
@@ -1239,6 +1390,7 @@ mod tests {
         .unwrap();
         let options = Options {
             allowlist: vec!["SELECTED".into()],
+            ..Default::default()
         };
         let bindings = generate(&unit, &options).unwrap();
         assert!(

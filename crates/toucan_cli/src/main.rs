@@ -4,7 +4,7 @@ use std::process::ExitCode;
 
 use anyhow::{Context, Result};
 use clap::{Args, Parser, Subcommand};
-use toucan::{BindingOptions, Config, Target};
+use toucan::{BindingOptions, Config, MacroType, Target};
 
 #[cfg(all(feature = "performance-allocator", unix, not(target_os = "openbsd")))]
 #[global_allocator]
@@ -43,6 +43,15 @@ enum Command {
         /// Fail if a selected macro cannot be emitted as a constant.
         #[arg(long)]
         deny_skipped_macros: bool,
+        /// Emit Rust enums with named variants; undeclared values are invalid Rust values.
+        #[arg(long)]
+        rustified_enums: bool,
+        /// Represent a pointer-sized unsigned size_t typedef as Rust usize.
+        #[arg(long)]
+        size_t_is_usize: bool,
+        /// Preserve C macro types, or infer unsigned types for nonnegative values.
+        #[arg(long, value_parser = ["c", "unsigned"], default_value = "c")]
+        macro_type: String,
     },
     /// Print native preprocessor output without invoking a C compiler.
     Preprocess {
@@ -193,9 +202,21 @@ fn run(cli: Cli) -> Result<()> {
             allowlist,
             report,
             deny_skipped_macros,
+            rustified_enums,
+            size_t_is_usize,
+            macro_type,
         } => {
             let compilation = toucan::parse_file(&input.header, &input.config()?)?;
-            let (source, metadata) = compilation.bindings(&BindingOptions { allowlist })?;
+            let (source, metadata) = compilation.bindings(&BindingOptions {
+                allowlist,
+                rustified_enums,
+                size_t_is_usize,
+                macro_type: if macro_type == "unsigned" {
+                    MacroType::Unsigned
+                } else {
+                    MacroType::C
+                },
+            })?;
             if let Some(report) = report {
                 write_output(
                     Some(report),
