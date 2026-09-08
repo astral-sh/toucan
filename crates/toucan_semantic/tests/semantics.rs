@@ -459,3 +459,80 @@ fn sizeof_validates_unevaluated_names_and_scalar_operands() {
     );
     analyze("_Static_assert(sizeof(1 / 0)==4, \"unevaluated division\"); _Static_assert(sizeof((1 / 0) == 0)==4, \"unevaluated comparison\"); _Static_assert(sizeof(!(1 / 0))==4, \"unevaluated unary\");", TARGET).unwrap();
 }
+
+#[test]
+fn object_alignment_does_not_change_record_layout() {
+    for declaration in [
+        "struct S __attribute__((aligned(16))) object;",
+        "__attribute__((aligned(16))) struct S object;",
+        "struct S object __attribute__((aligned(16)));",
+        "_Alignas(16) struct S object;",
+    ] {
+        analyze(
+            &format!(
+                "struct S {{ char x; }}; {declaration}
+                 struct Wrapper {{ struct S s; char after; }};
+                 _Static_assert(sizeof(struct S) == 1, \"record size\");
+                 _Static_assert(_Alignof(struct S) == 1, \"record alignment\");
+                 _Static_assert(sizeof(struct Wrapper) == 2, \"containing record\");"
+            ),
+            TARGET,
+        )
+        .unwrap();
+    }
+    for declaration in [
+        "struct __attribute__((aligned(16))) S { char x; } object;",
+        "struct S { char x; } __attribute__((aligned(16))) object;",
+    ] {
+        analyze(
+            &format!(
+                "{declaration}
+                 _Static_assert(sizeof(struct S) == 16, \"record size\");
+                 _Static_assert(_Alignof(struct S) == 16, \"record alignment\");"
+            ),
+            TARGET,
+        )
+        .unwrap();
+    }
+    analyze(
+        "__attribute__((aligned(16))) struct S { char x; } object;
+         _Static_assert(sizeof(struct S) == 1, \"object attribute before definition\");
+         struct Outer { struct __attribute__((packed)) Inner { char x; int y; } inner; char z; };
+         _Static_assert(sizeof(struct Inner) == 5, \"nested record attribute\");
+         _Static_assert(sizeof(struct Outer) == 6, \"containing nested record\");",
+        TARGET,
+    )
+    .unwrap();
+}
+
+#[test]
+fn forward_record_attributes_follow_target_compiler() {
+    for (target, size) in [(TARGET, 1), (Target::Aarch64AppleDarwin, 16)] {
+        analyze(
+            &format!(
+                "struct __attribute__((aligned(16))) S; struct S {{ char x; }};
+                 _Static_assert(sizeof(struct S) == {size}, \"forward tag alignment\");"
+            ),
+            target,
+        )
+        .unwrap();
+        analyze(
+            "struct S { char x; }; struct __attribute__((aligned(16))) S object;
+             _Static_assert(sizeof(struct S) == 1, \"attribute after definition is ignored\");",
+            target,
+        )
+        .unwrap();
+    }
+    assert!(analyze("enum __attribute__((aligned(16))) E { A };", TARGET).is_err());
+}
+
+#[test]
+fn short_circuit_operands_are_type_checked_without_evaluation() {
+    let unit = analyze("struct S { int x; }; struct S object;", TARGET).unwrap();
+    for expression in ["1 || unknown", "0 && unknown", "1 || object", "0 && object"] {
+        assert!(evaluate_integer(&unit, expression).is_err(), "{expression}");
+    }
+    for (expression, expected) in [("1 || (1 / 0)", 1), ("0 && (1 / 0)", 0)] {
+        assert_eq!(evaluate_integer(&unit, expression).unwrap().value, expected);
+    }
+}

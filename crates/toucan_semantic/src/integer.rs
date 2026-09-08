@@ -76,6 +76,14 @@ impl Analyzer {
             }
             ast::Expression::BinaryOperator(binary) => {
                 let left = self.eval(&binary.node.lhs)?;
+                if matches!(
+                    binary.node.operator.node,
+                    ast::BinaryOperator::LogicalAnd | ast::BinaryOperator::LogicalOr
+                ) {
+                    // Short-circuiting suppresses evaluation, not operand validation.
+                    let right = self.expression_type(&binary.node.rhs)?;
+                    self.require_scalar(&right, offset)?;
+                }
                 if binary.node.operator.node == ast::BinaryOperator::LogicalAnd && !left.truth() {
                     return Ok(IntegerValue::int(0));
                 }

@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use lang_c::{ast, driver, span::Node};
 use toucan_target::Target;
@@ -23,6 +23,7 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
     let (source, packs) = prepare_source(source)?;
     let parsed = parse(&source)?;
     let mut analyzer = Analyzer::new(target, packs);
+    analyzer.record_attributes = parsed.record_attributes;
     for external in parsed.unit.0 {
         match external.node {
             ast::ExternalDeclaration::Declaration(declaration) => {
@@ -125,13 +126,19 @@ pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<Inte
         return Err(Error::new(0, "expected integer expression"));
     };
     let mut analyzer = Analyzer::from_unit(unit.clone());
+    analyzer.record_attributes = parsed.record_attributes;
     analyzer.eval(expression).map_err(|mut error| {
         error.offset = error.offset.saturating_sub(expression_offset);
         error
     })
 }
 
-fn parse(source: &str) -> Result<driver::Parse, Error> {
+struct Parsed {
+    unit: ast::TranslationUnit,
+    record_attributes: HashSet<usize>,
+}
+
+fn parse(source: &str) -> Result<Parsed, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
@@ -142,8 +149,13 @@ fn parse(source: &str) -> Result<driver::Parse, Error> {
         cpp_options: Vec::new(),
         flavor: driver::Flavor::ClangC11,
     };
-    driver::parse_preprocessed(&config, normalize_attributes(&source))
-        .map_err(|error| Error::new(error.offset, format!("C syntax error: {error}")))
+    let (source, record_attributes) = normalize_attributes(&source);
+    let parsed = driver::parse_preprocessed(&config, source)
+        .map_err(|error| Error::new(error.offset, format!("C syntax error: {error}")))?;
+    Ok(Parsed {
+        unit: parsed.unit,
+        record_attributes,
+    })
 }
 
 /// lang-c expects comments to have been replaced in translation phase three.
@@ -278,6 +290,7 @@ pub(crate) struct Analyzer {
     record_tags: HashMap<String, usize>,
     enum_tags: HashMap<String, usize>,
     packs: PackEvents,
+    record_attributes: HashSet<usize>,
     nesting: usize,
 }
 
@@ -326,6 +339,7 @@ impl Analyzer {
             record_tags,
             enum_tags,
             packs: Vec::new(),
+            record_attributes: HashSet::new(),
             nesting: 0,
         }
     }
@@ -423,7 +437,6 @@ impl Analyzer {
         if declaration.node.specifiers.iter().any(|specifier| matches!(&specifier.node, ast::DeclarationSpecifier::StorageClass(s) if s.node == ast::StorageClassSpecifier::ThreadLocal)) {
             return Err(Error::new(declaration.span.start, "thread-local objects require unsupported Rust TLS bindings"));
         }
-        self.apply_record_attributes(&base, &attributes)?;
         for item in &declaration.node.declarators {
             let (name, ty, mut declarator_attributes) =
                 self.declarator(base.clone(), &item.node.declarator)?;
@@ -614,14 +627,26 @@ impl Analyzer {
         let mut types = Vec::new();
         let mut qualifiers = Qualifiers::default();
         let mut attributes = Attributes::default();
+        let mut record_attributes = Attributes::default();
+        let mut after_tag_definition = false;
         for specifier in specifiers {
             match &specifier.node {
-                ast::DeclarationSpecifier::TypeSpecifier(ty) => types.push(ty.clone()),
+                ast::DeclarationSpecifier::TypeSpecifier(ty) => {
+                    after_tag_definition = matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
+                        || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty());
+                    types.push(ty.clone());
+                }
                 ast::DeclarationSpecifier::TypeQualifier(qualifier) => {
                     add_qualifier(&mut qualifiers, qualifier)?
                 }
                 ast::DeclarationSpecifier::Extension(extensions) => {
-                    self.attributes(extensions, &mut attributes)?
+                    if self.record_attributes.contains(&specifier.span.start)
+                        || after_tag_definition
+                    {
+                        self.attributes(extensions, &mut record_attributes)?;
+                    } else {
+                        self.attributes(extensions, &mut attributes)?;
+                    }
                 }
                 ast::DeclarationSpecifier::Alignment(alignment) => {
                     let value = match &alignment.node {
@@ -639,6 +664,22 @@ impl Analyzer {
             }
         }
         let mut ty = self.base_type(&types)?;
+        // Attributes on an object declaration do not change the canonical tag.
+        // Normalization records attributes written between `struct` and its tag;
+        // attributes following the closing brace also belong to the type.
+        let defines_tag = types.iter().any(|ty| {
+            matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
+                || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty())
+        });
+        let clang_forward = matches!(
+            self.unit.target,
+            Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin
+        ) && matches!(self.unit.resolve(&ty)?.kind, TypeKind::Record(id) if self.unit.records[id].fields.is_none());
+        // GCC ignores layout attributes on forward tags; Clang retains them.
+        // Both ignore a new attribute applied after the tag is already defined.
+        if defines_tag || clang_forward {
+            self.apply_record_attributes(&ty, &record_attributes)?;
+        }
         ty.qualifiers.is_const |= qualifiers.is_const;
         ty.qualifiers.is_volatile |= qualifiers.is_volatile;
         ty.qualifiers.is_restrict |= qualifiers.is_restrict;
@@ -827,8 +868,7 @@ impl Analyzer {
     }
 
     pub(crate) fn type_name(&mut self, name: &ast::TypeName) -> Result<Type, Error> {
-        let (ty, attributes) = self.specifier_qualifiers(&name.specifiers)?;
-        self.apply_record_attributes(&ty, &attributes)?;
+        let (ty, _) = self.specifier_qualifiers(&name.specifiers)?;
         if let Some(declarator) = &name.declarator {
             Ok(self.declarator(ty, declarator)?.1)
         } else {
@@ -1282,10 +1322,10 @@ impl Analyzer {
             if attributes.alignment.is_some() {
                 record.alignment = attributes.alignment;
             }
-        } else if attributes.packed {
+        } else if attributes.packed || attributes.alignment.is_some() {
             return Err(Error::new(
                 0,
-                "packed attribute on a non-record type is unsupported",
+                "layout attributes on a non-record type are unsupported",
             ));
         }
         Ok(())
@@ -1720,7 +1760,8 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
 /// Adapts legal GNU attribute spelling to lang-c's grammar. It requires adjacent
 /// double parentheses and attributes before the `struct` keyword. Replacements
 /// preserve total byte length, so diagnostics outside an attribute remain stable.
-fn normalize_attributes(source: &str) -> String {
+fn normalize_attributes(source: &str) -> (String, HashSet<usize>) {
+    let mut record_attributes = HashSet::new();
     let mut bytes = source.as_bytes().to_vec();
     let mut index = 0;
     let mut previous_word: Option<(usize, usize)> = None;
@@ -1837,6 +1878,7 @@ fn normalize_attributes(source: &str) -> String {
                 .iter()
                 .all(u8::is_ascii_whitespace)
         {
+            record_attributes.insert(keyword_start);
             let keyword = bytes[keyword_start..keyword_end].to_vec();
             let attribute = bytes[start..cursor].to_vec();
             let separator = start - keyword_end;
@@ -1849,5 +1891,8 @@ fn normalize_attributes(source: &str) -> String {
         previous_word = None;
     }
     // Reordering and replacing ASCII bytes leaves every multibyte character intact.
-    String::from_utf8(bytes).expect("attribute normalization preserves UTF-8")
+    (
+        String::from_utf8(bytes).expect("attribute normalization preserves UTF-8"),
+        record_attributes,
+    )
 }
