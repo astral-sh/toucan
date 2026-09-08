@@ -9,7 +9,7 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 use toucan_semantic::{
-    DeclarationKind, FloatKind, FunctionType, IntegerKind, IntegerValue, RecordKind,
+    DeclarationKind, FloatKind, FunctionType, IntegerKind, IntegerValue, RecordKind, Scope,
     TranslationUnit, Type, TypeKind,
 };
 
@@ -58,8 +58,18 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
                 .map(|item| item.name.as_str())
                 .chain(unit.typedefs.keys().map(String::as_str))
                 .chain(unit.constants.keys().map(String::as_str))
-                .chain(unit.records.iter().filter_map(|item| item.name.as_deref()))
-                .chain(unit.enums.iter().filter_map(|item| item.name.as_deref())),
+                .chain(
+                    unit.records
+                        .iter()
+                        .filter(|item| item.scope == Scope::File)
+                        .filter_map(|item| item.name.as_deref()),
+                )
+                .chain(
+                    unit.enums
+                        .iter()
+                        .filter(|item| item.scope == Scope::File)
+                        .filter_map(|item| item.name.as_deref()),
+                ),
         ),
         records: BTreeSet::new(),
         enums: BTreeSet::new(),
@@ -86,19 +96,21 @@ pub fn generate(unit: &TranslationUnit, options: &Options) -> Result<Bindings, E
         selected.push(declaration);
     }
     for (id, record) in unit.records.iter().enumerate() {
-        if record
-            .name
-            .as_ref()
-            .is_some_and(|name| options.includes(name))
+        if record.scope == Scope::File
+            && record
+                .name
+                .as_ref()
+                .is_some_and(|name| options.includes(name))
         {
             emitter.collect(&Type::new(TypeKind::Record(id)))?;
         }
     }
     for (id, enumeration) in unit.enums.iter().enumerate() {
-        if enumeration
-            .name
-            .as_ref()
-            .is_some_and(|name| options.includes(name))
+        if enumeration.scope == Scope::File
+            && enumeration
+                .name
+                .as_ref()
+                .is_some_and(|name| options.includes(name))
         {
             emitter.enums.insert(id);
         }
@@ -301,7 +313,9 @@ impl Emitter<'_> {
             .records
             .get(id)
             .ok_or_else(|| Error("invalid record identity".into()))?;
-        if let Some(name) = &record.name {
+        if record.scope == Scope::File
+            && let Some(name) = &record.name
+        {
             let collision = self
                 .unit
                 .typedefs
@@ -311,7 +325,7 @@ impl Emitter<'_> {
                 .is_some_and(|ty| ty.kind != TypeKind::Record(id));
             let repeated = self.unit.records[..id]
                 .iter()
-                .any(|record| record.name.as_ref() == Some(name));
+                .any(|record| record.scope == Scope::File && record.name.as_ref() == Some(name));
             if !collision && !repeated {
                 return self.names.identifier(name);
             }
@@ -325,7 +339,9 @@ impl Emitter<'_> {
             .enums
             .get(id)
             .ok_or_else(|| Error("invalid enum identity".into()))?;
-        if let Some(name) = &enumeration.name {
+        if enumeration.scope == Scope::File
+            && let Some(name) = &enumeration.name
+        {
             let collision = self
                 .unit
                 .typedefs
@@ -333,9 +349,9 @@ impl Emitter<'_> {
                 .map(|ty| self.unit.resolve(ty))
                 .transpose()?
                 .is_some_and(|ty| ty.kind != TypeKind::Enum(id));
-            let repeated = self.unit.enums[..id]
-                .iter()
-                .any(|enumeration| enumeration.name.as_ref() == Some(name));
+            let repeated = self.unit.enums[..id].iter().any(|enumeration| {
+                enumeration.scope == Scope::File && enumeration.name.as_ref() == Some(name)
+            });
             if !collision && !repeated {
                 return self.names.identifier(name);
             }
@@ -355,12 +371,12 @@ impl Emitter<'_> {
                 .unit
                 .records
                 .iter()
-                .any(|item| item.name.as_ref() == Some(&candidate))
+                .any(|item| item.scope == Scope::File && item.name.as_ref() == Some(&candidate))
             || self
                 .unit
                 .enums
                 .iter()
-                .any(|item| item.name.as_ref() == Some(&candidate))
+                .any(|item| item.scope == Scope::File && item.name.as_ref() == Some(&candidate))
         {
             candidate.push('_');
         }
