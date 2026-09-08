@@ -135,6 +135,51 @@ fn union_and_array_layouts() {
 }
 
 #[test]
+fn opaque_children_preserve_packing_and_required_alignment() {
+    for target in Target::ALL {
+        for inner_annotations in [
+            vec![],
+            vec![Annotation::Packed],
+            vec![Annotation::Align(Some(128))],
+        ] {
+            let mut inner = record(vec![field(B::Char), field(B::Int)]);
+            inner.annotations = inner_annotations;
+            let opaque = Type::opaque_layout(&target.layout(&inner).unwrap());
+            for outer_annotations in [
+                vec![],
+                vec![Annotation::Packed],
+                vec![Annotation::PragmaPack(8)],
+            ] {
+                let parent = |child| {
+                    let mut ty = record(vec![
+                        field(B::Char),
+                        Field {
+                            ty: Type {
+                                annotations: vec![],
+                                variant: TypeVariant::Array {
+                                    element: Box::new(child),
+                                    length: Some(2),
+                                },
+                            },
+                            annotations: vec![],
+                            named: true,
+                            bit_width: None,
+                        },
+                        field(B::Char),
+                    ]);
+                    ty.annotations = outer_annotations.clone();
+                    ty
+                };
+                assert_eq!(
+                    target.layout(&parent(inner.clone())).unwrap(),
+                    target.layout(&parent(opaque.clone())).unwrap()
+                );
+            }
+        }
+    }
+}
+
+#[test]
 fn enum_layouts_cover_signed_and_unsigned_boundaries() {
     for target in Target::ALL
         .into_iter()

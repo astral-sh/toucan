@@ -1,4 +1,4 @@
-use std::collections::{BTreeMap, HashSet};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use serde::Serialize;
 use toucan_target::{self as target, Target};
@@ -313,7 +313,7 @@ impl TranslationUnit {
 
     /// Computes target layout, rejecting incomplete or recursively embedded types.
     pub fn layout(&self, ty: &Type) -> Result<target::Layout, Error> {
-        let ty = self.layout_type(ty, &mut HashSet::new(), 0)?;
+        let ty = self.layout_type(ty, &mut HashSet::new(), &mut HashMap::new(), 0, true)?;
         self.target
             .layout(&ty)
             .map_err(|e| Error::new(0, e.to_string()))
@@ -323,7 +323,9 @@ impl TranslationUnit {
         &self,
         ty: &Type,
         active: &mut HashSet<usize>,
+        cache: &mut HashMap<usize, target::Layout>,
         depth: usize,
+        expand_record: bool,
     ) -> Result<target::Type, Error> {
         if depth >= 128 {
             return Err(Error::new(
@@ -332,6 +334,19 @@ impl TranslationUnit {
             ));
         }
         let resolved = self.resolve(ty)?;
+        if !expand_record && let TypeKind::Record(id) = resolved.kind {
+            if !cache.contains_key(&id) {
+                // Shared record definitions form a graph. Expanding every edge
+                // as a separate tree duplicates nested fields exponentially.
+                let lowered = self.layout_type(ty, active, cache, depth, true)?;
+                let layout = self
+                    .target
+                    .layout(&lowered)
+                    .map_err(|error| Error::new(0, error.to_string()))?;
+                cache.insert(id, layout);
+            }
+            return Ok(target::Type::opaque_layout(&cache[&id]));
+        }
         let builtin = match &resolved.kind {
             TypeKind::Void => Some(target::BuiltinType::Void),
             TypeKind::Bool => Some(target::BuiltinType::Bool),
@@ -412,7 +427,7 @@ impl TranslationUnit {
                             )));
                         }
                         Ok(target::Field {
-                            ty: self.layout_type(&field.ty, active, depth + 1)?,
+                            ty: self.layout_type(&field.ty, active, cache, depth + 1, false)?,
                             annotations,
                             named: field.name.is_some() || field.bit_width.is_none(),
                             bit_width: field.bit_width,
@@ -429,7 +444,7 @@ impl TranslationUnit {
                 })
             }
             TypeKind::Array { element, length } => target::TypeVariant::Array {
-                element: Box::new(self.layout_type(element, active, depth + 1)?),
+                element: Box::new(self.layout_type(element, active, cache, depth + 1, false)?),
                 length: *length,
             },
             TypeKind::Enum(id) => {

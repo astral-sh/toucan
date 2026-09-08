@@ -214,6 +214,12 @@ impl Target {
                 }
                 abi::TypeVariant::Enum(values)
             }
+            TypeVariant::Opaque(layout) => abi::TypeVariant::Opaque(abi::TypeLayout {
+                size_bits: layout.size_bits,
+                pointer_alignment_bits: layout.alignment_bits,
+                field_alignment_bits: layout.field_alignment_bits,
+                required_alignment_bits: layout.required_alignment_bits,
+            }),
             TypeVariant::Typedef(inner) => {
                 abi::TypeVariant::Typedef(Box::new(self.lower(inner, depth + 1)?))
             }
@@ -250,6 +256,23 @@ pub struct Type {
 }
 
 impl Type {
+    /// Reuses a complete object's layout without expanding its nested fields.
+    ///
+    /// This representation preserves object and field alignment, including the
+    /// alignment that remains required under MSVC packing. It cannot be used as
+    /// an integer bitfield type or queried for the original object's fields.
+    pub fn opaque_layout(layout: &Layout) -> Self {
+        Self {
+            annotations: Vec::new(),
+            variant: TypeVariant::Opaque(ObjectLayout {
+                size_bits: layout.size_bits,
+                alignment_bits: layout.alignment_bits,
+                field_alignment_bits: layout.field_alignment_bits,
+                required_alignment_bits: layout.required_alignment_bits,
+            }),
+        }
+    }
+
     /// Creates an unannotated scalar type.
     pub fn builtin(builtin: BuiltinType) -> Self {
         Self {
@@ -305,6 +328,17 @@ pub enum TypeVariant {
     Enum(Vec<i128>),
     /// A typedef, which may carry independent alignment annotations.
     Typedef(Box<Type>),
+    /// An already computed complete object layout; construct with [`Type::opaque_layout`].
+    Opaque(ObjectLayout),
+}
+
+/// Compact dimensions of a computed object, excluding its nested field layouts.
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Serialize, Deserialize)]
+pub struct ObjectLayout {
+    size_bits: u64,
+    alignment_bits: u64,
+    field_alignment_bits: u64,
+    required_alignment_bits: u64,
 }
 
 /// C scalar types. `Void` has no object layout; pointers have a target-specific layout.
