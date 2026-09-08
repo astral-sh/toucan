@@ -21,7 +21,7 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
     let (source, packs) = prepare_source(source)?;
-    let parsed = parse(&source)?;
+    let parsed = parse(&source, 0)?;
     let mut analyzer = Analyzer::new(target, packs);
     analyzer.record_attributes = parsed.record_attributes;
     for external in parsed.unit.0 {
@@ -62,12 +62,13 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
 /// Evaluates an integer constant expression in the translation unit's type and
 /// enumerator environment, using the target's C integer conversion rules.
 pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<IntegerValue, Error> {
-    validate_expression_source(expression)?;
+    let identifiers = validate_expression_source(expression)?;
     for value in unit.constants.values() {
         value.validate()?;
     }
-    // Only the typedef *names* matter to the parser. The semantic environment below
-    // retains their real types, avoiding reparsing every header for each macro.
+    // Only typedef names occurring in the expression matter to the parser. The
+    // semantic environment below retains every real type, including dependencies
+    // of these typedefs, without reparsing unrelated names for every macro.
     let mut source = String::new();
     let mut expected_declarations = 1;
     for name in unit.typedefs.keys() {
@@ -85,6 +86,9 @@ pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<Inte
                     "invalid typedef identifier in evaluation environment",
                 ));
             }
+            if !identifiers.contains(name.as_str()) {
+                continue;
+            }
             source.push_str("typedef int ");
             source.push_str(name);
             source.push_str(";\n");
@@ -95,7 +99,7 @@ pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<Inte
     source.push_str("int __toucan_expression = (");
     source.push_str(expression);
     source.push_str(");\n");
-    let parsed = parse(&source).map_err(|mut error| {
+    let parsed = parse(&source, expression_offset).map_err(|mut error| {
         error.offset = error.offset.saturating_sub(expression_offset);
         error
     })?;
@@ -138,7 +142,7 @@ struct Parsed {
     record_attributes: HashSet<usize>,
 }
 
-fn parse(source: &str) -> Result<Parsed, Error> {
+fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
@@ -150,8 +154,21 @@ fn parse(source: &str) -> Result<Parsed, Error> {
         flavor: driver::Flavor::ClangC11,
     };
     let (source, record_attributes) = normalize_attributes(&source);
-    let parsed = driver::parse_preprocessed(&config, source)
-        .map_err(|error| Error::new(error.offset, format!("C syntax error: {error}")))?;
+    let parsed = driver::parse_preprocessed(&config, source).map_err(|mut error| {
+        let offset = error.offset;
+        if diagnostic_offset != 0 && offset >= diagnostic_offset {
+            // Macro parse wrappers must not leak into the displayed line/column.
+            // Keep the AST offset until the caller adjusts it alongside semantic
+            // errors, but format the parser's message relative to the expression.
+            error.source.drain(..diagnostic_offset);
+            error.offset -= diagnostic_offset;
+            let line_start = error.source[..error.offset]
+                .rfind('\n')
+                .map_or(0, |newline| newline + 1);
+            error.column = error.source[line_start..error.offset].chars().count() + 1;
+        }
+        Error::new(offset, format!("C syntax error: {error}"))
+    })?;
     Ok(Parsed {
         unit: parsed.unit,
         record_attributes,
@@ -206,13 +223,43 @@ fn strip_comments(source: &str) -> Result<String, Error> {
 
 /// Keeps a macro replacement inside the expression wrapper used to parse it.
 /// Balanced delimiters and the absence of declaration separators are checked
-/// independently of the parser, including comments and quoted literals.
-fn validate_expression_source(expression: &str) -> Result<(), Error> {
+/// independently of the parser, including comments and quoted literals. Returns
+/// identifier tokens so the parser can recognize referenced typedef names.
+fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> {
     let bytes = expression.as_bytes();
     let mut index = 0;
     let mut delimiters = Vec::new();
+    let mut identifiers = HashSet::new();
     while index < bytes.len() {
         match bytes[index] {
+            b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
+                let start = index;
+                while bytes
+                    .get(index + 1)
+                    .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+                {
+                    index += 1;
+                }
+                let identifier = &expression[start..=index];
+                // A literal's encoding prefix is not an identifier token.
+                if !(matches!(identifier, "L" | "u" | "U" | "u8")
+                    && matches!(bytes.get(index + 1), Some(b'\'' | b'"')))
+                {
+                    identifiers.insert(identifier);
+                }
+            }
+            b'0'..=b'9' => {
+                // Consume preprocessing numbers together, including suffixes and
+                // exponent signs, rather than treating their letters as names.
+                while bytes.get(index + 1).is_some_and(|byte| {
+                    byte.is_ascii_alphanumeric()
+                        || matches!(byte, b'_' | b'.')
+                        || (matches!(byte, b'+' | b'-')
+                            && matches!(bytes[index], b'e' | b'E' | b'p' | b'P'))
+                }) {
+                    index += 1;
+                }
+            }
             b'\'' | b'"' => {
                 let quote = bytes[index];
                 index += 1;
@@ -274,7 +321,7 @@ fn validate_expression_source(expression: &str) -> Result<(), Error> {
             "unbalanced delimiter in integer expression",
         ));
     }
-    Ok(())
+    Ok(identifiers)
 }
 
 #[derive(Clone, Debug, Default)]

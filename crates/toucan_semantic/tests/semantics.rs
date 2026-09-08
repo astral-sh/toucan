@@ -394,6 +394,51 @@ fn macro_expressions_cannot_escape_the_parse_wrapper() {
 }
 
 #[test]
+fn macro_expressions_resolve_referenced_typedefs_and_their_dependencies() {
+    let mut unit = analyze(
+        "typedef unsigned char Byte; typedef Byte Bytes[3]; typedef Bytes *BytesPointer; enum { ByteCount = 11 };",
+        TARGET,
+    )
+    .unwrap();
+    for (expression, expected) in [
+        ("(Byte)255 + 1", 256),
+        ("sizeof(Bytes)", 3),
+        ("sizeof(BytesPointer)", 8),
+        ("sizeof((BytesPointer)0)", 8),
+        ("sizeof(/* Byte */ Bytes /* BytesPointer */)", 3),
+        ("sizeof(\"Byte BytesPointer\")", 18),
+        ("ByteCount + 'B' + 0xBU", 88),
+    ] {
+        assert_eq!(evaluate_integer(&unit, expression).unwrap().value, expected);
+    }
+    let expression = "sizeof(Bytes) + missing";
+    assert_eq!(
+        evaluate_integer(&unit, expression).unwrap_err().offset,
+        expression.find("missing").unwrap()
+    );
+
+    // Public IR can be mutated; even unrelated malformed names remain errors.
+    unit.typedefs
+        .insert("bad;name".into(), unit.typedefs["Byte"].clone());
+    assert!(evaluate_integer(&unit, "1").is_err());
+}
+
+#[test]
+fn macro_syntax_diagnostics_are_relative_to_the_expression() {
+    let empty = analyze("", TARGET).unwrap();
+    let aliases = analyze("typedef char Byte; typedef int Count;", TARGET).unwrap();
+    for expression in ["extern", "1 +\nextern"] {
+        let without_aliases = evaluate_integer(&empty, expression).unwrap_err();
+        let with_aliases = evaluate_integer(&aliases, expression).unwrap_err();
+        assert_eq!(without_aliases.message, with_aliases.message);
+        assert_eq!(without_aliases.offset, with_aliases.offset);
+    }
+    let error = evaluate_integer(&aliases, "sizeof(Byte) +\nextern").unwrap_err();
+    assert!(error.message.contains("line 2 column 7"), "{error}");
+    assert_eq!(error.offset, 21);
+}
+
+#[test]
 fn array_typedef_parameter_decay_preserves_element_qualifiers() {
     let unit = analyze("typedef int Array[4]; typedef const Array ConstArray; void consume(const Array argument); void consume_alias(volatile ConstArray argument); typedef int *Pointers[4]; void pointer_array(const Pointers argument);", TARGET).unwrap();
     for name in ["consume", "consume_alias", "pointer_array"] {
