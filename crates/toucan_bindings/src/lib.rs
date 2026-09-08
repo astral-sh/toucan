@@ -388,6 +388,10 @@ impl Emitter<'_> {
             if ty.qualifiers.is_const {
                 return Ok(true);
             }
+            if let TypeKind::Array { element, .. } = &ty.kind {
+                ty = element;
+                continue;
+            }
             let TypeKind::Typedef(name) = &ty.kind else {
                 return Ok(false);
             };
@@ -940,6 +944,24 @@ mod tests {
         ] {
             let unit = analyze(input, target).unwrap();
             assert!(generate(&unit, &Options::default()).is_err(), "{input}");
+        }
+    }
+
+    #[test]
+    fn array_statics_preserve_element_constness() {
+        let unit = analyze(
+            "extern const char version[]; typedef const int row[3]; extern row matrix[2]; extern int *const fixed_pointers[2]; extern const int *mutable_pointers[2]; extern int mutable_values[2];",
+            Target::X86_64UnknownLinuxGnu,
+        ).unwrap();
+        let source = generate(&unit, &Options::default()).unwrap().source;
+        for name in ["version", "matrix", "fixed_pointers"] {
+            assert!(source.contains(&format!("pub static {name}:")), "{name}");
+        }
+        for name in ["mutable_pointers", "mutable_values"] {
+            assert!(
+                source.contains(&format!("pub static mut {name}:")),
+                "{name}"
+            );
         }
     }
 
