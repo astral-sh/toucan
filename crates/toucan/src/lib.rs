@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 pub use toucan_bindings::{
-    BindingSelection, Bindings, DeriveOptions, EnumConstantStyle, MacroType,
+    BindingSelection, Bindings, DeriveOptions, EnumConstantStyle, MacroType, MacroValue,
     Options as BindingOptions, RustTarget,
 };
 pub use toucan_preprocessor::{
@@ -221,6 +221,23 @@ fn finish(
     })
 }
 
+/// Where macro values came from, independently of checked C declarations.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MacroEvaluation {
+    /// The frontend expanded and evaluated the final C macro environment.
+    #[default]
+    CExpression,
+    /// The caller supplied values; they were not evaluated as C expressions.
+    Provided,
+}
+
+impl MacroEvaluation {
+    fn is_c_expression(&self) -> bool {
+        *self == Self::CExpression
+    }
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct Report {
     pub target: String,
@@ -230,6 +247,9 @@ pub struct Report {
     pub rust_target: String,
     pub dependencies: Vec<PathBuf>,
     pub declarations: usize,
+    /// Macro values can be supplied independently of the checked declarations.
+    #[serde(skip_serializing_if = "MacroEvaluation::is_c_expression")]
+    pub macro_evaluation: MacroEvaluation,
     pub integer_macros: usize,
     pub floating_macros: usize,
     pub string_macros: usize,
@@ -319,6 +339,47 @@ impl Compilation {
                 error,
                 origin: None,
             }
+        })?
+    }
+
+    /// Emit caller-supplied macro values alongside this compilation's C declarations.
+    ///
+    /// This skips expansion and C evaluation of the final macro environment.
+    /// Values remain subject to root selection, name collision checks, and Rust
+    /// representation validation. `None` preserves an explicitly unavailable
+    /// macro; the caller supplies any omission diagnostics. Use `RustInteger`
+    /// and `RustFloat` for representations that do not claim a C expression type.
+    /// The report marks these values as provided independently of C analysis.
+    pub fn bindings_with_macros(
+        &self,
+        options: &BindingOptions,
+        macros: &BTreeMap<String, Option<MacroValue>>,
+        skipped_macros: Vec<SkippedMacro>,
+    ) -> Result<(String, Report), Error> {
+        semantic::with_parser_stack(|| {
+            let mut counts = (0, 0, 0);
+            for (name, value) in macros {
+                if !options.includes_macro(name) {
+                    continue;
+                }
+                match value {
+                    Some(MacroValue::Integer(_) | MacroValue::RustInteger { .. }) => counts.0 += 1,
+                    Some(MacroValue::Floating(_) | MacroValue::RustFloat(_)) => counts.1 += 1,
+                    Some(MacroValue::String(_) | MacroValue::WideString { .. }) => counts.2 += 1,
+                    None => {}
+                }
+            }
+            self.emit_bindings(
+                options,
+                macros,
+                skipped_macros,
+                counts,
+                MacroEvaluation::Provided,
+            )
+        })
+        .map_err(|error| SemanticError {
+            error,
+            origin: None,
         })?
     }
 
@@ -456,7 +517,25 @@ impl Compilation {
                 },
             }
         }
-        let bindings = toucan_bindings::generate_with_macros(self.unit(), options, &macros)?;
+        self.emit_bindings(
+            options,
+            &macros,
+            skipped_macros,
+            (integer_macros, floating_macros, string_macros),
+            MacroEvaluation::CExpression,
+        )
+    }
+
+    /// Assemble the same declaration report for frontend and caller-provided values.
+    fn emit_bindings(
+        &self,
+        options: &BindingOptions,
+        macros: &BTreeMap<String, Option<MacroValue>>,
+        skipped_macros: Vec<SkippedMacro>,
+        (integer_macros, floating_macros, string_macros): (usize, usize, usize),
+        macro_evaluation: MacroEvaluation,
+    ) -> Result<(String, Report), Error> {
+        let bindings = toucan_bindings::generate_with_macros(self.unit(), options, macros)?;
         let source = bindings.source;
         let report = Report {
             target: self.unit().target.triple().into(),
@@ -465,6 +544,7 @@ impl Compilation {
             rust_target: options.rust_target.to_string(),
             dependencies: self.preprocessed.dependencies.clone(),
             declarations: bindings.declarations,
+            macro_evaluation,
             integer_macros,
             floating_macros,
             string_macros,

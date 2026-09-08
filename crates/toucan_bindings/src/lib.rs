@@ -282,6 +282,16 @@ pub struct MacroIntegerType {
 #[derive(Debug)]
 pub enum MacroValue {
     Integer(IntegerValue),
+    /// Caller-selected Rust integer storage. `value` is a bounded bit pattern;
+    /// signed storage uses two's complement. C macro type policies do not apply,
+    /// and this variant does not imply a C expression type.
+    RustInteger {
+        value: u128,
+        bits: u8,
+        signed: bool,
+    },
+    /// Caller-selected binary64 value, without a C expression type.
+    RustFloat(f64),
     Floating(FloatingValue),
     String(Vec<u8>),
     /// UTF-16, UTF-32, or target-wide code units. Supported element types are
@@ -817,6 +827,29 @@ pub fn generate_with_macros(
             renamed_macros.insert(name.clone(), c_name.clone());
         }
         match value {
+            MacroValue::RustInteger {
+                value,
+                bits,
+                signed,
+            } => {
+                source.push_str(&integer_constant_named(
+                    &name,
+                    IntegerValue {
+                        value: *value,
+                        bits: *bits,
+                        signed: *signed,
+                        rank: 1,
+                    },
+                )?);
+            }
+            MacroValue::RustFloat(value) => {
+                source.push_str(&floating_bits_constant_named(
+                    &name,
+                    64,
+                    u128::from(value.to_bits()),
+                    options.rust_target,
+                ));
+            }
             MacroValue::Floating(value) => {
                 source.push_str(&floating_constant_named(
                     &name,
@@ -939,6 +972,16 @@ fn floating_constant_named(
         kind if kind.is_narrow() => return Err(Error(format!("{} macro constants have no Rust representation; use an explicit float or double cast", if kind == FloatKind::BFloat16 {"__bf16"} else {"_Float16"}))),
         _ => return Err(Error("long double macro constants have no Rust representation; use an explicit float or double cast".into())),
     };
+    Ok(floating_bits_constant_named(name, width, bits, rust_target))
+}
+
+/// Render an IEEE bit pattern using syntax supported by the requested Rust release.
+fn floating_bits_constant_named(
+    name: &str,
+    width: usize,
+    bits: u128,
+    rust_target: RustTarget,
+) -> String {
     let rust_type = format!("::core::primitive::f{width}");
     let bits = format!("0x{bits:0digits$x}", digits = width / 4);
     let expression = if rust_target.minor >= 83 {
@@ -951,13 +994,13 @@ fn floating_constant_named(
         )
     };
     let safety = if rust_target.minor < 83 {
-        "// SAFETY: equal-width integer and IEEE float; every bit pattern is valid.\n"
+        // Current rustc suggests from_bits, which is not const on these targets.
+        // Older compilers do not know this lint, so suppress that warning too.
+        "// SAFETY: equal-width integer and IEEE float; every bit pattern is valid.\n#[allow(unknown_lints, unnecessary_transmutes)]\n"
     } else {
         ""
     };
-    Ok(format!(
-        "{safety}pub const {name}: {rust_type} = {expression};\n"
-    ))
+    format!("{safety}pub const {name}: {rust_type} = {expression};\n")
 }
 
 fn normalize_macro(value: IntegerValue, policy: MacroType) -> Result<IntegerValue, Error> {
