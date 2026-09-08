@@ -100,17 +100,17 @@ variant in checked schema 5; it does not change declaration-only schema 3.
 ## Migration from version 4
 
 Checked-code version 5 changes `ExprKind::AlignOf` from a tuple carrying one
-`TypeNameOperand` to a struct carrying `kind`, `operand`, and `alignment_bytes`.
+`TypeId` to a struct carrying `kind`, `operand`, and `alignment_bytes`.
 Declaration-only inspection stays at version 3. In JSON, the previous type query:
 
 ```json
-{"AlignOf":{"occurrence":12,"type_use":9}}
+{"AlignOf":0}
 ```
 
 becomes:
 
 ```json
-{"AlignOf":{"kind":"C11","operand":{"Type":{"occurrence":12,"type_use":9}},"alignment_bytes":4}}
+{"AlignOf":{"kind":"C11","operand":{"Type":{"occurrence":14,"type_use":0}},"alignment_bytes":4}}
 ```
 
 `kind` distinguishes C11 `_Alignof` from GNU `__alignof`/`__alignof__`.

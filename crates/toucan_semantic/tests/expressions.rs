@@ -143,7 +143,6 @@ fn expression_constraints_match_c11_compiler() {
         "(float)p",
         "(int *)f",
         "sizeof(void)",
-        "_Alignof(void)",
     ];
     for (expected, expressions) in [(true, valid.as_slice()), (false, invalid.as_slice())] {
         for expression in expressions {
@@ -159,6 +158,11 @@ fn expression_constraints_match_c11_compiler() {
             assert_eq!(actual.is_ok(), compiler, "{expression}: {actual:?}");
         }
     }
+    // The GNU profile supports this alignment extension. Keep the strict C11
+    // rejection distinct from the GNU/Clang extension probes in alignof_expression.
+    let source = "_Static_assert(_Alignof(void) == 1, \"GNU void alignment\");";
+    assert!(!compile(source));
+    analyze(source, TARGET).unwrap();
 }
 
 #[test]
