@@ -280,7 +280,7 @@ impl Builder {
     }
 }
 
-fn suppress(operand: &mut TypeOperand) {
+pub(super) fn suppress(operand: &mut TypeOperand) {
     if matches!(
         operand.evaluation,
         TypeOperandEvaluation::Required | TypeOperandEvaluation::MayBeOmitted

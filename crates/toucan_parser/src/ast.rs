@@ -741,6 +741,8 @@ pub struct StructField {
 /// (C11 6.7.2.1)
 #[derive(Debug, PartialEq, Clone)]
 pub enum SpecifierQualifier {
+    /// Alignment spelling is parsed here; semantic constraints determine its subject.
+    Alignment(Node<AlignmentSpecifier>),
     TypeSpecifier(Node<TypeSpecifier>),
     TypeQualifier(Node<TypeQualifier>),
     Extension(Vec<Node<Extension>>),

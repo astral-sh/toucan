@@ -25,6 +25,7 @@ mod introspection;
 mod ir;
 mod literals;
 mod narrow_float;
+mod object_alignment;
 mod object_extent;
 mod object_size;
 mod overflow;
@@ -49,6 +50,7 @@ pub use literals::{
     DecodedString, StringEncoding, decode_character_literal, decode_character_literal_with_profile,
     decode_string_literals,
 };
+pub use object_alignment::DeclarationAlignment;
 pub use target_features::{FunctionOptions, FunctionTarget, X86TargetOption};
 
 /// A source-positioned syntax, semantic, or unsupported-feature diagnostic.

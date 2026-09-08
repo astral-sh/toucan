@@ -484,7 +484,8 @@ pub(crate) struct Attributes {
     pub(crate) type_use: Option<crate::checked::bounds::TypeUseId>,
     type_name_use: bool,
     packed: bool,
-    alignment: Option<u64>,
+    pub(crate) alignment: Option<u64>,
+    pub(crate) c11_alignment: Option<u64>,
     pub(crate) link_name: Option<String>,
     mode: Option<String>,
     vector_size: Option<u64>,
@@ -564,6 +565,7 @@ pub(crate) struct TagBinding {
 
 /// A linked block declaration, also checked against later file declarations.
 pub(crate) struct BlockExtern {
+    pub(crate) alignment: crate::DeclarationAlignment,
     pub(crate) ty: Type,
     pub(crate) thread_local: bool,
     pub(crate) is_static: bool,
@@ -572,6 +574,9 @@ pub(crate) struct BlockExtern {
 /// Scope frames retain only new bindings; file-scope maps remain shared.
 #[derive(Default)]
 pub(crate) struct LexicalScope {
+    // Most scopes have no alignment annotations; keep their inline state one pointer.
+    #[allow(clippy::box_collection)]
+    pub(crate) alignments: Option<Box<HashMap<String, crate::DeclarationAlignment>>>,
     pub(crate) is_block: bool,
     pub(crate) is_definition_parameters: bool,
     pub(crate) variably_modified: Option<usize>,
@@ -1009,7 +1014,11 @@ impl Analyzer {
             attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
-            if attributes.packed || attributes.alignment.is_some() || attributes.mode.is_some() {
+            if attributes.packed
+                || attributes.alignment.is_some()
+                || attributes.c11_alignment.is_some()
+                || attributes.mode.is_some()
+            {
                 return Err(Error::new(
                     declaration.span.start,
                     "attributes on extended float compatibility typedefs are unsupported",
@@ -1027,6 +1036,7 @@ impl Analyzer {
                 ));
             }
             self.unit.declarations.push(Declaration {
+                alignment: crate::DeclarationAlignment::default(),
                 name,
                 ty,
                 kind: DeclarationKind::Typedef,
@@ -1229,8 +1239,48 @@ impl Analyzer {
                 ));
             }
             let is_definition = definition || item.node.initializer.is_some();
+            let written_alignment = if is_typedef {
+                crate::DeclarationAlignment::default()
+            } else {
+                self.check_declaration_alignment(
+                    &ty,
+                    attributes,
+                    &declarator_attributes,
+                    if kind == DeclarationKind::Function {
+                        crate::object_alignment::AlignmentSubject::Function
+                    } else {
+                        crate::object_alignment::AlignmentSubject::Object { register: false }
+                    },
+                    item.span.start,
+                )?
+            };
+            let alignment_definition = is_definition
+                || (kind == DeclarationKind::Variable
+                    && storage.class != Some(ast::StorageClassSpecifier::Extern));
+            let mut alignment = written_alignment;
+            if !is_typedef
+                && (self.unit.compiler == Compiler::Gnu || previous_index.is_none())
+                && let Some(previous) = self.block_externs.get(&name)
+            {
+                alignment = self.merge_declaration_alignment(
+                    &ty,
+                    previous.alignment,
+                    alignment,
+                    false,
+                    alignment_definition,
+                    item.span.start,
+                )?;
+            }
             let declaration_index = if let Some(previous_index) = previous_index {
                 let previous = &self.unit.declarations[previous_index];
+                alignment = alignment.combined(self.merge_declaration_alignment(
+                    &ty,
+                    previous.alignment,
+                    written_alignment,
+                    previous.is_definition,
+                    alignment_definition,
+                    item.span.start,
+                )?);
                 if kind == DeclarationKind::Function {
                     ty = self.inherit_calling_convention(ty, &previous.ty)?;
                     if let (TypeKind::Function(prior), TypeKind::Function(current)) = (
@@ -1314,6 +1364,7 @@ impl Analyzer {
                         Some(self.check_object_initializer(&ty, initializer, true)?);
                 }
                 let previous = &mut self.unit.declarations[previous_index];
+                previous.alignment = alignment;
                 previous.returns_twice = returns_twice;
                 previous.symbol_binding = symbol_binding;
                 previous.ty = ty;
@@ -1337,6 +1388,7 @@ impl Analyzer {
                 }
                 let index = self.unit.declarations.len();
                 self.unit.declarations.push(Declaration {
+                    alignment,
                     returns_twice,
                     symbol_binding,
                     name,
@@ -1392,6 +1444,7 @@ impl Analyzer {
                 if let Some(inference) = &inference {
                     checked.retain_type_inference(site, inference)?;
                 }
+                checked.attach_alignment(site, written_alignment, alignment)?;
                 checked.attach_function_options(
                     site,
                     function_options.as_ref(),
@@ -1895,16 +1948,19 @@ impl Analyzer {
                     attributes.noreturn = Some(specifier.span);
                 }
                 ast::DeclarationSpecifier::Alignment(alignment) => {
-                    let value = match &alignment.node {
+                    let value = self.alignment_operand(|analyzer| match &alignment.node {
                         ast::AlignmentSpecifier::Type(ty) => {
-                            let ty = self.type_name(&ty.node)?;
-                            self.unit.alignment(&ty)?
+                            let ty = analyzer.type_name(&ty.node)?;
+                            analyzer.unit.alignment(&ty)
                         }
                         ast::AlignmentSpecifier::Constant(expression) => {
-                            self.eval(expression)?.as_u64()?
+                            analyzer.eval(expression)?.as_u64()
                         }
-                    };
-                    set_alignment(&mut attributes, value, alignment.span.start)?;
+                    })?;
+                    let mut checked_alignment = Attributes::default();
+                    set_alignment(&mut checked_alignment, value, alignment.span.start)?;
+                    attributes.c11_alignment =
+                        Some(attributes.c11_alignment.unwrap_or(0).max(value));
                 }
                 _ => {}
             }
@@ -2052,6 +2108,9 @@ impl Analyzer {
                         }
                         ast::SpecifierQualifier::TypeQualifier(qualifier) => {
                             ast::DeclarationSpecifier::TypeQualifier(qualifier.clone())
+                        }
+                        ast::SpecifierQualifier::Alignment(alignment) => {
+                            ast::DeclarationSpecifier::Alignment(alignment.clone())
                         }
                         ast::SpecifierQualifier::Extension(extensions) => {
                             ast::DeclarationSpecifier::Extension(extensions.clone())
@@ -2299,6 +2358,12 @@ impl Analyzer {
         attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
         attributes.require_no_transparent_union()?;
+        if attributes.c11_alignment.is_some() {
+            return Err(Error::new(
+                start,
+                "_Alignas is not permitted in a type name",
+            ));
+        }
         attributes.type_name_use = true;
         let (ty, type_use) = if let Some(declarator) = &name.declarator {
             let (_, ty, extra) = self.declarator(ty, declarator, &attributes)?;
@@ -2708,6 +2773,7 @@ impl Analyzer {
                                 extra.require_function_attributes(false)?;
                                 extra.require_no_weak()?;
                                 extra.require_no_transparent_union()?;
+                                attributes.alignment = attributes.alignment.max(extra.alignment);
                                 (name, ty, extra.type_use)
                             } else {
                                 (None, base, attributes.type_use)
@@ -2731,6 +2797,13 @@ impl Analyzer {
                         parameter_type = self.apply_calling_convention(
                             parameter_type,
                             &extra,
+                            parameter.span.start,
+                        )?;
+                        let parameter_alignment = self.check_declaration_alignment(
+                            &parameter_type,
+                            &attributes,
+                            &extra,
+                            crate::object_alignment::AlignmentSubject::Parameter,
                             parameter.span.start,
                         )?;
                         let qualifiers = self.unit.qualifiers(&parameter_type)?;
@@ -2798,9 +2871,19 @@ impl Analyzer {
                                     allocation: None,
                                 },
                             )?;
+                            if let Some(site) = site {
+                                checked.attach_alignment(
+                                    site,
+                                    parameter_alignment,
+                                    parameter_alignment,
+                                )?;
+                            }
                             if let (Some(uses), Some(site)) = (&mut parameter_uses, site) {
                                 uses.push(checked.site_type_use(site));
                             }
+                        }
+                        if let Some(name) = &name {
+                            self.retain_local_alignment(name, parameter_alignment);
                         }
                         let scope = self
                             .lexical_scopes
@@ -3135,15 +3218,26 @@ impl Analyzer {
                             {
                                 continue;
                             }
+                            let field_alignment = self.check_declaration_alignment(
+                                &base,
+                                &attributes,
+                                &Attributes::default(),
+                                crate::object_alignment::AlignmentSubject::Field {
+                                    bitfield: false,
+                                },
+                                field.span.start,
+                            )?;
                             let member = Field {
                                 name: None,
                                 ty: base,
                                 bit_width: None,
-                                alignment: attributes.alignment,
+                                alignment: field_alignment
+                                    .explicit()
+                                    .map(|value| u64::from(value.get())),
                                 packed: attributes.packed,
                             };
                             if let Some(checked) = &mut self.checked {
-                                checked.member_declaration(
+                                let site = checked.member_declaration(
                                     field,
                                     crate::checked::OccurrenceKind::Field,
                                     id,
@@ -3151,6 +3245,13 @@ impl Analyzer {
                                     &member,
                                     None,
                                 )?;
+                                if let Some(site) = site {
+                                    checked.attach_alignment(
+                                        site,
+                                        field_alignment,
+                                        field_alignment,
+                                    )?;
+                                }
                             }
                             fields.push(member);
                         } else {
@@ -3201,15 +3302,26 @@ impl Analyzer {
                                         ));
                                     }
                                 }
+                                let field_alignment = self.check_declaration_alignment(
+                                    &ty,
+                                    &attributes,
+                                    &extra,
+                                    crate::object_alignment::AlignmentSubject::Field {
+                                        bitfield: bit_width.is_some(),
+                                    },
+                                    declarator.span.start,
+                                )?;
                                 let member = Field {
                                     name,
                                     ty,
                                     bit_width,
-                                    alignment: extra.alignment.or(attributes.alignment),
+                                    alignment: field_alignment
+                                        .explicit()
+                                        .map(|value| u64::from(value.get())),
                                     packed: extra.packed || attributes.packed,
                                 };
                                 if let Some(checked) = &mut self.checked {
-                                    checked.member_declaration(
+                                    let site = checked.member_declaration(
                                         declarator,
                                         crate::checked::OccurrenceKind::StructDeclarator,
                                         id,
@@ -3217,6 +3329,13 @@ impl Analyzer {
                                         &member,
                                         crate::checked::references::member_name_span(declarator),
                                     )?;
+                                    if let Some(site) = site {
+                                        checked.attach_alignment(
+                                            site,
+                                            field_alignment,
+                                            field_alignment,
+                                        )?;
+                                    }
                                 }
                                 fields.push(member);
                             }
@@ -3796,7 +3915,8 @@ impl Analyzer {
                         "aligned" => {
                             let value = match attribute.arguments.as_slice() {
                                 [] => u64::from(self.unit.target.default_maximum_alignment()),
-                                [value] => self.eval(value)?.as_u64()?,
+                                [value] => self
+                                    .alignment_operand(|analyzer| analyzer.eval(value)?.as_u64())?,
                                 _ => {
                                     return Err(Error::new(
                                         extension.span.start,

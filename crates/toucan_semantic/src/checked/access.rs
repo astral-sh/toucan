@@ -53,6 +53,11 @@ impl Scope {
 }
 
 impl Entity {
+    /// Merged explicit alignment of the object or function.
+    pub fn alignment(&self) -> crate::DeclarationAlignment {
+        self.alignment
+    }
+
     /// Whether any compatible declaration carries `returns_twice`. Later annotations
     /// do not retroactively describe the compiler effects of earlier call sites.
     pub fn returns_twice(&self) -> bool {
@@ -89,6 +94,20 @@ impl Entity {
 }
 
 impl DeclarationSite {
+    /// Alignment written on this declaration, before inheriting visible requirements.
+    pub fn alignment(&self) -> crate::DeclarationAlignment {
+        self.alignment
+            .as_ref()
+            .map_or_else(Default::default, |alignment| alignment.written)
+    }
+    /// Effective alignment at this declaration's scope and source position.
+    /// A later declaration may have different inherited requirements.
+    pub fn effective_alignment(&self) -> crate::DeclarationAlignment {
+        self.alignment
+            .as_ref()
+            .map_or_else(Default::default, |alignment| alignment.effective)
+    }
+
     /// The returns-twice property merged when this function was declared.
     /// This is a declaration fact, not the result of compiler call lowering.
     pub fn returns_twice(&self) -> bool {

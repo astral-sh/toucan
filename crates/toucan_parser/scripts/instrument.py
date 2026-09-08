@@ -89,7 +89,7 @@ def instrument(source):
         r"\1Failed if __state.budget.failure.is_some() => return Failed,\1\2",
         source,
     )
-    require(guarded == 492, guarded)
+    require(guarded == 493, guarded)
 
     def wrap(body, indent):
         prefix = f"""{indent}if !__state.budget.enter(__pos) {{ return Failed; }}

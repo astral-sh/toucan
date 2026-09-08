@@ -866,6 +866,18 @@ impl Analyzer {
                     "local object cannot have void type",
                 ));
             }
+            let written_alignment = self.check_declaration_alignment(
+                &ty,
+                attributes,
+                &extra,
+                if function {
+                    crate::object_alignment::AlignmentSubject::Function
+                } else {
+                    crate::object_alignment::AlignmentSubject::Object { register }
+                },
+                item.span.start,
+            )?;
+            let mut alignment = written_alignment;
             let linked = is_extern || function;
             if function
                 && let Some(previous) = self
@@ -882,6 +894,23 @@ impl Analyzer {
                     declaration.kind != DeclarationKind::Typedef && declaration.is_static
                 });
             if linked {
+                let previous = self.visible_linked_alignment(&name).or_else(|| {
+                    self.block_externs
+                        .get(&name)
+                        .map(|previous| previous.alignment)
+                });
+                if let Some(previous) = previous {
+                    let defined = previous_file
+                        .is_some_and(|index| self.unit.declarations[index].is_definition);
+                    alignment = self.merge_declaration_alignment(
+                        &ty,
+                        previous,
+                        written_alignment,
+                        defined,
+                        false,
+                        item.span.start,
+                    )?;
+                }
                 if item.node.initializer.is_some() {
                     return Err(Error::new(
                         item.span.start,
@@ -907,9 +936,24 @@ impl Analyzer {
                         "block extern conflicts with a file declaration",
                     ));
                 }
+                if self.unit.compiler == toucan_target::Compiler::Gnu
+                    && let Some(index) = previous_file
+                {
+                    self.unit.declarations[index].alignment = alignment;
+                }
+                // Clang inherits from the first linked block declaration when
+                // no declaration is visible. Later attributes remain lexical.
+                let inherited_alignment = if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.block_externs
+                        .get(&name)
+                        .map_or(alignment, |previous| previous.alignment)
+                } else {
+                    alignment
+                };
                 self.block_externs.insert(
                     name.clone(),
                     BlockExtern {
+                        alignment: inherited_alignment,
                         ty: ty.clone(),
                         thread_local,
                         is_static: internal_linkage,
@@ -963,6 +1007,13 @@ impl Analyzer {
                             },
                         )?;
                         if let Some(site) = site {
+                            checked.attach_alignment(site, written_alignment, alignment)?;
+                            if linked && let Some(index) = previous_file {
+                                checked.attach_entity_alignment(
+                                    site,
+                                    self.unit.declarations[index].alignment,
+                                );
+                            }
                             checked
                                 .attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
                             checked.attach_returns_twice(
@@ -981,14 +1032,24 @@ impl Analyzer {
                             checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                         }
                     }
+                    self.retain_local_alignment(&name, alignment);
                     self.lexical_scopes
                         .last_mut()
                         .expect("block scope")
                         .parameters[index]
                         .ty = composite.clone();
+                    let inherited_alignment =
+                        if self.unit.compiler == toucan_target::Compiler::Clang {
+                            self.block_externs
+                                .get(&name)
+                                .map_or(alignment, |previous| previous.alignment)
+                        } else {
+                            alignment
+                        };
                     self.block_externs.insert(
                         name,
                         BlockExtern {
+                            alignment: inherited_alignment,
                             ty: composite,
                             thread_local,
                             is_static: internal_linkage,
@@ -1015,6 +1076,7 @@ impl Analyzer {
                 register,
                 item.span.start,
             )?;
+            self.retain_local_alignment(&name, alignment);
             if variably_modified {
                 self.declare_variably_modified();
             }
@@ -1080,6 +1142,10 @@ impl Analyzer {
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
                 if let Some(inference) = &inference {
                     checked.retain_type_inference(site, inference)?;
+                }
+                checked.attach_alignment(site, written_alignment, alignment)?;
+                if linked && let Some(index) = previous_file {
+                    checked.attach_entity_alignment(site, self.unit.declarations[index].alignment);
                 }
                 checked.attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
                 checked.attach_returns_twice(site, returns_twice, extra.returns_twice)?;

@@ -335,6 +335,9 @@ impl SymbolBinding {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Declaration {
+    /// Explicit object/function alignment, independent of the declared C type.
+    #[serde(skip_serializing_if = "crate::DeclarationAlignment::is_empty")]
+    pub alignment: crate::DeclarationAlignment,
     /// Whether a compatible declaration says this function may return more than once.
     /// This is not a function-pointer type qualifier or a retroactive call-site verdict.
     #[serde(skip_serializing_if = "std::ops::Not::not")]

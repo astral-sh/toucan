@@ -700,6 +700,7 @@ specifier_qualifier_nonunique_type0 -> SpecifierQualifier =
     s:node<type_specifier_nonunique> { SpecifierQualifier::TypeSpecifier(s) }
 
 specifier_qualifier_qualifier0 -> SpecifierQualifier =
+    a:alignment_specifier { SpecifierQualifier::Alignment(a) } /
     q:type_qualifier { SpecifierQualifier::TypeQualifier(q) } /
     e:gnu<attribute_specifier> { SpecifierQualifier::Extension(e) }
 

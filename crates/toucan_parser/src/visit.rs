@@ -1075,6 +1075,7 @@ pub fn visit_specifier_qualifier<'ast, V: Visit<'ast> + ?Sized>(
     _span: &'ast Span,
 ) {
     match *specifier_qualifier {
+        SpecifierQualifier::Alignment(ref a) => visitor.visit_alignment_specifier(&a.node, &a.span),
         SpecifierQualifier::TypeSpecifier(ref t) => visitor.visit_type_specifier(&t.node, &t.span),
         SpecifierQualifier::TypeQualifier(ref t) => visitor.visit_type_qualifier(&t.node, &t.span),
         SpecifierQualifier::Extension(ref e) => {

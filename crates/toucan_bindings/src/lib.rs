@@ -530,6 +530,14 @@ pub fn generate_with_macros(
                 writeln!(source, "    pub fn {name}{};", emitter.signature(function)?).unwrap();
             }
             DeclarationKind::Variable => {
+                if !declaration.alignment.is_empty()
+                    && unit.declaration_alignment(declaration)? < unit.alignment(&declaration.ty)?
+                {
+                    return Err(Error(format!(
+                        "object `{}` has reduced C alignment that Rust extern storage cannot represent",
+                        declaration.name,
+                    )));
+                }
                 let link_name = declaration.link_name.as_ref().unwrap_or(&declaration.name);
                 if name != *link_name {
                     writeln!(source, "    #[link_name = {link_name:?}]").unwrap();

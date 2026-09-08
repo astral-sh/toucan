@@ -344,7 +344,7 @@ structure!(StructField {
     specifiers,
     declarators
 });
-enumeration!(SpecifierQualifier { TypeSpecifier(v0), TypeQualifier(v0), Extension(v0) });
+enumeration!(SpecifierQualifier { Alignment(v0), TypeSpecifier(v0), TypeQualifier(v0), Extension(v0) });
 structure!(StructDeclarator {
     declarator,
     bit_width

@@ -10617,9 +10617,9 @@ fn __parse_specifier_qualifier_qualifier0<'input>(__input: &'input str, __state:
     let result = (|| {
     {
         let __choice_res = {
-            let __seq_res = __parse_type_qualifier(__input, __state, __pos, env);
+            let __seq_res = __parse_alignment_specifier(__input, __state, __pos, env);
             match __seq_res {
-                Matched(__pos, q) => Matched(__pos, { SpecifierQualifier::TypeQualifier(q) }),
+                Matched(__pos, a) => Matched(__pos, { SpecifierQualifier::Alignment(a) }),
                 Failed => Failed,
             }
         };
@@ -10627,30 +10627,43 @@ fn __parse_specifier_qualifier_qualifier0<'input>(__input: &'input str, __state:
             Matched(__pos, __value) => Matched(__pos, __value),
             Failed if __state.budget.failure.is_some() => return Failed,
             Failed => {
-                let __seq_res = {
-                    let __seq_res = {
-                        __state.suppress_fail += 1;
-                        let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
-                        __state.suppress_fail -= 1;
-                        match __assert_res {
-                            Matched(_, __value) => Matched(__pos, __value),
-                            Failed => Failed,
-                        }
-                    };
+                let __choice_res = {
+                    let __seq_res = __parse_type_qualifier(__input, __state, __pos, env);
                     match __seq_res {
-                        Matched(__pos, _) => {
-                            let __seq_res = __parse_attribute_specifier(__input, __state, __pos, env);
-                            match __seq_res {
-                                Matched(__pos, e) => Matched(__pos, { e }),
-                                Failed => Failed,
-                            }
-                        }
+                        Matched(__pos, q) => Matched(__pos, { SpecifierQualifier::TypeQualifier(q) }),
                         Failed => Failed,
                     }
                 };
-                match __seq_res {
-                    Matched(__pos, e) => Matched(__pos, { SpecifierQualifier::Extension(e) }),
-                    Failed => Failed,
+                match __choice_res {
+                    Matched(__pos, __value) => Matched(__pos, __value),
+                    Failed if __state.budget.failure.is_some() => return Failed,
+                    Failed => {
+                        let __seq_res = {
+                            let __seq_res = {
+                                __state.suppress_fail += 1;
+                                let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
+                                __state.suppress_fail -= 1;
+                                match __assert_res {
+                                    Matched(_, __value) => Matched(__pos, __value),
+                                    Failed => Failed,
+                                }
+                            };
+                            match __seq_res {
+                                Matched(__pos, _) => {
+                                    let __seq_res = __parse_attribute_specifier(__input, __state, __pos, env);
+                                    match __seq_res {
+                                        Matched(__pos, e) => Matched(__pos, { e }),
+                                        Failed => Failed,
+                                    }
+                                }
+                                Failed => Failed,
+                            }
+                        };
+                        match __seq_res {
+                            Matched(__pos, e) => Matched(__pos, { SpecifierQualifier::Extension(e) }),
+                            Failed => Failed,
+                        }
+                    }
                 }
             }
         }

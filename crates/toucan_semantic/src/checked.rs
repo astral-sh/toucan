@@ -256,6 +256,8 @@ impl From<DeclarationKind> for EntityKind {
 
 #[derive(Debug, Serialize)]
 pub struct Entity {
+    #[serde(skip_serializing_if = "crate::DeclarationAlignment::is_empty")]
+    pub(crate) alignment: crate::DeclarationAlignment,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub(crate) returns_twice: bool,
     #[serde(skip_serializing_if = "crate::SymbolBinding::is_strong")]
@@ -293,6 +295,8 @@ pub enum Linkage {
 #[derive(Debug, Serialize)]
 pub struct DeclarationSite {
     #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) alignment: Option<Box<SiteAlignment>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) type_inference: Option<Box<TypeInference>>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub(crate) returns_twice: bool,
@@ -316,6 +320,12 @@ pub struct DeclarationSite {
     pub(crate) register: bool,
     pub(crate) definition: bool,
     pub(crate) flexible_array_storage: Option<FlexibleArrayStorage>,
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct SiteAlignment {
+    pub(crate) written: crate::DeclarationAlignment,
+    pub(crate) effective: crate::DeclarationAlignment,
 }
 
 struct SiteProperties {
@@ -652,6 +662,7 @@ impl Builder {
         )?;
         let id = EntityId(self.code.entities.len() as u32);
         self.code.entities.push(Entity {
+            alignment: crate::DeclarationAlignment::default(),
             returns_twice: false,
             symbol_binding: crate::SymbolBinding::Strong,
             body: None,
@@ -682,6 +693,7 @@ impl Builder {
         self.code.entities[entity.index()].storage = properties.storage;
         self.code.declarations.push(DeclarationSite {
             type_inference: None,
+            alignment: None,
             returns_twice: self.code.entities[entity.index()].returns_twice,
             returns_twice_attribute: None,
             symbol_binding: self.code.entities[entity.index()].symbol_binding,
@@ -752,6 +764,53 @@ impl Builder {
         )?;
         self.code.entities[entity.index()].storage = Storage::Static;
         self.bind_name(entity, offset)
+    }
+
+    pub(crate) fn finish_alignment_operand(&mut self, checkpoint: EvaluationCheckpoint) {
+        for bound in &mut self.code.bounds[checkpoint.bounds..] {
+            if matches!(
+                bound.evaluation,
+                bounds::BoundEvaluation::Required | bounds::BoundEvaluation::MayBeOmitted
+            ) {
+                bound.evaluation = bounds::BoundEvaluation::Unevaluated;
+            }
+        }
+        for operand in &mut self.code.type_operands[checkpoint.type_operands..] {
+            ownership::suppress(operand);
+        }
+    }
+
+    pub(crate) fn attach_alignment(
+        &mut self,
+        site: SiteId,
+        written: crate::DeclarationAlignment,
+        effective: crate::DeclarationAlignment,
+    ) -> Result<(), Error> {
+        let declaration = &mut self.code.declarations[site.index()];
+        if written.is_empty() && effective.is_empty() {
+            declaration.alignment = None;
+        } else if let Some(alignment) = &mut declaration.alignment {
+            **alignment = SiteAlignment { written, effective };
+        } else {
+            self.budget.charge(
+                0,
+                0,
+                std::mem::size_of::<SiteAlignment>(),
+                self.parsed_spans[declaration.occurrence.index()].start,
+            )?;
+            declaration.alignment = Some(Box::new(SiteAlignment { written, effective }));
+        }
+        self.code.entities[declaration.entity.index()].alignment = effective;
+        Ok(())
+    }
+
+    pub(crate) fn attach_entity_alignment(
+        &mut self,
+        site: SiteId,
+        alignment: crate::DeclarationAlignment,
+    ) {
+        let entity = self.code.declarations[site.index()].entity;
+        self.code.entities[entity.index()].alignment = alignment;
     }
 
     pub(crate) fn file_declaration<T>(
@@ -1537,6 +1596,45 @@ mod tests {
         let error = builder.finish(&SourceMap::default()).unwrap_err();
         assert!(error.message.contains("ambiguous source occurrence"));
         assert_eq!(error.offset, original.span.start);
+    }
+
+    #[test]
+    fn optional_alignment_payload_is_charged_once_before_allocation() {
+        let source = "int value;";
+        let (_, code) = retained(source);
+        let parsed =
+            lang_c::driver::parse_preprocessed(&lang_c::driver::Config::default(), source.into())
+                .unwrap();
+        let mut builder = Builder::new(&parsed.unit, source.len(), Limits::default()).unwrap();
+        builder.code = code;
+        let site = SiteId(0);
+        let offset = builder.parsed_spans[builder.code.declarations[0].occurrence.index()].start;
+        let bytes = std::mem::size_of::<SiteAlignment>();
+        let used = builder.budget.payload_bytes;
+        builder.budget.limits.payload_bytes = used + bytes - 1;
+        let aligned = crate::DeclarationAlignment::new(Some(16), None).unwrap();
+        let error = builder
+            .attach_alignment(site, aligned, aligned)
+            .unwrap_err();
+        assert_eq!(error.offset, offset);
+        assert!(error.message.contains("payload byte limit"));
+        assert!(builder.code.declarations[0].alignment.is_none());
+        builder.budget.limits.payload_bytes += 1;
+        builder.attach_alignment(site, aligned, aligned).unwrap();
+        assert_eq!(builder.budget.payload_bytes, used + bytes);
+        let replacement = crate::DeclarationAlignment::new(Some(32), None).unwrap();
+        builder
+            .attach_alignment(site, replacement, replacement)
+            .unwrap();
+        assert_eq!(builder.budget.payload_bytes, used + bytes);
+        assert_eq!(
+            builder.code.declarations[0]
+                .alignment
+                .as_ref()
+                .unwrap()
+                .effective,
+            replacement
+        );
     }
 
     #[test]
