@@ -300,6 +300,7 @@ pub fn generate_with_macros(
         records: BTreeSet::new(),
         enums: BTreeSet::new(),
         aliases: BTreeSet::new(),
+        transparent_storage: BTreeSet::new(),
         vectors: BTreeSet::new(),
     };
     let mut selected = Vec::new();
@@ -393,6 +394,9 @@ pub fn generate_with_macros(
     }
     for &id in &emitter.enums {
         emitter.enumeration(id, &mut source)?;
+    }
+    for &id in &emitter.transparent_storage {
+        emitter.transparent_storage(id, &mut source)?;
     }
     for name in &emitter.aliases {
         let ty = unit
@@ -763,6 +767,7 @@ struct Emitter<'a> {
     records: BTreeSet<usize>,
     enums: BTreeSet<usize>,
     aliases: BTreeSet<String>,
+    transparent_storage: BTreeSet<usize>,
     vectors: BTreeSet<(u64, u64)>,
 }
 
@@ -854,6 +859,11 @@ impl Emitter<'_> {
             TypeKind::Function(function) => {
                 self.collect_at(&function.return_type, depth + 1)?;
                 for parameter in &function.parameters {
+                    if let Some(id) = self.unit.transparent_union(&parameter.ty)?
+                        && self.transparent_needs_storage(id)?
+                    {
+                        self.transparent_storage.insert(id);
+                    }
                     self.collect_at(&parameter.ty, depth + 1)?;
                 }
             }
@@ -1243,6 +1253,62 @@ impl Emitter<'_> {
         })
     }
 
+    /// A fixed transparent parameter uses the first member's machine carrier.
+    /// Boolean and enum carriers must accept every initialized union bit pattern.
+    fn parameter_ty_at(&self, ty: &Type, depth: usize) -> Result<String, Error> {
+        check_depth(depth)?;
+        let Some(id) = self.unit.transparent_union(ty)? else {
+            return self.ty_at(ty, depth);
+        };
+        let carrier = self.unit.parameter_abi_type(ty)?;
+        if self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc {
+            return self.ty_at(carrier, depth);
+        }
+        if self.transparent_needs_storage(id)? {
+            return self.synthetic_name(&self.helper_name("transparent", id));
+        }
+        self.transparent_scalar(carrier, depth)
+    }
+
+    fn transparent_scalar(&self, ty: &Type, depth: usize) -> Result<String, Error> {
+        match self.unit.resolve(ty)?.kind {
+            TypeKind::Bool => Ok("::core::primitive::u8".into()),
+            TypeKind::Enum(id) => self.enum_type(id),
+            _ => self.ty_at(ty, depth),
+        }
+    }
+
+    /// GNU permits a smaller alternative that leaves upper carrier bytes unset.
+    /// Preserve those bytes as union storage instead of imposing scalar validity.
+    fn transparent_needs_storage(&self, id: usize) -> Result<bool, Error> {
+        let fields = self
+            .unit
+            .records
+            .get(id)
+            .and_then(|record| record.fields.as_ref())
+            .filter(|fields| !fields.is_empty())
+            .ok_or_else(|| Error("transparent_union requires complete storage".into()))?;
+        let width = self.unit.layout(&fields[0].ty)?.size_bits;
+        for field in fields {
+            if self.unit.layout(&field.ty)?.size_bits < width {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn transparent_storage(&self, id: usize, source: &mut String) -> Result<(), Error> {
+        let parameter = Type::new(TypeKind::Record(id));
+        let first = self.unit.parameter_abi_type(&parameter)?;
+        let scalar = self.transparent_scalar(first, 0)?;
+        let layout = self.unit.layout(first)?;
+        let size = layout.size_bytes();
+        let alignment = layout.alignment_bytes();
+        let name = self.synthetic_name(&self.helper_name("transparent", id))?;
+        writeln!(source,"/// ABI carrier for a transparent union with potentially uninitialized upper bytes.\n#[repr(C)]\n#[derive(Copy, Clone)]\npub union {name} {{\n    /// Read only when every carrier byte is initialized.\n    pub value: {scalar},\n    /// Preserves bytes left uninitialized by a narrower C member.\n    pub bytes: [::core::mem::MaybeUninit<::core::primitive::u8>; {size}],\n}}\nconst _: [(); {size}] = [(); ::core::mem::size_of::<{name}>()];\nconst _: [(); {alignment}] = [(); ::core::mem::align_of::<{name}>()];\n").unwrap();
+        Ok(())
+    }
+
     fn signature(&self, function: &FunctionType) -> Result<String, Error> {
         self.signature_at(function, 0)
     }
@@ -1252,7 +1318,10 @@ impl Emitter<'_> {
         let mut args = Vec::new();
         for (i, parameter) in function.parameters.iter().enumerate() {
             // Position-based names avoid duplicate or Rust-reserved C parameter names.
-            args.push(format!("arg{i}: {}", self.ty_at(&parameter.ty, depth + 1)?));
+            args.push(format!(
+                "arg{i}: {}",
+                self.parameter_ty_at(&parameter.ty, depth + 1)?
+            ));
         }
         if function.variadic {
             args.push("...".into());
@@ -1290,12 +1359,11 @@ impl Emitter<'_> {
         }
         self.check_value(&function.return_type, &mut BTreeSet::new(), depth + 1)?;
         for parameter in &function.parameters {
-            if self.unit.transparent_union(&parameter.ty)?.is_some() {
-                return Err(Error(
-                    "transparent_union parameters require first-member ABI projection".into(),
-                ));
-            }
-            self.check_value(&parameter.ty, &mut BTreeSet::new(), depth + 1)?;
+            self.check_value(
+                self.unit.parameter_abi_type(&parameter.ty)?,
+                &mut BTreeSet::new(),
+                depth + 1,
+            )?;
         }
         Ok(())
     }

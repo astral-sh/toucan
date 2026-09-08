@@ -144,7 +144,7 @@ See [the analysis API](analysis-api.md) for traversal and source-mapping example
 
 GNU `transparent_union` changes fixed-parameter calls while preserving ordinary
 union storage, return values, and variadic arguments. The semantic API exposes the
-first member through `TranslationUnit::parameter_abi_type`. Retained call operands
+supported carrier through `TranslationUnit::parameter_abi_type`. Retained call operands
 include a `Conversion::TransparentUnion` step naming the source field used to
 construct the union. GCC matches member types; Clang profiles try assignment
 conversions in field order. These rules can select different scalar members.
@@ -159,9 +159,7 @@ Additional cloned variant representations have a conservative 16 MiB budget.
 The current semantic support requires a non-bitfield integer or pointer first
 member and scalar alternatives. Unsupported aggregate members, invalid widths,
 and union definitions combined with member-typed redeclarations return explicit
-diagnostics. The latter has a GCC/Clang ABI difference. Binding generation rejects
-selected transparent fixed parameters until first-member projection is provided;
-ordinary storage and union-return declarations remain representable.
+diagnostics. The latter has a GCC/Clang ABI difference.
 
 The [transparent-union evidence](../corpus/evidence/transparent-unions-2026-09-08.json)
 records compiler profile differences, native calls, cross-target LLVM carriers,
@@ -171,5 +169,27 @@ baseline comparison of default-path allocations.
 The [member-alignment probes](../corpus/evidence/transparent-union-member-alignment-2026-09-08.json)
 distinguish a member type’s alignment from field and union layout annotations.
 Clang compares natural or increased member type alignments; typedef alignment
-decreases and overall packed or increased union
-alignment remains a separate storage property.
+decreases and overall packed or increased union alignment remain separate storage
+properties.
+
+Transparent fixed parameters use the target call ABI in Rust signatures, including
+nested function pointers. GNU and ordinary Clang cases use the first member’s
+machine representation; Microsoft targets retain ordinary union passing. Boolean
+and enum scalar carriers use raw integers so callbacks can receive every union
+bit pattern. GNU unions with a
+narrower alternative use a generated `repr(C)` union containing the carrier and
+`MaybeUninit` bytes; this preserves partially initialized arguments. The generated
+size and alignment assertions check that helper's representation. Ordinary union
+storage, return values, and variadic union arguments keep their original types.
+
+AArch64 transparent unions with tail padding require Clang’s expanded padding
+arguments. The carrier query and binding generator diagnose that unsupported ABI;
+the semantic union storage and argument conversions remain available. Intel macOS
+uses the scalar carrier even when the union is over-aligned, while Microsoft
+keeps ordinary union passing. Cross-target LLVM probes distinguish these cases.
+
+The [binding evidence](../corpus/evidence/transparent-union-bindings-2026-09-08.json)
+records native C/Rust calls, Miri validity checks, LLVM argument attributes,
+cross-target padding differences, and Rust 1.64 compilation. Projected parameters
+expose carrier types to Rust callers; bindgen’s union-shaped parameter APIs can
+differ even when the C call representation agrees.

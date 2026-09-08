@@ -53,19 +53,37 @@ impl TranslationUnit {
         }
     }
 
-    /// Returns the C ABI carrier for an already-adjusted function parameter.
-    /// A transparent union uses its first member; its storage and return types
-    /// keep the ordinary union layout. This does not apply to variadic arguments.
+    /// Returns the supported carrier type for an adjusted fixed parameter.
+    /// GNU and most Clang transparent unions use their first member. MSVC keeps
+    /// ordinary union passing. AArch64 transparent unions with tail padding need
+    /// an expanded ABI that this query diagnoses instead of returning one type.
+    /// Storage, returns, and variadic arguments keep their ordinary union types.
+    /// This type does not impose initialized-byte or Rust scalar-validity rules.
     pub fn parameter_abi_type<'a>(&'a self, ty: &'a Type) -> Result<&'a Type, Error> {
         let Some(id) = self.transparent_union(ty)? else {
             return Ok(ty);
         };
-        self.records[id]
+        let first = self.records[id]
             .fields
             .as_ref()
             .and_then(|fields| fields.first())
             .map(|field| &field.ty)
-            .ok_or_else(|| Error::new(0, "transparent_union requires a complete nonempty union"))
+            .ok_or_else(|| Error::new(0, "transparent_union requires a complete nonempty union"))?;
+        if self.target == toucan_target::Target::X86_64PcWindowsMsvc {
+            return Ok(ty);
+        }
+        if matches!(
+            self.target,
+            toucan_target::Target::Aarch64UnknownLinuxGnu
+                | toucan_target::Target::Aarch64AppleDarwin
+        ) && self.layout(ty)?.size_bits != self.layout(first)?.size_bits
+        {
+            return Err(Error::new(
+                0,
+                "AArch64 transparent_union padding ABI cannot be represented by one parameter type",
+            ));
+        }
+        Ok(first)
     }
 }
 

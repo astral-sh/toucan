@@ -113,10 +113,16 @@ fn retained_conversions_reference_source_fields_and_expose_parameter_abi() {
             Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
         );
         assert_eq!(record != origin, gnu);
+        let carrier = unit.parameter_abi_type(&alias).unwrap();
         assert_eq!(
-            unit.parameter_abi_type(&alias).unwrap().kind,
-            TypeKind::Integer(toucan_semantic::IntegerKind::Int)
+            unit.resolve(carrier).unwrap().kind,
+            if target == Target::X86_64PcWindowsMsvc {
+                TypeKind::Record(record)
+            } else {
+                TypeKind::Integer(toucan_semantic::IntegerKind::Int)
+            }
         );
+
         let mut count = 0;
         for (_, expression) in code.expressions() {
             if let ExprKind::Call { arguments, .. } = expression.kind() {
