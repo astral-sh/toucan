@@ -1017,6 +1017,9 @@ impl Analyzer {
                     &declaration.ty,
                     declaration.flexible_array_storage.as_ref(),
                 )?;
+                if let Some(initializer) = &item.node.initializer {
+                    checked.attach_initializer(site, initializer)?;
+                }
             }
         }
         Ok(())

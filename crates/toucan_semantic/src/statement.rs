@@ -904,6 +904,9 @@ impl Analyzer {
                     .last()
                     .and_then(|scope| scope.flexible_array_storage.get(&name));
                 checked.complete_declaration(site, &ty, allocation)?;
+                if let Some(initializer) = &item.node.initializer {
+                    checked.attach_initializer(site, initializer)?;
+                }
             }
         }
         Ok(())

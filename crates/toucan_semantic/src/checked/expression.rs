@@ -1,12 +1,14 @@
-//! Owned expression facts and operand conversions. Statement/initializer roots
-//! remain occurrence references until their dedicated retention layers are added.
+//! Owned expression facts and operand conversions, linked to retained initializers.
 
 use std::collections::HashMap;
 
 use lang_c::{ast, span::Node};
 use serde::Serialize;
 
-use super::{Builder, EntityId, EntityKind, OccurrenceId, OccurrenceKind, ScopeId, TypeId};
+use super::{
+    AssignmentId, Builder, EntityId, EntityKind, InitializerId, OccurrenceId, OccurrenceKind,
+    ScopeId, TypeId,
+};
 use crate::analyze::Analyzer;
 use crate::expression::ExpressionInfo;
 use crate::integer::integer_to_type;
@@ -236,7 +238,7 @@ pub(crate) enum ExprKind {
     },
     Comma(Vec<ExprUse>),
     CompoundLiteral {
-        initializer: OccurrenceId,
+        initializer: InitializerId,
     },
     StatementExpression {
         body: super::statement::StatementId,
@@ -282,7 +284,7 @@ enum State {
 #[derive(Default)]
 pub(super) struct ExpressionBuilder {
     states: HashMap<OccurrenceId, State>,
-    assignments: std::collections::HashSet<(ExprId, TypeId)>,
+    assignments: HashMap<(ExprId, TypeId), AssignmentId>,
     statement_results: HashMap<OccurrenceId, Option<ExprId>>,
 }
 
@@ -464,7 +466,7 @@ impl Builder {
 }
 
 impl Analyzer {
-    fn code_builder(&mut self) -> &mut Builder {
+    pub(crate) fn code_builder(&mut self) -> &mut Builder {
         self.checked
             .as_deref_mut()
             .expect("expression retention is enabled")
@@ -609,17 +611,17 @@ impl Analyzer {
         &mut self,
         expression: &Node<ast::Expression>,
         destination: &Type,
-    ) -> Result<(), Error> {
+    ) -> Result<AssignmentId, Error> {
         let destination = self.unqualified(destination)?;
         let id = self.retained_expression_id(expression)?;
         let ty = self.retained_type(&destination, expression.span.start)?;
-        if self
+        if let Some(assignment) = self
             .code_builder()
             .expression_builder
             .assignments
-            .contains(&(id, ty))
+            .get(&(id, ty))
         {
-            return Ok(());
+            return Ok(*assignment);
         }
         let operand = self.retained_use(
             expression,
@@ -627,10 +629,14 @@ impl Analyzer {
             Some((destination, Conversion::Assignment)),
         )?;
         let builder = self.code_builder();
-        builder.budget.charge(0, 1, 0, expression.span.start)?;
-        builder.expression_builder.assignments.insert((id, ty));
+        builder.budget.charge(1, 1, 0, expression.span.start)?;
+        let assignment = AssignmentId(builder.code.assignment_conversions.len() as u32);
+        builder
+            .expression_builder
+            .assignments
+            .insert((id, ty), assignment);
         builder.code.assignment_conversions.push(operand);
-        Ok(())
+        Ok(assignment)
     }
 
     pub(crate) fn retain_expression(
@@ -906,7 +912,7 @@ impl Analyzer {
                 ExprKind::Comma(operands)
             }
             ast::Expression::CompoundLiteral(_) => ExprKind::CompoundLiteral {
-                initializer: occurrence,
+                initializer: self.code_builder().initializer_id(occurrence, offset)?,
             },
             ast::Expression::Statement(statement) => {
                 let body = self

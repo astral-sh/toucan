@@ -1,8 +1,8 @@
 //! Private foundation for optional checked-code retention. The public frontend
-//! still returns declaration IR until expressions, initializers and VLA type uses
-//! can be retained without missing semantic facts.
+//! still returns declaration IR until a complete owned code model is available.
 
 pub(crate) mod expression;
+pub(crate) mod initializer;
 pub(crate) mod references;
 pub(crate) mod statement;
 
@@ -34,6 +34,9 @@ id!(EntityId);
 id!(SiteId);
 id!(ScopeId);
 id!(TypeId);
+id!(InitializerId);
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
+pub(crate) struct AssignmentId(u32);
 
 /// Limits logical retained nodes, references and owned payload, including the
 /// occurrence catalog and interned type trees. Allocator overhead is not counted.
@@ -114,6 +117,8 @@ pub(crate) enum OccurrenceKind {
     TypeName,
     Expression,
     Initializer,
+    InitializerItem,
+    Designator,
     Statement,
     StaticAssert,
     Label,
@@ -204,6 +209,7 @@ pub(crate) enum Linkage {
 #[derive(Debug, Serialize)]
 pub(crate) struct DeclarationSite {
     pub(crate) body: Option<statement::BodyId>,
+    pub(crate) initializer: Option<InitializerId>,
     pub(crate) name_source: Option<SourceSpan>,
     pub(crate) entity: EntityId,
     pub(crate) occurrence: OccurrenceId,
@@ -254,6 +260,8 @@ pub(crate) struct CheckedCode {
     pub(crate) declaration_groups: Vec<statement::DeclarationGroup>,
     pub(crate) assertions: Vec<statement::Assertion>,
     pub(crate) references: Vec<references::Reference>,
+    pub(crate) initializers: Vec<initializer::Initializer>,
+    pub(crate) initializer_coverage: Vec<initializer::InitializerCoverage>,
     pub(crate) expressions: Vec<expression::Expression>,
     pub(crate) assignment_conversions: Vec<expression::ExprUse>,
     pub(crate) expression_coverage: Vec<expression::ExpressionCoverage>,
@@ -289,6 +297,7 @@ enum EntityKey {
 pub(crate) struct Builder {
     statement_builder: statement::StatementBuilder,
     reference_builder: references::ReferenceBuilder,
+    initializer_builder: initializer::InitializerBuilder,
     expression_builder: expression::ExpressionBuilder,
     code: CheckedCode,
     budget: Budget,
@@ -318,6 +327,7 @@ impl Builder {
     ) -> Result<Self, Error> {
         let mut builder = Self {
             reference_builder: references::ReferenceBuilder::default(),
+            initializer_builder: initializer::InitializerBuilder::default(),
             expression_builder: expression::ExpressionBuilder::default(),
             statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
@@ -327,6 +337,8 @@ impl Builder {
                 declaration_groups: Vec::new(),
                 assertions: Vec::new(),
                 references: Vec::new(),
+                initializers: Vec::new(),
+                initializer_coverage: Vec::new(),
                 expressions: Vec::new(),
                 assignment_conversions: Vec::new(),
                 expression_coverage: Vec::new(),
@@ -534,6 +546,7 @@ impl Builder {
         let id = SiteId(self.code.declarations.len() as u32);
         self.code.declarations.push(DeclarationSite {
             body: None,
+            initializer: None,
             entity,
             occurrence,
             scope: self.current,
@@ -782,6 +795,7 @@ impl Builder {
         self.finish_expression_coverage()?;
         self.finish_statements()?;
         self.finish_references(offsets)?;
+        self.finish_initializer_coverage()?;
         for (scope, span) in self.code.scopes.iter_mut().zip(self.scope_spans) {
             if scope.kind != ScopeKind::File {
                 scope.source = map_span(offsets, span, &mut self.budget)?;
@@ -980,6 +994,12 @@ impl<'ast> Visit<'ast> for Builder {
     visit_occurrence!(visit_type_name, ast::TypeName, TypeName);
     visit_occurrence!(visit_expression, ast::Expression, Expression);
     visit_occurrence!(visit_initializer, ast::Initializer, Initializer);
+    visit_occurrence!(
+        visit_initializer_list_item,
+        ast::InitializerListItem,
+        InitializerItem
+    );
+    visit_occurrence!(visit_designator, ast::Designator, Designator);
     visit_occurrence!(visit_statement, ast::Statement, Statement);
     visit_occurrence!(visit_static_assert, ast::StaticAssert, StaticAssert);
     visit_occurrence!(visit_label, ast::Label, Label);

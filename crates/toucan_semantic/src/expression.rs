@@ -144,6 +144,7 @@ impl Analyzer {
                 let ty = self.check_initializer_list(
                     &ty,
                     &literal.node.initializer_list,
+                    expression,
                     literal.span,
                     !self.in_function_body(),
                 )?;

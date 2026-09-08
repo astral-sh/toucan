@@ -4,6 +4,8 @@ use lang_c::{
 };
 
 use crate::analyze::Analyzer;
+use crate::checked::InitializerId;
+use crate::checked::initializer::{Origin, Path as RetainedPath, Subobject};
 use crate::{
     DeclarationKind, Error, FlexibleArrayStorage, IntegerKind, RecordKind, Type, TypeKind,
 };
@@ -28,6 +30,7 @@ enum InitializerView<'a> {
 
 #[derive(Clone, Copy)]
 struct InitializerRef<'a> {
+    origin: Origin<'a>,
     node: InitializerView<'a>,
     span: Span,
 }
@@ -35,6 +38,7 @@ struct InitializerRef<'a> {
 impl<'a> From<&'a Node<ast::Initializer>> for InitializerRef<'a> {
     fn from(initializer: &'a Node<ast::Initializer>) -> Self {
         Self {
+            origin: Origin::Written(initializer),
             node: match &initializer.node {
                 ast::Initializer::Expression(expression) => InitializerView::Expression(expression),
                 ast::Initializer::List(items) => InitializerView::List(items),
@@ -93,6 +97,7 @@ impl Analyzer {
         &mut self,
         ty: &Type,
         items: &[Node<ast::InitializerListItem>],
+        owner: &Node<ast::Expression>,
         span: Span,
         static_storage: bool,
     ) -> Result<Type, Error> {
@@ -100,6 +105,7 @@ impl Analyzer {
         let result = self.initializer_inner(
             ty,
             InitializerRef {
+                origin: Origin::Compound(owner),
                 node: InitializerView::List(items),
                 span,
             },
@@ -234,7 +240,29 @@ impl Analyzer {
         ty: &Type,
         initializer: InitializerRef<'_>,
         static_storage: bool,
+        flexible: Option<&mut FlexibleState>,
+    ) -> Result<Type, Error> {
+        let retained = self
+            .checked
+            .as_deref_mut()
+            .map(|checked| checked.begin_initializer(initializer.origin, ty, static_storage))
+            .transpose()?
+            .flatten();
+        let result =
+            self.initializer_inner_impl(ty, initializer, static_storage, flexible, retained)?;
+        if let Some(id) = retained {
+            self.code_builder().finish_initializer(id, &result)?;
+        }
+        Ok(result)
+    }
+
+    fn initializer_inner_impl(
+        &mut self,
+        ty: &Type,
+        initializer: InitializerRef<'_>,
+        static_storage: bool,
         mut flexible: Option<&mut FlexibleState>,
+        retained: Option<InitializerId>,
     ) -> Result<Type, Error> {
         let offset = initializer.span.start;
         let resolved = self.unit.resolve(ty)?.clone();
@@ -255,7 +283,11 @@ impl Analyzer {
         match initializer.node {
             InitializerView::Expression(expression) => {
                 if matches!(resolved.kind, TypeKind::Array { .. }) {
-                    return self.string_initializer(ty, expression);
+                    let completed = self.string_initializer(ty, expression)?;
+                    if let Some(id) = retained {
+                        self.retained_initializer_string(id, &completed, expression)?;
+                    }
+                    return Ok(completed);
                 }
                 self.check_assignment(ty, expression)?;
                 if static_storage {
@@ -273,9 +305,26 @@ impl Analyzer {
                         self.convert_arithmetic(value, ty, offset)?;
                     }
                 }
+                if let Some(id) = retained {
+                    self.retained_initializer_expression(id, ty, expression)?;
+                }
                 Ok(ty.clone())
             }
             InitializerView::List(items) => {
+                if let Some(id) = retained {
+                    let aggregate =
+                        matches!(resolved.kind, TypeKind::Array { .. } | TypeKind::Record(_));
+                    let union_member = match resolved.kind {
+                        TypeKind::Record(record)
+                            if self.unit.records[record].kind == RecordKind::Union =>
+                        {
+                            self.first_subobject(ty)?.map(|index| index as usize)
+                        }
+                        _ => None,
+                    };
+                    self.code_builder()
+                        .initializer_list(id, aggregate, union_member);
+                }
                 let items =
                     if items.len() == 1 && self.empty_initializers.contains(&items[0].span.start) {
                         &[][..]
@@ -289,7 +338,21 @@ impl Analyzer {
                     && matches!(expression.node, ast::Expression::StringLiteral(_))
                     && self.character_array(&resolved)?
                 {
-                    return self.string_initializer(ty, expression);
+                    let completed = self.string_initializer(ty, expression)?;
+                    if let Some(id) = retained {
+                        let child = self.code_builder().begin_initializer(
+                            Origin::Written(&item.node.initializer),
+                            ty,
+                            static_storage,
+                        )?;
+                        if let Some(child) = child {
+                            self.retained_initializer_string(child, &completed, expression)?;
+                            self.code_builder().finish_initializer(child, &completed)?;
+                        }
+                        self.code_builder()
+                            .initializer_entry(id, item, RetainedPath::default())?;
+                    }
+                    return Ok(completed);
                 }
                 if !matches!(resolved.kind, TypeKind::Array { .. } | TypeKind::Record(_)) {
                     let [item] = items else {
@@ -301,18 +364,39 @@ impl Analyzer {
                             "scalar initializer cannot have a designator",
                         ));
                     }
-                    return self.check_initializer(ty, &item.node.initializer, static_storage);
+                    let completed =
+                        self.check_initializer(ty, &item.node.initializer, static_storage)?;
+                    if let Some(id) = retained {
+                        self.code_builder()
+                            .initializer_entry(id, item, RetainedPath::default())?;
+                    }
+                    return Ok(completed);
                 }
                 let mut cursor = self.first_subobject(ty)?.map(|index| vec![index]);
                 let mut bound = 0;
                 for item in items {
+                    let mut retained_path = retained.map(|_| RetainedPath::default());
                     let mut path = if item.node.designation.is_empty() {
                         cursor.take().ok_or_else(|| {
                             Error::new(item.span.start, "excess elements in initializer")
                         })?
                     } else {
-                        self.designated_subobject(ty, &item.node.designation)?
+                        self.designated_subobject(
+                            ty,
+                            &item.node.designation,
+                            retained_path.as_mut(),
+                        )?
                     };
+                    if item.node.designation.is_empty()
+                        && let Some(output) = &mut retained_path
+                    {
+                        self.retained_initializer_path(
+                            ty,
+                            &path,
+                            &mut output.steps,
+                            item.span.start,
+                        )?;
+                    }
                     loop {
                         let target = self.subobject(ty, &path, item.span.start)?;
                         let member_depth = self.flexible_in_path(ty, &path, item.span.start)?;
@@ -407,6 +491,17 @@ impl Analyzer {
                             ));
                         }
                         path.push(first);
+                        if let Some(output) = &mut retained_path {
+                            self.retained_initializer_path(
+                                &target,
+                                &[first],
+                                &mut output.steps,
+                                item.span.start,
+                            )?;
+                        }
+                    }
+                    if let (Some(id), Some(path)) = (retained, retained_path) {
+                        self.code_builder().initializer_entry(id, item, path)?;
                     }
                     if let Some(state) = flexible.as_deref_mut()
                         && path.len() > 1
@@ -640,17 +735,28 @@ impl Analyzer {
         &mut self,
         root: &Type,
         designators: &[Node<ast::Designator>],
+        mut retained: Option<&mut RetainedPath>,
     ) -> Result<Vec<u64>, Error> {
         let mut path = Vec::new();
         for designator in designators {
             let offset = designator.span.start;
             let ty = self.subobject(root, &path, offset)?;
+            if let Some(output) = retained.as_deref_mut() {
+                self.retained_initializer_designator(designator, output)?;
+            }
             match &designator.node {
                 ast::Designator::Index(expression) => {
                     if !matches!(self.unit.resolve(&ty)?.kind, TypeKind::Array { .. }) {
                         return Err(Error::new(offset, "array designator requires an array"));
                     }
-                    path.push(self.eval(expression)?.as_u64()?);
+                    let index = self.eval(expression)?.as_u64()?;
+                    path.push(index);
+                    if let Some(output) = retained.as_deref_mut() {
+                        output.steps.push(Subobject::Index {
+                            index,
+                            expression: Some(self.retained_expression_id(expression)?),
+                        });
+                    }
                 }
                 ast::Designator::Range(range) => {
                     if !matches!(self.unit.resolve(&ty)?.kind, TypeKind::Array { .. }) {
@@ -670,6 +776,14 @@ impl Analyzer {
                     first.push(from);
                     self.subobject(root, &first, offset)?;
                     path.push(to);
+                    if let Some(output) = retained.as_deref_mut() {
+                        output.steps.push(Subobject::Range {
+                            start: from,
+                            end: to,
+                            from: self.retained_expression_id(&range.node.from)?,
+                            to: self.retained_expression_id(&range.node.to)?,
+                        });
+                    }
                 }
                 ast::Designator::Member(member) => {
                     let member_path = self
@@ -680,6 +794,22 @@ impl Analyzer {
                                 format!("unknown initializer member `{}`", member.node.name),
                             )
                         })?;
+                    if let Some(output) = retained.as_deref_mut() {
+                        self.retain_member_reference(
+                            &ty,
+                            &member_path
+                                .iter()
+                                .map(|index| *index as usize)
+                                .collect::<Vec<_>>(),
+                            member,
+                        )?;
+                        self.retained_initializer_path(
+                            &ty,
+                            &member_path,
+                            &mut output.steps,
+                            offset,
+                        )?;
+                    }
                     path.extend(member_path);
                 }
             }
@@ -768,6 +898,7 @@ impl Analyzer {
                 let ty = self.check_initializer_list(
                     &ty,
                     &literal.node.initializer_list,
+                    expression,
                     literal.span,
                     true,
                 )?;

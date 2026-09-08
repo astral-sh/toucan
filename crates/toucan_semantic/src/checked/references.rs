@@ -366,6 +366,33 @@ mod tests {
     }
 
     #[test]
+    fn initializer_designators_reference_members_through_array_and_anonymous_paths() {
+        let source = "struct S { struct { int value; }; }; struct S a[4] = { [2].value = 3, [0] = { .value = 4 } };";
+        for target in Target::ALL {
+            let code = retained(source, target);
+            let references: Vec<_> = code
+                .references
+                .iter()
+                .filter(|reference| reference.kind == ReferenceKind::Field)
+                .collect();
+            assert_eq!(references.len(), 2);
+            assert_eq!(references[0].target, references[1].target);
+            let site = code
+                .declarations
+                .iter()
+                .find(|site| site.entity == references[0].target)
+                .unwrap();
+            for reference in references {
+                assert_eq!(&source[reference.source.range.clone()], "value");
+                assert_eq!(
+                    source[reference.source.range.clone()],
+                    source[site.name_source.as_ref().unwrap().range.clone()]
+                );
+            }
+        }
+    }
+
+    #[test]
     fn builtin_aliases_have_identity_without_a_written_declaration() {
         let source = "__builtin_va_list first; __builtin_va_list second;";
         for target in Target::ALL {
