@@ -546,8 +546,13 @@ impl Analyzer {
             }
         }
         if let Some((destination, kind)) = destination {
+            // C11 6.3.1.8 selects a floating common type before considering
+            // integer promotions. Mixed operands convert directly to that type.
             if matches!(kind, Conversion::Arithmetic | Conversion::Conditional)
-                && self.is_arithmetic(&destination)?
+                && matches!(
+                    self.unit.resolve(&destination)?.kind,
+                    TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
+                )
                 && matches!(
                     self.unit.resolve(&info.ty)?.kind,
                     TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
