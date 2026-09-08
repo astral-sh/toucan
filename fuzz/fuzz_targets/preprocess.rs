@@ -33,6 +33,7 @@ fuzz_target!(|bytes: &[u8]| {
         .fold(0usize, |sum, byte| sum.wrapping_add(usize::from(*byte)));
     let config = toucan::PreprocessorConfig {
         allow_filesystem: false,
+        record_file_origins: true,
         feature_queries: Some(toucan::FeatureQueries::new(
             if selector & 1 == 0 {
                 toucan::QueryDialect::Gnu
@@ -58,5 +59,21 @@ fuzz_target!(|bytes: &[u8]| {
     };
     // In-memory data is the only input; no filesystem include directories.
     let mut preprocessor = toucan::Preprocessor::new(config);
-    let _ = preprocessor.preprocess_str(std::path::Path::new("fuzz-input.h"), data);
+    if let Ok(output) = preprocessor.preprocess_str(std::path::Path::new("fuzz-input.h"), data) {
+        let origins = output.file_origins().expect("capture requested");
+        let mut previous_end = 0;
+        for mapping in origins.mappings() {
+            let range = mapping.generated();
+            assert!(range.start >= previous_end && range.start < range.end);
+            assert!(output.source.get(range.clone()).is_some());
+            assert_eq!(origins.source_file(range.start), Some(mapping.path()));
+            assert_eq!(origins.source_file(range.end - 1), Some(mapping.path()));
+            previous_end = range.end;
+        }
+        for name in output.macros.keys() {
+            if let Some(location) = origins.macro_definition(name) {
+                assert!(location.line > 0 && location.column > 0);
+            }
+        }
+    }
 });

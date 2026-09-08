@@ -19,6 +19,8 @@ mod builtin_function;
 mod builtins;
 mod c11_atomic;
 pub mod checked;
+mod declaration_origins;
+pub use declaration_origins::{DeclarationOrigin, DeclarationOrigins, DeclarationTarget};
 mod complex;
 mod constant_query;
 mod declspec;
@@ -120,6 +122,8 @@ pub fn with_parser_stack<T: Send>(operation: impl FnOnce() -> T + Send) -> Resul
 pub struct AnalysisOptions {
     /// Retain checked expressions, statements, initializers, and their bindings.
     pub retain_code: bool,
+    /// Retain file-scope declaration locations without retaining bodies or expressions.
+    pub retain_declaration_origins: bool,
     /// Resource limits applied only when `retain_code` is enabled.
     pub limits: checked::Limits,
 }
@@ -140,11 +144,13 @@ pub struct AnalysisOptions {
 /// ```
 ///
 /// Node IDs refer only to this analysis. Consuming it with [`Self::into_unit`]
-/// discards the checked graph before returning mutable declaration data.
+/// discards the checked graph and declaration origins before returning mutable data.
 #[derive(Debug, serde::Serialize)]
 pub struct Analysis {
     unit: TranslationUnit,
     checked: Option<checked::CheckedCode>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    declaration_origins: Option<Box<DeclarationOrigins>>,
 }
 
 impl Analysis {
@@ -156,7 +162,11 @@ impl Analysis {
     pub fn checked(&self) -> Option<&checked::CheckedCode> {
         self.checked.as_ref()
     }
-    /// Discards retained code and returns the owned declaration representation.
+    /// Returns source-ordered declarations when requested independently of checked code.
+    pub fn declaration_origins(&self) -> Option<&DeclarationOrigins> {
+        self.declaration_origins.as_deref()
+    }
+    /// Discards retained code and origins, returning the owned declaration representation.
     pub fn into_unit(self) -> TranslationUnit {
         self.unit
     }

@@ -13,6 +13,8 @@ fn retention_limit(error: &Error) -> bool {
             | "checked-code retention payload byte limit exceeded"
             | "checked-code occurrence nesting limit exceeded"
             | "retained type nesting limit exceeded"
+            | "declaration-origin occurrence limit exceeded"
+            | "declaration-origin source fragment limit exceeded"
     )
 }
 
@@ -41,6 +43,7 @@ fuzz_target!(|bytes: &[u8]| {
         );
     let options = AnalysisOptions {
         retain_code: true,
+        retain_declaration_origins: true,
         ..AnalysisOptions::default()
     };
     match (

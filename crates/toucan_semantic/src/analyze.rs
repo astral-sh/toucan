@@ -44,14 +44,19 @@ pub fn analyze_with_profile(
     profile: CompilerProfile,
     options: &crate::AnalysisOptions,
 ) -> Result<crate::Analysis, Error> {
-    let (unit, checked) = crate::with_parser_stack(|| {
+    let (unit, checked, declaration_origins) = crate::with_parser_stack(|| {
         analyze_on_parser_stack(
             source,
             profile,
             options.retain_code.then_some(options.limits),
+            options.retain_declaration_origins,
         )
     })??;
-    Ok(crate::Analysis { unit, checked })
+    Ok(crate::Analysis {
+        unit,
+        checked,
+        declaration_origins,
+    })
 }
 
 pub(crate) fn analyze_inner(
@@ -60,15 +65,28 @@ pub(crate) fn analyze_inner(
     retention: Option<CodeLimits>,
 ) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
     crate::with_parser_stack(|| {
-        analyze_on_parser_stack(source, CompilerProfile::default_for(target), retention)
+        analyze_on_parser_stack(
+            source,
+            CompilerProfile::default_for(target),
+            retention,
+            false,
+        )
+        .map(|(unit, checked, _)| (unit, checked))
     })?
 }
+
+type AnalysisParts = (
+    TranslationUnit,
+    Option<CheckedCode>,
+    Option<Box<crate::DeclarationOrigins>>,
+);
 
 fn analyze_on_parser_stack(
     source: &str,
     profile: CompilerProfile,
     retention: Option<CodeLimits>,
-) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
+    retain_declaration_origins: bool,
+) -> Result<AnalysisParts, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
@@ -85,6 +103,8 @@ fn analyze_on_parser_stack(
         .map(|(offset, pack)| (parsed.offsets.pragma_offset(offset), pack))
         .collect();
     let mut analyzer = Analyzer::new(profile, packs);
+    analyzer.declaration_origins =
+        retain_declaration_origins.then(|| Box::new(crate::declaration_origins::Builder::new()));
     analyzer.prepare_dll_storage(&source);
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
@@ -129,7 +149,12 @@ fn analyze_on_parser_stack(
             .take()
             .map(|builder| builder.finish(&parsed.offsets))
             .transpose()?;
-        Ok((analyzer.unit, checked))
+        let declaration_origins = analyzer
+            .declaration_origins
+            .take()
+            .map(|builder| builder.finish(&parsed.offsets).map(Box::new))
+            .transpose()?;
+        Ok((analyzer.unit, checked, declaration_origins))
     })();
     result.map_err(|mut error: Error| {
         error.offset = parsed.offsets.original_offset(error.offset);
@@ -932,6 +957,7 @@ pub(crate) struct Analyzer {
     pub(crate) function_effects: BTreeMap<String, crate::returns_twice::FunctionEffects>,
     pub(crate) diagnostic_kinds: HashMap<String, u8>,
     pub(crate) checked: Option<Box<CodeBuilder>>,
+    declaration_origins: Option<Box<crate::declaration_origins::Builder>>,
     pub(crate) unit: TranslationUnit,
     pub(crate) tags: HashMap<String, TagBinding>,
     pub(crate) lexical_scopes: Vec<LexicalScope>,
@@ -1026,6 +1052,7 @@ impl Analyzer {
             allow_late_object_size_folds: false,
             diagnostic_kinds: HashMap::new(),
             checked: None,
+            declaration_origins: None,
             unit,
             tags,
             lexical_scopes: Vec::new(),
@@ -1755,6 +1782,15 @@ impl Analyzer {
                     .function_options
                     .insert(declaration_index, options.clone());
             }
+            if let Some(origins) = &mut self.declaration_origins {
+                origins.push(
+                    crate::DeclarationTarget::Declaration(declaration_index),
+                    declarator_name_span(&item.node.declarator).unwrap_or(item.span),
+                    is_definition,
+                    kind != DeclarationKind::Typedef && !is_static,
+                    false,
+                )?;
+            }
             let checked_site = if let Some(checked) = &mut self.checked {
                 checked.file_declaration(
                     item,
@@ -2178,7 +2214,28 @@ impl Analyzer {
             false,
             declaration.declarators.is_empty(),
         )?;
-        self.complete_specifiers(&declaration.specifiers, prepared, None)
+        let result = self.complete_specifiers(&declaration.specifiers, prepared, None)?;
+        if declaration.declarators.is_empty()
+            && let Some(origins) = &mut self.declaration_origins
+        {
+            for specifier in &declaration.specifiers {
+                if let ast::DeclarationSpecifier::TypeSpecifier(ty) = &specifier.node {
+                    let identifier = match &ty.node {
+                        ast::TypeSpecifier::Struct(tag) if tag.node.declarations.is_none() => {
+                            tag.node.identifier.as_ref()
+                        }
+                        ast::TypeSpecifier::Enum(tag) if tag.node.enumerators.is_empty() => {
+                            tag.node.identifier.as_ref()
+                        }
+                        _ => None,
+                    };
+                    if let Some(identifier) = identifier {
+                        origins.standalone_tag(identifier.span);
+                    }
+                }
+            }
+        }
+        Ok(result)
     }
 
     pub(crate) fn specifiers(
@@ -3831,6 +3888,7 @@ impl Analyzer {
                 declaration.node.declarations.is_none()
                     || binding.depth == self.lexical_scopes.len()
             });
+        let reference = binding.is_some() && declaration.node.declarations.is_none();
         let id = if let Some(binding) = binding {
             let Tag::Record(id) = binding.tag else {
                 return Err(Error::new(
@@ -3871,6 +3929,21 @@ impl Analyzer {
             }
             id
         };
+        if self.scope() == Scope::File
+            && let Some(origins) = &mut self.declaration_origins
+        {
+            origins.push(
+                crate::DeclarationTarget::Record(id),
+                declaration
+                    .node
+                    .identifier
+                    .as_ref()
+                    .map_or(declaration.span, |name| name.span),
+                declaration.node.declarations.is_some(),
+                false,
+                reference,
+            )?;
+        }
         if let Some(checked) = &mut self.checked {
             checked.tag(
                 declaration,
@@ -4196,6 +4269,7 @@ impl Analyzer {
                 declaration.node.enumerators.is_empty()
                     || binding.depth == self.lexical_scopes.len()
             });
+        let reference = binding.is_some() && declaration.node.enumerators.is_empty();
         let id = if let Some(binding) = binding {
             let Tag::Enum(id) = binding.tag else {
                 return Err(Error::new(
@@ -4221,6 +4295,21 @@ impl Analyzer {
             }
             id
         };
+        if self.scope() == Scope::File
+            && let Some(origins) = &mut self.declaration_origins
+        {
+            origins.push(
+                crate::DeclarationTarget::Enum(id),
+                declaration
+                    .node
+                    .identifier
+                    .as_ref()
+                    .map_or(declaration.span, |name| name.span),
+                !declaration.node.enumerators.is_empty(),
+                false,
+                reference,
+            )?;
+        }
         if let Some(checked) = &mut self.checked {
             checked.tag(
                 declaration,
@@ -4281,6 +4370,20 @@ impl Analyzer {
             let previous_binding = self.unit.constants.insert(name.clone(), value);
             if let Some(scope) = self.lexical_scopes.last_mut() {
                 scope.constants.push((name.clone(), previous_binding));
+            }
+            if self.scope() == Scope::File
+                && let Some(origins) = &mut self.declaration_origins
+            {
+                origins.push(
+                    crate::DeclarationTarget::Enumerator {
+                        enumeration: id,
+                        variant: self.unit.enums[id].variants.len(),
+                    },
+                    enumerator.node.identifier.span,
+                    true,
+                    false,
+                    false,
+                )?;
             }
             if let Some(checked) = &mut self.checked {
                 checked.enumerator(

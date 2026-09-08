@@ -10,6 +10,27 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     unit.validate_function_options().unwrap();
     unit.validate_parameter_contracts().unwrap();
     unit.validate_alignment_origins().unwrap();
+    if let Some(origins) = analysis.declaration_origins() {
+        use toucan::semantic::DeclarationTarget;
+        let mut previous = 0;
+        for origin in origins.entries() {
+            source_span(source, origin.source());
+            let start = origin.source().range().start;
+            assert!(start >= previous);
+            previous = start;
+            assert!(!(origin.is_reference() && origin.is_definition()));
+            match origin.target() {
+                DeclarationTarget::Declaration(id) => assert!(id < unit.declarations.len()),
+                DeclarationTarget::Record(id) => assert!(id < unit.records.len()),
+                DeclarationTarget::Enum(id) => assert!(id < unit.enums.len()),
+                DeclarationTarget::Enumerator {
+                    enumeration,
+                    variant,
+                } => assert!(variant < unit.enums[enumeration].variants.len()),
+                _ => panic!("new declaration origin needs invariant coverage"),
+            }
+        }
+    }
     for attribute in code.noescape_attributes() {
         source_span(source, attribute.source());
         assert!(code.occurrence(attribute.owner()).is_some());
@@ -183,7 +204,10 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         assert_eq!(scope_membership[id.index()], 1);
         let entity = code.entity(declaration.entity()).unwrap();
         if declaration.dll_storage_class().is_some() {
-            assert!(matches!(entity.kind(), EntityKind::Variable | EntityKind::Function));
+            assert!(matches!(
+                entity.kind(),
+                EntityKind::Variable | EntityKind::Function
+            ));
             assert_eq!(declaration.linkage(), Linkage::External);
             assert_ne!(declaration.storage(), Storage::Thread);
         }

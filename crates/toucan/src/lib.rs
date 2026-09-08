@@ -267,6 +267,10 @@ impl Compilation {
     pub fn checked(&self) -> Option<&semantic::checked::CheckedCode> {
         self.analysis.checked()
     }
+    /// Returns file-scope declaration locations when requested independently of checked code.
+    pub fn declaration_origins(&self) -> Option<&semantic::DeclarationOrigins> {
+        self.analysis.declaration_origins()
+    }
     /// Resolves the token origins intersecting a retained source span.
     ///
     /// Disjoint fragments retain their mapped order. Repeated origins can occur,

@@ -171,3 +171,16 @@ example from the C standard, conditional arithmetic, resource limits, source loc
 and include search behavior. Differential tests invoke `CC` (default: `cc`) and compare
 preprocessing tokens and filesystem include results. Run with both GCC and Clang when
 changing expansion or include handling.
+
+### Optional physical header origins
+
+`Config::record_file_origins` records physical input paths in
+`Preprocessed::file_origins()` independently of diagnostic `#line` mappings.
+`source_file(offset)` resolves an output token to its input header; adjacent
+ranges from one header are coalesced and path storage is shared. Macro-generated
+declarations belong to the invocation's header. `macro_definition(name)` gives
+the physical path and line of the final active definition; `#undef` removes it.
+Command-line definitions have no source origin. A fresh preprocessing run resets
+the catalog, and the default configuration allocates none of it. Existing source,
+include, token, and expansion limits still apply. `push_macro` and `pop_macro`
+remain unsupported directives.

@@ -1191,6 +1191,16 @@ fn unmapped_span(span: Span) -> SourceSpan {
 }
 
 fn map_span(offsets: &SourceMap, span: Span, budget: &mut Budget) -> Result<SourceSpan, Error> {
+    map_source_span(offsets, span, |edges, bytes| {
+        budget.charge(0, edges, bytes, span.start)
+    })
+}
+
+pub(crate) fn map_source_span(
+    offsets: &SourceMap,
+    span: Span,
+    mut charge: impl FnMut(usize, usize) -> Result<(), Error>,
+) -> Result<SourceSpan, Error> {
     let mut first: Option<Range<usize>> = None;
     let mut fragments = Vec::new();
     let mut anchor = None;
@@ -1198,16 +1208,16 @@ fn map_span(offsets: &SourceMap, span: Span, budget: &mut Budget) -> Result<Sour
         if range.is_empty() {
             anchor.get_or_insert(range.start);
         } else {
-            budget.charge(0, 1, 0, span.start)?;
+            charge(1, 0)?;
             if let Some(first) = &mut first {
                 if fragments.is_empty() && first.end == range.start {
                     first.end = range.end;
                 } else {
                     if fragments.is_empty() {
-                        budget.charge(0, 0, std::mem::size_of::<Range<usize>>(), span.start)?;
+                        charge(0, std::mem::size_of::<Range<usize>>())?;
                         fragments.push(first.clone());
                     }
-                    budget.charge(0, 0, std::mem::size_of::<Range<usize>>(), span.start)?;
+                    charge(0, std::mem::size_of::<Range<usize>>())?;
                     fragments.push(range);
                 }
             } else {
