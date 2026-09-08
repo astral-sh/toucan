@@ -8,6 +8,7 @@
 mod atomic;
 mod complex;
 mod derives;
+mod enum_constants;
 mod enumeration;
 mod external;
 mod renaming;
@@ -16,6 +17,7 @@ mod selection;
 pub use selection::BindingSelection;
 
 pub use derives::DeriveOptions;
+pub use enum_constants::EnumConstantStyle;
 pub use external::{ExternalType, ExternalTypeKind};
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -51,6 +53,11 @@ pub struct Options {
     /// select the enum. Empty retains integer aliases unless `rustified_enums`
     /// selects every enum. This option does not use generated Rust names.
     pub rustified_enum_patterns: Vec<String>,
+    /// Prepend the C enum tag or first anonymous typedef name to integer
+    /// constant projections. Selection still uses original C enumerator names.
+    pub prepend_enum_name: bool,
+    /// Choose global integer projections or bindgen's scoped Rust enum policy.
+    pub enum_constant_style: EnumConstantStyle,
     /// Traits to provide when their generated storage representation permits it.
     pub derives: DeriveOptions,
     /// Represent a pointer-sized unsigned `size_t` typedef as Rust `usize`.
@@ -456,12 +463,14 @@ pub fn generate_with_macros(
         complex_records: complex::Records::default(),
         external: external::ExternalTypes::default(),
         rustified_enums: enumeration::select(unit, options)?,
+        enum_constant_names: enum_constants::Names::default(),
         derive_records: derives::Records::default(),
     };
     let mut selected = Vec::new();
     let mut skipped = Vec::new();
     let mut blocked_functions = Vec::new();
     let mut seen = BTreeSet::new();
+    emitter.prepare_enum_constant_names()?;
     for (index, declaration) in unit.declarations.iter().enumerate() {
         declaration.validate_inline_facts()?;
         if !options.includes_declaration(index, &declaration.name, declaration.kind)
@@ -664,13 +673,13 @@ pub fn generate_with_macros(
             if enum_owners.insert(variant.name.as_str(), id).is_some() {
                 return Err(Error(format!("duplicate enumerator `{}`", variant.name)));
             }
-            if options.includes_constant(&variant.name) && !macros.contains_key(&variant.name) {
+            if let Some(rust_name) = emitter.emitted_constant_name(&variant.name, macros)? {
                 let value = unit.constants.get(&variant.name).ok_or_else(|| {
                     Error(format!("missing enumerator constant `{}`", variant.name))
                 })?;
                 emitted.push(EnumConstant {
                     c_name: variant.name.clone(),
-                    rust_name: emitter.names.identifier(&variant.name)?,
+                    rust_name,
                     c_expression_bits: value.bits,
                     c_expression_signed: value.signed,
                 });
@@ -692,17 +701,24 @@ pub fn generate_with_macros(
         if emitter.blocked_enumerator(name) {
             continue;
         }
-        if options.includes_constant(name) && !macros.contains_key(name) {
+        if let Some(rust_name) = emitter.emitted_constant_name(name, macros)? {
+            if let Some(id) = emitter.rust_enum_constant(name) {
+                let enum_name = emitter.enum_name(id)?;
+                let variant_name = emitter.names.identifier(name)?;
+                writeln!(
+                    source,
+                    "pub const {rust_name}: {enum_name} = {enum_name}::{variant_name};"
+                )
+                .unwrap();
+                continue;
+            }
             let value = if let Some(&id) = enum_owners.get(name.as_str()) {
                 let (bits, signed) = emitter.enum_integer(id)?;
                 convert_enum_constant(*value, bits, signed)?
             } else {
                 *value
             };
-            source.push_str(&integer_constant_named(
-                &emitter.names.identifier(name)?,
-                value,
-            )?);
+            source.push_str(&integer_constant_named(&rust_name, value)?);
         }
     }
     let extern_keyword = if options.rust_target.minor >= 82 {
@@ -1045,6 +1061,7 @@ struct Emitter<'a> {
     complex_records: complex::Records,
     external: external::ExternalTypes,
     rustified_enums: BTreeSet<usize>,
+    enum_constant_names: enum_constants::Names<'a>,
     derive_records: derives::Records,
 }
 

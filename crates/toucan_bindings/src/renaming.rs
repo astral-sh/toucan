@@ -49,7 +49,10 @@ impl Emitter<'_> {
         selected: &[&Declaration],
         macros: &BTreeMap<String, Option<MacroValue>>,
     ) -> Result<(), Error> {
-        if self.options.generated_names.is_empty() {
+        if self.options.generated_names.is_empty()
+            && !self.options.prepend_enum_name
+            && self.options.enum_constant_style == crate::EnumConstantStyle::Integer
+        {
             return Ok(());
         }
         let mut values = BTreeMap::<String, String>::new();
@@ -67,11 +70,8 @@ impl Emitter<'_> {
             }
         }
         for name in self.unit.constants.keys() {
-            if self.options.includes_constant(name)
-                && !macros.contains_key(name)
-                && !self.blocked_enumerator(name)
-            {
-                insert(self.names.identifier(name)?, name)?;
+            if let Some(generated) = self.emitted_constant_name(name, macros)? {
+                insert(generated, name)?;
             }
         }
         for (name, value) in macros {

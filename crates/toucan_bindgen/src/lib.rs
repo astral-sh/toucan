@@ -89,6 +89,8 @@ impl Default for Builder {
             headers: Vec::new(),
             arguments: Vec::new(),
             options: BindingOptions {
+                prepend_enum_name: true,
+                enum_constant_style: toucan::EnumConstantStyle::Bindgen,
                 size_t_is_usize: true,
                 macro_type: MacroType::Unsigned,
                 rust_target: RustTarget::default().0,
@@ -203,6 +205,13 @@ impl Builder {
             Ok(pattern) => self.options.rustified_enum_patterns.push(pattern),
             Err(error) => self.fail(error),
         }
+        self
+    }
+
+    /// Prepend the enum tag or first anonymous typedef name to integer constants.
+    /// Enabled by default. Rust enum variants keep their original names.
+    pub fn prepend_enum_name(mut self, enabled: bool) -> Self {
+        self.options.prepend_enum_name = enabled;
         self
     }
 

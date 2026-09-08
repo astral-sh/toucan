@@ -23,7 +23,8 @@ generated declarations can target Rust 1.64 or later.
 
 `Builder` supports ordered `header` calls, `clang_arg`/`clang_args`, `use_core`,
 `size_t_is_usize`, `rust_target`, `layout_tests`, `raw_line`,
-`blocklist_function`, `blocklist_type`, and `rustified_enum`. Generation returns bindings
+`blocklist_function`, `blocklist_type`, `rustified_enum`, and `prepend_enum_name`.
+Generation returns bindings
 with `Display`, `write`, `write_to_file`, and a `report()` containing omitted macros and
 dependencies. Compile-time size and alignment assertions remain enabled when
 runtime layout tests are disabled.
@@ -33,6 +34,11 @@ ending in `.*`, with optional anchors. Other regular expressions produce errors.
 Rust enum selection uses the C tag or the first typedef naming an anonymous
 enum; later aliases do not match. See [enum selection](../../docs/enum-selection.md)
 for anonymous constants and generated nested-name boundaries.
+Integer enum constants include the enum name by default (`Mode_VALUE`);
+`prepend_enum_name(false)` keeps `VALUE`. Named Rust enums expose their variants
+without extra global integer constants. Truly anonymous Rust enums also expose
+enum-typed globals. See [enum constant names](../../docs/enum-constant-names.md)
+for macro collisions and the core library's separate default policy.
 Type blocklists omit matching definitions and preserve their
 uses under the names listed in `report().blocked_types`. Supply those Rust types
 with imports or `raw_line`. The blocklist is not recursive: an independently

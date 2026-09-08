@@ -11,7 +11,8 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 pub use toucan_bindings::{
-    BindingSelection, Bindings, DeriveOptions, MacroType, Options as BindingOptions, RustTarget,
+    BindingSelection, Bindings, DeriveOptions, EnumConstantStyle, MacroType,
+    Options as BindingOptions, RustTarget,
 };
 pub use toucan_preprocessor::{
     CommandLineMacroNormalizer, FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude,

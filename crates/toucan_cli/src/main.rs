@@ -408,6 +408,8 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 allowlist,
                 rustified_enums,
                 rustified_enum_patterns: Vec::new(),
+                prepend_enum_name: false,
+                enum_constant_style: Default::default(),
                 derives: Default::default(),
                 size_t_is_usize,
                 helper_namespace,
