@@ -80,3 +80,30 @@ memory bandwidth, filesystem activity, or frequency changes.
 
 These measurements cover one machine and four workloads. They do not measure cold
 starts, in-process reuse, other platforms or allocators, or a complete C frontend.
+
+## Allocator comparison
+
+A paired run at commit `f78baa8` compared the system allocator with the CLI's
+`performance-allocator` feature (jemalloc on Linux). Both release binaries used
+Rust 1.98.1 and the same source. The four projects and two binaries were shuffled
+within each of 15 measured iterations, after one discarded warmup, on CPU 0.
+
+| Header | System median | jemalloc median | Speedup | System / jemalloc peak RSS |
+| --- | ---: | ---: | ---: | ---: |
+| libgit2 | 361.83 ms | 238.81 ms | 1.52× | 16.50 / 17.75 MiB |
+| SQLite | 152.07 ms | 91.24 ms | 1.67× | 7.65 / 9.00 MiB |
+| zlib | 43.39 ms | 37.49 ms | 1.16× | 6.75 / 7.50 MiB |
+| zstd | 14.36 ms | 14.31 ms | 1.00× | 4.91 / 6.25 MiB |
+
+Every output was byte-identical across the two allocators and all samples. They
+also match the output hashes in the published `4ac7511` benchmark evidence above.
+Source, binaries, and header dependencies were verified; the
+[raw observations and reports](../benchmarks/evidence/2026-09-08-allocators-f78baa8/evidence.json)
+and [exact capture script](../benchmarks/evidence/2026-09-08-allocators-f78baa8/runner.py)
+are retained. The capture script records the original workspace paths.
+
+These results support offering jemalloc for the larger header workloads, with a
+small increase in memory. The default remains the system allocator; library users
+choose their process allocator. This was a shared host with concurrent verification
+work, warm caches, and uncontrolled CPU frequency. These measurements predate the
+later atomic/MMX and parser changes and do not measure macOS or Windows allocators.
