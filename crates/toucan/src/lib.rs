@@ -180,6 +180,14 @@ pub fn parse_file(path: &Path, config: &Config) -> Result<Compilation, Error> {
     finish(preprocessed, config, start.elapsed())
 }
 
+/// Parse ordered headers: earlier paths are forced includes, and the last is the main file.
+/// See [`Preprocessor::preprocess_files`] for path lookup and shared macro-state rules.
+pub fn parse_files(paths: &[std::path::PathBuf], config: &Config) -> Result<Compilation, Error> {
+    let start = Instant::now();
+    let preprocessed = Preprocessor::new(config.preprocessor.clone()).preprocess_files(paths)?;
+    finish(preprocessed, config, start.elapsed())
+}
+
 pub fn parse_source(path: &Path, source: &str, config: &Config) -> Result<Compilation, Error> {
     let start = Instant::now();
     let preprocessed =

@@ -262,7 +262,7 @@ pub struct Preprocessor {
     config: Config,
     active_queries: u8,
     macros: BTreeMap<String, Macro>,
-    dependencies: BTreeSet<PathBuf>,
+    dependencies: BTreeMap<PathBuf, Option<Arc<Path>>>,
     once: BTreeSet<PathBuf>,
     tokens: usize,
     expansion_tokens: usize,
@@ -274,12 +274,68 @@ pub struct Preprocessor {
     file_origins: Option<Box<FileOrigins>>,
 }
 
+/// Separates filesystem identity, compiler-visible access spelling, and main-file rules.
+#[derive(Clone, Copy)]
+struct InputFile<'a> {
+    physical: &'a Path,
+    accessed: &'a Path,
+    main: bool,
+}
+
+impl<'a> InputFile<'a> {
+    fn named(path: &'a Path, main: bool) -> Self {
+        Self {
+            physical: path,
+            accessed: path,
+            main,
+        }
+    }
+}
+
 #[derive(Debug)]
 struct Conditional {
     parent_active: bool,
     active: bool,
     taken: bool,
     seen_else: bool,
+}
+
+/// Keep literal `./` components in the including directory; `Path::parent` removes them.
+fn accessed_parent(path: &Path) -> Option<std::borrow::Cow<'_, Path>> {
+    use std::borrow::Cow;
+    // UTF-8 names need no platform-specific allocation, including on Windows.
+    if let Some(name) = path.to_str() {
+        return name
+            .rfind(std::path::is_separator)
+            .map(|index| Cow::Borrowed(Path::new(&name[..index + 1])))
+            .or_else(|| path.parent().map(Cow::Borrowed));
+    }
+    #[cfg(unix)]
+    {
+        use std::os::unix::ffi::OsStrExt;
+        let bytes = path.as_os_str().as_bytes();
+        bytes
+            .iter()
+            .rposition(|&byte| byte == b'/')
+            .map(|index| Cow::Borrowed(Path::new(std::ffi::OsStr::from_bytes(&bytes[..index + 1]))))
+            .or_else(|| path.parent().map(Cow::Borrowed))
+    }
+    #[cfg(windows)]
+    {
+        use std::os::windows::ffi::{OsStrExt, OsStringExt};
+        let mut units: Vec<_> = path.as_os_str().encode_wide().collect();
+        if let Some(index) = units
+            .iter()
+            .rposition(|&unit| unit == b'/' as u16 || unit == b'\\' as u16)
+        {
+            units.truncate(index + 1);
+            Some(Cow::Owned(std::ffi::OsString::from_wide(&units).into()))
+        } else {
+            path.parent().map(Cow::Borrowed)
+        }
+    }
+    #[cfg(not(any(unix, windows)))]
+    path.parent().map(Cow::Borrowed)
 }
 
 impl Preprocessor {
@@ -289,7 +345,7 @@ impl Preprocessor {
             config,
             active_queries: 0,
             macros: BTreeMap::new(),
-            dependencies: BTreeSet::new(),
+            dependencies: BTreeMap::new(),
             once: BTreeSet::new(),
             tokens: 0,
             expansion_tokens: 0,
@@ -302,20 +358,98 @@ impl Preprocessor {
         }
     }
 
-    /// Read and preprocess a header, resolving includes relative to its directory.
+    /// Read and preprocess a header, resolving includes relative to its accessed directory.
     pub fn preprocess(&mut self, path: &Path) -> Result<Preprocessed, Error> {
+        self.preprocess_inputs(path, std::iter::empty())
+    }
+
+    /// Preprocess ordered headers in one macro environment.
+    ///
+    /// The final path is the main file and must exist as written. Earlier paths
+    /// behave like compiler `-include` inputs: search the working directory, then
+    /// configured include directories. Configured in-memory forced includes run first.
+    /// At least one path is required. Main-file spelling is registered before any
+    /// forced header, matching Clang's first-name rule for repeated physical files.
+    pub fn preprocess_files(&mut self, paths: &[PathBuf]) -> Result<Preprocessed, Error> {
+        let (main, headers) = paths.split_last().ok_or_else(|| {
+            Error::new(
+                Path::new("<input>"),
+                1,
+                "at least one input header is required",
+            )
+        })?;
+        self.preprocess_inputs(main, headers.iter().map(PathBuf::as_path))
+    }
+
+    fn preprocess_inputs<'a>(
+        &mut self,
+        main: &Path,
+        headers: impl Iterator<Item = &'a Path>,
+    ) -> Result<Preprocessed, Error> {
         if !self.config.allow_filesystem {
             return Err(Error::new(
-                path,
+                main,
                 1,
                 "filesystem access is disabled; use preprocess_str with virtual headers",
             ));
         }
         self.reset()?;
+        // Clang opens the main file before processing -include inputs. Register
+        // its name first, including when a forced input names the same file.
+        let physical = fs::canonicalize(main)
+            .map_err(|error| Error::new(main, 1, format!("cannot open header: {error}")))?;
+        let spelling = self.register_file(&physical, main);
+        let accessed = if self.clang_paths() {
+            spelling.as_deref().unwrap_or(&physical)
+        } else {
+            main
+        };
+        let input = InputFile {
+            physical: &physical,
+            accessed,
+            main: true,
+        };
         let mut output = String::new();
         self.forced_includes(&mut output)?;
-        self.file(path, 0, None, &mut output)?;
-        Ok(self.finish(path, output))
+        for header in headers {
+            let candidate = std::iter::once((Path::new(".").join(header), None))
+                .chain(
+                    self.config
+                        .include_dirs
+                        .iter()
+                        .enumerate()
+                        .map(|(index, directory)| (directory.join(header), Some(index))),
+                )
+                .find(|(path, _)| path.is_file())
+                .ok_or_else(|| {
+                    Error::new(
+                        header,
+                        1,
+                        "forced header not found; configure the include paths",
+                    )
+                })?;
+            self.file(&candidate.0, 0, candidate.1, &mut output)?;
+        }
+        self.read_file(input, 0, None, &mut output)?;
+        Ok(self.finish(main, output))
+    }
+
+    fn clang_paths(&self) -> bool {
+        self.config.feature_queries.as_ref().map_or_else(
+            || self.macros.contains_key("__clang__"),
+            |queries| queries.dialect == QueryDialect::Clang,
+        )
+    }
+
+    /// Register dependencies once and retain only Clang's noncanonical first name.
+    fn register_file(&mut self, physical: &Path, accessed: &Path) -> Option<Arc<Path>> {
+        let clang = self.clang_paths();
+        self.dependencies
+            .entry(physical.to_owned())
+            .or_insert_with(|| {
+                (clang && physical.as_os_str() != accessed.as_os_str()).then(|| Arc::from(accessed))
+            })
+            .clone()
     }
 
     /// Preprocess in-memory source. `name` determines diagnostics and quoted includes.
@@ -323,14 +457,20 @@ impl Preprocessor {
         self.reset()?;
         let mut output = String::new();
         self.forced_includes(&mut output)?;
-        self.source(name, source, 0, None, &mut output)?;
+        self.source(InputFile::named(name, true), source, 0, None, &mut output)?;
         Ok(self.finish(name, output))
     }
 
     fn forced_includes(&mut self, output: &mut String) -> Result<(), Error> {
         for include in self.config.forced_includes.clone() {
             if !self.once.contains(&include.path) {
-                self.source(&include.path, &include.source, 0, None, output)?;
+                self.source(
+                    InputFile::named(&include.path, false),
+                    &include.source,
+                    0,
+                    None,
+                    output,
+                )?;
             }
         }
         Ok(())
@@ -406,7 +546,7 @@ impl Preprocessor {
         Preprocessed {
             source,
             macros: self.macros.clone(),
-            dependencies: self.dependencies.iter().cloned().collect(),
+            dependencies: self.dependencies.keys().cloned().collect(),
             mappings: std::mem::take(&mut self.mappings),
             file_origins: self.file_origins.take(),
             config: self.config.clone(),
@@ -425,51 +565,85 @@ impl Preprocessor {
         if depth >= self.config.max_include_depth {
             return Err(Error::new(path, 1, "include depth limit exceeded"));
         }
-        let path = fs::canonicalize(path)
+        let physical = fs::canonicalize(path)
             .map_err(|error| Error::new(path, 1, format!("cannot open header: {error}")))?;
-        if self.once.contains(&path) {
+        if self.once.contains(&physical) {
             return Ok(());
+        }
+        let spelling = self.register_file(&physical, path);
+        let accessed = if self.clang_paths() {
+            spelling.as_deref().unwrap_or(&physical)
+        } else {
+            path
+        };
+        self.read_file(
+            InputFile {
+                physical: &physical,
+                accessed,
+                main: false,
+            },
+            depth,
+            include_origin,
+            output,
+        )
+    }
+
+    fn read_file(
+        &mut self,
+        input: InputFile<'_>,
+        depth: usize,
+        include_origin: Option<usize>,
+        output: &mut String,
+    ) -> Result<(), Error> {
+        if depth >= self.config.max_include_depth {
+            return Err(Error::new(
+                input.accessed,
+                1,
+                "include depth limit exceeded",
+            ));
         }
         let limit = self
             .config
             .max_source_bytes
             .saturating_sub(self.source_bytes);
         let mut source = String::new();
-        fs::File::open(&path)
+        fs::File::open(input.physical)
             .and_then(|file| {
                 file.take((limit as u64).saturating_add(1))
                     .read_to_string(&mut source)
             })
-            .map_err(|error| Error::new(&path, 1, format!("cannot read header: {error}")))?;
+            .map_err(|error| {
+                Error::new(input.accessed, 1, format!("cannot read header: {error}"))
+            })?;
         if source.len() > limit {
-            return Err(Error::new(&path, 1, "source byte limit exceeded"));
+            return Err(Error::new(input.accessed, 1, "source byte limit exceeded"));
         }
-        self.dependencies.insert(path.clone());
-        self.source(&path, &source, depth, include_origin, output)
+        self.source(input, &source, depth, include_origin, output)
     }
 
     fn source(
         &mut self,
-        path: &Path,
+        input: InputFile<'_>,
         source: &str,
         depth: usize,
         include_origin: Option<usize>,
         output: &mut String,
     ) -> Result<(), Error> {
+        let path = input.physical;
         self.source_bytes = self.source_bytes.saturating_add(source.len());
         if self.source_bytes > self.config.max_source_bytes {
-            return Err(Error::new(path, 1, "source byte limit exceeded"));
+            return Err(Error::new(input.accessed, 1, "source byte limit exceeded"));
         }
         let source = normalize(
             source,
             self.config.trigraphs,
             &mut comments::CommentState::new(self.config.line_comments),
         )
-        .map_err(|message| Error::new(path, 1, message))?;
+        .map_err(|message| Error::new(input.accessed, 1, message))?;
         let mut conditions: Vec<Conditional> = Vec::new();
         let mut pending = Vec::new();
         let mut line_adjustment = 0i64;
-        let mut logical_path = path.to_owned();
+        let mut logical_path = input.accessed.to_owned();
         let mut marker_paths = Vec::new();
         let mut offset = 0;
         for line in source.source.split_inclusive('\n') {
@@ -512,7 +686,7 @@ impl Preprocessor {
                 }
                 continue;
             }
-            self.flush(&logical_path, path, &mut pending, output)?;
+            self.flush(&logical_path, input, &mut pending, output)?;
             let Some(directive) = tokens.get(1) else {
                 continue;
             };
@@ -533,7 +707,7 @@ impl Preprocessor {
                     let matches = if !active {
                         false
                     } else if directive.text == "if" {
-                        self.condition(&logical_path, path, include_origin, rest, output)
+                        self.condition(&logical_path, input, include_origin, rest, output)
                             .map_err(&fail)?
                     } else {
                         let name = identifier(rest).map_err(&fail)?;
@@ -563,7 +737,7 @@ impl Preprocessor {
                     let matches = condition.parent_active
                         && !condition.taken
                         && self
-                            .condition(&logical_path, path, include_origin, rest, output)
+                            .condition(&logical_path, input, include_origin, rest, output)
                             .map_err(&fail)?;
                     condition.active = matches;
                     condition.taken |= matches;
@@ -598,6 +772,7 @@ impl Preprocessor {
                         origins.define(
                             &name.text,
                             path,
+                            input.accessed,
                             source.line_at(start + name.offset),
                             source.column_at(start + name.offset),
                         );
@@ -629,9 +804,13 @@ impl Preprocessor {
                     } else {
                         0
                     };
-                    if let Some((included, origin)) =
-                        self.find_include(path, &name, quoted && !next, start, include_origin)
-                    {
+                    if let Some((included, origin)) = self.find_include(
+                        input.accessed,
+                        &name,
+                        quoted && !next,
+                        start,
+                        include_origin,
+                    ) {
                         self.file(&included, depth + 1, origin, output)?;
                     } else if let Some(source) = self
                         .config
@@ -654,7 +833,7 @@ impl Preprocessor {
                         let name = PathBuf::from(format!("<builtin>/{name}"));
                         if !self.once.contains(&name) {
                             self.source(
-                                &name,
+                                InputFile::named(&name, false),
                                 &source,
                                 depth + 1,
                                 Some(self.config.include_dirs.len()),
@@ -671,7 +850,7 @@ impl Preprocessor {
                 "pragma" => {
                     let output_start = output.len();
                     self.pragma(
-                        path,
+                        input,
                         SourceLocation {
                             path: Arc::from(logical_path.as_path()),
                             line: logical_line,
@@ -682,7 +861,7 @@ impl Preprocessor {
                         output,
                     )?;
                     if let Some(origins) = &mut self.file_origins {
-                        origins.append(output_start..output.len(), path);
+                        origins.append(output_start..output.len(), path, input.accessed);
                     }
                 }
                 "line" => {
@@ -748,12 +927,12 @@ impl Preprocessor {
                 "unterminated #if group",
             ));
         }
-        self.flush(&logical_path, path, &mut pending, output)
+        self.flush(&logical_path, input, &mut pending, output)
     }
 
     fn pragma(
         &mut self,
-        physical_path: &Path,
+        input: InputFile<'_>,
         origin: SourceLocation,
         tokens: &[Token],
         output: &mut String,
@@ -762,10 +941,13 @@ impl Preprocessor {
         match tokens.first().map(|token| token.text.as_str()) {
             None => {}
             Some("once") if tokens.len() == 1 => {
+                if input.main && self.clang_paths() {
+                    return Ok(());
+                }
                 let path = if self.config.allow_filesystem {
-                    fs::canonicalize(physical_path).unwrap_or_else(|_| physical_path.to_owned())
+                    fs::canonicalize(input.physical).unwrap_or_else(|_| input.physical.to_owned())
                 } else {
-                    physical_path.to_owned()
+                    input.physical.to_owned()
                 };
                 self.once.insert(path);
             }
@@ -808,7 +990,7 @@ impl Preprocessor {
     fn flush(
         &mut self,
         path: &Path,
-        physical_path: &Path,
+        input: InputFile<'_>,
         pending: &mut Vec<Token>,
         output: &mut String,
     ) -> Result<(), Error> {
@@ -830,7 +1012,7 @@ impl Preprocessor {
             let payload = lex_with_scope(&token.text, self.config.scope_punctuator)
                 .map_err(|message| Error::at(path, token.line, token.column, message))?;
             self.pragma(
-                physical_path,
+                input,
                 SourceLocation {
                     path: Arc::from(path),
                     line: token.line,
@@ -850,7 +1032,7 @@ impl Preprocessor {
             self.output_tokens(path, line, column, &tokens[start..], output)?;
         }
         if let Some(origins) = &mut self.file_origins {
-            origins.append(output_start..output.len(), physical_path);
+            origins.append(output_start..output.len(), input.physical, input.accessed);
         }
         Ok(())
     }
@@ -955,7 +1137,7 @@ impl Preprocessor {
     fn condition(
         &mut self,
         path: &Path,
-        include_path: &Path,
+        input: InputFile<'_>,
         include_origin: Option<usize>,
         tokens: &[Token],
         output: &mut String,
@@ -987,7 +1169,7 @@ impl Preprocessor {
                 position += 1;
             }
         }
-        let replaced = self.has_include(path, include_path, include_origin, replaced)?;
+        let replaced = self.has_include(path, input.accessed, include_origin, replaced)?;
         let expanded = self.expand(path, replaced)?;
         let mut ordinary = Vec::with_capacity(expanded.len());
         for token in expanded {
@@ -1000,8 +1182,9 @@ impl Preprocessor {
                     return Err("_Pragma is not supported in GCC preprocessing conditions".into());
                 }
                 let payload = lex_with_scope(&token.text, self.config.scope_punctuator)?;
+                let output_start = output.len();
                 self.pragma(
-                    include_path,
+                    input,
                     SourceLocation {
                         path: Arc::from(path),
                         line: token.line,
@@ -1016,6 +1199,9 @@ impl Preprocessor {
                     output,
                 )
                 .map_err(|error| error.message)?;
+                if let Some(origins) = &mut self.file_origins {
+                    origins.append(output_start..output.len(), input.physical, input.accessed);
+                }
             } else {
                 ordinary.push(token);
             }
@@ -1029,7 +1215,7 @@ impl Preprocessor {
                     .any(|token| token == "unsigned")
         });
         expression::evaluate(
-            &self.has_include(path, include_path, include_origin, expanded)?,
+            &self.has_include(path, input.accessed, include_origin, expanded)?,
             wchar_unsigned,
             self.config.char_unsigned,
         )
@@ -1124,7 +1310,11 @@ impl Preprocessor {
             .flatten();
         let local = quoted.then(|| {
             (
-                from.parent().unwrap_or(Path::new(".")).join(name),
+                accessed_parent(from)
+                    .as_deref()
+                    .filter(|parent| !self.clang_paths() || !parent.as_os_str().is_empty())
+                    .unwrap_or(Path::new("."))
+                    .join(name),
                 local_origin,
             )
         });

@@ -172,15 +172,44 @@ and include search behavior. Differential tests invoke `CC` (default: `cc`) and 
 preprocessing tokens and filesystem include results. Run with both GCC and Clang when
 changing expansion or include handling.
 
+### File access names and ordered inputs
+
+Filesystem dependencies and `#pragma once` use canonical file identities. Quoted
+includes and `__has_include` resolve from the compiler-visible access directory,
+including a symlink's directory. Literal `./` and `../` components remain in input
+names. GNU uses each access spelling; Clang reuses the first registered name of a
+physical file for both include lookup and `__FILE__`. Diagnostic `#line` names
+change `__FILE__` and diagnostics without changing physical include resolution.
+
+`Preprocessor::preprocess_files(&[PathBuf])` accepts an ordered, nonempty header
+list in one macro environment. The final path is the main file and must exist as
+written; earlier paths use compiler `-include` lookup (working directory, then
+configured include directories). Configured in-memory forced includes run first.
+Clang registers the main name before these forced headers. Main input is processed
+even if an earlier forced header marked the same file `once`; Clang ignores `once`
+in the main file, whereas GNU applies it to later includes. The single-file entry
+point uses the same rules without constructing a header list. The facade exposes
+this through `toucan::parse_files`.
+
+Canonical paths currently coalesce symlinks, but distinct hard links remain
+separate identities. See [the native path evidence](../../docs/header-paths.md)
+for tested behavior and the remaining host file-identity work.
+
 ### Optional physical header origins
 
 `Config::record_file_origins` records physical input paths in
 `Preprocessed::file_origins()` independently of diagnostic `#line` mappings.
-`source_file(offset)` resolves an output token to its input header; adjacent
-ranges from one header are coalesced and path storage is shared. Macro-generated
-declarations belong to the invocation's header. `macro_definition(name)` gives
-the physical path and line of the final active definition; `#undef` removes it.
-Command-line definitions have no source origin. A fresh preprocessing run resets
-the catalog, and the default configuration allocates none of it. Existing source,
-include, token, and expansion limits still apply. `push_macro` and `pop_macro`
-remain unsupported directives.
+`source_file(offset)` resolves a token to its canonical filesystem identity
+(or supplied in-memory name);
+`source_name(offset)` returns its compiler-visible access spelling. Each
+`FileMapping` exposes the same pair through `path()` and `accessed_path()`.
+Adjacent ranges are coalesced only when both identity and exact spelling match.
+Macro-generated declarations belong to the invocation's header.
+`macro_definition(name)` gives the physical path and line of the final active
+definition, while `macro_definition_name(name)` gives its access spelling.
+`#undef` removes both facts; command-line definitions have no source origin.
+A fresh run resets the catalog, and the default configuration allocates none of
+it. Existing source, include, token, and expansion limits still apply. Clang's
+first-name cache shares the ordinary dependency index and retains an additional
+path only when the first name differs from its canonical identity. `push_macro`
+and `pop_macro` remain unsupported directives.

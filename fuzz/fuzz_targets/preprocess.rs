@@ -68,11 +68,18 @@ fuzz_target!(|bytes: &[u8]| {
             assert!(output.source.get(range.clone()).is_some());
             assert_eq!(origins.source_file(range.start), Some(mapping.path()));
             assert_eq!(origins.source_file(range.end - 1), Some(mapping.path()));
+            for offset in [range.start, range.end - 1] {
+                assert_eq!(
+                    origins.source_name(offset).map(std::path::Path::as_os_str),
+                    Some(mapping.accessed_path().as_os_str())
+                );
+            }
             previous_end = range.end;
         }
         for name in output.macros.keys() {
             if let Some(location) = origins.macro_definition(name) {
                 assert!(location.line > 0 && location.column > 0);
+                assert!(origins.macro_definition_name(name).is_some());
             }
         }
     }
