@@ -8,6 +8,15 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     let unit = analysis.unit();
     let code = analysis.checked().expect("retention requested");
     unit.validate_function_options().unwrap();
+    unit.validate_parameter_contracts().unwrap();
+    for attribute in code.noescape_attributes() {
+        source_span(source, attribute.source());
+        assert!(code.occurrence(attribute.owner()).is_some());
+        for parameter in attribute.parameters() {
+            let site = code.declaration(parameter.declaration()).unwrap();
+            assert_eq!(code.entity(site.entity()).unwrap().kind(), EntityKind::Parameter);
+        }
+    }
     for site in code.function_option_sites() {
         let declaration = code.declaration(site.declaration()).unwrap();
         assert_eq!(declaration.entity(), site.entity());
@@ -1033,6 +1042,12 @@ fn type_shape(unit: &TranslationUnit, root: &Type) {
                 pending.push(element);
             }
             TypeKind::Function(function) => {
+                if let Some(id) = function.parameter_contracts {
+                    for &position in &unit.parameter_contracts(id).unwrap().no_escape {
+                        let parameter = &function.parameters[position as usize];
+                        assert!(matches!(unit.resolve(&parameter.ty).unwrap().kind, TypeKind::Pointer(_)));
+                    }
+                }
                 pending.push(&function.return_type);
                 pending.extend(function.parameters.iter().map(|parameter| &parameter.ty));
             }

@@ -293,6 +293,8 @@ fn explicit_vector_pcs_is_a_function_type_property() {
     }
     // The default remains usable on every target.
     let f = toucan_semantic::FunctionType {
+        noreturn: false,
+        parameter_contracts: None,
         return_type: Type::new(TypeKind::Void),
         parameters: vec![],
         variadic: false,

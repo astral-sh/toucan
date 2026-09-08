@@ -38,7 +38,9 @@ pub use crate::x86::{
     ConditionalImmediateConstraint, ImmediateConstraint, ImmediateStage, X86Feature, X86Intrinsic,
     X86Signature,
 };
-pub use attributes::{DiagnosticAttribute, DiagnosticAttributeKind};
+pub use attributes::{
+    DiagnosticAttribute, DiagnosticAttributeKind, NoEscapeAttribute, NoEscapeParameter,
+};
 pub use bounds::{
     Bound, BoundEvaluation, BoundId, BoundInput, BoundSite, BoundValue, Extent, FunctionUse,
     TypeStep, TypeUse, TypeUseId,
@@ -378,6 +380,7 @@ pub struct CheckedCode {
     pub(crate) inline_targets: BTreeMap<usize, target::InlineTargetRequirement>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) diagnostic_attributes: Vec<attributes::DiagnosticAttribute>,
+    pub(crate) noescape_attributes: Vec<attributes::NoEscapeAttribute>,
     pub(crate) type_operands: Vec<ownership::TypeOperand>,
     pub(crate) statements: Vec<statement::Statement>,
     pub(crate) statement_coverage: Vec<statement::StatementCoverage>,
@@ -474,6 +477,7 @@ impl Builder {
                 function_option_entities: BTreeMap::new(),
                 inline_targets: BTreeMap::new(),
                 diagnostic_attributes: Vec::new(),
+                noescape_attributes: Vec::new(),
                 type_operands: Vec::new(),
                 statements: Vec::new(),
                 statement_coverage: Vec::new(),
@@ -523,6 +527,10 @@ impl Builder {
         if let Some(error) = builder.error.take() {
             return Err(error);
         }
+        builder
+            .code
+            .noescape_attributes
+            .sort_unstable_by_key(|a| a.source().range().start);
         Ok(builder)
     }
 
@@ -1017,6 +1025,7 @@ impl Builder {
         self.finish_statements()?;
         self.finish_references(offsets)?;
         self.finish_diagnostic_attributes(offsets)?;
+        self.finish_noescape_attributes(offsets)?;
         self.finish_function_option_spans(offsets)?;
         self.finish_initializer_coverage()?;
         self.finish_bounds(offsets)?;
@@ -1224,6 +1233,12 @@ macro_rules! visit_occurrence {
 impl<'ast> Visit<'ast> for Builder {
     fn visit_attribute(&mut self, node: &'ast ast::Attribute, span: &'ast Span) {
         if self.error.is_some() {
+            return;
+        }
+        if node.name.node.trim_matches('_') == "noescape"
+            && let Err(error) = self.catalog_noescape_attribute(*span)
+        {
+            self.error = Some(error);
             return;
         }
         self.attribute_depth += 1;

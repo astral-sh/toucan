@@ -375,6 +375,13 @@ impl Analyzer {
         let mut signature = *function;
         if let Some(parameters) = &parameters {
             signature.parameters = parameters.parameters.clone();
+            if !signature.prototype
+                && let Some(old_style) = &parameters.old_style
+            {
+                // An identifier-list body has entry promises despite calls through
+                // its nonprototype declaration having no fixed-parameter contract.
+                signature.parameter_contracts = old_style.parameter_contracts;
+            }
         }
         let target_options = self
             .function_options
@@ -745,6 +752,14 @@ impl Analyzer {
             } else {
                 false
             };
+            if returns_twice
+                && matches!(&self.unit.resolve(&ty)?.kind, TypeKind::Function(f) if f.noreturn)
+            {
+                return Err(Error::new(
+                    item.span.start,
+                    "combining returns_twice and noreturn is unsupported",
+                ));
+            }
             if extra.returns_twice.is_some() && extra.link_name.is_some() {
                 return Err(Error::new(
                     item.span.start,
@@ -807,7 +822,7 @@ impl Analyzer {
                         .unit
                         .typedef_alignment(previous)?
                         .max(self.unit.typedef_alignment(&ty)?);
-                    ty = self.composite_type(previous, &ty, 0)?;
+                    ty = crate::noescape::composite_type!(self, previous, &ty, 0)?;
                     ty.alignment = alignment;
                     if let Some(checked) = &mut self.checked {
                         checked.local_declaration(
@@ -945,6 +960,24 @@ impl Analyzer {
                         "block extern conflicts with a file declaration",
                     ));
                 }
+                // Clang merges parameter promises with visible declarations only.
+                // A same-linkage declaration in an exited block is not a type source.
+                if !self.unit.parameter_contracts.is_empty() || self.has_type_noreturn {
+                    let scope = self
+                        .lexical_scopes
+                        .iter()
+                        .rev()
+                        .find(|scope| scope.names.contains_key(&name));
+                    let previous = match scope {
+                        Some(scope) => scope.names[&name].map(|index| &scope.parameters[index].ty),
+                        None => previous_file.map(|index| &self.unit.declarations[index].ty),
+                    };
+                    if let Some(previous) = previous
+                        && self.compatible(previous, &ty)?
+                    {
+                        ty = crate::noescape::composite_type!(self, &ty, previous, 0)?;
+                    }
+                }
                 if self.unit.compiler == toucan_target::Compiler::Gnu
                     && let Some(index) = previous_file
                 {
@@ -988,7 +1021,7 @@ impl Analyzer {
                         .contains(&name)
                     && self.compatible(previous, &ty)?
                 {
-                    let composite = self.composite_type(previous, &ty, 0)?;
+                    let composite = crate::noescape::composite_type!(self, previous, &ty, 0)?;
                     if let Some(checked) = &mut self.checked {
                         let site = checked.local_declaration(
                             item,

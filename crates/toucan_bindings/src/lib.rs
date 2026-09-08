@@ -258,6 +258,7 @@ pub fn generate_with_macros(
     macros: &BTreeMap<String, Option<MacroValue>>,
 ) -> Result<Bindings, Error> {
     unit.validate_function_options()?;
+    unit.validate_parameter_contracts()?;
     if let Some(namespace) = &options.helper_namespace
         && (namespace.is_empty()
             || !namespace.bytes().enumerate().all(|(index, byte)| {
@@ -1458,11 +1459,25 @@ impl Emitter<'_> {
 
     fn signature_at(&self, function: &FunctionType, depth: usize) -> Result<String, Error> {
         check_depth(depth)?;
+        let no_escape = function
+            .parameter_contracts
+            .map(|id| {
+                self.unit
+                    .parameter_contracts(id)
+                    .map(|set| set.no_escape.as_slice())
+            })
+            .transpose()?
+            .unwrap_or(&[]);
         let mut args = Vec::new();
         for (i, parameter) in function.parameters.iter().enumerate() {
             // Position-based names avoid duplicate or Rust-reserved C parameter names.
+            let contract = if no_escape.binary_search(&(i as u32)).is_ok() {
+                "/* C noescape: implementers must not retain derived references after returning. */ "
+            } else {
+                ""
+            };
             args.push(format!(
-                "arg{i}: {}",
+                "{contract}arg{i}: {}",
                 self.parameter_ty_at(&parameter.ty, depth + 1)?
             ));
         }
@@ -1480,7 +1495,12 @@ impl Emitter<'_> {
                 self.call_value_type(&function.return_type, depth + 1)?
             )
         };
-        Ok(format!("({}){result}", args.join(", ")))
+        let promise = if function.noreturn {
+            " /* C noreturn: implementers must not return. */"
+        } else {
+            ""
+        };
+        Ok(format!("({}){result}{promise}", args.join(", ")))
     }
 
     fn abi(&self, function: &FunctionType) -> Result<&'static str, Error> {
@@ -2281,6 +2301,8 @@ mod tests {
         unit.typedefs.insert(
             "recursive".into(),
             Type::new(TypeKind::Function(Box::new(FunctionType {
+                noreturn: false,
+                parameter_contracts: None,
                 return_type: Type::new(TypeKind::Typedef("recursive".into())).pointer(),
                 parameters: Vec::new(),
                 variadic: false,

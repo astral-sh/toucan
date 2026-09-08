@@ -238,6 +238,7 @@ fn evaluate_on_parser_stack<Value>(
     else {
         return Err(Error::new(0, "expected integer expression"));
     };
+    unit.validate_parameter_contracts()?;
     let mut analyzer = Analyzer::from_unit(unit.clone());
     analyzer.allow_late_object_size_folds = true;
     analyzer.record_attributes = parsed.record_attributes;
@@ -492,6 +493,8 @@ pub(crate) struct Attributes {
     pub(crate) minimum_vector_width: Vec<crate::target_features::ParsedMinimumVectorWidth>,
     pub(crate) always_inline: Option<(lang_c::span::Span, bool)>,
     pub(crate) no_inline: Option<(lang_c::span::Span, bool)>,
+    pub(crate) noescape: Vec<(lang_c::span::Span, bool)>,
+    pub(crate) type_noreturn: bool,
     target_type_name: bool,
     nodebug_arguments: Option<usize>,
     pub(crate) transparent_union: Option<lang_c::span::Span>,
@@ -720,6 +723,8 @@ struct DeclaratorContext<'a> {
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) has_type_noreturn: bool,
+    pub(crate) parameter_contract_index: Option<Box<crate::noescape::ContractIndex>>,
     pub(crate) shuffle_vectors: BTreeMap<(usize, usize), crate::vector::ShuffleVectorSignature>,
     pub(crate) old_style_definitions: crate::old_style::Definitions,
     pub(crate) lexical_function_options: BTreeMap<usize, BTreeMap<String, crate::FunctionOptions>>,
@@ -786,6 +791,7 @@ impl Analyzer {
             language_mode: profile.language_mode(),
             declarations: Vec::new(),
             function_options: BTreeMap::new(),
+            parameter_contracts: Vec::new(),
             records: Vec::new(),
             record_origins: BTreeMap::new(),
             enums: Vec::new(),
@@ -814,6 +820,8 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            has_type_noreturn: crate::noescape::has_type_noreturn(&unit),
+            parameter_contract_index: None,
             shuffle_vectors: BTreeMap::new(),
             old_style_definitions: crate::old_style::Definitions::default(),
             lexical_function_options: BTreeMap::new(),
@@ -1232,7 +1240,7 @@ impl Analyzer {
                         .unit
                         .typedef_alignment(previous)?
                         .max(self.unit.typedef_alignment(&ty)?);
-                    ty = self.composite_type(previous, &ty, 0)?;
+                    ty = crate::noescape::composite_type!(self, previous, &ty, 0)?;
                     ty.alignment = alignment;
                     self.unit.typedefs.insert(name.clone(), ty.clone());
                 } else {
@@ -1278,6 +1286,14 @@ impl Analyzer {
             } else {
                 false
             };
+            if returns_twice
+                && matches!(&self.unit.resolve(&ty)?.kind, TypeKind::Function(f) if f.noreturn)
+            {
+                return Err(Error::new(
+                    item.span.start,
+                    "combining returns_twice and noreturn is unsupported",
+                ));
+            }
             if storage.thread_local && kind != DeclarationKind::Variable {
                 return Err(Error::new(
                     item.span.start,
@@ -1430,9 +1446,9 @@ impl Analyzer {
                 ty = if definition {
                     // Definition parameter names belong to its body; names in an
                     // earlier prototype have no bearing on those declarations.
-                    self.composite_type(&ty, &previous.ty, 0)?
+                    crate::noescape::composite_type!(self, &ty, &previous.ty, 0)?
                 } else {
-                    self.composite_type(&previous.ty, &ty, 0)?
+                    crate::noescape::composite_type!(self, &previous.ty, &ty, 0)?
                 };
                 let previous_definition = previous.is_definition;
                 let symbol_binding = self.check_symbol_binding(
@@ -1671,7 +1687,11 @@ impl Analyzer {
                 },
             ) => (!EXACT || ai == bi) && self.same_type_at::<EXACT, EXACT>(a, b, depth + 1)?,
             (TypeKind::Function(a), TypeKind::Function(b)) => {
-                if a.prototype != b.prototype
+                if a.noreturn != b.noreturn
+                    || a.prototype != b.prototype
+                    || !self
+                        .unit
+                        .same_parameter_contracts(a.parameter_contracts, b.parameter_contracts)?
                     || a.variadic != b.variadic
                     || a.parameters.len() != b.parameters.len()
                     || a.calling_convention.for_target(self.unit.target)?
@@ -1835,130 +1855,6 @@ impl Analyzer {
             }
             _ => Ok(left.kind == right.kind),
         }
-    }
-
-    /// Combines compatible declarations without losing nested type information.
-    pub(crate) fn composite_type(
-        &self,
-        left: &Type,
-        right: &Type,
-        depth: usize,
-    ) -> Result<Type, Error> {
-        if depth >= 128 {
-            return Err(Error::new(
-                0,
-                "composite type nesting exceeds the 128-level limit",
-            ));
-        }
-        if left == right {
-            return Ok(left.clone());
-        }
-        let resolved_left = self.unit.resolve(left)?;
-        let resolved_right = self.unit.resolve(right)?;
-        let kind = match (&resolved_left.kind, &resolved_right.kind) {
-            (TypeKind::Pointer(a), TypeKind::Pointer(b)) => {
-                TypeKind::Pointer(Box::new(self.composite_type(a, b, depth + 1)?))
-            }
-            (TypeKind::Atomic(a), TypeKind::Atomic(b)) => {
-                TypeKind::Atomic(Box::new(self.composite_type(a, b, depth + 1)?))
-            }
-            (
-                TypeKind::Array {
-                    element: a,
-                    length: a_len,
-                },
-                TypeKind::Array {
-                    element: b,
-                    length: b_len,
-                },
-            ) => TypeKind::Array {
-                element: Box::new(self.composite_type(a, b, depth + 1)?),
-                length: a_len.or(*b_len),
-            },
-            (
-                TypeKind::Array {
-                    element: a,
-                    length: Some(length),
-                },
-                TypeKind::VariableArray { element: b, .. },
-            )
-            | (
-                TypeKind::VariableArray { element: a, .. },
-                TypeKind::Array {
-                    element: b,
-                    length: Some(length),
-                },
-            ) => TypeKind::Array {
-                element: Box::new(self.composite_type(a, b, depth + 1)?),
-                length: Some(*length),
-            },
-            (
-                TypeKind::VariableArray {
-                    element: a,
-                    identity,
-                },
-                TypeKind::VariableArray { element: b, .. },
-            )
-            | (
-                TypeKind::VariableArray {
-                    element: a,
-                    identity,
-                },
-                TypeKind::Array {
-                    element: b,
-                    length: None,
-                },
-            )
-            | (
-                TypeKind::Array {
-                    element: a,
-                    length: None,
-                },
-                TypeKind::VariableArray {
-                    element: b,
-                    identity,
-                },
-            ) => TypeKind::VariableArray {
-                element: Box::new(self.composite_type(a, b, depth + 1)?),
-                identity: *identity,
-            },
-            (TypeKind::Function(a), TypeKind::Function(b)) => {
-                let mut function = if a.prototype {
-                    (**a).clone()
-                } else {
-                    (**b).clone()
-                };
-                if function.calling_convention == CallingConvention::C {
-                    function.calling_convention = if a.calling_convention != CallingConvention::C {
-                        a.calling_convention
-                    } else {
-                        b.calling_convention
-                    };
-                }
-                function.return_type =
-                    self.composite_type(&a.return_type, &b.return_type, depth + 1)?;
-                if a.prototype && b.prototype {
-                    for ((parameter, a), b) in function
-                        .parameters
-                        .iter_mut()
-                        .zip(&a.parameters)
-                        .zip(&b.parameters)
-                    {
-                        parameter.ty = self.composite_parameter_type(&a.ty, &b.ty, depth + 1)?;
-                    }
-                }
-                TypeKind::Function(Box::new(function))
-            }
-            _ => return Ok(left.clone()),
-        };
-        if kind == resolved_left.kind {
-            return Ok(left.clone());
-        }
-        Ok(Type {
-            kind,
-            qualifiers: self.unit.qualifiers(left)?,
-            alignment: self.unit.typedef_alignment(left)?,
-        })
     }
 
     pub(crate) fn align_typedef(
@@ -2615,13 +2511,14 @@ impl Analyzer {
         extra.weak = extra.weak.or(attributes.weak);
         extra.returns_twice = extra.returns_twice.or(attributes.returns_twice);
         extra.noreturn = extra.noreturn.or(attributes.noreturn);
+        extra.type_noreturn |= attributes.type_noreturn;
         extra.transparent_union = extra.transparent_union.or(attributes.transparent_union);
         if !attributes.diagnostic_attributes.is_empty() {
             let mut diagnostic_attributes = attributes.diagnostic_attributes.clone();
             diagnostic_attributes.append(&mut extra.diagnostic_attributes);
             extra.diagnostic_attributes = diagnostic_attributes;
         }
-        if attributes.calling_convention.is_none() {
+        if attributes.calling_convention.is_none() && !attributes.type_noreturn {
             return Ok((name, ty, extra));
         }
         let mut attributes = attributes.clone();
@@ -2644,7 +2541,7 @@ impl Analyzer {
         &mut self,
         parameter: crate::parameters::ParameterSyntax<'_>,
         prepared: Option<&(Type, Attributes)>,
-    ) -> Result<Option<crate::checked::SiteId>, Error> {
+    ) -> Result<(Option<crate::checked::SiteId>, bool), Error> {
         let mut site = None;
         let storage = storage_specifiers(parameter.specifiers(), self.unit.compiler)?;
         if storage.thread_local
@@ -2709,6 +2606,7 @@ impl Analyzer {
                 extra.require_no_weak()?;
                 extra.require_no_transparent_union()?;
                 attributes.alignment = attributes.alignment.max(extra.alignment);
+                attributes.noescape.extend(extra.noescape);
                 (name, ty, extra.type_use)
             } else {
                 (None, base, attributes.type_use)
@@ -2780,6 +2678,8 @@ impl Analyzer {
             TypeKind::Function(_) => parameter_type.pointer(),
             _ => parameter_type,
         };
+        let noescape =
+            self.check_noescape_parameter(&parameter_type, &attributes.noescape, &extra.noescape)?;
         if let Some(checked) = &mut self.checked
             && (name.is_some()
                 || !matches!(self.unit.resolve(&parameter_type)?.kind, TypeKind::Void))
@@ -2800,6 +2700,12 @@ impl Analyzer {
             )?;
             if let Some(site) = site {
                 checked.attach_alignment(site, parameter_alignment, parameter_alignment)?;
+                checked.attach_noescape_parameter(
+                    site,
+                    &attributes.noescape,
+                    &extra.noescape,
+                    noescape,
+                )?;
             }
         }
         if let Some(name) = &name {
@@ -2830,7 +2736,7 @@ impl Analyzer {
             name,
             ty: parameter_type,
         });
-        Ok(site)
+        Ok((site, noescape))
     }
 
     /// `parameter_array` identifies the outermost array adjusted to a pointer.
@@ -2868,6 +2774,8 @@ impl Analyzer {
         let mut minimum_vector_width = Vec::new();
         let mut always_inline = None;
         let mut no_inline = None;
+        let mut noescape = Vec::new();
+        let mut type_noreturn = false;
         let split = declaration
             .node
             .derived
@@ -2897,6 +2805,8 @@ impl Analyzer {
                                     ..Attributes::default()
                                 };
                                 self.attributes(extensions, &mut attributes)?;
+                                noescape.extend_from_slice(&attributes.noescape);
+                                type_noreturn |= attributes.type_noreturn;
                                 nodebug_arguments =
                                     nodebug_arguments.or(attributes.nodebug_arguments);
                                 target_attributes
@@ -3111,11 +3021,15 @@ impl Analyzer {
                         .expect("prototype scope")
                         .is_definition_parameters;
                     let prototype = !function.node.parameters.is_empty();
-                    for parameter in &function.node.parameters {
-                        let site = self.check_parameter(
+                    let mut no_escape = Vec::new();
+                    for (index, parameter) in function.node.parameters.iter().enumerate() {
+                        let (site, noescape) = self.check_parameter(
                             crate::parameters::ParameterSyntax::Prototype(parameter),
                             None,
                         )?;
+                        if noescape {
+                            no_escape.push(index as u32);
+                        }
                         if let (Some(checked), Some(uses), Some(site)) =
                             (&self.checked, &mut parameter_uses, site)
                         {
@@ -3149,7 +3063,11 @@ impl Analyzer {
                             "C11 variadic functions require a fixed parameter",
                         ));
                     }
+                    let parameter_contracts =
+                        self.intern_parameter_contracts(&no_escape, derived.span.start)?;
                     Type::new(TypeKind::Function(Box::new(FunctionType {
+                        noreturn: false,
+                        parameter_contracts,
                         return_type: ty,
                         parameters,
                         variadic,
@@ -3178,6 +3096,8 @@ impl Analyzer {
                         derived.span,
                     )?;
                     Type::new(TypeKind::Function(Box::new(FunctionType {
+                        noreturn: false,
+                        parameter_contracts: None,
                         return_type: ty,
                         parameters: Vec::new(),
                         variadic: false,
@@ -3187,6 +3107,8 @@ impl Analyzer {
                 }
                 ast::DerivedDeclarator::KRFunction(parameters) if parameters.is_empty() => {
                     Type::new(TypeKind::Function(Box::new(FunctionType {
+                        noreturn: false,
+                        parameter_contracts: None,
                         return_type: ty,
                         parameters: Vec::new(),
                         variadic: false,
@@ -3276,6 +3198,8 @@ impl Analyzer {
             ..Attributes::default()
         };
         self.attributes(&declaration.node.extensions, &mut attributes)?;
+        attributes.noescape.extend(noescape);
+        attributes.type_noreturn |= type_noreturn;
         attributes.nodebug_arguments = attributes.nodebug_arguments.or(nodebug_arguments);
         attributes.target_attributes.extend(target_attributes);
         attributes.minimum_vector_width.extend(minimum_vector_width);
@@ -3309,6 +3233,8 @@ impl Analyzer {
                     },
                 )?;
                 type_use = inner_attributes.type_use;
+                attributes.noescape.extend(inner_attributes.noescape);
+                attributes.type_noreturn |= inner_attributes.type_noreturn;
                 if alias_base {
                     merge_convention(
                         &mut alias_convention,
@@ -3360,6 +3286,7 @@ impl Analyzer {
             &Attributes {
                 calling_convention,
                 alias_base,
+                type_noreturn: attributes.type_noreturn,
                 ..Attributes::default()
             },
             declaration.span.start,
@@ -3908,6 +3835,11 @@ impl Analyzer {
         attributes: &Attributes,
         offset: usize,
     ) -> Result<Type, Error> {
+        let ty = if attributes.type_noreturn {
+            self.apply_type_noreturn(ty, 0)?
+        } else {
+            ty
+        };
         let Some(convention) = attributes.calling_convention else {
             return Ok(ty);
         };
@@ -4105,6 +4037,30 @@ impl Analyzer {
                                 Some((extension.span, !attribute.arguments.is_empty())),
                             )
                         }
+                        "noescape" => {
+                            if self.unit.compiler == Compiler::Clang {
+                                if result.noescape.len() >= 256 {
+                                    return Err(Error::new(
+                                        extension.span.start,
+                                        "noescape attribute count exceeds the 256 limit",
+                                    ));
+                                }
+                                // Attribute operands undergo ordinary lookup even when the
+                                // declaration subject makes the attribute ineffective.
+                                let checkpoint = self.sve_feature_checkpoint();
+                                let checked = (|| {
+                                    for argument in &attribute.arguments {
+                                        self.expression_info(argument)?;
+                                    }
+                                    Ok::<_, Error>(())
+                                })();
+                                self.discard_sve_feature_uses(checkpoint);
+                                checked?;
+                                result
+                                    .noescape
+                                    .push((extension.span, !attribute.arguments.is_empty()));
+                            }
+                        }
                         "nodebug" => {
                             // Debug information is outside the retained semantic graph.
                             // GCC ignores this unknown attribute, including its arguments.
@@ -4134,6 +4090,8 @@ impl Analyzer {
                                 result.returns_twice = Some(extension.span);
                             } else {
                                 result.noreturn = Some(extension.span);
+                                result.type_noreturn = self.unit.compiler == Compiler::Clang;
+                                self.has_type_noreturn |= result.type_noreturn;
                             }
                         }
                         "weak" => {

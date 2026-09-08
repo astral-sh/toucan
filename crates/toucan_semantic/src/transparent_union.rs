@@ -312,11 +312,14 @@ impl Analyzer {
             {
                 return Ok(false);
             }
-            return match self.composite_pointer(to, from, offset) {
-                Ok(_) => Ok(true),
-                Err(error) if error.message == "incompatible pointer types" => Ok(false),
-                Err(error) => Err(error),
-            };
+            self.check_composite_pointer_alignment(to, from, offset)?;
+            let to = self.unqualified(to)?;
+            let from = self.unqualified(from)?;
+            if matches!(to.kind, TypeKind::Void) || matches!(from.kind, TypeKind::Void) {
+                return Ok(true);
+            }
+            self.check_noescape_conversion(&to, &from, offset)?;
+            return self.compatible(&to, &from);
         }
         self.compatible(&destination, source)
     }
@@ -369,22 +372,6 @@ impl Analyzer {
             }
         }
         Ok(false)
-    }
-
-    pub(crate) fn composite_parameter_type(
-        &self,
-        left: &Type,
-        right: &Type,
-        depth: usize,
-    ) -> Result<Type, Error> {
-        match (
-            self.unit.transparent_union(left)?,
-            self.unit.transparent_union(right)?,
-        ) {
-            (Some(_), None) => Ok(right.clone()),
-            (None, Some(_)) => Ok(left.clone()),
-            _ => self.composite_type(left, right, depth),
-        }
     }
 
     /// A written union definition combined with a scalar-member prototype can

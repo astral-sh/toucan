@@ -1,0 +1,93 @@
+{
+  "schema_version": 1,
+  "base_commit": "9e6cdde1472390480cef3f2f9c971136b4518851",
+  "frozen_patch_sha256": "a17bd880b8fc9c7ca582410f511abd1a4eb41f7b183e5f1bd5a4959023ccf50c",
+  "source_files_sha256": {
+    "crates/toucan_bindings/src/lib.rs": "db23f77506f347ee2dce06c820887179b52eca8541fb276f5a048982a3de4635",
+    "crates/toucan_bindings/tests/noescape.rs": "afb1c6af563152a5c46bc51c5491bbd8dfc86f64af9b3def6ced1743047e569b",
+    "crates/toucan_semantic/src/analyze.rs": "a708280d849f646e04dffebed422063fc9be48dc5b0748e3eb3cd840943c566b",
+    "crates/toucan_semantic/src/checked.rs": "58033ffabaaba78e08506a4b5becfb44e60e710d0e23603fc520c40fd95db76a",
+    "crates/toucan_semantic/src/checked/attributes.rs": "f7f2b3fabde53eafdd391e408568dec0167b376fe007eb4f78ce5c507ee9e61b",
+    "crates/toucan_semantic/src/expression.rs": "bc758be60bdb64b703dc511f1ae2a0a81c296fd9949c61428370bbc2cd6a2895",
+    "crates/toucan_semantic/src/initializer.rs": "df6f904a31e8899921b67f94efe1651b4f523bd98fe25d6b379a094cce3b78de",
+    "crates/toucan_semantic/src/ir.rs": "2baef6410f30f2fac0de5bff6ac2acfc2801bf2aba53779871e3cc92754a5c6e",
+    "crates/toucan_semantic/src/lib.rs": "6b4def78f12a4ad33594645b987e4374e282462b146f616701b46a5d7b8fafba",
+    "crates/toucan_semantic/src/noescape.rs": "b97994bbe3bc9cafaa13109c77480d52b4f470ae11724aba4b01f5a38c6081f0",
+    "crates/toucan_semantic/src/old_style.rs": "05ec8431df0bcf19a5cfb6d30272865dcbfd223048b4d76514c12b244333a52c",
+    "crates/toucan_semantic/src/statement.rs": "385cd62449ceb0b5a806a090349a75047a4d7555316730fce1dbed3524e980cb",
+    "crates/toucan_semantic/src/transparent_union.rs": "1e845cf1b95dcd7e3d0b9bd9dbc51d05c90b9d09c08053ade47b088b8bc14878",
+    "crates/toucan_semantic/tests/arm_vectors.rs": "7cceb736babc9ff1b9651a8d4001c797599ae9a9808ab55a00d6789b0fc1cb25",
+    "crates/toucan_semantic/tests/noescape.rs": "0c9b8011579b2ca48c96831f50efe0d3f2ffdd36d00a5668eb1292d01d366537",
+    "docs/compatibility.md": "8c5995a945008c60cb8dd5b2ab64cc8c39d9ea20e509f58892c0fba39eda6b04",
+    "docs/noescape.md": "311fb87d33f00dd3a9f97fad1e700d9191620e40709c2c082b4f62dfb624c6e1",
+    "fuzz/fuzz_targets/checked_invariants.rs": "d1cba4c40b0df963c4cd554164816d5ad129f1b3614f532d93f1125875201e19",
+    "fuzz/seeds/checked/noescape.h": "dac2a7bf80e88ccdcc4c9f462046ec23f8f9bc7c7c03171e0fe3d80474487cd5"
+  },
+  "integration": "Preserves newer BMI options, C11/GNU11 modes, external type substitution and binary128/vector builtin fixes.",
+  "checks": {
+    "workspace": {
+      "passed": 675,
+      "failed": 0,
+      "ignored": 181
+    },
+    "focused_native_semantic": {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0
+    },
+    "bindings": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    "bindings_rust_1_64": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    "workspace_clippy": "all targets and features, warnings denied: passed",
+    "fuzz_clippy": "warnings denied: passed",
+    "retention_replay": {
+      "profiles": 7,
+      "modes": 2,
+      "seeds": 76,
+      "pairs": 1064,
+      "accepted": 761,
+      "matching_diagnostics": 303,
+      "sanitizer": false
+    }
+  },
+  "logs": {
+    "semantic": {
+      "path": "semantic.log.gz",
+      "sha256": "b55e664745df63c7d051b45508ecebc09bfc11470e4de6e09ea1ce4bb2895c3f"
+    },
+    "bindings": {
+      "path": "bindings.log.gz",
+      "sha256": "ff3c327899a0140148c1630d696f7202491579c1c8612eb840e6b89ad7889c86"
+    },
+    "rust164": {
+      "path": "rust164.log.gz",
+      "sha256": "4db6cc5f20b23aa47c7c3e7427d9b97ce50f9376ffe2f79732bf4c3a992f0a5e"
+    },
+    "workspace": {
+      "path": "workspace.log.gz",
+      "sha256": "32e20d8e09079a8cf47f18d26d4e5f7cbce4c0c9d5f5ae50697bd09a8d9ad13c"
+    },
+    "clippy": {
+      "path": "clippy.log.gz",
+      "sha256": "6c6a68875c5c1e53b9686398830d7fc2de972a875e29591b1d080ead4f6d5916"
+    },
+    "fuzz-clippy": {
+      "path": "fuzz-clippy.log.gz",
+      "sha256": "047d76db424d3a2ffe67bb8d72e8da9d491ae58356bdde1a71fed7be4c2ee3d8"
+    },
+    "replay": {
+      "path": "replay.log.gz",
+      "sha256": "78460607161d3ff8b482c291272ae8c9fa964c08950da14b98713c1989ce8a26"
+    }
+  },
+  "limitations": [
+    "The frozen-layer evidence identifies its exact compiler, LLVM, project-source, allocation, and timing probes. This integration replay uses an ordinary debug build. The broad workspace run leaves native tests ignored; focused native contract tests run separately."
+  ]
+}

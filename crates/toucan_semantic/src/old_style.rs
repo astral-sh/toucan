@@ -23,6 +23,7 @@ pub(crate) struct Definitions {
 }
 
 pub(crate) struct Signature {
+    pub(crate) parameter_contracts: Option<crate::ParameterContractsId>,
     pub(crate) incoming: Vec<Type>,
     pub(crate) retained: Option<Retained>,
 }
@@ -108,6 +109,7 @@ impl Analyzer {
         });
         let result = (|| {
             let mut order = vec![None; identifiers.len()];
+            let mut no_escape = Vec::new();
             let mut retained = self.checked.as_ref().map(|_| Retained {
                 declarations: Vec::new(),
                 parameters: Vec::new(),
@@ -170,10 +172,13 @@ impl Analyzer {
                         .expect("parameter scope")
                         .parameters
                         .len();
-                    let site = self.check_parameter(
+                    let (site, noescape) = self.check_parameter(
                         ParameterSyntax::OldStyle { declaration, item },
                         Some(&prepared),
                     )?;
+                    if noescape {
+                        no_escape.push(index as u32);
+                    }
                     let parameter = &self
                         .lexical_scopes
                         .last()
@@ -261,7 +266,13 @@ impl Analyzer {
                     ));
                 }
             }
-            Ok(Signature { incoming, retained })
+            no_escape.sort_unstable();
+            let parameter_contracts = self.intern_parameter_contracts(&no_escape, span.start)?;
+            Ok(Signature {
+                incoming,
+                retained,
+                parameter_contracts,
+            })
         })();
         self.leave_prototype();
         let signature = result?;
@@ -365,13 +376,16 @@ impl Analyzer {
         for parameter in &previous.parameters {
             charge_type(self.unit.resolve(&parameter.ty)?, &mut bytes, offset, 0)?;
         }
+        let parameter_contracts = old_style.parameter_contracts;
         let prototype = (**previous).clone();
         let TypeKind::Function(current) = &mut ty.kind else {
             return Ok(());
         };
         current.parameters = prototype.parameters;
+        current.parameter_contracts = parameter_contracts;
         current.prototype = true;
         current.variadic = prototype.variadic;
+        current.noreturn |= prototype.noreturn;
         let incoming = current
             .parameters
             .iter()

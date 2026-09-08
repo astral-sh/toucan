@@ -1084,6 +1084,7 @@ impl Analyzer {
                 {
                     return Err(Error::new(offset, "incompatible pointer types"));
                 }
+                self.check_noescape_conversion(&to, &from, offset)?;
                 return Ok(());
             }
         }
@@ -1422,12 +1423,12 @@ impl Analyzer {
 
     /// A common pointed-to type may add top-level qualifiers; nested pointers must
     /// already be compatible, so this does not permit `char **` to `const char **`.
-    pub(crate) fn composite_pointer(
+    pub(crate) fn check_composite_pointer_alignment(
         &self,
         left: &Type,
         right: &Type,
         offset: usize,
-    ) -> Result<Type, Error> {
+    ) -> Result<(), Error> {
         for mut ty in [left, right] {
             for _ in 0..128 {
                 if let Some(alignment) = self.unit.typedef_alignment(ty)? {
@@ -1448,12 +1449,22 @@ impl Analyzer {
                 }
             }
         }
+        Ok(())
+    }
+
+    pub(crate) fn composite_pointer(
+        &mut self,
+        left: &Type,
+        right: &Type,
+        offset: usize,
+    ) -> Result<Type, Error> {
+        self.check_composite_pointer_alignment(left, right, offset)?;
         let mut qualifiers =
             union_qualifiers(self.unit.qualifiers(left)?, self.unit.qualifiers(right)?);
         let left = self.unqualified(left)?;
         let right = self.unqualified(right)?;
         let mut result = if self.compatible(&left, &right)? {
-            self.composite_type(&left, &right, 0)?
+            crate::noescape::composite_type!(self, &left, &right, 0, true)?
         } else if matches!(left.kind, TypeKind::Void) || matches!(right.kind, TypeKind::Void) {
             // Clang uses an unqualified void pointer for the conditional
             // function/void extension; GCC retains the void operand's qualifiers.

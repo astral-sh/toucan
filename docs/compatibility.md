@@ -1006,3 +1006,11 @@ macOS and ARM calls remain CI gates.
 trigraph defaults independently of the compiler family. GNU11 is the default;
 C11 does not imply pedantic diagnostics. C90 and GNU omitted-middle conditional
 expressions remain tracked gaps.
+
+### Clang `noescape` parameters
+
+Pointer-parameter promises participate in exact type identity and effective
+function types while preserving ordinary C compatibility. Written annotations,
+visible-redeclaration intersections, declaration-time call types, and K&R entry
+contracts are retained separately. Binding signatures carry callback safety
+comments. See [the contract model and validation scope](noescape.md).

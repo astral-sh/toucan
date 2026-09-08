@@ -74,7 +74,7 @@ impl Analyzer {
                 "initializer array bound conflicts with the previous declaration",
             ));
         }
-        let ty = self.composite_type(previous, &completed, 0)?;
+        let ty = crate::noescape::composite_type!(self, previous, &completed, 0)?;
         self.unit.declarations[index].ty = ty;
         self.unit.declarations[index].is_definition = true;
         Ok(())

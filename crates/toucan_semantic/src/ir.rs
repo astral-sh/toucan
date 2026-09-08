@@ -18,6 +18,9 @@ pub struct TranslationUnit {
     /// Sparse per-function compilation properties, keyed by declaration index.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub function_options: BTreeMap<usize, crate::FunctionOptions>,
+    /// Owner-local sparse parameter contracts used by function types.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub parameter_contracts: Vec<crate::ParameterContracts>,
     pub records: Vec<Record>,
     /// Nominal GNU typedef variants mapped directly to their source record.
     /// Field declaration identities belong to the source record.
@@ -255,6 +258,14 @@ pub enum ExtendedFloatFormat {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
 pub struct FunctionType {
+    /// Clang function-type promise from GNU `noreturn`, separate from C11 `_Noreturn`.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub noreturn: bool,
+    /// Effective Clang parameter promises; absence means no such promises.
+    /// Retained body signatures also use this for identifier-list entry parameters,
+    /// without making their callable declarations into prototypes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parameter_contracts: Option<crate::ParameterContractsId>,
     pub return_type: Type,
     pub parameters: Vec<Parameter>,
     pub variadic: bool,
