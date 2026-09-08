@@ -16,6 +16,16 @@ import audit_translation_units as audit
 
 
 class TranslationUnitAuditTests(unittest.TestCase):
+    def test_compiler_profile_prefers_clang_over_its_gnu_compatibility_macros(self):
+        self.assertEqual(audit.compiler_profile("#define __GNUC__ 13\n"), "gcc")
+        self.assertEqual(
+            audit.compiler_profile("#define __GNUC__ 4\n#define __clang__ 1\n"),
+            "clang",
+        )
+        for text in ("", "__clang__", "#define __GNUC_MINOR__ 3\n"):
+            with self.assertRaisesRegex(RuntimeError, "supported GNU or Clang"):
+                audit.compiler_profile(text)
+
     def test_cmake_selects_exact_target_and_keeps_quoted_definitions(self):
         with tempfile.TemporaryDirectory(prefix="toucan commands ") as temporary:
             root = Path(temporary)
@@ -165,6 +175,28 @@ class TranslationUnitAuditTests(unittest.TestCase):
                     {"output": str(root / "partial.unit")}, args, root, root, "normal"
                 )
             self.assertEqual(result["result"]["status"], "tool_error")
+            self.assertNotIn("declaration_sha256", result)
+
+    def test_success_from_another_profile_cannot_satisfy_the_request(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "result.json"
+            output.write_text('{"status":"accepted","compiler":"gcc"}')
+            args = type("Args", (), {"probe": Path("probe"), "timeout": 1})()
+            with patch.object(
+                audit,
+                "run",
+                return_value={"stdout": str(output), "exit_code": 0, "timeout": False},
+            ):
+                result = audit.probe(
+                    {"compiler": "clang", "output": str(root / "wrong.unit")},
+                    args,
+                    root,
+                    root,
+                    "normal",
+                )
+            self.assertEqual(result["result"]["status"], "tool_error")
+            self.assertIn("compiler profile", result["result"]["diagnostic"])
             self.assertNotIn("declaration_sha256", result)
 
 

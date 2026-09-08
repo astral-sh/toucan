@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use toucan::{CompilerProfile, Config, LanguageMode, Preprocessor, Target};
+use toucan::{Compiler, CompilerProfile, Config, LanguageMode, Preprocessor, Target};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -21,6 +21,8 @@ struct Request {
     operation: Operation,
     input: PathBuf,
     target: String,
+    #[serde(default)]
+    compiler: Option<Compiler>,
     #[serde(default)]
     language_mode: LanguageMode,
     include_dirs: Vec<PathBuf>,
@@ -56,9 +58,12 @@ impl Write for BoundedOutput {
 
 fn execute(request: Request) -> Result<Value, Box<dyn std::error::Error>> {
     let target: Target = request.target.parse()?;
-    let mut config = Config::with_profile(
-        CompilerProfile::default_for(target).with_language_mode(request.language_mode),
-    );
+    let profile = match request.compiler {
+        Some(compiler) => CompilerProfile::new(target, compiler)?,
+        None => CompilerProfile::default_for(target),
+    }
+    .with_language_mode(request.language_mode);
+    let mut config = Config::with_profile(profile);
     config.analysis.retain_code = request.retain_code;
     config.analysis.limits = toucan::semantic::checked::Limits {
         nodes: request.retention_nodes,
@@ -99,6 +104,7 @@ fn execute(request: Request) -> Result<Value, Box<dyn std::error::Error>> {
                     std::fs::write(&request.output, &preprocessed.source)?;
                     Ok(json!({
                         "status": "preprocessed",
+                        "compiler": profile.compiler(),
                         "dependencies": preprocessed.dependencies,
                         "definitions": definitions,
                         "feature_queries": feature_queries,
@@ -124,6 +130,7 @@ fn execute(request: Request) -> Result<Value, Box<dyn std::error::Error>> {
                 let code = compilation.checked();
                 Ok(json!({
                     "status": "accepted",
+                    "compiler": profile.compiler(),
                     "language_mode": request.language_mode,
                     "declarations": compilation.unit().declarations.len(),
                     "retained": code.is_some(),

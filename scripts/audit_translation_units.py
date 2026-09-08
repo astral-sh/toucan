@@ -285,6 +285,20 @@ def dependency_paths(text: str, cwd: Path) -> list[Path]:
     return sorted({resolve(word, cwd) for word in words})
 
 
+def compiler_profile(predefines: str) -> str:
+    """Select semantics from driver defaults before applying source macro flags."""
+    names = {
+        parts[1]
+        for line in predefines.splitlines()
+        if len(parts := line.split(maxsplit=2)) == 3 and parts[0] == "#define"
+    }
+    if "__clang__" in names:
+        return "clang"
+    if "__GNUC__" in names:
+        return "gcc"
+    raise RuntimeError("compiler does not identify a supported GNU or Clang profile")
+
+
 def hashes(paths: list[Path]) -> dict:
     return {str(path): digest(path) for path in sorted(set(paths))}
 
@@ -380,6 +394,15 @@ def probe(
             "status": "tool_error",
             "diagnostic": "missing rejection diagnostic",
         }
+    elif (
+        payload["status"] in ("accepted", "preprocessed")
+        and "compiler" in request
+        and payload.get("compiler") != request["compiler"]
+    ):
+        result["result"] = {
+            "status": "tool_error",
+            "diagnostic": "probe compiler profile disagrees with request",
+        }
     if result["result"]["status"] == "accepted":
         path = Path(request["output"])
         result["declaration_sha256"] = digest(path)
@@ -436,6 +459,16 @@ def audit(case: dict, project: dict, args: argparse.Namespace) -> dict:
     result["compiler"]["version"] = subprocess.check_output(
         [cc, "--version"], text=True
     ).strip()
+    identity = checked_run(
+        [cc, "-dM", "-E", "-x", "c", "-"],
+        cwd,
+        directory,
+        "compiler-identity",
+        args.timeout,
+    )
+    selected_compiler = compiler_profile(Path(identity["stdout"]).read_text())
+    result["compiler"]["profile"] = selected_compiler
+    result["compiler"]["identity"] = identity
     result["syntax"] = checked_run(
         [cc, *flags, "-fsyntax-only", str(source)],
         cwd,
@@ -490,6 +523,7 @@ def audit(case: dict, project: dict, args: argparse.Namespace) -> dict:
         if line.strip()
     ]
     mapped = toucan_flags(flags, cwd)
+    mapped["compiler"] = selected_compiler
     mapped["include_dirs"] = list(
         dict.fromkeys([*mapped["include_dirs"], *search_paths])
     )
@@ -504,6 +538,7 @@ def audit(case: dict, project: dict, args: argparse.Namespace) -> dict:
         request = {
             "input": str(input_path),
             "target": args.target,
+            "compiler": selected_compiler,
             "language_mode": mapped["language_mode"],
             "include_dirs": profile["include_dirs"],
             "definitions": profile["definitions"],
@@ -573,6 +608,8 @@ def audit(case: dict, project: dict, args: argparse.Namespace) -> dict:
         raise RuntimeError("translation-unit source changed during audit")
     if hashes(dependencies) != result["compiler_dependencies"]:
         raise RuntimeError("compiler dependency changed during audit")
+    if digest(Path(cc)) != result["compiler"]["sha256"]:
+        raise RuntimeError("compiler executable changed during audit")
     write_json(directory / "evidence.json", result)
     return result
 

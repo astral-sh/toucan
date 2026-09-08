@@ -60,6 +60,13 @@ use that compiler, including when evaluating binding macros. Manually modified
 translation units reject unsupported pairs through `profile()`, layout, and
 evaluation queries.
 
+The translation-unit audit detects GNU or Clang from the build compiler's default
+predefines before applying source macro overrides. It uses that profile for both
+fresh preprocessing and compiler-preprocessed input, and verifies the profile
+reported by the analysis probe. A successful analysis under a different profile
+fails the audit. Standalone `audit_translation_unit` requests accept an optional
+`compiler` field; older requests retain the target default.
+
 `Target::layout` and `Target::predefined_macros` retain their default behavior.
 Use the corresponding `CompilerProfile` methods for an explicit choice. Public
 x86 intrinsic signature and immediate-constraint queries and character-literal
