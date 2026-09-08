@@ -1,0 +1,172 @@
+[
+  {
+    "name": "scalar",
+    "source": "int f(int x,int y){return x ?: y;}",
+    "expected": true
+  },
+  {
+    "name": "floating",
+    "source": "double f(float x,double y){return x ?: y;}",
+    "expected": true
+  },
+  {
+    "name": "complex",
+    "source": "double _Complex f(double _Complex x,double y){return x ?: y;}",
+    "expected": true
+  },
+  {
+    "name": "void_fallback",
+    "source": "void f(int x){x ?: (void)0;}",
+    "expected": true
+  },
+  {
+    "name": "void_condition",
+    "source": "void f(void){(void)0 ?: 1;}",
+    "expected": false
+  },
+  {
+    "name": "lvalue_assignment",
+    "source": "void f(int a,int b){(a ?: b)=4;}",
+    "expected": false
+  },
+  {
+    "name": "lvalue_address",
+    "source": "int*f(int a,int b){return &(a ?: b);}",
+    "expected": false
+  },
+  {
+    "name": "pointer",
+    "source": "const int *f(int*x,const int*y){return x ?: y;}",
+    "expected": true
+  },
+  {
+    "name": "pointer_null",
+    "source": "int*f(int*x){return x ?: 0;}",
+    "expected": true
+  },
+  {
+    "name": "null_condition",
+    "source": "int*f(int*x){return 0 ?: x;}",
+    "expected": true
+  },
+  {
+    "name": "array",
+    "source": "int*f(int*y){static int x[2];return x ?: y;}",
+    "expected": true
+  },
+  {
+    "name": "function",
+    "source": "int g(void);int(*f(int(*p)(void)))(void){return g ?: p;}",
+    "expected": true
+  },
+  {
+    "name": "atomic",
+    "source": "int f(_Atomic(int)*p){return *p ?: 3;}",
+    "expected": true
+  },
+  {
+    "name": "volatile",
+    "source": "int f(volatile int*p){return *p ?: 3;}",
+    "expected": true
+  },
+  {
+    "name": "gnu_bitfield",
+    "source": "struct B{unsigned long x:48;}; unsigned long f(struct B b,unsigned long y){return b.x ?: y;}",
+    "expected": true
+  },
+  {
+    "name": "GNU_lvalue_cond",
+    "source": "int f(int x,int y){return (x=3) ?: y;}",
+    "expected": true
+  },
+  {
+    "name": "vector_condition",
+    "source": "typedef int V __attribute__((vector_size(16)));V f(V a,V b){return a ?: b;}",
+    "expected": false
+  },
+  {
+    "name": "record_condition",
+    "source": "struct S{int x;};struct S f(struct S a,struct S b){return a ?: b;}",
+    "expected": false
+  },
+  {
+    "name": "constant_int",
+    "source": "enum{A=7?:9,B=0?:3};_Static_assert(A==7&&B==3,\"values\");",
+    "expected": true
+  },
+  {
+    "name": "constant_float",
+    "source": "double x=1.5?:2.5;",
+    "expected": true
+  },
+  {
+    "name": "constant_float_zero",
+    "source": "double x=0.0?:2.5;",
+    "expected": true
+  },
+  {
+    "name": "constant_signed_conversion",
+    "source": "_Static_assert((-1 ?: 2u)==4294967295u,\"convert\");",
+    "expected": true
+  },
+  {
+    "name": "constant_dead_error",
+    "source": "enum{A=4 ?: (1/0)};",
+    "expected": true
+  },
+  {
+    "name": "constant_live_error",
+    "source": "enum{A=0 ?: (1/0)};",
+    "expected": false
+  },
+  {
+    "name": "constant_bad_fallback",
+    "source": "enum{A=1 ?: undeclared};",
+    "expected": false
+  },
+  {
+    "name": "static_address",
+    "source": "int x;int*p=&x ?: 0;",
+    "expected": true
+  },
+  {
+    "name": "static_string",
+    "source": "char*p=\"hello\" ?: 0;",
+    "expected": true
+  },
+  {
+    "name": "static_null",
+    "source": "int x;int*p=(int*)0 ?: &x;",
+    "expected": true
+  },
+  {
+    "name": "static_both_addresses",
+    "source": "int x,y;int*p=&x ?: &y;",
+    "expected": true
+  },
+  {
+    "name": "static_weak_address",
+    "source": "extern int x __attribute__((weak));int y;int*p=&x ?: &y;",
+    "expected": false
+  },
+  {
+    "name": "statement_local_type",
+    "source": "int f(void){return ({typedef int T;T x=2;x;}) ?: 4;}",
+    "expected": true
+  },
+  {
+    "name": "condition_typedef_scope",
+    "source": "int f(void){return sizeof(enum {E=3}) ?: E;}",
+    "expected": true
+  },
+  {
+    "name": "keyword_prefetch",
+    "source": "void f(int*p){(__builtin_prefetch ?: __builtin_prefetch)(p);}",
+    "expected": false
+  },
+  {
+    "name": "variably_modified",
+    "source": "int n;int (*f(int (*p)[n]))[n]{return p ?: 0;}",
+    "expected": false
+  }
+]

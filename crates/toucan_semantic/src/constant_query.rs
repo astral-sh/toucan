@@ -100,11 +100,13 @@ impl Analyzer {
                     return Ok(false);
                 };
                 let selected = if condition.truth() {
-                    &conditional.node.then_expression
+                    conditional.node.then_expression.as_deref()
                 } else {
-                    &conditional.node.else_expression
+                    Some(conditional.node.else_expression.as_ref())
                 };
-                if !self.known_constant_operand(selected)? {
+                if let Some(selected) = selected
+                    && !self.known_constant_operand(selected)?
+                {
                     return Ok(false);
                 }
                 let ty = self.expression_type(expression)?;

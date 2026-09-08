@@ -69,10 +69,10 @@ impl Analyzer {
             }
             ast::Expression::Conditional(conditional) => {
                 self.is_integer_constant_expression(&conditional.node.condition, depth + 1)?
-                    && self.is_integer_constant_expression(
-                        &conditional.node.then_expression,
-                        depth + 1,
-                    )?
+                    && match &conditional.node.then_expression {
+                        Some(value) => self.is_integer_constant_expression(value, depth + 1)?,
+                        None => true,
+                    }
                     && self.is_integer_constant_expression(
                         &conditional.node.else_expression,
                         depth + 1,
@@ -366,18 +366,22 @@ impl Analyzer {
                 self.binary(&binary.node.operator.node, left, right, offset)
             }
             ast::Expression::Conditional(conditional) => {
-                let left_ty = self.expression_type(&conditional.node.then_expression)?;
+                let left_ty = self.expression_type(conditional.node.nonzero_expression())?;
                 let right_ty = self.expression_type(&conditional.node.else_expression)?;
                 let destination = common(
                     self.integer_type(&left_ty, offset)?,
                     self.integer_type(&right_ty, offset)?,
                 );
-                let selected = if self.eval(&conditional.node.condition)?.truth() {
-                    &conditional.node.then_expression
+                let condition = self.eval(&conditional.node.condition)?;
+                let value = if condition.truth() {
+                    match &conditional.node.then_expression {
+                        Some(value) => self.eval(value)?,
+                        None => condition,
+                    }
                 } else {
-                    &conditional.node.else_expression
+                    self.eval(&conditional.node.else_expression)?
                 };
-                Ok(convert(self.eval(selected)?, destination))
+                Ok(convert(value, destination))
             }
             ast::Expression::SizeOfTy(size) => {
                 let checkpoint = self.sve_feature_checkpoint();

@@ -1,0 +1,191 @@
+{
+  "base": "89ea27a6d2b75327fc84b4631e3da4a2626862a7 + frozen inline integration + frozen C99/C17 layer, staged privately",
+  "tested_patch_sha256": "5d533bf7e4e74f393819637eca380e8f77c44f879da6cd14602d2e4592c7f41f",
+  "scope": "GNU omitted-middle source conditionals; shared static pointer condition admission; explicit saved-value checked graph; no preprocessor syntax extension",
+  "workspace": {
+    "passed": 794,
+    "ignored": 210
+  },
+  "native": {
+    "syntax_gate_cases": 74,
+    "syntax_gate_observations": 1184,
+    "initial_syntax_observations": 1088,
+    "extra_syntax_observations": 384,
+    "weak_symbol_observations": 92,
+    "independent_runtime_executions": 20,
+    "preprocessor_rejection_observations": 192,
+    "semantic_matrix_settings": 88,
+    "semantic_fixture_decisions": 6512,
+    "runtime_gate_executions": 160,
+    "rust_164_ffi_executions": 32
+  },
+  "python_tests": {
+    "scripts": 32,
+    "binding_compare": 27
+  },
+  "conformance": {
+    "c11-gcc": {
+      "source_count": 220,
+      "both_accept": {
+        "c90": 197,
+        "gnu90": 219,
+        "c99": 220,
+        "gnu99": 220,
+        "c17": 220,
+        "gnu17": 220,
+        "c11": 220,
+        "gnu11": 220,
+        "strict_c11": 211
+      },
+      "eligible_count": 220,
+      "toucan_checked": 220,
+      "toucan_accepted": 219,
+      "differences": [
+        "00144.c"
+      ],
+      "strict_eligible_count": 211,
+      "strict_toucan_accepted": 211,
+      "strict_differences": [],
+      "tool_failures": [],
+      "oracle_pipeline_failures": [],
+      "changed_tools": []
+    },
+    "c11-clang": {
+      "source_count": 220,
+      "both_accept": {
+        "c90": 197,
+        "gnu90": 219,
+        "c99": 220,
+        "gnu99": 220,
+        "c17": 220,
+        "gnu17": 220,
+        "c11": 220,
+        "gnu11": 220,
+        "strict_c11": 211
+      },
+      "eligible_count": 220,
+      "toucan_checked": 220,
+      "toucan_accepted": 219,
+      "differences": [
+        "00144.c"
+      ],
+      "strict_eligible_count": 211,
+      "strict_toucan_accepted": 211,
+      "strict_differences": [],
+      "tool_failures": [],
+      "oracle_pipeline_failures": [],
+      "changed_tools": []
+    },
+    "gnu11-clang": {
+      "source_count": 220,
+      "both_accept": {
+        "c90": 197,
+        "gnu90": 219,
+        "c99": 220,
+        "gnu99": 220,
+        "c17": 220,
+        "gnu17": 220,
+        "c11": 220,
+        "gnu11": 220,
+        "strict_c11": 211
+      },
+      "eligible_count": 220,
+      "toucan_checked": 220,
+      "toucan_accepted": 219,
+      "differences": [
+        "00144.c"
+      ],
+      "strict_eligible_count": 211,
+      "strict_toucan_accepted": 211,
+      "strict_differences": [],
+      "tool_failures": [],
+      "oracle_pipeline_failures": [],
+      "changed_tools": []
+    },
+    "gnu11-gcc": {
+      "source_count": 220,
+      "both_accept": {
+        "c90": 197,
+        "gnu90": 219,
+        "c99": 220,
+        "gnu99": 220,
+        "c17": 220,
+        "gnu17": 220,
+        "c11": 220,
+        "gnu11": 220,
+        "strict_c11": 211
+      },
+      "eligible_count": 220,
+      "toucan_checked": 220,
+      "toucan_accepted": 219,
+      "differences": [
+        "00144.c"
+      ],
+      "strict_eligible_count": 211,
+      "strict_toucan_accepted": 211,
+      "strict_differences": [],
+      "tool_failures": [],
+      "oracle_pipeline_failures": [],
+      "changed_tools": []
+    }
+  },
+  "source_audit": {
+    "expected_translation_units": 7,
+    "completed_by_route": {
+      "toucan": 7,
+      "compiler_preprocessed": 7
+    },
+    "retention_pairs_agree": 14
+  },
+  "benchmark": {
+    "total_process_observations": 224,
+    "median_ratio_min": 0.984438284463437,
+    "median_ratio_max": 1.0187356009615083,
+    "geometric_mean_ratio": 0.9962922461005048,
+    "output_comparison": "Complete unit bytes, with no metadata removal",
+    "limitation": "Shared host measurements; these ratios do not establish a speedup"
+  },
+  "sanitizer": {
+    "mutations": {
+      "exit_code": 0,
+      "elapsed_seconds": 301.1755401610135,
+      "statistics": {
+        "number_of_executed_units": 40508,
+        "average_exec_per_sec": 134,
+        "new_units_added": 1547,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 624
+      },
+      "source_unchanged": true,
+      "artifacts": {}
+    },
+    "focused_replay": {
+      "exit_code": 0,
+      "elapsed_seconds": 36.28934807398764,
+      "source_unchanged": true,
+      "input_files": 3960,
+      "executions": 3961,
+      "peak_rss_mb": 458,
+      "artifacts": {}
+    }
+  },
+  "limitations": [
+    "General floating-comparison ICE extensions remain unsupported for ordinary and omitted conditionals; arithmetic constant evaluation is supported.",
+    "Retained initializers preserve source expressions and declaration-site binding snapshots; no public symbolic-pointer constant query or object-file lowering was added.",
+    "Native runtime evidence here is x86_64 Linux; macOS/ARM runtime remains an integration CI gate."
+  ],
+  "checks": [
+    "workspace tests",
+    "workspace all-targets all-features Clippy",
+    "fuzz all-targets Clippy",
+    "Rustdoc -D warnings",
+    "native focused admission/runtime",
+    "Rust 1.64 FFI GCC/Clang O0/O2",
+    "fresh real-project two-route ordinary/retained audit",
+    "C11/GNU11 conformance through GCC/Clang preprocessors",
+    "ASan mutations and focused fixture replay",
+    "workspace and fuzz rustfmt",
+    "Ruff scripts/parser scripts/binding comparison"
+  ],
+  "evidence_note": "Code, tests and seeds match tested-source.patch.gz. Only this evidence archive and the documentation link/constant-lowering boundary were added after the immutable sanitizer runs."
+}

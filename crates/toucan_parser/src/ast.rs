@@ -537,8 +537,18 @@ pub struct BinaryOperatorExpression {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ConditionalExpression {
     pub condition: Box<Node<Expression>>,
-    pub then_expression: Box<Node<Expression>>,
+    /// None represents GNU's omitted middle operand. Its value is the saved
+    /// condition value, so the condition must not be evaluated a second time.
+    pub then_expression: Option<Box<Node<Expression>>>,
     pub else_expression: Box<Node<Expression>>,
+}
+
+impl ConditionalExpression {
+    /// Source of the nonzero result. An omitted operand reuses the condition's
+    /// already computed value; this accessor does not imply reevaluation.
+    pub fn nonzero_expression(&self) -> &Node<Expression> {
+        self.then_expression.as_deref().unwrap_or(&self.condition)
+    }
 }
 
 /// Variable argument list access

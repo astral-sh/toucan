@@ -1,0 +1,8 @@
+{
+  "path": "/home/dev-user/.cache/toucan/omitted-conditional-probes/head-audit",
+  "sha256": "a0cfab38566c3b9872ec8f2b43035771fd3d246369daa6022c51449810143a99",
+  "built_binary": "/home/dev-user/.cache/toucan/omitted-conditional-target/release/examples/audit_translation_unit",
+  "source_patch_sha256": "5d533bf7e4e74f393819637eca380e8f77c44f879da6cd14602d2e4592c7f41f",
+  "probe_sha256": "a0cfab38566c3b9872ec8f2b43035771fd3d246369daa6022c51449810143a99",
+  "source_revision": "89ea27a+inline+C99/C17+omitted"
+}

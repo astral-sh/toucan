@@ -347,7 +347,11 @@ fn literal_expression(expression: &ast::Expression, depth: u8, remaining: &mut u
         }
         ast::Expression::Conditional(conditional) => {
             operand(&conditional.node.condition)
-                && operand(&conditional.node.then_expression)
+                && conditional
+                    .node
+                    .then_expression
+                    .as_ref()
+                    .is_none_or(|value| operand(value))
                 && operand(&conditional.node.else_expression)
         }
         _ => false,

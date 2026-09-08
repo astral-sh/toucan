@@ -66,6 +66,10 @@ pub enum Conversion {
 #[non_exhaustive]
 pub enum UseContext {
     Value,
+    /// Reuse the enclosing omitted conditional's saved condition value. The
+    /// referenced expression and its lvalue/atomic conversion do not execute
+    /// again; only the conversions stored on this use are applied.
+    ReusedValue,
     /// Expand the enclosing inline function's anonymous arguments here. The
     /// expression's int type is only the GNU builtin's type-checking placeholder;
     /// no ordinary argument conversion or single integer argument is implied.
@@ -427,6 +431,13 @@ pub enum ExprKind {
         value: ExprUse,
     },
     Conditional {
+        condition: ExprUse,
+        then_value: ExprUse,
+        else_value: ExprUse,
+    },
+    /// GNU `condition ?: fallback`. The nonzero branch is a ReusedValue use of
+    /// the condition, with only its further result conversions.
+    OmittedConditional {
         condition: ExprUse,
         then_value: ExprUse,
         else_value: ExprUse,
@@ -893,7 +904,13 @@ impl Analyzer {
         destination: Option<(Type, Conversion)>,
     ) -> Result<ExprUse, Error> {
         let expression_id = self.retained_expression_id(expression)?;
-        self.retained_use_by_id(expression_id, context, destination, expression.span.start)
+        self.retained_use_by_id(
+            expression_id,
+            context,
+            destination,
+            None,
+            expression.span.start,
+        )
     }
 
     fn retained_use_by_id(
@@ -901,11 +918,17 @@ impl Analyzer {
         expression_id: ExprId,
         context: UseContext,
         destination: Option<(Type, Conversion)>,
+        reused: Option<&ExprUse>,
         offset: usize,
     ) -> Result<ExprUse, Error> {
+        debug_assert_eq!(context == UseContext::ReusedValue, reused.is_some());
         let info = self.code_builder().expression_info(expression_id);
         let mut conversions = Vec::new();
-        let mut ty = info.ty.clone();
+        let mut ty = if let Some(value) = reused {
+            self.code_builder().code.types[value.effective_type.index()].clone()
+        } else {
+            info.ty.clone()
+        };
         if matches!(
             context,
             UseContext::Value
@@ -973,7 +996,11 @@ impl Analyzer {
             }
             ty = destination;
         }
-        let source_use = self.code_builder().code.expressions[expression_id.index()].type_use;
+        let source_use = if let Some(value) = reused {
+            value.type_use
+        } else {
+            self.code_builder().code.expressions[expression_id.index()].type_use
+        };
         let type_use =
             self.code_builder()
                 .converted_type_use(source_use, &ty, &conversions, offset)?;
@@ -1310,19 +1337,42 @@ impl Analyzer {
                     )?,
                 }
             }
-            ast::Expression::Conditional(conditional) => ExprKind::Conditional {
-                condition: self.retained_value(&conditional.node.condition)?,
-                then_value: self.retained_use(
-                    &conditional.node.then_expression,
-                    UseContext::Value,
-                    Some((info.ty.clone(), Conversion::Conditional)),
-                )?,
-                else_value: self.retained_use(
+            ast::Expression::Conditional(conditional) => {
+                let condition = self.retained_value(&conditional.node.condition)?;
+                let then_value = if let Some(value) = &conditional.node.then_expression {
+                    self.retained_use(
+                        value,
+                        UseContext::Value,
+                        Some((info.ty.clone(), Conversion::Conditional)),
+                    )?
+                } else {
+                    self.retained_use_by_id(
+                        condition.expression,
+                        UseContext::ReusedValue,
+                        Some((info.ty.clone(), Conversion::Conditional)),
+                        Some(&condition),
+                        offset,
+                    )?
+                };
+                let else_value = self.retained_use(
                     &conditional.node.else_expression,
                     UseContext::Value,
                     Some((info.ty.clone(), Conversion::Conditional)),
-                )?,
-            },
+                )?;
+                if conditional.node.then_expression.is_some() {
+                    ExprKind::Conditional {
+                        condition,
+                        then_value,
+                        else_value,
+                    }
+                } else {
+                    ExprKind::OmittedConditional {
+                        condition,
+                        then_value,
+                        else_value,
+                    }
+                }
+            }
             ast::Expression::Member(member) => {
                 let base_info = self.expression_info(&member.node.expression)?;
                 let indirect = member.node.operator.node == ast::MemberOperator::Indirect;
@@ -1543,6 +1593,7 @@ impl Analyzer {
                             } else {
                                 UseContext::Value
                             },
+                            None,
                             None,
                             offset,
                         )

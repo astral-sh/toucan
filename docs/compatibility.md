@@ -1042,9 +1042,10 @@ macOS and ARM calls remain CI gates.
 standard-mode macros, and trigraph defaults independently of the compiler family.
 GNU11 is the default. C90 supports implicit-int declarations and ordinary
 implicit function declarations, including retained scope and call records.
-Implicit library builtin signatures and GNU
-omitted-middle conditional expressions remain tracked gaps. Selecting an ISO
-mode does not enable pedantic diagnostics.
+Implicit library builtin signatures remain a tracked gap. GNU
+[omitted-middle conditional expressions](conditional-expressions.md) preserve
+single evaluation, result conversions, and compiler-specific static pointer
+initializers. Selecting an ISO mode does not enable pedantic diagnostics.
 
 ### Clang `noescape` parameters
 

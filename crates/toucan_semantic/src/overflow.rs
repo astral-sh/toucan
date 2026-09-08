@@ -429,17 +429,20 @@ impl Analyzer {
                 let condition = recurse(self, &conditional.node.condition)?;
                 let branches = if let Ok(value) = self.eval_arithmetic(&conditional.node.condition)
                 {
-                    recurse(
-                        self,
-                        if value.truth() {
-                            &conditional.node.then_expression
-                        } else {
-                            &conditional.node.else_expression
-                        },
-                    )?
+                    if value.truth() {
+                        match &conditional.node.then_expression {
+                            Some(value) => recurse(self, value)?,
+                            None => Some(false),
+                        }
+                    } else {
+                        recurse(self, &conditional.node.else_expression)?
+                    }
                 } else {
                     combine(
-                        recurse(self, &conditional.node.then_expression)?,
+                        match &conditional.node.then_expression {
+                            Some(value) => recurse(self, value)?,
+                            None => Some(false),
+                        },
                         recurse(self, &conditional.node.else_expression)?,
                     )
                 };

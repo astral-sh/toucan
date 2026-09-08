@@ -95,6 +95,9 @@ impl Builder {
     }
 
     pub(super) fn query_use_effects(&self, value: &ExprUse) -> QuerySideEffects {
+        if value.context == super::expression::UseContext::ReusedValue {
+            return QuerySideEffects::Absent;
+        }
         let summary = self.expression_builder.query_summaries[value.expression.index()];
         if value
             .conversions
@@ -178,6 +181,11 @@ impl Builder {
                 self.query_use_effects(value)
             }
             ExprKind::Conditional {
+                condition,
+                then_value,
+                else_value,
+            }
+            | ExprKind::OmittedConditional {
                 condition,
                 then_value,
                 else_value,

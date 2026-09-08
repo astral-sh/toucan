@@ -5994,7 +5994,7 @@ fn __parse_conditional_expression0<'input>(__input: &'input str, __state: &mut P
     if __state.budget.failure.is_some() { Failed } else { result }
 }
 
-fn __parse_conditional_expressionT<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<(Box<Node<Expression>>, Box<Node<Expression>>)> {
+fn __parse_conditional_expressionT<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<(Option<Box<Node<Expression>>>, Box<Node<Expression>>)> {
     #![allow(non_snake_case, unused)]
     if !__state.budget.enter(__pos) { return Failed; }
     let result = (|| {
@@ -6006,28 +6006,67 @@ fn __parse_conditional_expressionT<'input>(__input: &'input str, __state: &mut P
                 match __seq_res {
                     Matched(__pos, _) => {
                         let __seq_res = {
-                            let __seq_res = Matched(__pos, __pos);
-                            match __seq_res {
-                                Matched(__pos, l) => {
-                                    let __seq_res = __parse_expression0(__input, __state, __pos, env);
+                            let __choice_res = {
+                                let __seq_res = {
+                                    let __seq_res = Matched(__pos, __pos);
                                     match __seq_res {
-                                        Matched(__pos, e) => {
-                                            let __seq_res = Matched(__pos, __pos);
+                                        Matched(__pos, l) => {
+                                            let __seq_res = __parse_expression0(__input, __state, __pos, env);
                                             match __seq_res {
-                                                Matched(__pos, r) => match { __state.budget.node(e, Span::span(l, r)) } {
-                                                    Ok(res) => Matched(__pos, res),
-                                                    Err(expected) => {
-                                                        __state.mark_failure(__pos, expected);
-                                                        Failed
+                                                Matched(__pos, e) => {
+                                                    let __seq_res = Matched(__pos, __pos);
+                                                    match __seq_res {
+                                                        Matched(__pos, r) => match { __state.budget.node(e, Span::span(l, r)) } {
+                                                            Ok(res) => Matched(__pos, res),
+                                                            Err(expected) => {
+                                                                __state.mark_failure(__pos, expected);
+                                                                Failed
+                                                            }
+                                                        },
+                                                        Failed => Failed,
                                                     }
-                                                },
+                                                }
+                                                Failed => Failed,
+                                            }
+                                        }
+                                        Failed => Failed,
+                                    }
+                                };
+                                match __seq_res {
+                                    Matched(__pos, a) => Matched(__pos, { Some(Box::new(a)) }),
+                                    Failed => Failed,
+                                }
+                            };
+                            match __choice_res {
+                                Matched(__pos, __value) => Matched(__pos, __value),
+                                Failed if __state.budget.failure.is_some() => return Failed,
+                                Failed => {
+                                    let __seq_res = {
+                                        __state.suppress_fail += 1;
+                                        let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
+                                        __state.suppress_fail -= 1;
+                                        match __assert_res {
+                                            Matched(_, __value) => Matched(__pos, __value),
+                                            Failed => Failed,
+                                        }
+                                    };
+                                    match __seq_res {
+                                        Matched(__pos, _) => {
+                                            let __seq_res = {
+                                                let __seq_res = slice_eq(__input, __state, __pos, "");
+                                                match __seq_res {
+                                                    Matched(__pos, _) => Matched(__pos, { None }),
+                                                    Failed => Failed,
+                                                }
+                                            };
+                                            match __seq_res {
+                                                Matched(__pos, e) => Matched(__pos, { e }),
                                                 Failed => Failed,
                                             }
                                         }
                                         Failed => Failed,
                                     }
                                 }
-                                Failed => Failed,
                             }
                         };
                         match __seq_res {
@@ -6067,7 +6106,7 @@ fn __parse_conditional_expressionT<'input>(__input: &'input str, __state: &mut P
                                                             }
                                                         };
                                                         match __seq_res {
-                                                            Matched(__pos, b) => Matched(__pos, { (Box::new(a), Box::new(b)) }),
+                                                            Matched(__pos, b) => Matched(__pos, { (a, Box::new(b)) }),
                                                             Failed => Failed,
                                                         }
                                                     }

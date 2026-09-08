@@ -1,0 +1,26 @@
+{
+  "baseline-cli": {
+    "path": "/home/dev-user/.cache/toucan/omitted-conditional-probes/baseline-cli",
+    "sha256": "a55ca75efb7d58d76fd0ee4ba9f37f01b32c634f5a7e3338d453f68086ebc132",
+    "built_binary": "/home/dev-user/.cache/toucan/c99-c17-probes/head-cli",
+    "source_patch_sha256": "621cfd0a3c517d9bac597d2452bd38db220a28bde35c7840eb08eb4d12489c19"
+  },
+  "baseline-audit": {
+    "path": "/home/dev-user/.cache/toucan/omitted-conditional-probes/baseline-audit",
+    "sha256": "2b45324c3fa1033a8d18c13eb32c290d47805221f4e5ffe2331f04a74ab3a0e6",
+    "built_binary": "/home/dev-user/.cache/toucan/c99-c17-probes/head-audit",
+    "source_patch_sha256": "621cfd0a3c517d9bac597d2452bd38db220a28bde35c7840eb08eb4d12489c19"
+  },
+  "head-cli": {
+    "path": "/home/dev-user/.cache/toucan/omitted-conditional-probes/head-cli",
+    "sha256": "a5b606d88393ca0fd10cea71f2f56b855971d731906d3cf7fa9c25dde1277a5c",
+    "built_binary": "/home/dev-user/.cache/toucan/omitted-conditional-target/release/toucan",
+    "source_patch_sha256": "5d533bf7e4e74f393819637eca380e8f77c44f879da6cd14602d2e4592c7f41f"
+  },
+  "head-audit": {
+    "path": "/home/dev-user/.cache/toucan/omitted-conditional-probes/head-audit",
+    "sha256": "a0cfab38566c3b9872ec8f2b43035771fd3d246369daa6022c51449810143a99",
+    "built_binary": "/home/dev-user/.cache/toucan/omitted-conditional-target/release/examples/audit_translation_unit",
+    "source_patch_sha256": "5d533bf7e4e74f393819637eca380e8f77c44f879da6cd14602d2e4592c7f41f"
+  }
+}

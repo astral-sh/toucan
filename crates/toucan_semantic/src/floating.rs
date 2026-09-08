@@ -497,12 +497,14 @@ impl Analyzer {
                 // must satisfy C expression constraints.
                 let ty = self.expression_type(expression)?;
                 let condition = self.eval_arithmetic(&conditional.node.condition)?;
-                let selected = if condition.truth() {
-                    &conditional.node.then_expression
+                let value = if condition.truth() {
+                    match &conditional.node.then_expression {
+                        Some(value) => self.eval_arithmetic(value)?,
+                        None => condition,
+                    }
                 } else {
-                    &conditional.node.else_expression
+                    self.eval_arithmetic(&conditional.node.else_expression)?
                 };
-                let value = self.eval_arithmetic(selected)?;
                 if let TypeKind::Float(kind) = self.unit.resolve(&ty)?.kind {
                     self.require_narrow_constant_precision(kind, offset)?;
                 }

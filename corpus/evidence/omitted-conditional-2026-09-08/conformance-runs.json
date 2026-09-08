@@ -1,0 +1,98 @@
+[
+  {
+    "mode": "c11",
+    "preprocessor": "gcc",
+    "command": [
+      "python",
+      "/home/dev-user/.codex/worktrees/toucan-omitted-conditional/scripts/audit_c_testsuite.py",
+      "--toucan",
+      "/home/dev-user/.cache/toucan/omitted-conditional-probes/head-cli",
+      "--cache",
+      "/home/dev-user/.cache/toucan/conformance",
+      "--offline",
+      "--output",
+      "/home/dev-user/.cache/toucan/omitted-conditional-conformance/c11-gcc",
+      "--dialect",
+      "c11",
+      "--preprocessor",
+      "gcc",
+      "--workers",
+      "2",
+      "--fail-on-strict-difference"
+    ],
+    "exit_code": 0,
+    "log": "/home/dev-user/.cache/toucan/omitted-conditional-conformance/c11-gcc.log"
+  },
+  {
+    "mode": "c11",
+    "preprocessor": "clang",
+    "command": [
+      "python",
+      "/home/dev-user/.codex/worktrees/toucan-omitted-conditional/scripts/audit_c_testsuite.py",
+      "--toucan",
+      "/home/dev-user/.cache/toucan/omitted-conditional-probes/head-cli",
+      "--cache",
+      "/home/dev-user/.cache/toucan/conformance",
+      "--offline",
+      "--output",
+      "/home/dev-user/.cache/toucan/omitted-conditional-conformance/c11-clang",
+      "--dialect",
+      "c11",
+      "--preprocessor",
+      "clang",
+      "--workers",
+      "2",
+      "--fail-on-strict-difference"
+    ],
+    "exit_code": 0,
+    "log": "/home/dev-user/.cache/toucan/omitted-conditional-conformance/c11-clang.log"
+  },
+  {
+    "mode": "gnu11",
+    "preprocessor": "gcc",
+    "command": [
+      "python",
+      "/home/dev-user/.codex/worktrees/toucan-omitted-conditional/scripts/audit_c_testsuite.py",
+      "--toucan",
+      "/home/dev-user/.cache/toucan/omitted-conditional-probes/head-cli",
+      "--cache",
+      "/home/dev-user/.cache/toucan/conformance",
+      "--offline",
+      "--output",
+      "/home/dev-user/.cache/toucan/omitted-conditional-conformance/gnu11-gcc",
+      "--dialect",
+      "gnu11",
+      "--preprocessor",
+      "gcc",
+      "--workers",
+      "2",
+      "--fail-on-strict-difference"
+    ],
+    "exit_code": 0,
+    "log": "/home/dev-user/.cache/toucan/omitted-conditional-conformance/gnu11-gcc.log"
+  },
+  {
+    "mode": "gnu11",
+    "preprocessor": "clang",
+    "command": [
+      "python",
+      "/home/dev-user/.codex/worktrees/toucan-omitted-conditional/scripts/audit_c_testsuite.py",
+      "--toucan",
+      "/home/dev-user/.cache/toucan/omitted-conditional-probes/head-cli",
+      "--cache",
+      "/home/dev-user/.cache/toucan/conformance",
+      "--offline",
+      "--output",
+      "/home/dev-user/.cache/toucan/omitted-conditional-conformance/gnu11-clang",
+      "--dialect",
+      "gnu11",
+      "--preprocessor",
+      "clang",
+      "--workers",
+      "2",
+      "--fail-on-strict-difference"
+    ],
+    "exit_code": 0,
+    "log": "/home/dev-user/.cache/toucan/omitted-conditional-conformance/gnu11-clang.log"
+  }
+]

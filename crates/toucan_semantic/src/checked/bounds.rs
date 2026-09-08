@@ -874,6 +874,19 @@ impl Builder {
                 };
                 self.retype_use(id, ty, offset)
             }
+            ExprKind::OmittedConditional {
+                condition,
+                else_value,
+                ..
+            } => {
+                let right = self.before_composite_conversion(else_value, offset)?;
+                self.composite_type_use(
+                    &[condition.type_use, right],
+                    Some(condition.expression),
+                    ty,
+                    owner,
+                )
+            }
             ExprKind::Conditional {
                 condition,
                 then_value,

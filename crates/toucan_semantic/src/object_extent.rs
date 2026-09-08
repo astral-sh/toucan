@@ -400,7 +400,7 @@ impl Analyzer {
                 };
                 self.object_pointer(
                     if condition.truth() {
-                        &conditional.node.then_expression
+                        conditional.node.nonzero_expression()
                     } else {
                         &conditional.node.else_expression
                     },
@@ -818,20 +818,20 @@ impl Analyzer {
                     self.object_discarded_effects(&conditional.node.condition, depth + 1)?;
                 let branches = if let Ok(value) = self.eval_arithmetic(&conditional.node.condition)
                 {
-                    self.object_discarded_effects(
-                        if value.truth() {
-                            &conditional.node.then_expression
-                        } else {
-                            &conditional.node.else_expression
-                        },
-                        depth + 1,
-                    )?
+                    if value.truth() {
+                        match &conditional.node.then_expression {
+                            Some(value) => self.object_discarded_effects(value, depth + 1)?,
+                            None => Some(false),
+                        }
+                    } else {
+                        self.object_discarded_effects(&conditional.node.else_expression, depth + 1)?
+                    }
                 } else {
                     combine_effects(
-                        self.object_discarded_effects(
-                            &conditional.node.then_expression,
-                            depth + 1,
-                        )?,
+                        match &conditional.node.then_expression {
+                            Some(value) => self.object_discarded_effects(value, depth + 1)?,
+                            None => Some(false),
+                        },
                         self.object_discarded_effects(
                             &conditional.node.else_expression,
                             depth + 1,

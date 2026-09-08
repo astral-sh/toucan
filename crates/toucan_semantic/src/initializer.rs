@@ -16,6 +16,38 @@ enum ConstantKind {
     Address,
 }
 
+/// A relocation base or an absolute target address. Symbol spelling is resolved
+/// in the active lexical scope; anonymous objects use their source occurrence.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PointerBase<'a> {
+    Symbol(&'a str),
+    Anonymous(usize, usize),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct PointerConstant<'a> {
+    base: Option<PointerBase<'a>>,
+    offset: u128,
+    nullable: bool,
+}
+
+impl PointerConstant<'_> {
+    fn truth(self) -> Option<bool> {
+        if self.base.is_none() {
+            Some(self.offset != 0)
+        } else if self.nullable {
+            None
+        } else {
+            Some(true)
+        }
+    }
+}
+
+enum ConstantBranch<'a> {
+    Reused(Option<PointerConstant<'a>>),
+    Selected(&'a Node<ast::Expression>),
+}
+
 struct FlexibleState {
     member_index: usize,
     elements: Option<u64>,
@@ -1146,12 +1178,11 @@ impl Analyzer {
                 }
             }
             ast::Expression::Conditional(conditional) => {
-                let condition = self.eval_arithmetic(&conditional.node.condition)?;
-                self.static_initializer(if condition.truth() {
-                    &conditional.node.then_expression
-                } else {
-                    &conditional.node.else_expression
-                })
+                let kind = self.static_initializer(&conditional.node.condition)?;
+                match self.static_conditional_branch(&conditional.node, offset)? {
+                    ConstantBranch::Reused(_) => Ok(kind),
+                    ConstantBranch::Selected(selected) => self.static_initializer(selected),
+                }
             }
             ast::Expression::TypesCompatible(query) => {
                 self.eval_types_compatible(query)?;
@@ -1167,6 +1198,247 @@ impl Analyzer {
             }
             _ => Err(invalid()),
         }
+    }
+
+    /// Selects a static conditional using declaration-time symbol binding. A weak
+    /// address can be null, even when a later declaration provides a definition.
+    fn static_conditional_branch<'a>(
+        &mut self,
+        conditional: &'a ast::ConditionalExpression,
+        offset: usize,
+    ) -> Result<ConstantBranch<'a>, Error> {
+        let condition = &conditional.condition;
+        let condition_ty = self.value_expression_type(condition)?;
+        if !matches!(self.unit.resolve(&condition_ty)?.kind, TypeKind::Pointer(_)) {
+            return Ok(if self.eval_arithmetic(condition)?.truth() {
+                match &conditional.then_expression {
+                    Some(value) => ConstantBranch::Selected(value),
+                    None => ConstantBranch::Reused(None),
+                }
+            } else {
+                ConstantBranch::Selected(&conditional.else_expression)
+            });
+        }
+        let address = self.static_pointer(condition, false)?;
+        if let Some(truth) = address.and_then(PointerConstant::truth) {
+            return Ok(if truth {
+                match &conditional.then_expression {
+                    Some(value) => ConstantBranch::Selected(value),
+                    None => ConstantBranch::Reused(address),
+                }
+            } else {
+                ConstantBranch::Selected(&conditional.else_expression)
+            });
+        }
+        // GCC preserves the address relocation for `p ? p : 0`, including
+        // omitted-middle syntax, without assuming a weak p is nonzero. Clang
+        // does not admit this as a static initializer. Compare symbolic identity
+        // and byte offsets for an explicit middle operand; unrelated addresses
+        // cannot justify this fold.
+        if self.gnu_sync_profile()
+            && let Some(address) = address
+            && (self
+                .eval(&conditional.else_expression)
+                .is_ok_and(|v| v.value == 0)
+                || self
+                    .static_pointer(&conditional.else_expression, false)?
+                    .is_some_and(|value| value.base.is_none() && value.offset == 0))
+            && (conditional.then_expression.is_none()
+                || self.static_pointer(conditional.nonzero_expression(), false)? == Some(address))
+        {
+            return Ok(match &conditional.then_expression {
+                Some(value) => ConstantBranch::Selected(value),
+                None => ConstantBranch::Reused(Some(address)),
+            });
+        }
+        Err(Error::new(
+            offset,
+            "static storage initializer has no constant pointer condition",
+        ))
+    }
+
+    /// Resolves a checked address constant without reading an object. The caller
+    /// separately checks static-storage eligibility; this bounded walk preserves
+    /// symbol identity, weak binding, and target-width absolute pointer bits.
+    fn static_pointer<'a>(
+        &mut self,
+        expression: &'a Node<ast::Expression>,
+        location: bool,
+    ) -> Result<Option<PointerConstant<'a>>, Error> {
+        self.enter_expression(expression.span.start)?;
+        let result = self.static_pointer_inner(expression, location);
+        self.leave_expression();
+        result
+    }
+
+    fn static_pointer_inner<'a>(
+        &mut self,
+        expression: &'a Node<ast::Expression>,
+        location: bool,
+    ) -> Result<Option<PointerConstant<'a>>, Error> {
+        use ast::{BinaryOperator as Binary, Expression as E, UnaryOperator as Unary};
+        let offset = expression.span.start;
+        let designator = matches!(&expression.node, E::Member(_) | E::CompoundLiteral(_))
+            || matches!(&expression.node, E::UnaryOperator(unary) if unary.node.operator.node == Unary::Indirection)
+            || matches!(&expression.node, E::BinaryOperator(binary) if binary.node.operator.node == Binary::Index);
+        if !location && designator {
+            let ty = self.expression_type(expression)?;
+            if !matches!(
+                self.unit.resolve(&ty)?.kind,
+                TypeKind::Array { .. } | TypeKind::Function(_)
+            ) {
+                return Ok(None);
+            }
+        }
+        let mask = u128::MAX >> (128 - self.unit.target.pointer_width());
+        let result = match &expression.node {
+            E::Identifier(identifier) => {
+                let name = identifier.node.name.as_str();
+                let ty = self.expression_type(expression)?;
+                if !location
+                    && !matches!(
+                        self.unit.resolve(&ty)?.kind,
+                        TypeKind::Array { .. } | TypeKind::Function(_)
+                    )
+                {
+                    return Ok(None);
+                }
+                if !self.object_has_static_storage(name)
+                    && self.builtin_function_reference(name)?.is_none()
+                {
+                    return Ok(None);
+                }
+                let linked = self
+                    .lexical_scopes
+                    .iter()
+                    .rev()
+                    .find(|scope| scope.names.contains_key(name))
+                    .is_none_or(|scope| scope.linked.contains(name));
+                PointerConstant {
+                    base: Some(PointerBase::Symbol(name)),
+                    offset: 0,
+                    nullable: linked && self.weak_symbols.contains_key(name),
+                }
+            }
+            E::StringLiteral(_) | E::CompoundLiteral(_) => PointerConstant {
+                base: Some(PointerBase::Anonymous(
+                    expression.span.start,
+                    expression.span.end,
+                )),
+                offset: 0,
+                nullable: false,
+            },
+            E::UnaryOperator(unary) if unary.node.operator.node == Unary::Address && !location => {
+                return self.static_pointer(&unary.node.operand, true);
+            }
+            E::UnaryOperator(unary) if unary.node.operator.node == Unary::Indirection => {
+                return self.static_pointer(&unary.node.operand, false);
+            }
+            E::Cast(cast) if !location => {
+                let ty = self.type_name(&cast.node.type_name.node)?;
+                if !matches!(self.unit.resolve(&ty)?.kind, TypeKind::Pointer(_)) {
+                    return Ok(None);
+                }
+                if let Ok(value) = self.eval(&cast.node.expression) {
+                    PointerConstant {
+                        base: None,
+                        offset: if value.signed {
+                            value.signed_value() as u128
+                        } else {
+                            value.value
+                        } & mask,
+                        nullable: false,
+                    }
+                } else {
+                    return self.static_pointer(&cast.node.expression, false);
+                }
+            }
+            E::Member(member) => {
+                let direct = member.node.operator.node == ast::MemberOperator::Direct;
+                let Some(mut address) = self.static_pointer(&member.node.expression, direct)?
+                else {
+                    return Ok(None);
+                };
+                let mut ty = self.expression_type(&member.node.expression)?;
+                if !direct {
+                    let TypeKind::Pointer(pointee) = &self.unit.resolve(&ty)?.kind else {
+                        return Ok(None);
+                    };
+                    ty = (**pointee).clone();
+                }
+                let (bytes, _) =
+                    self.field_offset(&ty, &member.node.identifier.node.name, offset)?;
+                address.offset = address.offset.wrapping_add(u128::from(bytes)) & mask;
+                address
+            }
+            E::BinaryOperator(binary)
+                if matches!(
+                    binary.node.operator.node,
+                    Binary::Plus | Binary::Minus | Binary::Index
+                ) =>
+            {
+                let left_ty = self.value_expression_type(&binary.node.lhs)?;
+                let (pointer, integer, pointer_ty) =
+                    if matches!(self.unit.resolve(&left_ty)?.kind, TypeKind::Pointer(_)) {
+                        (&binary.node.lhs, &binary.node.rhs, left_ty)
+                    } else if binary.node.operator.node != Binary::Minus {
+                        let ty = self.value_expression_type(&binary.node.rhs)?;
+                        (&binary.node.rhs, &binary.node.lhs, ty)
+                    } else {
+                        return Ok(None);
+                    };
+                let Some(mut address) = self.static_pointer(pointer, false)? else {
+                    return Ok(None);
+                };
+                let TypeKind::Pointer(pointee) = &self.unit.resolve(&pointer_ty)?.kind else {
+                    return Ok(None);
+                };
+                let stride = match self.unit.resolve(pointee)?.kind {
+                    TypeKind::Void | TypeKind::Function(_) => 1,
+                    _ => self.unit.layout(pointee)?.size_bytes(),
+                };
+                let value = self.eval(integer)?;
+                let index = if value.signed {
+                    value.signed_value() as u128
+                } else {
+                    value.value
+                };
+                let bytes = index.wrapping_mul(u128::from(stride));
+                address.offset = if binary.node.operator.node == Binary::Minus {
+                    address.offset.wrapping_sub(bytes)
+                } else {
+                    address.offset.wrapping_add(bytes)
+                } & mask;
+                address
+            }
+            E::Conditional(conditional) if !location => {
+                let selected = match self.static_conditional_branch(&conditional.node, offset)? {
+                    ConstantBranch::Reused(address) => return Ok(address),
+                    ConstantBranch::Selected(selected) => selected,
+                };
+                // The conditional's pointer result converts a selected integer
+                // null pointer constant before an enclosing condition uses it.
+                if self.eval(selected).is_ok_and(|value| value.value == 0) {
+                    PointerConstant {
+                        base: None,
+                        offset: 0,
+                        nullable: false,
+                    }
+                } else {
+                    return self.static_pointer(selected, false);
+                }
+            }
+            E::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                return self.static_pointer(selected, location);
+            }
+            E::GenericSelection(selection) => {
+                let selected = self.generic_expression(selection)?;
+                return self.static_pointer(selected, location);
+            }
+            _ => return Ok(None),
+        };
+        Ok(Some(result))
     }
 
     /// Array and function designators form addresses without reading their objects.

@@ -480,7 +480,11 @@ impl Analyzer {
                 self.require_scalar(&condition, offset)?;
                 let left_checkpoint = self.sve_feature_checkpoint();
                 let labels = self.sve_feature_labels;
-                let left = self.expression_info(&conditional.node.then_expression)?;
+                let left = if let Some(then_expression) = &conditional.node.then_expression {
+                    self.expression_info(then_expression)?
+                } else {
+                    condition_info
+                };
                 left.check_prefetch_value_operation(offset)?;
                 if self.sve_feature_checkpoint() > left_checkpoint
                     && labels == self.sve_feature_labels
@@ -524,8 +528,10 @@ impl Analyzer {
                 {
                     left_value
                 } else if matches!(right_value.kind, TypeKind::Pointer(_))
-                    && self
-                        .is_null_pointer_constant(&conditional.node.then_expression, &left_value)?
+                    && self.is_null_pointer_constant(
+                        conditional.node.nonzero_expression(),
+                        &left_value,
+                    )?
                 {
                     right_value
                 } else if let (TypeKind::Pointer(left), TypeKind::Pointer(right)) =

@@ -213,7 +213,9 @@ impl ConversionStep {
 }
 
 impl ExprUse {
-    /// The written expression before conversions imposed by this use.
+    /// The source expression before conversions imposed by this use.
+    /// For [`super::UseContext::ReusedValue`], identifies the already evaluated
+    /// condition; this use consumes its saved value without evaluating it again.
     pub fn expression(&self) -> ExprId {
         self.expression
     }

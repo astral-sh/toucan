@@ -1,0 +1,49 @@
+{
+  "source": "int object;int*p=&object ?: 0;int f(int x,int y){return x ?: y;}\n",
+  "rows": [
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/omitted-conditional-probes/baseline-cli",
+        "check",
+        "/home/dev-user/.cache/toucan/omitted-conditional-probes/release-control.c",
+        "--std=gnu11",
+        "--compiler=gcc",
+        "--target=x86_64-unknown-linux-gnu"
+      ],
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "error: /home/dev-user/.cache/toucan/omitted-conditional-probes/release-control.c:1:27: C syntax error: unexpected token at \"\" line 2 column 35, expected '!', '\"', '&', '(', '*', '+', '++', '-', '--', 'L', '[_a-zA-Z]', '[uU]', 'u8', '~' (preprocessed byte 162)\n"
+    },
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/omitted-conditional-probes/baseline-audit",
+        "/home/dev-user/.cache/toucan/omitted-conditional-probes/baseline-control.request.json"
+      ],
+      "exit_code": 1,
+      "stdout": "{\"diagnostic\":\"/home/dev-user/.cache/toucan/omitted-conditional-probes/release-control.c:1:27: C syntax error: unexpected token at \\\"\\\" line 2 column 35, expected '!', '\\\"', '&', '(', '*', '+', '++', '-', '--', 'L', '[_a-zA-Z]', '[uU]', 'u8', '~' (preprocessed byte 162)\",\"stage\":\"analysis\",\"status\":\"rejected\"}",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/omitted-conditional-probes/head-cli",
+        "check",
+        "/home/dev-user/.cache/toucan/omitted-conditional-probes/release-control.c",
+        "--std=gnu11",
+        "--compiler=gcc",
+        "--target=x86_64-unknown-linux-gnu"
+      ],
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "Analyzed 5 declarations for x86_64-unknown-linux-gnu\n"
+    },
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/omitted-conditional-probes/head-audit",
+        "/home/dev-user/.cache/toucan/omitted-conditional-probes/head-control.request.json"
+      ],
+      "exit_code": 0,
+      "stdout": "{\"compiler\":\"gcc\",\"counts\":{\"bodies\":1,\"bounds\":0,\"declarations\":7,\"entities\":10,\"expressions\":7,\"initializers\":1,\"statements\":2},\"declarations\":5,\"dependencies\":[\"/home/dev-user/.cache/toucan/omitted-conditional-probes/release-control.c\"],\"language_mode\":\"gnu11\",\"retained\":true,\"status\":\"accepted\"}",
+      "stderr": ""
+    }
+  ]
+}

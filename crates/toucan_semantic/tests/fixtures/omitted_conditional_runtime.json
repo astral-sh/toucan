@@ -1,0 +1,22 @@
+[
+  {
+    "name": "effects",
+    "source": "int calls; int take(int x){++calls;return x;} int main(void){int x,y; calls=0;y=take(7)?:take(9);if(y!=7||calls!=1)return 1;calls=0;y=take(0)?:take(9);if(y!=9||calls!=2)return 2;x=0;y=x++?:8;if(y!=8||x!=1)return 3;x=4;y=x++?:8;if(y!=4||x!=5)return 4;return 0;}"
+  },
+  {
+    "name": "volatile",
+    "source": "int choose(volatile int*p){return (*p)++ ?: 9;}int main(void){volatile int x=7;int y=choose(&x);if(y!=7||x!=8)return 1;x=0;y=choose(&x);return y!=9||x!=1;}"
+  },
+  {
+    "name": "atomic",
+    "source": "int choose(_Atomic int*p){return (*p)++ ?: 9;}int main(void){_Atomic int x=7;int y=choose(&x);if(y!=7||x!=8)return 1;x=0;y=choose(&x);return y!=9||x!=1;}"
+  },
+  {
+    "name": "vla",
+    "source": "unsigned long f(int n,int(*p)[n],int(*q)[n]){return sizeof(*(p?:q));}int main(void){int a[2][3];return f(3,a,a+1)!=3*sizeof(int)||f(3,0,a)!=3*sizeof(int);}"
+  },
+  {
+    "name": "vla-postincrement",
+    "source": "int f(int n,int(*p)[n],int(*q)[n]){int(*old)[n]=p;unsigned long s=sizeof(*(p++?:q));return s==n*sizeof(int)&&p==old+1;}int main(void){int a[2][3];return !f(3,a,a+1);}"
+  }
+]

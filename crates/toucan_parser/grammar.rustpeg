@@ -416,8 +416,8 @@ conditional_expression0 -> Expression =
         }
     }
 
-conditional_expressionT -> (Box<Node<Expression>>, Box<Node<Expression>>) =
-    "?" _ a:node<expression0> _ ":" _ b:node<conditional_expression0> { (Box::new(a), Box::new(b)) }
+conditional_expressionT -> (Option<Box<Node<Expression>>>, Box<Node<Expression>>) =
+    "?" _ a:(a:node<expression0> { Some(Box::new(a)) } / gnu<"" { None }>) _ ":" _ b:node<conditional_expression0> { (a, Box::new(b)) }
 
 ////
 // 6.5.16 Assignment operators

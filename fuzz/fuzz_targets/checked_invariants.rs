@@ -151,7 +151,10 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             assert_eq!(body.entity(), id);
             assert_ne!(body.definition_kind(), FunctionDefinitionKind::Superseded);
             let declaration = &unit.declarations[entity.declaration().unwrap()];
-            assert_eq!(declaration.function_definition_kind, Some(body.definition_kind()));
+            assert_eq!(
+                declaration.function_definition_kind,
+                Some(body.definition_kind())
+            );
         }
         match entity.kind() {
             EntityKind::Record(record) => {
@@ -407,6 +410,27 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             ExprKind::Cast { destination, value } => {
                 assert!(code.ty(*destination).is_some());
                 expression_use(code, value);
+            }
+            ExprKind::OmittedConditional {
+                condition,
+                then_value,
+                else_value,
+            } => {
+                assert_eq!(condition.expression(), then_value.expression());
+                assert_eq!(
+                    then_value.context(),
+                    toucan::semantic::checked::UseContext::ReusedValue
+                );
+                assert!(then_value.conversions().iter().all(|step| !matches!(
+                    step.kind(),
+                    Conversion::AtomicLoad
+                        | Conversion::Lvalue
+                        | Conversion::ArrayDecay
+                        | Conversion::FunctionDecay
+                )));
+                for operand in [condition, then_value, else_value] {
+                    expression_use(code, operand);
+                }
             }
             ExprKind::Conditional {
                 condition,
@@ -812,9 +836,20 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     }
     for site in code.function_inline_sites() {
         let declaration = code.declaration(site.declaration()).unwrap();
-        assert_eq!(code.entity(declaration.entity()).unwrap().kind(), EntityKind::Function);
-        assert_eq!(code.function_inline_site(site.declaration()).unwrap().declaration(), site.declaration());
-        for span in [site.inline_specifier(), site.gnu_inline_attribute()].into_iter().flatten() {
+        assert_eq!(
+            code.entity(declaration.entity()).unwrap().kind(),
+            EntityKind::Function
+        );
+        assert_eq!(
+            code.function_inline_site(site.declaration())
+                .unwrap()
+                .declaration(),
+            site.declaration()
+        );
+        for span in [site.inline_specifier(), site.gnu_inline_attribute()]
+            .into_iter()
+            .flatten()
+        {
             source_span(source, span);
         }
     }

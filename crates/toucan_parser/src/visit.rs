@@ -891,10 +891,9 @@ pub fn visit_conditional_expression<'ast, V: Visit<'ast> + ?Sized>(
         &conditional_expression.condition.node,
         &conditional_expression.condition.span,
     );
-    visitor.visit_expression(
-        &conditional_expression.then_expression.node,
-        &conditional_expression.then_expression.span,
-    );
+    if let Some(then_expression) = &conditional_expression.then_expression {
+        visitor.visit_expression(&then_expression.node, &then_expression.span);
+    }
     visitor.visit_expression(
         &conditional_expression.else_expression.node,
         &conditional_expression.else_expression.span,
