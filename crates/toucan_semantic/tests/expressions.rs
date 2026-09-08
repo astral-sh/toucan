@@ -20,6 +20,7 @@ int (*fp)(int);
 "#;
 
 #[test]
+#[ignore = "requires a C compiler (CC or cc); run with --include-ignored"]
 fn expression_constraints_match_c11_compiler() {
     let valid = [
         "f + d",

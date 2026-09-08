@@ -46,7 +46,7 @@ jobs:
           toolchain: stable
           components: rustfmt, clippy
       - run: cargo fmt --all --check
-      - run: cargo clippy --workspace --all-targets -- -D warnings
+      - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
   msrv:
     name: Rust 1.96
@@ -57,3 +57,18 @@ jobs:
         with:
           toolchain: '1.96'
       - run: cargo check --workspace --all-targets
+
+  distribution:
+    name: Packages and allocators (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-24.04, macos-15, windows-2025]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: stable
+      - run: cargo test --workspace --all-features --locked
+      - run: cargo package --workspace --all-features --locked

@@ -5,12 +5,13 @@ edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 repository.workspace = true
+description = "C types, expression checking, and constant evaluation for Toucan"
 
 [dependencies]
 lang-c.workspace = true
 serde.workspace = true
 thiserror.workspace = true
-toucan_target = { path = "../toucan_target" }
+toucan_target = { version = "0.0.1", path = "../toucan_target" }
 
 [lints]
 workspace = true

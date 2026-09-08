@@ -50,3 +50,12 @@ alone do not prove calling-convention compatibility.
 Tests added to the repository are not evidence that all these gates have passed.
 Document measured results and remaining gaps separately.
 
+
+## Package verification
+
+Run `cargo package --workspace --locked` before publishing. Workspace dependencies
+carry both a local path and a release version so the generated manifests can resolve
+outside this checkout. CI packages every crate and tests `--all-features` on Linux,
+macOS, and Windows, including the CLI's jemalloc or mimalloc configuration. Compiler
+oracle tests run separately on the native Linux and macOS jobs with
+`--include-ignored`.
