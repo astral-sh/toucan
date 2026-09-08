@@ -55,3 +55,41 @@ fn redundant_linux_int128_aliases_and_unselected_changed_aliases_are_usable() {
     assert!(bindings.source.contains("public_function"));
     assert!(!bindings.source.contains("pub type Hidden"));
 }
+
+#[test]
+fn normalized_size_t_checks_the_discarded_alias_layout() {
+    for target in Target::ALL {
+        let integer = if target == Target::X86_64PcWindowsMsvc {
+            "unsigned long long"
+        } else {
+            "unsigned long"
+        };
+        for alignment in [1, 8, 16] {
+            let source = format!(
+                "typedef {integer} internal __attribute__((aligned({alignment}))); \
+                 typedef internal size_t; size_t length(size_t);"
+            );
+            let unit = analyze(&source, target).unwrap();
+            let result = generate(
+                &unit,
+                &Options {
+                    allowlist: vec!["length".into()],
+                    size_t_is_usize: true,
+                    ..Options::default()
+                },
+            );
+            // MSVC explicit alignment also changes the required alignment under packing.
+            if alignment == 8 && target != Target::X86_64PcWindowsMsvc {
+                let bindings = result.unwrap();
+                assert!(bindings.source.contains("arg0: ::core::primitive::usize"));
+                assert!(!bindings.source.contains("pub type internal"));
+            } else {
+                let error = result.unwrap_err();
+                assert!(
+                    error.0.contains("usize-compatible alignment"),
+                    "{target:?}: {error}"
+                );
+            }
+        }
+    }
+}

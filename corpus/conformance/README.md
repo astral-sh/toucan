@@ -134,6 +134,13 @@ artifacts; 72 generated layout tests passed. These are native x86-64 Linux consu
 checks, with each report retaining its actual frontend hash. They do not represent
 full Ruff or uv builds.
 
+The [size_t dependency regression](../evidence/size-t-collection-2026-09-08.json)
+records a later default/experimental consumer run: all 11 runtime artifacts match
+and 18 generated layout tests pass. Both Darwin target profiles also generate
+independent zstd/zdict files without the discarded `__darwin_size_t` alias. That
+reproduction uses unchanged pinned zstd headers and a minimal synthetic sysroot;
+native macOS SDK and runtime validation remains a separate CI check.
+
 ## Origins and licenses
 
 The c-testsuite harness is MIT licensed. Its

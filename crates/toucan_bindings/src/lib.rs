@@ -795,7 +795,13 @@ impl Emitter<'_> {
                         .typedefs
                         .get(name)
                         .ok_or_else(|| Error(format!("unknown typedef `{name}`")))?;
-                    self.collect_at(ty, depth + 1)?;
+                    if name == "size_t" && self.options.size_t_is_usize {
+                        // usize replaces this entire alias chain. Its discarded
+                        // dependencies must not leak into separately generated modules.
+                        self.size_t_type(ty)?;
+                    } else {
+                        self.collect_at(ty, depth + 1)?;
+                    }
                 }
             }
             TypeKind::Record(id) => {
@@ -963,6 +969,7 @@ impl Emitter<'_> {
                 "size_t must be an unsigned integer to use usize".into(),
             ));
         };
+        let actual = self.unit.layout(ty)?;
         if !matches!(
             kind,
             IntegerKind::UnsignedChar
@@ -971,10 +978,27 @@ impl Emitter<'_> {
                 | IntegerKind::UnsignedLong
                 | IntegerKind::UnsignedLongLong
                 | IntegerKind::UnsignedInt128
-        ) || self.unit.layout(ty)?.size_bits != self.unit.target.pointer_width()
+        ) || actual.size_bits != self.unit.target.pointer_width()
         {
             return Err(Error(
                 "size_t must be a pointer-sized unsigned integer to use usize".into(),
+            ));
+        }
+        let expected = self
+            .unit
+            .target
+            .builtin_layout(toucan_target::BuiltinType::Pointer)
+            .map_err(|error| Error(error.to_string()))?;
+        if self
+            .unit
+            .typedef_alignment(ty)?
+            .is_some_and(|alignment| u64::from(alignment.get()) * 8 != expected.alignment_bits)
+            || actual.alignment_bits != expected.alignment_bits
+            || actual.field_alignment_bits != expected.field_alignment_bits
+            || actual.required_alignment_bits != expected.required_alignment_bits
+        {
+            return Err(Error(
+                "size_t must have usize-compatible alignment to use usize".into(),
             ));
         }
         Ok("::core::primitive::usize".into())

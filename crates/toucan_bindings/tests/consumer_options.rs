@@ -318,3 +318,113 @@ fn independent_binding_files_share_a_module_without_helper_collisions() {
     );
     assert!(Command::new(executable).status().unwrap().success());
 }
+
+#[test]
+fn normalized_size_t_discards_only_unused_alias_dependencies() {
+    for target in Target::ALL {
+        let integer = if target == Target::X86_64PcWindowsMsvc {
+            "unsigned long long"
+        } else {
+            "unsigned long"
+        };
+        let source = format!(
+            "typedef {integer} __darwin_size_t; typedef __darwin_size_t intermediary; typedef intermediary size_t; size_t ZSTD_length(size_t); __darwin_size_t raw_length(__darwin_size_t);"
+        );
+        let unit = analyze(&source, target).unwrap();
+        for normalize in [false, true] {
+            let bindings = generate(
+                &unit,
+                &Options {
+                    allowlist: vec!["ZSTD*".into()],
+                    size_t_is_usize: normalize,
+                    ..Options::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                bindings.source.contains("pub type __darwin_size_t"),
+                !normalize,
+                "{target:?}"
+            );
+            assert_eq!(
+                bindings.source.contains("pub type intermediary"),
+                !normalize
+            );
+            assert_eq!(bindings.source.contains("pub type size_t"), !normalize);
+            assert_eq!(
+                bindings.source.contains("arg0: ::core::primitive::usize"),
+                normalize
+            );
+        }
+        for extra in ["raw_length", "__darwin_size_t", "size_t"] {
+            let bindings = generate(
+                &unit,
+                &Options {
+                    allowlist: vec!["ZSTD*".into(), extra.into()],
+                    size_t_is_usize: true,
+                    ..Options::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                bindings.source.contains("pub type __darwin_size_t"),
+                extra != "size_t"
+            );
+            assert_eq!(
+                bindings.source.contains("pub type size_t"),
+                extra == "size_t"
+            );
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires rustc; run with --include-ignored"]
+fn split_bindings_with_darwin_size_t_chains_compile_together() {
+    let target = match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") => Target::X86_64UnknownLinuxGnu,
+        ("aarch64", "linux") => Target::Aarch64UnknownLinuxGnu,
+        ("x86_64", "macos") => Target::X86_64AppleDarwin,
+        ("aarch64", "macos") => Target::Aarch64AppleDarwin,
+        ("x86_64", "windows") => Target::X86_64PcWindowsMsvc,
+        _ => return,
+    };
+    let integer = if target == Target::X86_64PcWindowsMsvc {
+        "unsigned long long"
+    } else {
+        "unsigned long"
+    };
+    let directory = tempfile::tempdir().unwrap();
+    for (prefix, file) in [("ZSTD", "zstd.rs"), ("ZDICT", "zdict.rs")] {
+        let unit = analyze(&format!("typedef {integer} __darwin_size_t; typedef __darwin_size_t size_t; size_t {prefix}_length(size_t);"), target).unwrap();
+        let bindings = generate(
+            &unit,
+            &Options {
+                allowlist: vec![format!("{prefix}*")],
+                size_t_is_usize: true,
+                helper_namespace: Some(prefix.to_ascii_lowercase()),
+                ..Options::default()
+            },
+        )
+        .unwrap();
+        std::fs::write(directory.path().join(file), bindings.source).unwrap();
+    }
+    let source = r#"#![allow(dead_code, non_camel_case_types)]
+        include!("zstd.rs"); include!("zdict.rs");
+        const _: unsafe extern "C" fn(usize) -> usize = ZSTD_length;
+        const _: unsafe extern "C" fn(usize) -> usize = ZDICT_length;
+    "#;
+    std::fs::write(directory.path().join("combined.rs"), source).unwrap();
+    let output = Command::new("rustc")
+        .args(["--edition=2021", "--crate-type=lib", "--emit=metadata"])
+        .arg(directory.path().join("combined.rs"))
+        .arg("-o")
+        .arg(directory.path().join("combined.rmeta"))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

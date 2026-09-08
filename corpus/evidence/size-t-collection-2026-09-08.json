@@ -1,0 +1,1245 @@
+{
+  "scope": "Fix unused size_t alias collection in independently generated Rust binding files. Target-profile fixtures are not native macOS SDK/runtime evidence. Native consumer execution here is x86-64 Linux with Rust1.98.1, generating Rust1.64-compatible syntax; it does not claim a Rust1.64 execution in this run.",
+  "source_base": "426f1028eab7c3ecbc61743eedeec20a07bf0b5e",
+  "source_files_sha256": {
+    "crates/toucan_bindings/src/lib.rs": "326c824937af953eaac02131b1ffbcc1d7d15c0a8492acd3a69c240d3d64dd60",
+    "crates/toucan_bindings/tests/consumer_options.rs": "9616ebbdd0e20a01acc1223dbac461a4a5413bb530a46880104da46b094b13f3",
+    "scripts/verify_zstd_consumer.py": "175d8d4e145d17642030dec61a48dd829f37fcffe3f8de550aff40ae11a54f7e"
+  },
+  "validation": {
+    "commands": [
+      "CARGO_HOME=/home/dev-user/.cache/toucan/cargo CARGO_TARGET_DIR=/home/dev-user/.cache/toucan/size-t-collection-target taskset -c 2,3 cargo test -p toucan_bindings --test consumer_options --offline -- --include-ignored",
+      "CARGO_HOME=/home/dev-user/.cache/toucan/cargo CARGO_TARGET_DIR=/home/dev-user/.cache/toucan/size-t-collection-target taskset -c 2,3 cargo clippy -p toucan_bindings --all-targets --offline -- -D warnings",
+      "CARGO_HOME=/home/dev-user/.cache/toucan/cargo taskset -c 2,3 python scripts/verify_zstd_consumer.py --toucan /home/dev-user/.cache/toucan/size-t-collection-target/release/toucan --target x86_64-unknown-linux-gnu --cache /home/dev-user/.cache/toucan/size-t-collection-consumer --output /home/dev-user/.cache/toucan/size-t-collection-consumer-evidence --profile default --profile experimental"
+    ],
+    "consumer_option_tests": 8,
+    "generated_synthetic_layout_tests": 7,
+    "clippy": "passed",
+    "logs": {
+      "/tmp/toucan-size-t-collection-tests.log": "ff517fc4cf78120bc0473a5ad956d9bd7bcb6a1b893f5c4b322a8f5220d77cb3",
+      "/tmp/toucan-size-t-collection-clippy.log": "aaf8d690e4fdcfa60b90ca3c66797121b09b7f8cbf31ac07c57a5c037deedc00",
+      "/tmp/toucan-size-t-real-consumer.log": "ecf288d96f4f78bd78240dd8cde8862df253d4d263fbf8e51de7357e89643690"
+    }
+  },
+  "darwin_profile_reproduction": {
+    "stddef_fixture": "#ifndef TOUCAN_SIZE_T_REPRO_STDDEF_H\n#define TOUCAN_SIZE_T_REPRO_STDDEF_H\ntypedef unsigned long __darwin_size_t;\ntypedef __darwin_size_t size_t;\n#define NULL ((void*)0)\n#endif\n",
+    "limits_fixture": "#define INT_MAX 2147483647\n",
+    "scope": "Unchanged pinned zstd-sys2.0.16 headers with a minimal synthetic sysroot reproducing the observed Darwin size_t chain. This is target-profile generation, not a native macOS SDK/runtime test.",
+    "binaries": {
+      "before": {
+        "path": "/home/dev-user/.cache/toucan/conformance-bin/toucan-e4d1d30",
+        "sha256": "c2d2627d9200f5723f50bc9bedc08b38fe58dfcfdc29b6fe09957568a3009226"
+      },
+      "after": {
+        "path": "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+        "sha256": "164ebce7b85003b7b75aa1cbee7183cc6e242e942fd5ee658361885a3a3cea1e"
+      }
+    },
+    "runs": [
+      {
+        "version": "before",
+        "target": "x86_64-apple-darwin",
+        "profile": "default",
+        "header": "zstd",
+        "command": [
+          "/home/dev-user/.cache/toucan/conformance-bin/toucan-e4d1d30",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zstd.h",
+          "--target",
+          "x86_64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZSTD*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zstd",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-x86_64-apple-darwin-default-zstd.rs"
+        ],
+        "source_header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-x86_64-apple-darwin-default-zstd.rs",
+        "output_sha256": "0b238ce86123d5bcb4610851879cf734197de0702c8e50d2b90825469bb0a035",
+        "emits_darwin_size_t": true
+      },
+      {
+        "version": "before",
+        "target": "x86_64-apple-darwin",
+        "profile": "default",
+        "header": "zdict",
+        "command": [
+          "/home/dev-user/.cache/toucan/conformance-bin/toucan-e4d1d30",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zdict.h",
+          "--target",
+          "x86_64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZDICT*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zdict",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-x86_64-apple-darwin-default-zdict.rs"
+        ],
+        "source_header_sha256": "abacadb94e3f79e591f4b1648e839b0160fbf4291211fd01bdba1380269b245c",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-x86_64-apple-darwin-default-zdict.rs",
+        "output_sha256": "ca4a09e4cfa3b629e7c7913ef1dde44b96bb6abde2b5bb25f9e0404f4c3e1879",
+        "emits_darwin_size_t": true
+      },
+      {
+        "version": "before",
+        "target": "x86_64-apple-darwin",
+        "profile": "experimental",
+        "header": "zstd",
+        "command": [
+          "/home/dev-user/.cache/toucan/conformance-bin/toucan-e4d1d30",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zstd.h",
+          "--target",
+          "x86_64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZSTD*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zstd",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-x86_64-apple-darwin-experimental-zstd.rs",
+          "-DZSTD_STATIC_LINKING_ONLY",
+          "-DZDICT_STATIC_LINKING_ONLY",
+          "-DZSTD_RUST_BINDINGS_EXPERIMENTAL"
+        ],
+        "source_header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-x86_64-apple-darwin-experimental-zstd.rs",
+        "output_sha256": "3b89b6ce27905963f5a8f5258ab142e46239d923db2ffe8b44dcbcfb03f6b87d",
+        "emits_darwin_size_t": true
+      },
+      {
+        "version": "before",
+        "target": "x86_64-apple-darwin",
+        "profile": "experimental",
+        "header": "zdict",
+        "command": [
+          "/home/dev-user/.cache/toucan/conformance-bin/toucan-e4d1d30",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zdict.h",
+          "--target",
+          "x86_64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZDICT*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zdict",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-x86_64-apple-darwin-experimental-zdict.rs",
+          "-DZSTD_STATIC_LINKING_ONLY",
+          "-DZDICT_STATIC_LINKING_ONLY",
+          "-DZSTD_RUST_BINDINGS_EXPERIMENTAL"
+        ],
+        "source_header_sha256": "abacadb94e3f79e591f4b1648e839b0160fbf4291211fd01bdba1380269b245c",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-x86_64-apple-darwin-experimental-zdict.rs",
+        "output_sha256": "434792f1bab5623b07dec073dbd4367a630d7bf66d302466bf8f66d9a3ed9b6f",
+        "emits_darwin_size_t": true
+      },
+      {
+        "version": "before",
+        "target": "aarch64-apple-darwin",
+        "profile": "default",
+        "header": "zstd",
+        "command": [
+          "/home/dev-user/.cache/toucan/conformance-bin/toucan-e4d1d30",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zstd.h",
+          "--target",
+          "aarch64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZSTD*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zstd",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-aarch64-apple-darwin-default-zstd.rs"
+        ],
+        "source_header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-aarch64-apple-darwin-default-zstd.rs",
+        "output_sha256": "9b357f42de3dfde047fa407fa62945ca9e436a86485afcb1f3856b4d1cee0c9f",
+        "emits_darwin_size_t": true
+      },
+      {
+        "version": "before",
+        "target": "aarch64-apple-darwin",
+        "profile": "default",
+        "header": "zdict",
+        "command": [
+          "/home/dev-user/.cache/toucan/conformance-bin/toucan-e4d1d30",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zdict.h",
+          "--target",
+          "aarch64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZDICT*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zdict",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-aarch64-apple-darwin-default-zdict.rs"
+        ],
+        "source_header_sha256": "abacadb94e3f79e591f4b1648e839b0160fbf4291211fd01bdba1380269b245c",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-aarch64-apple-darwin-default-zdict.rs",
+        "output_sha256": "07bde419e0bae77110a4dc068f9ac00121a75925c0b308cf59030180db644c1f",
+        "emits_darwin_size_t": true
+      },
+      {
+        "version": "before",
+        "target": "aarch64-apple-darwin",
+        "profile": "experimental",
+        "header": "zstd",
+        "command": [
+          "/home/dev-user/.cache/toucan/conformance-bin/toucan-e4d1d30",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zstd.h",
+          "--target",
+          "aarch64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZSTD*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zstd",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-aarch64-apple-darwin-experimental-zstd.rs",
+          "-DZSTD_STATIC_LINKING_ONLY",
+          "-DZDICT_STATIC_LINKING_ONLY",
+          "-DZSTD_RUST_BINDINGS_EXPERIMENTAL"
+        ],
+        "source_header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-aarch64-apple-darwin-experimental-zstd.rs",
+        "output_sha256": "34b3e90ce62ab34264b8b31896edeb20996c5ef196459b7bbf7a8e1cfdf3df0a",
+        "emits_darwin_size_t": true
+      },
+      {
+        "version": "before",
+        "target": "aarch64-apple-darwin",
+        "profile": "experimental",
+        "header": "zdict",
+        "command": [
+          "/home/dev-user/.cache/toucan/conformance-bin/toucan-e4d1d30",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zdict.h",
+          "--target",
+          "aarch64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZDICT*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zdict",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-aarch64-apple-darwin-experimental-zdict.rs",
+          "-DZSTD_STATIC_LINKING_ONLY",
+          "-DZDICT_STATIC_LINKING_ONLY",
+          "-DZSTD_RUST_BINDINGS_EXPERIMENTAL"
+        ],
+        "source_header_sha256": "abacadb94e3f79e591f4b1648e839b0160fbf4291211fd01bdba1380269b245c",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/before-aarch64-apple-darwin-experimental-zdict.rs",
+        "output_sha256": "2b1af28934a80804130ececb5c54ea43e51302f6bbef68311b17cab8cfee0699",
+        "emits_darwin_size_t": true
+      },
+      {
+        "version": "after",
+        "target": "x86_64-apple-darwin",
+        "profile": "default",
+        "header": "zstd",
+        "command": [
+          "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zstd.h",
+          "--target",
+          "x86_64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZSTD*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zstd",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-x86_64-apple-darwin-default-zstd.rs"
+        ],
+        "source_header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-x86_64-apple-darwin-default-zstd.rs",
+        "output_sha256": "895106eff6c5159525af74d5de141d8de630672dc9c49ef5bd242768618afe0b",
+        "emits_darwin_size_t": false
+      },
+      {
+        "version": "after",
+        "target": "x86_64-apple-darwin",
+        "profile": "default",
+        "header": "zdict",
+        "command": [
+          "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zdict.h",
+          "--target",
+          "x86_64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZDICT*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zdict",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-x86_64-apple-darwin-default-zdict.rs"
+        ],
+        "source_header_sha256": "abacadb94e3f79e591f4b1648e839b0160fbf4291211fd01bdba1380269b245c",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-x86_64-apple-darwin-default-zdict.rs",
+        "output_sha256": "6b1b459bec45bb365da126fd15023c39a5f26fc3245b054ca557b0876a2592cf",
+        "emits_darwin_size_t": false
+      },
+      {
+        "version": "after",
+        "target": "x86_64-apple-darwin",
+        "profile": "experimental",
+        "header": "zstd",
+        "command": [
+          "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zstd.h",
+          "--target",
+          "x86_64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZSTD*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zstd",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-x86_64-apple-darwin-experimental-zstd.rs",
+          "-DZSTD_STATIC_LINKING_ONLY",
+          "-DZDICT_STATIC_LINKING_ONLY",
+          "-DZSTD_RUST_BINDINGS_EXPERIMENTAL"
+        ],
+        "source_header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-x86_64-apple-darwin-experimental-zstd.rs",
+        "output_sha256": "9bbf9c73948bc29e0cff71b0be336a54d2f7835f212adad028b311c1eb30b4d0",
+        "emits_darwin_size_t": false
+      },
+      {
+        "version": "after",
+        "target": "x86_64-apple-darwin",
+        "profile": "experimental",
+        "header": "zdict",
+        "command": [
+          "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zdict.h",
+          "--target",
+          "x86_64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZDICT*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zdict",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-x86_64-apple-darwin-experimental-zdict.rs",
+          "-DZSTD_STATIC_LINKING_ONLY",
+          "-DZDICT_STATIC_LINKING_ONLY",
+          "-DZSTD_RUST_BINDINGS_EXPERIMENTAL"
+        ],
+        "source_header_sha256": "abacadb94e3f79e591f4b1648e839b0160fbf4291211fd01bdba1380269b245c",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-x86_64-apple-darwin-experimental-zdict.rs",
+        "output_sha256": "213369d07234857be076bcdeb71f9702a562138dad75df29a8167074b3daff1b",
+        "emits_darwin_size_t": false
+      },
+      {
+        "version": "after",
+        "target": "aarch64-apple-darwin",
+        "profile": "default",
+        "header": "zstd",
+        "command": [
+          "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zstd.h",
+          "--target",
+          "aarch64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZSTD*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zstd",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-aarch64-apple-darwin-default-zstd.rs"
+        ],
+        "source_header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-aarch64-apple-darwin-default-zstd.rs",
+        "output_sha256": "623b370e764e0b8bd4bf80197f31b44d1244dda73d0ab157089dbf8d5e7181f2",
+        "emits_darwin_size_t": false
+      },
+      {
+        "version": "after",
+        "target": "aarch64-apple-darwin",
+        "profile": "default",
+        "header": "zdict",
+        "command": [
+          "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zdict.h",
+          "--target",
+          "aarch64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZDICT*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zdict",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-aarch64-apple-darwin-default-zdict.rs"
+        ],
+        "source_header_sha256": "abacadb94e3f79e591f4b1648e839b0160fbf4291211fd01bdba1380269b245c",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-aarch64-apple-darwin-default-zdict.rs",
+        "output_sha256": "9403bf1b3ece5d18fb2e2b5e1914f936fc73ecd688014f3216e5cfacd3ccf3ab",
+        "emits_darwin_size_t": false
+      },
+      {
+        "version": "after",
+        "target": "aarch64-apple-darwin",
+        "profile": "experimental",
+        "header": "zstd",
+        "command": [
+          "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zstd.h",
+          "--target",
+          "aarch64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZSTD*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zstd",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-aarch64-apple-darwin-experimental-zstd.rs",
+          "-DZSTD_STATIC_LINKING_ONLY",
+          "-DZDICT_STATIC_LINKING_ONLY",
+          "-DZSTD_RUST_BINDINGS_EXPERIMENTAL"
+        ],
+        "source_header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-aarch64-apple-darwin-experimental-zstd.rs",
+        "output_sha256": "66c0b8fc8009620fc08bdafc42c39ed412ea4c494a90f1c855c6f2dd187f82d4",
+        "emits_darwin_size_t": false
+      },
+      {
+        "version": "after",
+        "target": "aarch64-apple-darwin",
+        "profile": "experimental",
+        "header": "zdict",
+        "command": [
+          "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+          "bindgen",
+          "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/zstd/lib/zdict.h",
+          "--target",
+          "aarch64-apple-darwin",
+          "--sysroot",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/sysroot",
+          "--allowlist",
+          "ZDICT*",
+          "--size-t-is-usize",
+          "--rust-target",
+          "1.64",
+          "--rustified-enums",
+          "--helper-namespace",
+          "zdict",
+          "--macro-type",
+          "unsigned",
+          "-o",
+          "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-aarch64-apple-darwin-experimental-zdict.rs",
+          "-DZSTD_STATIC_LINKING_ONLY",
+          "-DZDICT_STATIC_LINKING_ONLY",
+          "-DZSTD_RUST_BINDINGS_EXPERIMENTAL"
+        ],
+        "source_header_sha256": "abacadb94e3f79e591f4b1648e839b0160fbf4291211fd01bdba1380269b245c",
+        "output": "/home/dev-user/.cache/toucan/size-t-darwin-profile/after-aarch64-apple-darwin-experimental-zdict.rs",
+        "output_sha256": "b5b9a1c79d44eb93ce13d2ea4138421df15996a32c4c14c25ad11de166bc2189",
+        "emits_darwin_size_t": false
+      }
+    ]
+  },
+  "native_consumers": {
+    "default": {
+      "recorded_at": "2026-09-08T05:43:19.643848+00:00",
+      "platform": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
+      "target": "x86_64-unknown-linux-gnu",
+      "profile": "default",
+      "features": [],
+      "toucan_sha256": "164ebce7b85003b7b75aa1cbee7183cc6e242e942fd5ee658361885a3a3cea1e",
+      "status": "passed",
+      "rust_target": "1.64",
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+      "resolved_features": {
+        "cc": [
+          "parallel"
+        ],
+        "find-msvc-tools": [],
+        "jobserver": [],
+        "libc": [
+          "default",
+          "std"
+        ],
+        "pkg-config": [],
+        "shlex": [
+          "default",
+          "std"
+        ],
+        "toucan-zstd-consumer": [],
+        "zstd": [
+          "arrays",
+          "default",
+          "legacy",
+          "zdict_builder"
+        ],
+        "zstd-safe": [
+          "arrays",
+          "legacy",
+          "std",
+          "zdict_builder"
+        ],
+        "zstd-sys": [
+          "legacy",
+          "std",
+          "zdict_builder"
+        ]
+      },
+      "fixture_source_sha256": {
+        "Cargo.lock": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+        "Cargo.toml": "4b4e6cbf08cad4231b8813d24c323ed980b76a77b04389ca054dd0d7c4b571a5",
+        "README.md": "863949a1b4cc191770deba97ae466a55727aae3c7bf53ee503b5c17af71c67fc",
+        "src/features.rs": "723f40e6862fc4b08379135b7dda5821423e0a61fcf7a114d28fe57289101d02",
+        "src/main.rs": "e7d9f80c7f421e3c0d5dd15d3a5de4d37943d74dc5f8009d98fc1d0cdb52619a"
+      },
+      "baseline_result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed",
+      "layout_tests": "running 4 tests\ntest __toucan_zdict_layout_1 ... ok\ntest __toucan_zstd_layout_3 ... ok\ntest __toucan_zstd_layout_4 ... ok\ntest __toucan_zstd_layout_5 ... ok\n\ntest result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed",
+      "identical_runtime_artifacts": {
+        "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+        "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+        "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+        "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+      },
+      "packages": [
+        {
+          "name": "cc",
+          "version": "1.4.2",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "5d262e149917187838d5b42777c8253bcb64500067342904e7d429499a6f277e",
+          "dependencies": [
+            "find-msvc-tools",
+            "jobserver",
+            "libc",
+            "shlex"
+          ]
+        },
+        {
+          "name": "find-msvc-tools",
+          "version": "0.1.10",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "26b73573e6edcd2af0cdf47bd6cb58f0b3839491263c314eaad1ccf24430e1de"
+        },
+        {
+          "name": "jobserver",
+          "version": "0.1.32",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "48d1dbcbbeb6a7fec7e059840aa538bd62aaccf972c7346c4d9d2059312853d0",
+          "dependencies": [
+            "libc"
+          ]
+        },
+        {
+          "name": "libc",
+          "version": "0.2.183",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
+        },
+        {
+          "name": "pkg-config",
+          "version": "0.3.34",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
+        },
+        {
+          "name": "shlex",
+          "version": "2.0.1",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+        },
+        {
+          "name": "toucan-zstd-consumer",
+          "version": "0.0.0",
+          "dependencies": [
+            "zstd"
+          ]
+        },
+        {
+          "name": "zstd",
+          "version": "0.13.3",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a",
+          "dependencies": [
+            "zstd-safe"
+          ]
+        },
+        {
+          "name": "zstd-safe",
+          "version": "7.2.4",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "8f49c4d5f0abb602a93fb8736af2a4f4dd9512e36f7f570d66e65ff867ed3b9d",
+          "dependencies": [
+            "zstd-sys"
+          ]
+        },
+        {
+          "name": "zstd-sys",
+          "version": "2.0.16+zstd.1.5.7",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "91e19ebc2adc8f83e43039e79776e3fda8ca919132d68a1fed6a5faca2683748",
+          "dependencies": [
+            "cc",
+            "pkg-config"
+          ]
+        }
+      ],
+      "fixture_lock_sha256": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+      "consumer_lock_sha256": "e606bc94936d5f62239ccf395e12491521bff3497d7417d052b8916819b60e8b",
+      "generated_bindings": {
+        "src/bindings_zstd.rs": {
+          "sha256": "9dc657e687a4c1e02ab8976fb57713aed5a7e04e197556635cabcdf1101b557d",
+          "report_sha256": "c93c7715f166fa9088947abd3596f867460da3d3b9e5f0d6ae3e3623375d4d8f"
+        },
+        "src/bindings_zdict.rs": {
+          "sha256": "90d301f2f1ca4df69f612cb73b00056065f453ff12e81d130146a9505ffbd260",
+          "report_sha256": "7c42f6585be0bb8aaafcc147cd271ff6fc679d385aa258628d91b1dcddb82959"
+        }
+      },
+      "changed_upstream_files": [
+        "src/bindings_zdict.rs",
+        "src/bindings_zstd.rs"
+      ],
+      "upstream_revision": {
+        "git": {
+          "sha1": "434ca4cb364e8a81846a2d99d430977e07b15a52"
+        },
+        "path_in_vcs": "zstd-safe/zstd-sys"
+      },
+      "integration_change": "replace feature-selected bindings with unmodified Toucan output",
+      "full_report": {
+        "path": "/home/dev-user/.cache/toucan/size-t-collection-consumer-evidence/default/evidence.json",
+        "sha256": "43f9e708b76f4ef5376dfaddedecd821af0bed261d5dce5506ce26303cbe224f"
+      },
+      "commands": [
+        {
+          "command": [
+            "rustc",
+            "--version",
+            "--verbose"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "--version"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "metadata",
+            "--locked",
+            "--format-version=1",
+            "--manifest-path",
+            "/home/dev-user/.codex/worktrees/toucan-size-t-collection/tools/zstd_consumer/Cargo.toml"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "run",
+            "--release",
+            "--locked",
+            "--offline",
+            "--manifest-path",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/default/consumer/Cargo.toml",
+            "-j",
+            "4",
+            "--target-dir",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/default/baseline-target"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+            "bindgen",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/default/zstd-sys/zstd/lib/zstd.h",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+            "--allowlist",
+            "ZSTD*",
+            "--rust-target",
+            "1.64",
+            "--rustified-enums",
+            "--size-t-is-usize",
+            "--helper-namespace",
+            "zstd",
+            "--macro-type",
+            "unsigned",
+            "--output",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/default/zstd-sys/src/bindings_zstd.rs",
+            "--report",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer-evidence/default/bindings-zstd-report.json"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+            "bindgen",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/default/zstd-sys/zstd/lib/zdict.h",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+            "--allowlist",
+            "ZDICT*",
+            "--rust-target",
+            "1.64",
+            "--rustified-enums",
+            "--size-t-is-usize",
+            "--helper-namespace",
+            "zdict",
+            "--macro-type",
+            "unsigned",
+            "--output",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/default/zstd-sys/src/bindings_zdict.rs",
+            "--report",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer-evidence/default/bindings-zdict-report.json"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "rustc",
+            "--edition=2018",
+            "--test",
+            "--crate-name",
+            "bindings_layout",
+            "-A",
+            "warnings",
+            "-D",
+            "improper_ctypes",
+            "--cfg",
+            "feature=\"zdict_builder\"",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/default/zstd-sys/src/lib.rs",
+            "-o",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer-evidence/default/layout-tests"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer-evidence/default/layout-tests"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "metadata",
+            "--offline",
+            "--format-version=1",
+            "--manifest-path",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/default/consumer/Cargo.toml"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "run",
+            "--release",
+            "--locked",
+            "--offline",
+            "--manifest-path",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/default/consumer/Cargo.toml",
+            "-j",
+            "4",
+            "--target-dir",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/default/target"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        }
+      ],
+      "unchanged_upstream_files": 121,
+      "upstream_source_manifest_sha256": "8bd3f9f7ddfe73c0b65c42436adc8f07784bff1a4a4f86eb1ff2a8973d01bf6e",
+      "tested_source_manifest_sha256": "0fe59cbfd001d37d293da51349f6fbcc2d4c67591850cbf24fd03da7dbec7435"
+    },
+    "experimental": {
+      "recorded_at": "2026-09-08T05:44:05.257116+00:00",
+      "platform": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
+      "target": "x86_64-unknown-linux-gnu",
+      "profile": "experimental",
+      "features": [
+        "experimental"
+      ],
+      "toucan_sha256": "164ebce7b85003b7b75aa1cbee7183cc6e242e942fd5ee658361885a3a3cea1e",
+      "status": "passed",
+      "rust_target": "1.64",
+      "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8",
+      "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+      "resolved_features": {
+        "cc": [
+          "parallel"
+        ],
+        "find-msvc-tools": [],
+        "jobserver": [],
+        "libc": [
+          "default",
+          "std"
+        ],
+        "pkg-config": [],
+        "shlex": [
+          "default",
+          "std"
+        ],
+        "toucan-zstd-consumer": [
+          "experimental"
+        ],
+        "zstd": [
+          "arrays",
+          "default",
+          "experimental",
+          "legacy",
+          "zdict_builder"
+        ],
+        "zstd-safe": [
+          "arrays",
+          "experimental",
+          "legacy",
+          "std",
+          "zdict_builder"
+        ],
+        "zstd-sys": [
+          "experimental",
+          "legacy",
+          "std",
+          "zdict_builder"
+        ]
+      },
+      "fixture_source_sha256": {
+        "Cargo.lock": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+        "Cargo.toml": "4b4e6cbf08cad4231b8813d24c323ed980b76a77b04389ca054dd0d7c4b571a5",
+        "README.md": "863949a1b4cc191770deba97ae466a55727aae3c7bf53ee503b5c17af71c67fc",
+        "src/features.rs": "723f40e6862fc4b08379135b7dda5821423e0a61fcf7a114d28fe57289101d02",
+        "src/main.rs": "e7d9f80c7f421e3c0d5dd15d3a5de4d37943d74dc5f8009d98fc1d0cdb52619a"
+      },
+      "baseline_result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nexperimental magicless: 10205 bytes, fingerprint 7e84c87064fefd9a\ndictionary: 2048 bytes, frame 10225 bytes, fingerprint 19ac4ad3c880bf91",
+      "layout_tests": "running 14 tests\ntest __toucan_zdict_layout_2 ... ok\ntest __toucan_zdict_layout_1 ... ok\ntest __toucan_zdict_layout_3 ... ok\ntest __toucan_zdict_layout_4 ... ok\ntest __toucan_zstd_layout_10 ... ok\ntest __toucan_zstd_layout_11 ... ok\ntest __toucan_zstd_layout_12 ... ok\ntest __toucan_zstd_layout_13 ... ok\ntest __toucan_zstd_layout_14 ... ok\ntest __toucan_zstd_layout_16 ... ok\ntest __toucan_zstd_layout_3 ... ok\ntest __toucan_zstd_layout_4 ... ok\ntest __toucan_zstd_layout_5 ... ok\ntest __toucan_zstd_layout_9 ... ok\n\ntest result: ok. 14 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s",
+      "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nexperimental magicless: 10205 bytes, fingerprint 7e84c87064fefd9a\ndictionary: 2048 bytes, frame 10225 bytes, fingerprint 19ac4ad3c880bf91",
+      "identical_runtime_artifacts": {
+        "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+        "cover.dict": "82928beef7e9acc03156761ebae34094680e1ae327ec2fc799be862f81dd6519",
+        "cover.zst": "0a415be97ffb51f834c4009a4a376bdbf1514ef327f22793a7d0a7de2640f15e",
+        "magicless.zst": "5eabc8d960e984e311506b2fef2b038839bb026be9a7ed9587676ebc50d1081a",
+        "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+        "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+        "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+      },
+      "packages": [
+        {
+          "name": "cc",
+          "version": "1.4.2",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "5d262e149917187838d5b42777c8253bcb64500067342904e7d429499a6f277e",
+          "dependencies": [
+            "find-msvc-tools",
+            "jobserver",
+            "libc",
+            "shlex"
+          ]
+        },
+        {
+          "name": "find-msvc-tools",
+          "version": "0.1.10",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "26b73573e6edcd2af0cdf47bd6cb58f0b3839491263c314eaad1ccf24430e1de"
+        },
+        {
+          "name": "jobserver",
+          "version": "0.1.32",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "48d1dbcbbeb6a7fec7e059840aa538bd62aaccf972c7346c4d9d2059312853d0",
+          "dependencies": [
+            "libc"
+          ]
+        },
+        {
+          "name": "libc",
+          "version": "0.2.183",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "b5b646652bf6661599e1da8901b3b9522896f01e736bad5f723fe7a3a27f899d"
+        },
+        {
+          "name": "pkg-config",
+          "version": "0.3.34",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548"
+        },
+        {
+          "name": "shlex",
+          "version": "2.0.1",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+        },
+        {
+          "name": "toucan-zstd-consumer",
+          "version": "0.0.0",
+          "dependencies": [
+            "zstd"
+          ]
+        },
+        {
+          "name": "zstd",
+          "version": "0.13.3",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "e91ee311a569c327171651566e07972200e76fcfe2242a4fa446149a3881c08a",
+          "dependencies": [
+            "zstd-safe"
+          ]
+        },
+        {
+          "name": "zstd-safe",
+          "version": "7.2.4",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "8f49c4d5f0abb602a93fb8736af2a4f4dd9512e36f7f570d66e65ff867ed3b9d",
+          "dependencies": [
+            "zstd-sys"
+          ]
+        },
+        {
+          "name": "zstd-sys",
+          "version": "2.0.16+zstd.1.5.7",
+          "source": "registry+https://github.com/rust-lang/crates.io-index",
+          "checksum": "91e19ebc2adc8f83e43039e79776e3fda8ca919132d68a1fed6a5faca2683748",
+          "dependencies": [
+            "cc",
+            "pkg-config"
+          ]
+        }
+      ],
+      "fixture_lock_sha256": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+      "consumer_lock_sha256": "e606bc94936d5f62239ccf395e12491521bff3497d7417d052b8916819b60e8b",
+      "generated_bindings": {
+        "src/bindings_zstd_experimental.rs": {
+          "sha256": "2eff2e910640cae44a95caeacb3b4a4e1428c9e06e82f61e51b72fc304b14572",
+          "report_sha256": "963aa0e55706521da7b8cf53b499b6988fd371ea78dfee601cf11d87b56d0c02"
+        },
+        "src/bindings_zdict_experimental.rs": {
+          "sha256": "d86c5c7f9e0086036e072506cbf2490d75ab966537305253effa0e244d994659",
+          "report_sha256": "5519b03f3a429275ea55f6aef6509498df0ddd3215505fc2a365a24d7710483d"
+        }
+      },
+      "changed_upstream_files": [
+        "src/bindings_zdict_experimental.rs",
+        "src/bindings_zstd_experimental.rs"
+      ],
+      "upstream_revision": {
+        "git": {
+          "sha1": "434ca4cb364e8a81846a2d99d430977e07b15a52"
+        },
+        "path_in_vcs": "zstd-safe/zstd-sys"
+      },
+      "integration_change": "replace feature-selected bindings with unmodified Toucan output",
+      "full_report": {
+        "path": "/home/dev-user/.cache/toucan/size-t-collection-consumer-evidence/experimental/evidence.json",
+        "sha256": "d0c699e51ac4dc2777fdab098a6a776d2091da7cf54b29a2e8d64c61a2f703bd"
+      },
+      "commands": [
+        {
+          "command": [
+            "rustc",
+            "--version",
+            "--verbose"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "--version"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "metadata",
+            "--locked",
+            "--format-version=1",
+            "--manifest-path",
+            "/home/dev-user/.codex/worktrees/toucan-size-t-collection/tools/zstd_consumer/Cargo.toml",
+            "--features",
+            "experimental"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "run",
+            "--release",
+            "--locked",
+            "--offline",
+            "--manifest-path",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/experimental/consumer/Cargo.toml",
+            "--features",
+            "experimental",
+            "-j",
+            "4",
+            "--target-dir",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/experimental/baseline-target"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+            "bindgen",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/experimental/zstd-sys/zstd/lib/zstd.h",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+            "--allowlist",
+            "ZSTD*",
+            "--rust-target",
+            "1.64",
+            "--rustified-enums",
+            "--size-t-is-usize",
+            "--helper-namespace",
+            "zstd",
+            "--macro-type",
+            "unsigned",
+            "--output",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/experimental/zstd-sys/src/bindings_zstd_experimental.rs",
+            "--report",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer-evidence/experimental/bindings-zstd-report.json",
+            "-DZSTD_STATIC_LINKING_ONLY",
+            "-DZDICT_STATIC_LINKING_ONLY",
+            "-DZSTD_RUST_BINDINGS_EXPERIMENTAL"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "/home/dev-user/.cache/toucan/size-t-collection-target/release/toucan",
+            "bindgen",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/experimental/zstd-sys/zstd/lib/zdict.h",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+            "--allowlist",
+            "ZDICT*",
+            "--rust-target",
+            "1.64",
+            "--rustified-enums",
+            "--size-t-is-usize",
+            "--helper-namespace",
+            "zdict",
+            "--macro-type",
+            "unsigned",
+            "--output",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/experimental/zstd-sys/src/bindings_zdict_experimental.rs",
+            "--report",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer-evidence/experimental/bindings-zdict-report.json",
+            "-DZSTD_STATIC_LINKING_ONLY",
+            "-DZDICT_STATIC_LINKING_ONLY",
+            "-DZSTD_RUST_BINDINGS_EXPERIMENTAL"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "rustc",
+            "--edition=2018",
+            "--test",
+            "--crate-name",
+            "bindings_layout",
+            "-A",
+            "warnings",
+            "-D",
+            "improper_ctypes",
+            "--cfg",
+            "feature=\"zdict_builder\"",
+            "--cfg",
+            "feature=\"experimental\"",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/experimental/zstd-sys/src/lib.rs",
+            "-o",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer-evidence/experimental/layout-tests"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer-evidence/experimental/layout-tests"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "metadata",
+            "--offline",
+            "--format-version=1",
+            "--manifest-path",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/experimental/consumer/Cargo.toml",
+            "--features",
+            "experimental"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        },
+        {
+          "command": [
+            "cargo",
+            "run",
+            "--release",
+            "--locked",
+            "--offline",
+            "--manifest-path",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/experimental/consumer/Cargo.toml",
+            "--features",
+            "experimental",
+            "-j",
+            "4",
+            "--target-dir",
+            "/home/dev-user/.cache/toucan/size-t-collection-consumer/experimental/target"
+          ],
+          "cwd": "/home/dev-user/.codex/worktrees/toucan-size-t-collection",
+          "exit_code": 0
+        }
+      ],
+      "unchanged_upstream_files": 121,
+      "upstream_source_manifest_sha256": "8bd3f9f7ddfe73c0b65c42436adc8f07784bff1a4a4f86eb1ff2a8973d01bf6e",
+      "tested_source_manifest_sha256": "7c76ee783ac635645a78414e858bd18b33d643d9c90dd70ae1a54f45c3d9ed6c"
+    }
+  }
+}
