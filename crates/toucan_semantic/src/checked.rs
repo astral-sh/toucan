@@ -3,6 +3,7 @@
 //! can be retained without missing semantic facts.
 
 pub(crate) mod expression;
+pub(crate) mod references;
 pub(crate) mod statement;
 
 use std::collections::HashMap;
@@ -104,6 +105,8 @@ pub(crate) enum OccurrenceKind {
     InitDeclarator,
     Declarator,
     Parameter,
+    Field,
+    StructDeclarator,
     Record,
     Enum,
     Enumerator,
@@ -161,6 +164,7 @@ pub(crate) enum EntityKind {
     Record(usize),
     Enum(usize),
     Enumerator { enumeration: usize, variant: usize },
+    Field { record: usize, index: usize },
 }
 
 impl From<DeclarationKind> for EntityKind {
@@ -249,6 +253,7 @@ pub(crate) struct CheckedCode {
     pub(crate) bodies: Vec<statement::FunctionBody>,
     pub(crate) declaration_groups: Vec<statement::DeclarationGroup>,
     pub(crate) assertions: Vec<statement::Assertion>,
+    pub(crate) references: Vec<references::Reference>,
     pub(crate) expressions: Vec<expression::Expression>,
     pub(crate) assignment_conversions: Vec<expression::ExprUse>,
     pub(crate) expression_coverage: Vec<expression::ExpressionCoverage>,
@@ -272,6 +277,8 @@ enum Alias {
 #[derive(Hash, PartialEq, Eq)]
 enum EntityKey {
     Linked(String),
+    BuiltinTypedef(String),
+    Field(usize, usize),
     Ordinary(ScopeId, String),
     Unnamed(ScopeId, OccurrenceId),
     Record(usize),
@@ -281,6 +288,7 @@ enum EntityKey {
 
 pub(crate) struct Builder {
     statement_builder: statement::StatementBuilder,
+    reference_builder: references::ReferenceBuilder,
     expression_builder: expression::ExpressionBuilder,
     code: CheckedCode,
     budget: Budget,
@@ -309,6 +317,7 @@ impl Builder {
         limits: Limits,
     ) -> Result<Self, Error> {
         let mut builder = Self {
+            reference_builder: references::ReferenceBuilder::default(),
             expression_builder: expression::ExpressionBuilder::default(),
             statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
@@ -317,6 +326,7 @@ impl Builder {
                 bodies: Vec::new(),
                 declaration_groups: Vec::new(),
                 assertions: Vec::new(),
+                references: Vec::new(),
                 expressions: Vec::new(),
                 assignment_conversions: Vec::new(),
                 expression_coverage: Vec::new(),
@@ -539,7 +549,7 @@ impl Builder {
         self.code.scopes[self.current.index()].declarations.push(id);
         if !matches!(
             self.code.entities[entity.index()].kind,
-            EntityKind::Record(_) | EntityKind::Enum(_)
+            EntityKind::Record(_) | EntityKind::Enum(_) | EntityKind::Field { .. }
         ) {
             self.bind_name(entity, offset)?;
         }
@@ -701,7 +711,20 @@ impl Builder {
                 ));
             }
         };
+        let is_reference = self.entities.contains_key(&key)
+            && !definition
+            && !self.reference_builder.standalone_tags.contains(&(
+                kind,
+                node.span.start,
+                node.span.end,
+            ));
         let entity = self.entity(key, name, entity_kind, node.span.start)?;
+        if is_reference {
+            if let Some(span) = name_span {
+                self.reference(entity, references::ReferenceKind::Tag, span)?;
+            }
+            return Ok(());
+        }
         self.site(
             entity,
             occurrence,
@@ -758,6 +781,7 @@ impl Builder {
         }
         self.finish_expression_coverage()?;
         self.finish_statements()?;
+        self.finish_references(offsets)?;
         for (scope, span) in self.code.scopes.iter_mut().zip(self.scope_spans) {
             if scope.kind != ScopeKind::File {
                 scope.source = map_span(offsets, span, &mut self.budget)?;
@@ -865,6 +889,12 @@ fn charge_type(budget: &mut Budget, ty: &Type, offset: usize, depth: usize) -> R
 
 macro_rules! visit_occurrence {
     ($method:ident, $ty:ty, $kind:ident) => {
+        visit_occurrence!($method, $ty, $kind, |_: &mut Builder, _: &$ty| Ok::<
+            (),
+            Error,
+        >(()));
+    };
+    ($method:ident, $ty:ty, $kind:ident, $before:expr) => {
         fn $method(&mut self, node: &'ast $ty, span: &'ast Span) {
             if self.error.is_some() {
                 return;
@@ -878,6 +908,10 @@ macro_rules! visit_occurrence {
                     span.start,
                     "checked-code occurrence nesting limit exceeded",
                 ));
+                return;
+            }
+            if let Err(error) = ($before)(self, node) {
+                self.error = Some(error);
                 return;
             }
             self.depth += 1;
@@ -897,7 +931,41 @@ impl<'ast> Visit<'ast> for Builder {
         self.attribute_depth -= 1;
     }
 
-    visit_occurrence!(visit_declaration, ast::Declaration, Declaration);
+    visit_occurrence!(
+        visit_declaration,
+        ast::Declaration,
+        Declaration,
+        |builder: &mut Builder, declaration: &ast::Declaration| {
+            if declaration.declarators.is_empty() {
+                for specifier in &declaration.specifiers {
+                    if let ast::DeclarationSpecifier::TypeSpecifier(ty) = &specifier.node {
+                        builder.standalone_tag(ty)?;
+                    }
+                }
+            }
+            Ok::<(), Error>(())
+        }
+    );
+    visit_occurrence!(
+        visit_struct_field,
+        ast::StructField,
+        Field,
+        |builder: &mut Builder, field: &ast::StructField| {
+            if field.declarators.is_empty() {
+                for specifier in &field.specifiers {
+                    if let ast::SpecifierQualifier::TypeSpecifier(ty) = &specifier.node {
+                        builder.standalone_tag(ty)?;
+                    }
+                }
+            }
+            Ok::<(), Error>(())
+        }
+    );
+    visit_occurrence!(
+        visit_struct_declarator,
+        ast::StructDeclarator,
+        StructDeclarator
+    );
     visit_occurrence!(visit_init_declarator, ast::InitDeclarator, InitDeclarator);
     visit_occurrence!(visit_declarator, ast::Declarator, Declarator);
     visit_occurrence!(

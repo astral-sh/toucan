@@ -1364,6 +1364,13 @@ impl Analyzer {
             }
         }
         let mut ty = self.base_type(&types)?;
+        if let Some(checked) = &mut self.checked {
+            for specifier in &types {
+                if let ast::TypeSpecifier::TypedefName(name) = &specifier.node {
+                    checked.typedef_reference(name)?;
+                }
+            }
+        }
         attributes.alias_base = matches!(
             types.as_slice(),
             [Node {
@@ -2155,13 +2162,24 @@ impl Analyzer {
                             {
                                 continue;
                             }
-                            fields.push(Field {
+                            let member = Field {
                                 name: None,
                                 ty: base,
                                 bit_width: None,
                                 alignment: attributes.alignment,
                                 packed: attributes.packed,
-                            });
+                            };
+                            if let Some(checked) = &mut self.checked {
+                                checked.member_declaration(
+                                    field,
+                                    crate::checked::OccurrenceKind::Field,
+                                    id,
+                                    fields.len(),
+                                    &member,
+                                    None,
+                                )?;
+                            }
+                            fields.push(member);
                         } else {
                             for declarator in &field.node.declarators {
                                 let (name, ty, extra) =
@@ -2207,13 +2225,24 @@ impl Analyzer {
                                         ));
                                     }
                                 }
-                                fields.push(Field {
+                                let member = Field {
                                     name,
                                     ty,
                                     bit_width,
                                     alignment: extra.alignment.or(attributes.alignment),
                                     packed: extra.packed || attributes.packed,
-                                });
+                                };
+                                if let Some(checked) = &mut self.checked {
+                                    checked.member_declaration(
+                                        declarator,
+                                        crate::checked::OccurrenceKind::StructDeclarator,
+                                        id,
+                                        fields.len(),
+                                        &member,
+                                        crate::checked::references::member_name_span(declarator),
+                                    )?;
+                                }
+                                fields.push(member);
                             }
                         }
                     }

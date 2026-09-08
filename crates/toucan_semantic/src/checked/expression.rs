@@ -419,7 +419,7 @@ impl Builder {
         Ok(())
     }
 
-    fn entity_for_name(&self, name: &str) -> Option<EntityId> {
+    pub(super) fn entity_for_name(&self, name: &str) -> Option<EntityId> {
         let mut scope = Some(self.current);
         while let Some(id) = scope {
             if let Some(entity) = self.names.get(&id).and_then(|names| names.get(name)) {
@@ -806,6 +806,7 @@ impl Analyzer {
                 };
                 let fields =
                     self.retained_field_path(&ty, &member.node.identifier.node.name, offset)?;
+                self.retain_member_reference(&ty, &fields, &member.node.identifier)?;
                 self.code_builder().budget.charge(
                     0,
                     fields.len(),
@@ -1139,6 +1140,7 @@ impl Analyzer {
         let record = self.retained_type(&ty, offset)?;
         let first =
             self.retained_field_path(&ty, &offset_of.node.designator.node.base.node.name, offset)?;
+        self.retain_member_reference(&ty, &first, &offset_of.node.designator.node.base)?;
         ty = self.subobject(
             &ty,
             &first.iter().map(|index| *index as u64).collect::<Vec<_>>(),
@@ -1149,6 +1151,7 @@ impl Analyzer {
             match &member.node {
                 ast::OffsetMember::Member(name) => {
                     let path = self.retained_field_path(&ty, &name.node.name, offset)?;
+                    self.retain_member_reference(&ty, &path, name)?;
                     ty = self.subobject(
                         &ty,
                         &path.iter().map(|index| *index as u64).collect::<Vec<_>>(),
