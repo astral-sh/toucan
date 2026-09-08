@@ -353,8 +353,8 @@ fn arm_vector_constraints_match_clang_and_type_only_uses_generate_code() {
             PRELUDE,
         );
         assert_eq!(
-            output.status.success(),
-            ARM.contains(&target),
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(ARM.contains(&target)),
             "{target}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
@@ -370,8 +370,9 @@ fn arm_vector_constraints_match_clang_and_type_only_uses_generate_code() {
             ]),
             "typedef __Float32x4_t N;",
         );
-        assert!(
-            !output.status.success(),
+        assert_eq!(
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(false),
             "GNU native vector spelling was accepted by Clang on {target}"
         );
     }
@@ -392,7 +393,9 @@ fn arm_vector_constraints_match_clang_and_type_only_uses_generate_code() {
                 ]),
                 &format!("{PRELUDE}{source}\n"),
             );
-            if !output.status.success() && eager_apple_sve {
+            let accepted = toucan_test_support::compiler_acceptance(&output)
+                .unwrap_or_else(|failure| panic!("{target}: {source}: {failure}"));
+            if !accepted && eager_apple_sve {
                 let diagnostic = String::from_utf8_lossy(&output.stderr);
                 let errors = diagnostic
                     .lines()
@@ -473,7 +476,11 @@ fn arm_vector_constraints_match_clang_and_type_only_uses_generate_code() {
                 ]),
                 &format!("{PRELUDE}{source}\n"),
             );
-            assert!(!output.status.success(), "{target}: {source}");
+            assert_eq!(
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(false),
+                "{target}: {source}"
+            );
         }
         // Explicit PCS attributes survive into LLVM; checking syntax alone
         // would not prove that the selected calling convention is retained.

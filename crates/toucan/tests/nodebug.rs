@@ -115,8 +115,8 @@ fn debug_attribute_subjects_match_compiler_diagnostics() {
             std::fs::write(&path, source).unwrap();
             let result = command.output().unwrap();
             assert_eq!(
-                result.status.success(),
-                profile.compiler() == Compiler::Gnu || clang_accepts,
+                toucan_test_support::compiler_acceptance(&result),
+                Ok(profile.compiler() == Compiler::Gnu || clang_accepts),
                 "{profile:?} {source}: {}",
                 String::from_utf8_lossy(&result.stderr)
             );

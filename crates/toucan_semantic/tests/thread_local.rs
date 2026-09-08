@@ -251,8 +251,8 @@ fn compile(command: &str, target: Option<Target>, source: &str, accepted: bool, 
     writeln!(child.stdin.take().unwrap(), "{source}").unwrap();
     let output = child.wait_with_output().unwrap();
     assert_eq!(
-        output.status.success(),
-        accepted,
+        toucan_test_support::compiler_acceptance(&output),
+        Ok(accepted),
         "{cc:?}: {source}: {}",
         String::from_utf8_lossy(&output.stderr)
     );

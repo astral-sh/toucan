@@ -579,8 +579,8 @@ fn generated_atomic_storage_rejects_copy_and_opaque_thread_traits() {
             .output()
             .unwrap();
         assert_eq!(
-            out.status.success(),
-            expected,
+            toucan_test_support::compiler_acceptance(&out),
+            Ok(expected),
             "{name}: {}",
             String::from_utf8_lossy(&out.stderr)
         );

@@ -154,7 +154,7 @@ fn compiled_bindings_preserve_prototype_tag_identity() {
         let output = compile(&format!(
             "fn wrong() {{ let _: unsafe extern \"C\" fn(*mut {destination}) = first; }}"
         ));
-        assert!(!output.status.success());
+        assert_eq!(toucan_test_support::compiler_acceptance(&output), Ok(false));
         assert!(String::from_utf8_lossy(&output.stderr).contains("E0308"));
     }
 }

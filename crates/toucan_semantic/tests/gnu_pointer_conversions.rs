@@ -73,8 +73,8 @@ fn gnu_pointer_conversions_match_compilers() {
                 writeln!(child.stdin.take().unwrap(), "{source}").unwrap();
                 let output = child.wait_with_output().unwrap();
                 assert_eq!(
-                    output.status.success(),
-                    accepted,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(accepted),
                     "{compiler}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );

@@ -165,8 +165,8 @@ fn intrinsics_match_native_gcc_and_five_clang_targets() {
                 for source in cases {
                     let output = compile(compiler, target, source);
                     assert_eq!(
-                        output.status.success(),
-                        accepted,
+                        toucan_test_support::compiler_acceptance(&output),
+                        Ok(accepted),
                         "{compiler} {target:?}: {source}: {}",
                         String::from_utf8_lossy(&output.stderr)
                     );

@@ -220,7 +220,7 @@ fn compile(source: &str) -> bool {
             "-",
         ])
         .stdin(Stdio::piped())
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .expect("the differential test requires a C compiler (set CC)");
@@ -231,5 +231,6 @@ fn compile(source: &str) -> bool {
         .write_all(source.as_bytes())
         .unwrap();
     let output = child.wait_with_output().unwrap();
-    output.status.success()
+    toucan_test_support::compiler_acceptance(&output)
+        .unwrap_or_else(|failure| panic!("C compiler failed for source:\n{source}\n{failure}"))
 }

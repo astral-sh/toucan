@@ -139,8 +139,8 @@ fn parser_extensions_match_gnu_compilers() {
                     .unwrap();
                 let output = process.wait_with_output().unwrap();
                 assert_eq!(
-                    output.status.success(),
-                    accepted,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(accepted),
                     "{compiler}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );

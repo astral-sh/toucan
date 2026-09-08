@@ -316,8 +316,8 @@ fn all_sse_formal_signatures_match_gcc_and_cross_target_clang() {
             &source,
         );
         assert_eq!(
-            output.status.success(),
-            supported,
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(supported),
             "{target}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
@@ -476,8 +476,8 @@ fn deferred_immediate_boundaries_match_compiler_lowering() {
                 &source,
             );
             assert_eq!(
-                output.status.success(),
-                gnu_accepts,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(gnu_accepts),
                 "GCC {body}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
@@ -500,8 +500,8 @@ fn deferred_immediate_boundaries_match_compiler_lowering() {
                 &source,
             );
             assert_eq!(
-                output.status.success(),
-                clang_accepts,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(clang_accepts),
                 "{target} {body}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );

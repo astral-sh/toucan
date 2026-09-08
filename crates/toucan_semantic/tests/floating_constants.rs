@@ -156,8 +156,8 @@ fn immediate_casts_match_c11_compilers() {
                 .unwrap();
             let output = child.wait_with_output().unwrap();
             assert_eq!(
-                output.status.success(),
-                *accepted,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(*accepted),
                 "{compiler}: {source}\n{}",
                 String::from_utf8_lossy(&output.stderr)
             );

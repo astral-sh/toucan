@@ -399,8 +399,8 @@ fn compiler_signatures_and_constraints_match_every_profile() {
             source,
         );
         assert_eq!(
-            output.status.success(),
-            accepted_gcc,
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(accepted_gcc),
             "GCC {source}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
@@ -425,8 +425,8 @@ fn compiler_signatures_and_constraints_match_every_profile() {
                 source,
             );
             assert_eq!(
-                output.status.success(),
-                accepted_clang,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted_clang),
                 "Clang {target} {source}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );

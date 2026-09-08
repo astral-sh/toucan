@@ -82,8 +82,8 @@ fn definition_parameter_counts_match_compiler_constraints() {
             let warning = compiler == "clang" && clang_warning;
             let diagnostic = String::from_utf8_lossy(&result.stderr);
             assert_eq!(
-                result.status.success(),
-                accepted || warning,
+                toucan_test_support::compiler_acceptance(&result),
+                Ok(accepted || warning),
                 "{compiler}: {source}: {diagnostic}"
             );
             if warning {

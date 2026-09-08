@@ -280,8 +280,8 @@ fn literal_constraints_match_native_compilers() {
             for source in sources {
                 let output = compile(compiler, source, &["-fsyntax-only"]);
                 assert_eq!(
-                    output.status.success(),
-                    valid,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(valid),
                     "{compiler}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );

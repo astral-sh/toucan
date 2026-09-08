@@ -191,7 +191,7 @@ fn fortified_signatures_match_native_compilers_and_clang_targets() {
                 command.arg(if gnu {"-Werror=discarded-qualifiers"} else {"-Werror=incompatible-pointer-types-discards-qualifiers"});
                 if let Some(target)=target {command.args(["-target",target.triple()]);}
                 let output=command.arg(&input).output().unwrap();
-                assert_eq!(output.status.success(),accepted,"{compiler} {target:?}: {source}: {}",String::from_utf8_lossy(&output.stderr));
+                assert_eq!(toucan_test_support::compiler_acceptance(&output),Ok(accepted),"{compiler} {target:?}: {source}: {}",String::from_utf8_lossy(&output.stderr));
             }
         }
     }

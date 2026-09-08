@@ -105,8 +105,8 @@ fn aligned_pointer_assignments_match_compiler_constraints() {
                     .output()
                     .unwrap();
                 assert_eq!(
-                    output.status.success(),
-                    accepted,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(accepted),
                     "{command:?}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );

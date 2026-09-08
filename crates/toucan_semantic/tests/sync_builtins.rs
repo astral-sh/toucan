@@ -362,8 +362,9 @@ fn sync_signatures_match_native_gcc_and_cross_target_clang() {
                 ]),
                 &source,
             );
-            assert!(
-                !output.status.success(),
+            assert_eq!(
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(false),
                 "Clang accepted {target}: {source}"
             );
         }
@@ -394,15 +395,15 @@ fn sync_signatures_match_native_gcc_and_cross_target_clang() {
             &source,
         );
         assert_eq!(
-            output.status.success(),
-            matches!(
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(matches!(
                 *name,
                 "bool_compare_and_swap"
                     | "val_compare_and_swap"
                     | "lock_test_and_set"
                     | "lock_release"
                     | "synchronize"
-            ),
+            )),
             "GCC {name}"
         );
     }

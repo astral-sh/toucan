@@ -173,8 +173,8 @@ fn asm_acceptance_matches_native_c_compilers() {
                 .output()
                 .unwrap();
             assert_eq!(
-                result.status.success(),
-                accepted,
+                toucan_test_support::compiler_acceptance(&result),
+                Ok(accepted),
                 "{compiler}: {body}: {}",
                 String::from_utf8_lossy(&result.stderr)
             );
@@ -218,8 +218,8 @@ fn asm_acceptance_matches_native_c_compilers() {
                 .output()
                 .unwrap();
             assert_eq!(
-                result.status.success(),
-                accepted,
+                toucan_test_support::compiler_acceptance(&result),
+                Ok(accepted),
                 "{target}: {name}: {}",
                 String::from_utf8_lossy(&result.stderr)
             );

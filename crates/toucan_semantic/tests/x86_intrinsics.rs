@@ -376,8 +376,8 @@ fn mmx_signatures_match_compiler_descriptors() {
             &source,
         );
         assert_eq!(
-            output.status.success(),
-            supported,
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(supported),
             "{target}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
@@ -424,8 +424,8 @@ fn immediate_diagnostics_match_frontend_and_lowering_stages() {
                 &source,
             );
             assert_eq!(
-                output.status.success(),
-                clang_accepts,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(clang_accepts),
                 "{target} {expression}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
@@ -449,8 +449,8 @@ fn immediate_diagnostics_match_frontend_and_lowering_stages() {
                     &source,
                 );
                 assert_eq!(
-                    output.status.success(),
-                    gcc_lowering_accepts,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(gcc_lowering_accepts),
                     "GCC {optimization} {expression}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );

@@ -457,8 +457,8 @@ fn native_fold_contexts_type_effects_and_target_layouts_match() {
                 .output()
                 .unwrap();
             assert_eq!(
-                check.status.success(),
-                clang && clang_constant,
+                toucan_test_support::compiler_acceptance(&check),
+                Ok(clang && clang_constant),
                 "{compiler}: {pointer}, {mode}: {}",
                 String::from_utf8_lossy(&check.stderr)
             );

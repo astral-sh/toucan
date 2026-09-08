@@ -167,8 +167,8 @@ fn pack_positions_match_native_compiler_constraints() {
                 .output()
                 .unwrap();
             assert_eq!(
-                output.status.success(),
-                VALID.contains(body),
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(VALID.contains(body)),
                 "{body}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
@@ -182,7 +182,11 @@ fn pack_positions_match_native_compiler_constraints() {
             .arg(&path)
             .output()
             .unwrap();
-        assert!(!output.status.success(), "Clang accepted GNU pack: {body}");
+        assert_eq!(
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(false),
+            "Clang accepted GNU pack: {body}"
+        );
     }
 }
 

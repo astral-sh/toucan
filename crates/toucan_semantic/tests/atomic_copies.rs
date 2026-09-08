@@ -179,12 +179,10 @@ fn copy_constraints_and_values_match_native_compilers() {
                 .output()
                 .unwrap();
             let stderr = String::from_utf8_lossy(&output.stderr);
-            let tool_failure = !matches!(output.status.code(), Some(0 | 1))
-                || stderr.contains("frontend command failed due to signal")
-                || stderr.contains("internal compiler error:");
-            if tool_failure || output.status.success() != accept {
+            let acceptance = toucan_test_support::compiler_acceptance(&output);
+            if acceptance != Ok(accept) {
                 failures.push(format!(
-                    "{compiler} {name}: expected acceptance={accept}, status={}, tool_failure={tool_failure}\n{source}\n{stderr}",
+                    "{compiler} {name}: expected acceptance={accept}, status={}, acceptance={acceptance:?}\n{source}\n{stderr}",
                     output.status
                 ));
             }

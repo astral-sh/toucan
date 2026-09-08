@@ -278,8 +278,9 @@ fn vectors_match_compiler_types_and_layouts() {
                 ]),
                 &format!("{source}\n"),
             );
-            assert!(
-                !output.status.success(),
+            assert_eq!(
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(false),
                 "Clang accepted {target}: {source}"
             );
         }
@@ -294,7 +295,11 @@ fn vectors_match_compiler_types_and_layouts() {
             ]),
             &format!("{source}\n"),
         );
-        assert!(!output.status.success(), "GCC accepted {source}");
+        assert_eq!(
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(false),
+            "GCC accepted {source}"
+        );
     }
 }
 

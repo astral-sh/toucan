@@ -343,8 +343,8 @@ fn constraints_types_and_initializer_effects_match_native_compilers() {
                 .output()
                 .unwrap();
             assert_eq!(
-                output.status.success(),
-                accepted,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted),
                 "{compiler}: {source}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );

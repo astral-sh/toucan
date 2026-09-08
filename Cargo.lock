@@ -425,6 +425,7 @@ dependencies = [
  "toucan_semantic",
  "toucan_source",
  "toucan_target",
+ "toucan_test_support",
 ]
 
 [[package]]
@@ -436,6 +437,7 @@ dependencies = [
  "thiserror",
  "toucan_semantic",
  "toucan_target",
+ "toucan_test_support",
 ]
 
 [[package]]
@@ -466,6 +468,9 @@ version = "0.0.1"
 [[package]]
 name = "toucan_preprocessor"
 version = "0.0.1"
+dependencies = [
+ "toucan_test_support",
+]
 
 [[package]]
 name = "toucan_semantic"
@@ -477,6 +482,7 @@ dependencies = [
  "thiserror",
  "toucan_parser",
  "toucan_target",
+ "toucan_test_support",
 ]
 
 [[package]]
@@ -492,6 +498,10 @@ dependencies = [
  "thiserror",
  "toucan_layout",
 ]
+
+[[package]]
+name = "toucan_test_support"
+version = "0.0.1"
 
 [[package]]
 name = "unicode-ident"

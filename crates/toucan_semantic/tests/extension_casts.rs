@@ -94,8 +94,8 @@ fn extension_cast_acceptance_matches_c_compilers() {
                 writeln!(child.stdin.take().unwrap(), "{source}").unwrap();
                 let result = child.wait_with_output().unwrap();
                 assert_eq!(
-                    result.status.success(),
-                    accepted,
+                    toucan_test_support::compiler_acceptance(&result),
+                    Ok(accepted),
                     "{compiler}: {source}: {}",
                     String::from_utf8_lossy(&result.stderr)
                 );

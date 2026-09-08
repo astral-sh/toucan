@@ -163,8 +163,8 @@ fn infinity_signatures_match_native_gcc_and_clang_targets() {
                 }
                 let output = command.arg(&input).output().unwrap();
                 assert_eq!(
-                    output.status.success(),
-                    valid,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(valid),
                     "{compiler} {target:?}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );

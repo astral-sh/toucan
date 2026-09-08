@@ -362,8 +362,8 @@ fn signatures_and_rejections_match_native_gcc_and_cross_target_clang() {
                 &source,
             );
             assert_eq!(
-                output.status.success(),
-                accepted_clang,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted_clang),
                 "Clang {target} {source}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
@@ -373,8 +373,8 @@ fn signatures_and_rejections_match_native_gcc_and_cross_target_clang() {
             &source,
         );
         assert_eq!(
-            output.status.success(),
-            accepted_gcc,
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(accepted_gcc),
             "GCC {source}: {}",
             String::from_utf8_lossy(&output.stderr)
         );

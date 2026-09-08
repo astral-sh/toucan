@@ -123,6 +123,10 @@ fn fallthrough_constraints_match_compiler_codegen_checks() {
             .arg(&object)
             .output()
             .unwrap();
-        assert!(!result.status.success(), "clang accepted {body}");
+        assert_eq!(
+            toucan_test_support::compiler_acceptance(&result),
+            Ok(false),
+            "clang accepted {body}"
+        );
     }
 }

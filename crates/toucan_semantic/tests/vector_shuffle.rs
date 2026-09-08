@@ -163,7 +163,7 @@ fn native_shuffle_modulo_matches_gcc_and_clang_rejects_the_name() {
             .write_all(source.as_bytes())
             .unwrap();
         let output = child.wait_with_output().unwrap();
-        assert!(!output.status.success());
+        assert_eq!(toucan_test_support::compiler_acceptance(&output), Ok(false));
         assert!(
             String::from_utf8_lossy(&output.stderr).contains("unknown builtin '__builtin_shuffle'")
         );

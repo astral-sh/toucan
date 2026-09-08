@@ -50,8 +50,8 @@ fn record_casts_match_gnu_compilers() {
             writeln!(child.stdin.take().unwrap(), "{PREFIX}{body}").unwrap();
             let output = child.wait_with_output().unwrap();
             assert_eq!(
-                output.status.success(),
-                *accepted,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(*accepted),
                 "{compiler}: {body}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );

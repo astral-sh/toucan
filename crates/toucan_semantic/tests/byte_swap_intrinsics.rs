@@ -121,8 +121,8 @@ fn byte_swap_values_and_types_match_native_gcc_and_clang_targets() {
                 }
                 let output = command.arg(&input).output().unwrap();
                 assert_eq!(
-                    output.status.success(),
-                    accepted,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(accepted),
                     "{compiler} {target:?}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );

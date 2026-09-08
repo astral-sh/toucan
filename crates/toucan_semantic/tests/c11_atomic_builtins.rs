@@ -363,8 +363,8 @@ fn signatures_and_constraints_match_clang() {
                 &source,
             );
             assert_eq!(
-                out.status.success(),
-                accepted,
+                toucan_test_support::compiler_acceptance(&out),
+                Ok(accepted),
                 "{target}: {source}\n{}",
                 String::from_utf8_lossy(&out.stderr)
             );
