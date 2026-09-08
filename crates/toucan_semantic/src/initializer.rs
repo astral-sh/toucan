@@ -1014,6 +1014,7 @@ impl Analyzer {
                 )
             }
             ast::Expression::StringLiteral(_) => Ok(ConstantKind::Address),
+            ast::Expression::Member(_) => self.static_designator(expression),
             ast::Expression::Identifier(identifier) => {
                 if self.unit.constants.contains_key(&identifier.node.name) {
                     return Ok(ConstantKind::Arithmetic);
@@ -1034,6 +1035,7 @@ impl Analyzer {
                     self.static_lvalue(&unary.node.operand)?;
                     Ok(ConstantKind::Address)
                 }
+                ast::UnaryOperator::Indirection => self.static_designator(expression),
                 ast::UnaryOperator::Plus
                 | ast::UnaryOperator::Minus
                 | ast::UnaryOperator::Complement
@@ -1062,6 +1064,9 @@ impl Analyzer {
             }
             ast::Expression::BinaryOperator(binary) => {
                 use ast::BinaryOperator as Op;
+                if binary.node.operator.node == Op::Index {
+                    return self.static_designator(expression);
+                }
                 if !matches!(
                     binary.node.operator.node,
                     Op::Multiply
@@ -1136,6 +1141,27 @@ impl Analyzer {
         }
     }
 
+    /// Array and function designators form addresses without reading their objects.
+    /// Scalar subobjects still require a load and cannot initialize static storage.
+    fn static_designator(
+        &mut self,
+        expression: &Node<ast::Expression>,
+    ) -> Result<ConstantKind, Error> {
+        let ty = self.expression_type(expression)?;
+        if matches!(
+            self.unit.resolve(&ty)?.kind,
+            TypeKind::Array { .. } | TypeKind::Function(_)
+        ) {
+            self.static_lvalue(expression)?;
+            Ok(ConstantKind::Address)
+        } else {
+            Err(Error::new(
+                expression.span.start,
+                "static storage initializer is not a constant expression",
+            ))
+        }
+    }
+
     fn static_lvalue(&mut self, expression: &Node<ast::Expression>) -> Result<(), Error> {
         self.enter_expression(expression.span.start)?;
         let result = self.static_lvalue_inner(expression);
@@ -1152,6 +1178,10 @@ impl Analyzer {
             )
         };
         match &expression.node {
+            ast::Expression::GenericSelection(selection) => {
+                let selected = self.generic_expression(selection)?;
+                self.static_lvalue(selected)
+            }
             ast::Expression::Choose(selection) => {
                 let selected = self.choose_expression(selection)?;
                 self.static_lvalue(selected)

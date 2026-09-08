@@ -523,6 +523,13 @@ omissions an error. Internal-linkage declarations and function definitions are
 reported as skipped. They are not exposed as callable externs. A function definition can still have an
 exported symbol; generating bindings for definitions is outside the current scope.
 
+Static address initializers include array-valued subobjects, such as
+`int *p = &grid[1][2][3]`, array members, and indirect function designators.
+The checker preserves static storage provenance through array/function decay;
+reading an ordinary scalar or pointer object still does not form an address
+constant. [Regression evidence](../corpus/evidence/static-subobject-addresses-2026-09-08.json)
+includes strict C11 compiler comparisons and native pointer/callback checks.
+
 ## Rust consumer compatibility
 
 ABI equivalence alone does not guarantee that existing Rust callers compile.
