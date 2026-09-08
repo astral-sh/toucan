@@ -23,7 +23,11 @@ concurrency:
 
 jobs:
   strict-c11:
-    name: Pedantic C11 acceptance (GCC and Clang)
+    name: Pedantic C11 acceptance (${{ matrix.preprocessor }})
+    strategy:
+      fail-fast: false
+      matrix:
+        preprocessor: [gcc, clang]
     runs-on: ubuntu-24.04
     timeout-minutes: 15
     steps:
@@ -50,13 +54,14 @@ jobs:
             --toucan target/release/toucan \
             --gcc gcc-13 --clang clang-18 \
             --target x86_64-unknown-linux-gnu \
+            --preprocessor ${{ matrix.preprocessor }} \
             --workers 4 --fail-on-strict-difference \
             --output corpus/results/conformance
       - name: Upload acceptance results and diagnostics
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
-          name: c-testsuite-conformance
+          name: c-testsuite-conformance-${{ matrix.preprocessor }}
           path: corpus/results/conformance/
           if-no-files-found: warn
           retention-days: 14

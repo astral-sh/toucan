@@ -50,7 +50,9 @@ the report and checked with a small valid C control before the audit starts.
 `--target` sets Toucan's target, defaulting to the native host. It does not change
 the compiler targets: provide matching compiler executables and arguments when
 cross-compiling. Use `--preprocessor clang` to check Clang's preprocessed output;
-GCC is the default. `--dialect gnu11` changes preprocessing and the comparison's
+GCC is the default. The selected preprocessor also selects Toucan's GNU or Clang
+compiler profile. Use `--preprocessor clang` on Darwin and Windows, where the
+frontend currently supports only Clang profiles. `--dialect gnu11` changes preprocessing and the comparison's
 eligibility criterion from C11 to GNU11. All three compiler modes below are still
 recorded.
 
@@ -68,7 +70,7 @@ non-prototype declarations that remain permitted in C11. No diagnostic or source
 filter hides a Toucan rejection.
 
 The selected compiler then runs `-E -P` in the selected dialect. It checks the
-resulting `.i` file again, and Toucan runs `check --target TARGET` on that same file.
+resulting `.i` file again, and Toucan runs `check --target TARGET --compiler COMPILER` on that same file.
 A comparison is **eligible** when both compilers accept the original source in the
 selected dialect and the selected compiler accepts its preprocessed output. An
 eligible Toucan rejection is reported as a **difference**, without deciding
@@ -108,10 +110,20 @@ python3 scripts/audit_c_testsuite.py --workers 4 --fail-on-strict-difference
 
 The [conformance workflow](../../.github/workflows/conformance.yml) runs this gate
 on Ubuntu with Rust 1.96, Python 3.12, explicit GCC 13 and Clang 18 executables,
-and four workers. It also tests the gate's failure behavior and retains reports,
+and four workers. Separate GCC and Clang jobs each check their compiler's
+preprocessed input with the corresponding frontend profile. It also tests the gate's failure behavior and retains reports,
 inputs, and diagnostics as artifacts, including failed audits.
 
 ## Recorded results
+
+The [compiler-profile refresh](../evidence/conformance-profiles-440db13/summary.json)
+at `440db13` checks all 220 sources separately with GCC-preprocessed/GNU-profile
+and Clang-preprocessed/Clang-profile inputs. Each passes all 211 pedantic-positive
+cases, with no tool failures or unexplained strict rejections. Both retain
+`00144.c` as the same discarded-qualifier difference described below. Compressed
+reports preserve every case classification and input hash; the summary retains
+that difference's compiler and frontend diagnostics. This refresh includes
+Boolean macros, VLA type identities, and half types, and predates later changes.
 
 The [recorded acceptance report](../evidence/c-testsuite-2026-09-08.json) preserves
 all 220 case classifications, source and preprocessed hashes, tool hashes,
