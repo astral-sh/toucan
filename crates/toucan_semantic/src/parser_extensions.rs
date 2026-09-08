@@ -138,6 +138,20 @@ pub(crate) fn adapt(source: &str) -> Result<Adapted, Error> {
                 continue;
             }
         }
+        if bytes[index].is_ascii_alphabetic() || bytes[index] == b'_' {
+            let start = index;
+            while bytes
+                .get(index)
+                .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+            {
+                index += 1;
+            }
+            if matches!(&source[start..index], "asm" | "__asm" | "__asm__") {
+                crate::asm::check_qualifiers(source, index)?;
+            }
+            previous = Some(bytes[index - 1]);
+            continue;
+        }
         previous = Some(bytes[index]);
         index += 1;
     }

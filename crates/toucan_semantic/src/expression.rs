@@ -890,7 +890,7 @@ impl Analyzer {
         self.require_complete_object(&expression.ty, offset)
     }
 
-    fn contains_const(&self, ty: &Type, depth: usize) -> Result<bool, Error> {
+    pub(crate) fn contains_const(&self, ty: &Type, depth: usize) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
                 0,

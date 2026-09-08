@@ -96,9 +96,9 @@ configuration. See CI results for changes made after that run.
 
 ## Current gaps
 
-- Bodies and initializers are type-checked. Inline assembly still requires
-  implementation; unsupported constructs return diagnostics. Typed bodies are not
-  yet exposed through the public IR.
+- Bodies and initializers are type-checked, including the supported GNU statement
+  expressions and inline assembly operands. Unsupported constraints produce
+  diagnostics. Typed bodies are not yet exposed through the public IR.
 - Declaration constraints still need broader conformance testing. Prototype-local
   tags retain distinct identities and are checked against GCC and Clang.
 - C++, K&R function definitions, TLS, atomic and complex

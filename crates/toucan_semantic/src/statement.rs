@@ -909,10 +909,7 @@ impl Analyzer {
                 }
                 Ok(())
             }
-            ast::Statement::Asm(_) => Err(Error::new(
-                offset,
-                "inline assembly checking is unsupported",
-            )),
+            ast::Statement::Asm(assembly) => self.asm_statement(assembly),
         }
     }
 
