@@ -194,6 +194,7 @@ record separate performance and malformed-input checks.
 | [`toucan_source`](crates/toucan_source) | Source files and locations |
 | [`toucan_target`](crates/toucan_target) | Target profiles and layout |
 | [`toucan_preprocessor`](crates/toucan_preprocessor) | Native C preprocessing |
+| [`toucan_parser`](crates/toucan_parser) | C grammar and parser AST, derived from lang-c |
 | [`toucan_semantic`](crates/toucan_semantic) | Parsing, declaration semantics, and constant evaluation |
 | [`toucan_bindings`](crates/toucan_bindings) | Rust binding generation |
 | [`toucan`](crates/toucan) | Integrated library and reports |

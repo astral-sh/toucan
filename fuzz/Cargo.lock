@@ -60,12 +60,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "lang-c"
-version = "0.15.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "720e6492b795d1f6838eb2e51879ec3073be745a20e52c32a241b80b3c8ed998"
-
-[[package]]
 name = "libc"
 version = "0.2.189"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -235,6 +229,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "toucan_parser"
+version = "0.0.1"
+
+[[package]]
 name = "toucan_preprocessor"
 version = "0.0.1"
 
@@ -242,10 +240,10 @@ version = "0.0.1"
 name = "toucan_semantic"
 version = "0.0.1"
 dependencies = [
- "lang-c",
  "rustc_apfloat",
  "serde",
  "thiserror",
+ "toucan_parser",
  "toucan_target",
 ]
 

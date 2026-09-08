@@ -901,6 +901,74 @@ mod tests {
             }
         }
     }
+
+    #[test]
+    fn typeof_typedefs_reuse_bounds_and_retain_written_alias_references() {
+        let source = "int f(int n) { typedef int A[n++]; __typeof__(A) a; __typeof__(A *) p = &a; __typeof__(A[2]) b; __typeof__(A[n++]) c; return sizeof a + sizeof *p + sizeof b + sizeof c; }";
+        let code = checked(source);
+        let alias = site(&code, "A");
+        let original = extents(&code, alias.type_use)[0].bound;
+        assert_eq!(
+            extents(&code, site(&code, "a").type_use),
+            extents(&code, alias.type_use)
+        );
+        assert_eq!(
+            extents(&code, site(&code, "p").type_use),
+            &[Extent {
+                path: vec![TypeStep::Pointer],
+                bound: original
+            }]
+        );
+        for name in ["b", "c"] {
+            let dimensions = extents(&code, site(&code, name).type_use);
+            assert!(
+                dimensions
+                    .iter()
+                    .any(|extent| extent.bound == original && extent.path == [TypeStep::Element])
+            );
+            if name == "c" {
+                assert!(
+                    dimensions
+                        .iter()
+                        .any(|extent| extent.bound != original && extent.path.is_empty())
+                );
+            }
+        }
+        let increments: Vec<_> = code
+            .bounds
+            .iter()
+            .filter(|bound| {
+                let BoundValue::Expression(expression) = bound.value else {
+                    return false;
+                };
+                let occurrence = code.expressions[expression.index()].occurrence;
+                &source[code.occurrences[occurrence.index()].source.range.clone()] == "n++"
+            })
+            .collect();
+        assert_eq!(
+            increments.len(),
+            2,
+            "the typedef bound must not be duplicated"
+        );
+        assert!(
+            increments
+                .iter()
+                .all(|bound| bound.evaluation == BoundEvaluation::Required)
+        );
+        let references: Vec<_> = code
+            .references
+            .iter()
+            .filter(|reference| reference.target == alias.entity)
+            .collect();
+        assert_eq!(references.len(), 4);
+        for reference in references {
+            assert_eq!(&source[reference.source.range.clone()], "A");
+            assert_eq!(
+                reference.kind,
+                super::super::references::ReferenceKind::Typedef
+            );
+        }
+    }
     #[test]
     fn prototype_and_definition_bounds_keep_declared_parameter_dimensions() {
         let code = checked(

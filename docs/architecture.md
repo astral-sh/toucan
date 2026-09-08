@@ -7,7 +7,8 @@ Toucan separates reusable compiler components from application policy.
 | `toucan_source` | Immutable source files, checked byte spans, and source locations |
 | `toucan_target` | Explicit target data models and a `repc` layout adapter |
 | `toucan_preprocessor` | Tokens, macro expansion, conditional expressions, includes, and limits |
-| `toucan_semantic` | The `lang-c` adapter, target-specific types, constant evaluation, and checked code |
+| `toucan_parser` | The C grammar and lexical environments, derived from `lang-c` |
+| `toucan_semantic` | Parser adaptation, target-specific types, constant evaluation, and checked code |
 | `toucan_bindings` | Type selection, Rust declarations, layout assertions, and bitfield accessors |
 | `toucan` | Integrated library configuration, macro constants, and reports |
 | `toucan_cli` | Argument parsing, files, terminal output, and optional allocators |
