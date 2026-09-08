@@ -41,6 +41,9 @@ pub enum Conversion {
     Arithmetic,
     Pointer,
     Assignment,
+    /// A compiler intrinsic's argument conversion, including GCC pointer/integer
+    /// bridges and qualifier erasure that ordinary assignment does not permit.
+    IntrinsicArgument,
     /// Constructs a transparent-union argument through the selected field.
     TransparentUnion {
         field: super::EntityId,
@@ -164,6 +167,7 @@ operators!(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub enum Builtin {
+    Sync(crate::sync::SyncOperation),
     VaStart,
     VaEnd,
     VaCopy,
@@ -283,7 +287,7 @@ impl Builtin {
             "__builtin_ctz" => Self::CountTrailingZeros,
             "__builtin_ctzl" => Self::CountTrailingZerosLong,
             "__builtin_ctzll" => Self::CountTrailingZerosLongLong,
-            _ => return None,
+            name => Self::Sync(crate::sync::SyncOperation::from_name(name)?),
         })
     }
 }
@@ -1209,6 +1213,11 @@ impl Analyzer {
         if let Some(name) = self.builtin_name(call)
             && let Some(builtin) = Builtin::from_name(name)
         {
+            let sync = if let Builtin::Sync(operation) = builtin {
+                Some((operation, self.sync_signature(operation, call)?))
+            } else {
+                None
+            };
             let memory = self.memory_builtin_signature(name);
             let nan = self.nan_builtin(name);
             let object_size = self.object_size_signature(name);
@@ -1236,7 +1245,37 @@ impl Analyzer {
                     arguments.push(self.retained_use(argument, UseContext::VariadicPack, None)?);
                     continue;
                 }
-                let (context, destination) = if let Some(signature) = &fortified {
+                let (context, destination) = if let Some((operation, signature)) = &sync {
+                    if index >= operation.required() {
+                        (
+                            if self.gnu_sync_profile() {
+                                UseContext::UnevaluatedValue
+                            } else {
+                                UseContext::Unevaluated
+                            },
+                            None,
+                        )
+                    } else {
+                        let destination = if index == 0 {
+                            signature.address.as_ref()
+                        } else {
+                            signature.value.as_ref()
+                        }
+                        .expect("required sync argument")
+                        .clone();
+                        (
+                            UseContext::Value,
+                            Some((
+                                destination,
+                                if self.gnu_sync_profile() {
+                                    Conversion::IntrinsicArgument
+                                } else {
+                                    Conversion::Assignment
+                                },
+                            )),
+                        )
+                    }
+                } else if let Some(signature) = &fortified {
                     let destination = if let Some(parameter) = signature.parameters.get(index) {
                         (parameter.clone(), Conversion::Assignment)
                     } else {

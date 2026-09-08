@@ -21,6 +21,7 @@ mod object_size;
 mod parser_extensions;
 mod returns_twice;
 mod statement;
+mod sync;
 mod transparent_union;
 mod variadic_pack;
 mod vector;

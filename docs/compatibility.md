@@ -372,6 +372,36 @@ with 1-byte pointer alignment. Native GCC/Clang tests exercise memory access and
 callbacks in both directions with current Rust and Rust 1.64; this proves pointer
 FFI behavior, not execution of Toucan's retained expression graph.
 
+## Legacy atomic intrinsics
+
+The `__sync` family supports fetch-and-operation, operation-and-fetch,
+compare-and-swap, lock exchange/release, and the zero-argument synchronization
+barrier. Integer, enum, and pointer objects of 1, 2, 4, 8, or 16 bytes are checked.
+Linux follows GCC's overload rules; Darwin and Windows follow Clang's. GCC
+excludes `_Bool` from arithmetic operations, while both profiles allow boolean
+lock and compare-and-swap operations.
+
+GCC permits const-pointer erasure and pointer/integer conversions in these
+intrinsics. Retained `IntrinsicArgument` conversions preserve their destination
+types without classifying them as ordinary assignments. Clang instead checks its
+value arguments with assignment constraints and rejects const object pointers.
+GCC removes typedef alignment from results; Clang preserves it.
+
+Optional trailing operands are type-checked but not evaluated. GCC performs their
+ordinary value conversion, including its register-array restriction; Clang retains
+them without that conversion. Retained discarded operands do not gain default
+argument promotions. Retained calls identify the exact `SyncOperation`
+and mark those extra argument uses as unevaluated. Atomic calls remain effectful
+and cannot be evaluated as scalar constants. Pointer arithmetic uses raw byte
+increments, rather than scaling by the pointed-to type.
+
+Size-suffixed runtime aliases remain unsupported. Frontend acceptance does not
+assert that an operation is lock-free or that a platform supplies its fallback
+runtime symbol. The [validation record](../corpus/evidence/sync-builtins-2026-09-08.json)
+includes compiler signature probes and native GCC/Clang execution that checks the
+operation meanings and ignored side effects; Toucan does not generate machine
+code for these operations.
+
 ## Current gaps
 
 - Bodies and initializers are type-checked, including the supported GNU statement

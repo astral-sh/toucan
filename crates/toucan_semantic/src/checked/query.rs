@@ -207,7 +207,8 @@ impl Builder {
                 | Builtin::CountTrailingZerosLong
                 | Builtin::CountTrailingZerosLongLong => operands(arguments),
                 // Clang's object-size builtins do not carry the const attribute.
-                Builtin::ObjectSize
+                Builtin::Sync(_)
+                | Builtin::ObjectSize
                 | Builtin::DynamicObjectSize
                 | Builtin::VaStart
                 | Builtin::VaEnd

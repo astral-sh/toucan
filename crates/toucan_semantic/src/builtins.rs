@@ -136,6 +136,19 @@ impl Analyzer {
         let Some(name) = self.builtin_name(call) else {
             return Ok(None);
         };
+        if let Some(operation) = crate::sync::SyncOperation::from_name(name) {
+            return self.sync_call_type(operation, call).map(Some);
+        }
+        if name.rsplit_once('_').is_some_and(|(base, suffix)| {
+            crate::sync::SyncOperation::from_name(base).is_some()
+                && !suffix.is_empty()
+                && suffix.bytes().all(|byte| byte.is_ascii_digit())
+        }) {
+            return Err(Error::new(
+                call.span.start,
+                "size-suffixed __sync intrinsic aliases are unsupported",
+            ));
+        }
         if let Some(signature) = self.fortified_signature(name, call.span.start)? {
             let arguments = &call.node.arguments;
             if arguments.len() < signature.parameters.len()
