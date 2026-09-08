@@ -534,6 +534,7 @@ impl TranslationUnit {
     /// Validates compiler identity when callers construct or modify public IR.
     pub fn profile(&self) -> Result<target::CompilerProfile, Error> {
         target::CompilerProfile::new(self.target, self.compiler)
+            .map(|profile| profile.with_language_mode(self.language_mode))
             .map_err(|e| Error::new(0, e.to_string()))
     }
 

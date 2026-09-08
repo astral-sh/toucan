@@ -130,6 +130,36 @@ shows the same pattern. Both runs preserve the complete output hashes from the
 existing correctness artifacts; the later implementation added language and
 compiler features without changing these four binding outputs.
 
+### Avoiding declaration copies for literal arithmetic
+
+The next [paired measurement](../benchmarks/evidence/literal-evaluation-2026-09-08/summary.json)
+compares the frozen library baseline with literal-only constant evaluation using
+a fresh, small environment. Queries involving identifiers, types, calls, or
+compound literals keep the existing full environment. Both paths retain public
+unit validation and target-specific arithmetic. A bounded AST traversal decides
+which environment to use; it does not introduce a second expression evaluator.
+
+| Project | Before | After | bindgen 0.72.1 | Before / after |
+| --- | ---: | ---: | ---: | ---: |
+| zlib | 38.94 ms | 31.12 ms | 132.46 ms | 1.25× |
+| SQLite | 199.98 ms | 67.25 ms | 199.44 ms | 2.97× |
+| zstd | 9.32 ms | 8.62 ms | 123.21 ms | 1.08× |
+| libgit2 | 402.97 ms | 285.32 ms | 286.11 ms | 1.41× |
+
+SQLite is about three times faster than bindgen in this run; libgit2 is roughly
+equal. Each result again contains 15 measured calls after warmup, now with the
+before, after, and bindgen process order randomized within each pair. CPU 3 ran
+the benchmark; independent verification used other CPUs on the shared host.
+
+Binding-generation allocations fall from 1,804,101 to 70,280 for SQLite and from
+2,078,204 to 894,534 for libgit2. Configuration and parse allocations are unchanged.
+All four complete outputs and report fields match except elapsed timings.
+Another 341 macro expressions match across 22 compiler/target/language settings,
+including their skipped-macro diagnostics. The recorded checks include native
+constant probes, public-environment validation, query-local enum isolation, and
+[34,955 address-sanitized binding executions](../fuzz/evidence/literal-evaluation-2026-09-08/README.md).
+These measurements retain the same shared-host limitations as the baseline.
+
 ## Allocator comparison
 
 A paired run at commit `f78baa8` compared the system allocator with the CLI's

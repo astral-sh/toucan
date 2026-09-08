@@ -186,7 +186,7 @@ fn evaluate_on_parser_stack<Value>(
     expression: &str,
     evaluate: impl FnOnce(&mut Analyzer, &Node<ast::Expression>) -> Result<Value, Error>,
 ) -> Result<Value, Error> {
-    unit.profile()?;
+    let profile = unit.profile()?;
     unit.validate_function_options()?;
     let identifiers = validate_expression_source(expression)?;
     for value in unit.constants.values() {
@@ -263,7 +263,14 @@ fn evaluate_on_parser_stack<Value>(
         return Err(Error::new(0, "expected integer expression"));
     };
     unit.validate_parameter_contracts()?;
-    let mut analyzer = Analyzer::from_unit(unit.clone());
+    // Literal arithmetic only depends on the target and language profile. Keep
+    // validating the public environment above, but avoid copying declarations
+    // that this expression cannot reference. Each query still owns its analyzer.
+    let mut analyzer = if literal_expression(&expression.node, 0, &mut 4096) {
+        Analyzer::new(profile, Vec::new())
+    } else {
+        Analyzer::from_unit(unit.clone())
+    };
     analyzer.allow_late_object_size_folds = true;
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
@@ -286,6 +293,60 @@ fn evaluate_on_parser_stack<Value>(
                 .saturating_sub(expression_offset);
             error
         })
+}
+
+/// Proves that an expression cannot inspect or introduce a declaration. An
+/// exhausted traversal budget keeps the ordinary evaluation path and its limits.
+fn literal_expression(expression: &ast::Expression, depth: u8, remaining: &mut usize) -> bool {
+    if depth >= 128 || *remaining == 0 {
+        return false;
+    }
+    *remaining -= 1;
+    let mut operand = |expression: &Node<ast::Expression>| {
+        literal_expression(&expression.node, depth + 1, remaining)
+    };
+    match expression {
+        ast::Expression::Constant(_) => true,
+        ast::Expression::UnaryOperator(unary) => {
+            matches!(
+                unary.node.operator.node,
+                ast::UnaryOperator::Plus
+                    | ast::UnaryOperator::Minus
+                    | ast::UnaryOperator::Complement
+                    | ast::UnaryOperator::Negate
+            ) && operand(&unary.node.operand)
+        }
+        ast::Expression::BinaryOperator(binary) => {
+            matches!(
+                binary.node.operator.node,
+                ast::BinaryOperator::Multiply
+                    | ast::BinaryOperator::Divide
+                    | ast::BinaryOperator::Modulo
+                    | ast::BinaryOperator::Plus
+                    | ast::BinaryOperator::Minus
+                    | ast::BinaryOperator::ShiftLeft
+                    | ast::BinaryOperator::ShiftRight
+                    | ast::BinaryOperator::Less
+                    | ast::BinaryOperator::Greater
+                    | ast::BinaryOperator::LessOrEqual
+                    | ast::BinaryOperator::GreaterOrEqual
+                    | ast::BinaryOperator::Equals
+                    | ast::BinaryOperator::NotEquals
+                    | ast::BinaryOperator::BitwiseAnd
+                    | ast::BinaryOperator::BitwiseXor
+                    | ast::BinaryOperator::BitwiseOr
+                    | ast::BinaryOperator::LogicalAnd
+                    | ast::BinaryOperator::LogicalOr
+            ) && operand(&binary.node.lhs)
+                && operand(&binary.node.rhs)
+        }
+        ast::Expression::Conditional(conditional) => {
+            operand(&conditional.node.condition)
+                && operand(&conditional.node.then_expression)
+                && operand(&conditional.node.else_expression)
+        }
+        _ => false,
+    }
 }
 
 struct Parsed {
