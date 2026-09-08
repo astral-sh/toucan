@@ -97,7 +97,7 @@ impl Analyzer {
         }
         let mut resolved = self.unit.resolve(&ty)?.clone();
         resolved.qualifiers = self.unit.qualifiers(&ty)?;
-        resolved.alignment = None;
+        resolved.alignment = crate::TypeAlignment::default();
         let scalar = match &mut resolved.kind {
             TypeKind::Pointer(element)
             | TypeKind::Array { element, .. }
@@ -143,7 +143,7 @@ impl Analyzer {
                 lanes: bytes / element_bytes,
             },
             qualifiers,
-            alignment: None,
+            alignment: crate::TypeAlignment::default(),
         })
     }
 
@@ -190,7 +190,7 @@ impl Analyzer {
                 }
                 let mut result = left.clone();
                 if !self.gnu_vector_profile() && left.alignment != right.alignment {
-                    result.alignment = None;
+                    result.alignment = crate::TypeAlignment::default();
                 }
                 Ok(result)
             }

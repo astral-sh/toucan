@@ -812,9 +812,8 @@ fn source_constraints_and_scoped_limits_match_clang18() {
         for &(operation, name, body, native) in CASES {
             let source = format!("{PRELUDE}{body}");
             let result = check(&source, profile);
-            let boundary = name.starts_with("aligned")
-                || ((operation == "min" || operation == "max")
-                    && ["float", "long_double", "float_mixed", "vector_float"].contains(&name));
+            let boundary = (operation == "min" || operation == "max")
+                && ["float", "long_double", "float_mixed", "vector_float"].contains(&name);
             if profile.compiler() == Compiler::Clang && boundary {
                 assert!(
                     result.unwrap_err().message.contains("unsupported"),

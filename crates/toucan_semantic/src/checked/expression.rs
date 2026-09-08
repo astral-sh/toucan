@@ -911,7 +911,7 @@ impl Analyzer {
                 )
             {
                 let promoted = integer_to_type(self.promoted_integer(&info, offset)?);
-                if ty != promoted {
+                if self.unit.resolve(&ty)?.kind != promoted.kind {
                     conversions.push(ConversionStep {
                         kind: Conversion::IntegerPromotion,
                         target_type: self.retained_type(&promoted, offset)?,
@@ -1604,9 +1604,12 @@ impl Analyzer {
                     continue;
                 }
                 let (context, destination) = if let Some(destination) = &elementwise {
+                    let info = self.expression_info(argument)?;
+                    let destination =
+                        self.integer_arithmetic_operand_type(&info, destination, offset)?;
                     (
                         UseContext::Value,
-                        Some((destination.clone(), Conversion::Arithmetic)),
+                        Some((destination, Conversion::Arithmetic)),
                     )
                 } else if let Some(signature) = &x86 {
                     let destination = signature.parameters()[index].clone();
@@ -1853,7 +1856,11 @@ impl Analyzer {
         Ok(match ty.kind {
             TypeKind::Float(FloatKind::Float) => Type::new(TypeKind::Float(FloatKind::Double)),
             TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_) => {
-                integer_to_type(self.promoted_integer(&info, offset)?)
+                if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.promoted_integer_type(&info, offset)?
+                } else {
+                    integer_to_type(self.promoted_integer(&info, offset)?)
+                }
             }
             _ => ty,
         })
@@ -1923,8 +1930,16 @@ impl Analyzer {
                 }
             }
             Op::ShiftLeft | Op::ShiftRight | Op::AssignShiftLeft | Op::AssignShiftRight => {
-                let left = integer_to_type(self.promoted_integer(&left, offset)?);
-                let right = integer_to_type(self.promoted_integer(&right, offset)?);
+                let left = if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.promoted_integer_type(&left, offset)?
+                } else {
+                    integer_to_type(self.promoted_integer(&left, offset)?)
+                };
+                let right = if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.promoted_integer_type(&right, offset)?
+                } else {
+                    integer_to_type(self.promoted_integer(&right, offset)?)
+                };
                 computation = Some(left.clone());
                 left_destination = Some((left, Conversion::IntegerPromotion));
                 right_destination = Some((right, Conversion::IntegerPromotion));

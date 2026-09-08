@@ -34,11 +34,11 @@ Floating min/max have an explicit unsupported diagnostic. Their IEEE minNum
 behavior, including NaNs, needs separate validation. Vector storage retains the
 existing 16-byte limit; this layer establishes no Rust vector calling convention.
 
-Explicitly aligned typedef operands are also diagnosed as unsupported. Clang's
-result alignment can depend on common typedef ancestry: independently declared
-aligned aliases need not behave like two uses of one alias. The current value
-type loses that ancestry after a cast. The diagnostic prevents guessing the
-result layout until alias provenance is retained.
+Aligned typedef operands retain their common typedef ancestry, including casts,
+intervening aliases, and declaration-time alignment snapshots. Independently
+declared aliases can therefore have a different result alignment from two uses
+of the same alias. See [type alignment](type-alignment.md) for the owned metadata
+and remaining compiler-specific boundaries.
 
 [Validation evidence](../corpus/evidence/elementwise-integers-2026-09-08.json)
 separates matching compiler decisions from those valid-source limitations.

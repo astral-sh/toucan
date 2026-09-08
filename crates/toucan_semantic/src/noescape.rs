@@ -77,6 +77,7 @@ impl TranslationUnit {
     /// Validates caller-built contract tables and every structurally owned type.
     /// Nominal record/typedef edges are visited through their owning tables.
     pub fn validate_parameter_contracts(&self) -> Result<(), Error> {
+        self.validate_alignment_origin_rows()?;
         let mut positions = 0usize;
         if self.parameter_contracts.len() > MAX_SETS {
             return Err(Error::new(
@@ -130,6 +131,7 @@ impl TranslationUnit {
                 "parameter-contract type nesting or work limit exceeded",
             ));
         }
+        self.validate_alignment_snapshot(ty.alignment)?;
         match &ty.kind {
             TypeKind::Pointer(t)
             | TypeKind::Atomic(t)
@@ -436,7 +438,7 @@ impl Composite<'_> {
         Ok(Type {
             kind,
             qualifiers: self.unit.qualifiers(left)?,
-            alignment: self.unit.typedef_alignment(left)?,
+            alignment: self.unit.typedef_alignment_metadata(left)?,
         })
     }
 }
@@ -553,7 +555,7 @@ impl Analyzer {
         }
         if matches!(ty.kind, TypeKind::Typedef(_)) {
             let qualifiers = self.unit.qualifiers(ty)?;
-            let alignment = self.unit.typedef_alignment(ty)?;
+            let alignment = self.unit.typedef_alignment_metadata(ty)?;
             *ty = self.unit.resolve(ty)?.clone();
             ty.qualifiers = qualifiers;
             ty.alignment = alignment;

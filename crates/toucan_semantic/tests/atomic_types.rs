@@ -496,15 +496,21 @@ fn atomic_loads_do_not_hide_aligned_typedef_arithmetic_limits() {
     let prefix = "typedef int I __attribute__((aligned(16))); _Atomic(I) value;";
     for target in Target::ALL {
         for expression in ["value+0", "0+value", "+value"] {
-            let error = check(
+            let result = check(
                 &format!("{prefix}int f(void){{return {expression};}}"),
                 target,
-            )
-            .unwrap_err();
-            assert!(
-                error.message.contains("arithmetic result alignment"),
-                "{error:?}"
             );
+            if toucan_target::CompilerProfile::default_for(target).compiler()
+                == toucan_target::Compiler::Clang
+            {
+                result.unwrap();
+            } else {
+                let error = result.unwrap_err();
+                assert!(
+                    error.message.contains("arithmetic result alignment"),
+                    "{error:?}"
+                );
+            }
         }
         check(&format!("{prefix}_Static_assert(_Alignof(__typeof__((0,value)))==16,\"atomic value alignment\");"),target).unwrap();
     }

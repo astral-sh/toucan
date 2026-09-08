@@ -909,9 +909,9 @@ impl Emitter<'_> {
             }
             self.vectors.insert((bytes, alignment));
         }
-        if ty.alignment.is_some() && !vector && !atomic {
+        if ty.alignment.bytes().is_some() && !vector && !atomic {
             let mut underlying = ty.clone();
-            underlying.alignment = None;
+            underlying.alignment = toucan_semantic::TypeAlignment::default();
             let actual = self.unit.layout(ty)?;
             let natural = self.unit.layout(&underlying)?;
             if self.unit.alignment(ty)? != self.unit.alignment(&underlying)?
@@ -1270,7 +1270,8 @@ impl Emitter<'_> {
         }
         // An aligned vector alias needs its own storage helper; Rust aliases
         // cannot themselves change alignment.
-        if ty.alignment.is_some() && matches!(self.unit.resolve(ty)?.kind, TypeKind::Vector { .. })
+        if ty.alignment.bytes().is_some()
+            && matches!(self.unit.resolve(ty)?.kind, TypeKind::Vector { .. })
         {
             let layout = self.unit.layout(ty)?;
             return self.vector_name(layout.size_bytes(), layout.alignment_bytes());

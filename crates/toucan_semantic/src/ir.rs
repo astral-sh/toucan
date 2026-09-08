@@ -21,6 +21,9 @@ pub struct TranslationUnit {
     /// Owner-local sparse parameter contracts used by function types.
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub parameter_contracts: Vec<crate::ParameterContracts>,
+    /// Sparse type ancestry used by Clang's common-type alignment rules.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub alignment_origins: Vec<crate::AlignmentOrigin>,
     pub records: Vec<Record>,
     /// Nominal GNU typedef variants mapped directly to their source record.
     /// Field declaration identities belong to the source record.
@@ -34,10 +37,10 @@ pub struct TranslationUnit {
 /// A qualified C type. Typedefs and tags retain their declaration identities.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
 pub struct Type {
-    /// GNU typedef alignment in bytes. This does not change C type compatibility
-    /// or the canonical layout of a referenced record tag.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub alignment: Option<NonZeroU32>,
+    /// Typedef alignment and its owner-local ancestry. This does not change C
+    /// type compatibility or the canonical layout of a referenced record tag.
+    #[serde(flatten)]
+    pub alignment: crate::TypeAlignment,
     pub kind: TypeKind,
     pub qualifiers: Qualifiers,
 }
@@ -46,7 +49,7 @@ impl Type {
     /// Constructs an unqualified type.
     pub fn new(kind: TypeKind) -> Self {
         Self {
-            alignment: None,
+            alignment: crate::TypeAlignment::default(),
             kind,
             qualifiers: Qualifiers::default(),
         }
@@ -591,19 +594,29 @@ impl TranslationUnit {
     /// Returns the outermost GNU typedef alignment override, without applying
     /// it to the pointee or mutating a referenced record.
     pub fn typedef_alignment(&self, ty: &Type) -> Result<Option<NonZeroU32>, Error> {
+        Ok(self.typedef_alignment_metadata(ty)?.bytes())
+    }
+
+    /// Returns the outermost alignment snapshot, including its optional ancestry.
+    pub fn typedef_alignment_metadata(&self, ty: &Type) -> Result<crate::TypeAlignment, Error> {
         let mut ty = ty;
         for _ in 0..128 {
-            if let Some(alignment) = ty.alignment {
-                if !alignment.get().is_power_of_two() || alignment.get() > (1 << 28) {
+            if ty.alignment.has_metadata() {
+                let alignment = ty.alignment;
+                self.validate_alignment_snapshot(alignment)?;
+                if alignment
+                    .bytes()
+                    .is_some_and(|bytes| !bytes.get().is_power_of_two() || bytes.get() > (1 << 28))
+                {
                     return Err(Error::new(
                         0,
                         "typedef alignment must be a supported power of two",
                     ));
                 }
-                return Ok(Some(alignment));
+                return Ok(alignment);
             }
             let TypeKind::Typedef(name) = &ty.kind else {
-                return Ok(None);
+                return Ok(crate::TypeAlignment::default());
             };
             ty = self
                 .typedefs
@@ -771,13 +784,19 @@ impl TranslationUnit {
             ));
         }
         if let TypeKind::Typedef(name) = &ty.kind {
+            if ty.alignment.origin().is_some() {
+                self.validate_alignment_snapshot(ty.alignment)?;
+                let mut effective = self.resolve(ty)?.clone();
+                effective.alignment = ty.alignment;
+                return self.layout_type(&effective, active, cache, depth + 1, expand_record);
+            }
             let inner = self
                 .typedefs
                 .get(name)
                 .ok_or_else(|| Error::new(0, format!("unknown typedef `{name}`")))?;
             return Ok(aligned_layout_type(
                 self.layout_type(inner, active, cache, depth + 1, expand_record)?,
-                ty.alignment,
+                ty.alignment.bytes(),
             ));
         }
         let resolved = ty;
@@ -795,7 +814,7 @@ impl TranslationUnit {
             }
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&cache[&id]),
-                ty.alignment,
+                ty.alignment.bytes(),
             ));
         }
         if let TypeKind::Atomic(value) = &resolved.kind {
@@ -822,7 +841,7 @@ impl TranslationUnit {
             let layout = crate::atomic_type::atomic_layout(self.compiler, inner)?;
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&layout),
-                ty.alignment,
+                ty.alignment.bytes(),
             ));
         }
         if let TypeKind::Vector { element, lanes, .. } = &resolved.kind {
@@ -854,7 +873,7 @@ impl TranslationUnit {
                     required_alignment_bits: 8,
                     fields: Vec::new(),
                 }),
-                ty.alignment,
+                ty.alignment.bytes(),
             ));
         }
         if let TypeKind::Float(kind) = resolved.kind
@@ -869,7 +888,7 @@ impl TranslationUnit {
                     required_alignment_bits: 8,
                     fields: Vec::new(),
                 }),
-                ty.alignment,
+                ty.alignment.bytes(),
             ));
         }
         let builtin = match &resolved.kind {
@@ -907,7 +926,7 @@ impl TranslationUnit {
         if let Some(builtin) = builtin {
             return Ok(aligned_layout_type(
                 target::Type::builtin(builtin),
-                ty.alignment,
+                ty.alignment.bytes(),
             ));
         }
         let mut annotations = Vec::new();
@@ -1037,7 +1056,7 @@ impl TranslationUnit {
                 annotations,
                 variant,
             },
-            ty.alignment,
+            ty.alignment.bytes(),
         ))
     }
 }

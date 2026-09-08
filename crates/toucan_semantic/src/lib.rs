@@ -4,6 +4,7 @@
 //! constructs return diagnostics; function bodies are checked even when a binding
 //! consumer omits their definitions from its generated API.
 
+mod alignment_names;
 mod alignof;
 mod analyze;
 mod arm;
@@ -45,6 +46,7 @@ mod sync;
 mod target_features;
 mod target_names;
 mod transparent_union;
+mod type_alignment;
 mod variadic_pack;
 mod vector;
 mod vector_constant;
@@ -68,6 +70,7 @@ pub use literals::{
 pub use noescape::{ParameterContracts, ParameterContractsId};
 pub use object_alignment::DeclarationAlignment;
 pub use target_features::{FunctionOptions, FunctionTarget, X86TargetOption};
+pub use type_alignment::{AlignmentOrigin, AlignmentOriginId, AlignmentOriginKind, TypeAlignment};
 pub use vector_constant::{VectorConstant, VectorConstantType, VectorElement};
 
 /// A source-positioned syntax, semantic, or unsupported-feature diagnostic.

@@ -164,7 +164,7 @@ impl Analyzer {
             address
         };
         if self.gnu_sync_profile() {
-            value.alignment = None;
+            value.alignment = crate::TypeAlignment::default();
         }
         let result = match operation {
             SyncOperation::BoolCompareAndSwap => Type::new(TypeKind::Bool),

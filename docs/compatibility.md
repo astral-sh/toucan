@@ -657,11 +657,11 @@ annotations change their layout or ABI produce an explicit binding diagnostic.
 Redundant annotations, including Linux's aligned(16) 128-bit integer aliases, can use
 ordinary Rust aliases. Unselected aliases remain available to semantic checking.
 
-Arithmetic and conditional expressions involving an unpromoted typedef with a
-changed alignment currently produce an explicit diagnostic. GCC and Clang retain
-different typedef identities in these result types; Toucan does not discard that
-observable `typeof` alignment. Combining pointer types with changed-alignment
-pointees also produces an explicit diagnostic. Pointer assignment, initialization,
+Clang integer arithmetic and conditional expressions retain the shared typedef
+ancestry that determines observable `typeof` alignment. GNU arithmetic and general
+floating/complex common-type alignment remain explicit unsupported boundaries.
+Combining pointer types with changed-alignment pointees also produces an explicit
+diagnostic. Pointer assignment, initialization,
 returns and prototype arguments preserve the destination's declared alignment and
 permit compatible aligned aliases. They still reject discarded qualifiers and
 incompatible nested pointer types. Integer promotions and ordinary object, pointer,
@@ -818,9 +818,9 @@ observable. Unevaluated expression contexts still govern whether access occurs.
 Compiler differences remain explicit: Clang retains atomic cast and function-call
 rvalues, rejects aggregate brace initializers and atomic-pointer compound
 assignments, and ignores atomic qualifiers inside array parameter brackets.
-GNU permits incomplete atomic types behind pointers. Existing diagnostics for
-unpromoted aligned-typedef arithmetic also apply to atomic values, preserving
-observable `typeof` alignment. Direct atomic aggregate member access is diagnosed as undefined; load a complete ordinary value first.
+GNU permits incomplete atomic types behind pointers. Atomic values follow the
+same typedef-ancestry rules and remaining arithmetic-alignment limits as ordinary
+values, preserving observable `typeof` alignment. Direct atomic aggregate member access is diagnosed as undefined; load a complete ordinary value first.
 
 Selected unqualified, naturally aligned atomic integers, Boolean values and
 mutable object pointers use `core::sync::atomic` storage with generated size and
@@ -1017,3 +1017,11 @@ function types while preserving ordinary C compatibility. Written annotations,
 visible-redeclaration intersections, declaration-time call types, and K&R entry
 contracts are retained separately. Binding signatures carry callback safety
 comments. See [the contract model and validation scope](noescape.md).
+
+### Typedef ancestry in integer expressions
+
+Clang integer arithmetic and elementwise operations preserve the common typedef
+ancestry that determines observable result alignment. The owned type API retains
+alignment snapshots and canonical redeclaration links without enlarging `Type`.
+See [typedef alignment](type-alignment.md) for supported conversions, metadata,
+resource limits, and the remaining GNU/floating/pointer-composite boundaries.

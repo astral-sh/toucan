@@ -9,6 +9,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     let code = analysis.checked().expect("retention requested");
     unit.validate_function_options().unwrap();
     unit.validate_parameter_contracts().unwrap();
+    unit.validate_alignment_origins().unwrap();
     for attribute in code.noescape_attributes() {
         source_span(source, attribute.source());
         assert!(code.occurrence(attribute.owner()).is_some());
@@ -467,7 +468,12 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     assert_eq!(arguments.len(),2);
                     for argument in arguments {
                         assert_eq!(argument.context(),UseContext::Value);
-                        assert_eq!(code.ty(argument.effective_type()),code.ty(expression.ty()));
+                        // Equal integer/vector value types can retain different
+                        // typedef alignment sugar when no conversion occurs.
+                        let operand = unit.resolve(code.ty(argument.effective_type()).unwrap()).unwrap();
+                        let result = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
+                        assert_eq!(operand.kind, result.kind);
+                        assert_eq!(operand.qualifiers, result.qualifiers);
                     }
                 }
                 if *builtin == Builtin::Complex {
@@ -1032,6 +1038,7 @@ fn type_step<'a>(unit: &'a TranslationUnit, ty: &'a Type, step: &TypeStep) -> &'
 fn type_shape(unit: &TranslationUnit, root: &Type) {
     let mut pending = vec![root];
     while let Some(ty) = pending.pop() {
+        unit.typedef_alignment_metadata(ty).unwrap();
         match &ty.kind {
             TypeKind::Pointer(pointee) | TypeKind::Atomic(pointee) => pending.push(pointee),
             TypeKind::VariableArray { element, identity } => {

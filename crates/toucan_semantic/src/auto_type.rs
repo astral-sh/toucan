@@ -369,7 +369,7 @@ impl Analyzer {
         let mut changed = false;
         if matches!(ty.kind, TypeKind::Typedef(_)) {
             let qualifiers = self.unit.qualifiers(ty)?;
-            let alignment = self.unit.typedef_alignment(ty)?;
+            let alignment = self.unit.typedef_alignment_metadata(ty)?;
             *ty = self.unit.resolve(ty)?.clone();
             ty.qualifiers = qualifiers;
             ty.alignment = alignment;

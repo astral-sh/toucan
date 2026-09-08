@@ -702,6 +702,9 @@ impl Analyzer {
                     attributes,
                     &extra,
                     item.span.start,
+                    name.as_deref().ok_or_else(|| {
+                        Error::new(item.span.start, "typedef declaration has no name")
+                    })?,
                 )?;
                 self.apply_transparent_typedef(&mut ty, attributes, &extra)?;
             } else {
@@ -818,10 +821,7 @@ impl Analyzer {
                     if variably_modified || !self.same_type(previous, &ty, 0)? {
                         return Err(Error::new(item.span.start, "conflicting block typedef"));
                     }
-                    let alignment = self
-                        .unit
-                        .typedef_alignment(previous)?
-                        .max(self.unit.typedef_alignment(&ty)?);
+                    let alignment = ty.alignment;
                     ty = crate::noescape::composite_type!(self, previous, &ty, 0)?;
                     ty.alignment = alignment;
                     if let Some(checked) = &mut self.checked {
@@ -962,7 +962,10 @@ impl Analyzer {
                 }
                 // Clang merges parameter promises with visible declarations only.
                 // A same-linkage declaration in an exited block is not a type source.
-                if !self.unit.parameter_contracts.is_empty() || self.has_type_noreturn {
+                if !self.unit.parameter_contracts.is_empty()
+                    || self.has_type_noreturn
+                    || !self.unit.alignment_origins.is_empty()
+                {
                     let scope = self
                         .lexical_scopes
                         .iter()
@@ -975,7 +978,12 @@ impl Analyzer {
                     if let Some(previous) = previous
                         && self.compatible(previous, &ty)?
                     {
-                        ty = crate::noescape::composite_type!(self, &ty, previous, 0)?;
+                        let mut composite =
+                            crate::noescape::composite_type!(self, &ty, previous, 0)?;
+                        if function {
+                            self.object_alignment_sugar(&mut composite, previous)?;
+                        }
+                        ty = composite;
                     }
                 }
                 if self.unit.compiler == toucan_target::Compiler::Gnu
@@ -1021,7 +1029,10 @@ impl Analyzer {
                         .contains(&name)
                     && self.compatible(previous, &ty)?
                 {
-                    let composite = crate::noescape::composite_type!(self, previous, &ty, 0)?;
+                    let mut composite = crate::noescape::composite_type!(self, previous, &ty, 0)?;
+                    if !function {
+                        self.object_alignment_sugar(&mut composite, &ty)?;
+                    }
                     if let Some(checked) = &mut self.checked {
                         let site = checked.local_declaration(
                             item,

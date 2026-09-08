@@ -141,3 +141,12 @@ separate from numeric vector conversion. See [non-temporal accesses](nontemporal
 Both formats also expose `translation_unit.language_mode` (`c11` or `gnu11`).
 This additive field records the keywords and preprocessing defaults used to
 check the unit. See [language modes](language-modes.md).
+
+## Typedef alignment origins
+
+Declaration schema 3 and checked schema 5 preserve the optional numeric type
+`alignment` field. Types can additionally contain an owner-local
+`alignment_origin` index into `translation_unit.alignment_origins`. Rows describe
+typedef redeclarations and `typeof` layers, including earlier snapshots with no
+alignment override. Empty tables are omitted. See [type alignment](type-alignment.md)
+for lookup, validation, and common-expression semantics.

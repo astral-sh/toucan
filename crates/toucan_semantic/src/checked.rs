@@ -1167,7 +1167,12 @@ fn charge_type(budget: &mut Budget, ty: &Type, offset: usize, depth: usize) -> R
     if depth >= 128 {
         return Err(Error::new(offset, "retained type nesting limit exceeded"));
     }
-    budget.charge(1, 0, std::mem::size_of::<Type>(), offset)?;
+    budget.charge(
+        1,
+        usize::from(ty.alignment.origin().is_some()),
+        std::mem::size_of::<Type>(),
+        offset,
+    )?;
     match &ty.kind {
         TypeKind::Pointer(inner)
         | TypeKind::Atomic(inner)
@@ -1371,6 +1376,13 @@ impl Builder {
         self.code.entities[site.entity.index()].returns_twice = returns_twice;
         site.returns_twice_attribute = attribute.map(crate::checked::unmapped_span);
         Ok(())
+    }
+}
+
+impl Builder {
+    pub(crate) fn charge_alignment_origin(&mut self, offset: usize) -> Result<(), Error> {
+        self.budget
+            .charge(1, 3, std::mem::size_of::<crate::AlignmentOrigin>(), offset)
     }
 }
 

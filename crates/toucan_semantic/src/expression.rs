@@ -201,7 +201,10 @@ impl Analyzer {
                 let source_origin = source_info.alignment_origin;
                 drop(source_info);
                 let destination = self.type_name(&cast.node.type_name.node)?;
-                let written_destination = self.unit.resolve(&destination)?.clone();
+                let mut written_destination = self.unit.resolve(&destination)?.clone();
+                written_destination.alignment =
+                    self.unit.typedef_alignment_metadata(&destination)?;
+                written_destination.qualifiers = self.unit.qualifiers(&destination)?;
                 let atomic_destination;
                 let destination = if self.unit.atomic_value(&written_destination)?.is_some() {
                     atomic_destination = self.atomic_value_type(&written_destination)?;
@@ -248,7 +251,7 @@ impl Analyzer {
                     // GCC casts discard typedef alignment on the result value.
                     // The pointed-to type remains part of a pointer cast's type.
                     let mut ty = self.unqualified(destination)?;
-                    ty.alignment = None;
+                    ty.alignment = crate::TypeAlignment::default();
                     ty
                 } else {
                     self.unqualified(&written_destination)?
@@ -380,7 +383,11 @@ impl Analyzer {
                         self.complex_unary_result(&operand, value)?
                     }
                     ast::UnaryOperator::Complement => {
-                        let result = integer_to_type(self.promoted_integer(&operand, offset)?);
+                        let result = if self.unit.compiler == toucan_target::Compiler::Clang {
+                            self.promoted_integer_type(&operand, offset)?
+                        } else {
+                            integer_to_type(self.promoted_integer(&operand, offset)?)
+                        };
                         self.check_arithmetic_alignment(&operand, &result, offset)?;
                         result
                     }
@@ -391,7 +398,11 @@ impl Analyzer {
                         } else if matches!(value.kind, TypeKind::Float(_)) {
                             value
                         } else {
-                            let result = integer_to_type(self.promoted_integer(&operand, offset)?);
+                            let result = if self.unit.compiler == toucan_target::Compiler::Clang {
+                                self.promoted_integer_type(&operand, offset)?
+                            } else {
+                                integer_to_type(self.promoted_integer(&operand, offset)?)
+                            };
                             self.check_arithmetic_alignment(&operand, &result, offset)?;
                             result
                         }
@@ -955,15 +966,22 @@ impl Analyzer {
             }
             Op::Multiply | Op::Divide => self.arithmetic_type(&left, &right, offset)?,
             Op::ShiftLeft | Op::ShiftRight => {
-                let left = self.promoted_integer(&left, offset)?;
+                let promoted_left = self.promoted_integer(&left, offset)?;
                 self.promoted_integer(&right, offset)?;
-                integer_to_type(left)
+                if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.promoted_integer_type(&left, offset)?
+                } else {
+                    integer_to_type(promoted_left)
+                }
             }
             Op::Modulo | Op::BitwiseAnd | Op::BitwiseXor | Op::BitwiseOr => {
-                integer_to_type(common(
+                let mut result = integer_to_type(common(
                     self.promoted_integer(&left, offset)?,
                     self.promoted_integer(&right, offset)?,
-                ))
+                ));
+                result.alignment =
+                    self.integer_arithmetic_alignment(&left, &right, &result, offset)?;
+                result
             }
             _ => unreachable!("assignment operators have been converted above"),
         };
@@ -1148,7 +1166,7 @@ impl Analyzer {
             Type {
                 kind,
                 qualifiers: Qualifiers::default(),
-                alignment: self.unit.typedef_alignment(ty)?,
+                alignment: self.unit.typedef_alignment_metadata(ty)?,
             },
             qualifiers,
         ))
@@ -1231,7 +1249,7 @@ impl Analyzer {
     }
 
     pub(crate) fn unqualified(&self, ty: &Type) -> Result<Type, Error> {
-        let alignment = self.unit.typedef_alignment(ty)?;
+        let alignment = self.unit.typedef_alignment_metadata(ty)?;
         let mut ty = self.unit.resolve(ty)?.clone();
         ty.alignment = alignment;
         ty.qualifiers = Qualifiers::default();
@@ -1293,22 +1311,40 @@ impl Analyzer {
         } else {
             self.integer_type(&expression.ty, offset)?
         };
-        if expression.bitfield.is_some_and(|width| width < 32) && integer.rank <= 3 {
+        if self.unit.compiler == toucan_target::Compiler::Clang
+            && let Some(width) = expression.bitfield
+            && width <= 32
+        {
+            Ok(if width < 32 || integer.signed {
+                IntegerValue::int(0)
+            } else {
+                IntegerValue {
+                    value: 0,
+                    bits: 32,
+                    signed: false,
+                    rank: 3,
+                }
+            })
+        } else if expression.bitfield.is_some_and(|width| width < 32) && integer.rank <= 3 {
             Ok(IntegerValue::int(0))
         } else {
             Ok(promote(integer))
         }
     }
 
-    /// GCC and Clang preserve different typedef sugar in arithmetic results.
-    /// Until that identity is represented, do not invent an observable typeof
-    /// alignment for an unpromoted, nonredundantly aligned operand.
+    /// Reject common-type alignment outside the modeled Clang integer rules.
+    /// GNU and floating/complex sugar require their own compiler-specific merge.
     fn check_arithmetic_alignment(
         &self,
         operand: &ExpressionInfo,
         result: &Type,
         offset: usize,
     ) -> Result<(), Error> {
+        if self.unit.compiler == toucan_target::Compiler::Clang
+            && matches!(result.kind, TypeKind::Integer(_))
+        {
+            return Ok(());
+        }
         if operand.bitfield.is_some() {
             return Ok(());
         }
@@ -1321,7 +1357,7 @@ impl Analyzer {
             return Ok(());
         }
         let mut underlying = resolved.clone();
-        underlying.alignment = None;
+        underlying.alignment = crate::TypeAlignment::default();
         if u64::from(alignment.get()) != self.unit.alignment(&underlying)? {
             return Err(Error::new(
                 offset,
@@ -1332,7 +1368,7 @@ impl Analyzer {
     }
 
     pub(crate) fn arithmetic_type(
-        &self,
+        &mut self,
         left: &ExpressionInfo,
         right: &ExpressionInfo,
         offset: usize,
@@ -1372,16 +1408,18 @@ impl Analyzer {
                 },
             ));
         }
-        Ok(integer_to_type(common(
+        let mut result = integer_to_type(common(
             self.promoted_integer(left, offset)?,
             self.promoted_integer(right, offset)?,
-        )))
+        ));
+        result.alignment = self.integer_arithmetic_alignment(left, right, &result, offset)?;
+        Ok(result)
     }
 
     /// Compute common real precision without changing either operand's domain.
     /// A real operand stays real in mixed complex arithmetic (C11 6.3.1.8).
     pub(crate) fn arithmetic_operand_types(
-        &self,
+        &mut self,
         left: &ExpressionInfo,
         right: &ExpressionInfo,
         offset: usize,
@@ -1398,6 +1436,14 @@ impl Analyzer {
                 })
             };
             Ok((operand(&left), operand(&right), result))
+        } else if self.unit.compiler == toucan_target::Compiler::Clang
+            && matches!(result.kind, TypeKind::Integer(_))
+        {
+            Ok((
+                self.integer_arithmetic_operand_type(left, &result, offset)?,
+                self.integer_arithmetic_operand_type(right, &result, offset)?,
+                result,
+            ))
         } else {
             Ok((result.clone(), result.clone(), result))
         }
@@ -1433,7 +1479,7 @@ impl Analyzer {
             for _ in 0..128 {
                 if let Some(alignment) = self.unit.typedef_alignment(ty)? {
                     let mut underlying = self.unit.resolve(ty)?.clone();
-                    underlying.alignment = None;
+                    underlying.alignment = crate::TypeAlignment::default();
                     if u64::from(alignment.get()) != self.unit.alignment(&underlying)? {
                         return Err(Error::new(
                             offset,

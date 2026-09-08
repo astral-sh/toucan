@@ -100,7 +100,7 @@ impl Analyzer {
     // typedef alignment decrease changes storage alignment but not this check.
     fn transparent_member_alignment(&self, ty: &Type) -> Result<u64, Error> {
         let mut natural = self.unit.resolve(ty)?.clone();
-        natural.alignment = None;
+        natural.alignment = crate::TypeAlignment::default();
         Ok(self.unit.alignment(ty)?.max(self.unit.alignment(&natural)?))
     }
 

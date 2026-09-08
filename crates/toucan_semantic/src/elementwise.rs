@@ -51,13 +51,7 @@ impl Analyzer {
         let right = self.expression_info(&call.node.arguments[1])?;
         let lhs = self.converted_type(&left, offset)?;
         let rhs = self.converted_type(&right, offset)?;
-        if lhs.alignment.is_some() || rhs.alignment.is_some() {
-            return Err(Error::new(
-                offset,
-                "elementwise operations on explicitly aligned typedef operands are unsupported",
-            ));
-        }
-        let result = match (&lhs.kind, &rhs.kind) {
+        let mut result = match (&lhs.kind, &rhs.kind) {
             (TypeKind::Vector { .. }, TypeKind::Vector { .. }) => {
                 if !self.same_type(&lhs, &rhs, 0)? {
                     return Err(Error::new(
@@ -65,7 +59,7 @@ impl Analyzer {
                         "elementwise vector operands must have the same type",
                     ));
                 }
-                lhs
+                lhs.clone()
             }
             (TypeKind::Vector { .. }, _) | (_, TypeKind::Vector { .. }) => {
                 return Err(Error::new(
@@ -75,6 +69,9 @@ impl Analyzer {
             }
             _ => self.arithmetic_type(&left, &right, offset)?,
         };
+        if matches!(result.kind, TypeKind::Vector { .. }) {
+            result.alignment = self.common_type_alignment(lhs.alignment, rhs.alignment, offset)?;
+        }
         let element = if let TypeKind::Vector { element, .. } = &result.kind {
             element.as_ref()
         } else {

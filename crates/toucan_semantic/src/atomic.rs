@@ -265,7 +265,7 @@ impl Analyzer {
             }
         }
         if self.gnu_sync_profile() {
-            value.alignment = None;
+            value.alignment = crate::TypeAlignment::default();
         }
         signature.result = match op {
             A::Store | A::LoadGeneric | A::StoreGeneric | A::ExchangeGeneric => {

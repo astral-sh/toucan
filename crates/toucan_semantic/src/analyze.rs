@@ -85,6 +85,7 @@ fn analyze_on_parser_stack(
     analyzer.empty_initializers = parsed.empty_initializers;
     analyzer.int128_specifiers = parsed.int128_specifiers;
     let result = (|| {
+        analyzer.prepare_typedef_alignments(&parsed.unit, &source)?;
         analyzer.prepare_array_identities(&parsed.unit, &source)?;
         analyzer.prepare_late_function_targets(&parsed.unit, &source)?;
         if let Some(limits) = retention {
@@ -264,6 +265,7 @@ fn evaluate_on_parser_stack<Value>(
     analyzer.int128_specifiers = parsed.int128_specifiers;
     analyzer
         .prepare_array_identities(&parsed.unit, &source)
+        .and_then(|()| analyzer.prepare_typedef_alignments(&parsed.unit, &source))
         .and_then(|()| analyzer.prepare_late_function_targets(&parsed.unit, &source))
         .and_then(|()| evaluate(&mut analyzer, expression))
         .and_then(|value| {
@@ -739,6 +741,7 @@ struct DeclaratorContext<'a> {
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) alignment_registry: Option<Box<crate::type_alignment::Registry>>,
     pub(crate) has_type_noreturn: bool,
     pub(crate) parameter_contract_index: Option<Box<crate::noescape::ContractIndex>>,
     pub(crate) shuffle_vectors: BTreeMap<(usize, usize), crate::vector::ShuffleVectorSignature>,
@@ -808,6 +811,7 @@ impl Analyzer {
             declarations: Vec::new(),
             function_options: BTreeMap::new(),
             parameter_contracts: Vec::new(),
+            alignment_origins: Vec::new(),
             records: Vec::new(),
             record_origins: BTreeMap::new(),
             enums: Vec::new(),
@@ -836,6 +840,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            alignment_registry: None,
             has_type_noreturn: crate::noescape::has_type_noreturn(&unit),
             parameter_contract_index: None,
             shuffle_vectors: BTreeMap::new(),
@@ -1243,6 +1248,7 @@ impl Analyzer {
                     attributes,
                     &declarator_attributes,
                     item.span.start,
+                    &name,
                 )?;
                 self.apply_transparent_typedef(&mut ty, attributes, &declarator_attributes)?;
                 if let Some(previous) = self.unit.typedefs.get(&name) {
@@ -1252,10 +1258,7 @@ impl Analyzer {
                             format!("conflicting typedef `{name}`"),
                         ));
                     }
-                    let alignment = self
-                        .unit
-                        .typedef_alignment(previous)?
-                        .max(self.unit.typedef_alignment(&ty)?);
+                    let alignment = ty.alignment;
                     ty = crate::noescape::composite_type!(self, previous, &ty, 0)?;
                     ty.alignment = alignment;
                     self.unit.typedefs.insert(name.clone(), ty.clone());
@@ -1459,13 +1462,19 @@ impl Analyzer {
                 )?;
                 // A composite type retains all available bounds and prototypes,
                 // including those nested inside pointers and function parameters.
-                ty = if definition {
+                let mut composite = if definition {
                     // Definition parameter names belong to its body; names in an
                     // earlier prototype have no bearing on those declarations.
                     crate::noescape::composite_type!(self, &ty, &previous.ty, 0)?
                 } else {
                     crate::noescape::composite_type!(self, &previous.ty, &ty, 0)?
                 };
+                if kind != DeclarationKind::Function {
+                    self.object_alignment_sugar(&mut composite, &ty)?;
+                } else if definition {
+                    self.object_alignment_sugar(&mut composite, &previous.ty)?;
+                }
+                ty = composite;
                 let previous_definition = previous.is_definition;
                 let symbol_binding = self.check_symbol_binding(
                     &name,
@@ -1622,7 +1631,7 @@ impl Analyzer {
                         length: Some(1),
                     },
                     qualifiers: self.unit.qualifiers(&ty)?,
-                    alignment: self.unit.typedef_alignment(&ty)?,
+                    alignment: self.unit.typedef_alignment_metadata(&ty)?,
                 };
             }
             if !self.is_complete_object(&ty, 0)? {
@@ -1874,12 +1883,13 @@ impl Analyzer {
     }
 
     pub(crate) fn align_typedef(
-        &self,
+        &mut self,
         ty: &mut Type,
         specifiers: &[Node<ast::DeclarationSpecifier>],
         attributes: &Attributes,
         extra: &Attributes,
         offset: usize,
+        name: &str,
     ) -> Result<(), Error> {
         if specifiers
             .iter()
@@ -1890,7 +1900,16 @@ impl Analyzer {
                 "an alignment specifier is not permitted on a typedef",
             ));
         }
-        if let Some(alignment) = attributes.alignment.max(extra.alignment) {
+        let inherited = self.unit.typedef_alignment_metadata(ty)?;
+        let previous = match self.lexical_scopes.last() {
+            Some(scope) => scope.typedefs.get(name),
+            None => self.unit.typedefs.get(name),
+        }
+        .map(|ty| self.unit.typedef_alignment_metadata(ty))
+        .transpose()?;
+        let explicit = attributes.alignment.max(extra.alignment);
+        ty.alignment = inherited;
+        if let Some(alignment) = explicit {
             if matches!(
                 self.unit.resolve(ty)?.kind,
                 TypeKind::Void | TypeKind::Function(_)
@@ -1900,11 +1919,16 @@ impl Analyzer {
                     "aligned typedefs require an object type",
                 ));
             }
-            ty.alignment = std::num::NonZeroU32::new(u32::try_from(alignment).map_err(|_| {
+            ty.alignment = crate::TypeAlignment::new(u32::try_from(alignment).map_err(|_| {
                 Error::new(offset, "typedef alignment exceeds the supported range")
-            })?);
+            })?)
+            .ok_or_else(|| Error::new(offset, "typedef alignment exceeds the supported range"))?;
         }
-        Ok(())
+        if let Some(previous) = previous {
+            ty.alignment =
+                crate::TypeAlignment::from_bytes(previous.bytes().max(ty.alignment.bytes()))?;
+        }
+        self.retain_typedef_alignment(name, ty, previous, inherited, explicit.is_some(), offset)
     }
 
     pub(crate) fn specifiers(
@@ -2242,18 +2266,20 @@ impl Analyzer {
                         ast::TypeSpecifier::TypeOf(value) => match &value.node {
                             ast::TypeOf::Type(ty) => {
                                 let checkpoint = self.sve_feature_checkpoint();
-                                let ty = self.type_name(&ty.node)?;
+                                let mut ty = self.type_name(&ty.node)?;
                                 if !self.unit.is_variably_modified(&ty)? {
                                     self.discard_sve_feature_uses(checkpoint);
                                 }
+                                self.retain_typeof_alignment(&mut ty, false, value.span.start)?;
                                 return Ok(ty);
                             }
                             ast::TypeOf::Expression(expression) => {
                                 let checkpoint = self.sve_feature_checkpoint();
-                                let ty = self.expression_type(expression)?;
+                                let mut ty = self.expression_type(expression)?;
                                 if !self.unit.is_variably_modified(&ty)? {
                                     self.discard_sve_feature_uses(checkpoint);
                                 }
+                                self.retain_typeof_alignment(&mut ty, true, value.span.start)?;
                                 return Ok(ty);
                             }
                         },
@@ -2355,7 +2381,11 @@ impl Analyzer {
             {
                 return Err(Error::new(offset, "invalid modifiers on type"));
             }
-            return Ok(Type::new(special));
+            let mut ty = Type::new(special);
+            if !self.unit.alignment_origins.is_empty() && matches!(ty.kind, TypeKind::Typedef(_)) {
+                ty.alignment = self.unit.typedef_alignment_metadata(&ty)?;
+            }
+            return Ok(ty);
         }
         if types.is_empty()
             || long > 2
@@ -3882,7 +3912,7 @@ impl Analyzer {
         }
         let qualifiers = self.unit.qualifiers(&ty)?;
         let mut resolved = self.unit.resolve(&ty)?.clone();
-        resolved.alignment = self.unit.typedef_alignment(&ty)?;
+        resolved.alignment = self.unit.typedef_alignment_metadata(&ty)?;
         let clang = self.unit.compiler == Compiler::Clang;
         let alias_base = alias_base
             || (matches!(ty.kind, TypeKind::Typedef(_))
