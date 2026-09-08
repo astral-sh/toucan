@@ -9,8 +9,10 @@ fuzz_target!(|bytes: &[u8]| {
     let Ok(data) = std::str::from_utf8(bytes) else {
         return;
     };
+    let selector = bytes.iter().fold(0usize, |sum, byte| sum.wrapping_add(usize::from(*byte)));
     let config = toucan::PreprocessorConfig {
         allow_filesystem: false,
+        trigraphs: selector & 0x100 != 0,
         max_tokens: 4096,
         max_source_bytes: 65_536,
         max_include_depth: 8,

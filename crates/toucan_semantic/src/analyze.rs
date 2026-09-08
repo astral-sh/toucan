@@ -73,7 +73,7 @@ fn analyze_on_parser_stack(
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
     let (source, packs) = prepare_source(source)?;
-    let parsed = parse(&source, 0, profile.compiler())?;
+    let parsed = parse(&source, 0, profile.compiler(), profile.language_mode())?;
     let packs = packs
         .into_iter()
         .map(|(offset, pack)| (parsed.offsets.pragma_offset(offset), pack))
@@ -202,7 +202,13 @@ fn evaluate_on_parser_stack<Value>(
     source.push_str("int __toucan_expression = (");
     source.push_str(expression);
     source.push_str(");\n");
-    let parsed = parse(&source, expression_offset, unit.compiler).map_err(|mut error| {
+    let parsed = parse(
+        &source,
+        expression_offset,
+        unit.compiler,
+        unit.language_mode,
+    )
+    .map_err(|mut error| {
         error.offset = error.offset.saturating_sub(expression_offset);
         error
     })?;
@@ -266,7 +272,12 @@ struct Parsed {
     int128_specifiers: HashSet<usize>,
 }
 
-fn parse(source: &str, diagnostic_offset: usize, compiler: Compiler) -> Result<Parsed, Error> {
+fn parse(
+    source: &str,
+    diagnostic_offset: usize,
+    compiler: Compiler,
+    language_mode: toucan_target::LanguageMode,
+) -> Result<Parsed, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
@@ -277,6 +288,7 @@ fn parse(source: &str, diagnostic_offset: usize, compiler: Compiler) -> Result<P
     let config = driver::Config {
         cpp_command: String::new(),
         cpp_options: Vec::new(),
+        gnu_keywords: language_mode == toucan_target::LanguageMode::Gnu11,
         flavor: match compiler {
             Compiler::Gnu => driver::Flavor::GnuC11WithClangExtensions,
             Compiler::Clang => driver::Flavor::ClangC11,
@@ -771,6 +783,7 @@ impl Analyzer {
         let mut analyzer = Self::from_unit(TranslationUnit {
             target: profile.target(),
             compiler: profile.compiler(),
+            language_mode: profile.language_mode(),
             declarations: Vec::new(),
             function_options: BTreeMap::new(),
             records: Vec::new(),

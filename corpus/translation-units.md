@@ -35,8 +35,11 @@ outputs and dependency-generation options. The report records both commands.
 
 The Toucan route applies build `-I`, `-D`, and `-U` options in order and discovers
 system include paths from that compiler. It uses Toucan's shipped target feature
-profile. Compiler optimization, language-mode, warning and other flags outside
-that profile are listed explicitly. Unsupported include-option forms stop the
+profile. Explicit `-std=c11` and `-std=gnu11` select the matching language mode
+for both routes; the report records that choice and its source. Other standards
+and compiler-default modes are not inferred. In particular, libgit2's `-std=c90`
+remains an explicit unmodeled flag, with GNU11 analysis. Compiler optimization,
+warning and other flags outside that profile are listed explicitly. Unsupported include-option forms stop the
 audit. `LC_ALL=C` and `SOURCE_DATE_EPOCH=0` make diagnostics and date macros stable.
 
 Source-tree dependencies are checked against the pinned archive members. Generated

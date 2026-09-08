@@ -3,6 +3,7 @@
 //! The caller supplies the target's include paths and predefined macros. No host
 //! compiler is invoked, and missing includes and unsupported directives are errors.
 
+mod definitions;
 mod expand;
 mod expression;
 mod provenance;
@@ -19,6 +20,7 @@ use std::io::Read;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
+pub use definitions::PredefinedMacroMode;
 pub use provenance::{OriginKind, SourceLocation, SourceMapping};
 pub use timestamp::{PreprocessingTimestamp, TimestampError};
 
@@ -28,6 +30,11 @@ use token::{Kind, Token, lex, lex_limited, normalize, render};
 /// Include search paths, predefined macros, and per-translation-unit resource limits.
 #[derive(Clone, Debug)]
 pub struct Config {
+    /// Replace trigraphs before physical line splicing. Standalone default: C11.
+    pub trigraphs: bool,
+    /// How predefined replacement strings are interpreted; physical headers and
+    /// forced includes always follow the ordinary source translation phases.
+    pub predefined_macro_mode: PredefinedMacroMode,
     /// Whether plain C char is unsigned when interpreting ordinary character
     /// constants in #if. Macro definitions do not change this data-model setting.
     pub char_unsigned: bool,
@@ -58,6 +65,8 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            trigraphs: true,
+            predefined_macro_mode: PredefinedMacroMode::Tokens,
             char_unsigned: false,
             timestamp: PreprocessingTimestamp::UNIX_EPOCH,
             allow_filesystem: true,
@@ -303,8 +312,24 @@ impl Preprocessor {
             ));
         }
         for (name, replacement) in self.config.defines.clone() {
+            if self.config.predefined_macro_mode != PredefinedMacroMode::Tokens
+                && name.contains(['\r', '\n'])
+            {
+                return Err(Error::new(
+                    Path::new("<predefined>"),
+                    1,
+                    "predefined macro name contains a newline",
+                ));
+            }
+            let definition = format!("{name} {replacement}");
+            let prepared = definitions::prepare(
+                &definition,
+                self.config.predefined_macro_mode,
+                self.config.trigraphs,
+            )
+            .map_err(|message| Error::new(Path::new("<predefined>"), 1, message))?;
             let definition = lex_limited(
-                &format!("{name} {replacement}"),
+                &prepared,
                 self.config.max_tokens.saturating_sub(self.tokens),
             )
             .map_err(|message| Error::new(Path::new("<predefined>"), 1, message))?;
@@ -371,7 +396,8 @@ impl Preprocessor {
         if self.source_bytes > self.config.max_source_bytes {
             return Err(Error::new(path, 1, "source byte limit exceeded"));
         }
-        let source = normalize(source).map_err(|message| Error::new(path, 1, message))?;
+        let source = normalize(source, self.config.trigraphs)
+            .map_err(|message| Error::new(path, 1, message))?;
         let mut conditions: Vec<Conditional> = Vec::new();
         let mut pending = Vec::new();
         let mut line_adjustment = 0i64;

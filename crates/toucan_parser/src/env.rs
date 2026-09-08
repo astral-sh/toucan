@@ -13,6 +13,7 @@ pub enum Symbol {
 pub struct Env {
     pub symbols: Vec<HashMap<String, Symbol>>,
     pub extensions_gnu: bool,
+    pub gnu_keywords: bool,
     pub extensions_clang: bool,
     pub gnu_float128_typedef: bool,
     pub reserved: HashSet<&'static str>,
@@ -29,6 +30,7 @@ impl Env {
         Env {
             definition_scopes: None,
             extensions_gnu: false,
+            gnu_keywords: false,
             extensions_clang: false,
             gnu_float128_typedef: false,
             symbols: vec![HashMap::default()],
@@ -45,6 +47,7 @@ impl Env {
         Env {
             definition_scopes: None,
             extensions_gnu: true,
+            gnu_keywords: true,
             extensions_clang: false,
             gnu_float128_typedef: true,
             symbols: vec![symbols],
@@ -62,6 +65,7 @@ impl Env {
         Env {
             definition_scopes: None,
             extensions_gnu: true,
+            gnu_keywords: true,
             extensions_clang: true,
             gnu_float128_typedef: false,
             symbols: vec![symbols],
@@ -74,6 +78,17 @@ impl Env {
         env.gnu_float128_typedef = true;
         env.reserved.remove("__float128");
         env
+    }
+
+    pub fn set_gnu_keywords(&mut self, enabled: bool) {
+        self.gnu_keywords = enabled && self.extensions_gnu;
+        for name in ["asm", "typeof"] {
+            if self.gnu_keywords {
+                self.reserved.insert(name);
+            } else {
+                self.reserved.remove(name);
+            }
+        }
     }
 
     pub fn enter_scope(&mut self) {

@@ -2,7 +2,7 @@
 
 use std::path::PathBuf;
 
-use toucan::{Config, ForcedInclude, Target};
+use toucan::{Config, ForcedInclude, LanguageMode, Target};
 
 use crate::{BindgenError, clang_config, configuration as error, host_target};
 
@@ -61,10 +61,22 @@ pub(super) fn from_arguments(
     cargo_target: Option<&str>,
 ) -> Result<Config, BindgenError> {
     let mut target = cargo_target.map(str::to_owned);
+    let mut mode = LanguageMode::Gnu11;
+    let mut trigraph_override = None;
     let mut index = 0;
     while index < arguments.len() {
         let argument = &arguments[index];
-        if matches!(argument.as_str(), "--target" | "-target") {
+        if let Some(value) = argument.strip_prefix("-std=") {
+            mode = value
+                .parse()
+                .map_err(|e: toucan::target::LayoutError| error(e.to_string()))?;
+            trigraph_override = None;
+        } else if matches!(
+            argument.as_str(),
+            "-trigraphs" | "-ftrigraphs" | "-fno-trigraphs"
+        ) {
+            trigraph_override = Some(argument != "-fno-trigraphs");
+        } else if matches!(argument.as_str(), "--target" | "-target") {
             index += 1;
             target = Some(
                 arguments
@@ -97,7 +109,10 @@ pub(super) fn from_arguments(
             })?,
         None => host_target().ok_or_else(|| error("supply --target for this unsupported host"))?,
     };
-    let mut config = clang_config(target);
+    let mut config = clang_config(target, mode);
+    if let Some(enabled) = trigraph_override {
+        config.preprocessor.trigraphs = enabled;
+    }
     let mut system_dirs = Vec::new();
     let mut sysroot = None;
     let mut arguments = arguments.iter();
@@ -144,8 +159,11 @@ pub(super) fn from_arguments(
                     "language `{language}` is unsupported; expected c"
                 )));
             }
-        } else if matches!(argument.as_str(), "-xc" | "-std=gnu11") {
-            // The current frontend uses C11 with compiler extensions.
+        } else if matches!(
+            argument.as_str(),
+            "-xc" | "-std=c11" | "-std=gnu11" | "-trigraphs" | "-ftrigraphs" | "-fno-trigraphs"
+        ) {
+            // Language and trigraph options were resolved before applying macros.
         } else {
             return Err(error(format!("unsupported Clang argument `{argument}`")));
         }
@@ -185,6 +203,11 @@ fn apply_short(config: &mut Config, flag: &str, operand: &str) -> Result<(), Bin
             if name.is_empty() || name.contains(['\n', '\r']) {
                 return Err(error("invalid macro name"));
             }
+            let identifier = name.split('(').next().unwrap_or(name);
+            config
+                .preprocessor
+                .defines
+                .retain(|key, _| key.split('(').next() != Some(identifier));
             config
                 .preprocessor
                 .defines
@@ -227,7 +250,7 @@ mod tests {
             vec!["-target"],
             vec!["-I"],
             vec!["-x", "c++"],
-            vec!["-std=c11"],
+            vec!["-std=c99"],
             vec!["--target=wasm32-unknown-unknown"],
         ] {
             let arguments = arguments.into_iter().map(str::to_owned).collect::<Vec<_>>();
@@ -241,5 +264,96 @@ mod tests {
         let config = from_arguments(&args, Some("aarch64-unknown-linux-gnu")).unwrap();
         assert_eq!(config.target(), Target::Aarch64UnknownLinuxGnu);
         assert_eq!(config.preprocessor.include_dirs[0], PathBuf::from(&args[1]));
+    }
+    #[test]
+    fn mode_predefines_and_explicit_macros_preserve_driver_order() {
+        for (args, mode, strict, trigraphs) in [
+            (
+                vec!["-D__STRICT_ANSI__=7", "-std=c11"],
+                LanguageMode::C11,
+                Some("7"),
+                true,
+            ),
+            (
+                vec!["-U__STRICT_ANSI__", "-std=c11"],
+                LanguageMode::C11,
+                None,
+                true,
+            ),
+            (
+                vec!["-std=c11", "-std=gnu11"],
+                LanguageMode::Gnu11,
+                None,
+                false,
+            ),
+            (
+                vec!["-std=gnu11", "-std=c11"],
+                LanguageMode::C11,
+                Some("1"),
+                true,
+            ),
+            (
+                vec!["-trigraphs", "-std=gnu11"],
+                LanguageMode::Gnu11,
+                None,
+                false,
+            ),
+            (
+                vec!["-std=gnu11", "-trigraphs"],
+                LanguageMode::Gnu11,
+                None,
+                true,
+            ),
+            (
+                vec!["-fno-trigraphs", "-std=c11"],
+                LanguageMode::C11,
+                Some("1"),
+                true,
+            ),
+            (
+                vec!["-std=c11", "-fno-trigraphs"],
+                LanguageMode::C11,
+                Some("1"),
+                false,
+            ),
+            (
+                vec!["-std=c11", "-U__STRICT_ANSI__", "-D__STRICT_ANSI__=9"],
+                LanguageMode::C11,
+                Some("9"),
+                true,
+            ),
+        ] {
+            let args = args.into_iter().map(str::to_owned).collect::<Vec<_>>();
+            let config = from_arguments(&args, Some("x86_64-unknown-linux-gnu")).unwrap();
+            assert_eq!(config.language_mode(), mode);
+            assert_eq!(
+                config
+                    .preprocessor
+                    .defines
+                    .get("__STRICT_ANSI__")
+                    .map(String::as_str),
+                strict,
+                "{args:?}"
+            );
+            assert_eq!(config.preprocessor.trigraphs, trigraphs, "{args:?}");
+        }
+        let args = ["-std=c11", "--target=x86_64-pc-windows-msvc"].map(str::to_owned);
+        let config = from_arguments(&args, None).unwrap();
+        assert!(!config.preprocessor.defines.contains_key("__STRICT_ANSI__"));
+        assert!(!config.preprocessor.trigraphs);
+        let args = ["-I", "-std=c11"].map(str::to_owned);
+        assert_eq!(
+            from_arguments(&args, Some("x86_64-unknown-linux-gnu"))
+                .unwrap()
+                .language_mode(),
+            LanguageMode::Gnu11
+        );
+        let args = ["-DF(x)=x", "-UF", "-DF=7"].map(str::to_owned);
+        let config = from_arguments(&args, Some("x86_64-unknown-linux-gnu")).unwrap();
+        assert_eq!(
+            config.preprocessor.defines.get("F").map(String::as_str),
+            Some("7")
+        );
+        assert!(!config.preprocessor.defines.contains_key("F(x)"));
     }
 }

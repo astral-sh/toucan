@@ -90,9 +90,10 @@ its supported arguments and API subset; unsupported options produce errors.
 
 ## Analyze headers
 
-Each command accepts `--target`, `--compiler`, `--sysroot`, `-I`, `-D`, and `-U`.
+Each command accepts `--target`, `--compiler`, `--std`, `--sysroot`, `-I`, `-D`, and `-U`.
 Use `--compiler clang` for Clang on Linux; omitted selection preserves the target
-default. See [compiler profiles](docs/compiler-profiles.md) for supported pairs.
+default. [Language modes](docs/language-modes.md) select C11 or GNU11 (the default).
+See [compiler profiles](docs/compiler-profiles.md) for supported pairs.
 
 ```console
 toucan preprocess api.h --output api.i

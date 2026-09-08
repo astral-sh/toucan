@@ -87,8 +87,12 @@ establish the tested behavior; they are not complete compiler conformance.
 
 Both inspection formats include `translation_unit.compiler`, spelled `gcc` or
 `clang`; binding reports also include `compiler`. Version 3 is the declaration-only
-inspection shape, and version 4 includes checked code. The compiler field was
+inspection shape, and version 5 includes checked code. The compiler field was
 additive in versions 1/2; versions 3/4 also require the new VLA identity field,
 as described in the [inspection migration](inspection.md#migration-from-versions-1-and-2).
 Consumers should check the shape version and tolerate unknown fields. Archived
 results without compiler identity use their recorded target's default.
+
+Profiles also own a [C11 or GNU11 language mode](language-modes.md). GNU11 is the
+default. The mode is independent of ABI and compiler family, and appears in
+inspection and binding reports as `language_mode`.

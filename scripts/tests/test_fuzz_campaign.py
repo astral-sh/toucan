@@ -18,7 +18,13 @@ class FuzzCampaignTests(unittest.TestCase):
         source = b"int f(void) { return 0; }\n"
         for count in (5, 7, 32):
             seeds = list(campaign.seed_profiles(source, count))
-            self.assertEqual([sum(seed) % count for seed in seeds], list(range(count)))
+            self.assertEqual(
+                [sum(seed) % count for seed in seeds], list(range(count)) * 2
+            )
+            self.assertEqual(
+                [bool(sum(seed) & 0x100) for seed in seeds],
+                [False] * count + [True] * count,
+            )
             self.assertTrue(all(seed.startswith(source) for seed in seeds))
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -42,6 +48,30 @@ class FuzzCampaignTests(unittest.TestCase):
                 },
                 {name: entry["sha256"] for name, entry in manifest.items()},
             )
+
+    def test_mode_padding_covers_boundary_checksums_and_preprocessing(self):
+        for source in [b"", b"a" * 255, b"a" * 256, b"a" * 511]:
+            for count in (None, 1, 7, 31, 32):
+                seeds = list(campaign.seed_profiles(source, count))
+                self.assertEqual(len(seeds), 2 * (count or 1))
+                self.assertEqual(
+                    {
+                        (sum(seed) % (count or 1), bool(sum(seed) & 0x100))
+                        for seed in seeds
+                    },
+                    {
+                        (profile, mode)
+                        for profile in range(count or 1)
+                        for mode in (False, True)
+                    },
+                )
+                self.assertTrue(
+                    all(
+                        seed.startswith(source + b"\n/* profile ")
+                        and seed.endswith(b" */\n")
+                        for seed in seeds
+                    )
+                )
 
     def test_failures_cannot_be_reported_as_clean_campaigns(self):
         with tempfile.TemporaryDirectory() as temporary:

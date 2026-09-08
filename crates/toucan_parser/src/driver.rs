@@ -22,6 +22,9 @@ pub struct Config {
     pub cpp_options: Vec<String>,
     /// Language flavor to parse
     pub flavor: Flavor,
+    /// Recognize bare asm/typeof keywords; underscored forms follow the flavor.
+    /// StdC11 always leaves these identifiers available.
+    pub gnu_keywords: bool,
 }
 
 impl Config {
@@ -31,6 +34,7 @@ impl Config {
             cpp_command: "gcc".into(),
             cpp_options: vec!["-E".into()],
             flavor: Flavor::GnuC11,
+            gnu_keywords: true,
         }
     }
 
@@ -40,6 +44,7 @@ impl Config {
             cpp_command: "clang".into(),
             cpp_options: vec!["-E".into()],
             flavor: Flavor::ClangC11,
+            gnu_keywords: true,
         }
     }
 }
@@ -239,6 +244,7 @@ pub fn parse_preprocessed_with_limits(
             Flavor::ClangC11 => Env::with_clang(),
             Flavor::GnuC11WithClangExtensions => Env::with_gnu_and_clang_extensions(),
         };
+        env.set_gnu_keywords(config.gnu_keywords);
         translation_unit_with_limits(&source, &mut env, limits)
     });
     match parsed {

@@ -4,8 +4,10 @@
 //! alignment annotations use bits. The layout rules follow the target's default GCC, Clang,
 //! or MSVC ABI through `repc`; flags such as `-fshort-enums` are not implied.
 
+mod language;
 mod macros;
 mod profile;
+pub use language::LanguageMode;
 pub use profile::{Compiler, CompilerProfile};
 
 use std::fmt;
@@ -524,6 +526,8 @@ pub struct FieldLayout {
 /// A target selection or object layout failure.
 #[derive(Debug, Error)]
 pub enum LayoutError {
+    #[error("unsupported C language mode `{0}`; expected c11 or gnu11")]
+    UnsupportedLanguageModeName(String),
     #[error("unsupported compiler `{0}`; expected gcc or clang")]
     UnsupportedCompilerName(String),
     #[error("compiler `{compiler}` is unsupported for target `{target}`")]

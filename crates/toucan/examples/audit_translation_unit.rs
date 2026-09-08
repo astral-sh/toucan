@@ -6,7 +6,7 @@ use std::process::ExitCode;
 
 use serde::Deserialize;
 use serde_json::{Value, json};
-use toucan::{Config, Preprocessor, Target};
+use toucan::{CompilerProfile, Config, LanguageMode, Preprocessor, Target};
 
 #[derive(Deserialize)]
 #[serde(rename_all = "snake_case")]
@@ -21,6 +21,8 @@ struct Request {
     operation: Operation,
     input: PathBuf,
     target: String,
+    #[serde(default)]
+    language_mode: LanguageMode,
     include_dirs: Vec<PathBuf>,
     definitions: Vec<(String, Option<String>)>,
     retain_code: bool,
@@ -54,7 +56,9 @@ impl Write for BoundedOutput {
 
 fn execute(request: Request) -> Result<Value, Box<dyn std::error::Error>> {
     let target: Target = request.target.parse()?;
-    let mut config = Config::new(target);
+    let mut config = Config::with_profile(
+        CompilerProfile::default_for(target).with_language_mode(request.language_mode),
+    );
     config.analysis.retain_code = request.retain_code;
     config.analysis.limits = toucan::semantic::checked::Limits {
         nodes: request.retention_nodes,
@@ -64,6 +68,11 @@ fn execute(request: Request) -> Result<Value, Box<dyn std::error::Error>> {
     config.preprocessor.max_tokens = request.max_preprocessing_tokens;
     config.preprocessor.include_dirs = request.include_dirs;
     for (name, value) in request.definitions {
+        let base = name.split_once('(').map_or(name.as_str(), |(name, _)| name);
+        config
+            .preprocessor
+            .defines
+            .retain(|key, _| key.split_once('(').map_or(key.as_str(), |(name, _)| name) != base);
         if let Some(value) = value {
             config.preprocessor.defines.insert(name, value);
         } else {
@@ -108,6 +117,7 @@ fn execute(request: Request) -> Result<Value, Box<dyn std::error::Error>> {
                 let code = compilation.checked();
                 Ok(json!({
                     "status": "accepted",
+                    "language_mode": request.language_mode,
                     "declarations": compilation.unit().declarations.len(),
                     "retained": code.is_some(),
                     "dependencies": compilation.preprocessed().dependencies,

@@ -77,7 +77,7 @@ impl Normalized {
 
 /// Apply trigraph replacement before escaped-newline removal, then replace
 /// comments. Compact offset breakpoints retain original physical coordinates.
-pub(crate) fn normalize(source: &str) -> Result<Normalized, String> {
+pub(crate) fn normalize(source: &str, trigraphs: bool) -> Result<Normalized, String> {
     let bytes = source.as_bytes();
     let mut spliced = String::with_capacity(source.len());
     let mut source_offsets = vec![(0, 0)];
@@ -90,7 +90,7 @@ pub(crate) fn normalize(source: &str) -> Result<Normalized, String> {
     );
     let mut index = 0;
     while index < bytes.len() {
-        let trigraph = if bytes[index..].starts_with(b"??") {
+        let trigraph = if trigraphs && bytes[index..].starts_with(b"??") {
             bytes.get(index + 2).and_then(|third| match third {
                 b'=' => Some('#'),
                 b'/' => Some('\\'),

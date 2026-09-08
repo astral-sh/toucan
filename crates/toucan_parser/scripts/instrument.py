@@ -89,7 +89,7 @@ def instrument(source):
         r"\1Failed if __state.budget.failure.is_some() => return Failed,\1\2",
         source,
     )
-    require(guarded == 506, guarded)
+    require(guarded == 504, guarded)
 
     def wrap(body, indent):
         prefix = f"""{indent}if !__state.budget.enter(__pos) {{ return Failed; }}
@@ -117,7 +117,7 @@ def instrument(source):
         re.MULTILINE | re.DOTALL,
     )
     source, count = rules.subn(lambda m: m[1] + wrap(m[2], "    ") + m[3], source)
-    require(count == 232, count)
+    require(count == 233, count)
 
     exports = re.compile(
         r"pub fn (\w+)<'input>\(__input: &'input str, env: &mut Env\) -> ParseResult<([^\n]+)> \{\n.*?\n\}",

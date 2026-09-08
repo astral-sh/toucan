@@ -67,7 +67,7 @@ record the distinction.
 Projection of an integer constant retains integer-constant-expression status.
 Broader GNU early folding remains a follow-up: GCC accepts `(int)__real__ 3.0`
 and `(int)__imag__ (1.0 + 2.0)` as integer constant expressions, while Clang's
-strict C11 mode rejects them. Toucan currently diagnoses these forms in required
+C11 oracle with `-pedantic-errors` rejects them. Toucan currently diagnoses these forms in required
 integer-constant contexts; ordinary arithmetic evaluation supports their values.
 No general early AST simplification is implied.
 

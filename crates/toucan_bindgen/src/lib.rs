@@ -254,9 +254,10 @@ fn host_target() -> Option<Target> {
     })
 }
 
-fn clang_config(target: Target) -> Config {
+fn clang_config(target: Target, mode: toucan::LanguageMode) -> Config {
     Config::with_profile(
         CompilerProfile::new(target, Compiler::Clang)
-            .expect("all supported targets have a Clang profile"),
+            .expect("all supported targets have a Clang profile")
+            .with_language_mode(mode),
     )
 }

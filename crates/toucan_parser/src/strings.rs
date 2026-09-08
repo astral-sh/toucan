@@ -60,6 +60,8 @@ pub const RESERVED_C11: &[&str] = &[
 ];
 
 pub const RESERVED_GNU: &[&str] = &[
+    "asm",
+    "typeof",
     "__FUNCTION__",
     "__PRETTY_FUNCTION__",
     "__alignof",

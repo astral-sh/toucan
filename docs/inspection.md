@@ -137,3 +137,7 @@ preserves the integer width they use; decoding these fields directly into Rust
 `Builtin::Nontemporal` adds load/store identity with ordinary argument edges.
 `Conversion::VectorReinterpret` denotes an equal-size bit reinterpretation,
 separate from numeric vector conversion. See [non-temporal accesses](nontemporal-accesses.md).
+
+Both formats also expose `translation_unit.language_mode` (`c11` or `gnu11`).
+This additive field records the keywords and preprocessing defaults used to
+check the unit. See [language modes](language-modes.md).

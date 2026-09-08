@@ -50,15 +50,15 @@ it. Outside a build script, the supported native host is the default. Every targ
 uses the Clang semantic profile, including on Linux.
 
 Supported arguments are `-I`, `-D`, `-U`, `-isystem`, `-include`, `--sysroot`,
-`-isysroot`, `-x c`, and `-std=gnu11`. Unknown options fail generation;
+`-isysroot`, `-x c`, `-std=c11`, `-std=gnu11`, and trigraph overrides. Unknown options fail generation;
 ABI-changing flags are never silently ignored. System include directories follow
 ordinary include directories. A sysroot adds `usr/include` and the selected Linux
 multiarch directory. Target headers and compiler resource directories must be
 supplied explicitly; no host compiler or SDK discovery occurs.
 
-The initial adapter uses C11 with compiler extensions. Other language-mode flags,
-including `-std=c11`, require an error until their keyword and predefined-macro
-rules are implemented.
+The adapter defaults to GNU11. [C11 and GNU11](../../docs/language-modes.md)
+select keywords and predefined macros; C11 does not enable pedantic diagnostics.
+Other language modes remain explicit errors.
 
 The adapter reads `BINDGEN_EXTRA_CLANG_ARGS` with shell quoting. Target-specific
 forms take precedence, first using the Cargo target spelling, then replacing its

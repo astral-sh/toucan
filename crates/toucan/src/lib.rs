@@ -10,11 +10,13 @@ use std::time::{Duration, Instant};
 
 pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions, RustTarget};
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
-pub use toucan_preprocessor::{ForcedInclude, OriginKind, SourceLocation, SourceMapping};
+pub use toucan_preprocessor::{
+    ForcedInclude, OriginKind, PredefinedMacroMode, SourceLocation, SourceMapping,
+};
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};
 pub use toucan_semantic::{self as semantic, Analysis, AnalysisOptions, TranslationUnit};
 pub use toucan_source as source;
-pub use toucan_target::{self as target, Compiler, CompilerProfile, Target};
+pub use toucan_target::{self as target, Compiler, CompilerProfile, LanguageMode, Target};
 
 #[derive(Debug, Clone)]
 pub struct Config {
@@ -37,6 +39,10 @@ impl Config {
     pub fn profile(&self) -> CompilerProfile {
         self.profile
     }
+    /// C keywords and preprocessing defaults selected with the compiler profile.
+    pub fn language_mode(&self) -> LanguageMode {
+        self.profile.language_mode()
+    }
     /// Uses GCC on Linux and Clang on Darwin and Windows.
     pub fn new(target: Target) -> Self {
         Self::with_profile(CompilerProfile::default_for(target))
@@ -46,6 +52,11 @@ impl Config {
     pub fn with_profile(profile: CompilerProfile) -> Self {
         let target = profile.target();
         let mut preprocessor = PreprocessorConfig {
+            trigraphs: profile.default_trigraphs(),
+            predefined_macro_mode: match profile.compiler() {
+                Compiler::Gnu => PredefinedMacroMode::GnuCommandLine,
+                Compiler::Clang => PredefinedMacroMode::ClangCommandLine,
+            },
             char_unsigned: !target.char_is_signed(),
             defines: profile.predefined_macros(),
             ..PreprocessorConfig::default()
@@ -201,6 +212,7 @@ fn finish(
 pub struct Report {
     pub target: String,
     pub compiler: Compiler,
+    pub language_mode: LanguageMode,
     /// Minimum Rust version for generated declarations, excluding caller-provided lines.
     pub rust_target: String,
     pub dependencies: Vec<PathBuf>,
@@ -426,6 +438,7 @@ impl Compilation {
         let report = Report {
             target: self.unit().target.triple().into(),
             compiler: self.unit().compiler,
+            language_mode: self.unit().language_mode,
             rust_target: options.rust_target.to_string(),
             dependencies: self.preprocessed.dependencies.clone(),
             declarations: bindings.declarations,

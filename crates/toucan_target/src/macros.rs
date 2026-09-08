@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{Compiler, CompilerProfile, Target};
+use crate::{Compiler, CompilerProfile, LanguageMode, Target};
 
 impl Target {
     /// Deterministic C11 macros for the target's default compiler profile.
@@ -22,10 +22,14 @@ impl CompilerProfile {
     pub fn predefined_macros(self) -> BTreeMap<String, String> {
         let target = self.target();
         let compiler = self.compiler();
+        let standard = self.language_mode() == LanguageMode::C11;
         let mut macros = BTreeMap::new();
         let mut define = |name: &str, value: &str| {
             macros.insert(name.to_owned(), value.to_owned());
         };
+        if standard && target != Target::X86_64PcWindowsMsvc {
+            define("__STRICT_ANSI__", "1");
+        }
         for (name, value) in [
             ("__STDC__", "1"),
             ("__STDC_HOSTED__", "1"),
@@ -136,7 +140,9 @@ impl CompilerProfile {
                 "unix",
                 "__ELF__",
             ] {
-                define(name, "1");
+                if !standard || name.starts_with('_') {
+                    define(name, "1");
+                }
             }
             define("__WINT_TYPE__", "unsigned int");
         } else {

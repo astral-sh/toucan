@@ -12,6 +12,8 @@ pub struct TranslationUnit {
     pub target: Target,
     /// Compiler behavior retained independently from the physical target.
     pub compiler: target::Compiler,
+    /// Source language mode retained for all later expression parsing.
+    pub language_mode: target::LanguageMode,
     pub declarations: Vec<Declaration>,
     /// Sparse per-function compilation properties, keyed by declaration index.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]

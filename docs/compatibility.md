@@ -999,3 +999,10 @@ Rust 1.64/current consumers, and unchanged default allocations and bindings.
 The native tests cover callbacks, stack arguments, structs, unions and variadic
 promotion. Cross-target compilation establishes layout/type constraints; native
 macOS and ARM calls remain CI gates.
+
+### Language modes
+
+[C11 and GNU11](language-modes.md) select keywords, standard-mode macros, and
+trigraph defaults independently of the compiler family. GNU11 is the default;
+C11 does not imply pedantic diagnostics. C90 and GNU omitted-middle conditional
+expressions remain tracked gaps.

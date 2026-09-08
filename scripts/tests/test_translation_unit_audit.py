@@ -95,6 +95,19 @@ class TranslationUnitAuditTests(unittest.TestCase):
             with self.assertRaises(RuntimeError):
                 audit.toucan_flags([flag, "header"], Path.cwd())
 
+    def test_language_mode_mapping_does_not_relabel_c90(self):
+        for flags, mode, unmodeled in [
+            (["-std=c11"], "c11", []),
+            (["-std=c11", "-std=gnu11"], "gnu11", []),
+            (["-std=c11", "-std=c90"], "gnu11", ["-std=c90"]),
+            (["-std=c90", "-std=c11"], "c11", ["-std=c90"]),
+        ]:
+            profile = audit.toucan_flags(flags, Path.cwd())
+            self.assertEqual(profile["language_mode"], mode)
+            self.assertEqual(profile["unmodeled_compiler_flags"], unmodeled)
+        profile = audit.toucan_flags([], Path.cwd())
+        self.assertIn("compiler default not inferred", profile["language_mode_source"])
+
     def test_modified_header_cannot_reuse_an_archive_pin(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)

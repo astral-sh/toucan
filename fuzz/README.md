@@ -16,7 +16,13 @@ order is the five `Target::ALL` defaults, followed by Clang on x86-64 Linux and
 Clang on AArch64 Linux (`CompilerProfile::ALL`). Preprocessing has no profile
 selector. Archived campaigns using modulo five retain that selector contract;
 replaying their exact bytes with the new harness can select a different profile.
-Record the harness source and selector count with each campaign. The `checked`
+Record the harness source and selector count with each campaign. The same byte sum's
+`0x100` bit independently selects GNU11 (clear) or C11 (set). The preprocessing
+harness uses that bit to disable or enable trigraph replacement; it has no compiler
+profile. The campaign runner pads each seed with a comment to cover every compiler
+profile in both modes, including both trigraph settings for preprocessing. The
+reported profile count must match the compiled harness's `CompilerProfile::ALL`.
+Older archived sources retain their recorded selector contracts. The `checked`
 target compares analysis with and without retained code. Successful results must have
 identical declarations; invalid inputs must produce the same diagnostic, except
 when the separate retention limits are reached. It also exercises layout queries

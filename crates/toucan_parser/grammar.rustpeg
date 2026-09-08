@@ -1321,7 +1321,7 @@ asm_label0 -> Extension =
     asm_label_keyword _ "(" _ s:string_literal _ ")" { Extension::AsmLabel(s) }
 
 asm_label_keyword =
-    #quiet<K<"asm"> / K<"__asm" "__"?>> / #expected("asm")
+    #quiet<gnu_keyword<"asm"> / K<"__asm" "__"?>> / #expected("asm")
 
 ////
 // GNU assembler statements
@@ -1331,7 +1331,7 @@ asm_statement -> Statement =
     s:node<asm_statement0> { Statement::Asm(s) }
 
 asm_statement0 -> AsmStatement =
-    K<"asm" / "__asm" "__"?> _ q:type_qualifier? _ "(" _
+    asm_label_keyword _ q:type_qualifier? _ "(" _
         a:string_literal _
         o:asm_ext<asm_operand_list, asm_ext<asm_operand_list, asm_ext<cs0<string_literal>, ()>>>? _
     ")" _ ";" {
@@ -1454,7 +1454,7 @@ offsetof_member -> OffsetMember =
 ////
 
 typeof_specifier -> TypeSpecifier =
-    K<"typeof" / "__typeof" "__"?> _ "(" _ e:node<typeof_specifier0> _ ")" { TypeSpecifier::TypeOf(e) }
+    (gnu_keyword<"typeof"> / K<"__typeof" "__"?>) _ "(" _ e:node<typeof_specifier0> _ ")" { TypeSpecifier::TypeOf(e) }
 
 typeof_specifier0 -> TypeOf =
     t:type_name { TypeOf::Type(t) } /
@@ -1507,3 +1507,7 @@ ts18661_float_suffix -> TS18661FloatType =
 clang<E> = &clang_guard e:E { e }
 
 clang_guard = {? if env.extensions_clang { Ok(()) } else { Err("clang extensions disabled") } }
+
+// Bare extension keywords are disabled by ISO modes; underscore spellings remain.
+gnu_keyword<E> = &gnu_keyword_guard e:K<E> { e }
+gnu_keyword_guard = {? if env.gnu_keywords { Ok(()) } else { Err("GNU keywords disabled") } }

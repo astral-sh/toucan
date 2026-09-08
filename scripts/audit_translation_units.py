@@ -194,9 +194,22 @@ def analysis_flags(argv: list[str], cwd: Path, source: Path) -> list[str]:
 def toucan_flags(flags: list[str], cwd: Path) -> dict:
     """Keep build include/define state; record every option outside the shipped profile."""
     includes, definitions, unmodeled = [], [], []
+    language_mode = "gnu11"
+    language_mode_source = "Toucan default; compiler default not inferred"
     index = 0
     while index < len(flags):
         arg = flags[index]
+        if arg.startswith("-std="):
+            mode = arg.removeprefix("-std=")
+            if mode in ("c11", "gnu11"):
+                language_mode = mode
+                language_mode_source = arg
+            else:
+                unmodeled.append(arg)
+                language_mode = "gnu11"
+                language_mode_source = f"Toucan default; {arg} is not modeled"
+            index += 1
+            continue
         if arg in ("-I", "-D", "-U"):
             index += 1
             if index == len(flags):
@@ -231,6 +244,8 @@ def toucan_flags(flags: list[str], cwd: Path) -> dict:
         "include_dirs": includes,
         "definitions": definitions,
         "unmodeled_compiler_flags": unmodeled,
+        "language_mode": language_mode,
+        "language_mode_source": language_mode_source,
     }
 
 
@@ -480,6 +495,7 @@ def audit(case: dict, project: dict, args: argparse.Namespace) -> dict:
         request = {
             "input": str(input_path),
             "target": args.target,
+            "language_mode": mapped["language_mode"],
             "include_dirs": profile["include_dirs"],
             "definitions": profile["definitions"],
             "retain_code": False,

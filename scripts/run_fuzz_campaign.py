@@ -38,20 +38,23 @@ def corpus_manifest(corpus):
 
 
 def seed_profiles(data, profiles):
-    """Keep the C input intact while selecting each byte-sum profile bucket."""
-    if profiles is None:
-        yield data
-        return
+    """Keep source bytes intact while selecting every profile and both mode bits."""
     prefix, suffix = data + b"\n/* profile ", b" */\n"
-    for profile in range(profiles):
-        # Consecutive ASCII bytes cover every bucket, regardless of profile count.
-        padding = next(
-            bytes([byte])
-            for byte in range(33, 127)
-            if byte not in (42, 47)
-            and (sum(prefix) + byte + sum(suffix)) % profiles == profile
-        )
-        yield prefix + padding + suffix
+    total = sum(prefix) + sum(suffix)
+    count = profiles or 1
+    for mode in (0, 1):
+        for profile in range(count):
+            # Overlapping ASCII ranges cover a full 512-value mode period.
+            # At most sixteen padding bytes suffice for every supported count.
+            padding = next(
+                b" " * spaces + bytes([byte])
+                for spaces in range(16)
+                for byte in range(33, 127)
+                if byte not in (42, 47)
+                and (total + 32 * spaces + byte) % count == profile
+                and bool((total + 32 * spaces + byte) & 0x100) == bool(mode)
+            )
+            yield prefix + padding + suffix
 
 
 def archive_initial_corpus(corpus, output):
@@ -131,6 +134,12 @@ def main():
         "target_selector": None
         if args.target == "preprocess"
         else "sum(input bytes) % profiles",
+        "language_mode_selector": None
+        if args.target == "preprocess"
+        else "sum(input bytes) & 0x100: 0=gnu11, 256=c11",
+        "trigraph_selector": "sum(input bytes) & 0x100 != 0"
+        if args.target == "preprocess"
+        else None,
         "started_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "rustc": capture(["rustc", "-Vv"], root),
         "cargo_fuzz": capture(["cargo", "fuzz", "--version"], root),
