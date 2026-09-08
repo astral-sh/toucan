@@ -1033,6 +1033,7 @@ fn charge_type(budget: &mut Budget, ty: &Type, offset: usize, depth: usize) -> R
     match &ty.kind {
         TypeKind::Pointer(inner)
         | TypeKind::Array { element: inner, .. }
+        | TypeKind::Vector { element: inner, .. }
         | TypeKind::VariableArray { element: inner } => {
             budget.charge(0, 1, 0, offset)?;
             charge_type(budget, inner, offset, depth + 1)?;

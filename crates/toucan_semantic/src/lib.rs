@@ -21,6 +21,7 @@ mod parser_extensions;
 mod statement;
 mod transparent_union;
 mod variadic_pack;
+mod vector;
 mod weak;
 
 pub use analyze::{analyze, analyze_with_options, evaluate_arithmetic, evaluate_integer};

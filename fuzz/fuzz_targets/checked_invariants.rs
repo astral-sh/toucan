@@ -723,11 +723,12 @@ fn field_path<'a>(unit: &'a TranslationUnit, mut ty: &'a Type, path: &[usize]) -
 }
 fn array_element<'a>(unit: &'a TranslationUnit, ty: &'a Type) -> &'a Type {
     match &unit.resolve(ty).unwrap().kind {
-        TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => element,
+        TypeKind::Array { element, .. } | TypeKind::VariableArray { element } | TypeKind::Vector { element, .. } => element,
         _ => panic!("array path needs array"),
     }
 }
 fn array_index(unit: &TranslationUnit, ty: &Type, index: u64) {
+    if let TypeKind::Vector { lanes, .. } = unit.resolve(ty).unwrap().kind { assert!(index < lanes); }
     if let TypeKind::Array {
         length: Some(length),
         ..
@@ -741,7 +742,7 @@ fn type_step<'a>(unit: &'a TranslationUnit, ty: &'a Type, step: &TypeStep) -> &'
         (TypeStep::Pointer, TypeKind::Pointer(pointee)) => pointee,
         (
             TypeStep::Element,
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element },
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } | TypeKind::Vector { element, .. },
         ) => element,
         (TypeStep::Return, TypeKind::Function(function)) => &function.return_type,
         (TypeStep::Parameter(index), TypeKind::Function(function)) => {
@@ -755,7 +756,7 @@ fn type_shape(unit: &TranslationUnit, root: &Type) {
     while let Some(ty) = pending.pop() {
         match &ty.kind {
             TypeKind::Pointer(pointee) => pending.push(pointee),
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } | TypeKind::Vector { element, .. } => {
                 pending.push(element)
             }
             TypeKind::Function(function) => {

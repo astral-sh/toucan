@@ -47,6 +47,8 @@ pub enum Conversion {
     },
     DefaultArgument,
     ExplicitCast,
+    /// Convert a scalar to the lane type and repeat it in every vector lane.
+    VectorSplat,
     Conditional,
 }
 
@@ -94,6 +96,7 @@ pub struct Expression {
     pub(crate) category: ValueCategory,
     pub(crate) bitfield: Option<u64>,
     pub(crate) register: bool,
+    pub(crate) vector_element: bool,
     pub(crate) kind: ExprKind,
 }
 
@@ -529,6 +532,7 @@ impl Builder {
             lvalue: expression.category == ValueCategory::ObjectLvalue,
             bitfield: expression.bitfield,
             register: expression.register,
+            vector_element: expression.vector_element,
         }
     }
 
@@ -631,6 +635,7 @@ impl Builder {
             },
             bitfield: info.bitfield,
             register: info.register,
+            vector_element: info.vector_element,
             kind,
         });
         self.expression_builder
@@ -724,6 +729,17 @@ impl Analyzer {
                         target_type: self.retained_type(&promoted, offset)?,
                     });
                     ty = promoted;
+                }
+            }
+            if kind == Conversion::VectorSplat {
+                let TypeKind::Vector { element, .. } = &destination.kind else {
+                    unreachable!()
+                };
+                if ty != **element {
+                    conversions.push(ConversionStep {
+                        kind: Conversion::Arithmetic,
+                        target_type: self.retained_type(element, offset)?,
+                    });
                 }
             }
             if ty != destination {
@@ -1402,6 +1418,28 @@ impl Analyzer {
                 right_destination = Some((self.unqualified(&left.ty)?, Conversion::Assignment))
             }
             Op::LogicalAnd | Op::LogicalOr | Op::Index => {}
+            _ if matches!(left_value.kind, TypeKind::Vector { .. })
+                || matches!(right_value.kind, TypeKind::Vector { .. }) =>
+            {
+                let shift = matches!(
+                    binary.node.operator.node,
+                    Op::ShiftLeft | Op::ShiftRight | Op::AssignShiftLeft | Op::AssignShiftRight
+                );
+                let common = self.vector_operands(
+                    &left_value,
+                    &right_value,
+                    &binary.node.lhs,
+                    &binary.node.rhs,
+                    shift,
+                )?;
+                computation = Some(common.clone());
+                if !matches!(left_value.kind, TypeKind::Vector { .. }) {
+                    left_destination = Some((common.clone(), Conversion::VectorSplat));
+                }
+                if !shift && !matches!(right_value.kind, TypeKind::Vector { .. }) {
+                    right_destination = Some((common, Conversion::VectorSplat));
+                }
+            }
             Op::ShiftLeft | Op::ShiftRight | Op::AssignShiftLeft | Op::AssignShiftRight => {
                 let left = integer_to_type(self.promoted_integer(&left, offset)?);
                 let right = integer_to_type(self.promoted_integer(&right, offset)?);

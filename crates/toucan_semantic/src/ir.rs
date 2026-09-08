@@ -62,6 +62,12 @@ pub enum TypeKind {
     Integer(IntegerKind),
     Float(FloatKind),
     Pointer(Box<Type>),
+    /// GNU fixed-size vector. Elements are unqualified integer or floating types;
+    /// the vector retains its own qualifiers and does not decay to a pointer.
+    Vector {
+        element: Box<Type>,
+        lanes: u64,
+    },
     Array {
         element: Box<Type>,
         length: Option<u64>,
@@ -573,6 +579,38 @@ impl TranslationUnit {
             }
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&cache[&id]),
+                ty.alignment,
+            ));
+        }
+        if let TypeKind::Vector { element, lanes } = &resolved.kind {
+            let element = self.resolve(element)?;
+            if !matches!(element.kind, TypeKind::Integer(_) | TypeKind::Float(_))
+                || !lanes.is_power_of_two()
+            {
+                return Err(Error::new(0, "invalid vector element type or lane count"));
+            }
+            let element = self.layout_type(element, active, cache, depth + 1, false)?;
+            let size = self
+                .target
+                .layout(&element)
+                .map_err(|error| Error::new(0, error.to_string()))?
+                .size_bits
+                .checked_mul(*lanes)
+                .ok_or_else(|| Error::new(0, "vector size overflows"))?;
+            if size == 0 || size > 128 || !size.is_power_of_two() {
+                return Err(Error::new(
+                    0,
+                    "vectors larger than 16 bytes require unsupported target-feature configuration",
+                ));
+            }
+            return Ok(aligned_layout_type(
+                target::Type::opaque_layout(&target::Layout {
+                    size_bits: size,
+                    alignment_bits: size,
+                    field_alignment_bits: size,
+                    required_alignment_bits: 8,
+                    fields: Vec::new(),
+                }),
                 ty.alignment,
             ));
         }

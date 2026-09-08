@@ -44,7 +44,6 @@ fn empty_compound_literals_and_nested_pointer_attributes_are_checked() {
         assert!(analyze(source, TARGET).is_err(), "accepted {source}");
     }
     for attribute in [
-        "vector_size(16)",
         "vectorcall",
         "aligned(16)",
         "packed",

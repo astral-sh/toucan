@@ -289,6 +289,40 @@ passed on 2026-09-08, using GCC 13.3.0 on Linux and Apple Clang 17.0.0 on macOS.
 The evidence identifies the tested checkout, PR head, and executable for each
 configuration. See CI results for changes made after that run.
 
+## Fixed-size GNU vectors
+
+`vector_size` defines a distinct vector type with integer or floating lanes. The
+supported byte counts are 1, 2, 4, 8, and 16, and must be multiples of the scalar
+size. Layout, positional initializers, lane indexing, arithmetic, bitwise
+operations, shifts, comparisons, scalar broadcasts that preserve the operand's
+value, and equal-size vector/integer reinterpret casts are checked. Vector lanes
+do not undergo integer promotion. Retained expressions expose broadcast conversions
+and identify vector-element lvalues.
+
+Linux profiles follow GCC's signed-character and `long` comparison-mask types;
+Darwin and Windows follow Clang's `char` and `long long` masks. GNU Linux also
+accepts addresses of vector lanes and vector increment/decrement. Clang profiles
+reject those operations. Implicit conversions between different vector types,
+enum lanes, non-power-of-two sizes, extended-vector swizzles, and architecture
+intrinsics are outside this slice. Static vectors accept brace initializers and
+vector compound literals; other static vector-expression evaluation is explicitly
+unsupported.
+
+Vectors above 16 bytes need compiler and CPU-feature configuration: GCC's default
+x86-64 pointer alignment and field alignment differ, and `-mavx` or `-mavx512f`
+changes the former. Toucan diagnoses these widths instead of choosing an ABI.
+The [probe record](../corpus/evidence/vector-types-2026-09-08.json) preserves the
+wider-vector measurements for that work.
+
+Rust bindings use aligned byte storage for vector objects and pointers. They reject
+vectors or containing records passed by value, including callbacks: stable Rust
+cannot express their vector calling convention. Packed records containing vectors
+and aliases with different pointer/field alignment also receive diagnostics.
+For example, Windows `vector_size(16), aligned(1)` keeps 16-byte field alignment
+with 1-byte pointer alignment. Native GCC/Clang tests exercise memory access and
+callbacks in both directions with current Rust and Rust 1.64; this proves pointer
+FFI behavior, not execution of Toucan's retained expression graph.
+
 ## Current gaps
 
 - Bodies and initializers are type-checked, including the supported GNU statement

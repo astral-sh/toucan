@@ -213,7 +213,7 @@ fn rejects_conflicts_and_unknown_abi_features() {
         "struct S; struct S { struct S value; };",
         "struct S { int named:0; };",
         "struct S { int too_wide:33; };",
-        "typedef int v4 __attribute__((vector_size(16)));",
+        "typedef int v8 __attribute__((vector_size(32)));",
         "void f(void) __attribute__((vectorcall));",
         "_Atomic(int) atomic_value;",
         "_Static_assert(0, \"failure\");",

@@ -291,6 +291,14 @@ impl Analyzer {
                 }
                 self.check_assignment(ty, expression)?;
                 if static_storage {
+                    if matches!(resolved.kind, TypeKind::Vector { .. })
+                        && !matches!(expression.node, ast::Expression::CompoundLiteral(_))
+                    {
+                        return Err(Error::new(
+                            offset,
+                            "static vector expression evaluation is unsupported; use a brace initializer or vector compound literal",
+                        ));
+                    }
                     let kind = self.static_initializer(expression)?;
                     if kind == ConstantKind::Arithmetic
                         && matches!(
@@ -312,8 +320,10 @@ impl Analyzer {
             }
             InitializerView::List(items) => {
                 if let Some(id) = retained {
-                    let aggregate =
-                        matches!(resolved.kind, TypeKind::Array { .. } | TypeKind::Record(_));
+                    let aggregate = matches!(
+                        resolved.kind,
+                        TypeKind::Array { .. } | TypeKind::Vector { .. } | TypeKind::Record(_)
+                    );
                     let union_member = match resolved.kind {
                         TypeKind::Record(record)
                             if self.unit.records[record].kind == RecordKind::Union =>
@@ -354,7 +364,10 @@ impl Analyzer {
                     }
                     return Ok(completed);
                 }
-                if !matches!(resolved.kind, TypeKind::Array { .. } | TypeKind::Record(_)) {
+                if !matches!(
+                    resolved.kind,
+                    TypeKind::Array { .. } | TypeKind::Vector { .. } | TypeKind::Record(_)
+                ) {
                     let [item] = items else {
                         return Err(Error::new(offset, "scalar initializer requires one value"));
                     };
@@ -375,6 +388,20 @@ impl Analyzer {
                 let mut cursor = self.first_subobject(ty)?.map(|index| vec![index]);
                 let mut bound = 0;
                 for item in items {
+                    if matches!(resolved.kind, TypeKind::Vector { .. }) {
+                        if !item.node.designation.is_empty() {
+                            return Err(Error::new(
+                                item.span.start,
+                                "vector initializers cannot have designators",
+                            ));
+                        }
+                        if matches!(item.node.initializer.node, ast::Initializer::List(_)) {
+                            return Err(Error::new(
+                                item.span.start,
+                                "nested braces in vector lane initializers are unsupported",
+                            ));
+                        }
+                    }
                     let mut retained_path = retained.map(|_| RetainedPath::default());
                     let mut path = if item.node.designation.is_empty() {
                         cursor.take().ok_or_else(|| {
@@ -437,7 +464,7 @@ impl Analyzer {
                         }
                         let aggregate = matches!(
                             self.unit.resolve(&target)?.kind,
-                            TypeKind::Array { .. } | TypeKind::Record(_)
+                            TypeKind::Array { .. } | TypeKind::Vector { .. } | TypeKind::Record(_)
                         );
                         let whole = match &item.node.initializer.node {
                             ast::Initializer::List(_) => true,
@@ -624,7 +651,10 @@ impl Analyzer {
         {
             return Ok(true);
         }
-        if matches!(self.unit.resolve(ty)?.kind, TypeKind::Record(_)) {
+        if matches!(
+            self.unit.resolve(ty)?.kind,
+            TypeKind::Record(_) | TypeKind::Vector { .. }
+        ) {
             let source = self.expression_type(expression)?;
             let source = self.value_type(&source)?;
             let mut destination = self.unit.resolve(ty)?.clone();
@@ -639,7 +669,7 @@ impl Analyzer {
             TypeKind::Array {
                 length: Some(0), ..
             } => None,
-            TypeKind::Array { .. } => Some(0),
+            TypeKind::Array { .. } | TypeKind::Vector { .. } => Some(0),
             TypeKind::Record(id) => self
                 .unit
                 .records
@@ -669,6 +699,7 @@ impl Analyzer {
                 {
                     (**element).clone()
                 }
+                TypeKind::Vector { element, lanes } if *index < *lanes => (**element).clone(),
                 TypeKind::Record(id) => self
                     .unit
                     .records
@@ -702,6 +733,9 @@ impl Analyzer {
         while let Some(index) = next.pop() {
             let parent = self.subobject(root, &next, offset)?;
             let sibling = match &self.unit.resolve(&parent)?.kind {
+                TypeKind::Vector { lanes, .. } => {
+                    index.checked_add(1).filter(|index| *index < *lanes)
+                }
                 TypeKind::Array { length, .. } => index
                     .checked_add(1)
                     .filter(|index| length.is_none_or(|length| *index < length)),
@@ -1103,6 +1137,12 @@ impl Analyzer {
             ast::Expression::BinaryOperator(binary)
                 if binary.node.operator.node == ast::BinaryOperator::Index =>
             {
+                let base = self.expression_type(&binary.node.lhs)?;
+                if matches!(self.unit.resolve(&base)?.kind, TypeKind::Vector { .. }) {
+                    self.static_lvalue(&binary.node.lhs)?;
+                    self.eval(&binary.node.rhs)?;
+                    return Ok(());
+                }
                 let left = self.static_initializer(&binary.node.lhs)?;
                 let right = self.static_initializer(&binary.node.rhs)?;
                 if left == ConstantKind::Address && right == ConstantKind::Arithmetic {

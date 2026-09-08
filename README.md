@@ -296,3 +296,11 @@ fresh budget. Comments and literals do not consume it.
 This conservative limit also rejects very large flat control-flow bodies with a
 diagnostic. It prevents deeply chained labels and unbraced statements from
 overflowing the parser stack before semantic nesting checks can run.
+
+### GNU vector types
+
+Fixed-size `vector_size` types through 16 bytes retain their lane types and target
+layout. Toucan checks lane operations and emits Rust storage and pointer bindings;
+by-value vector calls and wider vectors need additional ABI support. See the
+[vector compatibility notes](docs/compatibility.md#fixed-size-gnu-vectors) for the
+compiler differences and native C/Rust validation.

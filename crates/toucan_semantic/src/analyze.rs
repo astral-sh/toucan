@@ -435,6 +435,7 @@ pub(crate) struct Attributes {
     alignment: Option<u64>,
     pub(crate) link_name: Option<String>,
     mode: Option<String>,
+    vector_size: Option<u64>,
     calling_convention: Option<CallingConvention>,
     alias_base: bool,
     pub(crate) typedef_base: bool,
@@ -1541,6 +1542,12 @@ impl Analyzer {
         }
         record_attributes.require_function_diagnostics(false)?;
         record_attributes.require_no_weak()?;
+        if record_attributes.vector_size.is_some() {
+            return Err(Error::new(
+                types.first().map_or(0, |ty| ty.span.start),
+                "vector_size attached to a record or enum tag is unsupported",
+            ));
+        }
         let mut ty = self.base_type(&types)?;
         if let Some(checked) = &mut self.checked {
             for specifier in &types {
@@ -1583,6 +1590,9 @@ impl Analyzer {
         ty.qualifiers.is_restrict |= qualifiers.is_restrict;
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, types.first().map_or(0, |ty| ty.span.start))?;
+        }
+        if let Some(bytes) = attributes.vector_size {
+            ty = self.vector_type(ty, bytes, types.first().map_or(0, |ty| ty.span.start))?;
         }
         let offset = specifiers.first().map_or(0, |item| item.span.start);
         self.check_restrict(&ty, offset)?;
@@ -1951,6 +1961,10 @@ impl Analyzer {
                                     &attributes,
                                     qualifier.span.start,
                                 )?;
+                                if let Some(bytes) = attributes.vector_size {
+                                    pointer =
+                                        self.vector_type(pointer, bytes, qualifier.span.start)?;
+                                }
                                 if attributes.packed
                                     || attributes.alignment.is_some()
                                     || attributes.mode.is_some()
@@ -2194,6 +2208,10 @@ impl Analyzer {
                         extra.require_function_diagnostics(false)?;
                         extra.require_no_weak()?;
                         extra.require_no_transparent_union()?;
+                        if let Some(bytes) = extra.vector_size {
+                            parameter_type =
+                                self.vector_type(parameter_type, bytes, parameter.span.start)?;
+                        }
                         parameter_type = self.apply_calling_convention(
                             parameter_type,
                             &extra,
@@ -2382,6 +2400,9 @@ impl Analyzer {
         self.attributes(&declaration.node.extensions, &mut attributes)?;
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, declaration.span.start)?;
+        }
+        if let Some(bytes) = attributes.vector_size {
+            ty = self.vector_type(ty, bytes, declaration.span.start)?;
         }
         let calling_convention = attributes.calling_convention;
         let (name, ty, mut attributes) = match &declaration.node.kind.node {
@@ -3112,6 +3133,22 @@ impl Analyzer {
                                 ));
                             };
                             result.mode = Some(identifier.node.name.trim_matches('_').to_owned());
+                        }
+                        "vector_size" => {
+                            let [value] = attribute.arguments.as_slice() else {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "vector_size requires one byte count",
+                                ));
+                            };
+                            let bytes = self.eval(value)?.as_u64()?;
+                            if result.vector_size.is_some_and(|old| old != bytes) {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "conflicting vector_size attributes",
+                                ));
+                            }
+                            result.vector_size = Some(bytes);
                         }
                         "packed" => result.packed = true,
                         "aligned" => {

@@ -168,6 +168,11 @@ impl ExprUse {
 }
 
 impl Expression {
+    /// Whether this expression designates a vector lane, whose address is unavailable in Clang profiles.
+    pub fn is_vector_element(&self) -> bool {
+        self.vector_element
+    }
+
     /// The written expression occurrence.
     pub fn occurrence(&self) -> OccurrenceId {
         self.occurrence

@@ -389,7 +389,7 @@ impl Analyzer {
                     record,
                     field: index as usize,
                 },
-                TypeKind::Array { .. } => Subobject::Index {
+                TypeKind::Array { .. } | TypeKind::Vector { .. } => Subobject::Index {
                     index,
                     expression: None,
                 },

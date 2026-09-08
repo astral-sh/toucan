@@ -14,6 +14,7 @@ pub(crate) struct ExpressionInfo {
     pub(crate) lvalue: bool,
     pub(crate) bitfield: Option<u64>,
     pub(crate) register: bool,
+    pub(crate) vector_element: bool,
 }
 
 impl ExpressionInfo {
@@ -23,6 +24,7 @@ impl ExpressionInfo {
             lvalue: false,
             bitfield: None,
             register: false,
+            vector_element: false,
         }
     }
 
@@ -32,6 +34,7 @@ impl ExpressionInfo {
             lvalue: true,
             bitfield: None,
             register: false,
+            vector_element: false,
         }
     }
 }
@@ -158,7 +161,12 @@ impl Analyzer {
                 let source = self.value_expression_type(&cast.node.expression)?;
                 let destination = self.type_name(&cast.node.type_name.node)?;
                 let destination = self.unit.resolve(&destination)?.clone();
-                if matches!(destination.kind, TypeKind::Record(_))
+                if !matches!(destination.kind, TypeKind::Void)
+                    && (matches!(source.kind, TypeKind::Vector { .. })
+                        || matches!(destination.kind, TypeKind::Vector { .. }))
+                {
+                    self.check_vector_cast(&source, &destination, offset)?;
+                } else if matches!(destination.kind, TypeKind::Record(_))
                     && self.compatible(&source, &self.unqualified(&destination)?)?
                 {
                     // GNU permits a value cast to the same struct or union type.
@@ -198,6 +206,12 @@ impl Analyzer {
                 let value = self.converted_type(&operand, offset)?;
                 match unary.node.operator.node {
                     ast::UnaryOperator::Address => {
+                        if operand.vector_element && !self.gnu_vector_profile() {
+                            return Err(Error::new(
+                                offset,
+                                "taking the address of a vector element is unsupported by this target's compiler profile",
+                            ));
+                        }
                         if operand.register {
                             return Err(Error::new(
                                 offset,
@@ -240,11 +254,26 @@ impl Analyzer {
                             lvalue: !function,
                             bitfield: None,
                             register: false,
+                            vector_element: false,
                         });
                     }
                     ast::UnaryOperator::Negate => {
                         self.require_scalar(&value, offset)?;
                         integer_to_type(IntegerValue::int(0))
+                    }
+                    ast::UnaryOperator::Complement
+                        if matches!(value.kind, TypeKind::Vector { .. }) =>
+                    {
+                        let TypeKind::Vector { element, .. } = &value.kind else {
+                            unreachable!()
+                        };
+                        self.integer_type(element, offset)?;
+                        value
+                    }
+                    ast::UnaryOperator::Plus | ast::UnaryOperator::Minus
+                        if matches!(value.kind, TypeKind::Vector { .. }) =>
+                    {
+                        value
                     }
                     ast::UnaryOperator::Complement => {
                         let result = integer_to_type(self.promoted_integer(&operand, offset)?);
@@ -266,7 +295,16 @@ impl Analyzer {
                     | ast::UnaryOperator::PostIncrement
                     | ast::UnaryOperator::PostDecrement => {
                         self.require_modifiable(&operand, offset)?;
-                        self.require_scalar(&value, offset)?;
+                        if matches!(value.kind, TypeKind::Vector { .. }) {
+                            if !self.gnu_vector_profile() {
+                                return Err(Error::new(
+                                    offset,
+                                    "vector increment and decrement are unsupported by this target's compiler profile",
+                                ));
+                            }
+                        } else {
+                            self.require_scalar(&value, offset)?;
+                        }
                         if let TypeKind::Pointer(pointee) = &value.kind {
                             self.require_complete_object(pointee, offset)?;
                         }
@@ -294,6 +332,7 @@ impl Analyzer {
                 } else if matches!(
                     (&left_value.kind, &right_value.kind),
                     (TypeKind::Record(_), TypeKind::Record(_))
+                        | (TypeKind::Vector { .. }, TypeKind::Vector { .. })
                 ) && self.compatible(&left_value, &right_value)?
                 {
                     self.require_complete_object(&left_value, offset)?;
@@ -339,6 +378,7 @@ impl Analyzer {
                     ty: field,
                     lvalue,
                     bitfield,
+                    vector_element: false,
                     register: member.node.operator.node == ast::MemberOperator::Direct
                         && base.register,
                 });
@@ -552,6 +592,71 @@ impl Analyzer {
                 self.integer_type(&right_value, offset)?;
             }
         }
+        if operator == Op::Index
+            && let TypeKind::Vector { element, .. } = &left_value.kind
+        {
+            self.integer_type(&right_value, offset)?;
+            let mut ty = (**element).clone();
+            ty.qualifiers = self.unit.qualifiers(&left.ty)?;
+            return Ok(ExpressionInfo {
+                ty,
+                lvalue: left.lvalue,
+                bitfield: None,
+                register: left.register,
+                vector_element: true,
+            });
+        }
+        if !matches!(operator, Op::Index | Op::LogicalAnd | Op::LogicalOr)
+            && (matches!(left_value.kind, TypeKind::Vector { .. })
+                || matches!(right_value.kind, TypeKind::Vector { .. }))
+        {
+            let shift = matches!(operator, Op::ShiftLeft | Op::ShiftRight);
+            let vector = self.vector_operands(
+                &left_value,
+                &right_value,
+                &binary.node.lhs,
+                &binary.node.rhs,
+                shift,
+            )?;
+            if matches!(
+                operator,
+                Op::Modulo
+                    | Op::BitwiseAnd
+                    | Op::BitwiseOr
+                    | Op::BitwiseXor
+                    | Op::ShiftLeft
+                    | Op::ShiftRight
+            ) {
+                let TypeKind::Vector { element, .. } = &vector.kind else {
+                    unreachable!()
+                };
+                self.integer_type(element, offset)?;
+            }
+            let result = if matches!(
+                operator,
+                Op::Equals
+                    | Op::NotEquals
+                    | Op::Less
+                    | Op::LessOrEqual
+                    | Op::Greater
+                    | Op::GreaterOrEqual
+            ) {
+                self.vector_mask(&vector, offset)?
+            } else {
+                vector
+            };
+            if assignment && !self.compatible(&left_value, &result)? {
+                return Err(Error::new(
+                    offset,
+                    "compound vector assignment requires a compatible vector destination",
+                ));
+            }
+            return Ok(ExpressionInfo::value(if assignment {
+                left_value
+            } else {
+                result
+            }));
+        }
         let ty = match operator {
             Op::Index => {
                 for (pointer, index) in [(&left_value, &right_value), (&right_value, &left_value)] {
@@ -715,8 +820,10 @@ impl Analyzer {
         {
             return Ok(());
         }
-        if matches!(destination.kind, TypeKind::Record(_))
-            && self.compatible(&destination, source)?
+        if matches!(
+            destination.kind,
+            TypeKind::Record(_) | TypeKind::Vector { .. }
+        ) && self.compatible(&destination, source)?
         {
             self.require_complete_object(&destination, offset)?;
             return Ok(());
@@ -824,9 +931,13 @@ impl Analyzer {
     }
 
     pub(crate) fn require_scalar(&self, ty: &Type, offset: usize) -> Result<(), Error> {
-        if matches!(
+        if !matches!(
             self.value_type(ty)?.kind,
-            TypeKind::Void | TypeKind::Record(_)
+            TypeKind::Bool
+                | TypeKind::Integer(_)
+                | TypeKind::Float(_)
+                | TypeKind::Enum(_)
+                | TypeKind::Pointer(_)
         ) {
             return Err(Error::new(offset, "operator requires a scalar operand"));
         }

@@ -300,6 +300,7 @@ pub fn generate_with_macros(
         records: BTreeSet::new(),
         enums: BTreeSet::new(),
         aliases: BTreeSet::new(),
+        vectors: BTreeSet::new(),
     };
     let mut selected = Vec::new();
     let mut skipped = Vec::new();
@@ -383,6 +384,10 @@ pub fn generate_with_macros(
         _ => "",
     };
     writeln!(source, "#[cfg(not(all(target_arch = {arch:?}, target_os = {os:?}{environment})))]\ncompile_error!(\"these C bindings were generated for a different target\");\n").unwrap();
+    for &(bytes, alignment) in &emitter.vectors {
+        let name = emitter.vector_name(bytes, alignment)?;
+        writeln!(source, "#[repr(C, align({alignment}))]\n#[derive(Clone, Copy)]\npub struct {name} {{ pub bytes: [::core::primitive::u8; {bytes}] }}\n").unwrap();
+    }
     for &id in &emitter.records {
         emitter.record(id, &mut source)?;
     }
@@ -758,6 +763,7 @@ struct Emitter<'a> {
     records: BTreeSet<usize>,
     enums: BTreeSet<usize>,
     aliases: BTreeSet<String>,
+    vectors: BTreeSet<(u64, u64)>,
 }
 
 struct BitfieldSegment {
@@ -777,7 +783,18 @@ impl Emitter<'_> {
                 "type nesting exceeds the binding limit of 256".into(),
             ));
         }
-        if ty.alignment.is_some() {
+        let vector = matches!(self.unit.resolve(ty)?.kind, TypeKind::Vector { .. });
+        if vector {
+            let layout = self.unit.layout(ty)?;
+            let (bytes, alignment) = (layout.size_bytes(), layout.alignment_bytes());
+            if !bytes.is_multiple_of(alignment)
+                || layout.field_alignment_bits != layout.alignment_bits
+            {
+                return Err(Error("vector alignment cannot be represented in Rust without changing object size or field alignment".into()));
+            }
+            self.vectors.insert((bytes, alignment));
+        }
+        if ty.alignment.is_some() && !vector {
             let mut underlying = ty.clone();
             underlying.alignment = None;
             let actual = self.unit.layout(ty)?;
@@ -1017,6 +1034,13 @@ impl Emitter<'_> {
         }
     }
 
+    fn vector_name(&self, bytes: u64, alignment: u64) -> Result<String, Error> {
+        self.synthetic_name(&format!(
+            "{}_align_{alignment}",
+            self.helper_name("vector", bytes as usize)
+        ))
+    }
+
     fn synthetic_name(&self, stem: &str) -> Result<String, Error> {
         let mut candidate = stem.to_owned();
         while self.names.original.contains(&candidate) {
@@ -1109,7 +1133,18 @@ impl Emitter<'_> {
 
     fn ty_at(&self, ty: &Type, depth: usize) -> Result<String, Error> {
         check_depth(depth)?;
+        // An aligned vector alias needs its own storage helper; Rust aliases
+        // cannot themselves change alignment.
+        if ty.alignment.is_some() && matches!(self.unit.resolve(ty)?.kind, TypeKind::Vector { .. })
+        {
+            let layout = self.unit.layout(ty)?;
+            return self.vector_name(layout.size_bytes(), layout.alignment_bytes());
+        }
         Ok(match &ty.kind {
+            TypeKind::Vector { .. } => {
+                let layout = self.unit.layout(ty)?;
+                self.vector_name(layout.size_bytes(), layout.alignment_bytes())?
+            }
             TypeKind::Void => "::core::ffi::c_void".into(),
             TypeKind::Bool => "::core::primitive::bool".into(),
             TypeKind::Integer(kind @ (IntegerKind::Int128 | IntegerKind::UnsignedInt128)) => {
@@ -1297,6 +1332,9 @@ impl Emitter<'_> {
                 active.remove(id);
             }
             TypeKind::Array { element, .. } => self.check_value(element, active, depth + 1)?,
+            TypeKind::Vector { .. } => {
+                return Err(Error("vectors and records containing vectors cannot cross an FFI call by value; stable Rust cannot express their target call ABI".into()));
+            }
             TypeKind::Float(FloatKind::LongDouble) => {
                 return Err(Error("long double by value is unsupported".into()));
             }
@@ -1313,6 +1351,9 @@ impl Emitter<'_> {
     ) -> Result<(), Error> {
         check_depth(depth)?;
         match &self.unit.resolve(ty)?.kind {
+            TypeKind::Vector { .. } => {
+                return Err(Error("packed records containing vectors require a Rust representation without nested repr(align), which is unsupported".into()));
+            }
             TypeKind::Record(id) => {
                 if !visited.insert(*id) {
                     return Ok(());
