@@ -112,6 +112,12 @@ impl Analyzer {
                 {
                     return Ok(self.eval_atomic_lock_free(call).is_ok());
                 }
+                if name
+                    .and_then(crate::overflow::OverflowIntrinsic::from_name)
+                    .is_some_and(crate::overflow::OverflowIntrinsic::is_predicate)
+                {
+                    return Ok(self.eval_overflow_predicate(call).is_ok());
+                }
                 if name == Some("__builtin_constant_p") {
                     return Ok(true);
                 }

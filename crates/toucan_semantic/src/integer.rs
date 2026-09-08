@@ -114,6 +114,14 @@ impl Analyzer {
             {
                 self.eval(expression).is_ok()
             }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(crate::overflow::OverflowIntrinsic::from_name)
+                    .is_some_and(crate::overflow::OverflowIntrinsic::is_predicate) =>
+            {
+                self.eval_overflow_predicate(call).is_ok()
+            }
             ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
                 self.eval_expect(call).is_ok()
             }
@@ -197,6 +205,14 @@ impl Analyzer {
                     .is_some_and(crate::atomic::AtomicOperation::is_lock_free_query) =>
             {
                 self.eval_atomic_lock_free(call)
+            }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(crate::overflow::OverflowIntrinsic::from_name)
+                    .is_some_and(crate::overflow::OverflowIntrinsic::is_predicate) =>
+            {
+                self.eval_overflow_predicate(call)
             }
             ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
                 self.eval_expect(call)

@@ -24,6 +24,7 @@ pub use crate::atomic::AtomicOperation;
 pub use crate::object_extent::{
     ObjectSizeFoldStage, ObjectSizeProof, ObjectSizeResult, ObjectSizeUnknown,
 };
+pub use crate::overflow::{OverflowForm, OverflowIntrinsic, OverflowOperation};
 pub use crate::sync::SyncOperation;
 pub use crate::x86::{
     ConditionalImmediateConstraint, ImmediateConstraint, ImmediateStage, X86Feature, X86Intrinsic,

@@ -694,3 +694,30 @@ optional lock-free target features. Completed atomic query checks have a
 records the accepted/rejected compiler matrix, native operation checks and
 remaining source-analysis limitations. These tests establish operand semantics;
 they do not prove a code generator's concurrent-memory implementation.
+
+### Integer overflow intrinsics
+
+The frontend checks generic and typed `__builtin_add_overflow`,
+`__builtin_sub_overflow`, and `__builtin_mul_overflow` families. The public
+`checked::OverflowIntrinsic` distinguishes their mathematical operation and
+source prototype. Generic arguments retain their original integer types;
+typed aliases retain conversions to target `int`, `long`, or `long long`.
+Result-pointer writes remain effectful. GCC pointer/qualifier extensions for
+typed aliases are represented as intrinsic argument conversions. Clang generic
+Boolean results use one-bit arithmetic precision despite eight-bit C storage.
+
+GNU `_p` predicates retain a discarded-value use for their third argument.
+Bitfield width and signedness determine representability; plain values are
+ignored while volatile reads, increments, VLA bounds, and selected branches
+retain their effects. Constant folding uses exact signed arithmetic through
+128-bit operands without allocating big integers. It requires constant first
+operands and provable absence of third-operand effects; optimizer-dependent
+folds and unresolved effects remain unproven. Predicate results preserve C
+`_Bool` width and rank. Clang profiles diagnose these GNU-only predicate forms.
+Completed predicate checks are capped at 65,536 entries; inputs without predicates
+allocate no predicate table.
+
+[Overflow evidence](../corpus/evidence/overflow-builtins-2026-09-08.json) records
+compiler constraints, native result stores and predicate effects, constant
+boundary checks, and complete SQLite/libgit2 source analysis. This is source
+semantics and retained-operation evidence; no machine-code backend is implied.

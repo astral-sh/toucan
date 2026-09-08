@@ -142,6 +142,9 @@ impl Analyzer {
         if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
             return self.x86_call_type(intrinsic, call).map(Some);
         }
+        if let Some(intrinsic) = crate::overflow::OverflowIntrinsic::from_name(name) {
+            return self.overflow_call_type(intrinsic, call).map(Some);
+        }
         if let Some(operation) = crate::atomic::AtomicOperation::from_name(name) {
             return self.atomic_call_type(operation, call).map(Some);
         }

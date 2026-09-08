@@ -67,6 +67,10 @@ pub enum UseContext {
     ReadModifyWrite,
     Unevaluated,
     UnevaluatedValue,
+    /// GNU overflow predicates discard this operand's value, while volatile
+    /// reads and other effects still follow its expression plan. No integer
+    /// promotion is applied; the original expression retains bitfield precision.
+    DiscardedValue,
     /// Conditional scalar evaluation governed by the enclosing builtin's
     /// [`super::QueryEvaluation`]. Ordinary value conversions are preserved.
     CompilerQuery,
@@ -174,6 +178,7 @@ pub enum Builtin {
     X86(crate::x86::X86Intrinsic),
     Sync(crate::sync::SyncOperation),
     Atomic(crate::atomic::AtomicOperation),
+    Overflow(crate::overflow::OverflowIntrinsic),
     VaStart,
     VaEnd,
     VaCopy,
@@ -297,6 +302,9 @@ impl Builtin {
             name => {
                 if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
                     Self::X86(intrinsic)
+                } else if let Some(intrinsic) = crate::overflow::OverflowIntrinsic::from_name(name)
+                {
+                    Self::Overflow(intrinsic)
                 } else if let Some(operation) = crate::atomic::AtomicOperation::from_name(name) {
                     Self::Atomic(operation)
                 } else {
@@ -711,6 +719,7 @@ impl Analyzer {
             context,
             UseContext::Value
                 | UseContext::UnevaluatedValue
+                | UseContext::DiscardedValue
                 | UseContext::ReadModifyWrite
                 | UseContext::CompilerQuery
         ) {
@@ -1233,6 +1242,11 @@ impl Analyzer {
             } else {
                 None
             };
+            let overflow = if let Builtin::Overflow(intrinsic) = builtin {
+                Some((intrinsic, self.overflow_signature(intrinsic, call)?))
+            } else {
+                None
+            };
             let atomic = if let Builtin::Atomic(operation) = builtin {
                 Some(self.atomic_signature(operation, call)?)
             } else {
@@ -1280,6 +1294,17 @@ impl Analyzer {
                         Conversion::Assignment
                     };
                     (UseContext::Value, Some((destination, conversion)))
+                } else if let Some((intrinsic, signature)) = &overflow {
+                    (
+                        if intrinsic.is_predicate() && index == 2 {
+                            UseContext::DiscardedValue
+                        } else {
+                            UseContext::Value
+                        },
+                        signature.parameters[index]
+                            .as_ref()
+                            .map(|ty| (ty.clone(), signature.conversions[index])),
+                    )
                 } else if let Some(signature) = &atomic {
                     (
                         signature.context,

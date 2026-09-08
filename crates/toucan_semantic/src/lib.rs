@@ -19,6 +19,7 @@ mod ir;
 mod literals;
 mod object_extent;
 mod object_size;
+mod overflow;
 mod parser_extensions;
 mod returns_twice;
 mod statement;

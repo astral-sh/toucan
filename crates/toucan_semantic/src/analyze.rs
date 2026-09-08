@@ -584,6 +584,7 @@ fn outermost_derived(
 
 pub(crate) struct Analyzer {
     // Completed query checks prevent nested constant folding from replaying operand typing.
+    pub(crate) checked_overflow_predicates: HashMap<(usize, usize), (u8, bool)>,
     pub(crate) checked_atomic_queries: HashSet<(usize, usize)>,
     pub(crate) allow_late_object_size_folds: bool,
     pub(crate) transparent_variant_bytes: usize,
@@ -686,6 +687,7 @@ impl Analyzer {
             has_variadic_packs: false,
             generic_selections: HashMap::new(),
             checked_atomic_queries: HashSet::new(),
+            checked_overflow_predicates: HashMap::new(),
             type_names: HashMap::new(),
         }
     }
