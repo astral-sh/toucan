@@ -175,7 +175,7 @@ fn main() { unsafe {
             if let Ok(toolchain) = std::env::var("TOUCAN_TEST_RUST_TOOLCHAIN") {
                 rustc.arg(format!("+{toolchain}"));
             }
-            run(rustc
+            rustc
                 .args([
                     "--edition=2021",
                     "-O",
@@ -185,7 +185,22 @@ fn main() { unsafe {
                     "-o",
                     "probe",
                 ])
-                .current_dir(directory.path()));
+                .current_dir(directory.path());
+            if cfg!(target_os = "macos") && name == "gcc" {
+                // Darwin GCC lowers C TLS through its emulation runtime. Rust's
+                // linker driver does not add the library that GCC normally links.
+                let runtime = run(Command::new(&compiler).arg("-print-file-name=libemutls_w.a"));
+                let runtime = String::from_utf8(runtime.stdout).unwrap();
+                let runtime = std::path::Path::new(runtime.trim());
+                assert!(
+                    runtime.is_file(),
+                    "GCC TLS runtime was not found: {runtime:?}"
+                );
+                rustc
+                    .arg("-C")
+                    .arg(format!("link-arg={}", runtime.display()));
+            }
+            run(&mut rustc);
             run(&mut Command::new(directory.path().join("probe")));
         }
     }

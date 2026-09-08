@@ -752,8 +752,11 @@ bindings for C accessor functions instead.
 The [TLS validation](../corpus/evidence/thread-local-2026-09-08.json) includes
 GCC and five-target Clang declaration probes, constant-address rejection, retained
 source ownership, and concurrent Rust-to-C accessor calls with C-to-Rust callbacks.
-These runtime tests check native C TLS behavior through generated wrapper bindings;
-they do not execute a Toucan code generator. The storage rules follow
+The native harness links GCC's `libemutls_w.a` on macOS, resolved through the
+selected compiler, because its TLS implementation requires that runtime when Rust
+links the C object. Clang uses the platform TLS runtime. These tests check native
+C TLS behavior through generated wrapper bindings; they do not execute a Toucan
+code generator. The storage rules follow
 [C11 sections 6.2.4, 6.7.1, 6.7.6.2 and 6.7.9](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf)
 and [GCC's TLS extension](https://gcc.gnu.org/onlinedocs/gcc/Thread-Local.html).
 
