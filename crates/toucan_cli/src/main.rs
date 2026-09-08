@@ -406,6 +406,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 no_layout_tests: false,
                 allowlist,
                 rustified_enums,
+                rustified_enum_patterns: Vec::new(),
                 size_t_is_usize,
                 helper_namespace,
                 macro_type_overrides,

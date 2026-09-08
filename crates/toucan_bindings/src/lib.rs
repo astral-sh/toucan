@@ -7,6 +7,7 @@
 
 mod atomic;
 mod complex;
+mod enumeration;
 mod external;
 mod renaming;
 mod selection;
@@ -39,6 +40,12 @@ pub struct Options {
     /// Emit Rust enums with named variants instead of integer aliases. Values
     /// outside the declared variants are invalid Rust enum values.
     pub rustified_enums: bool,
+    /// Select Rust enums by exact C name or trailing `*` prefix. A named enum
+    /// uses its tag; an anonymous enum uses its first typedef name, or its
+    /// enumerator names when it has no typedef. Other typedef aliases do not
+    /// select the enum. Empty retains integer aliases unless `rustified_enums`
+    /// selects every enum. This option does not use generated Rust names.
+    pub rustified_enum_patterns: Vec<String>,
     /// Represent a pointer-sized unsigned `size_t` typedef as Rust `usize`.
     pub size_t_is_usize: bool,
     /// Namespace synthetic types and layout tests when including multiple
@@ -436,6 +443,7 @@ pub fn generate_with_macros(
         atomics: atomic::Atomics::default(),
         complex_records: complex::Records::default(),
         external: external::ExternalTypes::default(),
+        rustified_enums: enumeration::select(unit, options)?,
     };
     let mut selected = Vec::new();
     let mut skipped = Vec::new();
@@ -550,7 +558,12 @@ pub fn generate_with_macros(
     }
     for (id, enumeration) in unit.enums.iter().enumerate() {
         if enumeration.scope == Scope::File
-            && options.includes_enum(id, enumeration.name.as_deref())
+            && (options.includes_enum(id, enumeration.name.as_deref())
+                || (emitter.is_rustified_enum(id)
+                    && enumeration
+                        .variants
+                        .iter()
+                        .any(|variant| options.includes_constant(&variant.name))))
             && !emitter.register_external(&Type::new(TypeKind::Enum(id)), false, false)?
         {
             emitter.enums.insert(id);
@@ -1014,6 +1027,7 @@ struct Emitter<'a> {
     atomics: atomic::Atomics,
     complex_records: complex::Records,
     external: external::ExternalTypes,
+    rustified_enums: BTreeSet<usize>,
 }
 
 struct BitfieldSegment {
@@ -1173,7 +1187,7 @@ impl Emitter<'_> {
             .enums
             .get(id)
             .ok_or_else(|| Error("invalid enum identity".into()))?;
-        if self.options.rustified_enums
+        if self.is_rustified_enum(id)
             && enumeration.scope == Scope::File
             && enumeration.name.is_none()
         {
@@ -1208,7 +1222,7 @@ impl Emitter<'_> {
     /// Emit the selected enum representation, retaining aliases for repeated values.
     fn enumeration(&self, id: usize, source: &mut String) -> Result<(), Error> {
         let name = self.enum_name(id)?;
-        if !self.options.rustified_enums {
+        if !self.is_rustified_enum(id) {
             writeln!(source, "pub type {name} = {};", self.enum_type(id)?).unwrap();
             return Ok(());
         }
@@ -2131,7 +2145,7 @@ impl Emitter<'_> {
         }
         let rust_type = self.ty(ty)?;
         let kind = &self.unit.resolve(ty)?.kind;
-        if self.options.rustified_enums && matches!(kind, TypeKind::Enum(_)) {
+        if matches!(kind, TypeKind::Enum(id) if self.is_rustified_enum(*id)) {
             return Err(Error(
                 "enum bitfields require the integer enum representation".into(),
             ));

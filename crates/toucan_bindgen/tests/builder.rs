@@ -80,12 +80,34 @@ fn external_types_are_referenced_and_unsupported_patterns_are_explicit_errors() 
     );
     assert!(
         builder
-            .rustified_enum("OneEnum")
+            .rustified_enum("OneEnum|OtherEnum")
             .generate()
             .unwrap_err()
             .to_string()
-            .contains("selective")
+            .contains("regex syntax")
     );
+}
+
+#[test]
+fn selective_enum_patterns_preserve_other_integer_enum_representations() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("enums.h");
+    std::fs::write(&header, "typedef enum { COMPRESSED=2, UNCOMPRESSED=4, HYBRID=6 } point_conversion_form_t;\nenum Flags { OFF=0, ON=1 }; struct Bits { enum Flags value:1; };\n").unwrap();
+    for pattern in [
+        "point_conversion_form_t",
+        "^point_conversion_form_t$",
+        "point_conversion_.*",
+    ] {
+        let bindings = Builder::default()
+            .header(header.to_str().unwrap())
+            .rustified_enum(pattern)
+            .generate()
+            .unwrap()
+            .to_string();
+        assert!(bindings.contains("pub enum point_conversion_form_t {"));
+        assert!(!bindings.contains("pub enum Flags"));
+        assert!(bindings.contains("pub type Flags ="));
+    }
 }
 
 #[test]

@@ -192,12 +192,16 @@ impl Builder {
         self
     }
 
-    /// Emit named Rust enum variants. Currently only the all-enums pattern is supported.
+    /// Emit named Rust enum variants for an exact C name or trailing `.*` prefix.
+    ///
+    /// Named enums match their tag; anonymous enums match their first typedef,
+    /// or their enumerators when no typedef names them. Other typedef aliases
+    /// and generated nested Rust names do not select an enum.
     pub fn rustified_enum(mut self, pattern: impl AsRef<str>) -> Self {
-        if matches!(pattern.as_ref(), ".*" | "^.*$") {
-            self.options.rustified_enums = true;
-        } else {
-            self.fail("selective rustified_enum patterns are not supported yet");
+        match identifier_pattern(pattern.as_ref()) {
+            Ok(pattern) if pattern == "*" => self.options.rustified_enums = true,
+            Ok(pattern) => self.options.rustified_enum_patterns.push(pattern),
+            Err(error) => self.fail(error),
         }
         self
     }
