@@ -36,6 +36,7 @@ pub struct Config {
     /// are used directly, even when filesystem access is disabled.
     pub forced_includes: Vec<ForcedInclude>,
     /// Resource headers consulted after the caller's include directories.
+    /// Keys match header names exactly, without decoding escapes or rewriting separators.
     pub virtual_headers: BTreeMap<String, String>,
     pub defines: BTreeMap<String, String>,
     pub max_include_depth: usize,
@@ -920,6 +921,13 @@ impl Preprocessor {
         if !self.config.allow_filesystem {
             return None;
         }
+        // Include paths describe the host filesystem even when the caller's
+        // predefined macros describe another target. In particular, a Windows
+        // backslash stays an ordinary filename character on POSIX hosts.
+        let path = Path::new(name);
+        if path.is_absolute() {
+            return path.is_file().then(|| (path.to_owned(), None));
+        }
         // Clang preserves the parent's search origin for local quoted includes;
         // GCC restarts include_next at the beginning of its include search list.
         let local_origin = self
@@ -1071,16 +1079,19 @@ fn is_builtin(name: &str) -> bool {
 }
 
 fn header_name(tokens: &[Token]) -> Result<(String, bool), String> {
+    if tokens.iter().any(|token| token.text.contains('\0')) {
+        return Err("include names cannot contain NUL bytes".into());
+    }
     if let [token] = tokens
         && token.kind == Kind::String
         && token.text.starts_with('"')
     {
         let name = &token.text[1..token.text.len() - 1];
-        if name.contains('\\') || name.is_empty() {
-            return Err(
-                "empty include names and backslashes in include names are not supported".into(),
-            );
+        if name.is_empty() {
+            return Err("include names cannot be empty".into());
         }
+        // Header names are not C string values: `\n`, `\t`, and `\\` retain
+        // their literal spelling for native filesystem and virtual-header lookup.
         return Ok((name.to_owned(), true));
     }
     if tokens.first().is_some_and(|token| token.text == "<")

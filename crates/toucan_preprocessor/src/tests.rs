@@ -1029,3 +1029,168 @@ fn pragma_conditions_follow_the_compiler_profile() {
         );
     }
 }
+
+#[test]
+fn virtual_header_paths_preserve_raw_backslashes() {
+    for name in [
+        r"C:\temp\new\header.h",
+        r"\\server\share\header.h",
+        r"raw\\two.h",
+        r"escaped\x41\123.h",
+    ] {
+        let config = Config {
+            allow_filesystem: false,
+            virtual_headers: BTreeMap::from([(name.into(), "found\n".into())]),
+            ..Config::default()
+        };
+        let source = format!(
+            "#define HEADER \"{name}\"\n\
+             #if !__has_include(\"{name}\") || !__has_include(HEADER) || !__has_include(<{name}>)\n\
+             #error missing raw header\n#endif\n\
+             #include \"{name}\"\n#include HEADER\n#include <{name}>\n"
+        );
+        let result = Preprocessor::new(config)
+            .preprocess_str(Path::new("input.h"), &source)
+            .unwrap();
+        assert_eq!(result.source, "found\nfound\nfound\n", "{name}");
+        assert!(result.dependencies.is_empty());
+    }
+}
+
+#[test]
+fn invalid_quoted_header_names_are_diagnosed() {
+    for header in [
+        "\"\"",
+        "\"nul\0.h\"",
+        "L\"wide.h\"",
+        "\"a.h\" \"b.h\"",
+        "\"unclosed",
+    ] {
+        for source in [
+            format!("#include {header}\n"),
+            format!("#if __has_include({header})\n#endif\n"),
+        ] {
+            let error = Preprocessor::new(Config {
+                allow_filesystem: false,
+                ..Config::default()
+            })
+            .preprocess_str(Path::new("input.h"), &source)
+            .unwrap_err();
+            assert_eq!(error.path, Path::new("input.h"));
+            assert_eq!(error.line, 1);
+            assert!(!error.message.contains("not found"), "{source}: {error}");
+        }
+    }
+}
+
+#[test]
+fn native_header_paths_use_host_filesystem_semantics() {
+    use std::fs;
+    use std::process::Command;
+    use std::sync::atomic::{AtomicU64, Ordering};
+
+    static NEXT: AtomicU64 = AtomicU64::new(0);
+    let directory = std::env::temp_dir().join(format!(
+        "toucan-header-paths-{}-{}",
+        std::process::id(),
+        NEXT.fetch_add(1, Ordering::Relaxed)
+    ));
+    fs::create_dir(&directory).unwrap();
+    struct Cleanup(std::path::PathBuf);
+    impl Drop for Cleanup {
+        fn drop(&mut self) {
+            let _ = fs::remove_dir_all(&self.0);
+        }
+    }
+    let _cleanup = Cleanup(directory.clone());
+    fs::write(directory.join("native path.h"), "native\n").unwrap();
+    fs::write(directory.join("absolute.h"), "absolute\n").unwrap();
+    fs::create_dir(directory.join("nested")).unwrap();
+    fs::write(directory.join("nested").join("path.h"), "separator\n").unwrap();
+    #[cfg(unix)]
+    fs::write(directory.join(r"nested\path.h"), "literal\n").unwrap();
+    let absolute = directory.join("absolute.h");
+    let entry = directory.join("main.h");
+    let mut source = format!(
+        "#if !__has_include(\"{}\")\n#error missing absolute header\n#endif\n\
+         #include \"{}\"\n#include \"native path.h\"\n\
+         #include \"nested/path.h\"\n#include \"nested\\path.h\"\n",
+        absolute.display(),
+        absolute.display()
+    );
+    // The currently documented angle-header whitespace limit is independent of
+    // host path separators. Typical CI temporary paths contain no whitespace.
+    let absolute_angle = !absolute.to_string_lossy().chars().any(char::is_whitespace);
+    if absolute_angle {
+        source.push_str(&format!(
+            "#if !__has_include(<{}>)\n#error missing absolute header\n#endif\n#include <{}>\n",
+            absolute.display(),
+            absolute.display()
+        ));
+    }
+    fs::write(&entry, &source).unwrap();
+    let expected = format!(
+        "absolute\nnative\nseparator\n{}\n{}",
+        if cfg!(windows) {
+            "separator"
+        } else {
+            "literal"
+        },
+        if absolute_angle { "absolute\n" } else { "" }
+    );
+    let result = Preprocessor::new(Config::default())
+        .preprocess(&entry)
+        .unwrap();
+    assert_eq!(result.source, expected);
+    // A cross target macro profile must not reinterpret paths on the host.
+    let other_profile = Config {
+        defines: BTreeMap::from([(
+            if cfg!(windows) { "__linux__" } else { "_WIN32" }.into(),
+            "1".into(),
+        )]),
+        ..Config::default()
+    };
+    assert_eq!(
+        Preprocessor::new(other_profile)
+            .preprocess(&entry)
+            .unwrap()
+            .source,
+        expected
+    );
+
+    let disabled = Config {
+        allow_filesystem: false,
+        ..Config::default()
+    };
+    let query = format!(
+        "#if __has_include(\"{}\")\n#error filesystem leaked\n#endif\n",
+        absolute.display()
+    );
+    let result = Preprocessor::new(disabled.clone())
+        .preprocess_str(&entry, &query)
+        .unwrap();
+    assert!(result.source.is_empty() && result.dependencies.is_empty());
+    let error = Preprocessor::new(disabled)
+        .preprocess_str(&entry, &source)
+        .unwrap_err();
+    assert!(error.message.contains("missing absolute header"));
+
+    let compiler = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
+    let output = Command::new(compiler)
+        .args(["-E", "-P", "-x", "c"])
+        .arg(&entry)
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    assert_eq!(
+        String::from_utf8(output.stdout)
+            .unwrap()
+            .split_whitespace()
+            .collect::<Vec<_>>(),
+        expected.split_whitespace().collect::<Vec<_>>()
+    );
+}

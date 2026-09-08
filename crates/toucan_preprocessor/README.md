@@ -74,8 +74,11 @@ input limits, not a process memory quota.
 Unsupported features return diagnostics: non-ASCII identifiers, non-ASCII or
 multicharacter preprocessing character constants, `__VA_OPT__`, and unknown active
 directives or pragmas. Date and time macros must be supplied
-explicitly when required. Include names containing backslashes or whitespace inside
-angle brackets are rejected. `#line` filenames must decode to UTF-8 without NUL bytes.
+explicitly when required. Header names retain literal backslashes; they are not decoded
+as C strings. Filesystem lookups use host path conventions, including when target
+macros describe another platform. Virtual header keys match the written name exactly.
+Whitespace inside angle brackets is rejected. Empty names and NUL bytes are rejected.
+`#line` filenames must decode to UTF-8 without NUL bytes.
 This is not yet a complete C preprocessor conformance
 implementation.
 
