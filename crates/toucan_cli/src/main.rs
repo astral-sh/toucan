@@ -97,6 +97,15 @@ enum Command {
         /// Include checked expressions, bodies, initializers, and source references.
         #[arg(long)]
         checked_code: bool,
+        /// Limit retained graph nodes; requires --checked-code.
+        #[arg(long, requires = "checked_code")]
+        max_retained_nodes: Option<usize>,
+        /// Limit retained graph edges; requires --checked-code.
+        #[arg(long, requires = "checked_code")]
+        max_retained_edges: Option<usize>,
+        /// Limit owned retained payload bytes; requires --checked-code.
+        #[arg(long, requires = "checked_code")]
+        max_retained_bytes: Option<usize>,
     },
     /// Check declarations, initializers, and function bodies.
     Check {
@@ -315,9 +324,21 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
             input,
             output,
             checked_code,
+            max_retained_nodes,
+            max_retained_edges,
+            max_retained_bytes,
         } => {
             let mut config = input.config(arguments, false)?;
             config.analysis.retain_code = checked_code;
+            if let Some(nodes) = max_retained_nodes {
+                config.analysis.limits.nodes = nodes;
+            }
+            if let Some(edges) = max_retained_edges {
+                config.analysis.limits.edges = edges;
+            }
+            if let Some(bytes) = max_retained_bytes {
+                config.analysis.limits.payload_bytes = bytes;
+            }
             let compilation = toucan::parse_file(&input.header, &config)?;
             write_output(
                 output,

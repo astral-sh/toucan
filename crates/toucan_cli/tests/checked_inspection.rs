@@ -174,3 +174,110 @@ fn inspection_preserves_integer_values_wider_than_json_value_supports() {
         }
     }
 }
+
+#[test]
+fn retention_budgets_require_checked_inspection() {
+    for flag in [
+        "--max-retained-nodes",
+        "--max-retained-edges",
+        "--max-retained-bytes",
+    ] {
+        let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
+            .args(["inspect", "missing.h", flag, "100"])
+            .output()
+            .unwrap();
+        assert_eq!(result.status.code(), Some(2));
+        assert!(String::from_utf8_lossy(&result.stderr).contains("--checked-code"));
+        for command in ["check", "preprocess", "bindgen"] {
+            let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
+                .args([command, "missing.h", flag, "100"])
+                .output()
+                .unwrap();
+            assert_eq!(result.status.code(), Some(2));
+            assert!(String::from_utf8_lossy(&result.stderr).contains("unexpected argument"));
+        }
+        for value in ["-1", "unlimited"] {
+            let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
+                .args(["inspect", "missing.h", "--checked-code", flag, value])
+                .output()
+                .unwrap();
+            assert_eq!(result.status.code(), Some(2));
+        }
+    }
+}
+
+#[test]
+fn retained_budget_overrides_preserve_outputs_and_other_defaults() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("api.h");
+    let output = directory.path().join("analysis.json");
+    std::fs::write(
+        &header,
+        "int values[2] = {1, 2}; int f(int x) { return x + values[1]; }\n",
+    )
+    .unwrap();
+    let inspect = |args: &[&str], to_file: bool| {
+        let mut command = Command::new(env!("CARGO_BIN_EXE_toucan"));
+        command
+            .arg("inspect")
+            .arg(&header)
+            .args(["--target", "x86_64-unknown-linux-gnu", "--checked-code"])
+            .args(args);
+        if to_file {
+            command.arg("--output").arg(&output);
+        }
+        command.output().unwrap()
+    };
+    let baseline = inspect(&[], false);
+    assert!(
+        baseline.status.success(),
+        "{}",
+        String::from_utf8_lossy(&baseline.stderr)
+    );
+    for (flag, resource) in [
+        ("--max-retained-nodes", "node"),
+        ("--max-retained-edges", "edge"),
+        ("--max-retained-bytes", "payload byte"),
+    ] {
+        std::fs::write(&output, "previous analysis\n").unwrap();
+        let result = inspect(&[flag, "0"], true);
+        assert!(!result.status.success());
+        assert!(result.stdout.is_empty());
+        assert!(
+            String::from_utf8_lossy(&result.stderr)
+                .contains(&format!("checked-code retention {resource} limit exceeded")),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert_eq!(
+            std::fs::read_to_string(&output).unwrap(),
+            "previous analysis\n"
+        );
+        // Changing one budget leaves the other two defaults available.
+        let result = inspect(&[flag, "1000000"], false);
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        assert_eq!(result.stdout, baseline.stdout);
+    }
+    let result = inspect(
+        &[
+            "--max-retained-nodes",
+            "2000000",
+            "--max-retained-edges",
+            "8000000",
+            "--max-retained-bytes",
+            "134217728",
+        ],
+        true,
+    );
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(result.stdout.is_empty());
+    assert_eq!(std::fs::read(&output).unwrap(), baseline.stdout);
+}

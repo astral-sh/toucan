@@ -62,6 +62,28 @@ output file. Successful checked analysis has complete expression, statement, and
 initializer coverage within the supported feature set. Resource limits still
 apply; the library exposes them through `AnalysisOptions`.
 
+## Retention budgets
+
+`inspect --checked-code` accepts `--max-retained-nodes`, `--max-retained-edges`,
+and `--max-retained-bytes`. Values are nonnegative decimal counts; bytes measure
+owned retained payload, not total process memory or serialized JSON size. Each
+option overrides only its corresponding library limit. Omitted values retain
+the library defaults, and these options require `--checked-code`.
+
+For large translation units, the source-audit configuration is:
+
+```console
+toucan inspect sqlite3.c --checked-code --max-tokens 2000000 --max-retained-nodes 2000000 --max-retained-edges 8000000 --max-retained-bytes 134217728 --output sqlite3.json
+```
+
+Supply the project's include paths, definitions, and compiler profile as usual.
+`--max-tokens` independently limits preprocessing. A retention-limit diagnostic
+leaves an existing output file intact; increasing budgets does not bypass source
+checking or the graph's completeness checks. The
+[SQLite validation record](../corpus/evidence/inspect-retention-budgets-2026-09-08.json.gz)
+records the default edge-limit failures, successful larger-budget output, and
+CLI memory use under both compiler profiles.
+
 ## Migration from versions 1 and 2
 
 Versions 3 (declarations) and 4 (checked code) add `identity` to the existing
@@ -138,7 +160,7 @@ preserves the integer width they use; decoding these fields directly into Rust
 `Conversion::VectorReinterpret` denotes an equal-size bit reinterpretation,
 separate from numeric vector conversion. See [non-temporal accesses](nontemporal-accesses.md).
 
-Both formats also expose `translation_unit.language_mode` (`c11` or `gnu11`).
+Both formats also expose `translation_unit.language_mode`, such as `c99` or `gnu17`.
 This additive field records the keywords and preprocessing defaults used to
 check the unit. See [language modes](language-modes.md).
 
