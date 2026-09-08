@@ -319,40 +319,37 @@ impl Analyzer {
             }
             ast::Expression::CompoundLiteral(literal) => {
                 let ty = self.type_name(&literal.node.type_name.node)?;
-                let [item] = literal.node.initializer_list.as_slice() else {
-                    return Err(Error::new(
-                        offset,
-                        "scalar constant initializer requires one value",
-                    ));
-                };
-                if !item.node.designation.is_empty() {
-                    return Err(Error::new(
-                        offset,
-                        "scalar constant initializer cannot have a designator",
-                    ));
-                }
-                let mut initializer = &item.node.initializer;
+                let mut items = literal.node.initializer_list.as_slice();
                 for _ in 0..128 {
-                    match &initializer.node {
+                    if self.empty_initializer_items(items) {
+                        // Empty scalar lists have no expression to validate or
+                        // convert. Check the actual destination and any enclosing
+                        // braces before producing its typed arithmetic zero.
+                        self.expression_type(expression)?;
+                        return self.convert_arithmetic(
+                            ArithmeticValue::Integer(IntegerValue::int(0)),
+                            &ty,
+                            offset,
+                        );
+                    }
+                    let [item] = items else {
+                        return Err(Error::new(
+                            offset,
+                            "scalar constant initializer requires one value",
+                        ));
+                    };
+                    if !item.node.designation.is_empty() {
+                        return Err(Error::new(
+                            offset,
+                            "scalar constant initializer cannot have a designator",
+                        ));
+                    }
+                    match &item.node.initializer.node {
                         ast::Initializer::Expression(expression) => {
                             let value = self.eval_arithmetic(expression)?;
                             return self.convert_arithmetic(value, &ty, offset);
                         }
-                        ast::Initializer::List(items) => {
-                            let [item] = items.as_slice() else {
-                                return Err(Error::new(
-                                    offset,
-                                    "scalar constant initializer requires one value",
-                                ));
-                            };
-                            if !item.node.designation.is_empty() {
-                                return Err(Error::new(
-                                    offset,
-                                    "scalar constant initializer cannot have a designator",
-                                ));
-                            }
-                            initializer = &item.node.initializer;
-                        }
+                        ast::Initializer::List(inner) => items = inner,
                     }
                 }
                 Err(Error::new(

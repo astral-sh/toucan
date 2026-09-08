@@ -1,0 +1,15 @@
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+    Blocking waiting for file lock on package cache
+   Compiling toucan_semantic v0.0.1 (/home/dev-user/.codex/worktrees/toucan-scalar-empty/crates/toucan_semantic)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.63s
+     Running tests/empty_scalar_initializers.rs (/home/dev-user/.cache/toucan/scalar-empty-target/debug/deps/empty_scalar_initializers-e5794f17d9507b66)
+
+running 4 tests
+test arithmetic_queries_return_positive_zero_in_the_destination_format ... ok
+test atomic_braces_follow_the_compiler_and_invalid_destinations_stay_rejected ... ok
+test empty_scalars_keep_typed_zero_fill_and_real_source_occurrences ... ok
+test native_empty_scalars_have_zero_values ... ok
+
+test result: ok. 4 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 2.09s
+

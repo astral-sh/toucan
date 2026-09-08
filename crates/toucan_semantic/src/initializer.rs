@@ -212,7 +212,14 @@ impl Analyzer {
     }
 
     fn empty_initializer(&self, initializer: &Node<ast::Initializer>) -> bool {
-        matches!(&initializer.node, ast::Initializer::List(items) if items.is_empty() || (items.len() == 1 && self.empty_initializers.contains(&items[0].span.start)))
+        matches!(&initializer.node, ast::Initializer::List(items) if self.empty_initializer_items(items))
+    }
+
+    /// Recognizes written empty lists, including the parser's marked placeholder
+    /// used for an otherwise unparseable empty compound literal.
+    pub(crate) fn empty_initializer_items(&self, items: &[Node<ast::InitializerListItem>]) -> bool {
+        items.is_empty()
+            || (items.len() == 1 && self.empty_initializers.contains(&items[0].span.start))
     }
 
     /// Finds the innermost flexible member crossed by a subobject designator.
@@ -253,16 +260,10 @@ impl Analyzer {
             .transpose()?
             .flatten();
         let result = if let Some(value) = self.unit.atomic_value(ty)?.cloned() {
-            if !self.gnu_sync_profile()
-                && matches!(
-                    self.unit.resolve(&value)?.kind,
-                    TypeKind::Record(_) | TypeKind::Vector { .. }
-                )
-                && matches!(initializer.node, InitializerView::List(_))
-            {
+            if !self.gnu_sync_profile() && matches!(initializer.node, InitializerView::List(_)) {
                 return Err(Error::new(
                     initializer.span.start,
-                    "this Clang profile requires an atomic aggregate initializer to be a compatible value expression",
+                    "this Clang profile requires an atomic initializer to be a compatible value expression",
                 ));
             }
             self.initializer_inner_impl(
@@ -350,6 +351,11 @@ impl Analyzer {
                 Ok(ty.clone())
             }
             InitializerView::List(items) => {
+                let items = if self.empty_initializer_items(items) {
+                    &[][..]
+                } else {
+                    items
+                };
                 if let Some(id) = retained {
                     let aggregate = matches!(
                         resolved.kind,
@@ -363,15 +369,12 @@ impl Analyzer {
                         }
                         _ => None,
                     };
-                    self.code_builder()
-                        .initializer_list(id, aggregate, union_member);
+                    self.code_builder().initializer_list(
+                        id,
+                        aggregate || items.is_empty(),
+                        union_member,
+                    );
                 }
-                let items =
-                    if items.len() == 1 && self.empty_initializers.contains(&items[0].span.start) {
-                        &[][..]
-                    } else {
-                        items
-                    };
                 if matches!(resolved.kind, TypeKind::Array { .. })
                     && let [item] = items
                     && item.node.designation.is_empty()
@@ -399,6 +402,9 @@ impl Analyzer {
                     resolved.kind,
                     TypeKind::Array { .. } | TypeKind::Vector { .. } | TypeKind::Record(_)
                 ) {
+                    if items.is_empty() {
+                        return Ok(ty.clone());
+                    }
                     let [item] = items else {
                         return Err(Error::new(offset, "scalar initializer requires one value"));
                     };

@@ -96,6 +96,9 @@ contexts, and typed bodies.
 
 ## Flexible-array initialization
 
+Scalar objects accept [empty initializers](empty-scalar-initializers.md) with
+compiler-specific atomic constraints and retained typed zero initialization.
+
 Named static objects may initialize a flexible array under the target compiler's
 GNU extension rules. `Declaration.flexible_array_storage` records the selected
 member, element count, and allocated bits for that object. The declared record
