@@ -60,6 +60,28 @@ macOS, and Windows, including the CLI's jemalloc or mimalloc configuration. Comp
 oracle tests run separately on the native Linux and macOS jobs with
 `--include-ignored`.
 
+## macOS CI
+
+Pull requests run the native suites and corpus on both Linux architectures, plus
+Linux and Windows package checks. Each PR in a stack has a distinct ref, so
+per-ref concurrency does not prevent duplicate macOS work across the stack.
+
+The separate `macOS validation` workflow runs Apple Silicon tests, packages, and
+the corpus on relevant pushes to `main`, or when explicitly requested. Add the
+`run-macos` label to the current integration PR to validate that revision. To
+request another revision, remove and reapply the label. Once the workflow is on
+the default branch, it can also be dispatched against a selected branch.
+
+Intel Macs are an opt-in compatibility target. Use the `run-macos-intel` label or
+enable the dispatch's `intel` input to include them. Routine PR and `main` runs do
+not allocate Intel runners. An explicit Intel run checks its native calling
+conventions, Apple SDK and runtime, and actual C/Rust consumer calls.
+
+Only one macOS validation request runs across the repository; a newer request
+cancels the older one. Tests precede the corpus so even an Intel request occupies
+at most one Intel runner at a time. Native tests have a 60-minute limit, packages
+30 minutes, and the corpus 40 minutes. Failed tests prevent the corpus run.
+
 ## Compiler oracles
 
 Use `toucan_test_support::compiler_acceptance` when comparing a compiler result
