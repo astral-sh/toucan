@@ -245,7 +245,8 @@ impl Compilation {
                 )?;
                 let prefix = constant.split(':').next().expect("constant contains colon");
                 source.push_str(&format!(
-                    "{prefix}: &[::core::primitive::u8] = &[{}0];\n",
+                    "{prefix}: &[::core::primitive::u8; {}] = &[{}0];\n",
+                    bytes.len() + 1,
                     bytes
                         .iter()
                         .map(|byte| format!("{byte}, "))

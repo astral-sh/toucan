@@ -20,7 +20,7 @@ INTEGER_CONSTANT = re.compile(
     r"^pub const (\w+): (?:::core::primitive::)?([iu])(8|16|32|64|128) =", re.MULTILINE
 )
 STRING_CONSTANT = re.compile(
-    r"^pub const (\w+): &\[(?:::core::primitive::)?u8\] =", re.MULTILINE
+    r"^pub const (\w+): &\[(?:::core::primitive::)?u8(?:; \d+)?\] =", re.MULTILINE
 )
 
 
