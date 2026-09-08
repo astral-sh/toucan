@@ -9,8 +9,13 @@ on:
       - "corpus/manifest.json"
       - "corpus/probes.json"
       - "corpus/ffi/**"
+      - "corpus/oracles/**"
       - "scripts/prepare_corpus.py"
       - "scripts/verify_corpus.py"
+      - "scripts/compare_bindings.py"
+      - "scripts/verify_equivalence.py"
+      - "scripts/probe_record_layouts.py"
+      - "tools/binding_compare/**"
       - ".github/workflows/corpus.yml"
   push:
     branches: [main]
@@ -27,7 +32,7 @@ jobs:
   native:
     name: Native corpus (${{ matrix.target }})
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 25
+    timeout-minutes: 40
     strategy:
       fail-fast: false
       matrix:
@@ -116,13 +121,65 @@ jobs:
             --sysroot "$corpus_sysroot" \
             --output corpus/results/native
 
+      - name: Install the reference frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            sudo apt-get install --yes --no-install-recommends libclang-18-dev
+            export LIBCLANG_PATH=/usr/lib/llvm-18/lib
+          else
+            corpus_clang="$(xcrun --find clang)"
+            export LIBCLANG_PATH="$(cd "$(dirname "$corpus_clang")/../lib" && pwd)"
+          fi
+          echo "LIBCLANG_PATH=$LIBCLANG_PATH" >> "$GITHUB_ENV"
+          cargo install bindgen-cli --version 0.72.1 --locked
+
+      - name: Build and test the API comparison tool
+        shell: bash
+        run: |
+          set -euo pipefail
+          cargo build --locked --release --manifest-path tools/binding_compare/Cargo.toml
+          cargo test --locked --manifest-path tools/binding_compare/Cargo.toml
+          "$CORPUS_PYTHON" -m unittest discover -s tools/binding_compare/tests
+
+      - name: Compare APIs and all complete C record layouts
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$RUNNER_OS" == "macOS" ]]; then
+            corpus_sysroot="$(xcrun --show-sdk-path)"
+          else
+            corpus_sysroot=/
+          fi
+          "$CORPUS_PYTHON" scripts/verify_equivalence.py \
+            --prepared corpus/cache/prepared.json \
+            --toucan target/release/toucan \
+            --bindgen "$(command -v bindgen)" \
+            --analyzer tools/binding_compare/target/release/toucan-binding-compare \
+            --c-evidence corpus/results/native/evidence.json \
+            --target '${{ matrix.target }}' \
+            --sysroot "$corpus_sysroot" \
+            --output corpus/results/equivalence
+          "$CORPUS_PYTHON" scripts/probe_record_layouts.py \
+            --prepared corpus/cache/prepared.json \
+            --inventory-dir corpus/results/equivalence \
+            --bindings-dir corpus/results/equivalence \
+            --target '${{ matrix.target }}' \
+            --sysroot "$corpus_sysroot" \
+            --output corpus/results/record-layouts
+
       - name: Upload native evidence and build logs
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
         with:
           name: corpus-${{ matrix.target }}
           path: |
-            corpus/results/native/
+            corpus/results/**/*.json
+            corpus/results/**/*.stdout
+            corpus/results/**/*.stderr
+            corpus/results/**/*.rs
+            corpus/results/**/*.c
             corpus/cache/prepared.json
             corpus/cache/logs/
           if-no-files-found: error
