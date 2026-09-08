@@ -475,8 +475,10 @@ code for these operations.
 - Thread-local and atomic objects are checked by the semantic library. Direct TLS
   bindings require C accessors. Atomic objects use the storage and scalar call
   representations described below; aggregate calls still require C pointer accessors.
-- Extended floating-point types retain their identity but do not have supported
-  layout or binding representations. `long double` has a target layout, but its Rust
+- `_Float16` and `__bf16` have distinct types, layouts and supported conversions;
+  see [half types](half-types.md) for constant-precision and Rust ABI limits.
+  Other extended floating-point types retain their identity but do not have
+  supported layout or binding representations. `long double` has a target layout, but its Rust
   binding representation is not implemented.
 - Large enum constants follow the target's GCC or Clang profile, including their
   types during and after the definition. Apple enum ranges requiring more than

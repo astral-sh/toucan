@@ -621,6 +621,7 @@ fn print_for_initializer(p: &mut Printer, n: &ForInitializer) {
 fn print_type_specifier(p: &mut Printer, n: &TypeSpecifier) {
     match *n {
         TypeSpecifier::AutoType => p.w.write_str(" AutoType").unwrap(),
+        TypeSpecifier::BFloat16 => p.w.write_str(" BFloat16").unwrap(),
         TypeSpecifier::Void => p.w.write_str(" Void").unwrap(),
         TypeSpecifier::Char => p.w.write_str(" Char").unwrap(),
         TypeSpecifier::Short => p.w.write_str(" Short").unwrap(),

@@ -137,6 +137,8 @@ pub enum IntegerKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
 pub enum FloatKind {
+    /// The distinct GNU/Clang bfloat16 type, with eight significant bits.
+    BFloat16,
     Float,
     Double,
     LongDouble,
@@ -149,6 +151,10 @@ pub enum FloatKind {
 /// The target encoding of a floating constant, without object padding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum FloatingFormat {
+    /// IEEE binary16: five exponent bits and eleven significant bits.
+    Binary16,
+    /// Bfloat16: eight exponent bits and eight significant bits.
+    BFloat16,
     Binary32,
     Binary64,
     /// The 80 meaningful bits of the x87 extended format, including its explicit integer bit.
@@ -711,6 +717,20 @@ impl TranslationUnit {
                 ty.alignment,
             ));
         }
+        if let TypeKind::Float(kind) = resolved.kind
+            && kind.is_narrow()
+        {
+            return Ok(aligned_layout_type(
+                target::Type::opaque_layout(&target::Layout {
+                    size_bits: 16,
+                    alignment_bits: 16,
+                    field_alignment_bits: 16,
+                    required_alignment_bits: 8,
+                    fields: Vec::new(),
+                }),
+                ty.alignment,
+            ));
+        }
         let builtin = match &resolved.kind {
             TypeKind::Void => Some(target::BuiltinType::Void),
             TypeKind::Bool => Some(target::BuiltinType::Bool),
@@ -733,7 +753,7 @@ impl TranslationUnit {
                 FloatKind::Float => target::BuiltinType::Float,
                 FloatKind::Double => target::BuiltinType::Double,
                 FloatKind::LongDouble => target::BuiltinType::LongDouble,
-                FloatKind::Extended { .. } => {
+                FloatKind::BFloat16 | FloatKind::Extended { .. } => {
                     return Err(Error::new(
                         0,
                         "extended floating-point layout is unsupported",

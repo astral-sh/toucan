@@ -684,6 +684,7 @@ fn floating_constant_named(
     let (width, bits) = match value.kind() {
         FloatKind::Float => (32, value.to_bits()),
         FloatKind::Double => (64, value.to_bits()),
+        kind if kind.is_narrow() => return Err(Error(format!("{} macro constants have no Rust representation; use an explicit float or double cast", if kind == FloatKind::BFloat16 {"__bf16"} else {"_Float16"}))),
         _ => return Err(Error("long double macro constants have no Rust representation; use an explicit float or double cast".into())),
     };
     let rust_type = format!("::core::primitive::f{width}");
@@ -1234,7 +1235,17 @@ impl Emitter<'_> {
             ),
             TypeKind::Float(FloatKind::Float) => "::core::primitive::f32".into(),
             TypeKind::Float(FloatKind::Double) => "::core::primitive::f64".into(),
-            TypeKind::Float(FloatKind::Extended { .. }) => {
+            TypeKind::Float(kind) if kind.is_narrow() => {
+                return Err(Error(format!(
+                    "{} has no supported Rust scalar ABI representation",
+                    if *kind == FloatKind::BFloat16 {
+                        "__bf16"
+                    } else {
+                        "_Float16"
+                    }
+                )));
+            }
+            TypeKind::Float(FloatKind::BFloat16 | FloatKind::Extended { .. }) => {
                 return Err(Error(
                     "extended floating-point types have no supported Rust ABI representation"
                         .into(),

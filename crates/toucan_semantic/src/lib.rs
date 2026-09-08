@@ -23,6 +23,7 @@ mod integer;
 mod introspection;
 mod ir;
 mod literals;
+mod narrow_float;
 mod object_extent;
 mod object_size;
 mod overflow;

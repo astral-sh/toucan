@@ -394,7 +394,11 @@ impl Compilation {
                         } else {
                             skipped_macros.push(SkippedMacro {
                                 name: name.clone(),
-                                reason: "long double macro constants have no Rust representation; use an explicit float or double cast".into(),
+                                reason: if value.kind().is_narrow() {
+                                    format!("{} macro constants have no Rust representation; use an explicit float or double cast", if value.kind() == semantic::FloatKind::BFloat16 {"__bf16"} else {"_Float16"})
+                                } else {
+                                    "long double macro constants have no Rust representation; use an explicit float or double cast".into()
+                                },
                             });
                         }
                     }

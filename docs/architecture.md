@@ -57,6 +57,8 @@ type-checked without evaluating its arithmetic. Floating constants use a softwar
 APFloat evaluator with the selected target's format, including x87 and binary128
 `long double`. Arithmetic constant evaluation is separate from C's stricter integer
 constant-expression rules; no host floating representation substitutes for the target.
+[Half and bfloat types](half-types.md) preserve separate nominal identities and
+encodings. GNU excess-precision constant cases that are not modeled fail explicitly.
 
 The fixed-argument GNU `clz`/`ctz` builtins and their `l`/`ll` variants use unsigned
 C parameter conversions and return `int`. Constant evaluation diagnoses zero after

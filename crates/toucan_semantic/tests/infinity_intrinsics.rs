@@ -81,6 +81,8 @@ fn infinity_types_values_and_retained_calls_match() {
             };
             assert_eq!(value.kind(), *kind);
             let expected = match value.format() {
+                FloatingFormat::Binary16 => 0x7c00,
+                FloatingFormat::BFloat16 => 0x7f80,
                 FloatingFormat::Binary32 => 0x7f800000,
                 FloatingFormat::Binary64 => 0x7ff0000000000000,
                 FloatingFormat::X87 => 0x7fff8000000000000000,

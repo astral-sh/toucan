@@ -102,7 +102,9 @@ impl Emitter<'_> {
                         | TypeKind::VariableArray { .. }
                         | TypeKind::Sve(_)
                         | TypeKind::Float(
-                            crate::FloatKind::LongDouble | crate::FloatKind::Extended { .. }
+                            crate::FloatKind::LongDouble
+                                | crate::FloatKind::BFloat16
+                                | crate::FloatKind::Extended { .. }
                         )
                 )
             {

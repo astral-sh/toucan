@@ -4,7 +4,7 @@ use lang_c::{ast, span::Node};
 
 use crate::analyze::Analyzer;
 use crate::integer::{common, integer_to_type, promote};
-use crate::{DeclarationKind, Error, FloatKind, IntegerValue, Qualifiers, Type, TypeKind};
+use crate::{DeclarationKind, Error, IntegerValue, Qualifiers, Type, TypeKind};
 
 /// An expression's type before array/function conversion, with constraints that
 /// cannot be represented by its type alone.
@@ -101,12 +101,10 @@ impl Analyzer {
                     if float.suffix.imaginary {
                         return Err(Error::new(offset, "complex expressions are unsupported"));
                     }
-                    Type::new(TypeKind::Float(match float.suffix.format {
-                        ast::FloatFormat::Float => FloatKind::Float,
-                        ast::FloatFormat::Double => FloatKind::Double,
-                        ast::FloatFormat::LongDouble => FloatKind::LongDouble,
-                        _ => return Err(Error::new(offset, "unsupported floating-point type")),
-                    }))
+                    Type::new(TypeKind::Float(crate::narrow_float::literal_kind(
+                        &float.suffix.format,
+                        offset,
+                    )?))
                 }
             },
             ast::Expression::Identifier(identifier) => {
@@ -1166,10 +1164,17 @@ impl Analyzer {
         self.require_arithmetic(right_type, offset)?;
         let left_kind = &self.unit.resolve(left_type)?.kind;
         let right_kind = &self.unit.resolve(right_type)?.kind;
-        for float in [FloatKind::LongDouble, FloatKind::Double, FloatKind::Float] {
-            if left_kind == &TypeKind::Float(float) || right_kind == &TypeKind::Float(float) {
-                return Ok(Type::new(TypeKind::Float(float)));
+        let float_kind = |kind: &TypeKind| {
+            if let TypeKind::Float(kind) = kind {
+                Some(*kind)
+            } else {
+                None
             }
+        };
+        if let Some(kind) =
+            crate::narrow_float::common_kind(float_kind(left_kind), float_kind(right_kind), offset)?
+        {
+            return Ok(Type::new(TypeKind::Float(kind)));
         }
         Ok(integer_to_type(common(
             self.promoted_integer(left, offset)?,

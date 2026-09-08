@@ -618,6 +618,8 @@ pub enum StorageClassSpecifier {
 pub enum TypeSpecifier {
     /// GNU declaration type inferred from its initializer.
     AutoType,
+    /// GNU and Clang bfloat16 arithmetic type.
+    BFloat16,
     /// `void`
     Void,
     /// `char`

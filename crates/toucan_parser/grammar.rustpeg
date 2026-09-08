@@ -635,6 +635,7 @@ type_specifier_unique -> TypeSpecifier =
     K<"_Atomic"> _ "(" _ t:type_name _ ")" { TypeSpecifier::Atomic(t) } /
     s:node<struct_or_union_specifier> { TypeSpecifier::Struct(s) } /
     e:node<enum_specifier> { TypeSpecifier::Enum(e) } /
+    gnu<K<"__bf16">> { TypeSpecifier::BFloat16 } /
     t:typedef_name { TypeSpecifier::TypedefName(t) }
 
 type_specifier_nonunique -> TypeSpecifier =

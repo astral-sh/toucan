@@ -1,7 +1,7 @@
 //! Target floating-point constant evaluation, without host floating-point arithmetic.
 
 use lang_c::{ast, span::Node};
-use rustc_apfloat::ieee::{Double, Quad, Single, X87DoubleExtended};
+use rustc_apfloat::ieee::{BFloat, Double, Half, Quad, Single, X87DoubleExtended};
 use rustc_apfloat::{Float, FloatConvert, Round, Status, StatusAnd};
 use toucan_target::Target;
 
@@ -42,12 +42,16 @@ impl ArithmeticValue {
             } => {
                 let format = Format::for_type(kind, target, offset)?;
                 let bits = match format {
+                    Format::Binary16 => encode_float::<Half>(value, signaling),
+                    Format::BFloat16 => encode_float::<BFloat>(value, signaling),
                     Format::Binary32 => encode_float::<Single>(value, signaling),
                     Format::Binary64 => encode_float::<Double>(value, signaling),
                     Format::X87 => encode_float::<X87DoubleExtended>(value, signaling),
                     Format::Binary128 => encode_float::<Quad>(value, signaling),
                 };
                 let format = match format {
+                    Format::Binary16 => FloatingFormat::Binary16,
+                    Format::BFloat16 => FloatingFormat::BFloat16,
                     Format::Binary32 => FloatingFormat::Binary32,
                     Format::Binary64 => FloatingFormat::Binary64,
                     Format::X87 => FloatingFormat::X87,
@@ -75,6 +79,8 @@ impl ArithmeticValue {
 
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Format {
+    Binary16,
+    BFloat16,
     Binary32,
     Binary64,
     X87,
@@ -84,6 +90,8 @@ enum Format {
 impl Format {
     fn for_type(kind: FloatKind, target: Target, offset: usize) -> Result<Self, Error> {
         Ok(match kind {
+            FloatKind::FLOAT16 => Self::Binary16,
+            FloatKind::BFloat16 => Self::BFloat16,
             FloatKind::Float => Self::Binary32,
             FloatKind::Double => Self::Binary64,
             FloatKind::LongDouble => match target {
@@ -104,6 +112,8 @@ impl Format {
 macro_rules! dispatch {
     ($format:expr, $function:ident($($argument:expr),* $(,)?)) => {
         match $format {
+            Format::Binary16 => $function::<Half>($($argument),*),
+            Format::BFloat16 => $function::<BFloat>($($argument),*),
             Format::Binary32 => $function::<Single>($($argument),*),
             Format::Binary64 => $function::<Double>($($argument),*),
             Format::X87 => $function::<X87DoubleExtended>($($argument),*),
@@ -127,17 +137,7 @@ impl Analyzer {
                 "floating literal exceeds the 4096-byte limit",
             ));
         }
-        let kind = match literal.suffix.format {
-            ast::FloatFormat::Float => FloatKind::Float,
-            ast::FloatFormat::Double => FloatKind::Double,
-            ast::FloatFormat::LongDouble => FloatKind::LongDouble,
-            _ => {
-                return Err(Error::new(
-                    offset,
-                    "extended floating constants are unsupported",
-                ));
-            }
-        };
+        let kind = crate::narrow_float::literal_kind(&literal.suffix.format, offset)?;
         let format = Format::for_type(kind, self.unit.target, offset)?;
         // lang-c stores hexadecimal digits after the `0x` prefix.
         let number = if literal.base == ast::FloatBase::Hexadecimal {
@@ -145,7 +145,10 @@ impl Analyzer {
         } else {
             std::borrow::Cow::Borrowed(literal.number.as_ref())
         };
-        let value = dispatch!(format, parse_literal(&number, offset))?;
+        let value = dispatch!(
+            format,
+            parse_literal(&number, offset, kind.is_narrow() && self.gnu_sync_profile())
+        )?;
         Ok(ArithmeticValue::Floating {
             value,
             kind,
@@ -350,6 +353,9 @@ impl Analyzer {
                     &conditional.node.else_expression
                 };
                 let value = self.eval_arithmetic(selected)?;
+                if let TypeKind::Float(kind) = self.unit.resolve(&ty)?.kind {
+                    self.require_narrow_constant_precision(kind, offset)?;
+                }
                 self.convert_arithmetic(value, &ty, offset)
             }
             _ => self.eval(expression).map(ArithmeticValue::Integer),
@@ -464,6 +470,20 @@ impl Analyzer {
         Ok(ArithmeticValue::Integer(result))
     }
 
+    fn require_narrow_constant_precision(
+        &self,
+        kind: FloatKind,
+        offset: usize,
+    ) -> Result<(), Error> {
+        if kind.is_narrow() && self.gnu_sync_profile() {
+            return Err(Error::new(
+                offset,
+                "GNU half/bfloat arithmetic constant evaluation with excess precision is unsupported",
+            ));
+        }
+        Ok(())
+    }
+
     fn arithmetic_binary(
         &self,
         operator: &ast::BinaryOperator,
@@ -477,11 +497,16 @@ impl Analyzer {
                 .binary(operator, left, right, offset)
                 .map(ArithmeticValue::Integer);
         }
-        let kind = [FloatKind::LongDouble, FloatKind::Double, FloatKind::Float]
-            .into_iter()
-            .find(|kind| matches!(left, ArithmeticValue::Floating { kind: actual, .. } if actual == *kind)
-                || matches!(right, ArithmeticValue::Floating { kind: actual, .. } if actual == *kind))
+        let float_kind = |value| {
+            if let ArithmeticValue::Floating { kind, .. } = value {
+                Some(kind)
+            } else {
+                None
+            }
+        };
+        let kind = crate::narrow_float::common_kind(float_kind(left), float_kind(right), offset)?
             .expect("a floating operand is present");
+        self.require_narrow_constant_precision(kind, offset)?;
         let format = Format::for_type(kind, self.unit.target, offset)?;
         let signaling = matches!(
             left,
@@ -562,12 +587,18 @@ fn parse_nan_payload(units: &[u32], offset: usize) -> Result<u128, Error> {
     Ok(value)
 }
 
-fn parse_literal<F>(source: &str, offset: usize) -> Result<Quad, Error>
+fn parse_literal<F>(source: &str, offset: usize, require_exact: bool) -> Result<Quad, Error>
 where
     F: Float + FloatConvert<Quad>,
 {
     let parsed = F::from_str_r(source, Round::NearestTiesToEven)
         .map_err(|_| Error::new(offset, "invalid floating constant"))?;
+    if require_exact && parsed.status.contains(Status::INEXACT) {
+        return Err(Error::new(
+            offset,
+            "GNU half literal evaluation with excess precision is unsupported",
+        ));
+    }
     let value = checked_result(parsed, offset)?;
     Ok(value.convert(&mut false).value)
 }

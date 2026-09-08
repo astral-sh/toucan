@@ -1988,6 +1988,7 @@ impl Analyzer {
                                 "complex type ABI is unsupported",
                             ));
                         }
+                        ast::TypeSpecifier::BFloat16 => TypeKind::Float(FloatKind::BFloat16),
                         ast::TypeSpecifier::TS18661Float(float) => {
                             let name = extended_float_name(float);
                             if self.unit.typedefs.contains_key(&name) {
