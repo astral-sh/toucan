@@ -20,6 +20,28 @@ const PROVEN: &[(&str, u128)] = &[
     ("_Generic(1, int: K, default: function())", 1),
     ("sizeof(int[4])", 1),
     ("__builtin_bswap32(0x12345678)", 1),
+    ("__builtin_clz(8)", 1),
+    ("__builtin_clzl(8)", 1),
+    ("__builtin_clzll(8)", 1),
+    ("__builtin_ctz(8)", 1),
+    ("__builtin_ctzl(8)", 1),
+    ("__builtin_ctzll(8)", 1),
+    ("__builtin_inf()", 1),
+    ("__builtin_inff()", 1),
+    ("__builtin_infl()", 1),
+    ("__builtin_huge_val()", 1),
+    ("__builtin_huge_valf()", 1),
+    ("__builtin_huge_vall()", 1),
+    ("__builtin_nan(\"0x12\")", 1),
+    ("__builtin_nanf(\"0x12\")", 1),
+    ("__builtin_nanl(\"0x12\")", 1),
+    ("__builtin_nans(\"0x12\")", 1),
+    ("__builtin_nansf(\"0x12\")", 1),
+    ("__builtin_nansl(\"0x12\")", 1),
+    ("__builtin_ctz(__builtin_bswap32(0x12345678))", 1),
+    ("__builtin_nan((const char*)0)", 0),
+    ("__builtin_clz(global)", 0),
+    ("__builtin_ctz(global++)", 0),
     ("__builtin_constant_p(global)", 1),
     ("global", 0),
     ("&global", 0),
@@ -66,7 +88,15 @@ fn constant_queries_prove_supported_folds_without_optimizer_assumptions() {
         }
         // Zero records the absence of a supported proof. These cases deliberately
         // do not claim equality with an optimizer or Clang's extra constant folds.
-        for operand in ["(int){1}", "1+(int){1}", "1/0", "2147483647+1"] {
+        for operand in [
+            "(int){1}",
+            "1+(int){1}",
+            "1/0",
+            "2147483647+1",
+            "__builtin_clz(0)",
+            "__builtin_inf() - __builtin_inf()",
+            "__builtin_nans(\"1\") + 1.0",
+        ] {
             assert_eq!(
                 evaluate_integer(&unit, &format!("__builtin_constant_p({operand})"))
                     .unwrap()

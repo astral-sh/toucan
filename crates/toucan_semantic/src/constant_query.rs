@@ -118,7 +118,11 @@ impl Analyzer {
                     return Ok(self.infer_object_size(call)?.frontend_fold());
                 }
                 if !name.is_some_and(|name| {
-                    name == "__builtin_expect" || self.byte_swap_type(name).is_some()
+                    name == "__builtin_expect"
+                        || self.byte_swap_type(name).is_some()
+                        || self.bit_count_type(name).is_some()
+                        || self.infinity_builtin_kind(name).is_some()
+                        || self.nan_builtin(name).is_some()
                 }) {
                     return Ok(false);
                 }
