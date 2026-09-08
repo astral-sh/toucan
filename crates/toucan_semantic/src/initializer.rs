@@ -1046,6 +1046,7 @@ impl Analyzer {
                     self.unit.resolve(&ty)?.kind,
                     TypeKind::Array { .. } | TypeKind::Function(_)
                 ) && (self.object_has_static_storage(&identifier.node.name)
+                    && !self.dll_imported_object(&identifier.node.name)
                     || self
                         .builtin_function_reference(&identifier.node.name)?
                         .is_some())
@@ -1216,6 +1217,7 @@ impl Analyzer {
 
             ast::Expression::Identifier(identifier) => {
                 if self.object_has_static_storage(&identifier.node.name)
+                    && !self.dll_imported_object(&identifier.node.name)
                     || self
                         .builtin_function_reference(&identifier.node.name)?
                         .is_some()

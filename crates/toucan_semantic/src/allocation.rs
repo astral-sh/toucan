@@ -127,6 +127,7 @@ impl AllocationOperation {
 
 impl Analyzer {
     pub(crate) fn allocation_context(&mut self, evaluated: bool) -> Evaluation {
+        self.enter_dll_context(evaluated);
         let previous = self.allocation_evaluation;
         self.allocation_evaluation = Evaluation {
             evaluated,
@@ -141,6 +142,7 @@ impl Analyzer {
     }
 
     pub(crate) fn restore_allocation_context(&mut self, previous: Evaluation, promote: bool) {
+        self.restore_dll_context(promote);
         if promote {
             self.allocation_uses |= self.allocation_evaluation.deferred;
         }
@@ -354,14 +356,20 @@ impl Analyzer {
         Ok(operation.signature(self.unit.target))
     }
 
-    pub(crate) fn mark_builtin_function_use(&mut self, operation: BuiltinFunction) {
+    pub(crate) fn mark_builtin_function_use(
+        &mut self,
+        operation: BuiltinFunction,
+        offset: usize,
+    ) -> Result<(), Error> {
         if self.unit.compiler == Compiler::Clang {
+            self.record_dll_use(operation.source_name(), offset)?;
             if self.allocation_evaluation.evaluated {
                 self.allocation_uses |= 1 << operation.index();
             } else {
                 self.allocation_evaluation.deferred |= 1 << operation.index();
             }
         }
+        Ok(())
     }
 
     pub(crate) fn allocation_call_type(
@@ -369,7 +377,7 @@ impl Analyzer {
         operation: AllocationOperation,
         call: &Node<ast::CallExpression>,
     ) -> Result<Type, Error> {
-        self.mark_builtin_function_use(BuiltinFunction::Allocation(operation));
+        self.mark_builtin_function_use(BuiltinFunction::Allocation(operation), call.span.start)?;
         let signature = operation.parameters(self.unit.target);
         if call.node.arguments.len() != signature.arity {
             return Err(Error::new(

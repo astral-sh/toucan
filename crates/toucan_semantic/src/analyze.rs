@@ -85,6 +85,7 @@ fn analyze_on_parser_stack(
         .map(|(offset, pack)| (parsed.offsets.pragma_offset(offset), pack))
         .collect();
     let mut analyzer = Analyzer::new(profile, packs);
+    analyzer.prepare_dll_storage(&source);
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
@@ -122,6 +123,7 @@ fn analyze_on_parser_stack(
         analyzer.validate_returns_twice_aliases()?;
         analyzer.finish_inline_targets()?;
         analyzer.finish_inline_definitions()?;
+        analyzer.finish_dll_inline_definitions();
         let checked = analyzer
             .checked
             .take()
@@ -273,6 +275,7 @@ fn evaluate_on_parser_stack<Value>(
     } else {
         Analyzer::from_unit(unit.clone())
     };
+    analyzer.prepare_dll_storage(&source);
     analyzer.allow_late_object_size_folds = true;
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
@@ -621,6 +624,7 @@ fn validate_expression_source(
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Attributes {
+    pub(crate) dll_storage: Option<Box<crate::dll_storage::ParsedStorage>>,
     pub(crate) target_attributes: Vec<crate::target_features::ParsedTarget>,
     pub(crate) minimum_vector_width: Vec<crate::target_features::ParsedMinimumVectorWidth>,
     pub(crate) always_inline: Option<(lang_c::span::Span, bool)>,
@@ -886,6 +890,7 @@ struct DeclaratorContext<'a> {
 
 pub(crate) struct Analyzer {
     pub(crate) inline_registry: Option<Box<crate::inline::Registry>>,
+    pub(crate) dll_registry: Option<Box<crate::dll_storage::Registry>>,
     pub(crate) allocation_uses: u8,
     pub(crate) allocation_evaluation: crate::allocation::Evaluation,
     pub(crate) allocation_symbols: Option<Box<crate::allocation::Symbols>>,
@@ -990,6 +995,7 @@ impl Analyzer {
             .collect();
         Self {
             inline_registry: None,
+            dll_registry: None,
             allocation_uses: 0,
             allocation_evaluation: Default::default(),
             allocation_symbols: None,
@@ -1080,6 +1086,7 @@ impl Analyzer {
     pub(crate) fn leave_prototype(&mut self) -> Vec<Parameter> {
         self.leave_noreturn_scope();
         self.leave_allocation_scope();
+        self.leave_dll_scope();
         self.lexical_function_options
             .remove(&self.lexical_scopes.len());
         let scope = self
@@ -1275,6 +1282,7 @@ impl Analyzer {
             }
             self.unit.declarations.push(Declaration {
                 function_definition_kind: None,
+                dll_storage_class: None,
                 alignment: crate::DeclarationAlignment::default(),
                 name,
                 ty,
@@ -1453,17 +1461,14 @@ impl Analyzer {
                     .iter()
                     .position(|previous| previous.name == name)
             });
-            // In Microsoft C90 compatibility mode a later written `static`
-            // function retains the earlier external linkage. Clang's emitted
-            // definition remains externally visible, including after an implicit
-            // declaration inside a block.
+            // Microsoft C retains earlier external linkage when a later object
+            // or function declaration is written `static`, in every C mode.
             if is_static
-                && kind == DeclarationKind::Function
-                && self.unit.language_mode.is_c90()
+                && kind != DeclarationKind::Typedef
                 && self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
                 && (previous_index.is_some_and(|index| {
                     let previous = &self.unit.declarations[index];
-                    previous.kind == DeclarationKind::Function && !previous.is_static
+                    previous.kind == kind && !previous.is_static
                 }) || self
                     .block_externs
                     .get(&name)
@@ -1547,6 +1552,27 @@ impl Analyzer {
                 ));
             }
             let is_definition = definition || item.node.initializer.is_some();
+            let is_extern = storage.class == Some(ast::StorageClassSpecifier::Extern)
+                || (storage.class.is_none()
+                    && !is_typedef
+                    && crate::dll_storage::implicit_extern(
+                        declarator_attributes.dll_storage.as_deref(),
+                    ));
+            let dll_storage_class = self.dll_declaration(crate::dll_storage::Declaration {
+                name: &name,
+                kind,
+                attributes: declarator_attributes.dll_storage.as_deref(),
+                specifiers: &declaration.node.specifiers,
+                external: !is_static
+                    && !previous_index.is_some_and(|index| self.unit.declarations[index].is_static),
+                definition: is_definition,
+                tentative: kind == DeclarationKind::Variable && !is_extern,
+                thread_local: storage.thread_local,
+                previous_definition: previous_index
+                    .is_some_and(|index| self.unit.declarations[index].is_definition),
+                block: false,
+                offset: item.span.start,
+            })?;
             if kind == DeclarationKind::Function {
                 if definition {
                     self.prepare_old_style_definition(
@@ -1601,9 +1627,8 @@ impl Analyzer {
                     item.span.start,
                 )?
             };
-            let alignment_definition = is_definition
-                || (kind == DeclarationKind::Variable
-                    && storage.class != Some(ast::StorageClassSpecifier::Extern));
+            let alignment_definition =
+                is_definition || (kind == DeclarationKind::Variable && !is_extern);
             let mut alignment = written_alignment;
             if !is_typedef
                 && (self.unit.compiler == Compiler::Gnu || previous_index.is_none())
@@ -1670,9 +1695,7 @@ impl Analyzer {
                 if kind != DeclarationKind::Typedef {
                     // Extern declarations inherit visible linkage. A function
                     // declaration without storage behaves as an extern declaration.
-                    if storage.class == Some(ast::StorageClassSpecifier::Extern)
-                        || (storage.class.is_none() && kind == DeclarationKind::Function)
-                    {
+                    if is_extern || (storage.class.is_none() && kind == DeclarationKind::Function) {
                         is_static = previous.is_static;
                     }
                     if previous.is_static != is_static {
@@ -1730,6 +1753,7 @@ impl Analyzer {
                         Some(self.check_object_initializer(&ty, initializer, true)?);
                 }
                 let previous = &mut self.unit.declarations[previous_index];
+                previous.dll_storage_class = dll_storage_class;
                 previous.alignment = alignment;
                 previous.returns_twice = returns_twice;
                 previous.noreturn = noreturn;
@@ -1764,6 +1788,7 @@ impl Analyzer {
                 let index = self.unit.declarations.len();
                 self.unit.declarations.push(Declaration {
                     function_definition_kind: None,
+                    dll_storage_class,
                     alignment,
                     returns_twice,
                     noreturn,
@@ -1810,10 +1835,7 @@ impl Analyzer {
                 let name = self.unit.declarations[declaration_index].name.clone();
                 self.inline_declaration_site(&name, checked_site);
             }
-            if kind == DeclarationKind::Variable
-                && !is_definition
-                && storage.class != Some(ast::StorageClassSpecifier::Extern)
-            {
+            if kind == DeclarationKind::Variable && !is_definition && !is_extern {
                 self.tentative_definitions
                     .entry(declaration_index)
                     .or_insert(item.span.start);
@@ -1833,6 +1855,11 @@ impl Analyzer {
                 if let Some(inference) = &inference {
                     checked.retain_type_inference(site, inference)?;
                 }
+                checked.attach_dll_storage(
+                    site,
+                    dll_storage_class,
+                    declarator_attributes.dll_storage.as_deref(),
+                )?;
                 checked.attach_alignment(site, written_alignment, alignment)?;
                 checked.attach_function_options(
                     site,
@@ -2934,6 +2961,10 @@ impl Analyzer {
         if name.is_some() {
             self.check_nodebug_function_like(&ty, &extra)?;
         }
+        crate::dll_storage::merge_attributes(
+            &mut extra.dll_storage,
+            attributes.dll_storage.as_deref(),
+        );
         extra.weak = extra.weak.or(attributes.weak);
         extra.returns_twice = extra.returns_twice.or(attributes.returns_twice);
         extra.noreturn = extra.noreturn.or(attributes.noreturn);
@@ -3054,6 +3085,8 @@ impl Analyzer {
         self.attributes(parameter.extensions(), &mut extra)?;
         self.check_nodebug_function_like(&parameter_type, &attributes)?;
         self.check_nodebug_function_like(&parameter_type, &extra)?;
+        crate::dll_storage::check_arguments(attributes.dll_storage.as_deref())?;
+        crate::dll_storage::check_arguments(extra.dll_storage.as_deref())?;
         extra.require_function_attributes(false)?;
         extra.require_no_weak()?;
         extra.require_no_transparent_union()?;
@@ -3775,6 +3808,10 @@ impl Analyzer {
                 attributes.inline_specifier = attributes
                     .inline_specifier
                     .or(inner_attributes.inline_specifier);
+                crate::dll_storage::merge_attributes(
+                    &mut attributes.dll_storage,
+                    inner_attributes.dll_storage.as_deref(),
+                );
                 attributes.weak = attributes.weak.or(inner_attributes.weak);
                 attributes.returns_twice =
                     attributes.returns_twice.or(inner_attributes.returns_twice);

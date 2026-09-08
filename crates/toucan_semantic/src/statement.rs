@@ -712,6 +712,16 @@ impl Analyzer {
             }
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "local declaration has no name"))?;
+            let is_extern = is_extern
+                || (storage.is_none()
+                    && !is_typedef
+                    && crate::dll_storage::implicit_extern(extra.dll_storage.as_deref()));
+            if for_initializer && is_extern {
+                return Err(Error::new(
+                    item.span.start,
+                    "for declaration cannot declare a linked object",
+                ));
+            }
             let variably_modified = self.unit.is_variably_modified(&ty)?;
             let function = matches!(self.unit.resolve(&ty)?.kind, TypeKind::Function(_));
             if !is_typedef && !function && self.unit.is_sizeless(&ty)? {
@@ -769,6 +779,32 @@ impl Analyzer {
                     extra.noreturn = None;
                 }
             }
+            let dll_storage_class = self.dll_declaration(crate::dll_storage::Declaration {
+                name: &name,
+                kind: if is_typedef {
+                    crate::DeclarationKind::Typedef
+                } else if function {
+                    crate::DeclarationKind::Function
+                } else {
+                    crate::DeclarationKind::Variable
+                },
+                attributes: extra.dll_storage.as_deref(),
+                specifiers: &declaration.node.specifiers,
+                external: (function || is_extern)
+                    && !is_static
+                    && !previous_file.is_some_and(|index| self.unit.declarations[index].is_static)
+                    && !self
+                        .block_externs
+                        .get(&name)
+                        .is_some_and(|prior| prior.is_static),
+                definition: item.node.initializer.is_some(),
+                tentative: false,
+                thread_local,
+                previous_definition: previous_file
+                    .is_some_and(|index| self.unit.declarations[index].is_definition),
+                block: true,
+                offset: item.span.start,
+            })?;
             let noreturn = function
                 && !is_typedef
                 && self.declaration_noreturn(
@@ -1146,6 +1182,11 @@ impl Analyzer {
                         )?;
                         inline_site = site;
                         if let Some(site) = site {
+                            checked.attach_dll_storage(
+                                site,
+                                dll_storage_class,
+                                extra.dll_storage.as_deref(),
+                            )?;
                             checked.attach_alignment(site, written_alignment, alignment)?;
                             if linked && let Some(index) = previous_file {
                                 checked.attach_entity_alignment(
@@ -1298,6 +1339,11 @@ impl Analyzer {
                 if linked && let Some(index) = previous_file {
                     checked.attach_entity_alignment(site, self.unit.declarations[index].alignment);
                 }
+                checked.attach_dll_storage(
+                    site,
+                    dll_storage_class,
+                    extra.dll_storage.as_deref(),
+                )?;
                 checked.attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
                 checked.attach_returns_twice(site, returns_twice, extra.returns_twice)?;
                 checked.attach_function_options(

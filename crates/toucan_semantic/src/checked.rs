@@ -13,6 +13,7 @@
 mod access;
 pub(crate) mod attributes;
 pub(crate) mod bounds;
+mod dll_storage;
 pub(crate) mod expression;
 mod inference;
 pub(crate) mod initializer;
@@ -48,6 +49,7 @@ pub use bounds::{
     Bound, BoundEvaluation, BoundId, BoundInput, BoundSite, BoundValue, Extent, FunctionUse,
     TypeStep, TypeUse, TypeUseId,
 };
+pub use dll_storage::DllStorageSource;
 pub use expression::{
     Binary, Builtin, Conversion, ConversionStep, Coverage as ExpressionStatus, ExprId, ExprKind,
     ExprUse, Expression, ExpressionCoverage, GenericArm, OffsetMember, TypeNameOperand, Unary,
@@ -273,6 +275,8 @@ impl From<DeclarationKind> for EntityKind {
 
 #[derive(Debug, Serialize)]
 pub struct Entity {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) dll_storage_class: Option<crate::DllStorageClass>,
     #[serde(skip_serializing_if = "crate::DeclarationAlignment::is_empty")]
     pub(crate) alignment: crate::DeclarationAlignment,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -313,6 +317,8 @@ pub enum Linkage {
 
 #[derive(Debug, Serialize)]
 pub struct DeclarationSite {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) dll_storage_class: Option<crate::DllStorageClass>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) alignment: Option<Box<SiteAlignment>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -385,6 +391,8 @@ pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> O
 pub struct CheckedCode {
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub(crate) function_inline: BTreeMap<usize, inline::FunctionInlineSite>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) dll_storage: BTreeMap<usize, dll_storage::DllStorageSource>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub(crate) function_options: BTreeMap<usize, target::FunctionOptionSite>,
     #[serde(skip)]
@@ -487,6 +495,7 @@ impl Builder {
             statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
                 function_inline: BTreeMap::new(),
+                dll_storage: BTreeMap::new(),
                 function_options: BTreeMap::new(),
                 function_option_entities: BTreeMap::new(),
                 inline_targets: BTreeMap::new(),
@@ -694,6 +703,7 @@ impl Builder {
         )?;
         let id = EntityId(self.code.entities.len() as u32);
         self.code.entities.push(Entity {
+            dll_storage_class: None,
             alignment: crate::DeclarationAlignment::default(),
             returns_twice: false,
             noreturn: false,
@@ -725,6 +735,7 @@ impl Builder {
         let id = SiteId(self.code.declarations.len() as u32);
         self.code.entities[entity.index()].storage = properties.storage;
         self.code.declarations.push(DeclarationSite {
+            dll_storage_class: None,
             type_inference: None,
             alignment: None,
             returns_twice: self.code.entities[entity.index()].returns_twice,
@@ -1126,6 +1137,7 @@ impl Builder {
                 "checked-code retention has an ambiguous source occurrence",
             ));
         }
+        self.finish_dll_storage(offsets)?;
         for (scope, span) in self.code.scopes.iter_mut().zip(self.scope_spans) {
             if scope.kind != ScopeKind::File {
                 scope.source = map_span(offsets, span, &mut self.budget)?;

@@ -15,6 +15,8 @@ enum DeclspecAttribute {
     NoReturn,
     NoInline,
     Deprecated,
+    DllImport,
+    DllExport,
 }
 
 impl DeclspecAttribute {
@@ -24,6 +26,8 @@ impl DeclspecAttribute {
             "noreturn" => Self::NoReturn,
             "noinline" => Self::NoInline,
             "deprecated" => Self::Deprecated,
+            "dllimport" => Self::DllImport,
+            "dllexport" => Self::DllExport,
             _ => return None,
         })
     }
@@ -46,6 +50,8 @@ pub fn has_declspec_attribute(profile: CompilerProfile, name: &str) -> u64 {
                     DeclspecAttribute::Align
                         | DeclspecAttribute::NoReturn
                         | DeclspecAttribute::NoInline
+                        | DeclspecAttribute::DllImport
+                        | DeclspecAttribute::DllExport
                 )
             ),
     )
@@ -96,6 +102,20 @@ impl Analyzer {
         self.discard_sve_feature_uses(checkpoint);
         checked?;
         match kind {
+            Some(DeclspecAttribute::DllImport | DeclspecAttribute::DllExport) => {
+                if !ignored_prefix {
+                    let parsed = result.dll_storage.get_or_insert_with(Default::default);
+                    let slot = if kind == Some(DeclspecAttribute::DllImport) {
+                        &mut parsed.import
+                    } else {
+                        &mut parsed.export
+                    };
+                    // Preserve an invalid duplicate for subject-dependent arity checking.
+                    if slot.is_none() || !attribute.arguments.is_empty() {
+                        *slot = Some((span, !attribute.arguments.is_empty()));
+                    }
+                }
+            }
             Some(DeclspecAttribute::NoReturn) => {
                 if ignored_prefix {
                     return Ok(());

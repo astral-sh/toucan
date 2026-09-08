@@ -67,10 +67,12 @@ impl Analyzer {
                 "implicit function conflicts with an out-of-scope declaration; compiler warning recovery is unsupported",
             ));
         }
+        self.dll_implicit_function(name);
         let name = name.to_owned();
         if self.lexical_scopes.is_empty() {
             self.unit.declarations.push(Declaration {
                 function_definition_kind: None,
+                dll_storage_class: None,
                 alignment: Default::default(),
                 returns_twice: false,
                 noreturn: false,

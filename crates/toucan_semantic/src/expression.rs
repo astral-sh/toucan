@@ -146,6 +146,7 @@ impl Analyzer {
             ast::Expression::Identifier(identifier) => {
                 let name = &identifier.node.name;
                 self.check_auto_reference(name, offset)?;
+                self.record_dll_use(name, offset)?;
                 if let Some(operation) = self.builtin_function_reference(name)? {
                     if self.unit.compiler == toucan_target::Compiler::Clang {
                         return Err(Error::new(

@@ -1,0 +1,518 @@
+{
+  "existing-output/evidence.json": {
+    "bytes": 8765,
+    "sha256": "031913aa792ee697a1e2d1ba768c61b8f36a11f8692ffdfd81469319b805e215"
+  },
+  "generated-output/1.64.0-O0/consumer.ll": {
+    "bytes": 598,
+    "sha256": "1f8e4a80a06b3468cf89ffc75ae84d84e8032ae09d1969f61b628a6c79daad01"
+  },
+  "generated-output/1.64.0-O3/consumer.ll": {
+    "bytes": 519,
+    "sha256": "9852f264465a4af7fd67e563687b3baf047e16ef2a5bdef3ee1d568474885407"
+  },
+  "generated-output/api.h": {
+    "bytes": 96,
+    "sha256": "e80d4cdf13d2c25c8eff519ab9ccb1660556933d43cbb3bdf989cfa0c7b134d0"
+  },
+  "generated-output/bindings.rs": {
+    "bytes": 289,
+    "sha256": "799eb9c799cf2059cab2f6a82864e8682a0f7eaea169f4882cc6677cc8c692d6"
+  },
+  "generated-output/consumer.c": {
+    "bytes": 78,
+    "sha256": "327024d1db5c7439fe7cb9af5c081e0c3fc6761c82833f9ff3a90b20c70822f9"
+  },
+  "generated-output/consumer.rs": {
+    "bytes": 98,
+    "sha256": "70c1d76fac7747cf4b9da97d823abb88d8c657efabe11e282346b23227362472"
+  },
+  "generated-output/dll.c": {
+    "bytes": 92,
+    "sha256": "2e814fd0e927e026a900d8264478fafd994ba17f19d60dc3e282006f62b6ab43"
+  },
+  "generated-output/evidence.json": {
+    "bytes": 11382,
+    "sha256": "2bdbe69b60db7e2b5fb3aa6925d14d70732b22813d5c40bbccf04f4f27f8fd35"
+  },
+  "generated-output/stable-O0/consumer.ll": {
+    "bytes": 761,
+    "sha256": "5ffd49b5775cd07959f82cc8da0dda7a7118d37ab3d2d6ebe3709a598d7384ef"
+  },
+  "generated-output/stable-O3/consumer.ll": {
+    "bytes": 790,
+    "sha256": "444e888da3c238c31d14094c80c9a8b5a9dbcbe72ce611d1d200a6be5492e21f"
+  },
+  "logs/toucan-dll-clippy.log": {
+    "bytes": 1351,
+    "sha256": "fe911f0f951e81c1bd2a1987224b87871b01b0034e88a07366a2c96253234349"
+  },
+  "logs/toucan-dll-diff.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "logs/toucan-dll-existing-outputs.log": {
+    "bytes": 91,
+    "sha256": "5f0e744055c4c4fd353fab6819f6d8f4f2c365e9cbe66e2017c7fbc6dfe1b499"
+  },
+  "logs/toucan-dll-fmt.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "logs/toucan-dll-fuzz-clippy.log": {
+    "bytes": 1241,
+    "sha256": "a9b6ba8412ab6c5b61175ab1aa0e0d80fe1a566eb42690f31491d11937968a0a"
+  },
+  "logs/toucan-dll-generated-output.log": {
+    "bytes": 158,
+    "sha256": "93430bae83b66b33b18c7e6156dde2bcd94f3053a529a447171b7073f5fe2d1e"
+  },
+  "logs/toucan-dll-native-final.log": {
+    "bytes": 1664,
+    "sha256": "ad089811fec59519831f416e2757fff27069eef8e2651ece37cfe317a84bc956"
+  },
+  "logs/toucan-dll-replay-build.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "logs/toucan-dll-replay.log": {
+    "bytes": 56,
+    "sha256": "5e25d78a5bb1030127bbded09e7e6c77ad1b4910a75f77a58ce3c6dbc642a7d7"
+  },
+  "logs/toucan-dll-tls-native-final.log": {
+    "bytes": 708,
+    "sha256": "1cae81ee3046dbe38f89205de1a88d2fb2cf1875b1e3cae03b433f9da5920b8e"
+  },
+  "logs/toucan-dll-workspace-final.log": {
+    "bytes": 130335,
+    "sha256": "328d04d44d58ef04c03dc2475fe756bcb2fff9ca579e8d5596f20af626b7a3de"
+  },
+  "prior-linkage-and-native-probes/bindgen-evidence.json": {
+    "bytes": 35701,
+    "sha256": "5f00a345aa2b348d81da07264de1ef8cab305c5a7ad9d11ab8b07e5cec948120"
+  },
+  "prior-linkage-and-native-probes/bindgen-rust164-evidence.json": {
+    "bytes": 22675,
+    "sha256": "1c95fba97f4bc63cf0e28a465df8350bcdb5813fcb979e8d91f7e1114c8cfca3"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first.h": {
+    "bytes": 82,
+    "sha256": "d5d3c29bf11740f3236f35f67a39759cb3a7afc9bf5d76daadaec5bced30c298"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_default.ll": {
+    "bytes": 944,
+    "sha256": "138a2042c4ba2a4cf41bf11aea80060a485bbc497f630531fef5e54ce0416df0"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_default.rs": {
+    "bytes": 155,
+    "sha256": "0d691ebbdcab03ede0bd16418b62aa5c9e6f9730e2da6a37283dd69fe1612bba"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_default_bindings.rs": {
+    "bytes": 180,
+    "sha256": "5be6826671d318eb12b70ec295c428c41c85a54cd6b691c2736830cdd4e27631"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_empty_block.ll": {
+    "bytes": 952,
+    "sha256": "4b4d53f9b8b16247b10767ead3e3d4de2d8c93e1ebe87ca47640ce42569b0942"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_empty_block.rs": {
+    "bytes": 207,
+    "sha256": "ff43691e9030bc1c48db8d21a32625c372347ab6ad33834247f584179abffc8b"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_empty_block_bindings.rs": {
+    "bytes": 180,
+    "sha256": "5be6826671d318eb12b70ec295c428c41c85a54cd6b691c2736830cdd4e27631"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_link_lib.ll": {
+    "bytes": 944,
+    "sha256": "cb211fc2808b86a5396b550aadceb3baefd328338b484cf4745cbb2fe3250d1d"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_link_lib.rs": {
+    "bytes": 156,
+    "sha256": "2c158259db114730795220aac8bda9c47739434f9de04114ceeb03771466dbbd"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_link_lib_bindings.rs": {
+    "bytes": 180,
+    "sha256": "5be6826671d318eb12b70ec295c428c41c85a54cd6b691c2736830cdd4e27631"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_merged_raw_line.ll": {
+    "bytes": 980,
+    "sha256": "cfa7dd5cebe9daa52af9969ea7b22d86e650ec111a7ec5a39f120c16020b9eb5"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_merged_raw_line.rs": {
+    "bytes": 163,
+    "sha256": "6451e62d6498dc2fd472013332b744b81fd1ce2cfa2f0d796bc8902aa7cc4c59"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_merged_raw_line_bindings.rs": {
+    "bytes": 201,
+    "sha256": "2489ad523432057dab6cf85a43e9e2c01059679f895378522626bf5b19eb0ca3"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_raw_line.ll": {
+    "bytes": 956,
+    "sha256": "eb3e704490b9176689180756f98d4c0986985c5fd67fc0ebc7b0edc244b251b1"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_raw_line.rs": {
+    "bytes": 156,
+    "sha256": "ccc49fd3743affe0c2aba6acfbe15bce07f066c843987b88ac9cad7c868e741a"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_raw_line_bindings.rs": {
+    "bytes": 216,
+    "sha256": "3fcd84869f1cef4c190ee8d6dd85f449ac74cc8e1388c100f12e0a05c3e7a8ab"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_scoped_link.ll": {
+    "bytes": 972,
+    "sha256": "c197a6e8857b41da0981788f7c938e010a3fe268ba68b8e3715fc430e84b402c"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_scoped_link.rs": {
+    "bytes": 159,
+    "sha256": "35f2644ed2cd107581a79dde104b63e4918179bc8a4b18c50a36311f43a2b7b8"
+  },
+  "prior-linkage-and-native-probes/bindgen/data_first_scoped_link_bindings.rs": {
+    "bytes": 250,
+    "sha256": "08be0073d7e6541ce6a4387a585ca00d2a74c499bf5a0a9ba6d4781c76d33831"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first.h": {
+    "bytes": 82,
+    "sha256": "9531d66b8d0285245be598d2c841115c5bc52b3cf95252aadc9e4e749da49151"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_default.ll": {
+    "bytes": 952,
+    "sha256": "ccc215ba713e4a7ab895fdca0e6851a499abf5917b1f425b2726c46dceed64b5"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_default.rs": {
+    "bytes": 159,
+    "sha256": "6997ff35ddd615c95f3063a5619c80a928f89d3b43dcc3c9a252d810438787d6"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_default_bindings.rs": {
+    "bytes": 180,
+    "sha256": "22a82a4bb22538c664ca9100a24d8544c55d5b118a3ff5d64a1b6f8c0d2e7770"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_empty_block.ll": {
+    "bytes": 960,
+    "sha256": "227fa081446a2878393b548567e1c0e1c8728121f218ee33da9a87c29a4461f3"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_empty_block.rs": {
+    "bytes": 211,
+    "sha256": "77a1a46493e9a525f3afe2152da4ee01e6fbc74e7d6d93f160160354b0db3151"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_empty_block_bindings.rs": {
+    "bytes": 180,
+    "sha256": "22a82a4bb22538c664ca9100a24d8544c55d5b118a3ff5d64a1b6f8c0d2e7770"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_link_lib.ll": {
+    "bytes": 954,
+    "sha256": "100b4c294a7d036f7bcabf0c81f2fb44e1f7f6004ad268bb6500b04dc0f18596"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_link_lib.rs": {
+    "bytes": 160,
+    "sha256": "b9bebdd3790705ac65f3f854260e234758c90017fcce93bbcc360df2f5a1b0a3"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_link_lib_bindings.rs": {
+    "bytes": 180,
+    "sha256": "22a82a4bb22538c664ca9100a24d8544c55d5b118a3ff5d64a1b6f8c0d2e7770"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_merged_raw_line.ll": {
+    "bytes": 988,
+    "sha256": "7a0c17eae089fb6ba1f89523b3a85df000ae087668632e47b95b398fb9abe298"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_merged_raw_line.rs": {
+    "bytes": 167,
+    "sha256": "c875fc74c7a4ba4c70b28c8df5c16882006a858a027e0b7dc054587ad40566c5"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_merged_raw_line_bindings.rs": {
+    "bytes": 201,
+    "sha256": "3ec13fe85864fd8f5ac86ecc5d8123f2928e838fa2d50f65dbddd4dcf68e9d11"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_raw_line.ll": {
+    "bytes": 964,
+    "sha256": "782fcfb7db0183c848e4e7d721da495143a8c1430694c4422ca7b038f59f22bc"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_raw_line.rs": {
+    "bytes": 160,
+    "sha256": "2d36e7c70b75aba8a0c4adcb968caac4dffe9b0503f7882189845b23093bfd53"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_raw_line_bindings.rs": {
+    "bytes": 216,
+    "sha256": "9cc1defd303df380d4516e2a33bb2da22c3b9565e18f8dd3aa7996e9cc1888d0"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_scoped_link.ll": {
+    "bytes": 980,
+    "sha256": "3c645473f5694f102dd3cffb542935ed624685a3d745feed75bd3288ac55064d"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_scoped_link.rs": {
+    "bytes": 163,
+    "sha256": "2e6c2ebb56a8fac6642d69b382bcd8f58ed9338e4e688a8f76a7db44a7f97637"
+  },
+  "prior-linkage-and-native-probes/bindgen/function_first_scoped_link_bindings.rs": {
+    "bytes": 250,
+    "sha256": "51b2a958bf58b85280599da813b869777258725b8d0337fdde35c7439259678b"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/data_first_default.ll": {
+    "bytes": 652,
+    "sha256": "01658a668b5a8393304c8f308410880337c5391b7008e2ac5df86caf191e98bc"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/data_first_empty_block.ll": {
+    "bytes": 660,
+    "sha256": "c1e380bcc0014346f61a84ad812422272957cdabec3ab2c2d601f1ef66932a56"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/data_first_link_lib.ll": {
+    "bytes": 654,
+    "sha256": "4d4898ade553890e816cdc3736073f91dc317a2112835e5cf99ec07aa37393e2"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/data_first_merged_raw_line.ll": {
+    "bytes": 688,
+    "sha256": "2992033e73385e816d9605a2e2970226c9f323381cf01652cce606548f19082a"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/data_first_raw_line.ll": {
+    "bytes": 664,
+    "sha256": "8980772ff7821d18928fae2708e51790c59d0a0e9d382351d45c1a3b9b0e2bc1"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/data_first_scoped_link.ll": {
+    "bytes": 680,
+    "sha256": "1539d1522fdaa00d8a85f18a2e72b0277d68572f39362375a46e4cae74125dc1"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/function_first_default.ll": {
+    "bytes": 660,
+    "sha256": "2f167f3b211b0c20125533b0d30a97b70e075e67e8f45b0a683ca36067f228f5"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/function_first_empty_block.ll": {
+    "bytes": 668,
+    "sha256": "a2e56def4366c9d1108c6d19151ece78a88e552b494dc7bbd3f80e1f17fe06e3"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/function_first_link_lib.ll": {
+    "bytes": 662,
+    "sha256": "0261e0b98e461b75c70e1e2ad4ccbcb8cb2cc782d9401b0c7922c0dd80842c26"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/function_first_merged_raw_line.ll": {
+    "bytes": 696,
+    "sha256": "a8a1c68db5c6841e44de89b20514404ef2f34fb522f547256f98a6f5ea5516d2"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/function_first_raw_line.ll": {
+    "bytes": 672,
+    "sha256": "1cd047943705d2650c799744b939168373e0ab56a480895fb660c7217c3bea1f"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/function_first_scoped_link.ll": {
+    "bytes": 688,
+    "sha256": "a52f9a4a2137da4476ce1eb45cb91d87c0221dbcf8bdb683a7a05d14531e31f5"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/typedef_first_default.ll": {
+    "bytes": 658,
+    "sha256": "db8e9cd935143f0b4e780fd65114cc0fadd8ed2785fc857b6fcbd57270d10c1a"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/typedef_first_empty_block.ll": {
+    "bytes": 666,
+    "sha256": "f30382f1fcb88d6588f14aab66e8dae8233e6c5808ff6dd4baff8b25775147a2"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/typedef_first_link_lib.ll": {
+    "bytes": 660,
+    "sha256": "8732c693a3132e30a720f89634aa94477ef775d2c2ebd6c9fa313235eb7f2198"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/typedef_first_merged_raw_line.ll": {
+    "bytes": 674,
+    "sha256": "8b1afe40e4c22eed29e307b8151701d677ffee6f73504652b662460a807eebde"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/typedef_first_raw_line.ll": {
+    "bytes": 660,
+    "sha256": "eb120b9f858e41b922e97f49f1e165bce81fe2d024c281b31c710c03ddd2c7a1"
+  },
+  "prior-linkage-and-native-probes/bindgen/rust164/typedef_first_scoped_link.ll": {
+    "bytes": 686,
+    "sha256": "d1cb6fb9887ea11c8cb1d185710bbe19e6f56b78c5ff28f14e729cc77035649b"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first.h": {
+    "bytes": 108,
+    "sha256": "3d02acd11a42a74beeefd0c943c497b2a4e9f3ac1dfc22fa3c13c4c6015aeb90"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_default.ll": {
+    "bytes": 950,
+    "sha256": "92f963c12887b5e0491d06bc803cbe4c165e84ccec82afb0352b33ccaec53721"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_default.rs": {
+    "bytes": 158,
+    "sha256": "17f258d0944567e52daf9e7275c58da87bcad1a4a125ca9aedfa0ad5181616d3"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_default_bindings.rs": {
+    "bytes": 190,
+    "sha256": "54fe45043872f6b581e59a24551271e78cc0b6f3cb2f32997b55f5d816996a86"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_empty_block.ll": {
+    "bytes": 958,
+    "sha256": "799547211c6fe05c1facf571b365a77d42bb82e89e7dc2a7a437e89f201a9766"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_empty_block.rs": {
+    "bytes": 210,
+    "sha256": "da2f2e144b67b922e3c6ee9a4602afc613d1883b478c126eca5f20566fc6a34a"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_empty_block_bindings.rs": {
+    "bytes": 190,
+    "sha256": "54fe45043872f6b581e59a24551271e78cc0b6f3cb2f32997b55f5d816996a86"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_link_lib.ll": {
+    "bytes": 952,
+    "sha256": "50912af4f2922731c1efb14e1c2283be187e03fc33a31c314ec4d1c09af76f6a"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_link_lib.rs": {
+    "bytes": 159,
+    "sha256": "197a2a8359d1983951645e797d887fe314a4f717ce6efe5ea8a25b99ee4dfd5c"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_link_lib_bindings.rs": {
+    "bytes": 190,
+    "sha256": "54fe45043872f6b581e59a24551271e78cc0b6f3cb2f32997b55f5d816996a86"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_merged_raw_line.ll": {
+    "bytes": 966,
+    "sha256": "8f5fbad346f7b62d98701982812f14e4048c2a28fb7d12df3fc16091dd14ef47"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_merged_raw_line.rs": {
+    "bytes": 166,
+    "sha256": "b172e3c63cf234782d3507e912e2aba862cac1fa65fbf0a6a8918a398a374d26"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_merged_raw_line_bindings.rs": {
+    "bytes": 211,
+    "sha256": "c8b51b26a0c7cd3111e2a6a6f5db90cfae00a9d80fdccb73d71d303acbc185be"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_raw_line.ll": {
+    "bytes": 952,
+    "sha256": "83d8a1e2eee46608f20022d84b2668fe2273bebbcd7c4466e803c8afc1eb59fb"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_raw_line.rs": {
+    "bytes": 159,
+    "sha256": "642194b2c9b63af727c05df068b7266fbdf1bba7f027dea932d684a1070db71a"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_raw_line_bindings.rs": {
+    "bytes": 226,
+    "sha256": "bb340f635731f75a74834d7a6082481b2d55f47b2292f09ee951ad924aa13f2d"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_scoped_link.ll": {
+    "bytes": 978,
+    "sha256": "68aa8f582c5cf9381f04c6d1376b96a717604330c61e55bc1653f113cc9de77f"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_scoped_link.rs": {
+    "bytes": 162,
+    "sha256": "e866c990c35f9144b110b74a547b3da4689f6ea5feff84bd85036619e63d3f71"
+  },
+  "prior-linkage-and-native-probes/bindgen/typedef_first_scoped_link_bindings.rs": {
+    "bytes": 260,
+    "sha256": "580843426541fde5acf26db6e513b1e591f13efdf2c74bc4651b791c4c2a7691"
+  },
+  "prior-linkage-and-native-probes/cli-dylib-evidence.json": {
+    "bytes": 359,
+    "sha256": "f58b5dbc47273349947d78b271ce8551f7f054bb4f8a8ddc3410e3bdae9c887d"
+  },
+  "prior-linkage-and-native-probes/cli_dylib.ll": {
+    "bytes": 924,
+    "sha256": "e2aab5431f1b26de549c73f8a9a2c81bd34de846590c1b6a6024e0099d1a1bc4"
+  },
+  "prior-linkage-and-native-probes/cli_dylib.rs": {
+    "bytes": 131,
+    "sha256": "7a5b3cdb5e0afa3ab1aed07c6b39a660c2582bc490e15abaefb4fb1e4d363881"
+  },
+  "prior-linkage-and-native-probes/consumer.c": {
+    "bytes": 124,
+    "sha256": "80159f9d911801773c6fd704835892d5645091acb5dab979fcbf2ef2c5f7c969"
+  },
+  "prior-linkage-and-native-probes/dll.c": {
+    "bytes": 89,
+    "sha256": "b3dd84ac6a86216ef70e7467d119e11c9d17030cbdf6669c63072270f0778132"
+  },
+  "prior-linkage-and-native-probes/dylib.ll": {
+    "bytes": 938,
+    "sha256": "8d6b2cd1749477e840c2f330e8b27ff49bad6be6b2d2e1057bafdd9ddd7acbb0"
+  },
+  "prior-linkage-and-native-probes/dylib.rs": {
+    "bytes": 165,
+    "sha256": "7a770452c3b231b1e8e94b881e79f1cb4a9e62890b7b5f092f436db9b3d4d2b8"
+  },
+  "prior-linkage-and-native-probes/evidence.json": {
+    "bytes": 3497,
+    "sha256": "5a3cd2e361fba3ba791075d8c7b405247f1acd570dd970a3d164348ae1e7dce7"
+  },
+  "prior-linkage-and-native-probes/nested-evaluation.json": {
+    "bytes": 5348,
+    "sha256": "1f6856b72641ade65f887f64ab347f063ed369c43f4263e46f59804065b032b5"
+  },
+  "prior-linkage-and-native-probes/plain.ll": {
+    "bytes": 918,
+    "sha256": "f058bf398f50716880aeb539658575bf62d1ddc81b591453f86b719fd1fd9c6d"
+  },
+  "prior-linkage-and-native-probes/plain.rs": {
+    "bytes": 131,
+    "sha256": "7a5b3cdb5e0afa3ab1aed07c6b39a660c2582bc490e15abaefb4fb1e4d363881"
+  },
+  "prior-linkage-and-native-probes/probe.ll": {
+    "bytes": 923,
+    "sha256": "7fb14a843924c5dca292ee7887f7f95ecd1aa5fc43667d16c8f19785d414e45c"
+  },
+  "prior-linkage-and-native-probes/probe.rs": {
+    "bytes": 128,
+    "sha256": "7e211986809fc085a252e3e6ee80c59e65f11058c8495f462bb0c5341a6c7e63"
+  },
+  "prior-linkage-and-native-probes/redeclarations.json": {
+    "bytes": 70493,
+    "sha256": "fc546d941615cf0873571d46ca4d1ff856481a2d246bc4e5abb4275c00644b12"
+  },
+  "prior-linkage-and-native-probes/scope-followup.json": {
+    "bytes": 16250,
+    "sha256": "9c09b68bc4b4257ac2151d0d413b9281806c2986755357b263d779c5f3b37ab9"
+  },
+  "prior-linkage-and-native-probes/static-linkage-modes.json": {
+    "bytes": 39010,
+    "sha256": "f56be383061b82175ec81cb3f6e2649cdff79ada5e69ad1daf1208d4ba2d3110"
+  },
+  "prior-linkage-and-native-probes/storage-subjects.json": {
+    "bytes": 173491,
+    "sha256": "d745e0d4f7e3a3cf4ecd15f9a238f5ee46f5df59303409b30b56e9aa847635ca"
+  },
+  "prior-linkage-and-native-probes/uses-before-attributes.json": {
+    "bytes": 33303,
+    "sha256": "f630249884d35478129ef2e581a704c6751cf81442e139909d629defabf12bf3"
+  },
+  "regression/checked_invariants.rs": {
+    "bytes": 50942,
+    "sha256": "767c229ff33f0234129db313f38b9684c32aad9511f39f12e2661a2adc793bce"
+  },
+  "regression/dll_storage.rs": {
+    "bytes": 37923,
+    "sha256": "1ff38e1f9cc6bf174aaf57a4cba2ce314ba5473f39182589941f392caf695871"
+  },
+  "regression/thread_local.rs": {
+    "bytes": 11937,
+    "sha256": "5c5f41e1d1953ac8dc4de8e5ff4d3b58ba7ef8f0fdc1e517c27749b5bed410fd"
+  },
+  "scripts/toucan-dll-capture.py": {
+    "bytes": 6315,
+    "sha256": "b0720df1400456ae71866b951b0d82b4e715c614e4486f0836284d19cac2d53b"
+  },
+  "scripts/toucan-dll-existing-outputs.py": {
+    "bytes": 1737,
+    "sha256": "527f83f5174910e3daf45a101a9c74e42418820bbb0132db35a4a48d6aeda01c"
+  },
+  "scripts/toucan-dll-generated-output.py": {
+    "bytes": 3122,
+    "sha256": "3ac89af3b2c8980f97bf7783e88dd9374d712d11471c6233a9f606e21fd9e4bc"
+  },
+  "scripts/toucan-dll-replay.rs": {
+    "bytes": 1525,
+    "sha256": "c3510208cad82b5f4ab4e21a4fec51b36494a285f32be96ca080a1520085007a"
+  },
+  "scripts/toucan-msvc-bindgen-dll.py": {
+    "bytes": 2970,
+    "sha256": "ad919d6d353f67316214d47c3d76a19fcdab20368179ba62fe6928c2f3a4a2fd"
+  },
+  "scripts/toucan-msvc-dll-linkage.py": {
+    "bytes": 2343,
+    "sha256": "80bec1fa0c06ef5d61ef6d9aa0c1706cafaac99c4940fc97100c190d3918d92f"
+  },
+  "scripts/toucan-msvc-dll-redeclarations.py": {
+    "bytes": 3460,
+    "sha256": "115b4d524ede55948325316dcfa747533d8e038f99fc8af0839219467f2dc297"
+  },
+  "scripts/toucan-msvc-dll-uses.py": {
+    "bytes": 2189,
+    "sha256": "02c26185ea54211167066641561557c86f1c30f524a1509ca18b03955b6ffb67"
+  },
+  "scripts/toucan-msvc-storage-probes.py": {
+    "bytes": 1726,
+    "sha256": "e07a0456a38d00af5d2c8accb819cb30398ce3a4044749b8f621389285ae5457"
+  }
+}

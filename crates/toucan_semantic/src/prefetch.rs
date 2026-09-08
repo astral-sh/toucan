@@ -110,7 +110,7 @@ impl Analyzer {
         }
         if clang {
             // Share the lazy symbol/first-use state with other function builtins.
-            self.mark_builtin_function_use(BuiltinFunction::Prefetch);
+            self.mark_builtin_function_use(BuiltinFunction::Prefetch, offset)?;
         }
         let signature = self.builtin_function_type(BuiltinFunction::Prefetch)?;
         self.check_assignment(&signature.parameters[0].ty, &call.node.arguments[0])?;

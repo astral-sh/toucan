@@ -53,6 +53,12 @@ impl Scope {
 }
 
 impl Entity {
+    /// DLL storage on the last retained declaration of this entity. Earlier sites
+    /// retain their own storage; this is not a verdict about emitted references.
+    pub fn dll_storage_class(&self) -> Option<crate::DllStorageClass> {
+        self.dll_storage_class
+    }
+
     /// Whether any retained declaration promises that this function does not return.
     /// Earlier sites and calls preserve the promise visible at their source position.
     pub fn noreturn(&self) -> bool {
@@ -102,6 +108,11 @@ impl Entity {
 }
 
 impl DeclarationSite {
+    /// Effective DLL storage at this declaration's scope and source position.
+    pub fn dll_storage_class(&self) -> Option<crate::DllStorageClass> {
+        self.dll_storage_class
+    }
+
     /// Non-return promise visible at this declaration, independently of its C type.
     pub fn noreturn(&self) -> bool {
         self.noreturn

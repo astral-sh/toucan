@@ -1,0 +1,23 @@
+{
+  "patch_sha256": "5f1996f6dca97c30f816a9afe26b2f0b114c545ded17a0a315d42e94fa5dd0be",
+  "native_comparisons": 322,
+  "native_test_cases": 216,
+  "retained_ownership_cases": 24,
+  "scope": "Final copied CLI matches all 322 Clang18 source decisions. Tests-final and clippy-final describe the final source. The earlier native log preceded two cancellation refinements; first-replay preserves those two failures. No Windows execution or sanitizer claim.",
+  "binary_sha256": "d53ef32d0b5b89ffbdfcf3ebd9f94c24cebfdafa0ca8bf5db8f4322074740b34",
+  "artifacts": {
+    "build-final.log.gz": "21adbc6c6f133a9ed0942d84039aed65adcb1382d69f1fd92b8d91bcc663c635",
+    "clippy-final.log.gz": "d5c1cdbe5703ceec9200aab7cff8ec5b1e890d62b2e5dbce3200034b50ce834d",
+    "final.log.gz": "0cd9db2dc8941e2b249495cabf3894d7dc549fec7c127a326a56ef3aa0c29f3c",
+    "first-replay.log.gz": "f23a7f5f959afeb93831741f304ba9c87e6e39e607fdf3f672ea7e0ece435060",
+    "native.log.gz": "0777422d7fd0ff06b1d0977b0df771a0b6cc107d3d6ccb3d4fa51d3a15da40b5",
+    "probes.tar.gz": "2d7c5286d517fd8666479b5d9aefff47a884b8002f026e023d953447cddc668f",
+    "source.json": "fcde681e651d16c13bdef8dd3373e22f10cd80e967d50fdac95b8d2e3730e718",
+    "tests-final.log.gz": "3c772d6e67f7b9e2bd1c0d78140f0051fc3b7f6954b367f2dccb96877cdecc35",
+    "toucan-dll-address-sequences.py": "ee734bdd2c10d26c092f983713346659a654b168db8f96d8205e062c24978b87",
+    "toucan-dll-call-review.py": "657319e5d37630121d6e23d0443117cb6cd39cbab36302c217f70a04f66f951c",
+    "toucan-dll-composition-review.py": "d2cbe88d60cb8a0ce1c4f48392882fc263a34a2fafeb09710dc4f93e1d410d5b",
+    "toucan-dll-final-replay.py": "db7afc5a49556bb460890782ebd41c1cca7ed1e0b7989b67957e708062f3d3f1",
+    "toucan-dll-scope-review.py": "a55990d4ad6791d37aad0755a427abea160ea3f62cdb7ec63bd775fbbbc18eb3"
+  }
+}

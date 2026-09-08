@@ -373,8 +373,18 @@ pub fn generate_with_macros(
                 declaration.name
             )));
         }
+        if declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
+            && declaration.kind == DeclarationKind::Variable
+        {
+            return Err(Error(format!(
+                "dllimport object `{}` requires a DLL library name attached to its Rust foreign block; scoped DLL linkage configuration is unsupported",
+                declaration.name
+            )));
+        }
         if declaration.is_static
-            || (declaration.kind == DeclarationKind::Function && declaration.is_definition)
+            || (declaration.kind == DeclarationKind::Function
+                && declaration.is_definition
+                && declaration.dll_storage_class != Some(toucan_semantic::DllStorageClass::Import))
         {
             skipped.push(declaration.name.clone());
             continue;

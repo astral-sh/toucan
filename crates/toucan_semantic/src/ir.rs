@@ -411,6 +411,10 @@ pub struct Declaration {
     /// continues to indicate a checked body or an initialized object.
     #[serde(skip_serializing_if = "Option::is_none")]
     pub function_definition_kind: Option<crate::FunctionDefinitionKind>,
+    /// DLL storage visible at the final file declaration. This does not identify
+    /// a library, change the C type, or describe earlier emitted references.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dll_storage_class: Option<crate::DllStorageClass>,
     /// Explicit object/function alignment, independent of the declared C type.
     #[serde(skip_serializing_if = "crate::DeclarationAlignment::is_empty")]
     pub alignment: crate::DeclarationAlignment,

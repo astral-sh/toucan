@@ -1,0 +1,28 @@
+{
+  "base": "4a078118750cbd654690d87bfa0ee9c189f8ce74",
+  "files": {
+    "crates/toucan/tests/declspec.rs": "920fcc6ad43cc755e0e1f417fd4f7551557399a7fd65921aacc673d5361c47d0",
+    "crates/toucan/tests/dll_storage.rs": "1ff38e1f9cc6bf174aaf57a4cba2ce314ba5473f39182589941f392caf695871",
+    "crates/toucan_bindings/src/lib.rs": "d38d92f8f371f0421a02a04fda4f8389fb683cb6e762ec9912bd8fe7da4523c3",
+    "crates/toucan_semantic/src/allocation.rs": "3d19df440b24ade13f0c3adc090fc42fd9482a66e9d65c9c27bd16004b51fec1",
+    "crates/toucan_semantic/src/analyze.rs": "6c8708183b009ac86be22460795f4b1241f2b164be07fc30ac38361540415773",
+    "crates/toucan_semantic/src/checked.rs": "c60268c93f625beca545638f15651b6feca8ebd515d2a47df3794514e79546ab",
+    "crates/toucan_semantic/src/checked/access.rs": "00b5d2a13e1a48234e0247448f801cdc1287496650549db2660996ece0e5db9e",
+    "crates/toucan_semantic/src/checked/dll_storage.rs": "f4d297916b625cc17c0a427c222f40e1d0a3321e775b44273ae175cc72696334",
+    "crates/toucan_semantic/src/declspec.rs": "e6c7eb864e1279539cd27fc2505d3b8980a4fdb4505f357d377251a1e855ba78",
+    "crates/toucan_semantic/src/dll_storage.rs": "36140e1061a904917b97407696c5effb11a17225e24d2447363fc6dc8142e2a4",
+    "crates/toucan_semantic/src/expression.rs": "4d55c787324c809bf773df52f90f8340b31995f8986e3f647a950ad122de03af",
+    "crates/toucan_semantic/src/implicit_function.rs": "b3b5d1e060808ea5f9a53df21f4edcc00a3af950127d40b9928f858870f4f8be",
+    "crates/toucan_semantic/src/initializer.rs": "f1b3d2eb3d8785221173e6b7443c826a0019229d0204ffa8fd7db3ba67d5ee07",
+    "crates/toucan_semantic/src/ir.rs": "bfc2f4ab404684fd135fbff67309a4271b3ee6386679689c461d745cca7d17f1",
+    "crates/toucan_semantic/src/lib.rs": "c5ca375a65d516ba8ff55147ff8c446cadc7b3358278dd7ecfd0615b64520a1e",
+    "crates/toucan_semantic/src/statement.rs": "00f5ac8eb74531e33ad228cb5639ec80f63414b9486b04b202b492f5219329ab",
+    "crates/toucan_semantic/tests/thread_local.rs": "5c5f41e1d1953ac8dc4de8e5ff4d3b58ba7ef8f0fdc1e517c27749b5bed410fd",
+    "docs/msvc-declarations.md": "ca87adde7c30b64c82414bbdf4fa1870d06bb108cde6b98f1dfc15e94ab34f8a",
+    "docs/msvc-dll-storage.md": "f74aa7a9335ac99f073e11d036718c898b495a18d77b139a49483a72676dd42f",
+    "fuzz/fuzz_targets/checked_invariants.rs": "767c229ff33f0234129db313f38b9684c32aad9511f39f12e2661a2adc793bce",
+    "fuzz/seeds/bindings/dll-storage.h": "6eb832ddc167b0e96d750de543e683962f48319a57a231fff0b42f10b9192c23",
+    "fuzz/seeds/checked/dll-storage.h": "7bfa63430a748ef0e73968cab9019f112de2826a5d9969f4366cfff3c33c13ed",
+    "fuzz/seeds/semantic/dll-storage.h": "7bfa63430a748ef0e73968cab9019f112de2826a5d9969f4366cfff3c33c13ed"
+  }
+}

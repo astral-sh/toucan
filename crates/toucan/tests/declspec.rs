@@ -246,6 +246,10 @@ fn declspec_queries_and_unsupported_attributes_keep_their_boundaries() {
             "__align__",
             "__noreturn__",
             "__noinline__",
+            "dllimport",
+            "dllexport",
+            "__dllimport__",
+            "__dllexport__",
         ] {
             assert_eq!(
                 toucan::semantic::has_declspec_attribute(profile, name),
@@ -257,7 +261,6 @@ fn declspec_queries_and_unsupported_attributes_keep_their_boundaries() {
             "__align",
             "align__",
             "deprecated",
-            "dllimport",
             "thread",
             "unknown",
         ] {
@@ -268,7 +271,6 @@ fn declspec_queries_and_unsupported_attributes_keep_their_boundaries() {
         "__declspec(__align__(16)) int x;",
         "enum __declspec(align(16)) E{A};",
         "__declspec(align(16)) typedef void F(void);",
-        "__declspec(dllimport) int x;",
         "__declspec(thread) int x;",
         "__declspec(selectany) int x;",
     ] {

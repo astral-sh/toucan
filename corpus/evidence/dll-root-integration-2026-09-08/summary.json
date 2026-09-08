@@ -1,0 +1,35 @@
+{
+  "base_commit": "3830dcdae5ed1e85602946e6c3be73cdea8c4127",
+  "composition_patch_sha256": "5f1996f6dca97c30f816a9afe26b2f0b114c545ded17a0a315d42e94fa5dd0be",
+  "workspace": {
+    "passed": 788,
+    "failed": 0,
+    "ignored": 209
+  },
+  "focused_native_tests_passed": 16,
+  "checked_seed_pairs": {
+    "total": 4004,
+    "accepted": 2693,
+    "matching_diagnostics": 1311
+  },
+  "unchanged_binding_outputs": 8,
+  "asan": {
+    "inputs": 20815,
+    "seconds": 181.1446690760058,
+    "peak_rss_mb": 589,
+    "source_unchanged": true,
+    "findings": 0
+  },
+  "scope": "Integrated DLL semantics, inline/weak ownership, lexical inheritance, canonical static addresses and allocation/prefetch first-use tracking. Native compiler/COFF comparisons remain tied to the separate recorded snapshots. No Windows runtime execution claim.",
+  "artifacts": {
+    "binaries.json.gz": "5253b412119209f89a7b78747b01657e3983cc0ec5e6f26f4b20da6b8919198f",
+    "bindings.json.gz": "6f04611afd9407d6ad360de34950b4e6fef45dbfde33fe91e4382e4bf225657b",
+    "build-final.log.gz": "dee896521c90724fff096a7f1ccc53659031bdee52e13ada2478fa003dd55b62",
+    "clippy-final.log.gz": "d8d019f4fb69e5bc2c7ffb42d1fc97c91c4176f146a6a95a3cb19192a7d18b94",
+    "fuzz-clippy-final.log.gz": "89ee548e132d59a46ba721d9e579c6359196ea891e6cd664f5b7c657d3f01e3a",
+    "native-final.log.gz": "9a92f0c93983ff97f6d1e07bbfe8d52d30d440b5d496622804e16765f21c984d",
+    "outputs.log.gz": "5eb66c9db48a066db12641e6ec1c636589994a95f89485c88b4a18e98778ef45",
+    "replay.log.gz": "40d01adea16e50bad43d517b6d1b0ca6c0d38c9f44d6b7f2bec904f9ab97f567",
+    "workspace-final.log.gz": "e31a1493d932eba13e37a79dcfbb5155540875aac4012076f4f4b08a1de27f1a"
+  }
+}

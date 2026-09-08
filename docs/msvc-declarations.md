@@ -13,6 +13,7 @@ are accepted. These keywords do not appear as replacement macros.
 | `align(n)` | Requires one integer constant, a power of two from 1 through 8192 bytes. Retains record, typedef, field, parameter, function, or object alignment according to its placement. |
 | `noreturn` | Takes no arguments on effective declaration subjects. Retains the written function promise and Clang's function-type promise, including through function-pointer typedefs. |
 | `noinline` | Retains a function declaration's no-inline option and checks its argument count there. Other declaration subjects ignore the option, as Clang does. |
+| `dllimport`, `dllexport` | Check declaration subjects, arity, linkage, thread storage, definitions, redeclarations, and uses before a late attribute. Retain effective storage separately from C types. |
 | `deprecated` | Accepts zero arguments or one string literal. Use-site deprecation diagnostics are not implemented. |
 
 Narrow string annotation names used by SAL are retained in the syntax tree and
@@ -21,8 +22,8 @@ Recognized attribute operands still undergo ordinary name lookup even when their
 declaration subject makes the attribute ineffective. SAL operands remain opaque. GNU-style surrounding underscores are
 not aliases for Microsoft attribute names.
 
-`has_declspec_attribute` reports checked support for `align`, `noreturn`, and
-`noinline` in the MSVC profile. Query names also accept paired surrounding double
+`has_declspec_attribute` reports checked support for `align`, `noreturn`,
+`noinline`, `dllimport`, and `dllexport` in the MSVC profile. Query names also accept paired surrounding double
 underscores, matching Clang; written source attributes keep the exact spellings
 described above. The query returns zero for deprecation and string
 annotations. It does not assert support for every vendor extension or target ABI.
@@ -57,8 +58,9 @@ the existing C promise comment, without changing the physical calling convention
 ## Current limits and evidence
 
 Enum-tag alignment and alignment on a void or function typedef retain explicit
-unsupported-feature diagnostics. DLL import/export, thread storage, `selectany`,
-and additional Microsoft attributes are also unsupported in this layer.
+unsupported-feature diagnostics. Microsoft `thread`, `selectany`, and additional
+Microsoft attributes are also unsupported in this layer. DLL declaration checking
+and its binding-generation limits are described in [DLL storage](msvc-dll-storage.md).
 These diagnostics are not compiler acceptance equivalence claims. Full Windows
 SDK parsing and native Windows runtime validation remain release gates.
 

@@ -179,6 +179,16 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     for (id, declaration) in code.declarations() {
         assert_eq!(scope_membership[id.index()], 1);
         let entity = code.entity(declaration.entity()).unwrap();
+        if declaration.dll_storage_class().is_some() {
+            assert!(matches!(entity.kind(), EntityKind::Variable | EntityKind::Function));
+            assert_eq!(declaration.linkage(), Linkage::External);
+            assert_ne!(declaration.storage(), Storage::Thread);
+        }
+        if let Some(written) = code.dll_storage_source(id) {
+            for span in [written.import(), written.export()].into_iter().flatten() {
+                source_span(source, span);
+            }
+        }
         assert_eq!(declaration.storage(), entity.storage());
         assert!(code.scope(declaration.scope()).is_some());
         assert!(code.occurrence(declaration.occurrence()).is_some());

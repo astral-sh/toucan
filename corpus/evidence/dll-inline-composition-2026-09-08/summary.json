@@ -1,0 +1,15 @@
+{
+  "scope": "Clang18.1.3 cross-target x86_64 MSVC syntax, LLVM verification, and COFF symbols. No Windows runtime execution.",
+  "object_cases": 50,
+  "llvm_verifier_cases": 5,
+  "llvm_invalid_cases": 1,
+  "retained_ownership_pairs": 40,
+  "artifacts": {
+    "evidence.json.gz": "fb0330d7a4a8ed860f2be18fdb9a2c7add1a4ea5a7887b3a09a18c8bd7f137da",
+    "lowering.json.gz": "69d683bd66c12aedf4452025d9d9acf2e084210d1cf0e05b40d2575d0c02c1a1",
+    "objects.tar.gz": "bee759d810c936d34833ebcd1f9f1c214266b60dd918f2286ad2f14ea0ae506c",
+    "replacements.json.gz": "f7febb98340d421ba1e5aaae555e700dd7e64dbfbe37676f1ece87fc97189ef0",
+    "tools.json": "19280f49b250dba2997031d5f4a10c2e362554a98ac2aaec019b7880c9b7c3f4",
+    "weak-variants.json.gz": "3b59e6949aa2371d8aeaea3111f07eead0fc922825366bc9f312369f2b8ecd53"
+  }
+}
