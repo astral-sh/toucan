@@ -128,15 +128,21 @@ fn immediate_casts_match_c11_compilers() {
     let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
     for compiler in [gcc.as_str(), "clang"] {
         for (source, accepted) in &sources {
-            let mut child = Command::new(compiler)
-                .args([
-                    "-std=c11",
-                    "-pedantic-errors",
-                    "-fsyntax-only",
-                    "-x",
-                    "c",
-                    "-",
-                ])
+            let mut command = Command::new(compiler);
+            command.args([
+                "-std=c11",
+                "-pedantic-errors",
+                "-fsyntax-only",
+                "-x",
+                "c",
+                "-",
+            ]);
+            if compiler == "clang" {
+                // Clang's static-assert probes enable this diagnostic explicitly;
+                // Apple Clang does not reject every fold with -pedantic-errors alone.
+                command.arg("-Werror=gnu-folding-constant");
+            }
+            let mut child = command
                 .stdin(Stdio::piped())
                 .stdout(Stdio::piped())
                 .stderr(Stdio::piped())
