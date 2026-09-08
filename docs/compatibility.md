@@ -177,11 +177,30 @@ side-effect gate and constant-fold boundary described above. Native probes cover
 pointer increments, fresh VLA type operands, and `alloc_size` allocator calls with
 side-effecting size arguments.
 
-Object-size inference and allocation-provenance tracking remain unsupported.
-These query values can depend on optimization, and the dynamic form can require a
-runtime size computation. Requests to evaluate an extent as a constant return a
-diagnostic. Unknown extents are not replaced with a size or a sentinel in the
-analysis result. See [GCC's object-size contract](https://gcc.gnu.org/onlinedocs/gcc/Object-Size-Checking.html).
+Object-size inference follows fixed-size named objects, record and union members,
+array-element addresses, literal strings, pointer casts and supported constant
+offsets. Wide strings use target code-unit widths and include their terminator.
+Retained `ObjectSizeProof` separates complete-object and closest-subobject byte
+ranges from the compiler query's scalar result. A known default sentinel has
+`is_default: true`; it is never reported as an object extent.
+
+Folds distinguish frontend constant evaluation from later code generation.
+`evaluate_integer` and `evaluate_arithmetic` can return supported later folds;
+that does not make them valid C integer constant expressions. For example, Clang
+accepts a direct array query in a static initializer, while GCC does not. Clang's
+string-literal modes zero and two require later folding. A frontend fold suppresses
+fresh VLA type effects; a later known value retains its conditional evaluation
+policy. This distinction is covered by native constant-context and side-effect
+probes. See [Clang's constant evaluator](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/AST/ExprConstant.cpp).
+
+Compiler-dependent answers remain explicit. GCC's subobject answers for pointer
+arithmetic can differ between `-O0` and `-O2`; these retain geometric proofs with
+an unresolved scalar result. Array decay also has a recorded profile difference:
+for `char a[3][4]`, mode one on `a[1]` yields eight in GCC and four in Clang.
+Mutable pointer aliases, runtime extents, allocator provenance, and unsupported
+out-of-range designator recovery remain unresolved. Dynamic queries retain their
+runtime evaluation policy and existing VLA-bound links. No maximum size is
+invented for an unidentified object. See [GCC's object-size contract](https://gcc.gnu.org/onlinedocs/gcc/Object-Size-Checking.html).
 
 Direct calls to `__builtin_memset`, `__builtin_memcpy`, `__builtin_memmove`, and
 `__builtin_memcmp` use their C library prototypes, including the target's `size_t`

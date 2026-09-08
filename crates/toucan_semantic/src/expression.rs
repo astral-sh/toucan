@@ -61,6 +61,9 @@ impl Analyzer {
             None
         };
         self.enter_expression(expression.span.start)?;
+        // Type and body constraints always use the frontend's constant rules,
+        // even when an external folding query permits later object-size facts.
+        let late = std::mem::replace(&mut self.allow_late_object_size_folds, false);
         let result = self.expression_info_inner(expression);
         let result = result.and_then(|info| {
             if let Some(occurrence) = occurrence {
@@ -68,6 +71,7 @@ impl Analyzer {
             }
             Ok(info)
         });
+        self.allow_late_object_size_folds = late;
         self.leave_expression();
         result
     }

@@ -345,6 +345,8 @@ pub enum ExprKind {
         builtin: Builtin,
         /// Present only for constant and object-size query intrinsics.
         query_evaluation: Option<super::QueryEvaluation>,
+        /// Structural extent and compiler-result facts for object-size queries.
+        object_size: Option<Box<super::ObjectSizeProof>>,
         callee_occurrence: OccurrenceId,
         arguments: Vec<ExprUse>,
     },
@@ -1283,13 +1285,29 @@ impl Analyzer {
                 };
                 arguments.push(self.retained_use(argument, context, destination)?);
             }
-            let query_evaluation = self.retained_query_evaluation(builtin, call, &arguments)?;
+            let object_size = if object_size.is_some() {
+                let proof = self.infer_object_size(call)?;
+                self.code_builder()
+                    .retain_object_size_proof(proof, offset)?
+            } else {
+                None
+            };
+            let mut query_evaluation = self.retained_query_evaluation(builtin, call, &arguments)?;
+            if object_size
+                .as_ref()
+                .is_some_and(|proof| proof.frontend_fold())
+            {
+                query_evaluation = Some(super::QueryEvaluation::Unevaluated(
+                    super::QuerySuppression::ObjectSizeFrontendFold,
+                ));
+            }
             if query_evaluation.is_some_and(super::QueryEvaluation::may_evaluate) {
                 arguments[0].context = UseContext::CompilerQuery;
             }
             return Ok(ExprKind::BuiltinCall {
                 builtin,
                 query_evaluation,
+                object_size,
                 callee_occurrence,
                 arguments,
             });

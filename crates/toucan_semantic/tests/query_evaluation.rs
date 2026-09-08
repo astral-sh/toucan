@@ -281,7 +281,7 @@ fn object_size_modes_and_outer_queries_suppress_nested_effects() {
                     panic!()
                 };
                 let suppression = if gnu(target) {
-                    Some(QuerySuppression::GnuProfile)
+                    Some(QuerySuppression::ObjectSizeFrontendFold)
                 } else if mode == 3 {
                     Some(QuerySuppression::MinimumSubobjectSize)
                 } else {

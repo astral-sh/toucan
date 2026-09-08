@@ -116,3 +116,21 @@ and does not acquire the original declaration's operand execution.
 
 [Ownership validation](../corpus/evidence/type-ownership-2026-09-08.json) records
 native side-effect probes, external corpus parity and default allocation checks.
+
+## Compiler query results
+
+Object-size builtin calls expose an optional `ObjectSizeProof`. `whole_bytes()`
+and `subobject_bytes()` describe structurally identified storage ranges. `result()`
+separately reports a known scalar value and its fold stage, or an unresolved
+compiler answer. A default sentinel is marked explicitly and is not a range proof.
+For example, GCC can return different mode-three values for `record.buffer + 2`
+across optimization levels; the graph can still retain the buffer's remaining
+bytes without claiming a scalar result.
+
+`QueryEvaluation` governs the first argument's execution. A frontend object-size
+fold suppresses operand evaluation. A known later fold can still execute Clang's
+conditional scalar fallback, including fresh VLA bounds. Follow the argument's
+expression tree and its query policy; a known scalar value alone is not proof that
+its operand is unevaluated. External folding APIs accept supported later facts,
+while nested declarations, types and static initializers retain frontend constant
+constraints.

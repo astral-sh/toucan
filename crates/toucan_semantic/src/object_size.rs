@@ -68,7 +68,7 @@ impl Analyzer {
         Ok(())
     }
 
-    fn object_size_mode_value(
+    pub(crate) fn object_size_mode_value(
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<ArithmeticValue, Error> {

@@ -109,6 +109,14 @@ impl Analyzer {
                 if name == Some("__builtin_constant_p") {
                     return Ok(true);
                 }
+                if name
+                    .and_then(|name| self.object_size_signature(name))
+                    .is_some()
+                {
+                    // Later object-size facts do not prove that the compiler's
+                    // frontend can fold this enclosing constant query.
+                    return Ok(self.infer_object_size(call)?.frontend_fold());
+                }
                 if !name.is_some_and(|name| {
                     name == "__builtin_expect" || self.byte_swap_type(name).is_some()
                 }) {

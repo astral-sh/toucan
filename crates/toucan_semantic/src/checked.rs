@@ -20,6 +20,9 @@ mod query;
 pub(crate) mod references;
 pub(crate) mod statement;
 
+pub use crate::object_extent::{
+    ObjectSizeFoldStage, ObjectSizeProof, ObjectSizeResult, ObjectSizeUnknown,
+};
 pub use attributes::{DiagnosticAttribute, DiagnosticAttributeKind};
 pub use bounds::{
     Bound, BoundEvaluation, BoundId, BoundInput, BoundSite, BoundValue, Extent, FunctionUse,

@@ -37,6 +37,8 @@ pub enum QuerySuppression {
     NonNumericConstantQuery,
     MinimumSubobjectSize,
     OrdinarySideEffects,
+    /// Clang or GCC completed this object-size query before scalar code generation.
+    ObjectSizeFrontendFold,
 }
 
 /// Evaluation policy for argument zero of a constant or object-size query.
@@ -80,6 +82,16 @@ pub(super) struct QuerySummary {
 }
 
 impl Builder {
+    pub(crate) fn retain_object_size_proof(
+        &mut self,
+        proof: super::ObjectSizeProof,
+        offset: usize,
+    ) -> Result<Option<Box<super::ObjectSizeProof>>, crate::Error> {
+        self.budget
+            .charge(1, 1, std::mem::size_of::<super::ObjectSizeProof>(), offset)?;
+        Ok(Some(Box::new(proof)))
+    }
+
     pub(super) fn query_use_effects(&self, value: &ExprUse) -> QuerySideEffects {
         let summary = self.expression_builder.query_summaries[value.expression.index()];
         if summary.volatile_lvalue

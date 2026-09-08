@@ -87,8 +87,12 @@ fn object_size_queries_check_parameters_modes_and_target_result_type() {
             };
             analyze(&format!("_Static_assert(_Generic({name}(0,0), {size_type}:1, default:0), \"size type\");"),target).unwrap();
             let unit = analyze("char a[4];", target).unwrap();
-            let error = evaluate_integer(&unit, &format!("{name}(a,0)")).unwrap_err();
-            assert!(error.message.contains("extent remains unknown"), "{error}");
+            assert_eq!(
+                evaluate_integer(&unit, &format!("{name}(a,0)"))
+                    .unwrap()
+                    .value,
+                4
+            );
         }
     }
 }

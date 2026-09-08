@@ -103,6 +103,14 @@ impl Analyzer {
                 self.eval_expect(call).is_ok()
             }
             ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(|name| self.object_size_signature(name))
+                    .is_some() =>
+            {
+                self.infer_object_size(call)?.frontend_fold()
+            }
+            ast::Expression::Call(call)
                 if self.builtin_name(call) == Some("__builtin_constant_p") =>
             {
                 self.builtin_call_type(call)?;
@@ -181,11 +189,7 @@ impl Analyzer {
                     .and_then(|name| self.object_size_signature(name))
                     .is_some() =>
             {
-                self.builtin_call_type(call)?;
-                Err(Error::new(
-                    offset,
-                    "object-size constant evaluation is unsupported; the extent remains unknown",
-                ))
+                self.eval_object_size(call)
             }
             ast::Expression::Call(call)
                 if self
@@ -379,7 +383,12 @@ impl Analyzer {
         )
     }
 
-    fn field_offset(&self, ty: &Type, name: &str, offset: usize) -> Result<(u64, Type), Error> {
+    pub(crate) fn field_offset(
+        &self,
+        ty: &Type,
+        name: &str,
+        offset: usize,
+    ) -> Result<(u64, Type), Error> {
         let TypeKind::Record(id) = self.unit.resolve(ty)?.kind else {
             return Err(Error::new(offset, "member access requires a record"));
         };

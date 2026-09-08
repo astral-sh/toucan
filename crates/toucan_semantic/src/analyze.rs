@@ -99,8 +99,10 @@ pub(crate) fn analyze_inner(
     })
 }
 
-/// Evaluates an integer constant expression in the translation unit's type and
+/// Evaluates a supported integer fold in the translation unit's type and
 /// enumerator environment, using the target's C integer conversion rules.
+/// A successful query may use known code-generation facts such as an object
+/// extent; it does not certify C integer-constant-expression admissibility.
 pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<IntegerValue, Error> {
     evaluate_expression(unit, expression, |analyzer, expression| {
         analyzer.eval(expression)
@@ -194,6 +196,7 @@ fn evaluate_expression<Value>(
         return Err(Error::new(0, "expected integer expression"));
     };
     let mut analyzer = Analyzer::from_unit(unit.clone());
+    analyzer.allow_late_object_size_folds = true;
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
@@ -571,6 +574,7 @@ fn outermost_derived(
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) allow_late_object_size_folds: bool,
     pub(crate) transparent_variant_bytes: usize,
     pub(crate) has_variadic_packs: bool,
     pub(crate) generic_selections: HashMap<(usize, usize), usize>,
@@ -643,6 +647,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            allow_late_object_size_folds: false,
             diagnostic_kinds: HashMap::new(),
             checked: None,
             unit,
@@ -1822,6 +1827,13 @@ impl Analyzer {
     /// Resolves each written type name once, so typing an unevaluated operand and
     /// subsequently evaluating it cannot redeclare tags defined inside that type.
     pub(crate) fn type_name(&mut self, name: &ast::TypeName) -> Result<Type, Error> {
+        let late = std::mem::replace(&mut self.allow_late_object_size_folds, false);
+        let result = self.type_name_inner(name);
+        self.allow_late_object_size_folds = late;
+        result
+    }
+
+    fn type_name_inner(&mut self, name: &ast::TypeName) -> Result<Type, Error> {
         let start = name.specifiers.first().map_or(0, |node| node.span.start);
         let end = name.declarator.as_ref().map_or_else(
             || name.specifiers.last().map_or(start, |node| node.span.end),
