@@ -152,17 +152,18 @@ impl Analyzer {
                     offset,
                     callee,
                     declaration_time,
+                    caller_features,
                 } => {
                     if *declaration_time
-                        || self
-                            .function_options
-                            .get(callee)
-                            .is_some_and(|options| options.always_inline() && options.mmx())
+                        || self.function_options.get(callee).is_some_and(|options| {
+                            options.always_inline()
+                                && options.x86_features() & !caller_features != 0
+                        })
                     {
                         return Err(Error::new(
                             *offset,
                             format!(
-                                "always_inline function `{callee}` requires MMX, disabled by the caller's target attribute"
+                                "always_inline function `{callee}` requires target features unavailable in the caller"
                             ),
                         ));
                     }

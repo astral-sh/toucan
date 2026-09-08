@@ -19,6 +19,12 @@ pub enum X86TargetOption {
     Sse,
     Sse2,
     NoEvex512,
+    Lzcnt,
+    NoLzcnt,
+    Bmi,
+    NoBmi,
+    Bmi2,
+    NoBmi2,
 }
 
 /// A target attribute's identity and its supported feature overrides.
@@ -28,6 +34,9 @@ pub struct FunctionTarget {
     clang_spelling: Option<String>,
     options: Vec<X86TargetOption>,
     mmx: bool,
+    lzcnt: bool,
+    bmi: bool,
+    bmi2: bool,
 }
 
 impl FunctionTarget {
@@ -55,6 +64,9 @@ impl FunctionTarget {
                         X86TargetOption::Mmx => 1,
                         X86TargetOption::Sse => 2,
                         X86TargetOption::Sse2 => 4,
+                        X86TargetOption::Lzcnt => 8,
+                        X86TargetOption::Bmi => 16,
+                        X86TargetOption::Bmi2 => 32,
                         _ => return None,
                     },
                 )
@@ -68,6 +80,9 @@ impl FunctionTarget {
         match feature {
             X86Feature::Mmx => self.mmx,
             X86Feature::Sse | X86Feature::Sse2 => true,
+            X86Feature::Lzcnt => self.lzcnt,
+            X86Feature::Bmi => self.bmi,
+            X86Feature::Bmi2 => self.bmi2,
         }
     }
 
@@ -112,6 +127,20 @@ impl FunctionOptions {
 
     pub(crate) fn mmx(&self) -> bool {
         self.target.as_ref().is_none_or(|target| target.mmx)
+    }
+
+    /// Compact enabled feature set for deferred inlining checks.
+    pub(crate) fn x86_features(&self) -> u8 {
+        X86Feature::ALL.into_iter().fold(0, |bits, feature| {
+            let enabled = self.target.as_ref().map_or(
+                matches!(
+                    feature,
+                    X86Feature::Mmx | X86Feature::Sse | X86Feature::Sse2
+                ),
+                |target| target.enables(feature),
+            );
+            bits | if enabled { feature.bit() } else { 0 }
+        })
     }
 
     pub(crate) fn is_default(&self) -> bool {
@@ -184,7 +213,22 @@ impl TranslationUnit {
                         X86TargetOption::NoMmx => false,
                         _ => value,
                     });
-                if mmx != target.mmx {
+                let state = |enable, disable| {
+                    target.options.iter().fold(false, |value, option| {
+                        if *option == enable {
+                            true
+                        } else if *option == disable {
+                            false
+                        } else {
+                            value
+                        }
+                    })
+                };
+                if mmx != target.mmx
+                    || state(X86TargetOption::Lzcnt, X86TargetOption::NoLzcnt) != target.lzcnt
+                    || state(X86TargetOption::Bmi, X86TargetOption::NoBmi) != target.bmi
+                    || state(X86TargetOption::Bmi2, X86TargetOption::NoBmi2) != target.bmi2
+                {
                     return Err(Error::new(0, "inconsistent function target feature state"));
                 }
             }
@@ -354,6 +398,9 @@ impl Analyzer {
         self.validate_target_arguments(parsed)?;
         let mut options = Vec::new();
         let mut mmx = true;
+        let mut lzcnt = false;
+        let mut bmi = false;
+        let mut bmi2 = false;
         for argument in &parsed.arguments {
             for option in argument.split(',') {
                 let option = if parsed.clang { option.trim() } else { option };
@@ -368,6 +415,30 @@ impl Analyzer {
                     "no-mmx" => {
                         mmx = false;
                         X86TargetOption::NoMmx
+                    }
+                    "lzcnt" => {
+                        lzcnt = true;
+                        X86TargetOption::Lzcnt
+                    }
+                    "no-lzcnt" => {
+                        lzcnt = false;
+                        X86TargetOption::NoLzcnt
+                    }
+                    "bmi" => {
+                        bmi = true;
+                        X86TargetOption::Bmi
+                    }
+                    "no-bmi" => {
+                        bmi = false;
+                        X86TargetOption::NoBmi
+                    }
+                    "bmi2" => {
+                        bmi2 = true;
+                        X86TargetOption::Bmi2
+                    }
+                    "no-bmi2" => {
+                        bmi2 = false;
+                        X86TargetOption::NoBmi2
                     }
                     "sse" => X86TargetOption::Sse,
                     "sse2" => X86TargetOption::Sse2,
@@ -398,6 +469,9 @@ impl Analyzer {
             clang_spelling: parsed.clang.then(|| parsed.arguments[0].clone()),
             options,
             mmx,
+            lzcnt,
+            bmi,
+            bmi2,
         })
     }
 
@@ -598,6 +672,7 @@ pub(crate) enum FeatureUse {
         offset: usize,
         callee: String,
         declaration_time: bool,
+        caller_features: u8,
     },
 }
 
@@ -651,17 +726,26 @@ impl Analyzer {
         &mut self,
         call: &lang_c::span::Node<ast::CallExpression>,
     ) -> Result<(), Error> {
-        if self.suppress_sve_features || self.current_mmx() {
+        if self.suppress_sve_features || !is_x86(self.unit.target) {
             return Ok(());
         }
         let Some(name) = self.named_function_callee(&call.node.callee) else {
             return Ok(());
         };
+        let caller_features = self
+            .current_function_options()
+            .map_or(7, FunctionOptions::x86_features);
         let declaration_time = self.unit.compiler == Compiler::Clang;
-        if declaration_time
-            && !self
-                .visible_function_options(name)
-                .is_some_and(|options| options.always_inline && options.mmx())
+        let visible_mismatch = self.visible_function_options(name).is_some_and(|options| {
+            options.always_inline && options.x86_features() & !caller_features != 0
+        });
+        if declaration_time {
+            if !visible_mismatch {
+                return Ok(());
+            }
+        } else if caller_features & X86Feature::Mmx.bit() != 0
+            && !visible_mismatch
+            && !self.late_target_names.contains(name)
         {
             return Ok(());
         }
@@ -669,6 +753,7 @@ impl Analyzer {
             offset: call.span.start,
             callee: name.to_owned(),
             declaration_time,
+            caller_features,
         };
         self.push_feature_use(usage, call.span.start)
     }

@@ -8,6 +8,7 @@ intrinsic headers:
 | Option | GCC on x86-64 Linux | Clang on x86-64 Linux, macOS, Windows |
 | --- | --- | --- |
 | `mmx`, `sse`, `sse2`, `no-mmx` | Supported | Supported |
+| `lzcnt`, `bmi`, `bmi2` and their `no-` forms | Supported | Supported |
 | `no-evex512` | Unavailable in the GCC 13 profile | Supported encoding restriction |
 
 Unspecified features retain the compiler profile's baseline. This is a bounded
@@ -59,9 +60,27 @@ feature obligations.
 Mandatory inlining has separate rules. Clang checks attributes visible on a
 directly named callee during code generation. GCC's inlining can use annotations
 encountered later, including a known function behind an explicit cast or address
-operator. Toucan diagnoses proved MMX mismatches in those cases. This does not
+operator. Toucan diagnoses proved feature mismatches in those cases. This does not
 resolve arbitrary indirect calls, determine whether all calls survive optimization,
 or provide machine-code generation.
+
+The optional `lzcnt`, `bmi`, and `bmi2` features start disabled. Their ordered
+positive and negative options change only the annotated function. In particular,
+zstd's `target("lzcnt,bmi,bmi2")` dispatch wrappers do not enable global
+`__BMI__`/`__BMI2__` predefines or select the separate intrinsic-header route.
+This layer does not add the BMI intrinsic spellings themselves.
+
+GNU later annotations need a sparse syntax catalog of potentially annotated
+callees. Its bounded traversal includes nested block declarations and allocates
+names only for written target attributes. Ordinary calls do not acquire a pending
+record unless their visible options or a possible later annotation require one.
+Clang continues to check only options visible at the call.
+
+[The bit-manipulation target evidence](../corpus/evidence/bmi-targets-2026-09-08.json)
+records native source/code-generation checks and the unchanged allocation counts
+and requested bytes for four public-header binding workloads. This behavior follows
+the [GCC 13 target attributes](https://gcc.gnu.org/onlinedocs/gcc-13.3.0/gcc/x86-Function-Attributes.html)
+and [Clang target attribute](https://clang.llvm.org/docs/AttributeReference.html#target).
 
 GCC keeps the first conflicting `noinline` or `always_inline` annotation across
 accepted declarations; later conflicts produce compiler warnings. Clang retains

@@ -86,6 +86,7 @@ fn analyze_on_parser_stack(
     analyzer.int128_specifiers = parsed.int128_specifiers;
     let result = (|| {
         analyzer.prepare_array_identities(&parsed.unit, &source)?;
+        analyzer.prepare_late_function_targets(&parsed.unit, &source)?;
         if let Some(limits) = retention {
             analyzer.checked = Some(Box::new(CodeBuilder::new(
                 &parsed.unit,
@@ -240,6 +241,7 @@ fn evaluate_on_parser_stack<Value>(
     analyzer.int128_specifiers = parsed.int128_specifiers;
     analyzer
         .prepare_array_identities(&parsed.unit, &source)
+        .and_then(|()| analyzer.prepare_late_function_targets(&parsed.unit, &source))
         .and_then(|()| evaluate(&mut analyzer, expression))
         .and_then(|value| {
             analyzer.validate_sve_features()?;
@@ -711,6 +713,7 @@ pub(crate) struct Analyzer {
     pub(crate) lexical_function_options: BTreeMap<usize, BTreeMap<String, crate::FunctionOptions>>,
     pub(crate) definition_options: Option<(crate::FunctionOptions, Option<usize>)>,
     pub(crate) function_options: BTreeMap<String, crate::FunctionOptions>,
+    pub(crate) late_target_names: std::collections::BTreeSet<String>,
     pub(crate) array_identities: crate::array_identity::Registry,
     // Completed query checks prevent nested constant folding from replaying operand typing.
     pub(crate) checked_overflow_predicates: HashMap<(usize, usize), (u8, bool)>,
@@ -803,6 +806,7 @@ impl Analyzer {
             lexical_function_options: BTreeMap::new(),
             definition_options: None,
             function_options: Self::inherited_function_options(&unit),
+            late_target_names: std::collections::BTreeSet::new(),
             array_identities: crate::array_identity::Registry::default(),
             allow_late_object_size_folds: false,
             diagnostic_kinds: HashMap::new(),

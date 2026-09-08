@@ -40,6 +40,7 @@ mod returns_twice;
 mod statement;
 mod sync;
 mod target_features;
+mod target_names;
 mod transparent_union;
 mod variadic_pack;
 mod vector;

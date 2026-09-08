@@ -19,6 +19,30 @@ pub enum X86Feature {
     Mmx,
     Sse,
     Sse2,
+    Lzcnt,
+    Bmi,
+    Bmi2,
+}
+
+impl X86Feature {
+    pub(crate) const ALL: [Self; 6] = [
+        Self::Mmx,
+        Self::Sse,
+        Self::Sse2,
+        Self::Lzcnt,
+        Self::Bmi,
+        Self::Bmi2,
+    ];
+    pub(crate) const fn bit(self) -> u8 {
+        match self {
+            Self::Mmx => 1,
+            Self::Sse => 2,
+            Self::Sse2 => 4,
+            Self::Lzcnt => 8,
+            Self::Bmi => 16,
+            Self::Bmi2 => 32,
+        }
+    }
 }
 
 /// The compiler stage at which an immediate operand must be proven constant.
