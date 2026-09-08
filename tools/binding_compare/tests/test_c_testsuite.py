@@ -20,7 +20,7 @@ SPEC.loader.exec_module(AUDIT)
 def case(name: str, *, strict: bool, accepts: bool) -> dict:
     return {
         "name": name,
-        "both_accept": {"c11": True, "gnu11": True, "strict_c11": strict},
+        "both_accept": {mode: True for mode in AUDIT.MODES} | {"strict_c11": strict},
         "eligible": True,
         "difference": not accepts,
         "toucan": {"exit_code": 0 if accepts else 1, "timeout": False},
