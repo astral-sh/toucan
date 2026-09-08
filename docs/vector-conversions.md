@@ -24,8 +24,10 @@ calling convention or machine-code lowering.
 The implementation follows the supported GCC 13 and Clang 18 profiles. The
 [GNU vector extension documentation](https://gcc.gnu.org/onlinedocs/gcc/Vector-Extensions.html)
 and [Clang language extension documentation](https://clang.llvm.org/docs/LanguageExtensions.html#builtin-convertvector)
-describe the operation. Tested vector literals do not make this builtin a C
-integer constant expression or a supported static initializer; this layer adds
-no vector constant evaluator. Native compiler and runtime results, along with
+describe the operation. [Fixed-vector constant evaluation](vector-constants.md)
+provides a separate lane-value query. Numeric conversion remains invalid in static
+initializers under the modeled compiler profiles; GCC identity conversions are
+supported. A folded vector does not establish a C integer constant expression.
+Native compiler and runtime results for the original conversion support, along with
 ordinary allocation comparisons, are recorded in
 [the validation evidence](../corpus/evidence/convert-vector-2026-09-08.json).

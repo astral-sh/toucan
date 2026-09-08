@@ -770,7 +770,7 @@ impl Analyzer {
         })
     }
 
-    fn arithmetic_binary(
+    pub(crate) fn arithmetic_binary(
         &self,
         operator: &ast::BinaryOperator,
         left: ArithmeticValue,

@@ -325,27 +325,23 @@ impl Analyzer {
                 }
                 self.check_assignment(destination, expression)?;
                 if requires_constant {
-                    if matches!(resolved.kind, TypeKind::Vector { .. })
-                        && !matches!(expression.node, ast::Expression::CompoundLiteral(_))
-                    {
-                        return Err(Error::new(
-                            offset,
-                            "static vector expression evaluation is unsupported; use a brace initializer or vector compound literal",
-                        ));
-                    }
-                    let kind = self.static_initializer(expression)?;
-                    if kind == ConstantKind::Arithmetic
-                        && matches!(
-                            resolved.kind,
-                            TypeKind::Integer(_)
-                                | TypeKind::Bool
-                                | TypeKind::Enum(_)
-                                | TypeKind::Float(_)
-                                | TypeKind::Complex(_)
-                        )
-                    {
-                        let value = self.eval_arithmetic(expression)?;
-                        self.convert_arithmetic(value, ty, offset)?;
+                    if matches!(resolved.kind, TypeKind::Vector { .. }) {
+                        self.eval_vector(expression, true)?;
+                    } else {
+                        let kind = self.static_initializer(expression)?;
+                        if kind == ConstantKind::Arithmetic
+                            && matches!(
+                                resolved.kind,
+                                TypeKind::Integer(_)
+                                    | TypeKind::Bool
+                                    | TypeKind::Enum(_)
+                                    | TypeKind::Float(_)
+                                    | TypeKind::Complex(_)
+                            )
+                        {
+                            let value = self.eval_arithmetic(expression)?;
+                            self.convert_arithmetic(value, ty, offset)?;
+                        }
                     }
                 }
                 if let Some(id) = retained {
@@ -927,6 +923,21 @@ impl Analyzer {
             }
         }
         Ok(None)
+    }
+
+    /// Validates a scalar operand of a static vector expression before folding it.
+    pub(crate) fn check_static_arithmetic(
+        &mut self,
+        expression: &Node<ast::Expression>,
+    ) -> Result<(), Error> {
+        if self.static_initializer(expression)? == ConstantKind::Arithmetic {
+            Ok(())
+        } else {
+            Err(Error::new(
+                expression.span.start,
+                "static vector lane requires an arithmetic constant",
+            ))
+        }
     }
 
     fn static_initializer(

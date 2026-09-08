@@ -228,9 +228,9 @@ fn static_conversion_has_an_explicit_frontend_limitation() {
     for profile in CompilerProfile::ALL {
         let error = check(source, profile).unwrap_err();
         assert!(
-            error
-                .message
-                .contains("static vector expression evaluation is unsupported"),
+            error.message.contains(
+                "numeric vector conversion is not a static initializer in this compiler profile"
+            ),
             "{profile:?}: {error}"
         );
     }

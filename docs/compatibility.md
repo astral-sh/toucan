@@ -376,9 +376,10 @@ Darwin and Windows follow Clang's `char` and `long long` masks. GNU Linux also
 accepts addresses of vector lanes and vector increment/decrement. Clang profiles
 reject those operations. Except for the native NEON/GNU identity conversion described below, implicit
 conversions between different vector types, enum lanes, non-power-of-two sizes, and extended-vector swizzles remain unsupported.
-The instruction intrinsics supported below have their own argument conversions. Static vectors accept brace initializers and
-vector compound literals; other static vector-expression evaluation is explicitly
-unsupported.
+The instruction intrinsics supported below have their own argument conversions. Static vectors accept brace initializers,
+compound literals, and the profile-specific operations described in
+[fixed-vector constant evaluation](vector-constants.md). The separate value query
+can fold numeric lane conversions without declaring them valid static initializers.
 
 Vectors above 16 bytes need compiler and CPU-feature configuration: GCC's default
 x86-64 pointer alignment and field alignment differ, and `-mavx` or `-mavx512f`

@@ -47,12 +47,14 @@ mod target_names;
 mod transparent_union;
 mod variadic_pack;
 mod vector;
+mod vector_constant;
 mod weak;
 mod wide_float;
 mod x86;
 
 pub use analyze::{
     analyze, analyze_with_options, analyze_with_profile, evaluate_arithmetic, evaluate_integer,
+    evaluate_vector,
 };
 pub use arm::Aarch64Pcs;
 pub use array_identity::VariableArrayId;
@@ -66,6 +68,7 @@ pub use literals::{
 pub use noescape::{ParameterContracts, ParameterContractsId};
 pub use object_alignment::DeclarationAlignment;
 pub use target_features::{FunctionOptions, FunctionTarget, X86TargetOption};
+pub use vector_constant::{VectorConstant, VectorConstantType, VectorElement};
 
 /// A source-positioned syntax, semantic, or unsupported-feature diagnostic.
 #[derive(Clone, Debug, thiserror::Error, serde::Serialize)]

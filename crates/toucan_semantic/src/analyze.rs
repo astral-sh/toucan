@@ -150,6 +150,22 @@ pub fn evaluate_arithmetic(
     })
 }
 
+/// Folds a supported fixed-vector expression in the unit's type and enumerator
+/// environment. Numeric conversions round each lane in its target format.
+/// This value query does not certify static-initializer or integer-constant-
+/// expression admissibility; for example, Clang 18 rejects a static initializer
+/// using `__builtin_convertvector` even when its lanes can be folded.
+pub fn evaluate_vector(
+    unit: &TranslationUnit,
+    expression: &str,
+) -> Result<crate::VectorConstant, Error> {
+    evaluate_expression(unit, expression, |analyzer, expression| {
+        analyzer
+            .eval_vector(expression, false)?
+            .into_constant(&analyzer.unit, expression.span.start)
+    })
+}
+
 fn evaluate_expression<Value: Send>(
     unit: &TranslationUnit,
     expression: &str,
