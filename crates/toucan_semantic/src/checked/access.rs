@@ -186,6 +186,11 @@ impl ExprUse {
 }
 
 impl Expression {
+    /// Atomic store/update performed by this expression, with C's sequentially
+    /// consistent ordering. Loads appear as AtomicLoad operand conversions.
+    pub fn atomic_access(&self) -> Option<super::AtomicAccess> {
+        self.atomic_access
+    }
     /// Whether this expression designates a vector lane, whose address is unavailable in Clang profiles.
     pub fn is_vector_element(&self) -> bool {
         self.vector_element

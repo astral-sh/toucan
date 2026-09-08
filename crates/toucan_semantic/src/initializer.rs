@@ -252,8 +252,30 @@ impl Analyzer {
             .map(|checked| checked.begin_initializer(initializer.origin, ty, requires_constant))
             .transpose()?
             .flatten();
-        let result =
-            self.initializer_inner_impl(ty, initializer, requires_constant, flexible, retained)?;
+        let result = if let Some(value) = self.unit.atomic_value(ty)?.cloned() {
+            if !self.gnu_sync_profile()
+                && matches!(
+                    self.unit.resolve(&value)?.kind,
+                    TypeKind::Record(_) | TypeKind::Vector { .. }
+                )
+                && matches!(initializer.node, InitializerView::List(_))
+            {
+                return Err(Error::new(
+                    initializer.span.start,
+                    "this Clang profile requires an atomic aggregate initializer to be a compatible value expression",
+                ));
+            }
+            self.initializer_inner_impl(
+                &value,
+                initializer,
+                requires_constant,
+                flexible,
+                retained,
+            )?;
+            ty.clone()
+        } else {
+            self.initializer_inner_impl(ty, initializer, requires_constant, flexible, retained)?
+        };
         if let Some(id) = retained {
             self.code_builder().finish_initializer(id, &result)?;
         }

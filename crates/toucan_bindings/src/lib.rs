@@ -1163,6 +1163,12 @@ impl Emitter<'_> {
             return self.vector_name(layout.size_bytes(), layout.alignment_bytes());
         }
         Ok(match &ty.kind {
+            TypeKind::Atomic(_) => {
+                return Err(Error(
+                    "atomic storage and by-value ABI require an explicit Rust representation"
+                        .into(),
+                ));
+            }
             TypeKind::Vector { .. } => {
                 let layout = self.unit.layout(ty)?;
                 self.vector_name(layout.size_bytes(), layout.alignment_bytes())?

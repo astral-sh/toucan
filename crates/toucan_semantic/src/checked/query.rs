@@ -11,7 +11,7 @@ use super::{Binary, Builder, Builtin, Conversion, ExprKind, ExprUse, Unary};
 pub enum QuerySideEffects {
     /// No ordinary side effects were found. Runtime type operands can still act.
     Absent,
-    /// An assignment, increment, volatile read, or known effectful builtin exists.
+    /// An assignment, increment, volatile/atomic read, or known effectful builtin exists.
     Present,
     /// The graph does not resolve this test for ordinary calls (whose `pure` or
     /// `const` annotations are not retained), statement expressions, or compound
@@ -94,11 +94,15 @@ impl Builder {
 
     pub(super) fn query_use_effects(&self, value: &ExprUse) -> QuerySideEffects {
         let summary = self.expression_builder.query_summaries[value.expression.index()];
-        if summary.volatile_lvalue
-            && value
-                .conversions
-                .iter()
-                .any(|c| c.kind == Conversion::Lvalue)
+        if value
+            .conversions
+            .iter()
+            .any(|c| c.kind == Conversion::AtomicLoad)
+            || summary.volatile_lvalue
+                && value
+                    .conversions
+                    .iter()
+                    .any(|c| c.kind == Conversion::Lvalue)
         {
             QuerySideEffects::Present
         } else {

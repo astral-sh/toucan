@@ -1308,7 +1308,8 @@ impl Analyzer {
         let left = self.unit.resolve(left)?;
         let right = self.unit.resolve(right)?;
         Ok(match (&left.kind, &right.kind) {
-            (TypeKind::Pointer(a), TypeKind::Pointer(b)) => self.same_type(a, b, depth + 1)?,
+            (TypeKind::Pointer(a), TypeKind::Pointer(b))
+            | (TypeKind::Atomic(a), TypeKind::Atomic(b)) => self.same_type(a, b, depth + 1)?,
             (
                 TypeKind::Array {
                     element: a,
@@ -1372,7 +1373,8 @@ impl Analyzer {
                 // Distinct enum tags remain distinct types.
                 Ok(self.integer_type(left, 0)? == self.integer_type(right, 0)?)
             }
-            (TypeKind::Pointer(left), TypeKind::Pointer(right)) => {
+            (TypeKind::Pointer(left), TypeKind::Pointer(right))
+            | (TypeKind::Atomic(left), TypeKind::Atomic(right)) => {
                 self.compatible_at(left, right, depth + 1)
             }
             (
@@ -1469,6 +1471,9 @@ impl Analyzer {
         let kind = match (&resolved_left.kind, &resolved_right.kind) {
             (TypeKind::Pointer(a), TypeKind::Pointer(b)) => {
                 TypeKind::Pointer(Box::new(self.composite_type(a, b, depth + 1)?))
+            }
+            (TypeKind::Atomic(a), TypeKind::Atomic(b)) => {
+                TypeKind::Atomic(Box::new(self.composite_type(a, b, depth + 1)?))
             }
             (
                 TypeKind::Array {
@@ -1596,6 +1601,7 @@ impl Analyzer {
     ) -> Result<(Type, Attributes), Error> {
         let mut types = Vec::new();
         let mut qualifiers = Qualifiers::default();
+        let mut atomic = false;
         let mut attributes = Attributes::default();
         let mut record_attributes = Attributes::default();
         let mut after_tag_definition = false;
@@ -1607,7 +1613,7 @@ impl Analyzer {
                     types.push(ty.clone());
                 }
                 ast::DeclarationSpecifier::TypeQualifier(qualifier) => {
-                    add_qualifier(&mut qualifiers, qualifier)?
+                    add_qualifier(&mut qualifiers, &mut atomic, qualifier)?
                 }
                 ast::DeclarationSpecifier::Extension(extensions) => {
                     if self.record_attributes.contains(&specifier.span.start)
@@ -1686,6 +1692,10 @@ impl Analyzer {
         if defines_tag || clang_forward {
             self.apply_record_attributes(&ty, &record_attributes)?;
         }
+        let atomic_wrapper = atomic && self.unit.atomic_value(&ty)?.is_none();
+        if atomic {
+            ty = self.atomic_type(ty, false, specifiers.first().map_or(0, |s| s.span.start))?;
+        }
         ty.qualifiers.is_const |= qualifiers.is_const;
         ty.qualifiers.is_volatile |= qualifiers.is_volatile;
         ty.qualifiers.is_restrict |= qualifiers.is_restrict;
@@ -1709,6 +1719,7 @@ impl Analyzer {
                 offset,
                 variably_modified,
                 definition_parameter,
+                atomic_wrapper,
             )?);
         }
         Ok((ty, attributes))
@@ -1804,11 +1815,9 @@ impl Analyzer {
                                 return self.expression_type(expression);
                             }
                         },
-                        ast::TypeSpecifier::Atomic(_) => {
-                            return Err(Error::new(
-                                ty.span.start,
-                                "atomic type ABI is unsupported",
-                            ));
+                        ast::TypeSpecifier::Atomic(name) => {
+                            let inner = self.type_name(&name.node)?;
+                            self.atomic_type(inner, true, ty.span.start)?.kind
                         }
                         ast::TypeSpecifier::Complex => {
                             return Err(Error::new(
@@ -2048,10 +2057,11 @@ impl Analyzer {
             ty = match &derived.node {
                 ast::DerivedDeclarator::Pointer(qualifiers) => {
                     let mut pointer = ty.pointer();
+                    let mut atomic = false;
                     for qualifier in qualifiers {
                         match &qualifier.node {
                             ast::PointerQualifier::TypeQualifier(qualifier) => {
-                                add_qualifier(&mut pointer.qualifiers, qualifier)?
+                                add_qualifier(&mut pointer.qualifiers, &mut atomic, qualifier)?
                             }
                             ast::PointerQualifier::Extension(extensions) => {
                                 let mut attributes = Attributes {
@@ -2091,6 +2101,9 @@ impl Analyzer {
                                 }
                             }
                         }
+                    }
+                    if atomic {
+                        pointer = self.atomic_type(pointer, false, derived.span.start)?;
                     }
                     self.check_restrict(&pointer, derived.span.start)?;
                     pointer
@@ -2281,6 +2294,7 @@ impl Analyzer {
                                 .as_ref()
                                 .is_some_and(has_function_derivation);
                         let mut array_qualifiers = Qualifiers::default();
+                        let mut array_atomic = false;
                         let (name, mut parameter_type, declared_type_use) =
                             if let Some(declarator) = &parameter.node.declarator {
                                 let array = outermost_derived(declarator).and_then(|derived| {
@@ -2292,7 +2306,11 @@ impl Analyzer {
                                 });
                                 if let Some((_, array)) = array {
                                     for qualifier in &array.node.qualifiers {
-                                        add_qualifier(&mut array_qualifiers, qualifier)?;
+                                        add_qualifier(
+                                            &mut array_qualifiers,
+                                            &mut array_atomic,
+                                            qualifier,
+                                        )?;
                                     }
                                 }
                                 let (name, ty, extra) = self.declarator_at(
@@ -2362,7 +2380,11 @@ impl Analyzer {
                                 element.qualifiers.is_restrict |= qualifiers.is_restrict;
                                 let mut pointer = element.pointer();
                                 pointer.qualifiers = array_qualifiers;
-                                pointer
+                                if array_atomic && self.gnu_sync_profile() {
+                                    self.atomic_type(pointer, false, parameter.span.start)?
+                                } else {
+                                    pointer
+                                }
                             }
                             TypeKind::Function(_) => parameter_type.pointer(),
                             _ => parameter_type,
@@ -2487,13 +2509,32 @@ impl Analyzer {
             if let (Some(checked), Some(current)) = (&mut self.checked, type_use) {
                 use crate::checked::bounds::TypeStep;
                 type_use = Some(match &derived.node {
-                    ast::DerivedDeclarator::Pointer(_) => checked.wrap_type_use(
-                        current,
-                        &ty,
-                        TypeStep::Pointer,
-                        None,
-                        derived.span.start,
-                    )?,
+                    ast::DerivedDeclarator::Pointer(_) => {
+                        if let TypeKind::Atomic(value) = &ty.kind {
+                            let pointer = checked.wrap_type_use(
+                                current,
+                                value,
+                                TypeStep::Pointer,
+                                None,
+                                derived.span.start,
+                            )?;
+                            checked.wrap_type_use(
+                                pointer,
+                                &ty,
+                                TypeStep::AtomicValue,
+                                None,
+                                derived.span.start,
+                            )?
+                        } else {
+                            checked.wrap_type_use(
+                                current,
+                                &ty,
+                                TypeStep::Pointer,
+                                None,
+                                derived.span.start,
+                            )?
+                        }
+                    }
                     ast::DerivedDeclarator::Array(_) => checked.wrap_type_use(
                         current,
                         &ty,
@@ -2889,7 +2930,9 @@ impl Analyzer {
             TypeKind::Array { element, length } => {
                 length.is_some() && self.is_complete_object(element, depth + 1)?
             }
-            TypeKind::VariableArray { element } => self.is_complete_object(element, depth + 1)?,
+            TypeKind::VariableArray { element } | TypeKind::Atomic(element) => {
+                self.is_complete_object(element, depth + 1)?
+            }
             _ => true,
         })
     }
@@ -2900,6 +2943,11 @@ impl Analyzer {
             return Ok(());
         }
         let mut resolved = self.unit.resolve(ty)?;
+        if self.gnu_sync_profile()
+            && let TypeKind::Atomic(value) = &resolved.kind
+        {
+            resolved = self.unit.resolve(value)?;
+        }
         // GNU C propagates qualifiers on array typedefs to their element type.
         if matches!(
             self.unit.target,
@@ -3515,18 +3563,14 @@ fn extended_float_name(float: &ast::TS18661FloatType) -> String {
 
 fn add_qualifier(
     result: &mut Qualifiers,
+    atomic: &mut bool,
     qualifier: &Node<ast::TypeQualifier>,
 ) -> Result<(), Error> {
     match qualifier.node {
         ast::TypeQualifier::Const => result.is_const = true,
         ast::TypeQualifier::Volatile => result.is_volatile = true,
         ast::TypeQualifier::Restrict => result.is_restrict = true,
-        ast::TypeQualifier::Atomic => {
-            return Err(Error::new(
-                qualifier.span.start,
-                "atomic qualifiers require unsupported ABI handling",
-            ));
-        }
+        ast::TypeQualifier::Atomic => *atomic = true,
         ast::TypeQualifier::Nonnull
         | ast::TypeQualifier::NullUnspecified
         | ast::TypeQualifier::Nullable => {}

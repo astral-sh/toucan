@@ -164,20 +164,27 @@ impl Analyzer {
             ast::Expression::Cast(cast) => {
                 let source = self.value_expression_type(&cast.node.expression)?;
                 let destination = self.type_name(&cast.node.type_name.node)?;
-                let destination = self.unit.resolve(&destination)?.clone();
+                let written_destination = self.unit.resolve(&destination)?.clone();
+                let atomic_destination;
+                let destination = if self.unit.atomic_value(&written_destination)?.is_some() {
+                    atomic_destination = self.atomic_value_type(&written_destination)?;
+                    &atomic_destination
+                } else {
+                    &written_destination
+                };
                 if !matches!(destination.kind, TypeKind::Void)
                     && (matches!(source.kind, TypeKind::Vector { .. })
                         || matches!(destination.kind, TypeKind::Vector { .. }))
                 {
-                    self.check_vector_cast(&source, &destination, offset)?;
+                    self.check_vector_cast(&source, destination, offset)?;
                 } else if matches!(destination.kind, TypeKind::Record(_))
-                    && self.compatible(&source, &self.unqualified(&destination)?)?
+                    && self.compatible(&source, &self.unqualified(destination)?)?
                 {
                     // GNU permits a value cast to the same struct or union type.
-                    self.require_complete_object(&destination, offset)?;
+                    self.require_complete_object(destination, offset)?;
                 } else if !matches!(destination.kind, TypeKind::Void) {
                     self.require_scalar(&source, offset)?;
-                    self.require_scalar(&destination, offset)?;
+                    self.require_scalar(destination, offset)?;
                     if matches!(
                         destination.kind,
                         TypeKind::Array { .. }
@@ -191,7 +198,11 @@ impl Analyzer {
                         return Err(Error::new(offset, "invalid scalar cast"));
                     }
                 }
-                self.unqualified(&destination)?
+                if self.gnu_sync_profile() {
+                    self.unqualified(destination)?
+                } else {
+                    self.unqualified(&written_destination)?
+                }
             }
             ast::Expression::UnaryOperator(unary) => {
                 // In &*E neither operator is evaluated and the result is E after
@@ -376,6 +387,12 @@ impl Analyzer {
                 } else {
                     (base.ty, base.lvalue)
                 };
+                if self.unit.atomic_value(&ty)?.is_some() {
+                    return Err(Error::new(
+                        offset,
+                        "accessing an atomic struct or union member is undefined; load the whole value first",
+                    ));
+                }
                 let (field, bitfield) =
                     self.member_type(&ty, &member.node.identifier.node.name, offset, 0)?;
                 return Ok(ExpressionInfo {
@@ -436,7 +453,13 @@ impl Analyzer {
                 ) {
                     self.require_complete_object(&function.return_type, offset)?;
                 }
-                function.return_type
+                if self.gnu_sync_profile()
+                    && self.unit.atomic_value(&function.return_type)?.is_some()
+                {
+                    self.atomic_value_type(&function.return_type)?
+                } else {
+                    function.return_type
+                }
             }
             ast::Expression::SizeOfTy(size) => {
                 let ty = self.type_name(&size.node.0.node)?;
@@ -592,6 +615,15 @@ impl Analyzer {
         };
         if assignment {
             self.require_modifiable(&left, offset)?;
+            if !self.gnu_sync_profile()
+                && self.unit.atomic_value(&left.ty)?.is_some()
+                && matches!(left_value.kind, TypeKind::Pointer(_))
+            {
+                return Err(Error::new(
+                    offset,
+                    "this Clang profile does not support atomic pointer compound assignment",
+                ));
+            }
             if matches!(left_value.kind, TypeKind::Pointer(_)) {
                 self.integer_type(&right_value, offset)?;
             }
@@ -816,7 +848,7 @@ impl Analyzer {
         source: &Type,
         expression: &Node<ast::Expression>,
     ) -> Result<(), Error> {
-        let destination = self.unqualified(destination)?;
+        let destination = self.atomic_value_type(destination)?;
         let offset = expression.span.start;
         if (self.is_arithmetic(&destination)? && self.is_arithmetic(source)?)
             || (matches!(destination.kind, TypeKind::Bool)
@@ -918,6 +950,13 @@ impl Analyzer {
                 "register array cannot undergo pointer conversion",
             ));
         }
+        if self.unit.atomic_value(&expression.ty)?.is_some() {
+            return if expression.lvalue || self.gnu_sync_profile() {
+                self.atomic_value_type(&expression.ty)
+            } else {
+                self.unqualified(&expression.ty)
+            };
+        }
         self.value_type(&expression.ty)
     }
 
@@ -989,7 +1028,11 @@ impl Analyzer {
         expression: &ExpressionInfo,
         offset: usize,
     ) -> Result<IntegerValue, Error> {
-        let integer = self.integer_type(&expression.ty, offset)?;
+        let integer = if self.unit.atomic_value(&expression.ty)?.is_some() {
+            self.integer_type(&self.converted_type(expression, offset)?, offset)?
+        } else {
+            self.integer_type(&expression.ty, offset)?
+        };
         if expression.bitfield.is_some_and(|width| width < 32) && integer.rank <= 3 {
             Ok(IntegerValue::int(0))
         } else {
@@ -1009,10 +1052,11 @@ impl Analyzer {
         if operand.bitfield.is_some() {
             return Ok(());
         }
-        let Some(alignment) = self.unit.typedef_alignment(&operand.ty)? else {
+        let operand_type = self.unit.atomic_value(&operand.ty)?.unwrap_or(&operand.ty);
+        let Some(alignment) = self.unit.typedef_alignment(operand_type)? else {
             return Ok(());
         };
-        let resolved = self.unit.resolve(&operand.ty)?;
+        let resolved = self.unit.resolve(operand_type)?;
         if resolved.kind != result.kind {
             return Ok(());
         }
@@ -1033,10 +1077,20 @@ impl Analyzer {
         right: &ExpressionInfo,
         offset: usize,
     ) -> Result<Type, Error> {
-        self.require_arithmetic(&left.ty, offset)?;
-        self.require_arithmetic(&right.ty, offset)?;
-        let left_kind = &self.unit.resolve(&left.ty)?.kind;
-        let right_kind = &self.unit.resolve(&right.ty)?.kind;
+        let left_type = if left.lvalue || self.gnu_sync_profile() {
+            self.unit.atomic_value(&left.ty)?.unwrap_or(&left.ty)
+        } else {
+            &left.ty
+        };
+        let right_type = if right.lvalue || self.gnu_sync_profile() {
+            self.unit.atomic_value(&right.ty)?.unwrap_or(&right.ty)
+        } else {
+            &right.ty
+        };
+        self.require_arithmetic(left_type, offset)?;
+        self.require_arithmetic(right_type, offset)?;
+        let left_kind = &self.unit.resolve(left_type)?.kind;
+        let right_kind = &self.unit.resolve(right_type)?.kind;
         for float in [FloatKind::LongDouble, FloatKind::Double, FloatKind::Float] {
             if left_kind == &TypeKind::Float(float) || right_kind == &TypeKind::Float(float) {
                 return Ok(Type::new(TypeKind::Float(float)));
@@ -1169,6 +1223,9 @@ impl Analyzer {
             return Ok(true);
         }
         match &self.unit.resolve(ty)?.kind {
+            TypeKind::Atomic(value) if self.gnu_sync_profile() => {
+                self.contains_const_inner(value, depth + 1, visited)
+            }
             TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
                 self.contains_const_inner(element, depth + 1, visited)
             }

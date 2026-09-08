@@ -232,7 +232,13 @@ impl Analyzer {
             }
             return Ok(signature);
         }
-        let mut value = self.unqualified(pointee)?;
+        if self.unit.atomic_value(pointee)?.is_some() && !self.gnu_sync_profile() {
+            return Err(Error::new(
+                offset,
+                "this Clang profile does not accept C11 atomic objects in GNU atomic intrinsics",
+            ));
+        }
+        let mut value = self.atomic_value_type(pointee)?;
         self.require_complete_object(&value, offset)?;
         let size = self.unit.layout(&value)?.size_bytes();
         if size == 0 {

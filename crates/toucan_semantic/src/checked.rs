@@ -21,6 +21,7 @@ pub(crate) mod references;
 pub(crate) mod statement;
 
 pub use crate::atomic::AtomicOperation;
+pub use crate::atomic_type::AtomicAccess;
 pub use crate::object_extent::{
     ObjectSizeFoldStage, ObjectSizeProof, ObjectSizeResult, ObjectSizeUnknown,
 };
@@ -1070,6 +1071,7 @@ fn charge_type(budget: &mut Budget, ty: &Type, offset: usize, depth: usize) -> R
     budget.charge(1, 0, std::mem::size_of::<Type>(), offset)?;
     match &ty.kind {
         TypeKind::Pointer(inner)
+        | TypeKind::Atomic(inner)
         | TypeKind::Array { element: inner, .. }
         | TypeKind::Vector { element: inner, .. }
         | TypeKind::VariableArray { element: inner } => {

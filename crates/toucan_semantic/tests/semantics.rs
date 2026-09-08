@@ -215,7 +215,7 @@ fn rejects_conflicts_and_unknown_abi_features() {
         "struct S { int too_wide:33; };",
         "typedef int v8 __attribute__((vector_size(32)));",
         "void f(void) __attribute__((vectorcall));",
-        "_Atomic(int) atomic_value;",
+        "_Atomic(const int) atomic_value;",
         "_Static_assert(0, \"failure\");",
     ] {
         assert!(analyze(source, TARGET).is_err(), "{source}");

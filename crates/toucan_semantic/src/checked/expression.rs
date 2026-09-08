@@ -35,6 +35,9 @@ pub enum ValueCategory {
 #[non_exhaustive]
 pub enum Conversion {
     Lvalue,
+    /// Sequentially-consistent C atomic lvalue conversion. In a ReadModifyWrite
+    /// use, this belongs to the enclosing single atomic update, not a separate load.
+    AtomicLoad,
     ArrayDecay,
     FunctionDecay,
     IntegerPromotion,
@@ -93,6 +96,9 @@ pub struct ExprUse {
 
 #[derive(Debug, Serialize)]
 pub struct Expression {
+    /// Store/update performed by this operator; atomic loads are use conversions.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) atomic_access: Option<crate::atomic_type::AtomicAccess>,
     /// Written type-name owner, independent of its reusable canonical/type-use shape.
     pub(crate) type_name: Option<OccurrenceId>,
     pub(crate) type_name_use: Option<super::bounds::TypeUseId>,
@@ -446,6 +452,7 @@ enum State {
 struct ExpressionProperties {
     function: bool,
     volatile_lvalue: bool,
+    atomic_access: Option<crate::atomic_type::AtomicAccess>,
 }
 
 #[derive(Default)]
@@ -649,6 +656,7 @@ impl Builder {
                 volatile_lvalue: properties.volatile_lvalue,
             });
         self.code.expressions.push(Expression {
+            atomic_access: properties.atomic_access,
             type_use,
             type_name_use,
             type_name,
@@ -728,6 +736,7 @@ impl Analyzer {
                     Some(Conversion::ArrayDecay)
                 }
                 TypeKind::Function(_) => Some(Conversion::FunctionDecay),
+                TypeKind::Atomic(_) if info.lvalue => Some(Conversion::AtomicLoad),
                 _ if info.lvalue => Some(Conversion::Lvalue),
                 _ => None,
             };
@@ -748,7 +757,7 @@ impl Analyzer {
                     TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
                 )
                 && matches!(
-                    self.unit.resolve(&info.ty)?.kind,
+                    ty.kind,
                     TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
                 )
             {
@@ -958,7 +967,13 @@ impl Analyzer {
                             | Unary::PostDecrement
                     );
                     let integer = matches!(
-                        self.unit.resolve(&operand_info.ty)?.kind,
+                        self.unit
+                            .resolve(
+                                self.unit
+                                    .atomic_value(&operand_info.ty)?
+                                    .unwrap_or(&operand_info.ty)
+                            )?
+                            .kind,
                         TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
                     );
                     let (context, destination) = if update {
@@ -993,7 +1008,14 @@ impl Analyzer {
                         None
                     };
                     let write_back = if update {
-                        Some(self.retained_type(&info.ty, offset)?)
+                        Some(self.retained_type(
+                            if self.unit.atomic_value(&operand_info.ty)?.is_some() {
+                                &operand_info.ty
+                            } else {
+                                &info.ty
+                            },
+                            offset,
+                        )?)
                     } else {
                         None
                     };
@@ -1013,7 +1035,20 @@ impl Analyzer {
                 type_name = self
                     .code_builder()
                     .type_name_occurrence(&cast.node.type_name.node);
-                let destination = self.unqualified(&destination)?;
+                let destination =
+                    if self.gnu_sync_profile() && self.unit.atomic_value(&destination)?.is_some() {
+                        if let Some(id) = explicit_type_use {
+                            explicit_type_use = Some(self.code_builder().project_type_use(
+                                id,
+                                &info.ty,
+                                super::bounds::TypeStep::AtomicValue,
+                                offset,
+                            )?);
+                        }
+                        self.atomic_value_type(&destination)?
+                    } else {
+                        self.unqualified(&destination)?
+                    };
                 ExprKind::Cast {
                     destination: self.retained_type(&destination, offset)?,
                     value: self.retained_use(
@@ -1219,12 +1254,42 @@ impl Analyzer {
         };
         let function = matches!(self.unit.resolve(&info.ty)?.kind, TypeKind::Function(_));
         let volatile_lvalue = info.lvalue && self.unit.qualifiers(&info.ty)?.is_volatile;
+        let atomic_access = match &kind {
+            ExprKind::Unary {
+                operand,
+                write_back: Some(_),
+                ..
+            } => {
+                let place = self.code_builder().expression_info(operand.expression);
+                self.unit
+                    .atomic_value(&place.ty)?
+                    .is_some()
+                    .then_some(crate::atomic_type::AtomicAccess::ReadModifyWrite)
+            }
+            ExprKind::Binary {
+                operator,
+                left,
+                write_back: Some(_),
+                ..
+            } => {
+                let place = self.code_builder().expression_info(left.expression);
+                self.unit.atomic_value(&place.ty)?.is_some().then_some(
+                    if *operator == Binary::Assign {
+                        crate::atomic_type::AtomicAccess::Store
+                    } else {
+                        crate::atomic_type::AtomicAccess::ReadModifyWrite
+                    },
+                )
+            }
+            _ => None,
+        };
         self.code_builder().finish_expression(
             occurrence,
             info,
             ExpressionProperties {
                 function,
                 volatile_lvalue,
+                atomic_access,
             },
             kind,
             explicit_type_use,
@@ -1545,7 +1610,8 @@ impl Analyzer {
         let mut computation = None;
         match binary.node.operator.node {
             Op::Assign => {
-                right_destination = Some((self.unqualified(&left.ty)?, Conversion::Assignment))
+                right_destination =
+                    Some((self.atomic_value_type(&left.ty)?, Conversion::Assignment))
             }
             Op::LogicalAnd | Op::LogicalOr | Op::Index => {}
             _ if matches!(left_value.kind, TypeKind::Vector { .. })
@@ -1614,7 +1680,14 @@ impl Analyzer {
             .map(|ty| self.retained_type(ty, offset))
             .transpose()?;
         let write_back = if assignment {
-            Some(self.retained_type(&result.ty, offset)?)
+            Some(self.retained_type(
+                if self.unit.atomic_value(&left.ty)?.is_some() {
+                    &left.ty
+                } else {
+                    &result.ty
+                },
+                offset,
+            )?)
         } else {
             None
         };

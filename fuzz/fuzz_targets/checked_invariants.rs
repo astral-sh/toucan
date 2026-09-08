@@ -453,6 +453,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 ..
             } => {
                 if let Some(member) = union_member {
+                    let root = unit.atomic_value(root).unwrap().unwrap_or(root);
                     let TypeKind::Record(record) = unit.resolve(root).unwrap().kind else {
                         panic!("union initializer needs record")
                     };
@@ -466,6 +467,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     assert!(code.initializer(entry.initializer()).is_some());
                     let mut ty = root;
                     for step in entry.path() {
+                        ty = unit.atomic_value(ty).unwrap().unwrap_or(ty);
                         match step {
                             Subobject::Field {
                                 record,
@@ -790,7 +792,8 @@ fn array_index(unit: &TranslationUnit, ty: &Type, index: u64) {
 }
 fn type_step<'a>(unit: &'a TranslationUnit, ty: &'a Type, step: &TypeStep) -> &'a Type {
     match (step, &unit.resolve(ty).unwrap().kind) {
-        (TypeStep::Pointer, TypeKind::Pointer(pointee)) => pointee,
+        (TypeStep::Pointer, TypeKind::Pointer(pointee))
+        | (TypeStep::AtomicValue, TypeKind::Atomic(pointee)) => pointee,
         (
             TypeStep::Element,
             TypeKind::Array { element, .. }
@@ -808,7 +811,7 @@ fn type_shape(unit: &TranslationUnit, root: &Type) {
     let mut pending = vec![root];
     while let Some(ty) = pending.pop() {
         match &ty.kind {
-            TypeKind::Pointer(pointee) => pending.push(pointee),
+            TypeKind::Pointer(pointee) | TypeKind::Atomic(pointee) => pending.push(pointee),
             TypeKind::Array { element, .. }
             | TypeKind::VariableArray { element }
             | TypeKind::Vector { element, .. } => pending.push(element),

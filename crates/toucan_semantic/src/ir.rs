@@ -62,6 +62,9 @@ pub enum TypeKind {
     Integer(IntegerKind),
     Float(FloatKind),
     Pointer(Box<Type>),
+    /// C11 atomic object type. Storage layout and observable accesses differ
+    /// from the contained non-atomic value; outer qualifiers remain independent.
+    Atomic(Box<Type>),
     /// GNU fixed-size vector. Elements are unqualified integer or floating types;
     /// the vector retains its own qualifiers and does not decay to a pointer.
     Vector {
@@ -421,7 +424,9 @@ impl TranslationUnit {
         for _ in 0..128 {
             match &self.resolve(ty)?.kind {
                 TypeKind::VariableArray { .. } => return Ok(true),
-                TypeKind::Array { element, .. } | TypeKind::Pointer(element) => ty = element,
+                TypeKind::Array { element, .. }
+                | TypeKind::Pointer(element)
+                | TypeKind::Atomic(element) => ty = element,
                 TypeKind::Function(function) => ty = &function.return_type,
                 _ => return Ok(false),
             }
@@ -587,6 +592,33 @@ impl TranslationUnit {
             }
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&cache[&id]),
+                ty.alignment,
+            ));
+        }
+        if let TypeKind::Atomic(value) = &resolved.kind {
+            if self.qualifiers(value)? != Qualifiers::default()
+                || matches!(
+                    self.resolve(value)?.kind,
+                    TypeKind::Atomic(_)
+                        | TypeKind::Array { .. }
+                        | TypeKind::VariableArray { .. }
+                        | TypeKind::Function(_)
+                        | TypeKind::Void
+                )
+            {
+                return Err(Error::new(
+                    0,
+                    "atomic layout requires an unqualified non-atomic object value",
+                ));
+            }
+            let inner = self.layout_type(value, active, cache, depth + 1, false)?;
+            let inner = self
+                .target
+                .layout(&inner)
+                .map_err(|e| Error::new(0, e.to_string()))?;
+            let layout = crate::atomic_type::atomic_layout(self.target, inner)?;
+            return Ok(aligned_layout_type(
+                target::Type::opaque_layout(&layout),
                 ty.alignment,
             ));
         }

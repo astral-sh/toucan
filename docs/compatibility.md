@@ -467,8 +467,11 @@ code for these operations.
   need to implement execution or lowering for its supported compiler intrinsics.
 - Declaration constraints still need broader conformance testing. Prototype-local
   tags retain distinct identities and are checked against GCC and Clang.
-- C++, K&R function definitions, TLS, atomic and complex
-  types, unsupported calling conventions, and unknown ABI attributes are rejected.
+- C++, K&R function definitions, complex types, unsupported calling conventions,
+  and unknown ABI attributes are rejected.
+- Thread-local and atomic objects are checked by the semantic library. Direct TLS
+  bindings require C accessors; atomic storage and call ABIs still need a supported
+  Rust representation. Complete native `<stdatomic.h>` integration remains in progress.
 - Extended floating-point types retain their identity but do not have supported
   layout or binding representations. `long double` has a target layout, but its Rust
   binding representation is not implemented.
@@ -751,3 +754,37 @@ These runtime tests check native C TLS behavior through generated wrapper bindin
 they do not execute a Toucan code generator. The storage rules follow
 [C11 sections 6.2.4, 6.7.1, 6.7.6.2 and 6.7.9](https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf)
 and [GCC's TLS extension](https://gcc.gnu.org/onlinedocs/gcc/Thread-Local.html).
+
+
+### C11 atomic types
+
+The semantic library retains `_Atomic(T)` as a distinct object type, including
+outer qualifiers, typedefs, and variable-array bounds inside atomic pointers.
+Linux profiles use GNU layout; Darwin and Microsoft profiles use Clang layout.
+For example, an atomic three-byte record occupies three bytes under GNU and four
+under Clang. The underlying record retains its original layout.
+
+Atomic lvalue conversions are explicit `AtomicLoad` steps. Stores and compound
+updates have an `AtomicAccess` fact with sequentially consistent C semantics;
+`ReadModifyWrite` describes one update rather than a separate load and store.
+Initializers preserve the atomic destination and describe initialization of its
+ordinary value, without implying an atomic store. Discarded atomic reads remain
+observable. Unevaluated expression contexts still govern whether access occurs.
+
+Compiler differences remain explicit: Clang retains atomic cast and function-call
+rvalues, rejects aggregate brace initializers and atomic-pointer compound
+assignments, and ignores atomic qualifiers inside array parameter brackets.
+GNU permits incomplete atomic types behind pointers. Existing diagnostics for
+unpromoted aligned-typedef arithmetic also apply to atomic values, preserving
+observable `typeof` alignment. Direct atomic aggregate member access is diagnosed as undefined; load a complete ordinary value first.
+
+Selected atomic bindings currently report that storage and call ABI need an
+explicit Rust representation. Atomic aggregate call conventions can differ from
+ordinary records even when their size matches. Clang `__c11_atomic_*` builtins and
+complete native `<stdatomic.h>` integration are separate work; no general atomic
+binding interoperability is claimed by this semantic slice.
+
+[Atomic type evidence](../corpus/evidence/atomic-types-2026-09-08.json) records
+compiler layout and constraint probes, native operations, retained graph checks,
+and non-atomic allocation comparison. Layout does not establish lock freedom or
+implement a concurrent memory model.

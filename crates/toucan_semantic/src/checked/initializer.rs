@@ -20,6 +20,9 @@ pub(crate) enum Origin<'a> {
 }
 
 #[derive(Debug, Serialize)]
+/// Initializes the declared object, without implying an atomic store. For an
+/// atomic destination, expression conversions and child paths describe its
+/// contained ordinary value while `ty()` preserves the atomic storage type.
 pub struct Initializer {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) scope: ScopeId,

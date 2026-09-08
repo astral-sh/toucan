@@ -436,6 +436,7 @@ fn variant_type_bytes(ty: &Type, depth: usize) -> Result<usize, Error> {
     let mut bytes = std::mem::size_of::<Type>();
     match &ty.kind {
         TypeKind::Pointer(inner)
+        | TypeKind::Atomic(inner)
         | TypeKind::Array { element: inner, .. }
         | TypeKind::VariableArray { element: inner } => {
             bytes = bytes.saturating_add(variant_type_bytes(inner, depth + 1)?);

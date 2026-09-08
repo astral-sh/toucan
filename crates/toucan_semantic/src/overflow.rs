@@ -323,7 +323,8 @@ impl Analyzer {
                         TypeKind::Array { .. }
                             | TypeKind::VariableArray { .. }
                             | TypeKind::Function(_)
-                    ) && self.unit.qualifiers(&ty)?.is_volatile,
+                    ) && (self.unit.qualifiers(&ty)?.is_volatile
+                        || self.unit.atomic_value(&ty)?.is_some()),
                 )
             }
             ast::Expression::Cast(cast) => {
@@ -357,7 +358,10 @@ impl Analyzer {
                 U::Indirection => {
                     let ty = self.expression_type(expression)?;
                     combine(
-                        Some(self.unit.qualifiers(&ty)?.is_volatile),
+                        Some(
+                            self.unit.qualifiers(&ty)?.is_volatile
+                                || self.unit.atomic_value(&ty)?.is_some(),
+                        ),
                         recurse(self, &unary.node.operand)?,
                     )
                 }
@@ -367,7 +371,10 @@ impl Analyzer {
             ast::Expression::Member(member) => {
                 let ty = self.expression_type(expression)?;
                 combine(
-                    Some(self.unit.qualifiers(&ty)?.is_volatile),
+                    Some(
+                        self.unit.qualifiers(&ty)?.is_volatile
+                            || self.unit.atomic_value(&ty)?.is_some(),
+                    ),
                     if member.node.operator.node == ast::MemberOperator::Indirect {
                         recurse(self, &member.node.expression)?
                     } else {
@@ -405,7 +412,13 @@ impl Analyzer {
                         let effects = combine(left, recurse(self, &binary.node.rhs)?);
                         if *operator == B::Index {
                             let ty = self.expression_type(expression)?;
-                            combine(effects, Some(self.unit.qualifiers(&ty)?.is_volatile))
+                            combine(
+                                effects,
+                                Some(
+                                    self.unit.qualifiers(&ty)?.is_volatile
+                                        || self.unit.atomic_value(&ty)?.is_some(),
+                                ),
+                            )
                         } else {
                             effects
                         }

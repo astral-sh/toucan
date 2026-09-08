@@ -36,6 +36,8 @@ impl BoundId {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[non_exhaustive]
 pub enum TypeStep {
+    /// The ordinary value contained by an atomic object type.
+    AtomicValue,
     Pointer,
     Element,
     Return,
@@ -621,6 +623,14 @@ impl Builder {
                         function.path[0] = TypeStep::Pointer;
                     }
                 }
+                if matches!(ty.kind, TypeKind::Atomic(_)) {
+                    for extent in &mut extents {
+                        extent.path.insert(0, TypeStep::AtomicValue);
+                    }
+                    for function in &mut functions {
+                        function.path.insert(0, TypeStep::AtomicValue);
+                    }
+                }
                 let shape = self.intern_type(ty, offset)?;
                 result = self.type_use(shape, extents, functions, offset)?;
             } else if adjustment == Some(ParameterAdjustment::Function) {
@@ -642,9 +652,11 @@ impl Builder {
         offset: usize,
         variably_modified: bool,
         definition_parameter: bool,
+        atomic_wrapper: bool,
     ) -> Result<TypeUseId, Error> {
         let inherited = if let [specifier] = specs {
             match &specifier.node {
+                ast::TypeSpecifier::Atomic(name) => self.type_name_use(&name.node),
                 ast::TypeSpecifier::TypedefName(name) => self
                     .entity_for_name(&name.node.name)
                     .and_then(|id| self.bounds_builder.entities.get(&id).copied()),
@@ -678,6 +690,18 @@ impl Builder {
             None
         };
         match inherited {
+            Some(id)
+                if atomic_wrapper
+                    || matches!(
+                        specs,
+                        [Node {
+                            node: ast::TypeSpecifier::Atomic(_),
+                            ..
+                        }]
+                    ) =>
+            {
+                self.wrap_type_use(id, ty, TypeStep::AtomicValue, None, offset)
+            }
             Some(id) => self.retype_use(id, ty, offset),
             None => self.plain_type_use(ty, offset),
         }
@@ -709,6 +733,18 @@ impl Builder {
         let mut functions = self.code.type_uses[id.index()].functions.clone();
         for conversion in conversions {
             match conversion.kind {
+                Conversion::AtomicLoad => {
+                    for function in &mut functions {
+                        if function.path.first() == Some(&TypeStep::AtomicValue) {
+                            function.path.remove(0);
+                        }
+                    }
+                    for extent in &mut extents {
+                        if extent.path.first() == Some(&TypeStep::AtomicValue) {
+                            extent.path.remove(0);
+                        }
+                    }
+                }
                 Conversion::ArrayDecay => {
                     for function in &mut functions {
                         if function.path.first() == Some(&TypeStep::Element) {
@@ -740,6 +776,7 @@ impl Builder {
                 | TypeKind::Array { .. }
                 | TypeKind::Function(_)
                 | TypeKind::Typedef(_)
+                | TypeKind::Atomic(_)
         ) {
             extents.clear();
         }
@@ -813,7 +850,17 @@ impl Builder {
                 operator: Binary::Assign | Binary::AssignPlus | Binary::AssignMinus,
                 left,
                 ..
-            } => self.retype_use(left.type_use, ty, offset),
+            } => {
+                if matches!(
+                    self.code.types[left.effective_type.index()].kind,
+                    TypeKind::Atomic(_)
+                ) && !matches!(ty.kind, TypeKind::Atomic(_))
+                {
+                    self.project_type_use(left.type_use, ty, TypeStep::AtomicValue, offset)
+                } else {
+                    self.retype_use(left.type_use, ty, offset)
+                }
+            }
             ExprKind::Binary {
                 operator: Binary::Plus | Binary::Minus,
                 left,
@@ -860,7 +907,13 @@ impl Builder {
                         f.path
                             .strip_prefix(&[TypeStep::Pointer, TypeStep::Return])
                             .map(|path| FunctionUse {
-                                path: path.to_vec(),
+                                path: if !matches!(ty.kind, TypeKind::Atomic(_)) {
+                                    path.strip_prefix(&[TypeStep::AtomicValue])
+                                        .unwrap_or(path)
+                                        .to_vec()
+                                } else {
+                                    path.to_vec()
+                                },
                                 scope: f.scope,
                                 parameters: f.parameters.clone(),
                             })
@@ -874,7 +927,13 @@ impl Builder {
                             .path
                             .strip_prefix(&[TypeStep::Pointer, TypeStep::Return])
                             .map(|path| Extent {
-                                path: path.to_vec(),
+                                path: if !matches!(ty.kind, TypeKind::Atomic(_)) {
+                                    path.strip_prefix(&[TypeStep::AtomicValue])
+                                        .unwrap_or(path)
+                                        .to_vec()
+                                } else {
+                                    path.to_vec()
+                                },
                                 bound: extent.bound,
                             })
                     })
@@ -894,7 +953,7 @@ impl Builder {
         if let Some(step) = value.conversions.first()
             && matches!(
                 step.kind,
-                Conversion::ArrayDecay | Conversion::FunctionDecay
+                Conversion::ArrayDecay | Conversion::FunctionDecay | Conversion::AtomicLoad
             )
         {
             let ty = self.code.types[step.target_type.index()].clone();
@@ -928,6 +987,7 @@ impl Builder {
                         | TypeKind::Array { .. }
                         | TypeKind::VariableArray { .. }
                         | TypeKind::Typedef(_)
+                        | TypeKind::Atomic(_)
                 ) {
                     continue;
                 }
@@ -997,7 +1057,8 @@ fn path_type<'a>(mut ty: &'a Type, path: &[TypeStep]) -> Option<&'a TypeKind> {
     for step in path {
         ty = match (step, &ty.kind) {
             (_, TypeKind::Typedef(_)) => return Some(&ty.kind),
-            (TypeStep::Pointer, TypeKind::Pointer(inner)) => inner,
+            (TypeStep::Pointer, TypeKind::Pointer(inner))
+            | (TypeStep::AtomicValue, TypeKind::Atomic(inner)) => inner,
             (
                 TypeStep::Element,
                 TypeKind::Array { element, .. }

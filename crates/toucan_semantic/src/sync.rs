@@ -119,7 +119,13 @@ impl Analyzer {
                 "__sync address must point to an integer or pointer object",
             ));
         };
-        let mut value = self.unqualified(pointee)?;
+        if self.unit.atomic_value(pointee)?.is_some() && !self.gnu_sync_profile() {
+            return Err(Error::new(
+                offset,
+                "this Clang profile does not accept C11 atomic objects in GNU atomic intrinsics",
+            ));
+        }
+        let mut value = self.atomic_value_type(pointee)?;
         if !matches!(
             value.kind,
             TypeKind::Integer(_) | TypeKind::Enum(_) | TypeKind::Bool | TypeKind::Pointer(_)
