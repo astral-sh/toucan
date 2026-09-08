@@ -51,6 +51,11 @@ jobs:
           echo "$native_gcc_version"
           clang --version
           echo "TOUCAN_GCC=$native_gcc" >> "$GITHUB_ENV"
+          # Existing probes that invoke `gcc` must also use GNU GCC on macOS.
+          oracle_bin="$RUNNER_TEMP/toucan-c-oracles"
+          mkdir -p "$oracle_bin"
+          ln -s "$native_gcc" "$oracle_bin/gcc"
+          echo "$oracle_bin" >> "$GITHUB_PATH"
       - run: cargo test --workspace -- --include-ignored
       - run: cargo doc --workspace --no-deps
         env:

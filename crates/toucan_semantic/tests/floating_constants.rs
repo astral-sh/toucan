@@ -125,7 +125,8 @@ fn immediate_casts_match_c11_compilers() {
     ]
     .map(|expression| (format!("_Static_assert({expression}, \"ICE\");\n"), false));
     let sources: Vec<_> = valid.chain(invalid).collect();
-    for compiler in ["gcc", "clang"] {
+    let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
+    for compiler in [gcc.as_str(), "clang"] {
         for (source, accepted) in &sources {
             let mut child = Command::new(compiler)
                 .args([
