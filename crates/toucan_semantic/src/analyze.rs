@@ -638,6 +638,7 @@ pub(crate) struct Analyzer {
     pub(crate) transparent_variant_bytes: usize,
     pub(crate) has_variadic_packs: bool,
     pub(crate) generic_selections: HashMap<(usize, usize), usize>,
+    pub(crate) pending_auto_types: Vec<(String, usize)>,
     pub(crate) choose_selections: HashMap<(usize, usize), bool>,
     pub(crate) type_compatibility_results: HashMap<(usize, usize), bool>,
     pub(crate) weak_symbols: BTreeMap<String, lang_c::span::Span>,
@@ -743,6 +744,7 @@ impl Analyzer {
             has_variadic_packs: false,
             generic_selections: HashMap::new(),
             choose_selections: HashMap::new(),
+            pending_auto_types: Vec::new(),
             type_compatibility_results: HashMap::new(),
             checked_atomic_queries: HashSet::new(),
             checked_overflow_predicates: HashMap::new(),
@@ -989,13 +991,16 @@ impl Analyzer {
             }
             return Ok(());
         }
-        let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
+        let inference = self.infer_auto_declaration(declaration)?;
+        let (base, attributes) =
+            self.specifiers_with_inference(&declaration.node.specifiers, inference.as_ref())?;
         if declaration.node.declarators.is_empty() {
             attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
         }
         for item in &declaration.node.declarators {
+            let mut prechecked_initializer = None;
             let mut is_static = storage.class == Some(ast::StorageClassSpecifier::Static);
             let previous_parameters = self.definition_parameters;
             if definition {
@@ -1203,6 +1208,12 @@ impl Analyzer {
                     kind != DeclarationKind::Typedef && !is_static,
                     previous_definition,
                 )?;
+                if inference.is_some()
+                    && let Some(initializer) = &item.node.initializer
+                {
+                    prechecked_initializer =
+                        Some(self.check_object_initializer(&ty, initializer, true)?);
+                }
                 let previous = &mut self.unit.declarations[previous_index];
                 previous.returns_twice = returns_twice;
                 previous.symbol_binding = symbol_binding;
@@ -1219,6 +1230,12 @@ impl Analyzer {
                     kind != DeclarationKind::Typedef && !is_static,
                     false,
                 )?;
+                if inference.is_some()
+                    && let Some(initializer) = &item.node.initializer
+                {
+                    prechecked_initializer =
+                        Some(self.check_object_initializer(&ty, initializer, true)?);
+                }
                 let index = self.unit.declarations.len();
                 self.unit.declarations.push(Declaration {
                     returns_twice,
@@ -1258,9 +1275,17 @@ impl Analyzer {
                 // Earlier declarations contribute bounds to the object being
                 // initialized, including when this declarator omits its bound.
                 let initializer_type = self.unit.declarations[declaration_index].ty.clone();
-                self.initialize_declaration(declaration_index, &initializer_type, initializer)?;
+                self.initialize_declaration(
+                    declaration_index,
+                    &initializer_type,
+                    initializer,
+                    prechecked_initializer,
+                )?;
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
+                if let Some(inference) = &inference {
+                    checked.retain_type_inference(site, inference)?;
+                }
                 checked.attach_diagnostic_attributes(
                     site,
                     &declarator_attributes.diagnostic_attributes,
@@ -1637,6 +1662,14 @@ impl Analyzer {
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
     ) -> Result<(Type, Attributes), Error> {
+        self.specifiers_with_inference(specifiers, None)
+    }
+
+    pub(crate) fn specifiers_with_inference(
+        &mut self,
+        specifiers: &[Node<ast::DeclarationSpecifier>],
+        inference: Option<&crate::auto_type::AutoInference<'_>>,
+    ) -> Result<(Type, Attributes), Error> {
         let mut types = Vec::new();
         let mut qualifiers = Qualifiers::default();
         let mut atomic = false;
@@ -1693,7 +1726,10 @@ impl Analyzer {
                 "vector_size attached to a record or enum tag is unsupported",
             ));
         }
-        let mut ty = self.base_type(&types)?;
+        let mut ty = match inference {
+            Some(inference) => inference.ty.clone(),
+            None => self.base_type(&types)?,
+        };
         if let Some(checked) = &mut self.checked {
             for specifier in &types {
                 if let ast::TypeSpecifier::TypedefName(name) = &specifier.node {
@@ -1744,21 +1780,39 @@ impl Analyzer {
             ty = self.vector_type(ty, bytes, types.first().map_or(0, |ty| ty.span.start))?;
         }
         let offset = specifiers.first().map_or(0, |item| item.span.start);
-        self.check_restrict(&ty, offset)?;
+        // Clang applies written qualifiers after deduction, including restrict
+        // on a non-pointer inferred type. Ordinary C declarations still reject it.
+        if inference.is_none() || self.gnu_sync_profile() {
+            self.check_restrict(&ty, offset)?;
+        }
         if let Some(checked) = &mut self.checked {
             let variably_modified = self.unit.is_variably_modified(&ty)?;
             let definition_parameter = self
                 .lexical_scopes
                 .last()
                 .is_some_and(|scope| scope.is_definition_parameters);
-            attributes.type_use = Some(checked.base_type_use(
-                &types,
-                &ty,
-                offset,
-                variably_modified,
-                definition_parameter,
-                atomic_wrapper,
-            )?);
+            attributes.type_use = Some(if let Some(id) = inference.and_then(|i| i.type_use) {
+                if atomic_wrapper {
+                    checked.wrap_type_use(
+                        id,
+                        &ty,
+                        crate::checked::TypeStep::AtomicValue,
+                        None,
+                        offset,
+                    )?
+                } else {
+                    checked.retype_use(id, &ty, offset)?
+                }
+            } else {
+                checked.base_type_use(
+                    &types,
+                    &ty,
+                    offset,
+                    variably_modified,
+                    definition_parameter,
+                    atomic_wrapper,
+                )?
+            });
         }
         Ok((ty, attributes))
     }
@@ -1790,6 +1844,17 @@ impl Analyzer {
     }
 
     fn base_type(&mut self, types: &[Node<ast::TypeSpecifier>]) -> Result<Type, Error> {
+        for ty in types {
+            if let ast::TypeSpecifier::TypedefName(name) = &ty.node {
+                self.check_auto_reference(&name.node.name, name.span.start)?;
+            }
+            if matches!(ty.node, ast::TypeSpecifier::AutoType) {
+                return Err(Error::new(
+                    ty.span.start,
+                    "__auto_type is only permitted in an initialized object declaration",
+                ));
+            }
+        }
         if let [
             Node {
                 node: ast::TypeSpecifier::TypedefName(name),

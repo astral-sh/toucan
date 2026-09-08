@@ -135,6 +135,7 @@ both are arithmetic constants, evaluation returns the converted first argument.
 Ordinary declarations can shadow intrinsic call names.
 
 GNU [`__builtin_types_compatible_p` and `__builtin_choose_expr`](type-introspection.md) preserve type identity, selected value categories, and unevaluated type/arm operands. Their checked operations retain both written types or all three selection expressions.
+GNU [`__auto_type`](auto-type.md) infers single initialized object declarations with compiler-specific name visibility and atomic qualification. Retained sites link the initializer and preserve runtime array bounds; derived and multiple Clang declarators remain explicit unsupported cases.
 
 `__builtin_constant_p` checks one value operand and returns `int`. Its conservative
 constant evaluator returns one only for supported, valid constant folds; zero

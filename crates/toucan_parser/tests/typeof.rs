@@ -87,3 +87,18 @@ fn visible_typedefs_select_types_and_shadowed_names_select_expressions() {
         }
     }
 }
+
+#[test]
+fn inferred_names_enter_scope_after_initializer_and_leave_with_their_block() {
+    for source in [
+        "typedef int T; void f(void){__auto_type T=sizeof(typeof(T));typeof(T) value;} typeof(T) after;",
+        "typedef int T; int f(int T); void g(void){__auto_type T=sizeof(typeof(T));typeof(T) value;} typeof(T) after;",
+        "typedef int T; void g(void){for(__auto_type T=sizeof(typeof(T));T;) {typeof(T) value;}} typeof(T) after;",
+    ] {
+        for flavor in [Flavor::GnuC11,Flavor::ClangC11] {
+            let parsed=parse_preprocessed(&Config{flavor,..Config::default()},source.to_owned()).unwrap();
+            let mut operands=Operands::default();operands.visit_translation_unit(&parsed.unit);
+            assert_eq!(operands.0.iter().map(|(ty,_)|*ty).collect::<Vec<_>>(),[true,false,true],"{source}");
+        }
+    }
+}

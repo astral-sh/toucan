@@ -111,6 +111,7 @@ impl Analyzer {
             },
             ast::Expression::Identifier(identifier) => {
                 let name = &identifier.node.name;
+                self.check_auto_reference(name, offset)?;
                 if let Some(value) = self.unit.constants.get(name) {
                     integer_to_type(*value)
                 } else if let Some(ty) = self.parameter_type(name) {

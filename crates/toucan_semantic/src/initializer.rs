@@ -54,6 +54,7 @@ impl Analyzer {
         index: usize,
         original: &Type,
         initializer: &Node<ast::Initializer>,
+        prechecked: Option<(Type, Option<FlexibleArrayStorage>)>,
     ) -> Result<(), Error> {
         if self.unit.declarations[index].kind != DeclarationKind::Variable {
             return Err(Error::new(
@@ -61,7 +62,10 @@ impl Analyzer {
                 "only an object can have an initializer",
             ));
         }
-        let (completed, storage) = self.check_object_initializer(original, initializer, true)?;
+        let (completed, storage) = match prechecked {
+            Some(result) => result,
+            None => self.check_object_initializer(original, initializer, true)?,
+        };
         self.unit.declarations[index].flexible_array_storage = storage;
         let previous = &self.unit.declarations[index].ty;
         if !self.compatible(previous, &completed)? {

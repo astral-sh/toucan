@@ -616,6 +616,8 @@ pub enum StorageClassSpecifier {
 /// (C11 6.7.2)
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeSpecifier {
+    /// GNU declaration type inferred from its initializer.
+    AutoType,
     /// `void`
     Void,
     /// `char`

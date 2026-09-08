@@ -360,3 +360,27 @@ fn nested_introspection_respects_generated_rule_and_owned_tree_limits() {
         ResourceKind::RuleDepth | ResourceKind::AstDepth
     ));
 }
+
+#[test]
+fn inferred_initializers_use_the_same_deterministic_work_and_depth_limits() {
+    let source = "int f(void){__auto_type x=({__auto_type y=1;y;});return x;}";
+    let config = Config::with_gcc();
+    let parsed = parse_preprocessed(&config, source.to_owned()).unwrap();
+    let error = parse_preprocessed_with_limits(
+        &config,
+        source.to_owned(),
+        ParseLimits {
+            max_work: parsed.statistics.work - 1,
+            ..ParseLimits::default()
+        },
+    )
+    .unwrap_err();
+    assert_eq!(error.resource.unwrap().kind, ResourceKind::Work);
+    let nested = format!(
+        "void f(void){{{}1{};}}",
+        "__auto_type x=({".repeat(2000),
+        ";x;})".repeat(2000)
+    );
+    let error = parse_preprocessed(&config, nested).unwrap_err();
+    assert_eq!(error.resource.unwrap().kind, ResourceKind::RuleDepth);
+}

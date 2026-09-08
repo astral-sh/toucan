@@ -203,6 +203,7 @@ const FEATURE_REQUIRED: &[&str] = &[
     "void g(void){f();}",
     "V g(V x){return x;}",
     "void g(void){V x=f();}",
+    "void g(void){__auto_type x=f();}",
     "void g(V*p,V*q){*p=*q;}",
     "int g(void){return 1?(f(),1):2;}",
     "int g(void){return 1&&(f(),1);}",

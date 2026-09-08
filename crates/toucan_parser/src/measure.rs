@@ -325,7 +325,7 @@ enumeration!(StorageClassSpecifier {
     Auto,
     Register
 });
-enumeration!(TypeSpecifier { Void, Char, Short, Int, Long, Float, Double, Signed, Unsigned, Bool, Complex, Atomic(v0), Struct(v0), Enum(v0), TypedefName(v0), TypeOf(v0), TS18661Float(v0) });
+enumeration!(TypeSpecifier { AutoType, Void, Char, Short, Int, Long, Float, Double, Signed, Unsigned, Bool, Complex, Atomic(v0), Struct(v0), Enum(v0), TypedefName(v0), TypeOf(v0), TS18661Float(v0) });
 structure!(TS18661FloatType { format, width });
 enumeration!(TS18661FloatFormat {
     BinaryInterchange,

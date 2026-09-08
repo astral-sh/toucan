@@ -14,6 +14,7 @@ mod access;
 pub(crate) mod attributes;
 pub(crate) mod bounds;
 pub(crate) mod expression;
+mod inference;
 pub(crate) mod initializer;
 mod ownership;
 mod query;
@@ -42,6 +43,7 @@ pub use expression::{
     ExprUse, Expression, ExpressionCoverage, GenericArm, OffsetMember, TypeNameOperand, Unary,
     UseContext, ValueCategory,
 };
+pub use inference::TypeInference;
 pub use initializer::{
     Coverage as InitializerStatus, Entry as InitializerEntry, Initializer, InitializerCoverage,
     InitializerKind, Subobject,
@@ -288,6 +290,8 @@ pub enum Linkage {
 
 #[derive(Debug, Serialize)]
 pub struct DeclarationSite {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) type_inference: Option<Box<TypeInference>>,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
     pub(crate) returns_twice: bool,
     #[serde(skip_serializing_if = "crate::SymbolBinding::is_strong")]
@@ -410,6 +414,7 @@ pub(crate) struct Builder {
     parsed_spans: Vec<Span>,
     scope_spans: Vec<Span>,
     name_spans: Vec<Option<Span>>,
+    inferred_type_spans: Vec<(SiteId, Span)>,
     ambiguous_spans: Vec<Span>,
     entities: HashMap<EntityKey, EntityId>,
     names: HashMap<ScopeId, HashMap<String, EntityId>>,
@@ -470,6 +475,7 @@ impl Builder {
             parsed_spans: Vec::new(),
             scope_spans: Vec::new(),
             name_spans: Vec::new(),
+            inferred_type_spans: Vec::new(),
             ambiguous_spans: Vec::new(),
             entities: HashMap::new(),
             names: HashMap::new(),
@@ -664,6 +670,7 @@ impl Builder {
         let id = SiteId(self.code.declarations.len() as u32);
         self.code.entities[entity.index()].storage = properties.storage;
         self.code.declarations.push(DeclarationSite {
+            type_inference: None,
             returns_twice: self.code.entities[entity.index()].returns_twice,
             returns_twice_attribute: None,
             symbol_binding: self.code.entities[entity.index()].symbol_binding,
@@ -933,6 +940,7 @@ impl Builder {
         self.finish_initializer_coverage()?;
         self.finish_bounds(offsets)?;
         self.finish_type_ownership()?;
+        self.finish_type_inferences(offsets)?;
         for (occurrence, missing, kind) in self
             .code
             .expression_coverage

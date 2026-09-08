@@ -635,7 +635,9 @@ impl Analyzer {
                 }
             }
         }
-        let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
+        let inference = self.infer_auto_declaration(declaration)?;
+        let (base, attributes) =
+            self.specifiers_with_inference(&declaration.node.specifiers, inference.as_ref())?;
         if declaration.node.declarators.is_empty() {
             attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
@@ -947,6 +949,17 @@ impl Analyzer {
                     continue;
                 }
             }
+            let prechecked_initializer = if inference.is_some() {
+                item.node
+                    .initializer
+                    .as_ref()
+                    .map(|initializer| {
+                        self.check_object_initializer(&ty, initializer, is_static || thread_local)
+                    })
+                    .transpose()?
+            } else {
+                None
+            };
             self.bind_local(
                 &name,
                 ty.clone(),
@@ -996,8 +1009,12 @@ impl Analyzer {
                 None
             };
             if let Some(initializer) = &item.node.initializer {
-                let (completed, storage) =
-                    self.check_object_initializer(&ty, initializer, is_static || thread_local)?;
+                let (completed, storage) = match prechecked_initializer {
+                    Some(result) => result,
+                    None => {
+                        self.check_object_initializer(&ty, initializer, is_static || thread_local)?
+                    }
+                };
                 ty = completed;
                 let scope = self.lexical_scopes.last_mut().expect("block scope");
                 if let Some(storage) = storage {
@@ -1013,6 +1030,9 @@ impl Analyzer {
                 ));
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
+                if let Some(inference) = &inference {
+                    checked.retain_type_inference(site, inference)?;
+                }
                 checked.attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
                 checked.attach_returns_twice(site, returns_twice, extra.returns_twice)?;
                 checked.attach_symbol_binding(site, symbol_binding, extra.weak);

@@ -126,21 +126,38 @@ fn unchanged_clang_stdatomic_header_and_operations() {
 }
 #[test]
 #[ignore = "requires an installed GNU GCC stdatomic header"]
-fn unchanged_gcc_stdatomic_declarations() {
+fn unchanged_gcc_stdatomic_header_and_operations() {
     let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
     let identity = Command::new(&gcc).arg("--version").output().unwrap();
     assert!(
         identity.status.success() && !String::from_utf8_lossy(&identity.stdout).contains("clang")
     );
     let directory = include_dir(&gcc, "-print-file-name=include");
-    let source = "#include <stdatomic.h>\n_Static_assert(sizeof(atomic_int_fast16_t)==8,\"GNU fast16\");_Static_assert(sizeof(atomic_int_fast32_t)==8,\"GNU fast32\");_Static_assert(ATOMIC_INT_LOCK_FREE==2,\"int\");";
+    let source = format!(
+        "{OPERATIONS}\n_Static_assert(sizeof(atomic_int_fast16_t)==8,\"GNU fast16\");_Static_assert(sizeof(atomic_int_fast32_t)==8,\"GNU fast32\");_Static_assert(ATOMIC_INT_LOCK_FREE==2,\"int\");"
+    );
     for target in [
         Target::X86_64UnknownLinuxGnu,
         Target::Aarch64UnknownLinuxGnu,
     ] {
         let mut config = Config::new(target);
         config.preprocessor.include_dirs.push(directory.clone());
-        parse_source(Path::new("stdatomic.c"), source, &config).unwrap();
+        let ordinary = parse_source(Path::new("stdatomic.c"), &source, &config).unwrap();
+        config.analysis.retain_code = true;
+        let retained = parse_source(Path::new("stdatomic.c"), &source, &config).unwrap();
+        assert_eq!(
+            format!("{:?}", ordinary.unit()),
+            format!("{:?}", retained.unit())
+        );
+        assert!(retained.checked().unwrap().expressions().any(|(_, e)| {
+            matches!(
+                e.kind(),
+                toucan::semantic::checked::ExprKind::BuiltinCall {
+                    builtin: toucan::semantic::checked::Builtin::Atomic(_),
+                    ..
+                }
+            )
+        }));
     }
 }
 

@@ -130,6 +130,12 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         if let Some(ty) = declaration.declared_type_use() {
             assert!(code.type_use(ty).is_some());
         }
+        if let Some(inference) = declaration.type_inference() {
+            source_span(source, inference.keyword());
+            assert!(code.expression(inference.expression()).is_some());
+            assert!(code.type_use(inference.type_use()).is_some());
+            assert!(declaration.initializer().is_some());
+        }
         if let Some(span) = declaration.weak_attribute() {
             source_span(source, span);
         }

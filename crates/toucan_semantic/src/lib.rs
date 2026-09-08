@@ -9,6 +9,7 @@ mod arm;
 mod asm;
 mod atomic;
 mod atomic_type;
+mod auto_type;
 mod builtins;
 mod c11_atomic;
 pub mod checked;

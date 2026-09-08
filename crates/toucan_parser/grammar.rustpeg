@@ -488,9 +488,29 @@ declaration1 -> (Vec<Node<DeclarationSpecifier>>, Vec<Node<InitDeclarator>>) =
     declaration_seq<declaration_specifiers_unique, declaration2>
 
 declaration2 -> (Vec<Node<DeclarationSpecifier>>, Vec<Node<InitDeclarator>>) =
+    declaration_auto_type /
     declaration_seq<declaration_typedef, declaration_typedef_tail> /
     declaration_seq<declaration_unique_type, declaration_tail<declaration_specifiers_unique>> /
     declaration_seq<declaration_nonunique_type, declaration_tail<declaration_specifiers_nonunique>>
+
+// GCC introduces an inferred name after its initializer. The semantic checker
+// applies Clang's stricter self-reference rule without losing typedef parsing.
+declaration_auto_type -> (Vec<Node<DeclarationSpecifier>>, Vec<Node<InitDeclarator>>) =
+    a:node<declaration_auto_type_specifier> _ s:declaration_specifiers_nonunique _ d:cs0<node<auto_init_declarator>> {
+        (concat(vec![a], s), d)
+    }
+
+declaration_auto_type_specifier -> DeclarationSpecifier =
+    a:node<auto_type_specifier> { DeclarationSpecifier::TypeSpecifier(a) }
+
+auto_type_specifier -> TypeSpecifier =
+    gnu<K<"__auto_type">> { TypeSpecifier::AutoType }
+
+auto_init_declarator -> InitDeclarator =
+    d:declarator _ e:gnu<init_declarator_gnu>? _ i:node<init_declarator_init>? {
+        env.handle_declarator(&d, Symbol::Identifier);
+        InitDeclarator { declarator: checked_with_ext!(__state.budget, d, e), initializer: i }
+    }
 
 // What can follow a type specifier keyword or typename in a declaration
 declaration_tail<s> = declaration_seq<s, declaration_tail1<s>>
@@ -609,6 +629,7 @@ storage_class_typedef0 -> StorageClassSpecifier =
 // specifiers can only appear once in declaration specifiers or specifier-qualifiers.
 // This resolves the ambiguity with typedef names.
 type_specifier_unique -> TypeSpecifier =
+    auto_type_specifier /
     K<"void"> { TypeSpecifier::Void } /
     K<"_Bool"> { TypeSpecifier::Bool } /
     K<"_Atomic"> _ "(" _ t:type_name _ ")" { TypeSpecifier::Atomic(t) } /
