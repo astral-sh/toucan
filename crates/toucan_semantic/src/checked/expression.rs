@@ -17,7 +17,7 @@ use crate::{DecodedString, Error, FloatKind, IntegerKind, IntegerValue, Type, Ty
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
 pub(crate) struct ExprId(pub(crate) u32);
 impl ExprId {
-    fn index(self) -> usize {
+    pub(crate) fn index(self) -> usize {
         self.0 as usize
     }
 }
@@ -60,6 +60,7 @@ pub(crate) struct ConversionStep {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct ExprUse {
+    pub(crate) type_use: super::bounds::TypeUseId,
     pub(crate) expression: ExprId,
     pub(crate) effective_type: TypeId,
     pub(crate) context: UseContext,
@@ -68,6 +69,8 @@ pub(crate) struct ExprUse {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Expression {
+    pub(crate) type_name_use: Option<super::bounds::TypeUseId>,
+    pub(crate) type_use: super::bounds::TypeUseId,
     pub(crate) occurrence: OccurrenceId,
     pub(crate) scope: ScopeId,
     pub(crate) ty: TypeId,
@@ -350,7 +353,8 @@ impl Builder {
                 "recursive retained expression type query",
             )),
             None => {
-                self.budget.charge(0, 1, 0, node.span.start)?;
+                self.begin_bound_context(occurrence);
+                self.budget.charge(0, 2, 0, node.span.start)?;
                 self.expression_builder
                     .states
                     .insert(occurrence, State::Checking);
@@ -378,7 +382,7 @@ impl Builder {
         }
     }
 
-    fn expression_id(&mut self, node: &Node<ast::Expression>) -> Result<ExprId, Error> {
+    pub(super) fn expression_id(&mut self, node: &Node<ast::Expression>) -> Result<ExprId, Error> {
         let occurrence = self
             .find(OccurrenceKind::Expression, node)?
             .ok_or_else(|| {
@@ -438,12 +442,18 @@ impl Builder {
         info: &ExpressionInfo,
         function: bool,
         kind: ExprKind,
+        explicit_type_use: Option<super::bounds::TypeUseId>,
+        type_name_use: Option<super::bounds::TypeUseId>,
     ) -> Result<(), Error> {
         let offset = self.parsed_spans[occurrence.index()].start;
+        self.finish_bound_context(occurrence, &kind, type_name_use);
+        let type_use = self.expression_type_use(&kind, &info.ty, explicit_type_use, occurrence)?;
         let ty = self.intern_type(&info.ty, offset)?;
-        self.budget.charge(1, 3, 0, offset)?;
+        self.budget.charge(1, 4, 0, offset)?;
         let id = ExprId(self.code.expressions.len() as u32);
         self.code.expressions.push(Expression {
+            type_use,
+            type_name_use,
             occurrence,
             scope: self.current,
             ty,
@@ -551,6 +561,10 @@ impl Analyzer {
             }
             ty = destination;
         }
+        let source_use = self.code_builder().code.expressions[expression_id.index()].type_use;
+        let type_use =
+            self.code_builder()
+                .converted_type_use(source_use, &ty, &conversions, offset)?;
         let effective_type = self.retained_type(&ty, offset)?;
         self.code_builder().budget.charge(
             0,
@@ -560,6 +574,7 @@ impl Analyzer {
             offset,
         )?;
         Ok(ExprUse {
+            type_use,
             expression: expression_id,
             effective_type,
             context,
@@ -646,6 +661,8 @@ impl Analyzer {
         info: &ExpressionInfo,
     ) -> Result<(), Error> {
         let offset = expression.span.start;
+        let mut explicit_type_use = None;
+        let mut type_name_use = None;
         let kind = match &expression.node {
             ast::Expression::Constant(constant) => match &constant.node {
                 ast::Constant::Integer(integer) => {
@@ -771,6 +788,8 @@ impl Analyzer {
             ast::Expression::BinaryOperator(binary) => self.retain_binary(binary, info)?,
             ast::Expression::Cast(cast) => {
                 let destination = self.type_name(&cast.node.type_name.node)?;
+                explicit_type_use = self.code_builder().type_name_use(&cast.node.type_name.node);
+                type_name_use = explicit_type_use;
                 let destination = self.unqualified(&destination)?;
                 ExprKind::Cast {
                     destination: self.retained_type(&destination, offset)?,
@@ -833,12 +852,19 @@ impl Analyzer {
                 }
             }
             ast::Expression::Call(call) => self.retain_call(call)?,
-            ast::Expression::VaArg(argument) => ExprKind::VaArg {
-                list: self.retained_use(&argument.node.va_list, UseContext::Place, None)?,
-                requested_type: self.retained_type(&info.ty, offset)?,
-            },
+            ast::Expression::VaArg(argument) => {
+                explicit_type_use = self
+                    .code_builder()
+                    .type_name_use(&argument.node.type_name.node);
+                type_name_use = explicit_type_use;
+                ExprKind::VaArg {
+                    list: self.retained_use(&argument.node.va_list, UseContext::Place, None)?,
+                    requested_type: self.retained_type(&info.ty, offset)?,
+                }
+            }
             ast::Expression::SizeOfTy(size) => {
                 let ty = self.type_name(&size.node.0.node)?;
+                type_name_use = self.code_builder().type_name_use(&size.node.0.node);
                 ExprKind::SizeOfType(self.retained_type(&ty, offset)?)
             }
             ast::Expression::SizeOfVal(size) => {
@@ -859,6 +885,7 @@ impl Analyzer {
             }
             ast::Expression::AlignOf(alignment) => {
                 let ty = self.type_name(&alignment.node.0.node)?;
+                type_name_use = self.code_builder().type_name_use(&alignment.node.0.node);
                 ExprKind::AlignOf(self.retained_type(&ty, offset)?)
             }
             ast::Expression::OffsetOf(offset_of) => self.retain_offset_of(offset_of)?,
@@ -910,9 +937,15 @@ impl Analyzer {
                 }
                 ExprKind::Comma(operands)
             }
-            ast::Expression::CompoundLiteral(_) => ExprKind::CompoundLiteral {
-                initializer: self.code_builder().initializer_id(occurrence, offset)?,
-            },
+            ast::Expression::CompoundLiteral(literal) => {
+                explicit_type_use = self
+                    .code_builder()
+                    .type_name_use(&literal.node.type_name.node);
+                type_name_use = explicit_type_use;
+                ExprKind::CompoundLiteral {
+                    initializer: self.code_builder().initializer_id(occurrence, offset)?,
+                }
+            }
             ast::Expression::Statement(statement) => {
                 let body = self
                     .code_builder()
@@ -951,8 +984,14 @@ impl Analyzer {
             }
         };
         let function = matches!(self.unit.resolve(&info.ty)?.kind, TypeKind::Function(_));
-        self.code_builder()
-            .finish_expression(occurrence, info, function, kind)
+        self.code_builder().finish_expression(
+            occurrence,
+            info,
+            function,
+            kind,
+            explicit_type_use,
+            type_name_use,
+        )
     }
 
     fn retain_call(&mut self, call: &Node<ast::CallExpression>) -> Result<ExprKind, Error> {

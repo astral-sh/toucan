@@ -407,6 +407,8 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Attributes {
+    pub(crate) type_use: Option<crate::checked::bounds::TypeUseId>,
+    type_name_use: bool,
     packed: bool,
     alignment: Option<u64>,
     link_name: Option<String>,
@@ -1414,7 +1416,11 @@ impl Analyzer {
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, types.first().map_or(0, |ty| ty.span.start))?;
         }
-        self.check_restrict(&ty, specifiers.first().map_or(0, |item| item.span.start))?;
+        let offset = specifiers.first().map_or(0, |item| item.span.start);
+        self.check_restrict(&ty, offset)?;
+        if let Some(checked) = &mut self.checked {
+            attributes.type_use = Some(checked.base_type_use(&types, &ty, offset)?);
+        }
         Ok((ty, attributes))
     }
 
@@ -1636,12 +1642,20 @@ impl Analyzer {
         if let Some(ty) = self.type_names.get(&key) {
             return Ok(ty.clone());
         }
-        let (ty, attributes) = self.specifier_qualifiers(&name.specifiers)?;
-        let ty = if let Some(declarator) = &name.declarator {
-            self.declarator(ty, declarator, &attributes)?.1
+        let (ty, mut attributes) = self.specifier_qualifiers(&name.specifiers)?;
+        attributes.type_name_use = true;
+        let (ty, type_use) = if let Some(declarator) = &name.declarator {
+            let (_, ty, extra) = self.declarator(ty, declarator, &attributes)?;
+            (ty, extra.type_use)
         } else {
-            self.apply_calling_convention(ty, &attributes, start)?
+            (
+                self.apply_calling_convention(ty, &attributes, start)?,
+                attributes.type_use,
+            )
         };
+        if let (Some(checked), Some(type_use)) = (&mut self.checked, type_use) {
+            checked.save_type_name_use(name, type_use)?;
+        }
         self.type_names.insert(key, ty.clone());
         Ok(ty)
     }
@@ -1653,7 +1667,14 @@ impl Analyzer {
         attributes: &Attributes,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
         let alias_base = attributes.alias_base && !has_function_derivation(declaration);
-        let (name, ty, extra) = self.declarator_at(ty, declaration, None, alias_base)?;
+        let (name, ty, extra) = self.declarator_at(
+            ty,
+            declaration,
+            None,
+            alias_base,
+            attributes.type_use,
+            attributes.type_name_use,
+        )?;
         if attributes.calling_convention.is_none() {
             return Ok((name, ty, extra));
         }
@@ -1680,6 +1701,8 @@ impl Analyzer {
         declaration: &Node<ast::Declarator>,
         parameter_array: Option<usize>,
         alias_base: bool,
+        base_use: Option<crate::checked::bounds::TypeUseId>,
+        type_name: bool,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
         if self.nesting >= 128 {
             return Err(Error::new(
@@ -1688,6 +1711,14 @@ impl Analyzer {
             ));
         }
         self.nesting += 1;
+        let mut type_use = if let Some(checked) = &mut self.checked {
+            Some(match base_use {
+                Some(id) => id,
+                None => checked.plain_type_use(&ty, declaration.span.start)?,
+            })
+        } else {
+            None
+        };
         let mut alias_convention = None;
         let split = declaration
             .node
@@ -1699,6 +1730,8 @@ impl Analyzer {
             .iter()
             .chain(declaration.node.derived[split..].iter().rev())
         {
+            let mut retained_bound = None;
+            let mut parameter_uses = self.checked.as_ref().map(|_| Vec::new());
             ty = match &derived.node {
                 ast::DerivedDeclarator::Pointer(qualifiers) => {
                     let mut pointer = ty.pointer();
@@ -1775,11 +1808,56 @@ impl Analyzer {
                             };
                             if let Some(constant) = constant {
                                 let length = constant.as_u64()?;
+                                if matches!(array.node.size, ast::ArraySize::StaticExpression(_))
+                                    && let Some(checked) = &mut self.checked
+                                {
+                                    let scope = self.lexical_scopes.last();
+                                    let definition =
+                                        scope.is_some_and(|scope| scope.is_definition_parameters);
+                                    let prototype = scope.is_some_and(|scope| {
+                                        !scope.is_block && !scope.is_definition_parameters
+                                    });
+                                    retained_bound = Some(checked.array_bound(
+                                        declaration,
+                                        Some(expression),
+                                        array.span,
+                                        crate::checked::bounds::BoundContext {
+                                            prototype,
+                                            definition,
+                                            type_name,
+                                            minimum: true,
+                                            constant: Some(length),
+                                        },
+                                    )?);
+                                }
                                 TypeKind::Array {
                                     element: Box::new(ty),
                                     length: Some(length),
                                 }
                             } else {
+                                if let Some(checked) = &mut self.checked {
+                                    let scope = self.lexical_scopes.last();
+                                    let definition =
+                                        scope.is_some_and(|scope| scope.is_definition_parameters);
+                                    let prototype = scope.is_some_and(|scope| {
+                                        !scope.is_block && !scope.is_definition_parameters
+                                    });
+                                    retained_bound = Some(checked.array_bound(
+                                        declaration,
+                                        Some(expression),
+                                        array.span,
+                                        crate::checked::bounds::BoundContext {
+                                            prototype,
+                                            definition,
+                                            type_name,
+                                            minimum: matches!(
+                                                array.node.size,
+                                                ast::ArraySize::StaticExpression(_)
+                                            ),
+                                            constant: None,
+                                        },
+                                    )?);
+                                }
                                 TypeKind::VariableArray {
                                     element: Box::new(ty),
                                 }
@@ -1793,6 +1871,20 @@ impl Analyzer {
                                     derived.span.start,
                                     "star array bounds require function prototype scope",
                                 ));
+                            }
+                            if let Some(checked) = &mut self.checked {
+                                retained_bound = Some(checked.array_bound(
+                                    declaration,
+                                    None,
+                                    array.span,
+                                    crate::checked::bounds::BoundContext {
+                                        prototype: true,
+                                        definition: false,
+                                        type_name,
+                                        minimum: false,
+                                        constant: None,
+                                    },
+                                )?);
                             }
                             TypeKind::VariableArray {
                                 element: Box::new(ty),
@@ -1852,7 +1944,7 @@ impl Analyzer {
                                 .as_ref()
                                 .is_some_and(has_function_derivation);
                         let mut array_qualifiers = Qualifiers::default();
-                        let (name, mut parameter_type) =
+                        let (name, mut parameter_type, declared_type_use) =
                             if let Some(declarator) = &parameter.node.declarator {
                                 let array = outermost_derived(declarator).and_then(|derived| {
                                     if let ast::DerivedDeclarator::Array(array) = &derived.node {
@@ -1866,15 +1958,17 @@ impl Analyzer {
                                         add_qualifier(&mut array_qualifiers, qualifier)?;
                                     }
                                 }
-                                let (name, ty, _) = self.declarator_at(
+                                let (name, ty, extra) = self.declarator_at(
                                     base,
                                     declarator,
                                     array.map(|(offset, _)| offset),
                                     attributes.alias_base,
+                                    attributes.type_use,
+                                    attributes.type_name_use,
                                 )?;
-                                (name, ty)
+                                (name, ty, extra.type_use)
                             } else {
-                                (None, base)
+                                (None, base, attributes.type_use)
                             };
                         parameter_type = self.apply_calling_convention(
                             parameter_type,
@@ -1903,6 +1997,9 @@ impl Analyzer {
                                 "void parameter must be unqualified",
                             ));
                         }
+                        if let (Some(checked), Some(id)) = (&mut self.checked, declared_type_use) {
+                            checked.parameter_type_use(parameter, id)?;
+                        }
                         parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
                             TypeKind::Array { element, .. }
                             | TypeKind::VariableArray { element } => {
@@ -1926,7 +2023,7 @@ impl Analyzer {
                                     TypeKind::Void
                                 ))
                         {
-                            checked.local_declaration(
+                            let site = checked.local_declaration(
                                 parameter,
                                 OccurrenceKind::Parameter,
                                 LocalDeclaration {
@@ -1946,6 +2043,9 @@ impl Analyzer {
                                     allocation: None,
                                 },
                             )?;
+                            if let (Some(uses), Some(site)) = (&mut parameter_uses, site) {
+                                uses.push(checked.site_type_use(site));
+                            }
                         }
                         let scope = self
                             .lexical_scopes
@@ -2027,6 +2127,34 @@ impl Analyzer {
                     ));
                 }
             };
+            if let (Some(checked), Some(current)) = (&mut self.checked, type_use) {
+                use crate::checked::bounds::TypeStep;
+                type_use = Some(match &derived.node {
+                    ast::DerivedDeclarator::Pointer(_) => checked.wrap_type_use(
+                        current,
+                        &ty,
+                        TypeStep::Pointer,
+                        None,
+                        derived.span.start,
+                    )?,
+                    ast::DerivedDeclarator::Array(_) => checked.wrap_type_use(
+                        current,
+                        &ty,
+                        TypeStep::Element,
+                        retained_bound,
+                        derived.span.start,
+                    )?,
+                    ast::DerivedDeclarator::Function(_) | ast::DerivedDeclarator::KRFunction(_) => {
+                        checked.function_type_use(
+                            current,
+                            parameter_uses.as_deref().unwrap_or_default(),
+                            &ty,
+                            derived.span.start,
+                        )?
+                    }
+                    ast::DerivedDeclarator::Block(_) => unreachable!(),
+                });
+            }
         }
         let mut attributes = Attributes::default();
         self.attributes(&declaration.node.extensions, &mut attributes)?;
@@ -2040,8 +2168,15 @@ impl Analyzer {
             }
             ast::DeclaratorKind::Abstract => (None, ty, attributes),
             ast::DeclaratorKind::Declarator(inner) => {
-                let (name, ty, inner_attributes) =
-                    self.declarator_at(ty, inner, parameter_array, alias_base)?;
+                let (name, ty, inner_attributes) = self.declarator_at(
+                    ty,
+                    inner,
+                    parameter_array,
+                    alias_base,
+                    type_use,
+                    type_name,
+                )?;
+                type_use = inner_attributes.type_use;
                 if alias_base {
                     merge_convention(
                         &mut alias_convention,
@@ -2077,6 +2212,11 @@ impl Analyzer {
                 declaration.span.start,
             )?;
             attributes.calling_convention = alias_convention;
+        }
+        if let (Some(checked), Some(current)) = (&mut self.checked, type_use) {
+            let current = checked.retype_use(current, &ty, declaration.span.start)?;
+            checked.declarator_type_use(declaration, name.as_deref(), current)?;
+            attributes.type_use = Some(current);
         }
         self.nesting -= 1;
         Ok((name, ty, attributes))

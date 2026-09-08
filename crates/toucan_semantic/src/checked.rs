@@ -1,6 +1,7 @@
 //! Private foundation for optional checked-code retention. The public frontend
 //! still returns declaration IR until a complete owned code model is available.
 
+pub(crate) mod bounds;
 pub(crate) mod expression;
 pub(crate) mod initializer;
 pub(crate) mod references;
@@ -210,6 +211,8 @@ pub(crate) enum Linkage {
 pub(crate) struct DeclarationSite {
     pub(crate) body: Option<statement::BodyId>,
     pub(crate) initializer: Option<InitializerId>,
+    pub(crate) type_use: bounds::TypeUseId,
+    pub(crate) declared_type_use: Option<bounds::TypeUseId>,
     pub(crate) name_source: Option<SourceSpan>,
     pub(crate) entity: EntityId,
     pub(crate) occurrence: OccurrenceId,
@@ -262,6 +265,8 @@ pub(crate) struct CheckedCode {
     pub(crate) references: Vec<references::Reference>,
     pub(crate) initializers: Vec<initializer::Initializer>,
     pub(crate) initializer_coverage: Vec<initializer::InitializerCoverage>,
+    pub(crate) type_uses: Vec<bounds::TypeUse>,
+    pub(crate) bounds: Vec<bounds::Bound>,
     pub(crate) expressions: Vec<expression::Expression>,
     pub(crate) assignment_conversions: Vec<expression::ExprUse>,
     pub(crate) expression_coverage: Vec<expression::ExpressionCoverage>,
@@ -298,6 +303,7 @@ pub(crate) struct Builder {
     statement_builder: statement::StatementBuilder,
     reference_builder: references::ReferenceBuilder,
     initializer_builder: initializer::InitializerBuilder,
+    bounds_builder: bounds::BoundsBuilder,
     expression_builder: expression::ExpressionBuilder,
     code: CheckedCode,
     budget: Budget,
@@ -328,6 +334,7 @@ impl Builder {
         let mut builder = Self {
             reference_builder: references::ReferenceBuilder::default(),
             initializer_builder: initializer::InitializerBuilder::default(),
+            bounds_builder: bounds::BoundsBuilder::default(),
             expression_builder: expression::ExpressionBuilder::default(),
             statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
@@ -339,6 +346,8 @@ impl Builder {
                 references: Vec::new(),
                 initializers: Vec::new(),
                 initializer_coverage: Vec::new(),
+                type_uses: Vec::new(),
+                bounds: Vec::new(),
                 expressions: Vec::new(),
                 assignment_conversions: Vec::new(),
                 expression_coverage: Vec::new(),
@@ -541,12 +550,16 @@ impl Builder {
         properties: SiteProperties,
     ) -> Result<SiteId, Error> {
         let offset = self.parsed_spans[occurrence.index()].start;
+        let (type_use, declared_type_use) =
+            self.declaration_type_use(entity, occurrence, ty, offset)?;
         let ty = self.intern_type(ty, offset)?;
-        self.budget.charge(1, 4, 0, offset)?;
+        self.budget.charge(1, 6, 0, offset)?;
         let id = SiteId(self.code.declarations.len() as u32);
         self.code.declarations.push(DeclarationSite {
             body: None,
             initializer: None,
+            type_use,
+            declared_type_use,
             entity,
             occurrence,
             scope: self.current,
@@ -589,8 +602,12 @@ impl Builder {
         allocation: Option<&FlexibleArrayStorage>,
     ) -> Result<(), Error> {
         let occurrence = self.code.declarations[site.index()].occurrence;
-        let ty = self.intern_type(ty, self.parsed_spans[occurrence.index()].start)?;
+        let offset = self.parsed_spans[occurrence.index()].start;
+        let type_use =
+            self.retype_use(self.code.declarations[site.index()].type_use, ty, offset)?;
+        let ty = self.intern_type(ty, offset)?;
         let site = &mut self.code.declarations[site.index()];
+        site.type_use = type_use;
         site.ty = ty;
         site.flexible_array_storage = allocation.cloned();
         Ok(())
@@ -796,6 +813,7 @@ impl Builder {
         self.finish_statements()?;
         self.finish_references(offsets)?;
         self.finish_initializer_coverage()?;
+        self.finish_bounds(offsets)?;
         for (scope, span) in self.code.scopes.iter_mut().zip(self.scope_spans) {
             if scope.kind != ScopeKind::File {
                 scope.source = map_span(offsets, span, &mut self.budget)?;
