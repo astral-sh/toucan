@@ -62,24 +62,19 @@ impl Analyzer {
             return Err(Error::new(offset, "non-temporal address must be a pointer"));
         };
         let value = self.unqualified(pointee)?;
-        if matches!(value.kind, TypeKind::Complex(_)) {
-            return Err(Error::new(
-                offset,
-                "complex non-temporal accesses are unsupported in this implementation",
-            ));
-        }
         if !matches!(
             value.kind,
             TypeKind::Bool
                 | TypeKind::Integer(_)
                 | TypeKind::Enum(_)
                 | TypeKind::Float(_)
+                | TypeKind::Complex(_)
                 | TypeKind::Pointer(_)
                 | TypeKind::Vector { .. }
         ) {
             return Err(Error::new(
                 offset,
-                "non-temporal address must point to an integer, real floating, pointer, or fixed-vector object",
+                "non-temporal address must point to an integer, floating, pointer, or fixed-vector object",
             ));
         }
         if self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc

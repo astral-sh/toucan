@@ -2,7 +2,7 @@
 
 Clang profiles support `__builtin_nontemporal_load(address)` and
 `__builtin_nontemporal_store(value, address)` for integer, enumeration, `_Bool`,
-real floating, pointer, and fixed-vector storage. The address selects the memory
+real and complex floating, pointer, and fixed-vector storage. The address selects the memory
 access type. The store converts its value as a function argument; equal-sized
 vectors use Clang's bit reinterpretation. A load produces an unqualified value,
 retaining the pointee's typedef alignment. GCC profiles do not provide these
@@ -40,10 +40,22 @@ between non-temporal stores and subsequent reads. Separate LLVM probes verify
 non-temporal metadata, ordinary pointee accesses, and volatile argument reads.
 No Rust vector call ABI or binding representation changes are included.
 
-Complex memory accesses are outside this slice's baseline and require the
-complex-aware follow-up. Clang accepts their source types, but some Clang 18
-lowering paths crash while others compile. Compiler failures are recorded
-separately from constraint diagnostics. The existing vector size policy and
+Complex loads produce an unqualified complex value; stores use ordinary complex
+assignment conversions. Real-to-complex conversion supplies positive imaginary
+zero, while complex-to-real conversion discards the imaginary component. The
+memory access and hint have the same semantics as for real scalar storage.
+
+Clang 18 has defects in some complex lowering paths: aggregate returns and some
+conversions crash, and a cast of a complex load to `double` writes past a return
+temporary under AddressSanitizer. Toucan checks the source operations without
+copying those compiler defects. Native correctness evidence covers lvalue stores,
+complex-to-real stores, and discarded loads; successful syntax or LLVM emission
+alone is not a native memory proof. Direct nonconstant complex arguments to
+`__builtin_constant_p` retain the existing explicit fallback limitation; supported
+scalar-cast and object-size queries preserve their unevaluated access metadata.
+See the [complex memory evidence](../corpus/evidence/complex-nontemporal-2026-09-08.json).
+
+The existing vector size policy and
 strict pointer-qualification assignment diagnostics still apply. Microsoft
 forward-enum accesses receive an explicit unsupported-layout diagnostic until
 that enum extension has a complete frontend representation.

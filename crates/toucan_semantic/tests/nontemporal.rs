@@ -44,7 +44,7 @@ fn cases() -> Vec<(String, bool)> {
         ("const volatile int", "1", true),
         ("_Atomic(int)", "1", false),
         ("struct S", "(struct S){1}", false),
-        ("_Complex double", "2.0", false),
+        ("_Complex double", "2.0", true),
         ("int[4]", "1", false),
         ("int(void)", "1", false),
     ] {

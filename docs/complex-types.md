@@ -132,3 +132,11 @@ The [integration report](../corpus/evidence/complex-types-integration-2026-09-08
 records 756 passing workspace tests, including native checks, after vector
 shuffles and minimum-vector-width attributes. All 448 checked-seed/profile
 comparisons preserve ordinary/retained declaration parity and graph invariants.
+
+## Non-temporal memory accesses
+
+Clang non-temporal loads and stores retain complex values through the same
+assignment conversions as ordinary C expressions. Their cache hint does not
+introduce atomic or volatile access. [The memory-access notes](nontemporal-accesses.md)
+separate source semantics from known Clang 18 lowering defects and the existing
+complex constant-query limitation.
