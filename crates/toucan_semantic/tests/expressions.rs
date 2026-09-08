@@ -142,7 +142,6 @@ fn expression_constraints_match_c11_compiler() {
         "(int)s",
         "(float)p",
         "(int *)f",
-        "sizeof(void)",
     ];
     for (expected, expressions) in [(true, valid.as_slice()), (false, invalid.as_slice())] {
         for expression in expressions {
@@ -158,11 +157,16 @@ fn expression_constraints_match_c11_compiler() {
             assert_eq!(actual.is_ok(), compiler, "{expression}: {actual:?}");
         }
     }
-    // The GNU profile supports this alignment extension. Keep the strict C11
-    // rejection distinct from the GNU/Clang extension probes in alignof_expression.
-    let source = "_Static_assert(_Alignof(void) == 1, \"GNU void alignment\");";
-    assert!(!compile(source));
-    analyze(source, TARGET).unwrap();
+    // The profile supports these GNU extensions. Keep the pedantic C11
+    // rejections separate from their compiler-extension semantics.
+    for source in [
+        "_Static_assert(_Alignof(void) == 1, \"GNU void alignment\");",
+        "_Static_assert(sizeof(void) == 1, \"GNU void size\");",
+        "_Static_assert(sizeof(void(void)) == 1, \"GNU function size\");",
+    ] {
+        assert!(!compile(source));
+        analyze(source, TARGET).unwrap();
+    }
 }
 
 #[test]

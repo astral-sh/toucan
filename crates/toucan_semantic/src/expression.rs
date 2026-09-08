@@ -378,12 +378,6 @@ impl Analyzer {
                         let TypeKind::Pointer(pointee) = value.kind else {
                             return Err(Error::new(offset, "indirection requires a pointer"));
                         };
-                        if matches!(self.unit.resolve(&pointee)?.kind, TypeKind::Void) {
-                            return Err(Error::new(
-                                offset,
-                                "indirection requires a pointer to an object or function",
-                            ));
-                        }
                         let function =
                             matches!(self.unit.resolve(&pointee)?.kind, TypeKind::Function(_));
                         let alignment_origin = self.dereference_alignment_origin(
@@ -654,7 +648,7 @@ impl Analyzer {
                 if !self.unit.is_variable_length_array(&ty)? {
                     self.discard_sve_feature_uses(checkpoint);
                 }
-                self.require_complete_object(&ty, offset)?;
+                self.require_sizeof_operand(&ty, offset)?;
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::SizeOfVal(size) => {
@@ -1271,8 +1265,21 @@ impl Analyzer {
                 "sizeof cannot be applied to a bitfield",
             ));
         }
-        self.require_complete_object(&operand.ty, expression.span.start)?;
+        self.require_sizeof_operand(&operand.ty, expression.span.start)?;
         Ok(operand.ty)
+    }
+
+    /// GNU and Clang size queries accept void and function types without
+    /// treating those types as complete objects in other expression contexts.
+    fn require_sizeof_operand(&self, ty: &Type, offset: usize) -> Result<(), Error> {
+        if matches!(
+            self.unit.resolve(ty)?.kind,
+            TypeKind::Void | TypeKind::Function(_)
+        ) {
+            Ok(())
+        } else {
+            self.require_complete_object(ty, offset)
+        }
     }
 
     /// Checks a value context, including array conversion restrictions that rely
@@ -1309,13 +1316,25 @@ impl Analyzer {
                 self.unqualified(&expression.ty)
             };
         }
-        self.value_type(&expression.ty)
+        self.value_type_with_void_lvalue(&expression.ty, expression.is_lvalue())
     }
 
     /// Applies lvalue conversion and C's array/function designator conversion.
     pub(crate) fn value_type(&self, ty: &Type) -> Result<Type, Error> {
+        self.value_type_with_void_lvalue(ty, false)
+    }
+
+    /// Void lvalues have no object value to load, so their qualifiers survive
+    /// conversion. Resolve their type with the ordinary conversion cases.
+    fn value_type_with_void_lvalue(&self, ty: &Type, void_lvalue: bool) -> Result<Type, Error> {
         let resolved = self.unit.resolve(ty)?;
         Ok(match &resolved.kind {
+            TypeKind::Void if void_lvalue => {
+                let mut value = resolved.clone();
+                value.alignment = self.unit.typedef_alignment_metadata(ty)?;
+                value.qualifiers = self.unit.qualifiers(ty)?;
+                value
+            }
             TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                 let mut element = (**element).clone();
                 element.qualifiers =

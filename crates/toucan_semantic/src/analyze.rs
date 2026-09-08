@@ -2208,27 +2208,30 @@ impl Analyzer {
         let explicit = attributes.vendor_alignment().max(extra.vendor_alignment());
         ty.alignment = inherited;
         if let Some(alignment) = explicit {
-            if matches!(
+            let non_object = matches!(
                 self.unit.resolve(ty)?.kind,
                 TypeKind::Void | TypeKind::Function(_)
-            ) {
+            );
+            if non_object
+                && attributes
+                    .msvc_alignment
+                    .max(extra.msvc_alignment)
+                    .is_some()
+            {
                 return Err(Error::new(
                     offset,
-                    if attributes
-                        .msvc_alignment
-                        .max(extra.msvc_alignment)
-                        .is_some()
-                    {
-                        "Microsoft alignment on void or function typedefs is unsupported"
-                    } else {
-                        "aligned typedefs require an object type"
-                    },
+                    "Microsoft alignment on void or function typedefs is unsupported",
                 ));
             }
-            ty.alignment = crate::TypeAlignment::new(u32::try_from(alignment).map_err(|_| {
-                Error::new(offset, "typedef alignment exceeds the supported range")
-            })?)
-            .ok_or_else(|| Error::new(offset, "typedef alignment exceeds the supported range"))?;
+            if !non_object || self.unit.compiler == Compiler::Clang {
+                ty.alignment =
+                    crate::TypeAlignment::new(u32::try_from(alignment).map_err(|_| {
+                        Error::new(offset, "typedef alignment exceeds the supported range")
+                    })?)
+                    .ok_or_else(|| {
+                        Error::new(offset, "typedef alignment exceeds the supported range")
+                    })?;
+            }
         }
         if let Some(previous) = previous {
             ty.alignment =

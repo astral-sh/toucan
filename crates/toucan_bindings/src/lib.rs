@@ -988,7 +988,8 @@ impl Emitter<'_> {
         if atomic {
             self.collect_atomic(ty, depth)?;
         }
-        let vector = matches!(self.unit.resolve(ty)?.kind, TypeKind::Vector { .. });
+        let resolved = self.unit.resolve(ty)?;
+        let vector = matches!(resolved.kind, TypeKind::Vector { .. });
         if vector {
             let layout = self.unit.layout(ty)?;
             let (bytes, alignment) = (layout.size_bytes(), layout.alignment_bytes());
@@ -999,7 +1000,10 @@ impl Emitter<'_> {
             }
             self.vectors.insert((bytes, alignment));
         }
-        if ty.alignment.bytes().is_some() && !vector && !atomic {
+        // Void/function typedef alignment affects C queries, not the storage
+        // or calling convention of a pointer to that type.
+        let non_object = matches!(resolved.kind, TypeKind::Void | TypeKind::Function(_));
+        if ty.alignment.bytes().is_some() && !vector && !atomic && !non_object {
             let mut underlying = ty.clone();
             underlying.alignment = toucan_semantic::TypeAlignment::default();
             let actual = self.unit.layout(ty)?;

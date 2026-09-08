@@ -455,11 +455,12 @@ impl Analyzer {
                 "sizeof a variable-length array is not an integer constant expression",
             ));
         }
-        if matches!(
-            self.unit.resolve(ty)?.kind,
-            TypeKind::Array { length: None, .. } | TypeKind::Void | TypeKind::Function(_)
-        ) {
-            return Err(Error::new(offset, "sizeof requires a complete object type"));
+        match self.unit.resolve(ty)?.kind {
+            TypeKind::Void | TypeKind::Function(_) => return Ok(self.size_value(1)),
+            TypeKind::Array { length: None, .. } => {
+                return Err(Error::new(offset, "sizeof requires a complete object type"));
+            }
+            _ => {}
         }
         Ok(self.size_value(self.unit.layout(ty)?.size_bytes()))
     }

@@ -127,7 +127,6 @@ fn undefined_integer_expressions_are_errors() {
         "(-2147483647 - 1) / -1",
         "(-2147483647 - 1) % -1",
         "-1 << 2",
-        "sizeof(void)",
     ] {
         assert!(evaluate_integer(&unit, expression).is_err(), "{expression}");
     }

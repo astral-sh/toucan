@@ -27,6 +27,8 @@ impl ExprId {
 #[non_exhaustive]
 pub enum ValueCategory {
     Value,
+    /// A C lvalue, including GNU void lvalues. The type determines whether an
+    /// object value exists; void lvalues never acquire a load conversion.
     ObjectLvalue,
     FunctionDesignator,
 }
@@ -917,6 +919,7 @@ impl Analyzer {
                     Some(Conversion::ArrayDecay)
                 }
                 TypeKind::Function(_) => Some(Conversion::FunctionDecay),
+                TypeKind::Void => None,
                 TypeKind::Atomic(_) if info.is_lvalue() => Some(Conversion::AtomicLoad),
                 _ if info.is_lvalue() => Some(Conversion::Lvalue),
                 _ => None,

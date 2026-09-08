@@ -1,0 +1,47 @@
+{
+  "schema_version": 1,
+  "base_commit": "a7838ce9d741c8659e428c8a3b2e7f33897bf6fa",
+  "source_files_sha256": {
+    "crates/toucan/tests/non_object_queries.rs": "5dd6148708713da176a30851b6c3f1c7807cf763066f14882e16a264cca15a8d",
+    "crates/toucan_bindings/src/lib.rs": "81d2cf49952a3f1f4e606c002531cddcea6e94cfcff7076778433a0bc139b5fe",
+    "crates/toucan_semantic/src/alignof.rs": "e4fca390368516610c0dfc8628d3ff535e4dbb5bf541d2731e625fc0c3ed40be",
+    "crates/toucan_semantic/src/analyze.rs": "0b962c687c4ea1fc9d225db1f5b6b9c6358fa086b4d1183ddd371cd491b7504d",
+    "crates/toucan_semantic/src/checked/expression.rs": "a73659b9737d5ff25a401d5d11a153f227475e7735f28b792783322c05565386",
+    "crates/toucan_semantic/src/expression.rs": "f88cca9c6485227ad1d08c8eba5b7dee65c5816045f073a9b82f5cb07275d5aa",
+    "crates/toucan_semantic/src/integer.rs": "13e3c7bd41008c1f0d843adb0a9fb02e14b0d4d5f301692eda1389c37caa507a",
+    "crates/toucan_semantic/src/object_alignment.rs": "7ff34f0f63a8b7b6b8e43709ab37f418c89f455f85bbd4540fcc9c390817c4ea",
+    "crates/toucan_semantic/tests/expressions.rs": "def3cdecca1630cb5d51209a721cffcb31c555d1615a44854c70af0306628c42",
+    "crates/toucan_semantic/tests/non_object_queries.rs": "6c1adbd681e78bc7bba5480330feeb4339a2888cc5f1ace4b07fb90322ef1e5c",
+    "crates/toucan_semantic/tests/semantics.rs": "7a135d7de764f5e90484f27fb976bc6e666725562ca64e36d71ebe251549e2f9",
+    "fuzz/seeds/bindings/non-object-queries.h": "4fab164a816d52b91efee58ad888a276d0d2c95bb205087d4438619ccb9340b5",
+    "fuzz/seeds/checked/non-object-queries.h": "4fab164a816d52b91efee58ad888a276d0d2c95bb205087d4438619ccb9340b5",
+    "fuzz/seeds/semantic/non-object-queries.h": "4fab164a816d52b91efee58ad888a276d0d2c95bb205087d4438619ccb9340b5"
+  },
+  "integration_refinement": "Preserve void-lvalue qualifiers in the existing type-resolution match; avoid resolving every ordinary lvalue an extra time. No measured speed claim.",
+  "tests": {
+    "native": {
+      "passed": 6,
+      "ignored": 0
+    },
+    "rust164": {
+      "passed": 2,
+      "ignored": 0
+    },
+    "conversions": {
+      "passed": 151,
+      "ignored": 0
+    }
+  },
+  "checked_replay": {
+    "accepted": 5617,
+    "matching_diagnostics": 2743,
+    "settings": 88,
+    "binary_sha256": "b5b9a75f1dd1ee3aeaf942e3b9cfaf0aa8b1bddcc552c24c02521bf58eef20b0"
+  },
+  "rust164": "/home/dev-user/.cache/toucan/msrv-rustup/toolchains/1.64.0-x86_64-unknown-linux-gnu/bin/rustc",
+  "limits": [
+    "Native execution is x86_64 Linux.",
+    "Full workspace and sanitizer gates run after the queued conformance layers.",
+    "The independent original 1716-comparison evidence is in the adjacent non-object-queries-2026-09-08 artifact."
+  ]
+}

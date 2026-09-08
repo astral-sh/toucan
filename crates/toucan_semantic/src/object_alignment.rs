@@ -316,22 +316,19 @@ impl Analyzer {
             && !matches!(subject, AlignmentSubject::Field { .. })
             && let Some(natural) = self.declaration_natural_alignment(ty)?
         {
-            alignment.set_effective(alignment.object(natural)?, offset)?;
+            let mut effective = alignment.object(natural)?;
+            if matches!(subject, AlignmentSubject::Function) && self.unit.compiler == Compiler::Gnu
+            {
+                effective = effective.max(natural);
+            }
+            alignment.set_effective(effective, offset)?;
         }
         Ok(alignment)
     }
 
     fn declaration_natural_alignment(&self, ty: &Type) -> Result<Option<u64>, Error> {
         if matches!(self.unit.resolve(ty)?.kind, crate::TypeKind::Function(_)) {
-            return Ok(Some(
-                if self.unit.compiler == Compiler::Gnu
-                    && self.unit.target == toucan_target::Target::X86_64UnknownLinuxGnu
-                {
-                    1
-                } else {
-                    4
-                },
-            ));
+            return Ok(Some(self.function_type_alignment()));
         }
         if matches!(
             self.unit.resolve(ty)?.kind,

@@ -84,6 +84,12 @@ Tests compare bit patterns against Clang for all five targets, including meaning
 calls with current Rust and Rust 1.64. These checks do not cover alternate rounding
 modes, excess-precision options, or floating-point environment access.
 
+## Size queries
+
+GNU and Clang profiles also accept [void and function size queries](size-queries.md).
+Their size is 1; they remain non-object types, and their pointers keep ordinary
+pointer storage and calling conventions.
+
 ## Variable-length arrays
 
 Variable-length arrays retain a distinct runtime-sized type. Bounds, parameter

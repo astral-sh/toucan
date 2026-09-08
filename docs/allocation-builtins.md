@@ -42,8 +42,8 @@ or retention of the GNU malloc/deallocator attribute's contract. Those attribute
 remain subject to the existing attribute support limits.
 
 GNU identifier-list definitions of allocation builtins remain explicitly
-unsupported. The existing general limitation on GNU `sizeof(function)` also
-applies to builtin function values. GNU's special extern declaration beneath a
+unsupported. GNU permits `sizeof` on these function values and returns 1; Clang
+requires a direct builtin call, including inside a size query. GNU's special extern declaration beneath a
 same-named internal object remains outside the modeled block-linkage rules.
 
 An asm declaration nested inside an unevaluated operand is explicitly unsupported
