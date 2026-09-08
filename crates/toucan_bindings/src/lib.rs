@@ -1173,6 +1173,10 @@ impl Emitter<'_> {
                 let layout = self.unit.layout(ty)?;
                 self.vector_name(layout.size_bytes(), layout.alignment_bytes())?
             }
+            TypeKind::Sve(_) => return Err(Error(
+                "sizeless SVE types have no stable Rust representation, including behind pointers"
+                    .into(),
+            )),
             TypeKind::Void => "::core::ffi::c_void".into(),
             TypeKind::Bool => "::core::primitive::bool".into(),
             TypeKind::Integer(kind @ (IntegerKind::Int128 | IntegerKind::UnsignedInt128)) => {
@@ -1361,6 +1365,7 @@ impl Emitter<'_> {
                 CallingConvention::C => "C",
                 CallingConvention::SysV64 => "sysv64",
                 CallingConvention::Win64 => "win64",
+                CallingConvention::Aarch64Vector | CallingConvention::Aarch64Sve => return Err(Error("AArch64 vector procedure-call conventions have no stable Rust extern ABI; use C wrapper functions".into())),
             },
         )
     }

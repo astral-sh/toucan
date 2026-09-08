@@ -356,6 +356,7 @@ impl Analyzer {
         if op.is_lock_free_query() && self.checked_atomic_queries.contains(&key) {
             return Ok(Type::new(TypeKind::Bool));
         }
+        let checkpoint = self.sve_feature_checkpoint();
         let signature = self.atomic_signature(op, call)?;
         for (index, argument) in call.node.arguments.iter().enumerate() {
             let destination = signature.parameters[index]
@@ -405,6 +406,9 @@ impl Analyzer {
                 ));
             }
             self.checked_atomic_queries.insert(key);
+        }
+        if op == AtomicOperation::AlwaysLockFree {
+            self.discard_sve_feature_uses(checkpoint);
         }
         Ok(signature.result)
     }

@@ -51,11 +51,14 @@ impl Analyzer {
         }
         if matches!(
             resolved.kind,
-            TypeKind::Array { .. } | TypeKind::VariableArray { .. } | TypeKind::Function(_)
+            TypeKind::Array { .. }
+                | TypeKind::VariableArray { .. }
+                | TypeKind::Function(_)
+                | TypeKind::Sve(_)
         ) {
             return Err(Error::new(
                 offset,
-                "atomic types cannot contain an array or function value",
+                "atomic types cannot contain an array, function, or sizeless value",
             ));
         }
         if !self.gnu_sync_profile() && !self.is_complete_object(&ty, 0)? {

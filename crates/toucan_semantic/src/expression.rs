@@ -67,7 +67,11 @@ impl Analyzer {
         let result = self.expression_info_inner(expression);
         let result = result.and_then(|info| {
             if let Some(occurrence) = occurrence {
-                self.retain_expression(expression, occurrence, &info)?;
+                let saved = self.suppress_sve_features;
+                self.suppress_sve_features = true;
+                let retained = self.retain_expression(expression, occurrence, &info);
+                self.suppress_sve_features = saved;
+                retained?;
             }
             Ok(info)
         });
@@ -185,6 +189,10 @@ impl Analyzer {
                         || matches!(destination.kind, TypeKind::Vector { .. }))
                 {
                     self.check_vector_cast(&source, destination, offset)?;
+                } else if matches!(destination.kind, TypeKind::Sve(_))
+                    && self.compatible(&source, &self.unqualified(destination)?)?
+                {
+                    // ACLE permits a cast that preserves the sizeless type.
                 } else if matches!(destination.kind, TypeKind::Record(_))
                     && self.compatible(&source, &self.unqualified(destination)?)?
                 {
@@ -339,8 +347,24 @@ impl Analyzer {
             ast::Expression::Conditional(conditional) => {
                 let condition = self.value_expression_type(&conditional.node.condition)?;
                 self.require_scalar(&condition, offset)?;
+                let left_checkpoint = self.sve_feature_checkpoint();
+                let labels = self.sve_feature_labels;
                 let left = self.expression_info(&conditional.node.then_expression)?;
+                if self.sve_feature_checkpoint() > left_checkpoint
+                    && labels == self.sve_feature_labels
+                    && self.sve_constant_truth(&conditional.node.condition) == Some(false)
+                {
+                    self.discard_sve_feature_uses(left_checkpoint);
+                }
+                let right_checkpoint = self.sve_feature_checkpoint();
+                let labels = self.sve_feature_labels;
                 let right = self.expression_info(&conditional.node.else_expression)?;
+                if self.sve_feature_checkpoint() > right_checkpoint
+                    && labels == self.sve_feature_labels
+                    && self.sve_constant_truth(&conditional.node.condition) == Some(true)
+                {
+                    self.discard_sve_feature_uses(right_checkpoint);
+                }
                 let left_value = self.converted_type(&left, offset)?;
                 let right_value = self.converted_type(&right, offset)?;
                 let result = if self.is_arithmetic(&left_value)?
@@ -356,9 +380,10 @@ impl Analyzer {
                     (&left_value.kind, &right_value.kind),
                     (TypeKind::Record(_), TypeKind::Record(_))
                         | (TypeKind::Vector { .. }, TypeKind::Vector { .. })
+                        | (TypeKind::Sve(_), TypeKind::Sve(_))
                 ) && self.compatible(&left_value, &right_value)?
                 {
-                    self.require_complete_object(&left_value, offset)?;
+                    self.require_definite_object(&left_value, offset)?;
                     left_value
                 } else if matches!(left_value.kind, TypeKind::Pointer(_))
                     && self
@@ -459,8 +484,9 @@ impl Analyzer {
                     self.unit.resolve(&function.return_type)?.kind,
                     TypeKind::Void
                 ) {
-                    self.require_complete_object(&function.return_type, offset)?;
+                    self.require_definite_object(&function.return_type, offset)?;
                 }
+                self.require_sve_value(&function.return_type, offset)?;
                 if self.gnu_sync_profile()
                     && self.unit.atomic_value(&function.return_type)?.is_some()
                 {
@@ -470,7 +496,11 @@ impl Analyzer {
                 }
             }
             ast::Expression::SizeOfTy(size) => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.type_name(&size.node.0.node)?;
+                if !self.unit.is_variable_length_array(&ty)? {
+                    self.discard_sve_feature_uses(checkpoint);
+                }
                 self.require_complete_object(&ty, offset)?;
                 integer_to_type(self.size_value(0))
             }
@@ -479,7 +509,9 @@ impl Analyzer {
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::AlignOf(alignment) => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.type_name(&alignment.node.0.node)?;
+                self.discard_sve_feature_uses(checkpoint);
                 self.require_complete_object(&ty, offset)?;
                 integer_to_type(self.size_value(0))
             }
@@ -511,7 +543,9 @@ impl Analyzer {
                 "generic selection exceeds the 256-association limit",
             ));
         }
+        let checkpoint = self.sve_feature_checkpoint();
         let control = self.value_expression_type(&selection.node.expression)?;
+        self.discard_sve_feature_uses(checkpoint);
         let mut types = Vec::new();
         let mut expressions = Vec::new();
         let mut selected = None;
@@ -526,7 +560,7 @@ impl Analyzer {
                             "generic association cannot have variably modified type",
                         ));
                     }
-                    self.require_complete_object(&ty, association.span.start)?;
+                    self.require_definite_object(&ty, association.span.start)?;
                     for previous in &types {
                         if self.compatible(previous, &ty)? {
                             return Err(Error::new(
@@ -563,7 +597,9 @@ impl Analyzer {
         // too would multiply the work at every nested generic selection.
         for (index, expression) in expressions.iter().enumerate() {
             if index != selected {
+                let checkpoint = self.sve_feature_checkpoint();
                 self.expression_type(expression)?;
+                self.discard_sve_feature_uses(checkpoint);
             }
         }
         // Record the decision even before a pack is discovered in the selected
@@ -586,7 +622,20 @@ impl Analyzer {
         use ast::BinaryOperator as Op;
         let offset = binary.span.start;
         let left = self.expression_info(&binary.node.lhs)?;
+        let checkpoint = self.sve_feature_checkpoint();
+        let labels = self.sve_feature_labels;
         let right = self.expression_info(&binary.node.rhs)?;
+        if self.sve_feature_checkpoint() > checkpoint
+            && labels == self.sve_feature_labels
+            && matches!(binary.node.operator.node, Op::LogicalAnd | Op::LogicalOr)
+        {
+            let truth = self.sve_constant_truth(&binary.node.lhs);
+            if (binary.node.operator.node == Op::LogicalAnd && truth == Some(false))
+                || (binary.node.operator.node == Op::LogicalOr && truth == Some(true))
+            {
+                self.discard_sve_feature_uses(checkpoint);
+            }
+        }
         let left_value = self.converted_type(&left, offset)?;
         let right_value = self.converted_type(&right, offset)?;
         let assignment = matches!(
@@ -607,6 +656,7 @@ impl Analyzer {
             Op::Assign => {
                 self.require_modifiable(&left, offset)?;
                 self.check_assignment_type(&left.ty, &right_value, &binary.node.rhs)?;
+                self.require_sve_value(&left.ty, offset)?;
                 return Ok(ExpressionInfo::value(left_value));
             }
             Op::AssignMultiply => Op::Multiply,
@@ -864,10 +914,12 @@ impl Analyzer {
         {
             return Ok(());
         }
-        if matches!(
-            destination.kind,
-            TypeKind::Record(_) | TypeKind::Vector { .. }
-        ) && self.compatible(&destination, source)?
+        if matches!(destination.kind, TypeKind::Sve(_)) && self.compatible(&destination, source)? {
+            return self.require_definite_object(&destination, offset);
+        }
+        if (matches!(destination.kind, TypeKind::Record(_))
+            && self.compatible(&destination, source)?)
+            || self.compatible_vector_lanes(&destination, source)?
         {
             self.require_complete_object(&destination, offset)?;
             return Ok(());
@@ -921,7 +973,11 @@ impl Analyzer {
     }
 
     fn sizeof_operand_type(&mut self, expression: &Node<ast::Expression>) -> Result<Type, Error> {
+        let checkpoint = self.sve_feature_checkpoint();
         let operand = self.expression_info(expression)?;
+        if !self.unit.is_variable_length_array(&operand.ty)? {
+            self.discard_sve_feature_uses(checkpoint);
+        }
         if operand.bitfield.is_some() {
             return Err(Error::new(
                 expression.span.start,
@@ -939,6 +995,7 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
     ) -> Result<Type, Error> {
         let info = self.expression_info(expression)?;
+        self.require_sve_value(&info.ty, expression.span.start)?;
         self.converted_type(&info, expression.span.start)
     }
 
@@ -1205,7 +1262,7 @@ impl Analyzer {
                 "assignment requires a modifiable lvalue",
             ));
         }
-        self.require_complete_object(&expression.ty, offset)
+        self.require_definite_object(&expression.ty, offset)
     }
 
     pub(crate) fn contains_const(&self, ty: &Type, depth: usize) -> Result<bool, Error> {

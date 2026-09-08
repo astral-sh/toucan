@@ -190,11 +190,13 @@ impl Analyzer {
         let signature = self.sync_signature(operation, call)?;
         for (index, argument) in call.node.arguments.iter().enumerate().skip(1) {
             if index >= operation.required() {
+                let checkpoint = self.sve_feature_checkpoint();
                 if self.gnu_sync_profile() {
                     self.value_expression_type(argument)?;
                 } else {
                     self.expression_type(argument)?;
                 }
+                self.discard_sve_feature_uses(checkpoint);
                 continue;
             }
             let destination = signature.value.as_ref().expect("value operation");

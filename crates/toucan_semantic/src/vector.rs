@@ -87,6 +87,7 @@ impl Analyzer {
         }
         Ok(Type {
             kind: TypeKind::Vector {
+                kind: crate::VectorKind::Gnu,
                 element: Box::new(resolved),
                 lanes: bytes / element_bytes,
             },
@@ -133,7 +134,7 @@ impl Analyzer {
     ) -> Result<Type, Error> {
         match (&left.kind, &right.kind) {
             (TypeKind::Vector { .. }, TypeKind::Vector { .. }) => {
-                if !self.compatible(left, right)? {
+                if !self.compatible_vector_lanes(left, right)? {
                     return Err(Error::new(
                         lhs.span.start,
                         "operations between different vector element types are unsupported; use an explicit vector cast",
@@ -159,6 +160,27 @@ impl Analyzer {
             }
             _ => unreachable!("vector operation has a vector operand"),
         }
+    }
+
+    /// GNU allows lane-preserving value conversion between its ordinary vector
+    /// extension and nominal NEON types; pointer/type compatibility stays strict.
+    pub(crate) fn compatible_vector_lanes(&self, left: &Type, right: &Type) -> Result<bool, Error> {
+        let (
+            TypeKind::Vector {
+                element: a,
+                lanes: al,
+                ..
+            },
+            TypeKind::Vector {
+                element: b,
+                lanes: bl,
+                ..
+            },
+        ) = (&left.kind, &right.kind)
+        else {
+            return Ok(false);
+        };
+        Ok(al == bl && self.compatible(a, b)?)
     }
 
     fn vector_scalar(
@@ -247,7 +269,7 @@ impl Analyzer {
     }
 
     pub(crate) fn vector_mask(&self, vector: &Type, offset: usize) -> Result<Type, Error> {
-        let TypeKind::Vector { element, lanes } = &vector.kind else {
+        let TypeKind::Vector { element, lanes, .. } = &vector.kind else {
             unreachable!()
         };
         let bytes = self.unit.layout(element)?.size_bytes();
@@ -267,6 +289,7 @@ impl Analyzer {
             }
         };
         Ok(Type::new(TypeKind::Vector {
+            kind: crate::VectorKind::Gnu,
             element: Box::new(Type::new(TypeKind::Integer(kind))),
             lanes: *lanes,
         }))
@@ -298,7 +321,7 @@ impl Analyzer {
             types.push(self.value_expression_type(argument)?);
         }
         let first = &types[0];
-        let TypeKind::Vector { element, lanes } = &first.kind else {
+        let TypeKind::Vector { element, lanes, .. } = &first.kind else {
             return Err(Error::new(
                 offset,
                 "__builtin_shuffle input must be a vector",
@@ -314,6 +337,7 @@ impl Analyzer {
         let valid_mask = if let TypeKind::Vector {
             element: mask_element,
             lanes: mask_lanes,
+            ..
         } = &mask.kind
         {
             matches!(self.unit.resolve(mask_element)?.kind, TypeKind::Integer(_))

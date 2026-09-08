@@ -299,11 +299,17 @@ impl Analyzer {
             ));
         }
         if !matches!(resolved.kind, TypeKind::Array { length: None, .. })
-            && !self.is_complete_object(ty, 0)?
+            && !self.is_definite_object(ty, 0)?
         {
             return Err(Error::new(
                 offset,
                 "initializer requires a complete object type",
+            ));
+        }
+        if requires_constant && self.unit.is_sizeless(ty)? {
+            return Err(Error::new(
+                offset,
+                "objects with static or thread storage cannot have sizeless SVE type",
             ));
         }
         match initializer.node {
@@ -725,7 +731,7 @@ impl Analyzer {
                 {
                     (**element).clone()
                 }
-                TypeKind::Vector { element, lanes } if *index < *lanes => (**element).clone(),
+                TypeKind::Vector { element, lanes, .. } if *index < *lanes => (**element).clone(),
                 TypeKind::Record(id) => self
                     .unit
                     .records

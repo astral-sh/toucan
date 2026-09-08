@@ -27,7 +27,7 @@ fn scalar(ty: &Type) -> &'static str {
 fn spelling(ty: &Type) -> String {
     let base = match &ty.kind {
         TypeKind::Pointer(inner) => format!("{} *", spelling(inner)),
-        TypeKind::Vector { element, lanes } => {
+        TypeKind::Vector { element, lanes, .. } => {
             format!("v{lanes}_{}", scalar(element).replace(' ', "_"))
         }
         _ => scalar(ty).to_owned(),

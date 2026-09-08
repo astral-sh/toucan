@@ -15,19 +15,25 @@ impl Analyzer {
     ) -> Result<&'a Node<ast::Expression>, Error> {
         let key = (selection.span.start, selection.span.end);
         if !self.choose_selections.contains_key(&key) {
-            self.expression_type(&selection.node.condition)?;
-            if !self.is_integer_constant_expression(&selection.node.condition, 0)? {
-                return Err(Error::new(
-                    selection.node.condition.span.start,
-                    "__builtin_choose_expr condition requires an integer constant expression",
-                ));
-            }
-            let selected = self.eval(&selection.node.condition)?.truth();
-            self.expression_type(if selected {
-                &selection.node.else_expression
-            } else {
-                &selection.node.then_expression
-            })?;
+            let checkpoint = self.sve_feature_checkpoint();
+            let selected = (|| -> Result<bool, Error> {
+                self.expression_type(&selection.node.condition)?;
+                if !self.is_integer_constant_expression(&selection.node.condition, 0)? {
+                    return Err(Error::new(
+                        selection.node.condition.span.start,
+                        "__builtin_choose_expr condition requires an integer constant expression",
+                    ));
+                }
+                let selected = self.eval(&selection.node.condition)?.truth();
+                self.expression_type(if selected {
+                    &selection.node.else_expression
+                } else {
+                    &selection.node.then_expression
+                })?;
+                Ok(selected)
+            })();
+            self.discard_sve_feature_uses(checkpoint);
+            let selected = selected?;
             if self.choose_selections.len() >= 65_536 {
                 return Err(Error::new(
                     selection.span.start,
@@ -69,11 +75,16 @@ impl Analyzer {
         let value = if let Some(value) = self.type_compatibility_results.get(&key) {
             *value
         } else {
-            let left = self.type_name(&query.node.left.node)?;
-            let right = self.type_name(&query.node.right.node)?;
-            let left = self.compatibility_operand(&left, 0)?;
-            let right = self.compatibility_operand(&right, 0)?;
-            let value = self.compatible(&left, &right)?;
+            let checkpoint = self.sve_feature_checkpoint();
+            let value = (|| -> Result<bool, Error> {
+                let left = self.type_name(&query.node.left.node)?;
+                let right = self.type_name(&query.node.right.node)?;
+                let left = self.compatibility_operand(&left, 0)?;
+                let right = self.compatibility_operand(&right, 0)?;
+                self.compatible(&left, &right)
+            })();
+            self.discard_sve_feature_uses(checkpoint);
+            let value = value?;
             if self.type_compatibility_results.len() >= 65_536 {
                 return Err(Error::new(
                     query.span.start,

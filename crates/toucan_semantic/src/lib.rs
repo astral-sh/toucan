@@ -5,6 +5,7 @@
 //! consumer omits their definitions from its generated API.
 
 mod analyze;
+mod arm;
 mod asm;
 mod atomic;
 mod atomic_type;
@@ -33,6 +34,7 @@ mod weak;
 mod x86;
 
 pub use analyze::{analyze, analyze_with_options, evaluate_arithmetic, evaluate_integer};
+pub use arm::Aarch64Pcs;
 pub use ir::*;
 pub use literals::{
     DecodedString, StringEncoding, decode_character_literal, decode_string_literals,

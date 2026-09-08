@@ -1750,8 +1750,14 @@ impl Analyzer {
                 if !matches!(left_value.kind, TypeKind::Vector { .. }) {
                     left_destination = Some((common.clone(), Conversion::VectorSplat));
                 }
-                if !shift && !matches!(right_value.kind, TypeKind::Vector { .. }) {
-                    right_destination = Some((common, Conversion::VectorSplat));
+                if !shift {
+                    if !matches!(right_value.kind, TypeKind::Vector { .. }) {
+                        right_destination = Some((common, Conversion::VectorSplat));
+                    } else if !self.compatible(&right_value, &common)? {
+                        // Native NEON and GNU vectors have distinct C identities
+                        // but convert lane values to the left operand's type.
+                        right_destination = Some((common, Conversion::Arithmetic));
+                    }
                 }
             }
             Op::ShiftLeft | Op::ShiftRight | Op::AssignShiftLeft | Op::AssignShiftRight => {

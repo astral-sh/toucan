@@ -859,7 +859,11 @@ fn type_shape(unit: &TranslationUnit, root: &Type) {
             TypeKind::Typedef(_) => {
                 assert!(unit.resolve(ty).is_ok());
             }
-            TypeKind::Void | TypeKind::Bool | TypeKind::Integer(_) | TypeKind::Float(_) => {}
+            TypeKind::Void
+            | TypeKind::Bool
+            | TypeKind::Integer(_)
+            | TypeKind::Float(_)
+            | TypeKind::Sve(_) => {}
         }
     }
 }

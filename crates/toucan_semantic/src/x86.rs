@@ -182,6 +182,7 @@ impl IntrinsicType {
 }
 fn vector(element: TypeKind, lanes: u64) -> Type {
     Type::new(TypeKind::Vector {
+        kind: crate::VectorKind::Gnu,
         element: Box::new(Type::new(element)),
         lanes,
     })

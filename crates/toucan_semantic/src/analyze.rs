@@ -91,6 +91,7 @@ fn analyze_on_parser_stack(
                 }
             }
         }
+        analyzer.validate_sve_features()?;
         analyzer.finish_tentative_definitions()?;
         analyzer.validate_block_externs()?;
         analyzer.validate_weak_symbol_aliases()?;
@@ -219,13 +220,18 @@ fn evaluate_on_parser_stack<Value>(
     analyzer.string_literals = parsed.string_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
     analyzer.int128_specifiers = parsed.int128_specifiers;
-    evaluate(&mut analyzer, expression).map_err(|mut error| {
-        error.offset = parsed
-            .offsets
-            .original_offset(error.offset)
-            .saturating_sub(expression_offset);
-        error
-    })
+    evaluate(&mut analyzer, expression)
+        .and_then(|value| {
+            analyzer.validate_sve_features()?;
+            Ok(value)
+        })
+        .map_err(|mut error| {
+            error.offset = parsed
+                .offsets
+                .original_offset(error.offset)
+                .saturating_sub(expression_offset);
+            error
+        })
 }
 
 struct Parsed {
@@ -655,6 +661,9 @@ pub(crate) struct Analyzer {
     pub(crate) variably_modified_parents: Vec<Option<usize>>,
     pub(crate) function_scope: Option<crate::statement::FunctionScope>,
     pub(crate) current_function: Option<crate::statement::FunctionContext>,
+    pub(crate) sve_feature_uses: Vec<usize>,
+    pub(crate) suppress_sve_features: bool,
+    pub(crate) sve_feature_labels: usize,
     pub(crate) block_externs: HashMap<String, BlockExtern>,
     type_names: HashMap<(usize, usize), Type>,
 }
@@ -724,6 +733,9 @@ impl Analyzer {
             variably_modified_parents: Vec::new(),
             function_scope: None,
             current_function: None,
+            sve_feature_uses: Vec::new(),
+            suppress_sve_features: false,
+            sve_feature_labels: 0,
             block_externs: HashMap::new(),
             weak_symbols: BTreeMap::new(),
             function_effects: BTreeMap::new(),
@@ -1002,6 +1014,22 @@ impl Analyzer {
             }
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "declaration has no name"))?;
+            if let Some(builtin) = crate::arm::builtin_type(&name, self.unit.target) {
+                if !is_typedef {
+                    return Err(Error::new(
+                        item.span.start,
+                        format!("declaration conflicts with predefined Arm typedef `{name}`"),
+                    ));
+                }
+                if !self.same_type(&builtin, &ty, 0)? {
+                    let message = if self.gnu_vector_profile() {
+                        "replacing a predefined Arm vector typedef is unsupported"
+                    } else {
+                        "conflicting predefined Arm vector typedef"
+                    };
+                    return Err(Error::new(item.span.start, message));
+                }
+            }
             if self.unit.constants.contains_key(&name) {
                 return Err(Error::new(
                     item.span.start,
@@ -1051,6 +1079,12 @@ impl Analyzer {
             } else {
                 DeclarationKind::Variable
             };
+            if kind == DeclarationKind::Variable && self.unit.is_sizeless(&ty)? {
+                return Err(Error::new(
+                    item.span.start,
+                    "objects with static or thread storage cannot have sizeless SVE type",
+                ));
+            }
             if kind != DeclarationKind::Typedef {
                 declarator_attributes.require_no_transparent_union()?;
             }
@@ -1801,6 +1835,12 @@ impl Analyzer {
                         ast::TypeSpecifier::Void => TypeKind::Void,
                         ast::TypeSpecifier::Bool => TypeKind::Bool,
                         ast::TypeSpecifier::TypedefName(name) => {
+                            if !self.unit.typedefs.contains_key(&name.node.name)
+                                && let Some(builtin) =
+                                    crate::arm::builtin_type(&name.node.name, self.unit.target)
+                            {
+                                self.unit.typedefs.insert(name.node.name.clone(), builtin);
+                            }
                             if !self.unit.typedefs.contains_key(&name.node.name) {
                                 return Err(Error::new(
                                     ty.span.start,
@@ -1814,9 +1854,21 @@ impl Analyzer {
                         }
                         ast::TypeSpecifier::Enum(value) => TypeKind::Enum(self.enum_type(value)?),
                         ast::TypeSpecifier::TypeOf(value) => match &value.node {
-                            ast::TypeOf::Type(ty) => return self.type_name(&ty.node),
+                            ast::TypeOf::Type(ty) => {
+                                let checkpoint = self.sve_feature_checkpoint();
+                                let ty = self.type_name(&ty.node)?;
+                                if !self.unit.is_variably_modified(&ty)? {
+                                    self.discard_sve_feature_uses(checkpoint);
+                                }
+                                return Ok(ty);
+                            }
                             ast::TypeOf::Expression(expression) => {
-                                return self.expression_type(expression);
+                                let checkpoint = self.sve_feature_checkpoint();
+                                let ty = self.expression_type(expression)?;
+                                if !self.unit.is_variably_modified(&ty)? {
+                                    self.discard_sve_feature_uses(checkpoint);
+                                }
+                                return Ok(ty);
                             }
                         },
                         ast::TypeSpecifier::Atomic(name) => {
@@ -2264,6 +2316,12 @@ impl Analyzer {
                         parameters: Vec::with_capacity(function.node.parameters.len()),
                         ..LexicalScope::default()
                     });
+                    let sve_checkpoint = self.sve_feature_checkpoint();
+                    let definition_parameters = self
+                        .lexical_scopes
+                        .last()
+                        .expect("prototype scope")
+                        .is_definition_parameters;
                     let prototype = !function.node.parameters.is_empty();
                     for parameter in &function.node.parameters {
                         let storage =
@@ -2449,6 +2507,9 @@ impl Analyzer {
                             name,
                             ty: parameter_type,
                         });
+                    }
+                    if !definition_parameters {
+                        self.discard_sve_feature_uses(sve_checkpoint);
                     }
                     let mut parameters = self.leave_prototype();
                     if parameters.len() == 1
@@ -2916,7 +2977,7 @@ impl Analyzer {
             ));
         }
         Ok(match &self.unit.resolve(ty)?.kind {
-            TypeKind::Void | TypeKind::Function(_) => false,
+            TypeKind::Void | TypeKind::Function(_) | TypeKind::Sve(_) => false,
             TypeKind::Record(id) => self
                 .unit
                 .records
@@ -3184,6 +3245,15 @@ impl Analyzer {
                         "conflicting calling convention attributes",
                     ));
                 }
+                if convention == CallingConvention::Aarch64Vector
+                    && self.unit.target == Target::Aarch64UnknownLinuxGnu
+                    && function.aarch64_pcs(&self.unit)? == Some(crate::Aarch64Pcs::Sve)
+                {
+                    return Err(Error::new(
+                        offset,
+                        "aarch64_vector_pcs cannot apply to an SVE function type on the GNU profile",
+                    ));
+                }
                 function.calling_convention = convention;
             }
             TypeKind::Pointer(element) => {
@@ -3349,6 +3419,41 @@ impl Analyzer {
                                 }
                             };
                             set_alignment(result, value, extension.span.start)?;
+                        }
+                        "aarch64_vector_pcs" | "aarch64_sve_pcs" => {
+                            if name == "aarch64_sve_pcs"
+                                && self.unit.target == Target::Aarch64UnknownLinuxGnu
+                            {
+                                // GCC 13 does not implement this Clang attribute.
+                                continue;
+                            }
+                            if !attribute.arguments.is_empty() {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "AArch64 calling convention attributes take no arguments",
+                                ));
+                            }
+                            let convention = if name == "aarch64_vector_pcs" {
+                                CallingConvention::Aarch64Vector
+                            } else {
+                                CallingConvention::Aarch64Sve
+                            };
+                            convention
+                                .for_target(self.unit.target)
+                                .map_err(|mut error| {
+                                    error.offset = extension.span.start;
+                                    error
+                                })?;
+                            if result
+                                .calling_convention
+                                .is_some_and(|old| old != convention)
+                            {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "conflicting calling convention attributes",
+                                ));
+                            }
+                            result.calling_convention = Some(convention);
                         }
                         "cdecl" | "stdcall" | "fastcall" | "thiscall" | "ms_abi" | "sysv_abi" => {
                             if !attribute.arguments.is_empty() {

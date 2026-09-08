@@ -77,11 +77,19 @@ impl Analyzer {
                     )?
             }
             ast::Expression::SizeOfTy(size) => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.type_name(&size.node.0.node)?;
+                if !self.unit.is_variable_length_array(&ty)? {
+                    self.discard_sve_feature_uses(checkpoint);
+                }
                 !self.unit.is_variable_length_array(&ty)?
             }
             ast::Expression::SizeOfVal(size) => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.expression_type(&size.node.0)?;
+                if !self.unit.is_variable_length_array(&ty)? {
+                    self.discard_sve_feature_uses(checkpoint);
+                }
                 !self.unit.is_variable_length_array(&ty)?
             }
             ast::Expression::AlignOf(_) => true,
@@ -340,12 +348,18 @@ impl Analyzer {
                 Ok(convert(self.eval(selected)?, destination))
             }
             ast::Expression::SizeOfTy(size) => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.type_name(&size.node.0.node)?;
+                if !self.unit.is_variable_length_array(&ty)? {
+                    self.discard_sve_feature_uses(checkpoint);
+                }
                 self.size_of(&ty, offset)
             }
             ast::Expression::SizeOfVal(size) => self.sizeof_expression(&size.node.0),
             ast::Expression::AlignOf(alignment) => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.type_name(&alignment.node.0.node)?;
+                self.discard_sve_feature_uses(checkpoint);
                 if !self.is_complete_object(&ty, 0)? {
                     return Err(Error::new(
                         offset,

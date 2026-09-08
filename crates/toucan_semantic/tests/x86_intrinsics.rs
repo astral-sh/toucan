@@ -98,7 +98,7 @@ fn spelling(ty: &Type) -> &'static str {
         TypeKind::Integer(IntegerKind::Char) => "char",
         TypeKind::Integer(IntegerKind::Short) => "short",
         TypeKind::Integer(IntegerKind::Int) => "int",
-        TypeKind::Vector { element, lanes } => match (&element.kind, lanes) {
+        TypeKind::Vector { element, lanes, .. } => match (&element.kind, lanes) {
             (TypeKind::Integer(IntegerKind::Char), 8) => "V8C",
             (TypeKind::Integer(IntegerKind::Short), 4) => "V4S",
             (TypeKind::Integer(IntegerKind::Int), 2) => "V2I",

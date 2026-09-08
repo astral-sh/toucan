@@ -353,8 +353,8 @@ and identify vector-element lvalues.
 Linux profiles follow GCC's signed-character and `long` comparison-mask types;
 Darwin and Windows follow Clang's `char` and `long long` masks. GNU Linux also
 accepts addresses of vector lanes and vector increment/decrement. Clang profiles
-reject those operations. Implicit conversions between different vector types,
-enum lanes, non-power-of-two sizes, and extended-vector swizzles remain unsupported.
+reject those operations. Except for the native NEON/GNU identity conversion described below, implicit
+conversions between different vector types, enum lanes, non-power-of-two sizes, and extended-vector swizzles remain unsupported.
 The instruction intrinsics supported below have their own argument conversions. Static vectors accept brace initializers and
 vector compound literals; other static vector-expression evaluation is explicitly
 unsupported.
@@ -793,3 +793,47 @@ binding interoperability is claimed by this semantic slice.
 compiler layout and constraint probes, native operations, retained graph checks,
 and non-atomic allocation comparison. Layout does not establish lock freedom or
 implement a concurrent memory model.
+
+## AArch64 vector declarations
+
+The GNU AArch64 profile recognizes `__Float32x4_t` and `__Float64x2_t` as
+16-byte NEON types with 16-byte alignment. `VectorKind::Neon` preserves their C
+type identity, which differs from an equal-shaped GNU `vector_size` type.
+Assignments and arithmetic between these two forms preserve lane values;
+pointer compatibility still distinguishes them. Arithmetic keeps the left
+vector's identity, and comparisons produce GNU integer-vector masks. Clang
+profiles do not expose these GCC-specific typedef names.
+
+Both AArch64 profiles recognize `__SVFloat32_t`, `__SVFloat64_t`, and
+`__SVBool_t`. `TypeKind::Sve` records their sizeless identity. Pointers have
+normal target layout, but the SVE values themselves have no fixed size or
+alignment. Arrays, record members, objects with static or thread storage,
+`sizeof`, `_Alignof`, and pointer arithmetic cannot use a sizeless element.
+Prototype parameters/results, pointer declarations, and type-only `_Generic`,
+`typeof`, and fixed-size `sizeof` uses are supported. These rules follow the
+[Arm C Language Extensions](https://arm-software.github.io/acle/main/acle.html).
+
+`aarch64_vector_pcs` is retained as a function calling convention. Clang's
+`aarch64_sve_pcs` is also retained; the GNU profile follows GCC 13's ignored
+attribute behavior. `FunctionType::aarch64_pcs` reports register-preservation
+rules, including the SVE convention implied by by-value SVE parameters or a
+return value. This derived convention does not erase the written function type.
+See the [Clang attribute reference](https://clang.llvm.org/docs/AttributeReference.html#aarch64-vector-pcs).
+
+Evaluated SVE values currently require unsupported target-feature configuration.
+Analysis reports that limitation before returning a successful result. Feature
+requirements are discarded in proven unevaluated operands and constant dead
+`if`, conditional, and short-circuit branches without labels. VLA bounds that
+must execute keep their requirements. This is not a general reachability pass:
+dead loop bodies and uncertain Clang numeric/object-size query operands can still
+receive an unsupported-feature diagnostic. GCC permits replacing its predefined
+vector typedefs; Toucan explicitly rejects that extension to preserve existing
+alias identities. Ordinary block-scope shadowing remains supported.
+
+Selected Rust bindings reject SVE types, including pointers: stable Rust cannot
+express their sizeless representation. Explicit vector/SVE procedure-call
+conventions also require C wrapper functions. NEON pointer storage uses the
+existing aligned vector representation, while by-value vector FFI remains
+unsupported. No SVE execution or AArch64 C-to-Rust runtime equivalence is claimed
+by this layer. The [validation record](../corpus/evidence/arm-vector-types-2026-09-08.json)
+includes cross-compiler probes and the unchanged ARM SQLite translation unit.

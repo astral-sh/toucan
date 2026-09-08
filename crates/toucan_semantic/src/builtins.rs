@@ -255,21 +255,32 @@ impl Analyzer {
             return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));
         }
         if let Some(signature) = object_size {
+            let checkpoint = self.sve_feature_checkpoint();
             for (argument, parameter) in arguments.iter().zip(&signature.parameters) {
                 self.check_assignment(parameter, argument)?;
             }
             self.check_object_size_mode(&arguments[1], &signature.parameters[1])?;
+            if self.gnu_vector_profile() {
+                self.discard_sve_feature_uses(checkpoint);
+            }
             return Ok(Some(signature.result));
         }
         match name {
             "__builtin_constant_p" => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.value_expression_type(&arguments[0])?;
+                // Clang can evaluate fresh VLA bounds in numeric queries. A
+                // nonnumeric operand cannot reach that fallback; GNU suppresses
+                // all query operands. Retain uncertain Clang obligations.
+                if self.gnu_vector_profile() || !self.is_arithmetic(&ty)? {
+                    self.discard_sve_feature_uses(checkpoint);
+                }
                 if matches!(
                     self.unit.target,
                     toucan_target::Target::X86_64UnknownLinuxGnu
                         | toucan_target::Target::Aarch64UnknownLinuxGnu
                 ) {
-                    self.require_complete_object(&ty, arguments[0].span.start)?;
+                    self.require_definite_object(&ty, arguments[0].span.start)?;
                 }
                 return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));
             }

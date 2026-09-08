@@ -106,7 +106,15 @@ impl Env {
                 return *symbol == Symbol::Typename;
             }
         }
-        false
+        self.extensions_gnu
+            && matches!(
+                ident,
+                "__Float32x4_t"
+                    | "__Float64x2_t"
+                    | "__SVFloat32_t"
+                    | "__SVFloat64_t"
+                    | "__SVBool_t"
+            )
     }
 
     pub fn handle_declarator(&mut self, d: &Node<Declarator>, sym: Symbol) {

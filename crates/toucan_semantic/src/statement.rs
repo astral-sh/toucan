@@ -342,6 +342,16 @@ impl Analyzer {
                 "definition does not declare a function",
             ));
         };
+        let mut sve_definition = self.unit.is_sizeless(&function.return_type)?;
+        for parameter in &function.parameters {
+            sve_definition |= self.unit.is_sizeless(&parameter.ty)?;
+        }
+        if sve_definition {
+            return Err(Error::new(
+                definition.span.start,
+                "SVE value definitions require unsupported target-feature configuration",
+            ));
+        }
         if !matches!(
             self.unit.resolve(&function.return_type)?.kind,
             TypeKind::Void
@@ -650,6 +660,16 @@ impl Analyzer {
                 name.ok_or_else(|| Error::new(item.span.start, "local declaration has no name"))?;
             let variably_modified = self.unit.is_variably_modified(&ty)?;
             let function = matches!(self.unit.resolve(&ty)?.kind, TypeKind::Function(_));
+            if !is_typedef && !function && self.unit.is_sizeless(&ty)? {
+                return Err(Error::new(
+                    item.span.start,
+                    if is_static || is_extern {
+                        "objects with static or thread storage cannot have sizeless SVE type"
+                    } else {
+                        "SVE value definitions require unsupported target-feature configuration"
+                    },
+                ));
+            }
             if (!is_typedef && !function) || variably_modified {
                 self.require_no_fallthrough()?;
             }
@@ -1192,11 +1212,27 @@ impl Analyzer {
             }
             ast::Statement::If(selection) => self.with_statement(statement.span, |analyzer| {
                 analyzer.scalar_condition(&selection.node.condition)?;
+                let checkpoint = analyzer.sve_feature_checkpoint();
+                let labels = analyzer.sve_feature_labels;
                 analyzer.substatement(&selection.node.then_statement)?;
+                if analyzer.sve_feature_checkpoint() > checkpoint
+                    && labels == analyzer.sve_feature_labels
+                    && analyzer.sve_constant_truth(&selection.node.condition) == Some(false)
+                {
+                    analyzer.discard_sve_feature_uses(checkpoint);
+                }
                 let mut then_fallthrough =
                     std::mem::take(&mut analyzer.function_context_mut().fallthrough);
                 if let Some(statement) = &selection.node.else_statement {
+                    let checkpoint = analyzer.sve_feature_checkpoint();
+                    let labels = analyzer.sve_feature_labels;
                     analyzer.substatement(statement)?;
+                    if analyzer.sve_feature_checkpoint() > checkpoint
+                        && labels == analyzer.sve_feature_labels
+                        && analyzer.sve_constant_truth(&selection.node.condition) == Some(true)
+                    {
+                        analyzer.discard_sve_feature_uses(checkpoint);
+                    }
                 }
                 then_fallthrough.append(&mut analyzer.function_context_mut().fallthrough);
                 analyzer.function_context_mut().fallthrough = then_fallthrough;
@@ -1274,6 +1310,7 @@ impl Analyzer {
                 result
             }),
             ast::Statement::Labeled(labeled) => {
+                self.sve_feature_labels += 1;
                 match &labeled.node.label.node {
                     ast::Label::Identifier(identifier) => {
                         let scope = self.jump_scope();

@@ -70,7 +70,12 @@ pub enum TypeKind {
     Vector {
         element: Box<Type>,
         lanes: u64,
+        /// Native NEON types have distinct C identity despite equal lane storage.
+        #[serde(skip_serializing_if = "VectorKind::is_gnu")]
+        kind: VectorKind,
     },
+    /// An opaque AArch64 SVE vector or predicate, with no fixed size or alignment.
+    Sve(SveKind),
     Array {
         element: Box<Type>,
         length: Option<u64>,
@@ -84,6 +89,29 @@ pub enum TypeKind {
     Record(usize),
     Enum(usize),
     Typedef(String),
+}
+
+/// C identity of a fixed vector, independent of its element and lane layout.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Hash)]
+pub enum VectorKind {
+    #[default]
+    Gnu,
+    /// GCC's predefined AArch64 Advanced SIMD types.
+    Neon,
+}
+impl VectorKind {
+    fn is_gnu(&self) -> bool {
+        *self == Self::Gnu
+    }
+}
+
+/// Sizeless SVE types available without a target vector-length assumption.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
+pub enum SveKind {
+    Float32,
+    Float64,
+    /// One predicate bit per vector byte, not a vector of C Boolean objects.
+    Predicate,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
@@ -184,6 +212,10 @@ pub enum CallingConvention {
     SysV64,
     /// An explicitly requested Microsoft x64 convention.
     Win64,
+    /// Preserves the additional AArch64 Advanced SIMD registers.
+    Aarch64Vector,
+    /// Clang's explicit SVE register-preservation convention.
+    Aarch64Sve,
 }
 
 impl CallingConvention {
@@ -192,13 +224,17 @@ impl CallingConvention {
     pub fn for_target(self, target: Target) -> Result<Self, Error> {
         match (self, target) {
             (Self::C, _) => Ok(Self::C),
+            (
+                Self::Aarch64Vector | Self::Aarch64Sve,
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin,
+            ) => Ok(self),
             (Self::SysV64, Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin)
             | (Self::Win64, Target::X86_64PcWindowsMsvc) => Ok(Self::C),
             (Self::SysV64, Target::X86_64PcWindowsMsvc)
             | (Self::Win64, Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin) => Ok(self),
             _ => Err(Error::new(
                 0,
-                "explicit x86-64 calling conventions are unsupported on this target",
+                "explicit calling convention is unsupported on this target",
             )),
         }
     }
@@ -436,6 +472,9 @@ impl TranslationUnit {
 
     /// Computes alignment even when a complete array has a runtime extent.
     pub fn alignment(&self, ty: &Type) -> Result<u64, Error> {
+        if self.is_sizeless(ty)? {
+            return Err(Error::new(0, "sizeless SVE types have no object alignment"));
+        }
         let mut ty = ty;
         for _ in 0..128 {
             if let Some(alignment) = self.typedef_alignment(ty)? {
@@ -567,6 +606,12 @@ impl TranslationUnit {
                 "record layout nesting exceeds the 128-level limit",
             ));
         }
+        if matches!(ty.kind, TypeKind::Sve(_)) {
+            return Err(Error::new(
+                0,
+                "sizeless SVE types have no fixed object layout",
+            ));
+        }
         if let TypeKind::Typedef(name) = &ty.kind {
             let inner = self
                 .typedefs
@@ -622,7 +667,7 @@ impl TranslationUnit {
                 ty.alignment,
             ));
         }
-        if let TypeKind::Vector { element, lanes } = &resolved.kind {
+        if let TypeKind::Vector { element, lanes, .. } = &resolved.kind {
             let element = self.resolve(element)?;
             if !matches!(element.kind, TypeKind::Integer(_) | TypeKind::Float(_))
                 || !lanes.is_power_of_two()

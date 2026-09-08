@@ -14,7 +14,10 @@ impl Analyzer {
         // not become a successful query returning zero. Retained type-name and
         // statement scopes are also established before speculative evaluation.
         self.builtin_call_type(call)?;
+        let checkpoint = self.sve_feature_checkpoint();
         let known = self.known_constant_operand(&call.node.arguments[0])?;
+        // This second pass determines constant knowledge, not execution.
+        self.discard_sve_feature_uses(checkpoint);
         Ok(IntegerValue::int(i128::from(known)))
     }
 
