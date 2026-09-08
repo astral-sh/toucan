@@ -891,7 +891,11 @@ impl Analyzer {
                 if self
                     .builtin_name(call)
                     .and_then(|name| self.infinity_builtin_kind(name))
-                    .is_some() =>
+                    .is_some()
+                    || self
+                        .builtin_name(call)
+                        .and_then(|name| self.nan_builtin(name))
+                        .is_some() =>
             {
                 self.eval_arithmetic(expression)?;
                 Ok(ConstantKind::Arithmetic)

@@ -52,8 +52,23 @@ the C type, encoding, and exact bits, including negative zero and subnormals.
 `long double` uses x87 extended precision on x86-64 Linux/macOS, binary128 on
 AArch64 Linux, and binary64 on AArch64 macOS and x86-64 Windows. Its bits exclude object padding.
 The `__builtin_inf` and `__builtin_huge_val` families preserve target infinities.
-Overflow, division by zero, NaN builtin forms, and unsupported formats produce
+Overflow, division by zero, invalid operations, and unsupported formats produce
 diagnostics.
+
+The `__builtin_nan` and `__builtin_nans` families retain quiet/signaling NaN payloads
+in each target format. Constant payloads may be ordinary or UTF-8 string literals
+with unsigned decimal, octal, or hexadecimal digits, optionally wrapped in char or
+void pointer casts. Payloads are truncated to the target significand; empty strings
+select the compiler default. Runtime payload expressions are type-checked as
+`const char *` arguments. Leading signs/whitespace, embedded NULs, and nonliteral
+payload expressions are unsupported in constant evaluation.
+
+Copies and unary signs preserve signaling bits. Casts to a different floating
+format quiet signaling NaNs; binary64 `long double`/`double` casts preserve their
+bits. Arithmetic on signaling NaN constants is explicitly unsupported because
+compiler folding can differ by operation and optimization settings. Quiet-NaN
+arithmetic, comparisons, and boolean conversions are supported. Integer casts of
+either NaN kind report an out-of-range value.
 
 Rust bindings emit `float` and `double` macro values as `f32` and `f64`
 using exact bit patterns. For Rust 1.83 and later, emission uses `from_bits`;

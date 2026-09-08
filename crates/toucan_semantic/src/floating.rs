@@ -17,7 +17,14 @@ use crate::{
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum ArithmeticValue {
     Integer(IntegerValue),
-    Floating { value: Quad, kind: FloatKind },
+    Floating {
+        value: Quad,
+        kind: FloatKind,
+        // Quad conversions quiet signaling NaNs. Keep this bit separately while
+        // storing their payload in a quiet NaN; representation changes are not
+        // C arithmetic operations.
+        signaling: bool,
+    },
 }
 
 impl ArithmeticValue {
@@ -28,13 +35,17 @@ impl ArithmeticValue {
     ) -> Result<ArithmeticConstant, Error> {
         Ok(match self {
             Self::Integer(value) => ArithmeticConstant::Integer(value),
-            Self::Floating { value, kind } => {
+            Self::Floating {
+                value,
+                kind,
+                signaling,
+            } => {
                 let format = Format::for_type(kind, target, offset)?;
                 let bits = match format {
-                    Format::Binary32 => encode_float::<Single>(value),
-                    Format::Binary64 => encode_float::<Double>(value),
-                    Format::X87 => encode_float::<X87DoubleExtended>(value),
-                    Format::Binary128 => encode_float::<Quad>(value),
+                    Format::Binary32 => encode_float::<Single>(value, signaling),
+                    Format::Binary64 => encode_float::<Double>(value, signaling),
+                    Format::X87 => encode_float::<X87DoubleExtended>(value, signaling),
+                    Format::Binary128 => encode_float::<Quad>(value, signaling),
                 };
                 let format = match format {
                     Format::Binary32 => FloatingFormat::Binary32,
@@ -62,7 +73,7 @@ impl ArithmeticValue {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 enum Format {
     Binary32,
     Binary64,
@@ -135,7 +146,11 @@ impl Analyzer {
             std::borrow::Cow::Borrowed(literal.number.as_ref())
         };
         let value = dispatch!(format, parse_literal(&number, offset))?;
-        Ok(ArithmeticValue::Floating { value, kind })
+        Ok(ArithmeticValue::Floating {
+            value,
+            kind,
+            signaling: false,
+        })
     }
 
     /// Evaluates the arithmetic constant expressions permitted in static
@@ -165,22 +180,18 @@ impl Analyzer {
                     Ok(ArithmeticValue::Floating {
                         value: Quad::INFINITY,
                         kind,
+                        signaling: false,
                     })
-                } else if matches!(
-                    name,
-                    Some(
-                        "__builtin_nan"
-                            | "__builtin_nanf"
-                            | "__builtin_nanl"
-                            | "__builtin_nans"
-                            | "__builtin_nansf"
-                            | "__builtin_nansl"
-                    )
-                ) {
-                    Err(Error::new(
-                        offset,
-                        "non-finite floating builtin constants are unsupported",
-                    ))
+                } else if let Some((kind, signaling)) = name.and_then(|name| self.nan_builtin(name))
+                {
+                    self.builtin_call_type(call)?;
+                    let payload = self.nan_payload(&call.node.arguments[0])?;
+                    let format = Format::for_type(kind, self.unit.target, offset)?;
+                    Ok(ArithmeticValue::Floating {
+                        value: dispatch!(format, nan_storage(payload, signaling)),
+                        kind,
+                        signaling,
+                    })
                 } else {
                     self.eval(expression).map(ArithmeticValue::Integer)
                 }
@@ -252,7 +263,11 @@ impl Analyzer {
                     ))));
                 }
                 match value {
-                    ArithmeticValue::Floating { value, kind } => {
+                    ArithmeticValue::Floating {
+                        value,
+                        kind,
+                        signaling,
+                    } => {
                         let value = match unary.node.operator.node {
                             Unary::Plus => value,
                             Unary::Minus => -value,
@@ -263,7 +278,11 @@ impl Analyzer {
                                 ));
                             }
                         };
-                        Ok(ArithmeticValue::Floating { value, kind })
+                        Ok(ArithmeticValue::Floating {
+                            value,
+                            kind,
+                            signaling,
+                        })
                     }
                     ArithmeticValue::Integer(value) => {
                         let value = promote(value);
@@ -333,6 +352,50 @@ impl Analyzer {
         }
     }
 
+    /// Recognize the literal payload forms both GCC and Clang can fold.
+    fn nan_payload(&mut self, mut expression: &Node<ast::Expression>) -> Result<u128, Error> {
+        let offset = expression.span.start;
+        for _ in 0..128 {
+            match &expression.node {
+                ast::Expression::Cast(cast) => {
+                    let ty = self.type_name(&cast.node.type_name.node)?;
+                    let TypeKind::Pointer(pointee) = &self.unit.resolve(&ty)?.kind else {
+                        break;
+                    };
+                    if !matches!(
+                        self.unit.resolve(pointee)?.kind,
+                        TypeKind::Void | TypeKind::Integer(crate::IntegerKind::Char)
+                    ) {
+                        break;
+                    }
+                    expression = &cast.node.expression;
+                }
+                ast::Expression::StringLiteral(literal) => {
+                    let decoded = self.decode_string_literal(literal, offset)?;
+                    let units = &decoded.code_units[..decoded.code_units.len() - 1];
+                    if units.contains(&0) {
+                        return Err(Error::new(
+                            offset,
+                            "constant NaN payloads with embedded NULs are unsupported",
+                        ));
+                    }
+                    if units.len() > 4096 {
+                        return Err(Error::new(
+                            offset,
+                            "NaN payload exceeds the 4096-byte limit",
+                        ));
+                    }
+                    return parse_nan_payload(units, offset);
+                }
+                _ => break,
+            }
+        }
+        Err(Error::new(
+            offset,
+            "constant NaN payload requires a string literal or a char/void pointer cast around one",
+        ))
+    }
+
     /// Applies the arithmetic conversion for a cast or scalar initializer.
     pub(crate) fn convert_arithmetic(
         &self,
@@ -351,9 +414,20 @@ impl Analyzer {
         }
         if let TypeKind::Float(kind) = ty.kind {
             let format = Format::for_type(kind, self.unit.target, offset)?;
+            let signaling = if let ArithmeticValue::Floating {
+                kind: source,
+                signaling,
+                ..
+            } = value
+            {
+                signaling && Format::for_type(source, self.unit.target, offset)? == format
+            } else {
+                false
+            };
             return Ok(ArithmeticValue::Floating {
                 value: dispatch!(format, convert_float(value, offset))?,
                 kind,
+                signaling,
             });
         }
         let destination = self.integer_type(destination, offset)?;
@@ -405,6 +479,19 @@ impl Analyzer {
                 || matches!(right, ArithmeticValue::Floating { kind: actual, .. } if actual == *kind))
             .expect("a floating operand is present");
         let format = Format::for_type(kind, self.unit.target, offset)?;
+        let signaling = matches!(
+            left,
+            ArithmeticValue::Floating {
+                signaling: true,
+                ..
+            }
+        ) || matches!(
+            right,
+            ArithmeticValue::Floating {
+                signaling: true,
+                ..
+            }
+        );
         let left = dispatch!(format, convert_float(left, offset))?;
         let right = dispatch!(format, convert_float(right, offset))?;
         let comparison = match operator {
@@ -421,11 +508,54 @@ impl Analyzer {
                 value,
             ))));
         }
+        if signaling {
+            return Err(Error::new(
+                offset,
+                "arithmetic on signaling NaN constants is unsupported",
+            ));
+        }
         Ok(ArithmeticValue::Floating {
             value: dispatch!(format, binary_float(operator, left, right, offset))?,
             kind,
+            signaling: false,
         })
     }
+}
+
+/// GNU payload digits are accumulated modulo 2^128; every supported significand
+/// is narrower, so truncating during parsing preserves all representable bits.
+fn parse_nan_payload(units: &[u32], offset: usize) -> Result<u128, Error> {
+    if units.is_empty() {
+        return Ok(0);
+    }
+    let (radix, digits) = if units.starts_with(&[u32::from(b'0'), u32::from(b'x')])
+        || units.starts_with(&[u32::from(b'0'), u32::from(b'X')])
+    {
+        (16, &units[2..])
+    } else if units[0] == u32::from(b'0') {
+        (8, units)
+    } else {
+        (10, units)
+    };
+    let invalid = || {
+        Error::new(
+            offset,
+            "constant NaN payload syntax is unsupported; expected unsigned decimal, octal, or hexadecimal digits",
+        )
+    };
+    if digits.is_empty() {
+        return Err(invalid());
+    }
+    let mut value = 0u128;
+    for unit in digits {
+        let digit = char::from_u32(*unit)
+            .and_then(|c| c.to_digit(radix))
+            .ok_or_else(invalid)?;
+        value = value
+            .wrapping_mul(u128::from(radix))
+            .wrapping_add(u128::from(digit));
+    }
+    Ok(value)
 }
 
 fn parse_literal<F>(source: &str, offset: usize) -> Result<Quad, Error>
@@ -438,12 +568,28 @@ where
     Ok(value.convert(&mut false).value)
 }
 
-fn encode_float<F: Float>(value: Quad) -> u128
+fn encode_float<F: Float>(value: Quad, signaling: bool) -> u128
 where
     Quad: FloatConvert<F>,
 {
     let value: F = value.convert(&mut false).value;
-    value.to_bits()
+    if signaling {
+        F::snan(Some(value.to_bits())).copy_sign(value).to_bits()
+    } else {
+        value.to_bits()
+    }
+}
+
+/// Select the target default payload before widening its quiet representation.
+/// The separate signaling flag restores the original form on encoding.
+fn nan_storage<F: Float + FloatConvert<Quad>>(payload: u128, signaling: bool) -> Quad {
+    let value = if signaling {
+        let signaling = F::snan(Some(payload));
+        F::qnan(Some(signaling.to_bits()))
+    } else {
+        F::qnan(Some(payload))
+    };
+    value.convert(&mut false).value
 }
 
 fn convert_float<F>(value: ArithmeticValue, offset: usize) -> Result<Quad, Error>

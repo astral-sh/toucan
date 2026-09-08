@@ -100,7 +100,7 @@ fn query_reports_nonfinite_values_and_offsets() {
         ("1.0 / 0.0", "division by zero"),
         ("1e9999", "overflow"),
         ("0.0 / 0.0", "invalid operation"),
-        ("__builtin_nanf(\"\")", "non-finite"),
+        ("__builtin_nanf(\"invalid\")", "payload"),
         ("(Real)1.0 + missing", "missing"),
     ] {
         let error = evaluate_arithmetic(&unit, expression).unwrap_err();

@@ -22,6 +22,26 @@ impl Analyzer {
         })
     }
 
+    /// NaN constructors take a string payload and return the selected C format.
+    pub(crate) fn nan_builtin(&self, name: &str) -> Option<(FloatKind, bool)> {
+        Some(match name {
+            "__builtin_nanf" => (FloatKind::Float, false),
+            "__builtin_nan" => (FloatKind::Double, false),
+            "__builtin_nanl" => (FloatKind::LongDouble, false),
+            "__builtin_nansf" => (FloatKind::Float, true),
+            "__builtin_nans" => (FloatKind::Double, true),
+            "__builtin_nansl" => (FloatKind::LongDouble, true),
+            _ => return None,
+        })
+    }
+
+    /// Keep the payload conversion shared by type checking and retained uses.
+    pub(crate) fn nan_parameter_type(&self) -> Type {
+        let mut character = Type::new(TypeKind::Integer(IntegerKind::Char));
+        character.qualifiers.is_const = true;
+        character.pointer()
+    }
+
     /// Byte-swap prototypes use the compiler target's exact-width unsigned types.
     pub(crate) fn byte_swap_type(&self, name: &str) -> Option<Type> {
         let kind = match name {
@@ -139,6 +159,7 @@ impl Analyzer {
         let memory = self.memory_builtin_signature(name);
         let byte_swap = self.byte_swap_type(name);
         let infinity = self.infinity_builtin_kind(name);
+        let nan = self.nan_builtin(name);
         let bit_count = self.bit_count_type(name);
         let object_size = self.object_size_signature(name);
         let arity = match name {
@@ -149,6 +170,7 @@ impl Analyzer {
             _ if byte_swap.is_some() || bit_count.is_some() => 1,
             _ if object_size.is_some() => 2,
             _ if infinity.is_some() => 0,
+            _ if nan.is_some() => 1,
             _ => return Ok(None),
         };
         let arguments = &call.node.arguments;
@@ -160,6 +182,10 @@ impl Analyzer {
             ));
         }
         if let Some(kind) = infinity {
+            return Ok(Some(Type::new(TypeKind::Float(kind))));
+        }
+        if let Some((kind, _)) = nan {
+            self.check_assignment(&self.nan_parameter_type(), &arguments[0])?;
             return Ok(Some(Type::new(TypeKind::Float(kind))));
         }
         if let Some(signature) = memory {

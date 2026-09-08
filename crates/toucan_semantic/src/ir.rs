@@ -112,7 +112,7 @@ pub enum FloatingFormat {
 }
 
 /// An owned C floating value. Operations have already rounded in the target
-/// format; the bits retain negative zero, subnormal values, and infinities.
+/// format; the bits retain signed zero, subnormals, infinities, and NaN payloads.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub struct FloatingValue {
     pub(crate) kind: FloatKind,

@@ -219,7 +219,7 @@ fn unsupported_floating_macros_are_reported_and_can_fail_generation() {
     let report = directory.path().join("report.json");
     std::fs::write(
         &header,
-        "#define FINITE 0.1f\n#define UNSUPPORTED 1.0L\n#define NAN_VALUE __builtin_nan(\"\")\n",
+        "#define FINITE 0.1f\n#define UNSUPPORTED 1.0L\n#define NAN_VALUE __builtin_nan(\"\")\n#define SIGNALING_ARITHMETIC (__builtin_nans(\"1\") * 1.0)\n",
     )
     .unwrap();
     std::fs::write(&output, "existing bindings\n").unwrap();
@@ -240,7 +240,7 @@ fn unsupported_floating_macros_are_reported_and_can_fail_generation() {
     );
     let report: serde_json::Value =
         serde_json::from_slice(&std::fs::read(report).unwrap()).unwrap();
-    assert_eq!(report["floating_macros"], 1);
+    assert_eq!(report["floating_macros"], 2);
     assert!(
         report["skipped_macros"]
             .as_array()
@@ -254,8 +254,8 @@ fn unsupported_floating_macros_are_reported_and_can_fail_generation() {
             .as_array()
             .unwrap()
             .iter()
-            .any(|item| item["name"] == "NAN_VALUE"
-                && item["reason"].as_str().unwrap().contains("non-finite"))
+            .any(|item| item["name"] == "SIGNALING_ARITHMETIC"
+                && item["reason"].as_str().unwrap().contains("signaling NaN"))
     );
     let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
         .arg("bindgen")

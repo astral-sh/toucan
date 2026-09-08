@@ -170,6 +170,12 @@ pub enum Builtin {
     HugeValue,
     HugeValueFloat,
     HugeValueLongDouble,
+    Nan,
+    NanFloat,
+    NanLongDouble,
+    SignalingNan,
+    SignalingNanFloat,
+    SignalingNanLongDouble,
     ObjectSize,
     DynamicObjectSize,
     MemcpyChecked,
@@ -220,6 +226,12 @@ impl Builtin {
             "__builtin_huge_val" => Self::HugeValue,
             "__builtin_huge_valf" => Self::HugeValueFloat,
             "__builtin_huge_vall" => Self::HugeValueLongDouble,
+            "__builtin_nan" => Self::Nan,
+            "__builtin_nanf" => Self::NanFloat,
+            "__builtin_nanl" => Self::NanLongDouble,
+            "__builtin_nans" => Self::SignalingNan,
+            "__builtin_nansf" => Self::SignalingNanFloat,
+            "__builtin_nansl" => Self::SignalingNanLongDouble,
             "__builtin_object_size" => Self::ObjectSize,
             "__builtin_dynamic_object_size" => Self::DynamicObjectSize,
             "__builtin___memcpy_chk" => Self::MemcpyChecked,
@@ -1132,6 +1144,7 @@ impl Analyzer {
             && let Some(builtin) = Builtin::from_name(name)
         {
             let memory = self.memory_builtin_signature(name);
+            let nan = self.nan_builtin(name);
             let object_size = self.object_size_signature(name);
             let fortified = self.fortified_signature(name, offset)?;
             let unary_parameter = self
@@ -1173,6 +1186,11 @@ impl Analyzer {
                     (
                         UseContext::Value,
                         Some((ty.clone(), Conversion::Assignment)),
+                    )
+                } else if nan.is_some() {
+                    (
+                        UseContext::Value,
+                        Some((self.nan_parameter_type(), Conversion::Assignment)),
                     )
                 } else if builtin == Builtin::Expect {
                     (

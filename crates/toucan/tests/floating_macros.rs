@@ -4,6 +4,29 @@ use std::process::Command;
 use toucan::{BindingOptions, Config, RustTarget, Target};
 
 const CASES: &[(&str, &str, &str)] = &[
+    ("NAN_PAYLOAD", "__builtin_nanf(\"0x12345\")", "float"),
+    ("NAN_DOUBLE", "__builtin_nan(\"077\")", "double"),
+    ("SIGNALING", "__builtin_nansf(\"1\")", "float"),
+    ("SIGNALING_DOUBLE", "__builtin_nans(\"0\")", "double"),
+    ("NEGATIVE_NAN", "-__builtin_nanf(\"1\")", "float"),
+    ("NEGATIVE_SIGNALING", "-__builtin_nans(\"1\")", "double"),
+    ("NAN_WIDENING", "(double)__builtin_nansf(\"1\")", "double"),
+    (
+        "NAN_NARROWING",
+        "(float)__builtin_nan(\"0xffffffffffffffff\")",
+        "float",
+    ),
+    ("NAN_EXTENDED", "(double)__builtin_nanl(\"1\")", "double"),
+    (
+        "SIGNALING_EXTENDED",
+        "(double)__builtin_nansl(\"1\")",
+        "double",
+    ),
+    (
+        "NAN_ARITHMETIC",
+        "__builtin_nanf(\"1\") + __builtin_nanf(\"2\")",
+        "float",
+    ),
     ("INFINITY", "__builtin_inff()", "float"),
     ("NEGATIVE_INFINITY", "-__builtin_inf()", "double"),
     ("HUGE", "__builtin_huge_valf()", "float"),
@@ -60,13 +83,15 @@ fn floating_macros_keep_types_and_report_unsupported_values() {
                     ..BindingOptions::default()
                 })
                 .unwrap();
-            assert_eq!(report.floating_macros, 3);
+            assert_eq!(report.floating_macros, 4);
             assert_eq!(report.integer_macros, 3);
             assert_eq!(report.string_macros, 1);
             assert!(bindings.contains("pub const FLOAT: ::core::primitive::f32"));
             assert!(bindings.contains("pub const DOUBLE: ::core::primitive::f64"));
             assert!(bindings.contains("pub const INFINITY_VALUE: ::core::primitive::f64"));
             assert!(bindings.contains("0x7ff0000000000000"));
+            assert!(bindings.contains("pub const NAN_VALUE: ::core::primitive::f32"));
+            assert!(bindings.contains("0x7fc00000"));
             assert!(bindings.contains("0x3dcccccd") && bindings.contains("0x8000000000000000"));
             assert_eq!(bindings.contains("::from_bits("), minor >= 83);
             assert_eq!(bindings.contains("::mem::transmute"), minor < 83);
@@ -80,7 +105,6 @@ fn floating_macros_keep_types_and_report_unsupported_values() {
                 ("WIDE", "long double"),
                 ("OVERFLOW", "overflow"),
                 ("DIVZERO", "division by zero"),
-                ("NAN_VALUE", "non-finite"),
             ] {
                 assert!(
                     report

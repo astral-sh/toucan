@@ -63,8 +63,9 @@ translated into Rust functions.
 
 Floating macro expressions are evaluated with the target's C precision and rounding.
 Generated `f32` and `f64` constants preserve exact bits, including signed zero,
-subnormals, and infinities. `long double`, NaN builtins, and unsupported expressions
-are reported as omitted; explicit casts to `float` or `double` are supported.
+subnormals, infinities, and NaN payloads. NaN constructors support literal decimal,
+octal, and hexadecimal payloads. `long double` and unsupported expressions are
+reported as omitted; explicit casts to `float` or `double` are supported.
 
 An object macro replaces a same-named enum constant in the generated bindings.
 Self-aliases such as `#define VALUE VALUE` retain the enum representation. Macros
