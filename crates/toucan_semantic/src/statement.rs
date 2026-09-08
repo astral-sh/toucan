@@ -642,6 +642,7 @@ impl Analyzer {
         for item in &declaration.node.declarators {
             let (name, mut ty, extra) =
                 self.declarator(base.clone(), &item.node.declarator, &attributes)?;
+            extra.check_nodebug_subject()?;
             if is_typedef {
                 self.align_typedef(
                     &mut ty,

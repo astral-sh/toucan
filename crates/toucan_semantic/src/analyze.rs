@@ -469,6 +469,7 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Attributes {
+    nodebug_arguments: Option<usize>,
     pub(crate) transparent_union: Option<lang_c::span::Span>,
     pub(crate) weak: Option<lang_c::span::Span>,
     pub(crate) returns_twice: Option<lang_c::span::Span>,
@@ -488,6 +489,14 @@ pub(crate) struct Attributes {
 }
 
 impl Attributes {
+    /// Clang checks arity only after recognizing a supported declaration subject.
+    pub(crate) fn check_nodebug_subject(&self) -> Result<(), Error> {
+        if let Some(offset) = self.nodebug_arguments {
+            return Err(Error::new(offset, "nodebug takes no arguments"));
+        }
+        Ok(())
+    }
+
     pub(crate) fn require_no_transparent_union(&self) -> Result<(), Error> {
         if let Some(span) = self.transparent_union {
             return Err(Error::new(
@@ -960,6 +969,7 @@ impl Analyzer {
             let (ty, attributes) = self.specifiers(
                 &declaration.node.specifiers[..declaration.node.specifiers.len() - 1],
             )?;
+            attributes.check_nodebug_subject()?;
             attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
@@ -1029,6 +1039,7 @@ impl Analyzer {
             let declarator = self.declarator(base.clone(), &item.node.declarator, &attributes);
             self.definition_parameters = previous_parameters;
             let (name, mut ty, mut declarator_attributes) = declarator?;
+            declarator_attributes.check_nodebug_subject()?;
             if self.unit.is_variably_modified(&ty)? {
                 return Err(Error::new(
                     item.span.start,
@@ -2151,6 +2162,10 @@ impl Analyzer {
             attributes.type_use,
             attributes.type_name_use,
         )?;
+        extra.nodebug_arguments = extra.nodebug_arguments.or(attributes.nodebug_arguments);
+        if name.is_some() {
+            self.check_nodebug_function_like(&ty, &extra)?;
+        }
         extra.weak = extra.weak.or(attributes.weak);
         extra.returns_twice = extra.returns_twice.or(attributes.returns_twice);
         extra.noreturn = extra.noreturn.or(attributes.noreturn);
@@ -2205,6 +2220,7 @@ impl Analyzer {
             None
         };
         let mut alias_convention = None;
+        let mut nodebug_arguments = None;
         let split = declaration
             .node
             .derived
@@ -2233,6 +2249,8 @@ impl Analyzer {
                                     ..Attributes::default()
                                 };
                                 self.attributes(extensions, &mut attributes)?;
+                                nodebug_arguments =
+                                    nodebug_arguments.or(attributes.nodebug_arguments);
                                 if alias_base {
                                     merge_convention(
                                         &mut alias_convention,
@@ -2493,6 +2511,7 @@ impl Analyzer {
                                     attributes.type_use,
                                     attributes.type_name_use,
                                 )?;
+                                self.check_nodebug_function_like(&ty, &extra)?;
                                 extra.require_function_attributes(false)?;
                                 extra.require_no_weak()?;
                                 extra.require_no_transparent_union()?;
@@ -2507,6 +2526,8 @@ impl Analyzer {
                         )?;
                         let mut extra = Attributes::default();
                         self.attributes(&parameter.node.extensions, &mut extra)?;
+                        self.check_nodebug_function_like(&parameter_type, &attributes)?;
+                        self.check_nodebug_function_like(&parameter_type, &extra)?;
                         extra.require_function_attributes(false)?;
                         extra.require_no_weak()?;
                         extra.require_no_transparent_union()?;
@@ -2728,6 +2749,7 @@ impl Analyzer {
         }
         let mut attributes = Attributes::default();
         self.attributes(&declaration.node.extensions, &mut attributes)?;
+        attributes.nodebug_arguments = attributes.nodebug_arguments.or(nodebug_arguments);
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, declaration.span.start)?;
         }
@@ -2766,6 +2788,9 @@ impl Analyzer {
                 if inner_attributes.link_name.is_some() {
                     attributes.link_name = inner_attributes.link_name;
                 }
+                attributes.nodebug_arguments = attributes
+                    .nodebug_arguments
+                    .or(inner_attributes.nodebug_arguments);
                 attributes.weak = attributes.weak.or(inner_attributes.weak);
                 attributes.returns_twice =
                     attributes.returns_twice.or(inner_attributes.returns_twice);
@@ -3405,6 +3430,20 @@ impl Analyzer {
         Ok(())
     }
 
+    /// Function-pointer fields and parameters are valid Clang nodebug subjects.
+    fn check_nodebug_function_like(&self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
+        if attributes.nodebug_arguments.is_none() {
+            return Ok(());
+        }
+        let kind = &self.unit.resolve(ty)?.kind;
+        if matches!(kind, TypeKind::Function(_))
+            || matches!(kind, TypeKind::Pointer(element) if matches!(self.unit.resolve(element)?.kind, TypeKind::Function(_)))
+        {
+            attributes.check_nodebug_subject()?;
+        }
+        Ok(())
+    }
+
     fn attributes(
         &mut self,
         extensions: &[Node<ast::Extension>],
@@ -3422,6 +3461,15 @@ impl Analyzer {
                 ast::Extension::Attribute(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
                     match name {
+                        "nodebug" => {
+                            // Debug information is outside the retained semantic graph.
+                            // GCC ignores this unknown attribute, including its arguments.
+                            if self.unit.compiler == Compiler::Clang
+                                && !attribute.arguments.is_empty()
+                            {
+                                result.nodebug_arguments = Some(extension.span.start);
+                            }
+                        }
                         "transparent_union" => {
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(

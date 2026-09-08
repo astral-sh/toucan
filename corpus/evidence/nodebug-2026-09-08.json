@@ -1,0 +1,607 @@
+{
+  "date": "2026-09-08",
+  "baseline": {
+    "commit": "332467047abf56dc41c91d6d9fbd94469b3f35fd",
+    "additional_patch": "toucan-half-types.patch",
+    "additional_patch_sha256": "39d5b2e61b8d7ca28aa099ae3ab2341453594b5ff413ffc28f526138d261b7ae"
+  },
+  "scope": "Declaration nodebug handling with Clang subject-dependent arity checks. Debug policy is discarded, documented, and not represented as ABI semantics. GCC ignores this unknown attribute. No other unknown attribute is whitelisted.",
+  "compiler_versions": {
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+  },
+  "compiler_probes": {
+    "invocations": 238,
+    "source_cases": {
+      "function": "__attribute__((nodebug)) int f(void){return 1;}",
+      "prototype": "int f(void) __attribute__((__nodebug__));",
+      "variable": "int v __attribute__((nodebug));",
+      "local": "void f(void){int x __attribute__((nodebug))=1;(void)x;}",
+      "typedef": "typedef int T __attribute__((nodebug)); T v;",
+      "callback": "typedef int (*F)(void) __attribute__((nodebug));",
+      "parameter": "int f(int x __attribute__((nodebug))){return x;}",
+      "field": "struct S {int x __attribute__((nodebug));};",
+      "tag": "struct __attribute__((nodebug)) S {int x;};",
+      "enum": "enum __attribute__((nodebug)) E{A};",
+      "enumerator": "enum E{A __attribute__((nodebug))};",
+      "type_name": "int f(void){return sizeof(int __attribute__((nodebug)));}",
+      "function_args": "int f(void) __attribute__((nodebug(1)));",
+      "variable_args": "int v __attribute__((nodebug(unknown)));",
+      "field_args": "struct S{int x __attribute__((nodebug(1)));};",
+      "statement": "void f(void){__attribute__((nodebug));}",
+      "feature": "_Static_assert(__has_attribute(nodebug),\"supported\");"
+    },
+    "targets": [
+      "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu"
+    ],
+    "flags": [
+      "-std=gnu11",
+      "-fsyntax-only",
+      "optional -Werror=attributes"
+    ],
+    "representative_results": [
+      {
+        "compiler": "clang",
+        "case": "function",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "function",
+        "strict_attributes": true,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "prototype",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "prototype",
+        "strict_attributes": true,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "variable",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "variable",
+        "strict_attributes": true,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "local",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "local",
+        "strict_attributes": true,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "typedef",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "typedef",
+        "strict_attributes": true,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "callback",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "callback",
+        "strict_attributes": true,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "parameter",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/parameter.c:1:28: warning: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Wignored-attributes]\n    1 | int f(int x __attribute__((nodebug))){return x;}\n      |                            ^\n1 warning generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "parameter",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/parameter.c:1:28: error: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Werror,-Wignored-attributes]\n    1 | int f(int x __attribute__((nodebug))){return x;}\n      |                            ^\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "field",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/field.c:1:32: warning: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Wignored-attributes]\n    1 | struct S {int x __attribute__((nodebug));};\n      |                                ^\n1 warning generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "field",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/field.c:1:32: error: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Werror,-Wignored-attributes]\n    1 | struct S {int x __attribute__((nodebug));};\n      |                                ^\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "tag",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/tag.c:1:23: warning: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Wignored-attributes]\n    1 | struct __attribute__((nodebug)) S {int x;};\n      |                       ^\n1 warning generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "tag",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/tag.c:1:23: error: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Werror,-Wignored-attributes]\n    1 | struct __attribute__((nodebug)) S {int x;};\n      |                       ^\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "enum",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/enum.c:1:21: warning: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Wignored-attributes]\n    1 | enum __attribute__((nodebug)) E{A};\n      |                     ^\n1 warning generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "enum",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/enum.c:1:21: error: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Werror,-Wignored-attributes]\n    1 | enum __attribute__((nodebug)) E{A};\n      |                     ^\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "enumerator",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/enumerator.c:1:25: warning: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Wignored-attributes]\n    1 | enum E{A __attribute__((nodebug))};\n      |                         ^\n1 warning generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "enumerator",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/enumerator.c:1:25: error: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Werror,-Wignored-attributes]\n    1 | enum E{A __attribute__((nodebug))};\n      |                         ^\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "type_name",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/type_name.c:1:46: warning: 'nodebug' attribute ignored when parsing type [-Wignored-attributes]\n    1 | int f(void){return sizeof(int __attribute__((nodebug)));}\n      |                                              ^~~~~~~\n1 warning generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "type_name",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/type_name.c:1:46: error: 'nodebug' attribute ignored when parsing type [-Werror,-Wignored-attributes]\n    1 | int f(void){return sizeof(int __attribute__((nodebug)));}\n      |                                              ^~~~~~~\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "function_args",
+        "strict_attributes": false,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/function_args.c:1:28: error: 'nodebug' attribute takes no arguments\n    1 | int f(void) __attribute__((nodebug(1)));\n      |                            ^\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "function_args",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/function_args.c:1:28: error: 'nodebug' attribute takes no arguments\n    1 | int f(void) __attribute__((nodebug(1)));\n      |                            ^\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "variable_args",
+        "strict_attributes": false,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/variable_args.c:1:30: error: use of undeclared identifier 'unknown'\n    1 | int v __attribute__((nodebug(unknown)));\n      |                              ^\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "variable_args",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/variable_args.c:1:30: error: use of undeclared identifier 'unknown'\n    1 | int v __attribute__((nodebug(unknown)));\n      |                              ^\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "field_args",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/field_args.c:1:31: warning: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Wignored-attributes]\n    1 | struct S{int x __attribute__((nodebug(1)));};\n      |                               ^\n1 warning generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "field_args",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/field_args.c:1:31: error: 'nodebug' attribute only applies to typedefs, functions, function pointers, Objective-C methods, and variables [-Werror,-Wignored-attributes]\n    1 | struct S{int x __attribute__((nodebug(1)));};\n      |                               ^\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "statement",
+        "strict_attributes": false,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/statement.c:1:29: error: 'nodebug' attribute cannot be applied to a statement\n    1 | void f(void){__attribute__((nodebug));}\n      |                             ^        ~\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "statement",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/statement.c:1:29: error: 'nodebug' attribute cannot be applied to a statement\n    1 | void f(void){__attribute__((nodebug));}\n      |                             ^        ~\n1 error generated.\n"
+      },
+      {
+        "compiler": "clang",
+        "case": "feature",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "clang",
+        "case": "feature",
+        "strict_attributes": true,
+        "exit_code": 0,
+        "diagnostic": ""
+      },
+      {
+        "compiler": "gcc",
+        "case": "function",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/function.c:1:1: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | __attribute__((nodebug)) int f(void){return 1;}\n      | ^~~~~~~~~~~~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "function",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/function.c:1:1: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | __attribute__((nodebug)) int f(void){return 1;}\n      | ^~~~~~~~~~~~~\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "prototype",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/prototype.c:1:1: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | int f(void) __attribute__((__nodebug__));\n      | ^~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "prototype",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/prototype.c:1:1: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | int f(void) __attribute__((__nodebug__));\n      | ^~~\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "variable",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/variable.c:1:1: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | int v __attribute__((nodebug));\n      | ^~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "variable",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/variable.c:1:1: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | int v __attribute__((nodebug));\n      | ^~~\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "local",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/local.c: In function \u2018f\u2019:\n/home/dev-user/.cache/toucan/nodebug-probes/local.c:1:1: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | void f(void){int x __attribute__((nodebug))=1;(void)x;}\n      | ^~~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "local",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/local.c: In function \u2018f\u2019:\n/home/dev-user/.cache/toucan/nodebug-probes/local.c:1:1: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | void f(void){int x __attribute__((nodebug))=1;(void)x;}\n      | ^~~~\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "typedef",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/typedef.c:1:1: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | typedef int T __attribute__((nodebug)); T v;\n      | ^~~~~~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "typedef",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/typedef.c:1:1: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | typedef int T __attribute__((nodebug)); T v;\n      | ^~~~~~~\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "callback",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/callback.c:1:1: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | typedef int (*F)(void) __attribute__((nodebug));\n      | ^~~~~~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "callback",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/callback.c:1:1: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | typedef int (*F)(void) __attribute__((nodebug));\n      | ^~~~~~~\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "parameter",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/parameter.c:1:1: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | int f(int x __attribute__((nodebug))){return x;}\n      | ^~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "parameter",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/parameter.c:1:1: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | int f(int x __attribute__((nodebug))){return x;}\n      | ^~~\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "field",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/field.c:1:8: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | struct S {int x __attribute__((nodebug));};\n      |        ^\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "field",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/field.c:1:8: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | struct S {int x __attribute__((nodebug));};\n      |        ^\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "tag",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/tag.c:1:33: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | struct __attribute__((nodebug)) S {int x;};\n      |                                 ^\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "tag",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/tag.c:1:33: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | struct __attribute__((nodebug)) S {int x;};\n      |                                 ^\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "enum",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/enum.c:1:33: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | enum __attribute__((nodebug)) E{A};\n      |                                 ^\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "enum",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/enum.c:1:33: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | enum __attribute__((nodebug)) E{A};\n      |                                 ^\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "enumerator",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/enumerator.c:1:8: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | enum E{A __attribute__((nodebug))};\n      |        ^\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "enumerator",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/enumerator.c:1:8: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | enum E{A __attribute__((nodebug))};\n      |        ^\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "type_name",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/type_name.c: In function \u2018f\u2019:\n/home/dev-user/.cache/toucan/nodebug-probes/type_name.c:1:1: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | int f(void){return sizeof(int __attribute__((nodebug)));}\n      | ^~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "type_name",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/type_name.c: In function \u2018f\u2019:\n/home/dev-user/.cache/toucan/nodebug-probes/type_name.c:1:1: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | int f(void){return sizeof(int __attribute__((nodebug)));}\n      | ^~~\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "function_args",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/function_args.c:1:1: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | int f(void) __attribute__((nodebug(1)));\n      | ^~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "function_args",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/function_args.c:1:1: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | int f(void) __attribute__((nodebug(1)));\n      | ^~~\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "variable_args",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/variable_args.c:1:1: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | int v __attribute__((nodebug(unknown)));\n      | ^~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "variable_args",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/variable_args.c:1:1: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | int v __attribute__((nodebug(unknown)));\n      | ^~~\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "field_args",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/field_args.c:1:8: warning: \u2018nodebug\u2019 attribute directive ignored [-Wattributes]\n    1 | struct S{int x __attribute__((nodebug(1)));};\n      |        ^\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "field_args",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/field_args.c:1:8: error: \u2018nodebug\u2019 attribute directive ignored [-Werror=attributes]\n    1 | struct S{int x __attribute__((nodebug(1)));};\n      |        ^\ncc1: some warnings being treated as errors\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "statement",
+        "strict_attributes": false,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/statement.c: In function \u2018f\u2019:\n/home/dev-user/.cache/toucan/nodebug-probes/statement.c:1:1: warning: empty declaration\n    1 | void f(void){__attribute__((nodebug));}\n      | ^~~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "statement",
+        "strict_attributes": true,
+        "exit_code": 0,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/statement.c: In function \u2018f\u2019:\n/home/dev-user/.cache/toucan/nodebug-probes/statement.c:1:1: warning: empty declaration\n    1 | void f(void){__attribute__((nodebug));}\n      | ^~~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "feature",
+        "strict_attributes": false,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/feature.c:1:1: error: static assertion failed: \"supported\"\n    1 | _Static_assert(__has_attribute(nodebug),\"supported\");\n      | ^~~~~~~~~~~~~~\n"
+      },
+      {
+        "compiler": "gcc",
+        "case": "feature",
+        "strict_attributes": true,
+        "exit_code": 1,
+        "diagnostic": "/home/dev-user/.cache/toucan/nodebug-probes/feature.c:1:1: error: static assertion failed: \"supported\"\n    1 | _Static_assert(__has_attribute(nodebug),\"supported\");\n      | ^~~~~~~~~~~~~~\n"
+      }
+    ],
+    "all_target_results_identical_by_compiler": true,
+    "raw_sha256": "88adb3f184f2f69e6d4f8f8e5ec7f625d97c85908bf7e41beb43850dc8e6f6e8"
+  },
+  "validation": [
+    {
+      "command": "cargo test -p toucan --test nodebug -- --include-ignored",
+      "passed": 4,
+      "failed": 0,
+      "source_cases": 21,
+      "ordinary_retained_profiles": 7,
+      "compiler_profiles_executed": 6,
+      "log_sha256": "a824dee8e48289fd0ebc14a1b5c58ad9365efd1af5d38c5710da89d8f1748704",
+      "scope": "Declaration acceptance/diagnostics, ordinary-retained unit equality, exact generated-binding equality with unannotated declarations, Clang emitted LLVM debug metadata. Cross GCC AArch64 in the separate exploratory matrix."
+    },
+    {
+      "command": "cargo test --workspace --all-features --lib",
+      "passed": 148,
+      "failed": 0,
+      "log_sha256": "1aaedae7b6492378e167bb5c0347e00131b157c76f04b8e188e1860a05b80a08"
+    },
+    {
+      "command": "cargo clippy --workspace --all-features --all-targets -- -D warnings",
+      "result": "pass",
+      "log_sha256": "de4f94246f4dc4e2c675d40ad5deac071c6571de5c7f8268c862916a2f12bc53"
+    },
+    {
+      "command": "53 checked seeds \u00d7 seven profiles against checked_invariants",
+      "passed": 371,
+      "failed": 0,
+      "scope": "Deterministic public graph/acceptance/diagnostic parity replay, not sustained fuzzing."
+    }
+  ],
+  "allocations": {
+    "scope": "15 default-profile ordinary semantic inputs plus five Config constructors; exact half-baseline equality of calls and allocated bytes.",
+    "result": "equal",
+    "output": "semantic X86_64UnknownLinuxGnu 0: 95 26109 2\nsemantic X86_64UnknownLinuxGnu 1: 291 58480 1\nsemantic X86_64UnknownLinuxGnu 2: 244 45490 1\nconfig X86_64UnknownLinuxGnu: 448 20644 164\nsemantic Aarch64UnknownLinuxGnu 0: 96 26262 2\nsemantic Aarch64UnknownLinuxGnu 1: 292 58633 1\nsemantic Aarch64UnknownLinuxGnu 2: 245 45643 1\nconfig Aarch64UnknownLinuxGnu: 457 21292 168\nsemantic X86_64AppleDarwin 0: 95 26109 2\nsemantic X86_64AppleDarwin 1: 291 58480 1\nsemantic X86_64AppleDarwin 2: 244 45490 1\nconfig X86_64AppleDarwin: 477 22012 173\nsemantic Aarch64AppleDarwin 0: 86 25321 2\nsemantic Aarch64AppleDarwin 1: 281 57340 1\nsemantic Aarch64AppleDarwin 2: 235 44702 1\nconfig Aarch64AppleDarwin: 484 22619 176\nsemantic X86_64PcWindowsMsvc 0: 86 25321 2\nsemantic X86_64PcWindowsMsvc 1: 281 57340 1\nsemantic X86_64PcWindowsMsvc 2: 235 44702 1\nconfig X86_64PcWindowsMsvc: 431 20254 156\n",
+    "binary_sha256": "649a6897ed3879682f86ab5e3ac94845c5eeafd7d0bf716e511d364362f6b4a8",
+    "baseline_output_sha256": "351f432933bc8e80b02fc4e0c9640fdf46ec5a7c53c0012290dbbecef393e167"
+  },
+  "unchanged_clang_zstd": {
+    "binary": "/home/dev-user/.cache/toucan/nodebug-target/release/toucan",
+    "binary_sha256": "911c8f5b0ca7ff78cead60b92cc90eb1b6783abf9c2bf696e79472510dc61d3c",
+    "cases": [
+      {
+        "id": "zstd-zstd_common",
+        "source": "/home/dev-user/.cache/toucan/compiler-profile-projects/zstd-zstd_common/source.i",
+        "source_sha256": "e4010f4dda2098e3987da8e5d063bc25ed220182fb0035abc19d0a4dc434385d",
+        "command": [
+          "/home/dev-user/.cache/toucan/nodebug-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/compiler-profile-projects/zstd-zstd_common/source.i",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--compiler",
+          "clang"
+        ],
+        "exit_code": 1,
+        "stderr": "error: /usr/lib/llvm-18/lib/clang/18/include/mmintrin.h:37:39: unsupported C attribute `target`; its ABI effect is not assumed (preprocessed byte 2399)\n"
+      },
+      {
+        "id": "zstd-zstd_compress",
+        "source": "/home/dev-user/.cache/toucan/compiler-profile-projects/zstd-zstd_compress/source.i",
+        "source_sha256": "31e66f64208890e56c3c22de08919e1ccfddacdd2c686a7628ffd20c5da0938c",
+        "command": [
+          "/home/dev-user/.cache/toucan/nodebug-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/compiler-profile-projects/zstd-zstd_compress/source.i",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "--compiler",
+          "clang"
+        ],
+        "exit_code": 1,
+        "stderr": "error: /usr/lib/llvm-18/lib/clang/18/include/mmintrin.h:37:39: unsupported C attribute `target`; its ABI effect is not assumed (preprocessed byte 44285)\n"
+      }
+    ]
+  },
+  "remaining_limits": [
+    "Standalone attribute statements and label attributes remain unsupported for this spelling, including GCC warning-only placements.",
+    "Debug information is not retained or emitted; conservative __has_attribute predicates are unchanged.",
+    "The untouched Clang zstd sources still stop at target attribute; target options and min_vector_width remain separate work."
+  ],
+  "primary_source": "https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/include/clang/Basic/Attr.td#L1763"
+}

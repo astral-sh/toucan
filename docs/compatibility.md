@@ -281,6 +281,24 @@ contract. Native tests compile a wrapper containing `setjmp` and `longjmp` with
 GCC and Clang at `-O0` and `-O2`, then call the generated binding from optimized
 Rust. The fixture never jumps across a Rust frame or calls back into Rust.
 
+## Debug attributes
+
+`nodebug` and `__nodebug__` are accepted on declarations. Clang uses this
+attribute to suppress debug information for functions, variables, typedefs, and
+function-pointer declarations. Toucan checks its no-argument rule for those
+subjects, then discards it: the analysis graph and generated Rust do not preserve
+C debug-information policy. Types, layouts, linkage, and call signatures are
+unchanged. [Clang's subject definition](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/include/clang/Basic/Attr.td#L1763).
+
+Clang ignores inapplicable placements, including ordinary fields, parameters,
+and tags, with a warning. GCC 13 ignores the unknown attribute, including any
+arguments. Toucan accepts those declaration cases without reproducing the
+warnings, following its existing attribute-warning policy. Standalone attribute
+statements and label attributes remain unsupported here. Feature-query macros
+remain conservative; accepting this spelling does not advertise a debug backend.
+The [nodebug evidence](../corpus/evidence/nodebug-2026-09-08.json) records the
+compiler checks and remaining untouched-header blocker.
+
 ## Diagnostic attributes
 
 GNU `warning` and `error` attributes, including their underscored spellings,
