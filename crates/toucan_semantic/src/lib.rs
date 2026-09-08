@@ -27,6 +27,7 @@ mod introspection;
 mod ir;
 mod literals;
 mod narrow_float;
+mod nontemporal;
 mod object_alignment;
 mod object_extent;
 mod object_size;

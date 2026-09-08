@@ -213,6 +213,9 @@ impl Analyzer {
         if name == "__builtin_shuffle" {
             return self.shuffle_call_type(call).map(Some);
         }
+        if let Some(operation) = crate::nontemporal::NontemporalOperation::from_name(name) {
+            return self.nontemporal_call_type(operation, call).map(Some);
+        }
         if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
             return self.x86_call_type(intrinsic, call).map(Some);
         }

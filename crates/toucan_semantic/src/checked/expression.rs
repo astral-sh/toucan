@@ -47,6 +47,8 @@ pub enum Conversion {
     /// A compiler intrinsic's argument conversion, including GCC pointer/integer
     /// bridges and qualifier erasure that ordinary assignment does not permit.
     IntrinsicArgument,
+    /// Reinterprets equal-sized vector bits without converting their numeric lanes.
+    VectorReinterpret,
     /// Constructs a transparent-union argument through the selected field.
     TransparentUnion {
         field: super::EntityId,
@@ -196,6 +198,7 @@ pub enum Builtin {
     ComplexConjugateFloat,
     ComplexConjugateLongDouble,
     X86(crate::x86::X86Intrinsic),
+    Nontemporal(crate::nontemporal::NontemporalOperation),
     Sync(crate::sync::SyncOperation),
     Atomic(crate::atomic::AtomicOperation),
     C11Atomic(crate::c11_atomic::C11AtomicOperation),
@@ -331,7 +334,9 @@ impl Builtin {
             "__builtin_ctzl" => Self::CountTrailingZerosLong,
             "__builtin_ctzll" => Self::CountTrailingZerosLongLong,
             name => {
-                if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
+                if let Some(operation) = crate::nontemporal::NontemporalOperation::from_name(name) {
+                    Self::Nontemporal(operation)
+                } else if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
                     Self::X86(intrinsic)
                 } else if let Some(intrinsic) = crate::overflow::OverflowIntrinsic::from_name(name)
                 {
@@ -1543,6 +1548,11 @@ impl Analyzer {
             } else {
                 None
             };
+            let nontemporal = if let Builtin::Nontemporal(operation) = builtin {
+                Some((operation, self.nontemporal_value_type(operation, call)?))
+            } else {
+                None
+            };
             let memory = self.memory_builtin_signature(name);
             let nan = self.nan_builtin(name);
             let object_size = self.object_size_signature(name);
@@ -1580,6 +1590,22 @@ impl Analyzer {
                         Conversion::Assignment
                     };
                     (UseContext::Value, Some((destination, conversion)))
+                } else if let Some((operation, value)) = &nontemporal {
+                    (
+                        UseContext::Value,
+                        if index == operation.address_argument() {
+                            None
+                        } else {
+                            Some((
+                                value.clone(),
+                                if matches!(value.kind, TypeKind::Vector { .. }) {
+                                    Conversion::VectorReinterpret
+                                } else {
+                                    Conversion::Assignment
+                                },
+                            ))
+                        },
+                    )
                 } else if let Some((intrinsic, signature)) = &overflow {
                     (
                         if intrinsic.is_predicate() && index == 2 {

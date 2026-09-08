@@ -133,3 +133,7 @@ string. The CLI serializes borrowed typed envelopes directly so `serde_json::Val
 limits cannot cause an inspection panic. Consumers need a JSON decoder that
 preserves the integer width they use; decoding these fields directly into Rust
 `u128` works without `arbitrary_precision`.
+
+`Builtin::Nontemporal` adds load/store identity with ordinary argument edges.
+`Conversion::VectorReinterpret` denotes an equal-size bit reinterpretation,
+separate from numeric vector conversion. See [non-temporal accesses](nontemporal-accesses.md).

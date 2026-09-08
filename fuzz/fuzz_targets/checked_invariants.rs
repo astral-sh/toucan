@@ -923,8 +923,20 @@ fn expression_use(code: &CheckedCode, operand: &ExprUse) {
         code.type_use(operand.type_use()).unwrap().shape(),
         operand.effective_type()
     );
+    let mut source_type = code.expression(operand.expression()).unwrap().ty();
     for step in operand.conversions() {
         assert!(code.ty(step.target_type()).is_some());
+        if step.kind() == Conversion::VectorReinterpret {
+            assert!(matches!(
+                code.ty(source_type).unwrap().kind,
+                TypeKind::Vector { .. } | TypeKind::Typedef(_)
+            ));
+            assert!(matches!(
+                code.ty(step.target_type()).unwrap().kind,
+                TypeKind::Vector { .. }
+            ));
+        }
+        source_type = step.target_type();
         if let Conversion::TransparentUnion { field } = step.kind() {
             assert!(matches!(
                 code.entity(field).unwrap().kind(),

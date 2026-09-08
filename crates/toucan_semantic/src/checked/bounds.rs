@@ -912,6 +912,16 @@ impl Builder {
                 ..
             } => self.retype_use(value.type_use, ty, offset),
             ExprKind::BuiltinCall {
+                builtin:
+                    super::expression::Builtin::Nontemporal(
+                        crate::nontemporal::NontemporalOperation::Load,
+                    ),
+                arguments,
+                ..
+            } if matches!(ty.kind, TypeKind::Pointer(_)) => {
+                self.project_type_use(arguments[0].type_use, ty, TypeStep::Pointer, offset)
+            }
+            ExprKind::BuiltinCall {
                 builtin: super::expression::Builtin::C11Atomic(_),
                 arguments,
                 ..

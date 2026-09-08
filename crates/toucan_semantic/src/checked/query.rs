@@ -255,7 +255,8 @@ impl Builder {
                     operands(arguments)
                 }
                 // Clang's object-size builtins do not carry the const attribute.
-                Builtin::C11Atomic(_)
+                Builtin::Nontemporal(_)
+                | Builtin::C11Atomic(_)
                 | Builtin::Atomic(_)
                 | Builtin::Sync(_)
                 | Builtin::ObjectSize

@@ -223,3 +223,8 @@ rules and representation limits.
 The x86 Clang undefined-vector intrinsic preserves a stable unspecified result
 through its retained identity; it is neither a C constant nor LLVM per-use undef.
 See [unspecified vector values](undefined-vectors.md).
+
+[Non-temporal memory intrinsics](nontemporal-accesses.md) preserve their cache hint
+separately from atomic and volatile access semantics. Pointer-to-VLA loads retain
+their bound origins, and stored vector reinterpretations have an explicit
+conversion kind.
