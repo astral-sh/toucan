@@ -31,6 +31,14 @@ the configured in-memory resource headers.
 
 ## Recorded smoke tests
 
+The [exact-input profile smoke](evidence/input-profiles-2026-09-08.json) validates
+all four current byte-input harnesses at `48b7d73`, after atomic types and parser
+limits. The 31-second AddressSanitizer runs processed 139,050 preprocessing inputs,
+12,910 semantic inputs, 5,096 binding inputs, and 6,782 checked-code inputs without
+findings. Seeds cover every target profile for the three target-aware harnesses.
+Source and binary hashes are recorded; LeakSanitizer was unavailable under ptrace.
+These runs validate the changed harnesses and do not replace sustained campaigns.
+
 The [local evidence](evidence.json) records 382,661 preprocessing inputs, 446,536
 semantic inputs, and 25,192 binding inputs, with no findings in the final 61-second
 runs. An earlier semantic run found a parser timeout; the declaration analyzer now
