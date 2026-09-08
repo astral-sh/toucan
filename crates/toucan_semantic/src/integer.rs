@@ -160,6 +160,14 @@ impl Analyzer {
             ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
                 self.eval_expect(call)
             }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(|name| self.byte_swap_type(name))
+                    .is_some() =>
+            {
+                self.eval_byte_swap(call)
+            }
             ast::Expression::Cast(cast) => {
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 let destination = self.integer_type(&ty, offset)?;

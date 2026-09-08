@@ -118,6 +118,11 @@ type and pointer qualifiers. Retained calls identify the operation and preserve
 each argument's conversions. Memory-content constant evaluation and using these
 builtin names as function values remain unsupported.
 
+`__builtin_bswap16`, `__builtin_bswap32`, and `__builtin_bswap64` check and convert
+their arguments to the target's exact-width unsigned types. Constant evaluation
+swaps bytes after that conversion. The 64-bit result is `unsigned long` on Linux
+and `unsigned long long` on Darwin and Windows; both are 64 bits on these targets.
+
 ## GNU statement expressions
 
 Statement expressions (`({ ...; expression; })`) check their local declarations,

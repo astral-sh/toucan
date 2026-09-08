@@ -160,6 +160,9 @@ pub enum Builtin {
     Memcpy,
     Memmove,
     Memcmp,
+    ByteSwap16,
+    ByteSwap32,
+    ByteSwap64,
 }
 impl Builtin {
     fn from_name(name: &str) -> Option<Self> {
@@ -174,6 +177,9 @@ impl Builtin {
             "__builtin_memcpy" => Self::Memcpy,
             "__builtin_memmove" => Self::Memmove,
             "__builtin_memcmp" => Self::Memcmp,
+            "__builtin_bswap16" => Self::ByteSwap16,
+            "__builtin_bswap32" => Self::ByteSwap32,
+            "__builtin_bswap64" => Self::ByteSwap64,
             _ => return None,
         })
     }
@@ -1042,6 +1048,7 @@ impl Analyzer {
             && let Some(builtin) = Builtin::from_name(name)
         {
             let memory = self.memory_builtin_signature(name);
+            let byte_swap = self.byte_swap_type(name);
             let callee_occurrence = self
                 .code_builder()
                 .find(OccurrenceKind::Expression, &call.node.callee)?
@@ -1058,6 +1065,11 @@ impl Analyzer {
                     (
                         UseContext::Value,
                         Some((signature.parameters[index].clone(), Conversion::Assignment)),
+                    )
+                } else if let Some(ty) = &byte_swap {
+                    (
+                        UseContext::Value,
+                        Some((ty.clone(), Conversion::Assignment)),
                     )
                 } else if builtin == Builtin::Expect {
                     (
@@ -1331,6 +1343,57 @@ mod tests {
 
     fn scalar(code: &CheckedCode, id: TypeId, kind: IntegerKind) {
         assert_eq!(ty(code, id).kind, TypeKind::Integer(kind));
+    }
+
+    #[test]
+    fn byte_swaps_retain_converted_arguments_and_distinct_operations() {
+        for target in Target::ALL {
+            let code = checked(
+                "enum { x = __builtin_bswap16(0x1234) }; void f(short value) { __builtin_bswap16(value); __builtin_bswap32(value); __builtin_bswap64(value); }",
+                target,
+            );
+            let mut found = Vec::new();
+            for expression in &code.expressions {
+                let ExprKind::BuiltinCall {
+                    builtin, arguments, ..
+                } = &expression.kind
+                else {
+                    continue;
+                };
+                found.push(*builtin);
+                assert_eq!(arguments.len(), 1);
+                assert_eq!(arguments[0].context, UseContext::Value);
+                assert_eq!(arguments[0].effective_type, expression.ty);
+                assert_eq!(
+                    arguments[0].conversions.last().unwrap().kind,
+                    Conversion::Assignment
+                );
+                let kind = match builtin {
+                    Builtin::ByteSwap16 => IntegerKind::UnsignedShort,
+                    Builtin::ByteSwap32 => IntegerKind::UnsignedInt,
+                    Builtin::ByteSwap64
+                        if matches!(
+                            target,
+                            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                        ) =>
+                    {
+                        IntegerKind::UnsignedLong
+                    }
+                    Builtin::ByteSwap64 => IntegerKind::UnsignedLongLong,
+                    _ => panic!("byte swap"),
+                };
+                scalar(&code, expression.ty, kind);
+            }
+            assert_eq!(
+                found,
+                [
+                    Builtin::ByteSwap16,
+                    Builtin::ByteSwap16,
+                    Builtin::ByteSwap32,
+                    Builtin::ByteSwap64
+                ]
+            );
+        }
     }
 
     #[test]

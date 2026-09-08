@@ -12,6 +12,21 @@ pub(crate) struct MemorySignature {
 }
 
 impl Analyzer {
+    /// Byte-swap prototypes use the compiler target's exact-width unsigned types.
+    pub(crate) fn byte_swap_type(&self, name: &str) -> Option<Type> {
+        let kind = match name {
+            "__builtin_bswap16" => IntegerKind::UnsignedShort,
+            "__builtin_bswap32" => IntegerKind::UnsignedInt,
+            "__builtin_bswap64" => match self.unit.target {
+                toucan_target::Target::X86_64UnknownLinuxGnu
+                | toucan_target::Target::Aarch64UnknownLinuxGnu => IntegerKind::UnsignedLong,
+                _ => IntegerKind::UnsignedLongLong,
+            },
+            _ => return None,
+        };
+        Some(Type::new(TypeKind::Integer(kind)))
+    }
+
     /// Library builtins use the target's ordinary C parameter conversions.
     /// Keep this signature shared with retained argument-use construction.
     pub(crate) fn memory_builtin_signature(&self, name: &str) -> Option<MemorySignature> {
@@ -79,11 +94,13 @@ impl Analyzer {
             return Ok(None);
         };
         let memory = self.memory_builtin_signature(name);
+        let byte_swap = self.byte_swap_type(name);
         let arity = match name {
             "__builtin_va_start" | "__builtin_va_copy" | "__builtin_expect" => 2,
             "__builtin_va_end" => 1,
             "__builtin_unreachable" | "__builtin_trap" => 0,
             _ if memory.is_some() => 3,
+            _ if byte_swap.is_some() => 1,
             _ => return Ok(None),
         };
         let arguments = &call.node.arguments;
@@ -99,6 +116,10 @@ impl Analyzer {
                 self.check_assignment(parameter, argument)?;
             }
             return Ok(Some(signature.result));
+        }
+        if let Some(ty) = byte_swap {
+            self.check_assignment(&ty, &arguments[0])?;
+            return Ok(Some(ty));
         }
         match name {
             "__builtin_expect" => {
@@ -215,5 +236,26 @@ impl Analyzer {
         self.convert_arithmetic(second, &ty, call.span.start)?;
         self.convert_arithmetic(first, &ty, call.span.start)?
             .integer(call.span.start)
+    }
+
+    /// Converts the input before swapping exactly the prototype's number of bytes.
+    pub(crate) fn eval_byte_swap(
+        &mut self,
+        call: &Node<ast::CallExpression>,
+    ) -> Result<IntegerValue, Error> {
+        let offset = call.span.start;
+        let ty = self
+            .builtin_call_type(call)?
+            .ok_or_else(|| Error::new(offset, "expected builtin byte swap"))?;
+        let value = self.eval_arithmetic(&call.node.arguments[0])?;
+        let value = self
+            .convert_arithmetic(value, &ty, offset)?
+            .integer(offset)?;
+        Ok(IntegerValue::new(
+            value.value.swap_bytes() >> (128 - value.bits),
+            value.bits,
+            false,
+            value.rank,
+        ))
     }
 }
