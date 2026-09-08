@@ -473,8 +473,8 @@ code for these operations.
 - C++, K&R function definitions, complex types, unsupported calling conventions,
   and unknown ABI attributes are rejected.
 - Thread-local and atomic objects are checked by the semantic library. Direct TLS
-  bindings require C accessors; atomic storage and call ABIs still need a supported
-  Rust representation. Complete native `<stdatomic.h>` integration remains in progress.
+  bindings require C accessors. Atomic objects use the storage and scalar call
+  representations described below; aggregate calls still require C pointer accessors.
 - Extended floating-point types retain their identity but do not have supported
   layout or binding representations. `long double` has a target layout, but its Rust
   binding representation is not implemented.
@@ -784,10 +784,37 @@ GNU permits incomplete atomic types behind pointers. Existing diagnostics for
 unpromoted aligned-typedef arithmetic also apply to atomic values, preserving
 observable `typeof` alignment. Direct atomic aggregate member access is diagnosed as undefined; load a complete ordinary value first.
 
-Selected atomic bindings currently report that storage and call ABI need an
-explicit Rust representation. Atomic aggregate call conventions can differ from
-ordinary records even when their size matches. Atomic binding interoperability
-requires a separate storage and call-ABI implementation.
+Selected unqualified, naturally aligned atomic integers, Boolean values and
+mutable object pointers use `core::sync::atomic` storage with generated size and
+alignment assertions. Atomic enums use their compatible integer storage even
+when `rustified_enums` is enabled, so values outside the named enumerators remain
+representable. Function parameters and results use ordinary scalar carriers,
+including nested callbacks; a pointer to an atomic object still points to atomic
+storage. Altered scalar alignment and 128-bit atomic values require a separate
+call-ABI proof and are currently diagnosed. Their opaque object storage can still
+be used through C pointers when its layout is representable.
+
+Atomic floats, records, qualified objects and other storage without a compatible
+core atomic use private `UnsafeCell<MaybeUninit<[u8; N]>>` storage. Its `uninit()`
+constructor allocates storage only: a C initializer must establish the value
+before C reads it. The wrapper exposes no safe value access and is neither
+`Copy` nor automatically `Send`/`Sync`. Const and volatile atomic views retain
+separate opaque representations. Use C accessors for these objects.
+
+Records containing atomic storage omit `Copy`/`Clone`; union fields use
+`ManuallyDrop`. Packed atomic containment and sizes incompatible with Rust
+alignment are diagnosed. Atomic aggregates and records containing atomics cannot
+cross calls by value: C conventions can differ from ordinary records with the
+same size and alignment. C pointer accessors remain usable.
+
+[Generated atomic binding evidence](../corpus/evidence/atomic-bindings-2026-09-08.json)
+records actual GCC/Clang C↔Rust calls at O0/O2 on x86_64 Linux with Rust 1.64 and
+current Rust, including callbacks and a shared counter. Generated Rust 1.64
+layouts compile for all five targets; native calls on other targets are covered
+by the ignored tests when CI runs them. These checks do not prove every C/Rust
+concurrency interaction, atomic aggregate call ABI, or lock-free implementation.
+Atomic type collection is bounded, and selections without atomics allocate no
+atomic registry or containment cache.
 
 [Atomic type evidence](../corpus/evidence/atomic-types-2026-09-08.json) records
 compiler layout and constraint probes, native operations, retained graph checks,
