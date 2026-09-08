@@ -488,7 +488,9 @@ code for these operations.
   need to implement execution or lowering for its supported compiler intrinsics.
 - Declaration constraints still need broader conformance testing. Prototype-local
   tags retain distinct identities and are checked against GCC and Clang.
-- C++, K&R function definitions, complex types, unsupported calling conventions,
+- [C11 identifier-list definitions](old-style-definitions.md) preserve incoming
+  argument types, local parameter types and retained entry conversions.
+- C++, complex types, unsupported calling conventions,
   and unknown ABI attributes are rejected.
 - Thread-local and atomic objects are checked by the semantic library. Direct TLS
   bindings require C accessors. Atomic objects use the storage and scalar call

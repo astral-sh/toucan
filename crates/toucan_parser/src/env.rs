@@ -86,7 +86,12 @@ impl Env {
 
     pub fn finish_function_definition(&mut self, declarator: Option<&Node<Declarator>>) {
         let scopes = self.definition_scopes.take().unwrap_or_default();
-        let function = declarator.and_then(|declarator| function_parameters(&declarator.node));
+        let function = declarator
+            .and_then(|declarator| definition_function(&declarator.node))
+            .and_then(|derived| match derived {
+                DerivedDeclarator::Function(function) => Some(function),
+                _ => None,
+            });
         if let Some(function) = function {
             if let Some((_, symbols)) = scopes
                 .into_iter()
@@ -137,9 +142,11 @@ impl Env {
     }
 }
 
-fn function_parameters(declarator: &Declarator) -> Option<&Node<FunctionDeclarator>> {
+// The outer identifier-list function has no prototype scope to restore. It must
+// still stop the search before a returned callback's parameter list.
+fn definition_function(declarator: &Declarator) -> Option<&DerivedDeclarator> {
     if let DeclaratorKind::Declarator(ref inner) = declarator.kind.node {
-        if let Some(function) = function_parameters(&inner.node) {
+        if let Some(function) = definition_function(&inner.node) {
             return Some(function);
         }
     }
@@ -147,7 +154,8 @@ fn function_parameters(declarator: &Declarator) -> Option<&Node<FunctionDeclarat
         .derived
         .iter()
         .find_map(|derived| match &derived.node {
-            DerivedDeclarator::Function(function) => Some(function),
+            function @ DerivedDeclarator::Function(_)
+            | function @ DerivedDeclarator::KRFunction(_) => Some(function),
             _ => None,
         })
 }

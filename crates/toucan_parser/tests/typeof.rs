@@ -19,6 +19,18 @@ impl<'ast> Visit<'ast> for Operands {
 fn visible_typedefs_select_types_and_shadowed_names_select_expressions() {
     let cases: &[(&str, &[bool])] = &[
         (
+            "typedef int T; int (*f(a))(int T) int a; { typeof(T) x; }",
+            &[true],
+        ),
+        (
+            "typedef int T; int (*f(a))(int T); T value; typeof(T) after;",
+            &[true],
+        ),
+        (
+            "typedef int T; int (*f(a))(int T) int a; { typeof(T) x; } typeof(T) after;",
+            &[true, true],
+        ),
+        (
             "typedef long T; int (*f(int T))(int) { __typeof__(T) a; }",
             &[false],
         ),

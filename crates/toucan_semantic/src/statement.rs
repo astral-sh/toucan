@@ -20,9 +20,11 @@ pub(crate) struct FunctionScope {
     pub(crate) constants: Vec<(String, IntegerValue)>,
     pub(crate) parameters: Vec<Parameter>,
     pub(crate) register: HashSet<String>,
+    pub(crate) old_style: Option<crate::old_style::Signature>,
 }
 
 pub(crate) struct FunctionContext {
+    pub(crate) old_style: Option<crate::old_style::Signature>,
     pub(crate) target_options: crate::FunctionOptions,
     signature: FunctionType,
     parameter_scope: usize,
@@ -294,12 +296,7 @@ impl Analyzer {
         &mut self,
         definition: &Node<ast::FunctionDefinition>,
     ) -> Result<(), Error> {
-        if !definition.node.declarations.is_empty() {
-            return Err(Error::new(
-                definition.span.start,
-                "K&R function definitions are unsupported",
-            ));
-        }
+        crate::old_style::validate_definition_shape(definition)?;
         let name = declarator_name(&definition.node.declarator)
             .ok_or_else(|| Error::new(definition.span.start, "function definition has no name"))?;
         let declaration = Node::new(
@@ -330,7 +327,7 @@ impl Analyzer {
         let previous_options = self
             .definition_options
             .replace((definition_options, previous_index));
-        let result = self.declaration(&declaration, true);
+        let result = self.declaration_with_definition(&declaration, true, Some(definition));
         self.definition_options = previous_options;
         if let Some(checked) = &mut self.checked {
             checked.definition = None;
@@ -371,7 +368,7 @@ impl Analyzer {
             ));
         }
         self.variably_modified_parents.clear();
-        let parameters = self.function_scope.take();
+        let mut parameters = self.function_scope.take();
         let mut signature = *function;
         if let Some(parameters) = &parameters {
             signature.parameters = parameters.parameters.clone();
@@ -382,6 +379,7 @@ impl Analyzer {
             .cloned()
             .unwrap_or_default();
         self.current_function = Some(FunctionContext {
+            old_style: parameters.as_mut().and_then(|scope| scope.old_style.take()),
             target_options,
             signature,
             parameter_scope: self.lexical_scopes.len(),
@@ -888,6 +886,9 @@ impl Analyzer {
             {
                 ty = self.inherit_calling_convention(ty, previous)?;
             }
+            if function && let Some(index) = previous_file {
+                self.check_old_style_redeclaration(index, &ty, item.span.start)?;
+            }
             let internal_linkage = linked
                 && previous_file.is_some_and(|index| {
                     let declaration = &self.unit.declarations[index];
@@ -1172,7 +1173,10 @@ impl Analyzer {
     }
 
     pub(crate) fn validate_block_externs(&self) -> Result<(), Error> {
-        for declaration in &self.unit.declarations {
+        for (index, declaration) in self.unit.declarations.iter().enumerate() {
+            if let Some(previous) = self.block_externs.get(&declaration.name) {
+                self.check_old_style_redeclaration(index, &previous.ty, 0)?;
+            }
             if let Some(previous) = self.block_externs.get(&declaration.name)
                 && declaration.kind != DeclarationKind::Typedef
                 && (!self.compatible(&previous.ty, &declaration.ty)?

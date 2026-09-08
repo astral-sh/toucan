@@ -1,0 +1,746 @@
+{
+  "schema_version": 1,
+  "baseline_layers": [
+    "function-targets-2026-09-08",
+    "old-style-definitions-2026-09-08"
+  ],
+  "native_probes": [
+    {
+      "compiler": "gcc",
+      "source": "int f(a) __attribute__((unused)) int a; {return a;}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 1,
+      "stderr": "<stdin>:1:1: warning: parameter names (without types) in function declaration\n<stdin>:1:34: error: expected \u2018,\u2019 or \u2018;\u2019 before \u2018int\u2019\n<stdin>:1:41: error: expected identifier or \u2018(\u2019 before \u2018{\u2019 token\n",
+      "compiler_version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    {
+      "compiler": "gcc",
+      "source": "int f(a) __attribute__((returns_twice)) int a; {return a;}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 1,
+      "stderr": "<stdin>:1:1: warning: parameter names (without types) in function declaration\n<stdin>:1:41: error: expected \u2018,\u2019 or \u2018;\u2019 before \u2018int\u2019\n<stdin>:1:48: error: expected identifier or \u2018(\u2019 before \u2018{\u2019 token\n",
+      "compiler_version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    {
+      "compiler": "gcc",
+      "source": "int f(a) __attribute__((target(\"mmx\"))) int a[(__builtin_ia32_emms(),3)]; {return a[0];}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 1,
+      "stderr": "<stdin>:1:1: warning: parameter names (without types) in function declaration\n<stdin>:1:41: error: expected \u2018,\u2019 or \u2018;\u2019 before \u2018int\u2019\n<stdin>:1:75: error: expected identifier or \u2018(\u2019 before \u2018{\u2019 token\n",
+      "compiler_version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    {
+      "compiler": "gcc",
+      "source": "int f(a) __attribute__((target(\"no-mmx\"))) int a[(__builtin_ia32_emms(),3)]; {return a[0];}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 1,
+      "stderr": "<stdin>:1:1: warning: parameter names (without types) in function declaration\n<stdin>:1:44: error: expected \u2018,\u2019 or \u2018;\u2019 before \u2018int\u2019\n<stdin>:1:78: error: expected identifier or \u2018(\u2019 before \u2018{\u2019 token\n",
+      "compiler_version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    {
+      "compiler": "gcc",
+      "source": "__attribute__((target(\"mmx\"))) int f(a) int a[(__builtin_ia32_emms(),3)]; {return a[0];}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "compiler_version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    {
+      "compiler": "gcc",
+      "source": "__attribute__((target(\"no-mmx\"))) int f(a) int a[(__builtin_ia32_emms(),3)]; {return a[0];}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "compiler_version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    {
+      "compiler": "gcc",
+      "source": "int f(a) __attribute__((target(\"no-mmx\"))) int a[sizeof((__builtin_ia32_emms(),3))]; {return a[0];}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 1,
+      "stderr": "<stdin>:1:1: warning: parameter names (without types) in function declaration\n<stdin>:1:44: error: expected \u2018,\u2019 or \u2018;\u2019 before \u2018int\u2019\n<stdin>:1:86: error: expected identifier or \u2018(\u2019 before \u2018{\u2019 token\n",
+      "compiler_version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    {
+      "compiler": "gcc",
+      "source": "int f(a) __attribute__((returns_twice,target(\"mmx\"))) int a; {return a;}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 1,
+      "stderr": "<stdin>:1:1: warning: parameter names (without types) in function declaration\n<stdin>:1:55: error: expected \u2018,\u2019 or \u2018;\u2019 before \u2018int\u2019\n<stdin>:1:62: error: expected identifier or \u2018(\u2019 before \u2018{\u2019 token\n",
+      "compiler_version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    {
+      "compiler": "clang",
+      "source": "int f(a) __attribute__((unused)) int a; {return a;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 0,
+      "stderr": "<stdin>:1:25: warning: GCC does not allow 'unused' attribute in this position on a function definition [-Wgcc-compat]\n    1 | int f(a) __attribute__((unused)) int a; {return a;}\n      |                         ^\n<stdin>:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) __attribute__((unused)) int a; {return a;}\n      |     ^\n2 warnings generated.\n",
+      "compiler_version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    },
+    {
+      "compiler": "clang",
+      "source": "int f(a) __attribute__((returns_twice)) int a; {return a;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 0,
+      "stderr": "<stdin>:1:25: warning: GCC does not allow 'returns_twice' attribute in this position on a function definition [-Wgcc-compat]\n    1 | int f(a) __attribute__((returns_twice)) int a; {return a;}\n      |                         ^\n<stdin>:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) __attribute__((returns_twice)) int a; {return a;}\n      |     ^\n2 warnings generated.\n",
+      "compiler_version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    },
+    {
+      "compiler": "clang",
+      "source": "int f(a) __attribute__((target(\"mmx\"))) int a[(__builtin_ia32_emms(),3)]; {return a[0];}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 0,
+      "stderr": "<stdin>:1:25: warning: GCC does not allow 'target' attribute in this position on a function definition [-Wgcc-compat]\n    1 | int f(a) __attribute__((target(\"mmx\"))) int a[(__builtin_ia32_emms(),3)]; {return a[0];}\n      |                         ^\n<stdin>:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) __attribute__((target(\"mmx\"))) int a[(__builtin_ia32_emms(),3)]; {return a[0];}\n      |     ^\n2 warnings generated.\n",
+      "compiler_version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    },
+    {
+      "compiler": "clang",
+      "source": "int f(a) __attribute__((target(\"no-mmx\"))) int a[(__builtin_ia32_emms(),3)]; {return a[0];}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 1,
+      "stderr": "<stdin>:1:25: warning: GCC does not allow 'target' attribute in this position on a function definition [-Wgcc-compat]\n    1 | int f(a) __attribute__((target(\"no-mmx\"))) int a[(__builtin_ia32_emms(),3)]; {return a[0];}\n      |                         ^\n<stdin>:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) __attribute__((target(\"no-mmx\"))) int a[(__builtin_ia32_emms(),3)]; {return a[0];}\n      |     ^\n<stdin>:1:51: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | int f(a) __attribute__((target(\"no-mmx\"))) int a[(__builtin_ia32_emms(),3)]; {return a[0];}\n      |                                                   ^\n2 warnings and 1 error generated.\n",
+      "compiler_version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    },
+    {
+      "compiler": "clang",
+      "source": "__attribute__((target(\"mmx\"))) int f(a) int a[(__builtin_ia32_emms(),3)]; {return a[0];}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 0,
+      "stderr": "<stdin>:1:36: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | __attribute__((target(\"mmx\"))) int f(a) int a[(__builtin_ia32_emms(),3)]; {return a[0];}\n      |                                    ^\n1 warning generated.\n",
+      "compiler_version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    },
+    {
+      "compiler": "clang",
+      "source": "__attribute__((target(\"no-mmx\"))) int f(a) int a[(__builtin_ia32_emms(),3)]; {return a[0];}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 1,
+      "stderr": "<stdin>:1:39: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | __attribute__((target(\"no-mmx\"))) int f(a) int a[(__builtin_ia32_emms(),3)]; {return a[0];}\n      |                                       ^\n<stdin>:1:51: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | __attribute__((target(\"no-mmx\"))) int f(a) int a[(__builtin_ia32_emms(),3)]; {return a[0];}\n      |                                                   ^\n1 warning and 1 error generated.\n",
+      "compiler_version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    },
+    {
+      "compiler": "clang",
+      "source": "int f(a) __attribute__((target(\"no-mmx\"))) int a[sizeof((__builtin_ia32_emms(),3))]; {return a[0];}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 0,
+      "stderr": "<stdin>:1:25: warning: GCC does not allow 'target' attribute in this position on a function definition [-Wgcc-compat]\n    1 | int f(a) __attribute__((target(\"no-mmx\"))) int a[sizeof((__builtin_ia32_emms(),3))]; {return a[0];}\n      |                         ^\n<stdin>:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) __attribute__((target(\"no-mmx\"))) int a[sizeof((__builtin_ia32_emms(),3))]; {return a[0];}\n      |     ^\n2 warnings generated.\n",
+      "compiler_version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    },
+    {
+      "compiler": "clang",
+      "source": "int f(a) __attribute__((returns_twice,target(\"mmx\"))) int a; {return a;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "-x",
+        "c",
+        "-",
+        "-o",
+        "/tmp/tmpc1snf5zr/probe.s"
+      ],
+      "exit_code": 0,
+      "stderr": "<stdin>:1:25: warning: GCC does not allow 'returns_twice' attribute in this position on a function definition [-Wgcc-compat]\n    1 | int f(a) __attribute__((returns_twice,target(\"mmx\"))) int a; {return a;}\n      |                         ^\n<stdin>:1:39: warning: GCC does not allow 'target' attribute in this position on a function definition [-Wgcc-compat]\n    1 | int f(a) __attribute__((returns_twice,target(\"mmx\"))) int a; {return a;}\n      |                                       ^\n<stdin>:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) __attribute__((returns_twice,target(\"mmx\"))) int a; {return a;}\n      |     ^\n3 warnings generated.\n",
+      "compiler_version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    }
+  ],
+  "semantic_matrix": {
+    "sources": 8,
+    "profiles": [
+      "gnu-x86_64-linux",
+      "clang-x86_64-linux",
+      "clang-x86_64-darwin",
+      "clang-x86_64-windows"
+    ],
+    "normal_retained_parity": true,
+    "retained_checks": [
+      "identifier-list parameter sites",
+      "function-level returns_twice attribution",
+      "sparse function target options"
+    ]
+  },
+  "scope": "Native object/assembly decisions use local x86-64 GCC and Clang; other x86 semantic profiles run the same source matrix. This does not establish native Darwin or Windows execution.",
+  "test_log_sha256": "9a41c77f99a009d0151ced28d7e65880bbf11278bbdc8a3d0d537958b9c2ccc8",
+  "seed_replay": {
+    "result": "accepted=312 rejected=108",
+    "profiles": 7,
+    "checked_invariants": true,
+    "inputs": [
+      {
+        "path": "fuzz/seeds/checked/arm_sve_type_contexts.h",
+        "sha256": "e12832abb3e73a27caf2a20e60bfebfcd22a9c7926a5d038a9c204404b60d607"
+      },
+      {
+        "path": "fuzz/seeds/checked/arm_vector_declarations.h",
+        "sha256": "f9f987bdcd4f96446fb5a35649a3df1c6b6cc8884a391fbc8a2b7925a794c2a5"
+      },
+      {
+        "path": "fuzz/seeds/checked/atomic_builtins.h",
+        "sha256": "0d88c487f7aeedcab080b7afa3a55dbf2b37aba31e6f941aaf241f9310ff7b54"
+      },
+      {
+        "path": "fuzz/seeds/checked/atomic_nested_address.h",
+        "sha256": "38c0586b960f37be132d2059acc0fd01ebacb8a949dd27840240cb2bce187ee0"
+      },
+      {
+        "path": "fuzz/seeds/checked/atomic_nested_query.h",
+        "sha256": "5d41796c9a3fc5707639934b83146ffbf44333c490d8795527cb761f4e1bdf05"
+      },
+      {
+        "path": "fuzz/seeds/checked/atomic_type_bounds.h",
+        "sha256": "abaafd2911ad1f8e324220cdf58b18576c72c5bda4f59031264da42e9b4530a7"
+      },
+      {
+        "path": "fuzz/seeds/checked/atomic_type_initializers_gnu.h",
+        "sha256": "366fc39ea6d458f3868635693488a19283cd0ebc84e272a07c3819f99f1ae002"
+      },
+      {
+        "path": "fuzz/seeds/checked/atomic_types.h",
+        "sha256": "663e95c1ae40c903a134b84c5dd206f667d5bca0e221dc26b7930f59dfca9650"
+      },
+      {
+        "path": "fuzz/seeds/checked/auto_type.h",
+        "sha256": "be44eeeaece227b70ef7a073f3191c3fbcaafe8728bafc7faef2613c3c9c1a11"
+      },
+      {
+        "path": "fuzz/seeds/checked/bit_counts_llp64.h",
+        "sha256": "23012c6221f243332121ea370e6c64d43aeeed469cd2f721d52c827f43a6020a"
+      },
+      {
+        "path": "fuzz/seeds/checked/bit_counts_lp64.h",
+        "sha256": "e6b3a348a779c4c1ee904ac375a6eb5724ccd928536578678bd9f0fe3405c69d"
+      },
+      {
+        "path": "fuzz/seeds/checked/c11_atomic.h",
+        "sha256": "9fc4f43a1dda110ff4197061cb4b2a5a230a4a72a0168f2c318191907c27be89"
+      },
+      {
+        "path": "fuzz/seeds/checked/c11_atomic_bounds.h",
+        "sha256": "e42758721d03c5e90967d20d353b314fd0add024130a1da90271505b39b9496c"
+      },
+      {
+        "path": "fuzz/seeds/checked/clang_auto_declarators.h",
+        "sha256": "fbaba83d8639c9b2c8d94bcca160ba878737c6d088eb2922bc1cffbe9517c516"
+      },
+      {
+        "path": "fuzz/seeds/checked/constant_diagnostic.h",
+        "sha256": "52c2b561d4df19b37e2360557e07a54968318c5c45285bae2b470a828fcf3a80"
+      },
+      {
+        "path": "fuzz/seeds/checked/constant_query.h",
+        "sha256": "beaeef1bd10ab1e4f836b682b6d4e0ee820464b39d476bdf645e7fe814d8523e"
+      },
+      {
+        "path": "fuzz/seeds/checked/diagnostic_attributes.h",
+        "sha256": "b735ff1fdf998744f75f35305d65d19f5d6ef5d957e3dd7086b69242e0216921"
+      },
+      {
+        "path": "fuzz/seeds/checked/empty_definition.h",
+        "sha256": "42c7766a9813fdb8cd72b4bb79f449283e09b1e67fc0cbd20d718283e3455a31"
+      },
+      {
+        "path": "fuzz/seeds/checked/fallthrough.h",
+        "sha256": "293f48d428addb2be1433603ad1fe9535097a2973794da6b8857a16704464a8a"
+      },
+      {
+        "path": "fuzz/seeds/checked/fortified_intrinsics.h",
+        "sha256": "84c4844a0fd6d0d2ace5190a6bd6d009499cfbec6a0f07589470c904486c98af"
+      },
+      {
+        "path": "fuzz/seeds/checked/function_targets.h",
+        "sha256": "3b9b3c34dc008c82cb12ba6d4e36b39c25546df326c0aafa8f2977ccede9d0b3"
+      },
+      {
+        "path": "fuzz/seeds/checked/gnu_vector_shuffle.h",
+        "sha256": "a1ff3dff9a377868f46b1df5b844d765476a2a0905b2f725f8d8e438831b5878"
+      },
+      {
+        "path": "fuzz/seeds/checked/half_excess_precision.h",
+        "sha256": "f010f5c10f86ceee2150aba56056a39af5f1f80553048ac5ab457a58b4aaa1a2"
+      },
+      {
+        "path": "fuzz/seeds/checked/half_types.h",
+        "sha256": "35d9d28ea81d09001dfc0cc7e10f4b3ea7c85a3464837118b022a19b64916f8d"
+      },
+      {
+        "path": "fuzz/seeds/checked/infinity_intrinsics.h",
+        "sha256": "ca073050dc8b2888eaef3103794c32f2c3287e0104b70c1091868a89c482f218"
+      },
+      {
+        "path": "fuzz/seeds/checked/initializers.h",
+        "sha256": "e9a6b826d04bf52d5768f0593e822bfaf65c5bb90464ad015e27602fbe002dbc"
+      },
+      {
+        "path": "fuzz/seeds/checked/intrinsic_queries.h",
+        "sha256": "5e77a1bd5f381af3f186075aa89b98ac6556334bc1541d5e3a6113783896d2ae"
+      },
+      {
+        "path": "fuzz/seeds/checked/memory_and_byte_swap.h",
+        "sha256": "80ad3f010d25df1e061c1aa411c1e17e1d53bd8d612dda1e7e171f0ee755bc9e"
+      },
+      {
+        "path": "fuzz/seeds/checked/mixed_floating_conversions.h",
+        "sha256": "5b22eeed688c3b1f77ead8d112be3babe7badc89d79bc87ce7d8ce5aff826b0b"
+      },
+      {
+        "path": "fuzz/seeds/checked/mmx_deferred_immediate.h",
+        "sha256": "c0118bda7190a8b555c7d4da6af096eaaa7fb5c1fd78481c5a42ba7e7d83edb0"
+      },
+      {
+        "path": "fuzz/seeds/checked/mmx_intrinsics.h",
+        "sha256": "a8600338512a4e4c746baa0769e68673e309fced9c015b3d541f9ed3b6c9b692"
+      },
+      {
+        "path": "fuzz/seeds/checked/nan_intrinsics.h",
+        "sha256": "90781733ca46bbcc5631bd6152dff2d9d79d25406ea0c828928e38f86138032d"
+      },
+      {
+        "path": "fuzz/seeds/checked/nodebug.h",
+        "sha256": "855500c0b04ab927c4a8071832cfb445baa1b626b6f56ef9b7731fd9c09c751f"
+      },
+      {
+        "path": "fuzz/seeds/checked/object_extents.h",
+        "sha256": "3e8e64e70a051d66490376b991594981ad3ae62cd58ef32ca12b311f7a2f5ded"
+      },
+      {
+        "path": "fuzz/seeds/checked/object_size.h",
+        "sha256": "111c37a469bc3f4e1da8f53ba4a02715030a1c6a9c63ef55ac38d4d95ec0af86"
+      },
+      {
+        "path": "fuzz/seeds/checked/old_style_definitions.h",
+        "sha256": "cb445ebad7d83d5d3e9f97874f948277456e2bc930b53a7b967470b8d9fd25b1"
+      },
+      {
+        "path": "fuzz/seeds/checked/old_style_function_targets.h",
+        "sha256": "eafe71b44acf54e7efa82069c9d83b008367e4a4ad89e5f6d25f61662627c777"
+      },
+      {
+        "path": "fuzz/seeds/checked/overflow_nested_predicates.h",
+        "sha256": "f6c947da77f93b7adc02c096d4505445f5ba2d33546fe1932966849238f46d9a"
+      },
+      {
+        "path": "fuzz/seeds/checked/overflow_predicates.h",
+        "sha256": "d95193d8aee3a4c0e01b2b4d20b13f51ccfbe60f0334ebeddcf4a37663531a2a"
+      },
+      {
+        "path": "fuzz/seeds/checked/overflow_stores.h",
+        "sha256": "97f28f5ba4912d7ba43dcd4acd4c224a7765e5413ad29e747ac87832b64403df"
+      },
+      {
+        "path": "fuzz/seeds/checked/packed_enums.h",
+        "sha256": "01332268ae3469f82b331c15ddd2975e3b90580de1e2d575403c4e14fb730f6e"
+      },
+      {
+        "path": "fuzz/seeds/checked/prototype_typeof_ownership.h",
+        "sha256": "80ccf69fc59b1d40b1d3128798c520fc7353f34e821f7391c7248e86c16886ec"
+      },
+      {
+        "path": "fuzz/seeds/checked/query_evaluation.h",
+        "sha256": "424948b1d90a3ddaf933cd5dbc9940f43bcd4c2666bcaa7909760eefca604dde"
+      },
+      {
+        "path": "fuzz/seeds/checked/returns_twice.h",
+        "sha256": "4ca8d697df3f13dfa96aa2eb30742b935dabf303fdd023ec0d70df11a3c2f554"
+      },
+      {
+        "path": "fuzz/seeds/checked/runtime_extent_conversions.h",
+        "sha256": "a2e526e715744fd25aaa6c44ae9d58461a6328547c5bdcc28c7c71da4cdc4347"
+      },
+      {
+        "path": "fuzz/seeds/checked/sse_deferred_prefetch.h",
+        "sha256": "44bd4d552df66730866b90b4d444c50d5bfd41852b618ab2bd62d22903126837"
+      },
+      {
+        "path": "fuzz/seeds/checked/sse_intrinsics.h",
+        "sha256": "229012cb5ea76e8ba34d4c670b6538776c58c753426fe212075118535bce4d81"
+      },
+      {
+        "path": "fuzz/seeds/checked/statements.h",
+        "sha256": "9f1514806b2eb0f1690adfe81a7d5bd9cf9adba68b96f128c815099ba3a87012"
+      },
+      {
+        "path": "fuzz/seeds/checked/static_subobject_addresses.h",
+        "sha256": "4feb21b0f3430c979601283ab4892f8b164e40fcbc25476876ba7dd648540afa"
+      },
+      {
+        "path": "fuzz/seeds/checked/sync_builtins.h",
+        "sha256": "bb783275ef7a9913e6451a5716029fa6666450df3368a61ed82df4c2bcf301ab"
+      },
+      {
+        "path": "fuzz/seeds/checked/thread_local.h",
+        "sha256": "8eea8e0b838b15dddd7b817ff8843b4f9e4d372f0b6c85fec24f11023b3ab29b"
+      },
+      {
+        "path": "fuzz/seeds/checked/transparent_unions.h",
+        "sha256": "c2655beb8aee4094af0ed7a5c8ddfa1a66416edee73eb7abc0ce1e672fc50591"
+      },
+      {
+        "path": "fuzz/seeds/checked/type_introspection.h",
+        "sha256": "63cdff85138097a2ede434787a9f72a524afa47bca55d94a518af779b1e468ac"
+      },
+      {
+        "path": "fuzz/seeds/checked/type_uses.h",
+        "sha256": "b645b0dedfb872fe25318c2d1b01fdc4c8b0c623413c95630aca86513c07fb79"
+      },
+      {
+        "path": "fuzz/seeds/checked/undefined_bit_count.h",
+        "sha256": "a635d8b16021543e4db72f89cf0b1750621366e100785c3fefc6f2f42832e95e"
+      },
+      {
+        "path": "fuzz/seeds/checked/variadic_pack.h",
+        "sha256": "51278dcdaaf75751a48778f11bfda39d3eb5507fc7bce3ed4edcf766b2ad1050"
+      },
+      {
+        "path": "fuzz/seeds/checked/variadic_pack_generic.h",
+        "sha256": "d730bf1a3d80263553e2ab919983f63a783ce2435cf960569e2535ee483c3a6e"
+      },
+      {
+        "path": "fuzz/seeds/checked/vector_types.h",
+        "sha256": "ef9570aeaf7ec3899e00c82f77647cc2eb3b7f20e1d73839b81b62c8ec6717ea"
+      },
+      {
+        "path": "fuzz/seeds/checked/vla_type_identity.h",
+        "sha256": "36f943bba3cb55253b3f5ef77cbc138be515ff02073f83a6c69f34c6b692737f"
+      },
+      {
+        "path": "fuzz/seeds/checked/weak_symbols.h",
+        "sha256": "f843f4689d2dfb865d84f9da82a13e2e4c2cd0b5f74b32d353ee20e218d17f2d"
+      }
+    ]
+  },
+  "combined_workspace": {
+    "passed": 714,
+    "failed": 0,
+    "ignored": 0,
+    "command": "cargo test --workspace --all-features --no-fail-fast -- --include-ignored",
+    "test_log_sha256": "caaefb895e745fd274cc2ff2e89716380a84fbeb42c9a935aca654031b600b68",
+    "scope": "Combined initial function-target and old-style layers plus static-subobject fix. The first-linked correction and added target/old-style composition test passed subsequent focused checks; this full run predates declaration alignment."
+  },
+  "alignment_integration": {
+    "native_probes": [
+      {
+        "name": "same-scope-gcc",
+        "source": "void a(void){extern int x __attribute__((aligned(8))); extern int x __attribute__((aligned(32)));} extern int x;_Static_assert(__alignof__(x)==32,\"alignment\");",
+        "source_sha256": "3a65e79f1b33fb404e081ddcea46cfe1b5af4d9c9435a879fa33dcc5677c503a",
+        "command": [
+          "gcc",
+          "-std=gnu11",
+          "-fsyntax-only",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/same-scope-gcc.c"
+        ],
+        "exit_code": 0,
+        "stderr": ""
+      },
+      {
+        "name": "same-scope-clang",
+        "source": "void a(void){extern int x __attribute__((aligned(8))); extern int x __attribute__((aligned(32)));} extern int x;_Static_assert(__alignof__(x)==8,\"alignment\");",
+        "source_sha256": "a343e11296552821c09565534f433560cd5c02425f3a81a9e360abada2db0284",
+        "command": [
+          "clang",
+          "-std=gnu11",
+          "-fsyntax-only",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/same-scope-clang.c"
+        ],
+        "exit_code": 0,
+        "stderr": ""
+      },
+      {
+        "name": "parameter-2-gcc",
+        "source": "int f(a) int a __attribute__((aligned(16)));{_Static_assert(__alignof__(a)==16,\"alignment\");return a;}",
+        "source_sha256": "878f44734783f12766eeebeadc3c91e257090349b21e09db3447b2d132ba1e17",
+        "command": [
+          "gcc",
+          "-std=gnu11",
+          "-fsyntax-only",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-2-gcc.c"
+        ],
+        "exit_code": 1,
+        "stderr": "/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-2-gcc.c: In function \u2018f\u2019:\n/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-2-gcc.c:1:14: error: alignment may not be specified for \u2018a\u2019\n    1 | int f(a) int a __attribute__((aligned(16)));{_Static_assert(__alignof__(a)==16,\"alignment\");return a;}\n      |              ^\n/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-2-gcc.c:1:46: error: static assertion failed: \"alignment\"\n    1 | int f(a) int a __attribute__((aligned(16)));{_Static_assert(__alignof__(a)==16,\"alignment\");return a;}\n      |                                              ^~~~~~~~~~~~~~\n"
+      },
+      {
+        "name": "parameter-3-clang",
+        "source": "int f(a) int a __attribute__((aligned(16)));{_Static_assert(__alignof__(a)==16,\"alignment\");return a;}",
+        "source_sha256": "878f44734783f12766eeebeadc3c91e257090349b21e09db3447b2d132ba1e17",
+        "command": [
+          "clang",
+          "-std=gnu11",
+          "-fsyntax-only",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-3-clang.c"
+        ],
+        "exit_code": 0,
+        "stderr": "/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-3-clang.c:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) int a __attribute__((aligned(16)));{_Static_assert(__alignof__(a)==16,\"alignment\");return a;}\n      |     ^\n1 warning generated.\n"
+      },
+      {
+        "name": "native-4",
+        "source": "int f(a) int a __attribute__((aligned(16)));{if ((unsigned long)&a%16) return -1;return a;} int main(void){return f(7)!=7;}",
+        "source_sha256": "26c5223e3204af4d4b379679a5056d3d458a9b379aea01cd18bb3ab084cb0414",
+        "command": [
+          "clang",
+          "-std=gnu11",
+          "-O0",
+          "-o",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-4",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-4.c"
+        ],
+        "exit_code": 0,
+        "stderr": "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-4.c:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) int a __attribute__((aligned(16)));{if ((unsigned long)&a%16) return -1;return a;} int main(void){return f(7)!=7;}\n      |     ^\n1 warning generated.\n",
+        "execution": {
+          "command": [
+            "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-4"
+          ],
+          "exit_code": 0,
+          "sha256": "badd0d576d781f3b078337d35bd93677cbe1f201fe68fa1527c021263b5378f7"
+        }
+      },
+      {
+        "name": "native-5",
+        "source": "int f(a) int a __attribute__((aligned(16)));{if ((unsigned long)&a%16) return -1;return a;} int main(void){return f(7)!=7;}",
+        "source_sha256": "26c5223e3204af4d4b379679a5056d3d458a9b379aea01cd18bb3ab084cb0414",
+        "command": [
+          "clang",
+          "-std=gnu11",
+          "-O2",
+          "-o",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-5",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-5.c"
+        ],
+        "exit_code": 0,
+        "stderr": "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-5.c:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) int a __attribute__((aligned(16)));{if ((unsigned long)&a%16) return -1;return a;} int main(void){return f(7)!=7;}\n      |     ^\n1 warning generated.\n",
+        "execution": {
+          "command": [
+            "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-5"
+          ],
+          "exit_code": 0,
+          "sha256": "498c942f31f45fcb29af34e7d757460b5b2b3d644aabfe907c53ea69aeb5eafb"
+        }
+      },
+      {
+        "name": "parameter-6-gcc",
+        "source": "int f(a) int __attribute__((aligned(16))) a;{_Static_assert(__alignof__(a)==16,\"alignment\");return a;}",
+        "source_sha256": "2faa777792b6df26f3c669d2b235b5cd92301d2fad7cac9e6b829b577d5a93b9",
+        "command": [
+          "gcc",
+          "-std=gnu11",
+          "-fsyntax-only",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-6-gcc.c"
+        ],
+        "exit_code": 1,
+        "stderr": "/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-6-gcc.c: In function \u2018f\u2019:\n/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-6-gcc.c:1:43: error: alignment may not be specified for \u2018a\u2019\n    1 | int f(a) int __attribute__((aligned(16))) a;{_Static_assert(__alignof__(a)==16,\"alignment\");return a;}\n      |                                           ^\n/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-6-gcc.c:1:46: error: static assertion failed: \"alignment\"\n    1 | int f(a) int __attribute__((aligned(16))) a;{_Static_assert(__alignof__(a)==16,\"alignment\");return a;}\n      |                                              ^~~~~~~~~~~~~~\n"
+      },
+      {
+        "name": "parameter-7-clang",
+        "source": "int f(a) int __attribute__((aligned(16))) a;{_Static_assert(__alignof__(a)==16,\"alignment\");return a;}",
+        "source_sha256": "2faa777792b6df26f3c669d2b235b5cd92301d2fad7cac9e6b829b577d5a93b9",
+        "command": [
+          "clang",
+          "-std=gnu11",
+          "-fsyntax-only",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-7-clang.c"
+        ],
+        "exit_code": 0,
+        "stderr": "/home/dev-user/.cache/toucan/old-style-alignment-integration/parameter-7-clang.c:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) int __attribute__((aligned(16))) a;{_Static_assert(__alignof__(a)==16,\"alignment\");return a;}\n      |     ^\n1 warning generated.\n"
+      },
+      {
+        "name": "native-8",
+        "source": "int f(a) int __attribute__((aligned(16))) a;{if ((unsigned long)&a%16) return -1;return a;} int main(void){return f(7)!=7;}",
+        "source_sha256": "9a777419a51f83168149ec857adedefd9b453b401773cfa99262fb97913d74c0",
+        "command": [
+          "clang",
+          "-std=gnu11",
+          "-O0",
+          "-o",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-8",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-8.c"
+        ],
+        "exit_code": 0,
+        "stderr": "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-8.c:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) int __attribute__((aligned(16))) a;{if ((unsigned long)&a%16) return -1;return a;} int main(void){return f(7)!=7;}\n      |     ^\n1 warning generated.\n",
+        "execution": {
+          "command": [
+            "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-8"
+          ],
+          "exit_code": 0,
+          "sha256": "1d82605635a054a146a683bc9a2c3f8037c27e0e00c14b14475d9061f686635d"
+        }
+      },
+      {
+        "name": "native-9",
+        "source": "int f(a) int __attribute__((aligned(16))) a;{if ((unsigned long)&a%16) return -1;return a;} int main(void){return f(7)!=7;}",
+        "source_sha256": "9a777419a51f83168149ec857adedefd9b453b401773cfa99262fb97913d74c0",
+        "command": [
+          "clang",
+          "-std=gnu11",
+          "-O2",
+          "-o",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-9",
+          "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-9.c"
+        ],
+        "exit_code": 0,
+        "stderr": "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-9.c:1:5: warning: a function definition without a prototype is deprecated in all versions of C and is not supported in C23 [-Wdeprecated-non-prototype]\n    1 | int f(a) int __attribute__((aligned(16))) a;{if ((unsigned long)&a%16) return -1;return a;} int main(void){return f(7)!=7;}\n      |     ^\n1 warning generated.\n",
+        "execution": {
+          "command": [
+            "/home/dev-user/.cache/toucan/old-style-alignment-integration/native-9"
+          ],
+          "exit_code": 0,
+          "sha256": "c114c29282cbee220d9f87468532c726201f2e8ba93a477c1b8e9de6e25468d0"
+        }
+      }
+    ],
+    "resolution": "The frozen old-style report recorded an explicit guard for Clang parameter alignment. The integrated shared parameter checker now accepts and retains both Clang placements, preserves local/incoming int types without spurious conversions, and keeps GNU rejection.",
+    "focused_tests": {
+      "passed": 27,
+      "failed": 0,
+      "ignored": 0,
+      "log_sha256": "00c9ea9c322235179b2183e3ba75357c5631d01b4cc8819ce6ee911991172c15"
+    }
+  }
+}

@@ -580,6 +580,29 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         for parameter in body.parameters() {
             assert!(code.declaration(*parameter).is_some());
         }
+        if let Some(old_style) = body.old_style() {
+            assert_eq!(old_style.evaluation_order(), ParameterEvaluationOrder::UnspecifiedBetweenParameters);
+            assert_eq!(old_style.parameters().len(), body.parameters().len());
+            for (entry, parameter) in old_style.parameters().iter().zip(body.parameters()) {
+                assert_eq!(entry.declaration(), *parameter);
+                let site = code.declaration(*parameter).unwrap();
+                assert_eq!(site.scope(), body.scope());
+                assert_eq!(code.entity(site.entity()).unwrap().kind(), EntityKind::Parameter);
+                assert_eq!(code.occurrence(entry.identifier()).unwrap().kind(), OccurrenceKind::OldStyleParameter);
+                assert_eq!(coverage[entry.identifier().index()] & 16, 0);
+                coverage[entry.identifier().index()] |= 16;
+                let mut ty = code.type_use(entry.incoming()).unwrap().shape();
+                for conversion in entry.conversions() {
+                    assert_ne!(conversion.kind(), Conversion::AtomicLoad);
+                    ty = conversion.target_type();
+                    assert!(code.ty(ty).is_some());
+                }
+                assert_eq!(ty, site.ty());
+            }
+            for declaration in old_style.declarations() {
+                assert!(code.declaration_group(*declaration).is_some());
+            }
+        }
     }
     for (_, group) in code.declaration_groups() {
         assert!(code.occurrence(group.occurrence()).is_some());
@@ -781,6 +804,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     }
     for (id, occurrence) in code.occurrences() {
         match occurrence.kind() {
+            OccurrenceKind::OldStyleParameter => assert_ne!(coverage[id.index()] & 16, 0),
             OccurrenceKind::Expression => assert_ne!(coverage[id.index()] & 1, 0),
             OccurrenceKind::Statement => assert_ne!(coverage[id.index()] & 2, 0),
             OccurrenceKind::Initializer => assert_ne!(coverage[id.index()] & 4, 0),

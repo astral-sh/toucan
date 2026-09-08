@@ -444,6 +444,7 @@ impl Builder {
         result: TypeUseId,
         parameters: &[TypeUseId],
         scope: Option<ScopeId>,
+        old_style_parameters: Option<&[(OccurrenceId, super::SiteId)]>,
         ty: &Type,
         offset: usize,
     ) -> Result<TypeUseId, Error> {
@@ -459,6 +460,9 @@ impl Builder {
                         == EntityKind::Parameter
                 })
                 .collect();
+            let parameters = old_style_parameters.map_or(parameters, |parameters| {
+                parameters.iter().map(|(_, site)| *site).collect()
+            });
             functions.push(FunctionUse {
                 path: Vec::new(),
                 scope,
@@ -556,13 +560,14 @@ impl Builder {
         }
         Ok(())
     }
-    pub(crate) fn parameter_type_use(
+    pub(crate) fn parameter_type_use<T>(
         &mut self,
-        parameter: &Node<ast::ParameterDeclaration>,
+        parameter: &Node<T>,
+        kind: OccurrenceKind,
         id: TypeUseId,
         resolved: &TypeKind,
     ) -> Result<(), Error> {
-        if let Some(occurrence) = self.find(OccurrenceKind::Parameter, parameter)? {
+        if let Some(occurrence) = self.find(kind, parameter)? {
             self.budget.charge(0, 1, 0, parameter.span.start)?;
             let adjustment = match resolved {
                 TypeKind::Array { .. } | TypeKind::VariableArray { .. } => {

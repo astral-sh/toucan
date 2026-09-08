@@ -55,7 +55,8 @@ pub use references::{Reference, ReferenceKind};
 pub use statement::{
     Assembly, AssemblyLocation, AssemblyOperand, AssemblyText, Assertion, AssertionId, BlockItem,
     BodyId, Coverage as StatementStatus, DeclarationGroup, DeclarationGroupId, ForInitializer,
-    FunctionBody, Label, Statement, StatementCoverage, StatementId, StatementKind,
+    FunctionBody, Label, OldStyleDefinition, ParameterEntry, ParameterEvaluationOrder, Statement,
+    StatementCoverage, StatementId, StatementKind,
 };
 pub use target::{FunctionOptionSite, InlineTargetRequirement, InlineTargetStage, TargetAttribute};
 
@@ -173,6 +174,7 @@ pub enum OccurrenceKind {
     InitDeclarator,
     Declarator,
     Parameter,
+    OldStyleParameter,
     Field,
     StructDeclarator,
     Record,
@@ -1256,6 +1258,28 @@ impl<'ast> Visit<'ast> for Builder {
         ast::StructDeclarator,
         StructDeclarator
     );
+    fn visit_derived_declarator(
+        &mut self,
+        derived: &ast::DerivedDeclarator,
+        span: &lang_c::span::Span,
+    ) {
+        if self.error.is_some() {
+            return;
+        }
+        if let ast::DerivedDeclarator::KRFunction(identifiers) = derived {
+            for identifier in identifiers {
+                if let Err(error) = self.occurrence(
+                    OccurrenceKind::OldStyleParameter,
+                    &identifier.node,
+                    identifier.span,
+                ) {
+                    self.error = Some(error);
+                    return;
+                }
+            }
+        }
+        lang_c::visit::visit_derived_declarator(self, derived, span);
+    }
     visit_occurrence!(visit_init_declarator, ast::InitDeclarator, InitDeclarator);
     visit_occurrence!(visit_declarator, ast::Declarator, Declarator);
     visit_occurrence!(

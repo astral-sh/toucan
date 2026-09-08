@@ -657,7 +657,7 @@ pub(crate) fn storage_specifiers(
 }
 
 /// Finds the derivation applied last, including parenthesized declarators.
-fn outermost_derived(
+pub(crate) fn outermost_derived(
     mut declarator: &Node<ast::Declarator>,
 ) -> Option<&Node<ast::DerivedDeclarator>> {
     let mut outermost = None;
@@ -686,7 +686,17 @@ pub(crate) struct PreparedSpecifiers {
     record_attributes: Attributes,
 }
 
+#[derive(Clone, Copy)]
+struct DeclaratorContext<'a> {
+    parameter_array: Option<usize>,
+    alias_base: bool,
+    base_use: Option<crate::checked::TypeUseId>,
+    type_name: bool,
+    definition: Option<&'a Node<ast::FunctionDefinition>>,
+}
+
 pub(crate) struct Analyzer {
+    pub(crate) old_style_definitions: crate::old_style::Definitions,
     pub(crate) lexical_function_options: BTreeMap<usize, BTreeMap<String, crate::FunctionOptions>>,
     pub(crate) definition_options: Option<(crate::FunctionOptions, Option<usize>)>,
     pub(crate) function_options: BTreeMap<String, crate::FunctionOptions>,
@@ -776,6 +786,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            old_style_definitions: crate::old_style::Definitions::default(),
             lexical_function_options: BTreeMap::new(),
             definition_options: None,
             function_options: Self::inherited_function_options(&unit),
@@ -886,6 +897,7 @@ impl Analyzer {
                     .collect(),
                 parameters: scope.parameters.clone(),
                 register: scope.register.clone(),
+                old_style: None,
             });
         }
         for (name, previous) in scope.tags.into_iter().rev() {
@@ -979,6 +991,15 @@ impl Analyzer {
         &mut self,
         declaration: &Node<ast::Declaration>,
         definition: bool,
+    ) -> Result<(), Error> {
+        self.declaration_with_definition(declaration, definition, None)
+    }
+
+    pub(crate) fn declaration_with_definition(
+        &mut self,
+        declaration: &Node<ast::Declaration>,
+        definition: bool,
+        syntax: Option<&Node<ast::FunctionDefinition>>,
     ) -> Result<(), Error> {
         let storage = storage_specifiers(&declaration.node.specifiers, self.unit.compiler)?;
         if matches!(
@@ -1097,10 +1118,21 @@ impl Analyzer {
             let previous_parameters = self.definition_parameters;
             if definition {
                 self.definition_parameters = outermost_derived(&item.node.declarator)
-                    .filter(|derived| matches!(derived.node, ast::DerivedDeclarator::Function(_)))
+                    .filter(|derived| {
+                        matches!(
+                            derived.node,
+                            ast::DerivedDeclarator::Function(_)
+                                | ast::DerivedDeclarator::KRFunction(_)
+                        )
+                    })
                     .map(|derived| derived.span.start);
             }
-            let declarator = self.declarator(base.clone(), &item.node.declarator, attributes);
+            let declarator = self.declarator_with_definition(
+                base.clone(),
+                &item.node.declarator,
+                attributes,
+                syntax,
+            );
             self.definition_parameters = previous_parameters;
             let (name, mut ty, mut declarator_attributes) = declarator?;
             declarator_attributes.check_nodebug_subject()?;
@@ -1239,6 +1271,19 @@ impl Analyzer {
                 ));
             }
             let is_definition = definition || item.node.initializer.is_some();
+            if kind == DeclarationKind::Function {
+                if definition {
+                    self.prepare_old_style_definition(
+                        &name,
+                        &mut ty,
+                        previous_index,
+                        item.span.start,
+                    )?;
+                }
+                if let Some(index) = previous_index {
+                    self.check_old_style_redeclaration(index, &ty, item.span.start)?;
+                }
+            }
             let written_alignment = if is_typedef {
                 crate::DeclarationAlignment::default()
             } else {
@@ -1286,8 +1331,15 @@ impl Analyzer {
                     if let (TypeKind::Function(prior), TypeKind::Function(current)) = (
                         &self.unit.resolve(&previous.ty)?.kind,
                         &self.unit.resolve(&ty)?.kind,
-                    ) && ((definition && !current.prototype && !prior.parameters.is_empty())
+                    ) && ((definition
+                        && self
+                            .function_scope
+                            .as_ref()
+                            .is_none_or(|scope| scope.old_style.is_none())
+                        && !current.prototype
+                        && !prior.parameters.is_empty())
                         || (previous.is_definition
+                            && !self.has_old_style_definition(previous_index)
                             && !prior.prototype
                             && !current.parameters.is_empty()))
                     {
@@ -1402,6 +1454,9 @@ impl Analyzer {
                 });
                 index
             };
+            if definition {
+                self.save_old_style_definition(declaration_index, item.span.start)?;
+            }
             if let Some(options) = &function_options
                 && !options.is_default()
             {
@@ -2390,14 +2445,27 @@ impl Analyzer {
         declaration: &Node<ast::Declarator>,
         attributes: &Attributes,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
+        self.declarator_with_definition(ty, declaration, attributes, None)
+    }
+
+    fn declarator_with_definition(
+        &mut self,
+        ty: Type,
+        declaration: &Node<ast::Declarator>,
+        attributes: &Attributes,
+        definition: Option<&Node<ast::FunctionDefinition>>,
+    ) -> Result<(Option<String>, Type, Attributes), Error> {
         let alias_base = attributes.alias_base && !has_function_derivation(declaration);
         let (name, ty, mut extra) = self.declarator_at(
             ty,
             declaration,
-            None,
-            alias_base,
-            attributes.type_use,
-            attributes.type_name_use,
+            DeclaratorContext {
+                parameter_array: None,
+                alias_base,
+                base_use: attributes.type_use,
+                type_name: attributes.type_name_use,
+                definition,
+            },
         )?;
         extra.target_type_name |= attributes.target_type_name;
         extra
@@ -2439,16 +2507,203 @@ impl Analyzer {
         Ok((name, ty, extra))
     }
 
+    pub(crate) fn check_parameter(
+        &mut self,
+        parameter: crate::parameters::ParameterSyntax<'_>,
+        prepared: Option<&(Type, Attributes)>,
+    ) -> Result<Option<crate::checked::SiteId>, Error> {
+        let mut site = None;
+        let storage = storage_specifiers(parameter.specifiers(), self.unit.compiler)?;
+        if storage.thread_local
+            || !matches!(
+                storage.class,
+                None | Some(ast::StorageClassSpecifier::Register)
+            )
+        {
+            return Err(Error::new(
+                parameter.span().start,
+                "only register storage is permitted for a parameter",
+            ));
+        }
+        if parameter
+            .specifiers()
+            .iter()
+            .any(|specifier| matches!(specifier.node, ast::DeclarationSpecifier::Alignment(_)))
+        {
+            return Err(Error::new(
+                parameter.span().start,
+                "alignment is not permitted on a parameter",
+            ));
+        }
+        let (base, mut attributes) = match prepared {
+            Some(prepared) => prepared.clone(),
+            None => self.specifiers(parameter.specifiers())?,
+        };
+        attributes.require_function_attributes(false)?;
+        attributes.require_no_weak()?;
+        attributes.require_no_transparent_union()?;
+        attributes.alias_base =
+            attributes.alias_base && !parameter.declarator().is_some_and(has_function_derivation);
+        let mut array_qualifiers = Qualifiers::default();
+        let mut array_atomic = false;
+        let (name, mut parameter_type, declared_type_use) =
+            if let Some(declarator) = parameter.declarator() {
+                let array = outermost_derived(declarator).and_then(|derived| {
+                    if let ast::DerivedDeclarator::Array(array) = &derived.node {
+                        Some((derived.span.start, array))
+                    } else {
+                        None
+                    }
+                });
+                if let Some((_, array)) = array {
+                    for qualifier in &array.node.qualifiers {
+                        add_qualifier(&mut array_qualifiers, &mut array_atomic, qualifier)?;
+                    }
+                }
+                let (name, ty, extra) = self.declarator_at(
+                    base,
+                    declarator,
+                    DeclaratorContext {
+                        parameter_array: array.map(|(offset, _)| offset),
+                        alias_base: attributes.alias_base,
+                        base_use: attributes.type_use,
+                        type_name: attributes.type_name_use,
+                        definition: None,
+                    },
+                )?;
+                self.check_nodebug_function_like(&ty, &extra)?;
+                extra.require_function_attributes(false)?;
+                extra.require_no_weak()?;
+                extra.require_no_transparent_union()?;
+                attributes.alignment = attributes.alignment.max(extra.alignment);
+                (name, ty, extra.type_use)
+            } else {
+                (None, base, attributes.type_use)
+            };
+        parameter_type =
+            self.apply_calling_convention(parameter_type, &attributes, parameter.span().start)?;
+        let mut extra = Attributes::default();
+        self.attributes(parameter.extensions(), &mut extra)?;
+        self.check_nodebug_function_like(&parameter_type, &attributes)?;
+        self.check_nodebug_function_like(&parameter_type, &extra)?;
+        extra.require_function_attributes(false)?;
+        extra.require_no_weak()?;
+        extra.require_no_transparent_union()?;
+        if let Some(bytes) = extra.vector_size {
+            parameter_type = self.vector_type(parameter_type, bytes, parameter.span().start)?;
+        }
+        parameter_type =
+            self.apply_calling_convention(parameter_type, &extra, parameter.span().start)?;
+        let parameter_alignment = self.check_declaration_alignment(
+            &parameter_type,
+            &attributes,
+            &extra,
+            crate::object_alignment::AlignmentSubject::Parameter,
+            parameter.span().start,
+        )?;
+        let qualifiers = self.unit.qualifiers(&parameter_type)?;
+        if matches!(self.unit.resolve(&parameter_type)?.kind, TypeKind::Void)
+            && (qualifiers != Qualifiers::default()
+                || (storage.class.is_some() && self.unit.compiler == toucan_target::Compiler::Gnu))
+        {
+            return Err(Error::new(
+                parameter.span().start,
+                "void parameter must be unqualified",
+            ));
+        }
+        if let (Some(checked), Some(id)) = (&mut self.checked, declared_type_use) {
+            parameter.retain_written_type(
+                checked,
+                id,
+                &self.unit.resolve(&parameter_type)?.kind,
+            )?;
+        }
+        parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
+                // Qualifying an array typedef qualifies its elements.
+                // Parameter adjustment removes only the array layer.
+                let mut element = (**element).clone();
+                element.qualifiers.is_const |= qualifiers.is_const;
+                element.qualifiers.is_volatile |= qualifiers.is_volatile;
+                element.qualifiers.is_restrict |= qualifiers.is_restrict;
+                let mut pointer = element.pointer();
+                pointer.qualifiers = array_qualifiers;
+                if array_atomic && self.gnu_sync_profile() {
+                    self.atomic_type(pointer, false, parameter.span().start)?
+                } else {
+                    pointer
+                }
+            }
+            TypeKind::Function(_) => parameter_type.pointer(),
+            _ => parameter_type,
+        };
+        if let Some(checked) = &mut self.checked
+            && (name.is_some()
+                || !matches!(self.unit.resolve(&parameter_type)?.kind, TypeKind::Void))
+        {
+            site = parameter.retain_declaration(
+                checked,
+                LocalDeclaration {
+                    name: name.as_deref(),
+                    name_span: parameter.declarator().and_then(declarator_name_span),
+                    ty: &parameter_type,
+                    kind: EntityKind::Parameter,
+                    storage: Storage::Automatic,
+                    linked: false,
+                    register: storage.class == Some(ast::StorageClassSpecifier::Register),
+                    definition: false,
+                    allocation: None,
+                },
+            )?;
+            if let Some(site) = site {
+                checked.attach_alignment(site, parameter_alignment, parameter_alignment)?;
+            }
+        }
+        if let Some(name) = &name {
+            self.retain_local_alignment(name, parameter_alignment);
+        }
+        let scope = self
+            .lexical_scopes
+            .last_mut()
+            .expect("prototype scope is active");
+        if let Some(name) = &name {
+            if parameter.specifiers().iter().any(|specifier| matches!(&specifier.node, ast::DeclarationSpecifier::StorageClass(storage) if storage.node == ast::StorageClassSpecifier::Register)) {
+                scope.register.insert(name.clone());
+            }
+            if scope
+                .names
+                .insert(name.clone(), Some(scope.parameters.len()))
+                .is_some()
+            {
+                return Err(Error::new(
+                    parameter.span().start,
+                    format!("duplicate parameter `{name}`"),
+                ));
+            }
+            let previous = self.unit.constants.remove(name);
+            scope.constants.push((name.clone(), previous));
+        }
+        scope.parameters.push(Parameter {
+            name,
+            ty: parameter_type,
+        });
+        Ok(site)
+    }
+
     /// `parameter_array` identifies the outermost array adjusted to a pointer.
     fn declarator_at(
         &mut self,
         mut ty: Type,
         declaration: &Node<ast::Declarator>,
-        parameter_array: Option<usize>,
-        alias_base: bool,
-        base_use: Option<crate::checked::bounds::TypeUseId>,
-        type_name: bool,
+        context: DeclaratorContext<'_>,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
+        let DeclaratorContext {
+            parameter_array,
+            alias_base,
+            base_use,
+            type_name,
+            definition,
+        } = context;
         if self.nesting >= 128 {
             return Err(Error::new(
                 declaration.span.start,
@@ -2710,206 +2965,15 @@ impl Analyzer {
                         .is_definition_parameters;
                     let prototype = !function.node.parameters.is_empty();
                     for parameter in &function.node.parameters {
-                        let storage =
-                            storage_specifiers(&parameter.node.specifiers, self.unit.compiler)?;
-                        if storage.thread_local
-                            || !matches!(
-                                storage.class,
-                                None | Some(ast::StorageClassSpecifier::Register)
-                            )
-                        {
-                            return Err(Error::new(
-                                parameter.span.start,
-                                "only register storage is permitted for a parameter",
-                            ));
-                        }
-                        if parameter.node.specifiers.iter().any(|specifier| {
-                            matches!(specifier.node, ast::DeclarationSpecifier::Alignment(_))
-                        }) {
-                            return Err(Error::new(
-                                parameter.span.start,
-                                "alignment is not permitted on a parameter",
-                            ));
-                        }
-                        let (base, mut attributes) = self.specifiers(&parameter.node.specifiers)?;
-                        attributes.require_function_attributes(false)?;
-                        attributes.require_no_weak()?;
-                        attributes.require_no_transparent_union()?;
-                        attributes.alias_base = attributes.alias_base
-                            && !parameter
-                                .node
-                                .declarator
-                                .as_ref()
-                                .is_some_and(has_function_derivation);
-                        let mut array_qualifiers = Qualifiers::default();
-                        let mut array_atomic = false;
-                        let (name, mut parameter_type, declared_type_use) =
-                            if let Some(declarator) = &parameter.node.declarator {
-                                let array = outermost_derived(declarator).and_then(|derived| {
-                                    if let ast::DerivedDeclarator::Array(array) = &derived.node {
-                                        Some((derived.span.start, array))
-                                    } else {
-                                        None
-                                    }
-                                });
-                                if let Some((_, array)) = array {
-                                    for qualifier in &array.node.qualifiers {
-                                        add_qualifier(
-                                            &mut array_qualifiers,
-                                            &mut array_atomic,
-                                            qualifier,
-                                        )?;
-                                    }
-                                }
-                                let (name, ty, extra) = self.declarator_at(
-                                    base,
-                                    declarator,
-                                    array.map(|(offset, _)| offset),
-                                    attributes.alias_base,
-                                    attributes.type_use,
-                                    attributes.type_name_use,
-                                )?;
-                                self.check_nodebug_function_like(&ty, &extra)?;
-                                extra.require_function_attributes(false)?;
-                                extra.require_no_weak()?;
-                                extra.require_no_transparent_union()?;
-                                attributes.alignment = attributes.alignment.max(extra.alignment);
-                                (name, ty, extra.type_use)
-                            } else {
-                                (None, base, attributes.type_use)
-                            };
-                        parameter_type = self.apply_calling_convention(
-                            parameter_type,
-                            &attributes,
-                            parameter.span.start,
+                        let site = self.check_parameter(
+                            crate::parameters::ParameterSyntax::Prototype(parameter),
+                            None,
                         )?;
-                        let mut extra = Attributes::default();
-                        self.attributes(&parameter.node.extensions, &mut extra)?;
-                        self.check_nodebug_function_like(&parameter_type, &attributes)?;
-                        self.check_nodebug_function_like(&parameter_type, &extra)?;
-                        extra.require_function_attributes(false)?;
-                        extra.require_no_weak()?;
-                        extra.require_no_transparent_union()?;
-                        if let Some(bytes) = extra.vector_size {
-                            parameter_type =
-                                self.vector_type(parameter_type, bytes, parameter.span.start)?;
-                        }
-                        parameter_type = self.apply_calling_convention(
-                            parameter_type,
-                            &extra,
-                            parameter.span.start,
-                        )?;
-                        let parameter_alignment = self.check_declaration_alignment(
-                            &parameter_type,
-                            &attributes,
-                            &extra,
-                            crate::object_alignment::AlignmentSubject::Parameter,
-                            parameter.span.start,
-                        )?;
-                        let qualifiers = self.unit.qualifiers(&parameter_type)?;
-                        if matches!(self.unit.resolve(&parameter_type)?.kind, TypeKind::Void)
-                            && (qualifiers != Qualifiers::default()
-                                || (storage.class.is_some()
-                                    && self.unit.compiler == toucan_target::Compiler::Gnu))
+                        if let (Some(checked), Some(uses), Some(site)) =
+                            (&self.checked, &mut parameter_uses, site)
                         {
-                            return Err(Error::new(
-                                parameter.span.start,
-                                "void parameter must be unqualified",
-                            ));
+                            uses.push(checked.site_type_use(site));
                         }
-                        if let (Some(checked), Some(id)) = (&mut self.checked, declared_type_use) {
-                            checked.parameter_type_use(
-                                parameter,
-                                id,
-                                &self.unit.resolve(&parameter_type)?.kind,
-                            )?;
-                        }
-                        parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
-                            TypeKind::Array { element, .. }
-                            | TypeKind::VariableArray { element, .. } => {
-                                // Qualifying an array typedef qualifies its elements.
-                                // Parameter adjustment removes only the array layer.
-                                let mut element = (**element).clone();
-                                element.qualifiers.is_const |= qualifiers.is_const;
-                                element.qualifiers.is_volatile |= qualifiers.is_volatile;
-                                element.qualifiers.is_restrict |= qualifiers.is_restrict;
-                                let mut pointer = element.pointer();
-                                pointer.qualifiers = array_qualifiers;
-                                if array_atomic && self.gnu_sync_profile() {
-                                    self.atomic_type(pointer, false, parameter.span.start)?
-                                } else {
-                                    pointer
-                                }
-                            }
-                            TypeKind::Function(_) => parameter_type.pointer(),
-                            _ => parameter_type,
-                        };
-                        if let Some(checked) = &mut self.checked
-                            && (name.is_some()
-                                || !matches!(
-                                    self.unit.resolve(&parameter_type)?.kind,
-                                    TypeKind::Void
-                                ))
-                        {
-                            let site = checked.local_declaration(
-                                parameter,
-                                OccurrenceKind::Parameter,
-                                LocalDeclaration {
-                                    name: name.as_deref(),
-                                    name_span: parameter
-                                        .node
-                                        .declarator
-                                        .as_ref()
-                                        .and_then(declarator_name_span),
-                                    ty: &parameter_type,
-                                    kind: EntityKind::Parameter,
-                                    storage: Storage::Automatic,
-                                    linked: false,
-                                    register: storage.class
-                                        == Some(ast::StorageClassSpecifier::Register),
-                                    definition: false,
-                                    allocation: None,
-                                },
-                            )?;
-                            if let Some(site) = site {
-                                checked.attach_alignment(
-                                    site,
-                                    parameter_alignment,
-                                    parameter_alignment,
-                                )?;
-                            }
-                            if let (Some(uses), Some(site)) = (&mut parameter_uses, site) {
-                                uses.push(checked.site_type_use(site));
-                            }
-                        }
-                        if let Some(name) = &name {
-                            self.retain_local_alignment(name, parameter_alignment);
-                        }
-                        let scope = self
-                            .lexical_scopes
-                            .last_mut()
-                            .expect("prototype scope is active");
-                        if let Some(name) = &name {
-                            if parameter.node.specifiers.iter().any(|specifier| matches!(&specifier.node, ast::DeclarationSpecifier::StorageClass(storage) if storage.node == ast::StorageClassSpecifier::Register)) {
-                                scope.register.insert(name.clone());
-                            }
-                            if scope
-                                .names
-                                .insert(name.clone(), Some(scope.parameters.len()))
-                                .is_some()
-                            {
-                                return Err(Error::new(
-                                    parameter.span.start,
-                                    format!("duplicate parameter `{name}`"),
-                                ));
-                            }
-                            let previous = self.unit.constants.remove(name);
-                            scope.constants.push((name.clone(), previous));
-                        }
-                        scope.parameters.push(Parameter {
-                            name,
-                            ty: parameter_type,
-                        });
                     }
                     if !definition_parameters {
                         self.discard_sve_feature_uses(sve_checkpoint);
@@ -2943,6 +3007,34 @@ impl Analyzer {
                         parameters,
                         variadic,
                         prototype,
+                        calling_convention: CallingConvention::C,
+                    })))
+                }
+                ast::DerivedDeclarator::KRFunction(parameters)
+                    if definition.is_some()
+                        && self.definition_parameters == Some(derived.span.start) =>
+                {
+                    if matches!(
+                        self.unit.resolve(&ty)?.kind,
+                        TypeKind::Array { .. }
+                            | TypeKind::VariableArray { .. }
+                            | TypeKind::Function(_)
+                    ) {
+                        return Err(Error::new(
+                            derived.span.start,
+                            "a function cannot return an array or function",
+                        ));
+                    }
+                    prototype_scope = self.check_old_style_parameters(
+                        definition.expect("definition context"),
+                        parameters,
+                        derived.span,
+                    )?;
+                    Type::new(TypeKind::Function(Box::new(FunctionType {
+                        return_type: ty,
+                        parameters: Vec::new(),
+                        variadic: false,
+                        prototype: false,
                         calling_convention: CallingConvention::C,
                     })))
                 }
@@ -3015,6 +3107,15 @@ impl Analyzer {
                             current,
                             parameter_uses.as_deref().unwrap_or_default(),
                             prototype_scope,
+                            if matches!(derived.node, ast::DerivedDeclarator::KRFunction(_)) {
+                                self.function_scope
+                                    .as_ref()
+                                    .and_then(|scope| scope.old_style.as_ref())
+                                    .and_then(|signature| signature.retained.as_ref())
+                                    .map(|retained| retained.parameters.as_slice())
+                            } else {
+                                None
+                            },
                             &ty,
                             derived.span.start,
                         )?
@@ -3048,10 +3149,10 @@ impl Analyzer {
                 let (name, ty, inner_attributes) = self.declarator_at(
                     ty,
                     inner,
-                    parameter_array,
-                    alias_base,
-                    type_use,
-                    type_name,
+                    DeclaratorContext {
+                        base_use: type_use,
+                        ..context
+                    },
                 )?;
                 type_use = inner_attributes.type_use;
                 if alias_base {

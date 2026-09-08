@@ -341,13 +341,52 @@ impl FunctionBody {
     pub fn scope(&self) -> ScopeId {
         self.scope
     }
-    /// The checked function type, including its calling convention.
+    /// The body's adjusted local parameter types and calling convention.
+    /// For identifier-list definitions, use `old_style()` for incoming argument
+    /// types and the declaration site's type for the canonical calling interface.
     pub fn signature(&self) -> TypeId {
         self.signature
     }
     /// Named parameter declaration sites in signature order.
     pub fn parameters(&self) -> &[SiteId] {
         &self.parameters
+    }
+    /// Entry types and source declarations for an identifier-list definition.
+    pub fn old_style(&self) -> Option<&OldStyleDefinition> {
+        self.old_style.as_deref()
+    }
+}
+
+impl OldStyleDefinition {
+    /// Parameter declaration groups in written source order.
+    pub fn declarations(&self) -> &[DeclarationGroupId] {
+        &self.declarations
+    }
+    /// Incoming parameters in identifier-list argument order.
+    pub fn parameters(&self) -> &[ParameterEntry] {
+        &self.parameters
+    }
+    /// Ordering promised between different parameters' entry evaluations.
+    pub fn evaluation_order(&self) -> ParameterEvaluationOrder {
+        self.evaluation_order
+    }
+}
+impl ParameterEntry {
+    /// Identifier occurrence in the definition's parenthesized identifier list.
+    pub fn identifier(&self) -> OccurrenceId {
+        self.identifier
+    }
+    /// The original typed parameter declaration site.
+    pub fn declaration(&self) -> SiteId {
+        self.declaration
+    }
+    /// Incoming C type after promotions or adoption of an earlier prototype.
+    pub fn incoming(&self) -> TypeUseId {
+        self.incoming
+    }
+    /// Conversion into the local parameter; no atomic load is implied.
+    pub fn conversions(&self) -> &[ConversionStep] {
+        &self.conversions
     }
 }
 
