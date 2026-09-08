@@ -8,6 +8,14 @@ use toucan_semantic::{
 use toucan_target::Target;
 
 const FLOATS: &[(&str, FloatKind)] = &[
+    ("__builtin_inff()", FloatKind::Float),
+    ("-__builtin_inf()", FloatKind::Double),
+    ("__builtin_huge_valf()", FloatKind::Float),
+    ("__builtin_huge_val()", FloatKind::Double),
+    ("(double)__builtin_infl()", FloatKind::Double),
+    ("(float)__builtin_huge_vall()", FloatKind::Float),
+    ("__builtin_inff() + 1.0f", FloatKind::Float),
+    ("-1.0 / __builtin_inf()", FloatKind::Double),
     ("0.0f", FloatKind::Float),
     ("-0.0f", FloatKind::Float),
     ("0.1f", FloatKind::Float),
@@ -92,7 +100,6 @@ fn query_reports_nonfinite_values_and_offsets() {
         ("1.0 / 0.0", "division by zero"),
         ("1e9999", "overflow"),
         ("0.0 / 0.0", "invalid operation"),
-        ("__builtin_inf()", "non-finite"),
         ("__builtin_nanf(\"\")", "non-finite"),
         ("(Real)1.0 + missing", "missing"),
     ] {
@@ -136,9 +143,16 @@ fn exact_bits_match_clang_on_every_target() {
             source.push_str(&format!("{integer} bits_{index}(void) {{ {c_type} value = {expression}; {integer} bits; __builtin_memcpy(&bits, &value, sizeof value); return bits; }}\n"));
             expected.push(floating(expression, target).to_bits());
         }
-        for (index, expression) in ["-0.0L", "0.1L", "0x1p63L + 1.0L", "0x1p100L + 1.0L"]
-            .iter()
-            .enumerate()
+        for (index, expression) in [
+            "-0.0L",
+            "0.1L",
+            "0x1p63L + 1.0L",
+            "0x1p100L + 1.0L",
+            "__builtin_infl()",
+            "-__builtin_huge_vall()",
+        ]
+        .iter()
+        .enumerate()
         {
             let value = floating(expression, target);
             let count = match value.format() {

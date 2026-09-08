@@ -4,7 +4,7 @@ use lang_c::{ast, span::Node};
 
 use crate::analyze::Analyzer;
 use crate::integer::integer_to_type;
-use crate::{Error, IntegerKind, IntegerValue, Type, TypeKind};
+use crate::{Error, FloatKind, IntegerKind, IntegerValue, Type, TypeKind};
 
 pub(crate) struct MemorySignature {
     pub(crate) result: Type,
@@ -12,6 +12,16 @@ pub(crate) struct MemorySignature {
 }
 
 impl Analyzer {
+    /// Infinity and huge-value intrinsics share the target's three C float types.
+    pub(crate) fn infinity_builtin_kind(&self, name: &str) -> Option<FloatKind> {
+        Some(match name {
+            "__builtin_inff" | "__builtin_huge_valf" => FloatKind::Float,
+            "__builtin_inf" | "__builtin_huge_val" => FloatKind::Double,
+            "__builtin_infl" | "__builtin_huge_vall" => FloatKind::LongDouble,
+            _ => return None,
+        })
+    }
+
     /// Byte-swap prototypes use the compiler target's exact-width unsigned types.
     pub(crate) fn byte_swap_type(&self, name: &str) -> Option<Type> {
         let kind = match name {
@@ -128,6 +138,7 @@ impl Analyzer {
         }
         let memory = self.memory_builtin_signature(name);
         let byte_swap = self.byte_swap_type(name);
+        let infinity = self.infinity_builtin_kind(name);
         let bit_count = self.bit_count_type(name);
         let object_size = self.object_size_signature(name);
         let arity = match name {
@@ -137,6 +148,7 @@ impl Analyzer {
             _ if memory.is_some() => 3,
             _ if byte_swap.is_some() || bit_count.is_some() => 1,
             _ if object_size.is_some() => 2,
+            _ if infinity.is_some() => 0,
             _ => return Ok(None),
         };
         let arguments = &call.node.arguments;
@@ -146,6 +158,9 @@ impl Analyzer {
                 offset,
                 format!("{name} requires {arity} arguments"),
             ));
+        }
+        if let Some(kind) = infinity {
+            return Ok(Some(Type::new(TypeKind::Float(kind))));
         }
         if let Some(signature) = memory {
             for (argument, parameter) in arguments.iter().zip(&signature.parameters) {

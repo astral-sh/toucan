@@ -887,6 +887,15 @@ impl Analyzer {
                 "constant evaluation of statement expressions is unsupported",
             )),
             ast::Expression::Constant(_) => Ok(ConstantKind::Arithmetic),
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(|name| self.infinity_builtin_kind(name))
+                    .is_some() =>
+            {
+                self.eval_arithmetic(expression)?;
+                Ok(ConstantKind::Arithmetic)
+            }
             ast::Expression::SizeOfTy(_)
             | ast::Expression::SizeOfVal(_)
             | ast::Expression::AlignOf(_)

@@ -57,14 +57,14 @@ The output also checks that Rust is compiling for the selected target.
 
 The JSON report records dependencies, phase timings, and omitted declarations and
 macros. Unsupported selected ABI representations fail generation. Macros that cannot
-be represented as integer, finite `float`/`double`, or string constants are reported as omitted;
+be represented as integer, `float`/`double`, or string constants are reported as omitted;
 `--deny-skipped-macros` makes these omissions an error. Function-like macros are not
 translated into Rust functions.
 
 Floating macro expressions are evaluated with the target's C precision and rounding.
-Generated `f32` and `f64` constants preserve exact bits, including negative zero and
-subnormal values. `long double`, non-finite values, and unsupported expressions are
-reported as omitted; explicit casts to `float` or `double` are supported.
+Generated `f32` and `f64` constants preserve exact bits, including signed zero,
+subnormals, and infinities. `long double`, NaN builtins, and unsupported expressions
+are reported as omitted; explicit casts to `float` or `double` are supported.
 
 An object macro replaces a same-named enum constant in the generated bindings.
 Self-aliases such as `#define VALUE VALUE` retain the enum representation. Macros

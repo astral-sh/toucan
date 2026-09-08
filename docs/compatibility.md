@@ -51,10 +51,11 @@ target format without host floating-point arithmetic. The public result retains
 the C type, encoding, and exact bits, including negative zero and subnormals.
 `long double` uses x87 extended precision on x86-64 Linux/macOS, binary128 on
 AArch64 Linux, and binary64 on AArch64 macOS and x86-64 Windows. Its bits exclude object padding.
-Overflow, division by zero, non-finite builtin forms, and unsupported formats
-produce diagnostics.
+The `__builtin_inf` and `__builtin_huge_val` families preserve target infinities.
+Overflow, division by zero, NaN builtin forms, and unsupported formats produce
+diagnostics.
 
-Rust bindings emit finite `float` and `double` macro values as `f32` and `f64`
+Rust bindings emit `float` and `double` macro values as `f32` and `f64`
 using exact bit patterns. For Rust 1.83 and later, emission uses `from_bits`;
 Rust 1.64–1.82 uses an equal-width const transmute because `from_bits` was not yet
 const-stable. Every integer bit pattern is valid for the corresponding IEEE float.

@@ -158,17 +158,32 @@ impl Analyzer {
         use ast::UnaryOperator as Unary;
         let offset = expression.span.start;
         match &expression.node {
-            ast::Expression::Call(call)
-                if matches!(&call.node.callee.node, ast::Expression::Identifier(identifier)
-                if matches!(identifier.node.name.as_str(), "__builtin_inf" | "__builtin_inff" | "__builtin_infl"
-                    | "__builtin_huge_val" | "__builtin_huge_valf" | "__builtin_huge_vall"
-                    | "__builtin_nan" | "__builtin_nanf" | "__builtin_nanl"
-                    | "__builtin_nans" | "__builtin_nansf" | "__builtin_nansl")) =>
-            {
-                Err(Error::new(
-                    offset,
-                    "non-finite floating builtin constants are unsupported",
-                ))
+            ast::Expression::Call(call) => {
+                let name = self.builtin_name(call);
+                if let Some(kind) = name.and_then(|name| self.infinity_builtin_kind(name)) {
+                    self.builtin_call_type(call)?;
+                    Ok(ArithmeticValue::Floating {
+                        value: Quad::INFINITY,
+                        kind,
+                    })
+                } else if matches!(
+                    name,
+                    Some(
+                        "__builtin_nan"
+                            | "__builtin_nanf"
+                            | "__builtin_nanl"
+                            | "__builtin_nans"
+                            | "__builtin_nansf"
+                            | "__builtin_nansl"
+                    )
+                ) {
+                    Err(Error::new(
+                        offset,
+                        "non-finite floating builtin constants are unsupported",
+                    ))
+                } else {
+                    self.eval(expression).map(ArithmeticValue::Integer)
+                }
             }
             ast::Expression::Constant(constant) => {
                 if let ast::Constant::Float(literal) = &constant.node {
@@ -419,7 +434,7 @@ where
 {
     let parsed = F::from_str_r(source, Round::NearestTiesToEven)
         .map_err(|_| Error::new(offset, "invalid floating constant"))?;
-    let value = finite_result(parsed, offset)?;
+    let value = checked_result(parsed, offset)?;
     Ok(value.convert(&mut false).value)
 }
 
@@ -441,7 +456,7 @@ where
         ArithmeticValue::Integer(value) => F::from_u128(value.value),
         ArithmeticValue::Floating { value, .. } => value.convert(&mut false),
     };
-    let value = finite_result(converted, offset)?;
+    let value = checked_result(converted, offset)?;
     Ok(value.convert(&mut false).value)
 }
 
@@ -464,20 +479,19 @@ where
         ast::BinaryOperator::Divide => left.div_r(right, Round::NearestTiesToEven),
         _ => return Err(Error::new(offset, "operator requires integer operands")),
     };
-    let value = finite_result(value, offset)?;
+    let value = checked_result(value, offset)?;
     Ok(value.convert(&mut false).value)
 }
 
-/// Inexact rounding and gradual underflow are defined. Reject operations whose
-/// mathematical result cannot be represented as a finite target value.
-fn finite_result<F: Float>(result: StatusAnd<F>, offset: usize) -> Result<F, Error> {
+/// Allow inexact rounding, gradual underflow, and existing infinities. Overflow
+/// from finite operands and invalid operations still fail constant evaluation.
+fn checked_result<F: Float>(result: StatusAnd<F>, offset: usize) -> Result<F, Error> {
     if result.status.contains(Status::DIV_BY_ZERO) {
         return Err(Error::new(offset, "floating-point division by zero"));
     }
     if result
         .status
         .intersects(Status::INVALID_OP | Status::OVERFLOW)
-        || !result.value.is_finite()
     {
         return Err(Error::new(
             offset,

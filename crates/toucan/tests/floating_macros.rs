@@ -4,6 +4,14 @@ use std::process::Command;
 use toucan::{BindingOptions, Config, RustTarget, Target};
 
 const CASES: &[(&str, &str, &str)] = &[
+    ("INFINITY", "__builtin_inff()", "float"),
+    ("NEGATIVE_INFINITY", "-__builtin_inf()", "double"),
+    ("HUGE", "__builtin_huge_valf()", "float"),
+    ("HUGE_DOUBLE", "__builtin_huge_val()", "double"),
+    ("INFINITY_CAST", "(double)__builtin_infl()", "double"),
+    ("HUGE_CAST", "(float)__builtin_huge_vall()", "float"),
+    ("INFINITY_SUM", "__builtin_inff() + 1.0f", "float"),
+    ("INFINITY_ZERO", "-1.0 / __builtin_inf()", "double"),
     ("ZERO", "0.0f", "float"),
     ("NEGATIVE_ZERO", "-0.0f", "float"),
     ("DECIMAL", "0.1f", "float"),
@@ -52,11 +60,13 @@ fn floating_macros_keep_types_and_report_unsupported_values() {
                     ..BindingOptions::default()
                 })
                 .unwrap();
-            assert_eq!(report.floating_macros, 2);
+            assert_eq!(report.floating_macros, 3);
             assert_eq!(report.integer_macros, 3);
             assert_eq!(report.string_macros, 1);
             assert!(bindings.contains("pub const FLOAT: ::core::primitive::f32"));
             assert!(bindings.contains("pub const DOUBLE: ::core::primitive::f64"));
+            assert!(bindings.contains("pub const INFINITY_VALUE: ::core::primitive::f64"));
+            assert!(bindings.contains("0x7ff0000000000000"));
             assert!(bindings.contains("0x3dcccccd") && bindings.contains("0x8000000000000000"));
             assert_eq!(bindings.contains("::from_bits("), minor >= 83);
             assert_eq!(bindings.contains("::mem::transmute"), minor < 83);
@@ -71,7 +81,6 @@ fn floating_macros_keep_types_and_report_unsupported_values() {
                 ("OVERFLOW", "overflow"),
                 ("DIVZERO", "division by zero"),
                 ("NAN_VALUE", "non-finite"),
-                ("INFINITY_VALUE", "non-finite"),
             ] {
                 assert!(
                     report
