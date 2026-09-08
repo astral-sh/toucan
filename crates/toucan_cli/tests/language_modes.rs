@@ -102,3 +102,33 @@ fn command_line_overrides_remove_and_replace_feature_operators() {
         );
     }
 }
+
+#[test]
+fn c90_compilation_and_preprocessing_keep_their_comment_policies() {
+    let source = "_Static_assert(B==6,\"ordered definitions\");";
+    let flags = ["--std=c90", "-DA=1//first", "-UA", "-DB=6//**/2"];
+    let output = run(source, "check", &flags);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let output = run("B\n", "preprocess", &flags);
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let pp = String::from_utf8(output.stdout).unwrap();
+    assert!(pp.ends_with("6 / 2\n"), "{pp}");
+    let output = run(
+        "_Static_assert(B==3,\"ordered definitions\");",
+        "check",
+        &["--std=c90", "-DB=6//**/2", "-DA=1//first", "-UA"],
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

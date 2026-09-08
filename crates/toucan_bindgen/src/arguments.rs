@@ -113,6 +113,8 @@ pub(super) fn from_arguments(
     if let Some(enabled) = trigraph_override {
         config.preprocessor.trigraphs = enabled;
     }
+    let mut macros = (config.preprocessor.line_comments == toucan::LineComments::ClangC90)
+        .then(|| toucan::CommandLineMacroNormalizer::new(&config.preprocessor));
     let mut system_dirs = Vec::new();
     let mut sysroot = None;
     let mut arguments = arguments.iter();
@@ -129,12 +131,12 @@ pub(super) fn from_arguments(
             // Already resolved above.
         } else if matches!(argument.as_str(), "-I" | "-D" | "-U") {
             let operand = value(&mut arguments)?;
-            apply_short(&mut config, argument, &operand)?;
+            apply_short(&mut config, &mut macros, argument, &operand)?;
         } else if argument.starts_with("-I")
             || argument.starts_with("-D")
             || argument.starts_with("-U")
         {
-            apply_short(&mut config, &argument[..2], &argument[2..])?;
+            apply_short(&mut config, &mut macros, &argument[..2], &argument[2..])?;
         } else if argument == "-isystem" {
             system_dirs.push(PathBuf::from(value(&mut arguments)?));
         } else if let Some(path) = argument.strip_prefix("-isystem") {
@@ -159,14 +161,19 @@ pub(super) fn from_arguments(
                     "language `{language}` is unsupported; expected c"
                 )));
             }
-        } else if matches!(
-            argument.as_str(),
-            "-xc" | "-std=c11" | "-std=gnu11" | "-trigraphs" | "-ftrigraphs" | "-fno-trigraphs"
-        ) {
+        } else if argument.starts_with("-std=")
+            || matches!(
+                argument.as_str(),
+                "-xc" | "-std=c11" | "-std=gnu11" | "-trigraphs" | "-ftrigraphs" | "-fno-trigraphs"
+            )
+        {
             // Language and trigraph options were resolved before applying macros.
         } else {
             return Err(error(format!("unsupported Clang argument `{argument}`")));
         }
+    }
+    if macros.is_some() {
+        config.preprocessor.predefined_macro_mode = toucan::PredefinedMacroMode::Tokens;
     }
     config.preprocessor.include_dirs.extend(system_dirs);
     if let Some(sysroot) = sysroot {
@@ -192,7 +199,12 @@ pub(super) fn from_arguments(
     Ok(config)
 }
 
-fn apply_short(config: &mut Config, flag: &str, operand: &str) -> Result<(), BindgenError> {
+fn apply_short(
+    config: &mut Config,
+    macros: &mut Option<toucan::CommandLineMacroNormalizer>,
+    flag: &str,
+    operand: &str,
+) -> Result<(), BindgenError> {
     if operand.is_empty() || operand.contains('\0') {
         return Err(error(format!(
             "{flag} requires a nonempty value without NUL"
@@ -205,6 +217,14 @@ fn apply_short(config: &mut Config, flag: &str, operand: &str) -> Result<(), Bin
             if name.is_empty() || name.contains(['\n', '\r']) {
                 return Err(error("invalid macro name"));
             }
+            let prepared = macros
+                .as_mut()
+                .map(|macros| macros.prepare(name, value))
+                .transpose()
+                .map_err(error)?;
+            let (name, value) = prepared.as_ref().map_or((name, value), |(name, value)| {
+                (name.as_str(), value.as_str())
+            });
             let identifier = name.split('(').next().unwrap_or(name);
             config
                 .preprocessor
@@ -224,6 +244,29 @@ fn apply_short(config: &mut Config, flag: &str, operand: &str) -> Result<(), Bin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn c90_definitions_follow_argument_order_before_undefinition() {
+        for (flags, expected) in [
+            (vec!["-DA=1//first", "-UA", "-DB=6//**/2", "-std=c90"], "6"),
+            (
+                vec!["-DB=6//**/2", "-DA=1//first", "-UA", "-std=c90"],
+                "6 / 2",
+            ),
+        ] {
+            let args = flags.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+            let config = from_arguments(&args, Some("x86_64-unknown-linux-gnu")).unwrap();
+            assert_eq!(config.language_mode(), LanguageMode::C90);
+            let output = toucan::Preprocessor::new(config.preprocessor)
+                .preprocess_str(std::path::Path::new("mode.c"), "B\n")
+                .unwrap();
+            assert!(
+                output.source.ends_with(&format!("{expected}\n")),
+                "{flags:?}: {}",
+                output.source
+            );
+        }
+    }
 
     #[test]
     fn command_line_overrides_remove_and_replace_feature_operators() {

@@ -14,6 +14,17 @@ import run_fuzz_campaign as campaign
 
 
 class FuzzCampaignTests(unittest.TestCase):
+    def test_four_mode_seeds_preserve_inputs_and_cover_profile_boundaries(self):
+        for data in [b"", b"int f(a){return a;}", b"a" * 255, b"a" * 512, b"a" * 1023]:
+            for count in (5, 7, 11, 32):
+                seeds = list(campaign.seed_profiles(data, count, modes=4))
+                self.assertEqual(len(seeds), count * 4)
+                self.assertEqual(
+                    {(sum(seed) % count, (sum(seed) >> 8) & 3) for seed in seeds},
+                    {(profile, mode) for profile in range(count) for mode in range(4)},
+                )
+                self.assertTrue(all(seed.startswith(data) for seed in seeds))
+
     def test_preprocessor_padding_covers_all_policies_without_changing_source(self):
         for source in [
             b"",

@@ -545,7 +545,7 @@ impl Analyzer {
         result
     }
 
-    fn bind_local(
+    pub(crate) fn bind_local(
         &mut self,
         name: &str,
         ty: Type,
@@ -1500,6 +1500,9 @@ impl Analyzer {
                         analyzer.value_expression_type(expression)?;
                     }
                     ast::ForInitializer::Declaration(declaration) => {
+                        if analyzer.unit.language_mode.is_c90() && analyzer.unit.compiler == toucan_target::Compiler::Gnu {
+                            return Err(Error::new(declaration.span.start, "for-loop declarations require C99 or later in the GNU compiler profile"));
+                        }
                         analyzer.block_declaration(declaration, true)?
                     }
                     ast::ForInitializer::StaticAssert(assertion) => {

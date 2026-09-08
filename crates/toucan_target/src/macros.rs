@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use crate::{Compiler, CompilerProfile, LanguageMode, Target};
+use crate::{Compiler, CompilerProfile, Target};
 
 impl Target {
     /// Deterministic C11 macros for the target's default compiler profile.
@@ -22,7 +22,7 @@ impl CompilerProfile {
     pub fn predefined_macros(self) -> BTreeMap<String, String> {
         let target = self.target();
         let compiler = self.compiler();
-        let standard = self.language_mode() == LanguageMode::C11;
+        let standard = !self.language_mode().is_gnu();
         let mut macros = BTreeMap::new();
         let mut define = |name: &str, value: &str| {
             macros.insert(name.to_owned(), value.to_owned());
@@ -30,10 +30,26 @@ impl CompilerProfile {
         if standard && target != Target::X86_64PcWindowsMsvc {
             define("__STRICT_ANSI__", "1");
         }
+        if self.language_mode().is_c11() {
+            define("__STDC_VERSION__", "201112L");
+        }
+        if compiler == Compiler::Clang || self.language_mode().is_c11() {
+            define("__STDC_UTF_16__", "1");
+            define("__STDC_UTF_32__", "1");
+        }
+        if target != Target::X86_64PcWindowsMsvc {
+            define(
+                if self.language_mode().is_c11() {
+                    "__GNUC_STDC_INLINE__"
+                } else {
+                    "__GNUC_GNU_INLINE__"
+                },
+                "1",
+            );
+        }
         for (name, value) in [
             ("__STDC__", "1"),
             ("__STDC_HOSTED__", "1"),
-            ("__STDC_VERSION__", "201112L"),
             ("__CHAR_BIT__", "8"),
             ("__CHAR16_TYPE__", "unsigned short"),
             ("__CHAR32_TYPE__", "unsigned int"),
@@ -104,7 +120,6 @@ impl CompilerProfile {
                 ("__GNUC__", "4"),
                 ("__GNUC_MINOR__", "2"),
                 ("__GNUC_PATCHLEVEL__", "1"),
-                ("__GNUC_STDC_INLINE__", "1"),
                 ("__LP64__", "1"),
                 ("_LP64", "1"),
                 ("__SIZEOF_LONG__", "8"),

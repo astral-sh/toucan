@@ -100,7 +100,7 @@ fn query_catalog_uses_target_and_language_even_when_identity_macros_are_overridd
             toucan::semantic::evaluate_integer(parsed.unit(), "scoped")
                 .unwrap()
                 .value,
-            u128::from(mode == LanguageMode::Gnu11)
+            u128::from(mode.is_gnu())
         );
     }
 }
@@ -135,6 +135,71 @@ fn gnu_parser_forms_are_distinct_from_registered_query_builtins() {
                 profile.compiler() == Compiler::Clang,
                 "{profile:?}: {name}"
             );
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires native GCC/Clang; compares scoped queries in each C mode"]
+fn attribute_namespaces_follow_native_language_modes() {
+    use std::process::Command;
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("queries.c");
+    for (compiler, variable, fallback) in [
+        (Compiler::Gnu, "TOUCAN_GCC", "gcc"),
+        (Compiler::Clang, "TOUCAN_CLANG", "clang"),
+    ] {
+        if compiler == Compiler::Gnu && !cfg!(target_os = "linux") {
+            continue;
+        }
+        let cc = std::env::var(variable).unwrap_or_else(|_| fallback.into());
+        for mode in LanguageMode::ALL {
+            for query in [
+                "__has_attribute(aligned)",
+                "__has_attribute(__aligned__)",
+                "__has_attribute(gnu::aligned)",
+                "__has_attribute(__gnu__::__aligned__)",
+                "__has_attribute(clang::aligned)",
+                "__has_builtin(__builtin_bswap32)",
+                "__has_builtin(gnu::__builtin_bswap32)",
+            ] {
+                let source = format!("#if {query}\nint present;\n#else\nint absent;\n#endif\n");
+                std::fs::write(&path, &source).unwrap();
+                let output = Command::new(&cc)
+                    .arg(format!("-std={mode}"))
+                    .args(["-E", "-P"])
+                    .arg(&path)
+                    .output()
+                    .unwrap();
+                let expected = toucan_test_support::compiler_acceptance(&output).unwrap();
+                let profile = CompilerProfile::new(Target::X86_64UnknownLinuxGnu, compiler)
+                    .unwrap()
+                    .with_language_mode(mode);
+                let mut config = Config::with_profile(profile);
+                config.preprocessor.forced_includes.clear();
+                let actual =
+                    toucan::Preprocessor::new(config.preprocessor).preprocess_str(&path, &source);
+                assert_eq!(
+                    actual.is_ok(),
+                    expected,
+                    "{compiler:?} {mode} {query}: {actual:?}: {}",
+                    String::from_utf8_lossy(&output.stderr)
+                );
+                if let Ok(actual) = actual {
+                    assert_eq!(
+                        actual
+                            .source
+                            .split_whitespace()
+                            .collect::<String>()
+                            .contains("intpresent;"),
+                        String::from_utf8_lossy(&output.stdout)
+                            .split_whitespace()
+                            .collect::<String>()
+                            .contains("intpresent;"),
+                        "{compiler:?} {mode} {query}"
+                    );
+                }
+            }
         }
     }
 }

@@ -1026,10 +1026,13 @@ macOS and ARM calls remain CI gates.
 
 ### Language modes
 
-[C11 and GNU11](language-modes.md) select keywords, standard-mode macros, and
-trigraph defaults independently of the compiler family. GNU11 is the default;
-C11 does not imply pedantic diagnostics. C90 and GNU omitted-middle conditional
-expressions remain tracked gaps.
+[C90, GNU90, C11, and GNU11](language-modes.md) select syntax, declaration rules,
+standard-mode macros, and trigraph defaults independently of the compiler family.
+GNU11 is the default. C90 supports implicit-int declarations and ordinary
+implicit function declarations, including retained scope and call records.
+Implicit library builtin signatures, inline-definition ownership, and GNU
+omitted-middle conditional expressions remain tracked gaps. Selecting an ISO
+mode does not enable pedantic diagnostics.
 
 ### Clang `noescape` parameters
 

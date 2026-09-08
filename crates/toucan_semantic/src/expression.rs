@@ -535,6 +535,7 @@ impl Analyzer {
                 if let Some(ty) = self.builtin_call_type(call)? {
                     return Ok(ExpressionInfo::value(ty));
                 }
+                self.implicit_function(call)?;
                 let callee = self.value_expression_type(&call.node.callee)?;
                 let TypeKind::Pointer(pointee) = callee.kind else {
                     return Err(Error::new(offset, "callee is not a function"));

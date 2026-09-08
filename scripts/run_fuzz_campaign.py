@@ -37,22 +37,24 @@ def corpus_manifest(corpus):
     return result
 
 
-def seed_profiles(data, profiles):
-    """Keep source bytes intact while selecting every profile and both mode bits."""
+def seed_profiles(data, profiles, modes=2):
+    """Keep source bytes intact while selecting each profile in two or four modes."""
+    if modes not in (2, 4):
+        raise ValueError("expected two or four language modes")
     prefix, suffix = data + b"\n/* profile ", b" */\n"
     total = sum(prefix) + sum(suffix)
     count = profiles or 1
-    for mode in (0, 1):
+    for mode in range(modes):
         for profile in range(count):
-            # Overlapping ASCII ranges cover a full 512-value mode period.
-            # At most sixteen padding bytes suffice for every supported count.
+            # Overlapping ASCII ranges cover the 512- or 1024-value mode period.
+            # Thirty-two padding bytes suffice for all supported profile counts.
             padding = next(
                 b" " * spaces + bytes([byte])
-                for spaces in range(16)
+                for spaces in range(8 * modes)
                 for byte in range(33, 127)
                 if byte not in (42, 47)
                 and (total + 32 * spaces + byte) % count == profile
-                and bool((total + 32 * spaces + byte) & 0x100) == bool(mode)
+                and ((total + 32 * spaces + byte) >> 8) % modes == mode
             )
             yield prefix + padding + suffix
 
@@ -157,7 +159,8 @@ def main():
         else "sum(input bytes) % profiles",
         "language_mode_selector": None
         if args.target == "preprocess"
-        else "sum(input bytes) & 0x100: 0=gnu11, 256=c11",
+        else "(sum(input bytes) >> 8) & 3: 0=gnu11, 1=c11, 2=gnu90, 3=c90",
+        "language_mode_selector_version": None if args.target == "preprocess" else 2,
         "query_dialect_selector": "sum(input bytes) & 1: 0=gnu, 1=clang"
         if args.target == "preprocess"
         else None,
@@ -232,7 +235,7 @@ def main():
             seeds = (
                 seed_preprocessor_policies(path.read_bytes())
                 if args.target == "preprocess"
-                else seed_profiles(path.read_bytes(), report["profiles"])
+                else seed_profiles(path.read_bytes(), report["profiles"], modes=4)
             )
             for data in seeds:
                 (corpus / hashlib.sha256(data).hexdigest()).write_bytes(data)

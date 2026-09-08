@@ -188,7 +188,7 @@ fn evaluate_on_parser_stack<Value>(
 ) -> Result<Value, Error> {
     let profile = unit.profile()?;
     unit.validate_function_options()?;
-    let identifiers = validate_expression_source(expression)?;
+    let identifiers = validate_expression_source(expression, unit.compiler, unit.language_mode)?;
     for value in unit.constants.values() {
         value.validate()?;
     }
@@ -370,13 +370,18 @@ fn parse(
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
     let original = source;
-    let source = strip_comments(source)?;
+    let source = strip_comments(source, compiler, language_mode)?;
     let adapted = crate::parser_extensions::adapt(&source)?;
     let source = adapted.source;
     let config = driver::Config {
         cpp_command: String::new(),
         cpp_options: Vec::new(),
-        gnu_keywords: language_mode == toucan_target::LanguageMode::Gnu11,
+        gnu_keywords: language_mode.is_gnu(),
+        standard: if language_mode.is_c90() {
+            driver::Standard::C90
+        } else {
+            driver::Standard::C11
+        },
         extensions_msvc: target == Target::X86_64PcWindowsMsvc,
         flavor: match compiler {
             Compiler::Gnu => driver::Flavor::GnuC11WithClangExtensions,
@@ -422,9 +427,41 @@ fn parse(
     })
 }
 
+/// Comment compatibility for callers supplying source directly to the semantic
+/// library. The facade has already completed translation phase three.
+struct SourceComments {
+    enabled: bool,
+    clang_extension: bool,
+}
+
+impl SourceComments {
+    fn new(compiler: Compiler, mode: toucan_target::LanguageMode) -> Self {
+        Self {
+            enabled: mode != toucan_target::LanguageMode::C90,
+            clang_extension: mode == toucan_target::LanguageMode::C90
+                && compiler == Compiler::Clang,
+        }
+    }
+
+    fn starts(&mut self, bytes: &[u8], index: usize) -> bool {
+        if bytes.get(index + 1) != Some(&b'/') {
+            return false;
+        }
+        if self.clang_extension && bytes.get(index + 2) != Some(&b'*') {
+            self.enabled = true;
+        }
+        self.enabled
+    }
+}
+
 /// lang-c expects comments to have been replaced in translation phase three.
-fn strip_comments(source: &str) -> Result<String, Error> {
+fn strip_comments(
+    source: &str,
+    compiler: Compiler,
+    mode: toucan_target::LanguageMode,
+) -> Result<String, Error> {
     let mut bytes = source.as_bytes().to_vec();
+    let mut comments = SourceComments::new(compiler, mode);
     let mut index = 0;
     while index < bytes.len() {
         match bytes[index] {
@@ -438,7 +475,7 @@ fn strip_comments(source: &str) -> Result<String, Error> {
                     index += 1;
                 }
             }
-            b'/' if bytes.get(index + 1) == Some(&b'/') => {
+            b'/' if comments.starts(&bytes, index) => {
                 while index < bytes.len() && bytes[index] != b'\n' {
                     bytes[index] = b' ';
                     index += 1;
@@ -472,8 +509,13 @@ fn strip_comments(source: &str) -> Result<String, Error> {
 /// Balanced delimiters and the absence of declaration separators are checked
 /// independently of the parser, including comments and quoted literals. Returns
 /// identifier tokens so the parser can recognize referenced typedef names.
-fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> {
+fn validate_expression_source(
+    expression: &str,
+    compiler: Compiler,
+    mode: toucan_target::LanguageMode,
+) -> Result<HashSet<&str>, Error> {
     let bytes = expression.as_bytes();
+    let mut comments = SourceComments::new(compiler, mode);
     let mut index = 0;
     let mut delimiters = Vec::new();
     let mut identifiers = HashSet::new();
@@ -523,7 +565,7 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
                     ));
                 }
             }
-            b'/' if bytes.get(index + 1) == Some(&b'/') => {
+            b'/' if comments.starts(bytes, index) => {
                 while index < bytes.len() && bytes[index] != b'\n' {
                     index += 1;
                 }
@@ -1383,6 +1425,24 @@ impl Analyzer {
                     .iter()
                     .position(|previous| previous.name == name)
             });
+            // In Microsoft C90 compatibility mode a later written `static`
+            // function retains the earlier external linkage. Clang's emitted
+            // definition remains externally visible, including after an implicit
+            // declaration inside a block.
+            if is_static
+                && kind == DeclarationKind::Function
+                && self.unit.language_mode.is_c90()
+                && self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+                && (previous_index.is_some_and(|index| {
+                    let previous = &self.unit.declarations[index];
+                    previous.kind == DeclarationKind::Function && !previous.is_static
+                }) || self
+                    .block_externs
+                    .get(&name)
+                    .is_some_and(|previous| !previous.is_static))
+            {
+                is_static = false;
+            }
             let function_options = if kind == DeclarationKind::Function {
                 Some(self.check_function_options(&name, &declarator_attributes, previous_index)?)
             } else {
@@ -2584,7 +2644,7 @@ impl Analyzer {
             }
             return Ok(ty);
         }
-        if types.is_empty()
+        if (types.is_empty() && !self.unit.language_mode.is_c90())
             || long > 2
             || (long > 0 && short)
             || (signed && unsigned)
@@ -2858,7 +2918,13 @@ impl Analyzer {
                 attributes.noescape.extend(extra.noescape);
                 (name, ty, extra.type_use)
             } else {
-                (None, base, attributes.type_use)
+                (
+                    parameter
+                        .implicit_identifier()
+                        .map(|identifier| identifier.node.name.clone()),
+                    base,
+                    attributes.type_use,
+                )
             };
         if let Some(mode) = &attributes.mode {
             self.floating_machine_mode(&parameter_type, mode, parameter.span().start)?;
@@ -2937,7 +3003,14 @@ impl Analyzer {
                 checked,
                 LocalDeclaration {
                     name: name.as_deref(),
-                    name_span: parameter.declarator().and_then(declarator_name_span),
+                    name_span: parameter
+                        .declarator()
+                        .and_then(declarator_name_span)
+                        .or_else(|| {
+                            parameter
+                                .implicit_identifier()
+                                .map(|identifier| identifier.span)
+                        }),
                     ty: &parameter_type,
                     kind: EntityKind::Parameter,
                     storage: Storage::Automatic,

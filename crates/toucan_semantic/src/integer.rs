@@ -584,7 +584,15 @@ impl Analyzer {
             if !literal.suffix.unsigned && value < (1u128 << (bits - 1)) {
                 return Ok(IntegerValue::new(value, bits, true, rank));
             }
-            if (literal.suffix.unsigned || radix != 10) && value <= IntegerValue::mask(bits) {
+            let c90_unsigned = self.unit.language_mode.is_c90() && rank >= 4
+                // Clang's MS mode recovers an oversized explicitly signed LL
+                // literal by wrapping its value. Preserve the existing rejection
+                // instead of giving that recovery an unsigned type.
+                && !(self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+                    && minimum_rank == 5);
+            if (literal.suffix.unsigned || radix != 10 || c90_unsigned)
+                && value <= IntegerValue::mask(bits)
+            {
                 return Ok(IntegerValue::new(value, bits, false, rank));
             }
         }

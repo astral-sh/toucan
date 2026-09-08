@@ -1,0 +1,10 @@
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.05s
+     Running tests/language_modes.rs (/home/dev-user/.cache/toucan/c90-target/debug/deps/language_modes-986e8aa968e4cdf5)
+
+running 3 tests
+test constant_evaluation_fragments_inherit_the_unit_mode ... ok
+test language_modes_preserve_identifiers_extensions_and_retained_parity ... ok
+test keyword_modes_match_native_compilers ... ok
+
+test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 7.03s
+

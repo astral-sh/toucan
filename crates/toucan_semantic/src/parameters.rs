@@ -14,6 +14,8 @@ pub(crate) enum ParameterSyntax<'a> {
         declaration: &'a Node<ast::Declaration>,
         item: &'a Node<ast::InitDeclarator>,
     },
+    /// A C90 identifier-list parameter without a separate declaration.
+    ImplicitOldStyle(&'a Node<ast::Identifier>),
 }
 
 impl<'a> ParameterSyntax<'a> {
@@ -21,24 +23,33 @@ impl<'a> ParameterSyntax<'a> {
         match self {
             Self::Prototype(parameter) => parameter.span,
             Self::OldStyle { item, .. } => item.span,
+            Self::ImplicitOldStyle(identifier) => identifier.span,
         }
     }
     pub(crate) fn specifiers(self) -> &'a [Node<ast::DeclarationSpecifier>] {
         match self {
             Self::Prototype(parameter) => &parameter.node.specifiers,
             Self::OldStyle { declaration, .. } => &declaration.node.specifiers,
+            Self::ImplicitOldStyle(_) => &[],
         }
     }
     pub(crate) fn declarator(self) -> Option<&'a Node<ast::Declarator>> {
         match self {
             Self::Prototype(parameter) => parameter.node.declarator.as_ref(),
             Self::OldStyle { item, .. } => Some(&item.node.declarator),
+            Self::ImplicitOldStyle(_) => None,
         }
     }
     pub(crate) fn extensions(self) -> &'a [Node<ast::Extension>] {
         match self {
             Self::Prototype(parameter) => &parameter.node.extensions,
-            Self::OldStyle { .. } => &[],
+            Self::OldStyle { .. } | Self::ImplicitOldStyle(_) => &[],
+        }
+    }
+    pub(crate) fn implicit_identifier(self) -> Option<&'a Node<ast::Identifier>> {
+        match self {
+            Self::ImplicitOldStyle(identifier) => Some(identifier),
+            _ => None,
         }
     }
     pub(crate) fn retain_written_type(
@@ -54,6 +65,12 @@ impl<'a> ParameterSyntax<'a> {
             Self::OldStyle { item, .. } => {
                 checked.parameter_type_use(item, OccurrenceKind::InitDeclarator, id, resolved)
             }
+            Self::ImplicitOldStyle(identifier) => checked.parameter_type_use(
+                identifier,
+                OccurrenceKind::OldStyleParameter,
+                id,
+                resolved,
+            ),
         }
     }
     pub(crate) fn retain_declaration(
@@ -68,6 +85,11 @@ impl<'a> ParameterSyntax<'a> {
             Self::OldStyle { item, .. } => {
                 checked.local_declaration(item, OccurrenceKind::InitDeclarator, declaration)
             }
+            Self::ImplicitOldStyle(identifier) => checked.local_declaration(
+                identifier,
+                OccurrenceKind::OldStyleParameter,
+                declaration,
+            ),
         }
     }
 }

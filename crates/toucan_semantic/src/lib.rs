@@ -26,6 +26,7 @@ mod expression;
 mod features;
 mod floating;
 mod fortified;
+mod implicit_function;
 mod initializer;
 mod integer;
 mod introspection;

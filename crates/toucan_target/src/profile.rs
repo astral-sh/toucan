@@ -128,10 +128,9 @@ impl CompilerProfile {
         self.language_mode
     }
     /// Trigraph default before an explicit preprocessing override. Clang's Microsoft
-    /// compatibility mode leaves trigraphs disabled even with `-std=c11`.
+    /// compatibility mode leaves trigraphs disabled in both ISO standard modes.
     pub const fn default_trigraphs(self) -> bool {
-        matches!(self.language_mode, LanguageMode::C11)
-            && !matches!(self.target, Target::X86_64PcWindowsMsvc)
+        !self.language_mode.is_gnu() && !matches!(self.target, Target::X86_64PcWindowsMsvc)
     }
     /// Computes a scalar layout under this validated profile.
     pub fn builtin_layout(self, builtin: BuiltinType) -> Result<Layout, LayoutError> {

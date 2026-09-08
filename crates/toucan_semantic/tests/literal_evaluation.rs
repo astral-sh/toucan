@@ -4,11 +4,16 @@ use toucan_target::{CompilerProfile, LanguageMode};
 #[test]
 fn literal_queries_keep_the_unit_profile_and_validate_public_metadata() {
     for profile in CompilerProfile::ALL {
-        for mode in [LanguageMode::Gnu11, LanguageMode::C11] {
+        for mode in LanguageMode::ALL {
             let profile = profile.with_language_mode(mode);
             let analysis =
                 analyze_with_profile("int object;", profile, &Default::default()).unwrap();
             assert_eq!(analysis.unit().profile().unwrap(), profile);
+            if mode.is_c90() {
+                let value = evaluate_integer(analysis.unit(), "9223372036854775808").unwrap();
+                assert_eq!(value.bits, 64);
+                assert!(!value.signed);
+            }
             let mut unit = analysis.unit().clone();
             unit.declarations[0].noreturn = true;
             for expression in ["1", "1.0 + 2.0", "0 ? 3 : 4"] {

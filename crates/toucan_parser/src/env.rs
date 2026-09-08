@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use ast::*;
+use driver::Standard;
 use span::Node;
 use strings;
 
@@ -14,6 +15,7 @@ pub struct Env {
     pub symbols: Vec<HashMap<String, Symbol>>,
     pub extensions_gnu: bool,
     pub gnu_keywords: bool,
+    pub standard: Standard,
     pub extensions_clang: bool,
     pub extensions_msvc: bool,
     pub clang_calling_conventions: bool,
@@ -33,6 +35,7 @@ impl Env {
             definition_scopes: None,
             extensions_gnu: false,
             gnu_keywords: false,
+            standard: Standard::C11,
             extensions_clang: false,
             extensions_msvc: false,
             clang_calling_conventions: false,
@@ -52,6 +55,7 @@ impl Env {
             definition_scopes: None,
             extensions_gnu: true,
             gnu_keywords: true,
+            standard: Standard::C11,
             extensions_clang: false,
             extensions_msvc: false,
             clang_calling_conventions: false,
@@ -73,6 +77,7 @@ impl Env {
             definition_scopes: None,
             extensions_gnu: true,
             gnu_keywords: true,
+            standard: Standard::C11,
             extensions_clang: true,
             extensions_msvc: false,
             clang_calling_conventions: true,
@@ -116,6 +121,30 @@ impl Env {
         }
         self.extensions_msvc = enabled;
         for name in strings::RESERVED_MSVC {
+            if enabled {
+                self.reserved.insert(name);
+            } else {
+                self.reserved.remove(name);
+            }
+        }
+        if self.standard == Standard::C90 {
+            if self.gnu_keywords {
+                self.reserved.insert("inline");
+            } else {
+                self.reserved.remove("inline");
+            }
+        }
+    }
+
+    pub fn set_standard(&mut self, standard: Standard) {
+        if self.standard == standard {
+            return;
+        }
+        self.standard = standard;
+        for (name, enabled) in [
+            ("inline", standard == Standard::C11 || self.gnu_keywords),
+            ("restrict", standard == Standard::C11),
+        ] {
             if enabled {
                 self.reserved.insert(name);
             } else {

@@ -1746,14 +1746,41 @@ fn __parse_character_constant<'input>(__input: &'input str, __state: &mut ParseS
         let __seq_res = {
             let str_start = __pos;
             match {
-                let __seq_res = match if __input.len() > __pos {
-                    let (__ch, __next) = char_range_at(__input, __pos);
-                    match __ch {
-                        'L' | 'u' | 'U' => Matched(__next, ()),
-                        _ => __state.mark_failure(__pos, "[LuU]"),
+                let __seq_res = match {
+                    let __choice_res = slice_eq(__input, __state, __pos, "L");
+                    match __choice_res {
+                        Matched(__pos, __value) => Matched(__pos, __value),
+                        Failed if __state.budget.failure.is_some() => return Failed,
+                        Failed => {
+                            let __seq_res = {
+                                __state.suppress_fail += 1;
+                                let __assert_res = __parse_c11_guard(__input, __state, __pos, env);
+                                __state.suppress_fail -= 1;
+                                match __assert_res {
+                                    Matched(_, __value) => Matched(__pos, __value),
+                                    Failed => Failed,
+                                }
+                            };
+                            match __seq_res {
+                                Matched(__pos, _) => {
+                                    let __seq_res = if __input.len() > __pos {
+                                        let (__ch, __next) = char_range_at(__input, __pos);
+                                        match __ch {
+                                            'u' | 'U' => Matched(__next, ()),
+                                            _ => __state.mark_failure(__pos, "[uU]"),
+                                        }
+                                    } else {
+                                        __state.mark_failure(__pos, "[uU]")
+                                    };
+                                    match __seq_res {
+                                        Matched(__pos, e) => Matched(__pos, { e }),
+                                        Failed => Failed,
+                                    }
+                                }
+                                Failed => Failed,
+                            }
+                        }
                     }
-                } else {
-                    __state.mark_failure(__pos, "[LuU]")
                 } {
                     Matched(__newpos, _) => Matched(__newpos, ()),
                     Failed if __state.budget.failure.is_some() => return Failed,
@@ -2086,19 +2113,46 @@ fn __parse_encoding_prefix<'input>(__input: &'input str, __state: &mut ParseStat
     if !__state.budget.enter(__pos) { return Failed; }
     let result = (|| {
     {
-        let __choice_res = slice_eq(__input, __state, __pos, "u8");
+        let __choice_res = slice_eq(__input, __state, __pos, "L");
         match __choice_res {
             Matched(__pos, __value) => Matched(__pos, __value),
             Failed if __state.budget.failure.is_some() => return Failed,
             Failed => {
-                if __input.len() > __pos {
-                    let (__ch, __next) = char_range_at(__input, __pos);
-                    match __ch {
-                        'u' | 'U' | 'L' => Matched(__next, ()),
-                        _ => __state.mark_failure(__pos, "[uUL]"),
+                let __seq_res = {
+                    __state.suppress_fail += 1;
+                    let __assert_res = __parse_c11_guard(__input, __state, __pos, env);
+                    __state.suppress_fail -= 1;
+                    match __assert_res {
+                        Matched(_, __value) => Matched(__pos, __value),
+                        Failed => Failed,
                     }
-                } else {
-                    __state.mark_failure(__pos, "[uUL]")
+                };
+                match __seq_res {
+                    Matched(__pos, _) => {
+                        let __seq_res = {
+                            let __choice_res = slice_eq(__input, __state, __pos, "u8");
+                            match __choice_res {
+                                Matched(__pos, __value) => Matched(__pos, __value),
+                                Failed if __state.budget.failure.is_some() => return Failed,
+                                Failed => {
+                                    if __input.len() > __pos {
+                                        let (__ch, __next) = char_range_at(__input, __pos);
+                                        match __ch {
+                                            'u' | 'U' => Matched(__next, ()),
+                                            _ => __state.mark_failure(__pos, "[uU]"),
+                                        }
+                                    } else {
+                                        __state.mark_failure(__pos, "[uU]")
+                                    }
+                                }
+                            }
+                        };
+                        match __seq_res {
+                            Matched(__pos, e) => Matched(__pos, { e }),
+                            Failed => Failed,
+                        }
+                    }
+                    Failed => Failed,
                 }
             }
         }
@@ -6705,19 +6759,183 @@ fn __parse_declaration1<'input>(__input: &'input str, __state: &mut ParseState<'
     if !__state.budget.enter(__pos) { return Failed; }
     let result = (|| {
     {
-        let __seq_res = __parse_declaration_specifiers_unique(__input, __state, __pos, env);
-        match __seq_res {
-            Matched(__pos, h) => {
-                let __seq_res = __parse__(__input, __state, __pos, env);
+        let __choice_res = {
+            let __seq_res = __parse_declaration_specifiers_unique(__input, __state, __pos, env);
+            match __seq_res {
+                Matched(__pos, h) => {
+                    let __seq_res = __parse__(__input, __state, __pos, env);
+                    match __seq_res {
+                        Matched(__pos, _) => {
+                            let __seq_res = __parse_declaration2(__input, __state, __pos, env);
+                            match __seq_res {
+                                Matched(__pos, t) => Matched(__pos, { (concat(h, t.0), t.1) }),
+                                Failed => Failed,
+                            }
+                        }
+                        Failed => Failed,
+                    }
+                }
+                Failed => Failed,
+            }
+        };
+        match __choice_res {
+            Matched(__pos, __value) => Matched(__pos, __value),
+            Failed if __state.budget.failure.is_some() => return Failed,
+            Failed => {
+                let __seq_res = {
+                    __state.suppress_fail += 1;
+                    let __assert_res = __parse_c90_guard(__input, __state, __pos, env);
+                    __state.suppress_fail -= 1;
+                    match __assert_res {
+                        Matched(_, __value) => Matched(__pos, __value),
+                        Failed => Failed,
+                    }
+                };
                 match __seq_res {
                     Matched(__pos, _) => {
-                        let __seq_res = __parse_declaration2(__input, __state, __pos, env);
+                        let __seq_res = __parse_implicit_declaration(__input, __state, __pos, env);
                         match __seq_res {
-                            Matched(__pos, t) => Matched(__pos, { (concat(h, t.0), t.1) }),
+                            Matched(__pos, e) => Matched(__pos, { e }),
                             Failed => Failed,
                         }
                     }
                     Failed => Failed,
+                }
+            }
+        }
+    }
+
+    })();
+    let end = match &result { Matched(end, _) => Some(*end), Failed => None };
+    __state.budget.leave(__pos, end);
+    if __state.budget.failure.is_some() { Failed } else { result }
+}
+
+fn __parse_implicit_declaration<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<(Vec<Node<DeclarationSpecifier>>, Vec<Node<InitDeclarator>>)> {
+    #![allow(non_snake_case, unused)]
+    if !__state.budget.enter(__pos) { return Failed; }
+    let result = (|| {
+    {
+        let __seq_res = __parse_implicit_declaration_specifiers(__input, __state, __pos, env);
+        match __seq_res {
+            Matched(__pos, s) => {
+                let __seq_res = __parse__(__input, __state, __pos, env);
+                match __seq_res {
+                    Matched(__pos, _) => {
+                        let __seq_res = {
+                            let __seq_res = {
+                                let mut __repeat_pos = __pos;
+                                let mut __repeat_value = vec![];
+                                loop {
+                                    let __pos = __repeat_pos;
+                if !__state.budget.step(__pos) { return Failed; }
+                                    let __pos = if __repeat_value.len() > 0 {
+                                        let __sep_res = {
+                                            let __seq_res = __parse__(__input, __state, __pos, env);
+                                            match __seq_res {
+                                                Matched(__pos, _) => {
+                                                    let __seq_res = slice_eq(__input, __state, __pos, ",");
+                                                    match __seq_res {
+                                                        Matched(__pos, _) => __parse__(__input, __state, __pos, env),
+                                                        Failed => Failed,
+                                                    }
+                                                }
+                                                Failed => Failed,
+                                            }
+                                        };
+                                        match __sep_res {
+                                            Matched(__newpos, _) => __newpos,
+                                            Failed if __state.budget.failure.is_some() => return Failed,
+                                            Failed => break,
+                                        }
+                                    } else {
+                                        __pos
+                                    };
+                                    let __step_res = {
+                                        let __seq_res = Matched(__pos, __pos);
+                                        match __seq_res {
+                                            Matched(__pos, l) => {
+                                                let __seq_res = __parse_init_declarator(__input, __state, __pos, env);
+                                                match __seq_res {
+                                                    Matched(__pos, e) => {
+                                                        let __seq_res = Matched(__pos, __pos);
+                                                        match __seq_res {
+                                                            Matched(__pos, r) => match { __state.budget.node(e, Span::span(l, r)) } {
+                                                                Ok(res) => Matched(__pos, res),
+                                                                Err(expected) => {
+                                                                    __state.mark_failure(__pos, expected);
+                                                                    Failed
+                                                                }
+                                                            },
+                                                            Failed => Failed,
+                                                        }
+                                                    }
+                                                    Failed => Failed,
+                                                }
+                                            }
+                                            Failed => Failed,
+                                        }
+                                    };
+                                    match __step_res {
+                                        Matched(__newpos, __value) => {
+                                            __repeat_pos = __newpos;
+                                            __repeat_value.push(__value);
+                                        }
+                                        Failed if __state.budget.failure.is_some() => return Failed,
+                                        Failed => {
+                                            break;
+                                        }
+                                    }
+                                }
+                                if __repeat_value.len() >= 1 {
+                                    Matched(__repeat_pos, __repeat_value)
+                                } else {
+                                    Failed
+                                }
+                            };
+                            match __seq_res {
+                                Matched(__pos, e) => Matched(__pos, { e }),
+                                Failed => Failed,
+                            }
+                        };
+                        match __seq_res {
+                            Matched(__pos, d) => Matched(__pos, { (s, d) }),
+                            Failed => Failed,
+                        }
+                    }
+                    Failed => Failed,
+                }
+            }
+            Failed => Failed,
+        }
+    }
+
+    })();
+    let end = match &result { Matched(end, _) => Some(*end), Failed => None };
+    __state.budget.leave(__pos, end);
+    if __state.budget.failure.is_some() { Failed } else { result }
+}
+
+fn __parse_implicit_declaration_specifiers<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<Vec<Node<DeclarationSpecifier>>> {
+    #![allow(non_snake_case, unused)]
+    if !__state.budget.enter(__pos) { return Failed; }
+    let result = (|| {
+    {
+        let __seq_res = __parse_declaration_specifiers_unique(__input, __state, __pos, env);
+        match __seq_res {
+            Matched(__pos, s) => {
+                match {
+                    if !s.is_empty() || env.symbols.len() == 1 {
+                        Ok(s)
+                    } else {
+                        Err("declaration specifier")
+                    }
+                } {
+                    Ok(res) => Matched(__pos, res),
+                    Err(expected) => {
+                        __state.mark_failure(__pos, expected);
+                        Failed
+                    }
                 }
             }
             Failed => Failed,
@@ -7375,14 +7593,60 @@ fn __parse_declaration_typedef_tail0<'input>(__input: &'input str, __state: &mut
             Matched(__pos, __value) => Matched(__pos, __value),
             Failed if __state.budget.failure.is_some() => return Failed,
             Failed => {
-                let __seq_res = __parse_declaration_nonunique_type(__input, __state, __pos, env);
-                match __seq_res {
-                    Matched(__pos, h) => {
-                        let __seq_res = __parse__(__input, __state, __pos, env);
+                let __choice_res = {
+                    let __seq_res = __parse_declaration_nonunique_type(__input, __state, __pos, env);
+                    match __seq_res {
+                        Matched(__pos, h) => {
+                            let __seq_res = __parse__(__input, __state, __pos, env);
+                            match __seq_res {
+                                Matched(__pos, _) => {
+                                    let __seq_res = {
+                                        let __seq_res = __parse_declaration_specifiers_nonunique(__input, __state, __pos, env);
+                                        match __seq_res {
+                                            Matched(__pos, s) => {
+                                                let __seq_res = __parse__(__input, __state, __pos, env);
+                                                match __seq_res {
+                                                    Matched(__pos, _) => {
+                                                        let __seq_res = __parse_declaration_type_declarators(__input, __state, __pos, env);
+                                                        match __seq_res {
+                                                            Matched(__pos, d) => Matched(__pos, { (s, d) }),
+                                                            Failed => Failed,
+                                                        }
+                                                    }
+                                                    Failed => Failed,
+                                                }
+                                            }
+                                            Failed => Failed,
+                                        }
+                                    };
+                                    match __seq_res {
+                                        Matched(__pos, t) => Matched(__pos, { (concat(h, t.0), t.1) }),
+                                        Failed => Failed,
+                                    }
+                                }
+                                Failed => Failed,
+                            }
+                        }
+                        Failed => Failed,
+                    }
+                };
+                match __choice_res {
+                    Matched(__pos, __value) => Matched(__pos, __value),
+                    Failed if __state.budget.failure.is_some() => return Failed,
+                    Failed => {
+                        let __seq_res = {
+                            __state.suppress_fail += 1;
+                            let __assert_res = __parse_c90_guard(__input, __state, __pos, env);
+                            __state.suppress_fail -= 1;
+                            match __assert_res {
+                                Matched(_, __value) => Matched(__pos, __value),
+                                Failed => Failed,
+                            }
+                        };
                         match __seq_res {
                             Matched(__pos, _) => {
                                 let __seq_res = {
-                                    let __seq_res = __parse_declaration_specifiers_nonunique(__input, __state, __pos, env);
+                                    let __seq_res = __parse_declaration_specifiers_unique(__input, __state, __pos, env);
                                     match __seq_res {
                                         Matched(__pos, s) => {
                                             let __seq_res = __parse__(__input, __state, __pos, env);
@@ -7401,14 +7665,13 @@ fn __parse_declaration_typedef_tail0<'input>(__input: &'input str, __state: &mut
                                     }
                                 };
                                 match __seq_res {
-                                    Matched(__pos, t) => Matched(__pos, { (concat(h, t.0), t.1) }),
+                                    Matched(__pos, e) => Matched(__pos, { e }),
                                     Failed => Failed,
                                 }
                             }
                             Failed => Failed,
                         }
                     }
-                    Failed => Failed,
                 }
             }
         }
@@ -10810,76 +11073,29 @@ fn __parse_specifier_qualifiers<'input>(__input: &'input str, __state: &mut Pars
             Matched(__pos, __value) => Matched(__pos, __value),
             Failed if __state.budget.failure.is_some() => return Failed,
             Failed => {
-                let __seq_res = {
+                let __choice_res = {
                     let __seq_res = {
-                        let mut __repeat_pos = __pos;
-                        let mut __repeat_value = vec![];
-                        loop {
-                            let __pos = __repeat_pos;
+                        let __seq_res = {
+                            let mut __repeat_pos = __pos;
+                            let mut __repeat_value = vec![];
+                            loop {
+                                let __pos = __repeat_pos;
                 if !__state.budget.step(__pos) { return Failed; }
-                            let __pos = if __repeat_value.len() > 0 {
-                                let __sep_res = __parse__(__input, __state, __pos, env);
-                                match __sep_res {
-                                    Matched(__newpos, _) => __newpos,
-                                    Failed if __state.budget.failure.is_some() => return Failed,
-                                    Failed => break,
-                                }
-                            } else {
-                                __pos
-                            };
-                            let __step_res = {
-                                let __seq_res = Matched(__pos, __pos);
-                                match __seq_res {
-                                    Matched(__pos, l) => {
-                                        let __seq_res = __parse_specifier_qualifier_qualifier0(__input, __state, __pos, env);
-                                        match __seq_res {
-                                            Matched(__pos, e) => {
-                                                let __seq_res = Matched(__pos, __pos);
-                                                match __seq_res {
-                                                    Matched(__pos, r) => match { __state.budget.node(e, Span::span(l, r)) } {
-                                                        Ok(res) => Matched(__pos, res),
-                                                        Err(expected) => {
-                                                            __state.mark_failure(__pos, expected);
-                                                            Failed
-                                                        }
-                                                    },
-                                                    Failed => Failed,
-                                                }
-                                            }
-                                            Failed => Failed,
-                                        }
+                                let __pos = if __repeat_value.len() > 0 {
+                                    let __sep_res = __parse__(__input, __state, __pos, env);
+                                    match __sep_res {
+                                        Matched(__newpos, _) => __newpos,
+                                        Failed if __state.budget.failure.is_some() => return Failed,
+                                        Failed => break,
                                     }
-                                    Failed => Failed,
-                                }
-                            };
-                            match __step_res {
-                                Matched(__newpos, __value) => {
-                                    __repeat_pos = __newpos;
-                                    __repeat_value.push(__value);
-                                }
-                                Failed if __state.budget.failure.is_some() => return Failed,
-                                Failed => {
-                                    break;
-                                }
-                            }
-                        }
-                        Matched(__repeat_pos, __repeat_value)
-                    };
-                    match __seq_res {
-                        Matched(__pos, e) => Matched(__pos, { e }),
-                        Failed => Failed,
-                    }
-                };
-                match __seq_res {
-                    Matched(__pos, before) => {
-                        let __seq_res = __parse__(__input, __state, __pos, env);
-                        match __seq_res {
-                            Matched(__pos, _) => {
-                                let __seq_res = {
+                                } else {
+                                    __pos
+                                };
+                                let __step_res = {
                                     let __seq_res = Matched(__pos, __pos);
                                     match __seq_res {
                                         Matched(__pos, l) => {
-                                            let __seq_res = __parse_specifier_qualifier_nonunique_type0(__input, __state, __pos, env);
+                                            let __seq_res = __parse_specifier_qualifier_qualifier0(__input, __state, __pos, env);
                                             match __seq_res {
                                                 Matched(__pos, e) => {
                                                     let __seq_res = Matched(__pos, __pos);
@@ -10900,62 +11116,82 @@ fn __parse_specifier_qualifiers<'input>(__input: &'input str, __state: &mut Pars
                                         Failed => Failed,
                                     }
                                 };
-                                match __seq_res {
-                                    Matched(__pos, single) => {
-                                        let __seq_res = __parse__(__input, __state, __pos, env);
+                                match __step_res {
+                                    Matched(__newpos, __value) => {
+                                        __repeat_pos = __newpos;
+                                        __repeat_value.push(__value);
+                                    }
+                                    Failed if __state.budget.failure.is_some() => return Failed,
+                                    Failed => {
+                                        break;
+                                    }
+                                }
+                            }
+                            Matched(__repeat_pos, __repeat_value)
+                        };
+                        match __seq_res {
+                            Matched(__pos, e) => Matched(__pos, { e }),
+                            Failed => Failed,
+                        }
+                    };
+                    match __seq_res {
+                        Matched(__pos, before) => {
+                            let __seq_res = __parse__(__input, __state, __pos, env);
+                            match __seq_res {
+                                Matched(__pos, _) => {
+                                    let __seq_res = {
+                                        let __seq_res = Matched(__pos, __pos);
                                         match __seq_res {
-                                            Matched(__pos, _) => {
-                                                let __seq_res = {
-                                                    let __seq_res = {
-                                                        let mut __repeat_pos = __pos;
-                                                        let mut __repeat_value = vec![];
-                                                        loop {
-                                                            let __pos = __repeat_pos;
-                if !__state.budget.step(__pos) { return Failed; }
-                                                            let __pos = if __repeat_value.len() > 0 {
-                                                                let __sep_res = __parse__(__input, __state, __pos, env);
-                                                                match __sep_res {
-                                                                    Matched(__newpos, _) => __newpos,
-                                                                    Failed if __state.budget.failure.is_some() => return Failed,
-                                                                    Failed => break,
+                                            Matched(__pos, l) => {
+                                                let __seq_res = __parse_specifier_qualifier_nonunique_type0(__input, __state, __pos, env);
+                                                match __seq_res {
+                                                    Matched(__pos, e) => {
+                                                        let __seq_res = Matched(__pos, __pos);
+                                                        match __seq_res {
+                                                            Matched(__pos, r) => match { __state.budget.node(e, Span::span(l, r)) } {
+                                                                Ok(res) => Matched(__pos, res),
+                                                                Err(expected) => {
+                                                                    __state.mark_failure(__pos, expected);
+                                                                    Failed
                                                                 }
-                                                            } else {
-                                                                __pos
-                                                            };
-                                                            let __step_res = {
-                                                                let __choice_res = {
-                                                                    let __seq_res = Matched(__pos, __pos);
-                                                                    match __seq_res {
-                                                                        Matched(__pos, l) => {
-                                                                            let __seq_res = __parse_specifier_qualifier_nonunique_type0(__input, __state, __pos, env);
-                                                                            match __seq_res {
-                                                                                Matched(__pos, e) => {
-                                                                                    let __seq_res = Matched(__pos, __pos);
-                                                                                    match __seq_res {
-                                                                                        Matched(__pos, r) => match { __state.budget.node(e, Span::span(l, r)) } {
-                                                                                            Ok(res) => Matched(__pos, res),
-                                                                                            Err(expected) => {
-                                                                                                __state.mark_failure(__pos, expected);
-                                                                                                Failed
-                                                                                            }
-                                                                                        },
-                                                                                        Failed => Failed,
-                                                                                    }
-                                                                                }
-                                                                                Failed => Failed,
-                                                                            }
-                                                                        }
-                                                                        Failed => Failed,
+                                                            },
+                                                            Failed => Failed,
+                                                        }
+                                                    }
+                                                    Failed => Failed,
+                                                }
+                                            }
+                                            Failed => Failed,
+                                        }
+                                    };
+                                    match __seq_res {
+                                        Matched(__pos, single) => {
+                                            let __seq_res = __parse__(__input, __state, __pos, env);
+                                            match __seq_res {
+                                                Matched(__pos, _) => {
+                                                    let __seq_res = {
+                                                        let __seq_res = {
+                                                            let mut __repeat_pos = __pos;
+                                                            let mut __repeat_value = vec![];
+                                                            loop {
+                                                                let __pos = __repeat_pos;
+                if !__state.budget.step(__pos) { return Failed; }
+                                                                let __pos = if __repeat_value.len() > 0 {
+                                                                    let __sep_res = __parse__(__input, __state, __pos, env);
+                                                                    match __sep_res {
+                                                                        Matched(__newpos, _) => __newpos,
+                                                                        Failed if __state.budget.failure.is_some() => return Failed,
+                                                                        Failed => break,
                                                                     }
+                                                                } else {
+                                                                    __pos
                                                                 };
-                                                                match __choice_res {
-                                                                    Matched(__pos, __value) => Matched(__pos, __value),
-                                                                    Failed if __state.budget.failure.is_some() => return Failed,
-                                                                    Failed => {
+                                                                let __step_res = {
+                                                                    let __choice_res = {
                                                                         let __seq_res = Matched(__pos, __pos);
                                                                         match __seq_res {
                                                                             Matched(__pos, l) => {
-                                                                                let __seq_res = __parse_specifier_qualifier_qualifier0(__input, __state, __pos, env);
+                                                                                let __seq_res = __parse_specifier_qualifier_nonunique_type0(__input, __state, __pos, env);
                                                                                 match __seq_res {
                                                                                     Matched(__pos, e) => {
                                                                                         let __seq_res = Matched(__pos, __pos);
@@ -10975,47 +11211,164 @@ fn __parse_specifier_qualifiers<'input>(__input: &'input str, __state: &mut Pars
                                                                             }
                                                                             Failed => Failed,
                                                                         }
+                                                                    };
+                                                                    match __choice_res {
+                                                                        Matched(__pos, __value) => Matched(__pos, __value),
+                                                                        Failed if __state.budget.failure.is_some() => return Failed,
+                                                                        Failed => {
+                                                                            let __seq_res = Matched(__pos, __pos);
+                                                                            match __seq_res {
+                                                                                Matched(__pos, l) => {
+                                                                                    let __seq_res = __parse_specifier_qualifier_qualifier0(__input, __state, __pos, env);
+                                                                                    match __seq_res {
+                                                                                        Matched(__pos, e) => {
+                                                                                            let __seq_res = Matched(__pos, __pos);
+                                                                                            match __seq_res {
+                                                                                                Matched(__pos, r) => match { __state.budget.node(e, Span::span(l, r)) } {
+                                                                                                    Ok(res) => Matched(__pos, res),
+                                                                                                    Err(expected) => {
+                                                                                                        __state.mark_failure(__pos, expected);
+                                                                                                        Failed
+                                                                                                    }
+                                                                                                },
+                                                                                                Failed => Failed,
+                                                                                            }
+                                                                                        }
+                                                                                        Failed => Failed,
+                                                                                    }
+                                                                                }
+                                                                                Failed => Failed,
+                                                                            }
+                                                                        }
+                                                                    }
+                                                                };
+                                                                match __step_res {
+                                                                    Matched(__newpos, __value) => {
+                                                                        __repeat_pos = __newpos;
+                                                                        __repeat_value.push(__value);
+                                                                    }
+                                                                    Failed if __state.budget.failure.is_some() => return Failed,
+                                                                    Failed => {
+                                                                        break;
                                                                     }
                                                                 }
-                                                            };
-                                                            match __step_res {
-                                                                Matched(__newpos, __value) => {
-                                                                    __repeat_pos = __newpos;
-                                                                    __repeat_value.push(__value);
-                                                                }
-                                                                Failed if __state.budget.failure.is_some() => return Failed,
-                                                                Failed => {
-                                                                    break;
-                                                                }
                                                             }
+                                                            Matched(__repeat_pos, __repeat_value)
+                                                        };
+                                                        match __seq_res {
+                                                            Matched(__pos, e) => Matched(__pos, { e }),
+                                                            Failed => Failed,
                                                         }
-                                                        Matched(__repeat_pos, __repeat_value)
                                                     };
                                                     match __seq_res {
-                                                        Matched(__pos, e) => Matched(__pos, { e }),
+                                                        Matched(__pos, after) => Matched(__pos, {
+                                                            let mut before = before;
+                                                            before.push(single);
+                                                            before.extend(after);
+                                                            before
+                                                        }),
                                                         Failed => Failed,
                                                     }
-                                                };
+                                                }
+                                                Failed => Failed,
+                                            }
+                                        }
+                                        Failed => Failed,
+                                    }
+                                }
+                                Failed => Failed,
+                            }
+                        }
+                        Failed => Failed,
+                    }
+                };
+                match __choice_res {
+                    Matched(__pos, __value) => Matched(__pos, __value),
+                    Failed if __state.budget.failure.is_some() => return Failed,
+                    Failed => {
+                        let __seq_res = {
+                            __state.suppress_fail += 1;
+                            let __assert_res = __parse_c90_guard(__input, __state, __pos, env);
+                            __state.suppress_fail -= 1;
+                            match __assert_res {
+                                Matched(_, __value) => Matched(__pos, __value),
+                                Failed => Failed,
+                            }
+                        };
+                        match __seq_res {
+                            Matched(__pos, _) => {
+                                let __seq_res = {
+                                    let __seq_res = {
+                                        let mut __repeat_pos = __pos;
+                                        let mut __repeat_value = vec![];
+                                        loop {
+                                            let __pos = __repeat_pos;
+                if !__state.budget.step(__pos) { return Failed; }
+                                            let __pos = if __repeat_value.len() > 0 {
+                                                let __sep_res = __parse__(__input, __state, __pos, env);
+                                                match __sep_res {
+                                                    Matched(__newpos, _) => __newpos,
+                                                    Failed if __state.budget.failure.is_some() => return Failed,
+                                                    Failed => break,
+                                                }
+                                            } else {
+                                                __pos
+                                            };
+                                            let __step_res = {
+                                                let __seq_res = Matched(__pos, __pos);
                                                 match __seq_res {
-                                                    Matched(__pos, after) => Matched(__pos, {
-                                                        let mut before = before;
-                                                        before.push(single);
-                                                        before.extend(after);
-                                                        before
-                                                    }),
+                                                    Matched(__pos, l) => {
+                                                        let __seq_res = __parse_specifier_qualifier_qualifier0(__input, __state, __pos, env);
+                                                        match __seq_res {
+                                                            Matched(__pos, e) => {
+                                                                let __seq_res = Matched(__pos, __pos);
+                                                                match __seq_res {
+                                                                    Matched(__pos, r) => match { __state.budget.node(e, Span::span(l, r)) } {
+                                                                        Ok(res) => Matched(__pos, res),
+                                                                        Err(expected) => {
+                                                                            __state.mark_failure(__pos, expected);
+                                                                            Failed
+                                                                        }
+                                                                    },
+                                                                    Failed => Failed,
+                                                                }
+                                                            }
+                                                            Failed => Failed,
+                                                        }
+                                                    }
                                                     Failed => Failed,
                                                 }
+                                            };
+                                            match __step_res {
+                                                Matched(__newpos, __value) => {
+                                                    __repeat_pos = __newpos;
+                                                    __repeat_value.push(__value);
+                                                }
+                                                Failed if __state.budget.failure.is_some() => return Failed,
+                                                Failed => {
+                                                    break;
+                                                }
                                             }
-                                            Failed => Failed,
                                         }
+                                        if __repeat_value.len() >= 1 {
+                                            Matched(__repeat_pos, __repeat_value)
+                                        } else {
+                                            Failed
+                                        }
+                                    };
+                                    match __seq_res {
+                                        Matched(__pos, e) => Matched(__pos, { e }),
+                                        Failed => Failed,
                                     }
+                                };
+                                match __seq_res {
+                                    Matched(__pos, e) => Matched(__pos, { e }),
                                     Failed => Failed,
                                 }
                             }
                             Failed => Failed,
                         }
                     }
-                    Failed => Failed,
                 }
             }
         }
@@ -11854,14 +12207,68 @@ fn __parse_type_qualifier0<'input>(__input: &'input str, __state: &mut ParseStat
             Failed => {
                 let __choice_res = {
                     let __seq_res = {
-                        __state.suppress_fail += 1;
-                        let res = {
+                        let __choice_res = {
                             let __seq_res = {
-                                let __choice_res = slice_eq(__input, __state, __pos, "restrict");
-                                match __choice_res {
-                                    Matched(__pos, __value) => Matched(__pos, __value),
-                                    Failed if __state.budget.failure.is_some() => return Failed,
-                                    Failed => {
+                                __state.suppress_fail += 1;
+                                let __assert_res = __parse_c11_guard(__input, __state, __pos, env);
+                                __state.suppress_fail -= 1;
+                                match __assert_res {
+                                    Matched(_, __value) => Matched(__pos, __value),
+                                    Failed => Failed,
+                                }
+                            };
+                            match __seq_res {
+                                Matched(__pos, _) => {
+                                    let __seq_res = {
+                                        __state.suppress_fail += 1;
+                                        let res = {
+                                            let __seq_res = slice_eq(__input, __state, __pos, "restrict");
+                                            match __seq_res {
+                                                Matched(__pos, e) => {
+                                                    let __seq_res = {
+                                                        __state.suppress_fail += 1;
+                                                        let __assert_res = if __input.len() > __pos {
+                                                            let (__ch, __next) = char_range_at(__input, __pos);
+                                                            match __ch {
+                                                                '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
+                                                                _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
+                                                            }
+                                                        } else {
+                                                            __state.mark_failure(__pos, "[_a-zA-Z0-9]")
+                                                        };
+                                                        __state.suppress_fail -= 1;
+                                                        match __assert_res {
+                                                            Failed if __state.budget.failure.is_some() => return Failed,
+                                                            Failed => Matched(__pos, ()),
+                                                            Matched(..) => Failed,
+                                                        }
+                                                    };
+                                                    match __seq_res {
+                                                        Matched(__pos, _) => Matched(__pos, { e }),
+                                                        Failed => Failed,
+                                                    }
+                                                }
+                                                Failed => Failed,
+                                            }
+                                        };
+                                        __state.suppress_fail -= 1;
+                                        res
+                                    };
+                                    match __seq_res {
+                                        Matched(__pos, e) => Matched(__pos, { e }),
+                                        Failed => Failed,
+                                    }
+                                }
+                                Failed => Failed,
+                            }
+                        };
+                        match __choice_res {
+                            Matched(__pos, __value) => Matched(__pos, __value),
+                            Failed if __state.budget.failure.is_some() => return Failed,
+                            Failed => {
+                                __state.suppress_fail += 1;
+                                let res = {
+                                    let __seq_res = {
                                         let __seq_res = {
                                             __state.suppress_fail += 1;
                                             let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
@@ -11891,39 +12298,39 @@ fn __parse_type_qualifier0<'input>(__input: &'input str, __state: &mut ParseStat
                                             }
                                             Failed => Failed,
                                         }
-                                    }
-                                }
-                            };
-                            match __seq_res {
-                                Matched(__pos, e) => {
-                                    let __seq_res = {
-                                        __state.suppress_fail += 1;
-                                        let __assert_res = if __input.len() > __pos {
-                                            let (__ch, __next) = char_range_at(__input, __pos);
-                                            match __ch {
-                                                '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
-                                                _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
-                                            }
-                                        } else {
-                                            __state.mark_failure(__pos, "[_a-zA-Z0-9]")
-                                        };
-                                        __state.suppress_fail -= 1;
-                                        match __assert_res {
-                                            Failed if __state.budget.failure.is_some() => return Failed,
-                                            Failed => Matched(__pos, ()),
-                                            Matched(..) => Failed,
-                                        }
                                     };
                                     match __seq_res {
-                                        Matched(__pos, _) => Matched(__pos, { e }),
+                                        Matched(__pos, e) => {
+                                            let __seq_res = {
+                                                __state.suppress_fail += 1;
+                                                let __assert_res = if __input.len() > __pos {
+                                                    let (__ch, __next) = char_range_at(__input, __pos);
+                                                    match __ch {
+                                                        '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
+                                                        _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
+                                                    }
+                                                } else {
+                                                    __state.mark_failure(__pos, "[_a-zA-Z0-9]")
+                                                };
+                                                __state.suppress_fail -= 1;
+                                                match __assert_res {
+                                                    Failed if __state.budget.failure.is_some() => return Failed,
+                                                    Failed => Matched(__pos, ()),
+                                                    Matched(..) => Failed,
+                                                }
+                                            };
+                                            match __seq_res {
+                                                Matched(__pos, _) => Matched(__pos, { e }),
+                                                Failed => Failed,
+                                            }
+                                        }
                                         Failed => Failed,
                                     }
-                                }
-                                Failed => Failed,
+                                };
+                                __state.suppress_fail -= 1;
+                                res
                             }
-                        };
-                        __state.suppress_fail -= 1;
-                        res
+                        }
                     };
                     match __seq_res {
                         Matched(__pos, _) => Matched(__pos, { TypeQualifier::Restrict }),
@@ -12334,14 +12741,62 @@ fn __parse_function_specifier0<'input>(__input: &'input str, __state: &mut Parse
     {
         let __choice_res = {
             let __seq_res = {
-                __state.suppress_fail += 1;
-                let res = {
+                let __choice_res = {
                     let __seq_res = {
-                        let __choice_res = slice_eq(__input, __state, __pos, "inline");
-                        match __choice_res {
-                            Matched(__pos, __value) => Matched(__pos, __value),
-                            Failed if __state.budget.failure.is_some() => return Failed,
-                            Failed => {
+                        __state.suppress_fail += 1;
+                        let __assert_res = __parse_inline_guard(__input, __state, __pos, env);
+                        __state.suppress_fail -= 1;
+                        match __assert_res {
+                            Matched(_, __value) => Matched(__pos, __value),
+                            Failed => Failed,
+                        }
+                    };
+                    match __seq_res {
+                        Matched(__pos, _) => {
+                            __state.suppress_fail += 1;
+                            let res = {
+                                let __seq_res = slice_eq(__input, __state, __pos, "inline");
+                                match __seq_res {
+                                    Matched(__pos, e) => {
+                                        let __seq_res = {
+                                            __state.suppress_fail += 1;
+                                            let __assert_res = if __input.len() > __pos {
+                                                let (__ch, __next) = char_range_at(__input, __pos);
+                                                match __ch {
+                                                    '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
+                                                    _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
+                                                }
+                                            } else {
+                                                __state.mark_failure(__pos, "[_a-zA-Z0-9]")
+                                            };
+                                            __state.suppress_fail -= 1;
+                                            match __assert_res {
+                                                Failed if __state.budget.failure.is_some() => return Failed,
+                                                Failed => Matched(__pos, ()),
+                                                Matched(..) => Failed,
+                                            }
+                                        };
+                                        match __seq_res {
+                                            Matched(__pos, _) => Matched(__pos, { e }),
+                                            Failed => Failed,
+                                        }
+                                    }
+                                    Failed => Failed,
+                                }
+                            };
+                            __state.suppress_fail -= 1;
+                            res
+                        }
+                        Failed => Failed,
+                    }
+                };
+                match __choice_res {
+                    Matched(__pos, __value) => Matched(__pos, __value),
+                    Failed if __state.budget.failure.is_some() => return Failed,
+                    Failed => {
+                        __state.suppress_fail += 1;
+                        let res = {
+                            let __seq_res = {
                                 let __seq_res = {
                                     __state.suppress_fail += 1;
                                     let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
@@ -12371,39 +12826,39 @@ fn __parse_function_specifier0<'input>(__input: &'input str, __state: &mut Parse
                                     }
                                     Failed => Failed,
                                 }
-                            }
-                        }
-                    };
-                    match __seq_res {
-                        Matched(__pos, e) => {
-                            let __seq_res = {
-                                __state.suppress_fail += 1;
-                                let __assert_res = if __input.len() > __pos {
-                                    let (__ch, __next) = char_range_at(__input, __pos);
-                                    match __ch {
-                                        '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
-                                        _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
-                                    }
-                                } else {
-                                    __state.mark_failure(__pos, "[_a-zA-Z0-9]")
-                                };
-                                __state.suppress_fail -= 1;
-                                match __assert_res {
-                                    Failed if __state.budget.failure.is_some() => return Failed,
-                                    Failed => Matched(__pos, ()),
-                                    Matched(..) => Failed,
-                                }
                             };
                             match __seq_res {
-                                Matched(__pos, _) => Matched(__pos, { e }),
+                                Matched(__pos, e) => {
+                                    let __seq_res = {
+                                        __state.suppress_fail += 1;
+                                        let __assert_res = if __input.len() > __pos {
+                                            let (__ch, __next) = char_range_at(__input, __pos);
+                                            match __ch {
+                                                '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
+                                                _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
+                                            }
+                                        } else {
+                                            __state.mark_failure(__pos, "[_a-zA-Z0-9]")
+                                        };
+                                        __state.suppress_fail -= 1;
+                                        match __assert_res {
+                                            Failed if __state.budget.failure.is_some() => return Failed,
+                                            Failed => Matched(__pos, ()),
+                                            Matched(..) => Failed,
+                                        }
+                                    };
+                                    match __seq_res {
+                                        Matched(__pos, _) => Matched(__pos, { e }),
+                                        Failed => Failed,
+                                    }
+                                }
                                 Failed => Failed,
                             }
-                        }
-                        Failed => Failed,
+                        };
+                        __state.suppress_fail -= 1;
+                        res
                     }
-                };
-                __state.suppress_fail -= 1;
-                res
+                }
             };
             match __seq_res {
                 Matched(__pos, _) => Matched(__pos, { FunctionSpecifier::Inline }),
@@ -14033,7 +14488,97 @@ fn __parse_parameter_declaration0<'input>(__input: &'input str, __state: &mut Pa
     if !__state.budget.enter(__pos) { return Failed; }
     let result = (|| {
     {
-        let __seq_res = __parse_declaration_specifiers(__input, __state, __pos, env);
+        let __seq_res = {
+            let __choice_res = __parse_declaration_specifiers(__input, __state, __pos, env);
+            match __choice_res {
+                Matched(__pos, __value) => Matched(__pos, __value),
+                Failed if __state.budget.failure.is_some() => return Failed,
+                Failed => {
+                    let __seq_res = {
+                        __state.suppress_fail += 1;
+                        let __assert_res = __parse_c90_guard(__input, __state, __pos, env);
+                        __state.suppress_fail -= 1;
+                        match __assert_res {
+                            Matched(_, __value) => Matched(__pos, __value),
+                            Failed => Failed,
+                        }
+                    };
+                    match __seq_res {
+                        Matched(__pos, _) => {
+                            let __seq_res = {
+                                let __seq_res = {
+                                    let mut __repeat_pos = __pos;
+                                    let mut __repeat_value = vec![];
+                                    loop {
+                                        let __pos = __repeat_pos;
+                if !__state.budget.step(__pos) { return Failed; }
+                                        let __pos = if __repeat_value.len() > 0 {
+                                            let __sep_res = __parse__(__input, __state, __pos, env);
+                                            match __sep_res {
+                                                Matched(__newpos, _) => __newpos,
+                                                Failed if __state.budget.failure.is_some() => return Failed,
+                                                Failed => break,
+                                            }
+                                        } else {
+                                            __pos
+                                        };
+                                        let __step_res = {
+                                            let __seq_res = Matched(__pos, __pos);
+                                            match __seq_res {
+                                                Matched(__pos, l) => {
+                                                    let __seq_res = __parse_declaration_specifier_nontype(__input, __state, __pos, env);
+                                                    match __seq_res {
+                                                        Matched(__pos, e) => {
+                                                            let __seq_res = Matched(__pos, __pos);
+                                                            match __seq_res {
+                                                                Matched(__pos, r) => match { __state.budget.node(e, Span::span(l, r)) } {
+                                                                    Ok(res) => Matched(__pos, res),
+                                                                    Err(expected) => {
+                                                                        __state.mark_failure(__pos, expected);
+                                                                        Failed
+                                                                    }
+                                                                },
+                                                                Failed => Failed,
+                                                            }
+                                                        }
+                                                        Failed => Failed,
+                                                    }
+                                                }
+                                                Failed => Failed,
+                                            }
+                                        };
+                                        match __step_res {
+                                            Matched(__newpos, __value) => {
+                                                __repeat_pos = __newpos;
+                                                __repeat_value.push(__value);
+                                            }
+                                            Failed if __state.budget.failure.is_some() => return Failed,
+                                            Failed => {
+                                                break;
+                                            }
+                                        }
+                                    }
+                                    if __repeat_value.len() >= 1 {
+                                        Matched(__repeat_pos, __repeat_value)
+                                    } else {
+                                        Failed
+                                    }
+                                };
+                                match __seq_res {
+                                    Matched(__pos, e) => Matched(__pos, { e }),
+                                    Failed => Failed,
+                                }
+                            };
+                            match __seq_res {
+                                Matched(__pos, e) => Matched(__pos, { e }),
+                                Failed => Failed,
+                            }
+                        }
+                        Failed => Failed,
+                    }
+                }
+            }
+        };
         match __seq_res {
             Matched(__pos, s) => {
                 let __seq_res = __parse__(__input, __state, __pos, env);
@@ -18677,7 +19222,34 @@ fn __parse_function_definition<'input>(__input: &'input str, __state: &mut Parse
                 let __seq_res = __parse__(__input, __state, __pos, env);
                 match __seq_res {
                     Matched(__pos, _) => {
-                        let __seq_res = __parse_declaration_specifiers(__input, __state, __pos, env);
+                        let __seq_res = {
+                            let __choice_res = __parse_declaration_specifiers(__input, __state, __pos, env);
+                            match __choice_res {
+                                Matched(__pos, __value) => Matched(__pos, __value),
+                                Failed if __state.budget.failure.is_some() => return Failed,
+                                Failed => {
+                                    let __seq_res = {
+                                        __state.suppress_fail += 1;
+                                        let __assert_res = __parse_c90_guard(__input, __state, __pos, env);
+                                        __state.suppress_fail -= 1;
+                                        match __assert_res {
+                                            Matched(_, __value) => Matched(__pos, __value),
+                                            Failed => Failed,
+                                        }
+                                    };
+                                    match __seq_res {
+                                        Matched(__pos, _) => {
+                                            let __seq_res = __parse_declaration_specifiers_unique(__input, __state, __pos, env);
+                                            match __seq_res {
+                                                Matched(__pos, e) => Matched(__pos, { e }),
+                                                Failed => Failed,
+                                            }
+                                        }
+                                        Failed => Failed,
+                                    }
+                                }
+                            }
+                        };
                         match __seq_res {
                             Matched(__pos, a) => {
                                 let __seq_res = __parse__(__input, __state, __pos, env);
@@ -23717,6 +24289,78 @@ fn __parse_gnu_keyword_guard<'input>(__input: &'input str, __state: &mut ParseSt
             Ok(())
         } else {
             Err("GNU keywords disabled")
+        }
+    } {
+        Ok(res) => Matched(__pos, res),
+        Err(expected) => {
+            __state.mark_failure(__pos, expected);
+            Failed
+        }
+    }
+
+    })();
+    let end = match &result { Matched(end, _) => Some(*end), Failed => None };
+    __state.budget.leave(__pos, end);
+    if __state.budget.failure.is_some() { Failed } else { result }
+}
+
+fn __parse_c90_guard<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<()> {
+    #![allow(non_snake_case, unused)]
+    if !__state.budget.enter(__pos) { return Failed; }
+    let result = (|| {
+    match {
+        if env.standard == ::driver::Standard::C90 {
+            Ok(())
+        } else {
+            Err("C90 syntax disabled")
+        }
+    } {
+        Ok(res) => Matched(__pos, res),
+        Err(expected) => {
+            __state.mark_failure(__pos, expected);
+            Failed
+        }
+    }
+
+    })();
+    let end = match &result { Matched(end, _) => Some(*end), Failed => None };
+    __state.budget.leave(__pos, end);
+    if __state.budget.failure.is_some() { Failed } else { result }
+}
+
+fn __parse_c11_guard<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<()> {
+    #![allow(non_snake_case, unused)]
+    if !__state.budget.enter(__pos) { return Failed; }
+    let result = (|| {
+    match {
+        if env.standard == ::driver::Standard::C11 {
+            Ok(())
+        } else {
+            Err("C11 syntax disabled")
+        }
+    } {
+        Ok(res) => Matched(__pos, res),
+        Err(expected) => {
+            __state.mark_failure(__pos, expected);
+            Failed
+        }
+    }
+
+    })();
+    let end = match &result { Matched(end, _) => Some(*end), Failed => None };
+    __state.budget.leave(__pos, end);
+    if __state.budget.failure.is_some() { Failed } else { result }
+}
+
+fn __parse_inline_guard<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<()> {
+    #![allow(non_snake_case, unused)]
+    if !__state.budget.enter(__pos) { return Failed; }
+    let result = (|| {
+    match {
+        if env.standard == ::driver::Standard::C11 || env.gnu_keywords {
+            Ok(())
+        } else {
+            Err("inline keyword disabled")
         }
     } {
         Ok(res) => Matched(__pos, res),

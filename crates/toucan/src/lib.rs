@@ -11,11 +11,11 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions, RustTarget};
-pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
 pub use toucan_preprocessor::{
-    FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude, LineComments, OriginKind,
-    PredefinedMacroMode, QueryDialect, SourceLocation, SourceMapping,
+    CommandLineMacroNormalizer, FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude,
+    LineComments, OriginKind, PredefinedMacroMode, QueryDialect, SourceLocation, SourceMapping,
 };
+pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};
 pub use toucan_semantic::{self as semantic, Analysis, AnalysisOptions, TranslationUnit};
 pub use toucan_source as source;
@@ -57,6 +57,14 @@ impl Config {
         let mut preprocessor = PreprocessorConfig {
             feature_queries: Some(features::queries(profile)),
             trigraphs: profile.default_trigraphs(),
+            line_comments: if profile.language_mode() == LanguageMode::C90 {
+                match profile.compiler() {
+                    Compiler::Gnu => LineComments::GnuC90,
+                    Compiler::Clang => LineComments::ClangC90,
+                }
+            } else {
+                LineComments::Enabled
+            },
             predefined_macro_mode: match profile.compiler() {
                 Compiler::Gnu => PredefinedMacroMode::GnuCommandLine,
                 Compiler::Clang => PredefinedMacroMode::ClangCommandLine,

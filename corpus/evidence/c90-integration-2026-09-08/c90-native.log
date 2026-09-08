@@ -1,0 +1,14 @@
+   Compiling toucan_semantic v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-integrated/crates/toucan_semantic)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 0.75s
+     Running tests/c90.rs (/home/dev-user/.cache/toucan/c90-integrated-target/debug/deps/c90-463c663d96a7fa57)
+
+running 6 tests
+test direct_source_and_expression_queries_share_comment_boundaries ... ok
+test implicit_calls_keep_later_noreturn_declarations_separate ... ok
+test decimal_types_follow_c90_candidate_order_and_preserve_large_values ... ok
+test implicit_int_declarations_preserve_block_expressions_and_parameter_order ... ok
+test implicit_functions_keep_scope_linkage_and_default_promotions ... ok
+test c90_scope_and_syntax_decisions_match_compilers ... ok
+
+test result: ok. 6 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 15.23s
+

@@ -23,6 +23,8 @@ from pathlib import Path, PurePosixPath
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "corpus/conformance/c-testsuite.json"
 MODES = {
+    "c90": ["-std=c90"],
+    "gnu90": ["-std=gnu90"],
     "c11": ["-std=c11"],
     "gnu11": ["-std=gnu11"],
     "strict_c11": ["-std=c11", "-pedantic-errors"],
@@ -405,7 +407,7 @@ def arguments() -> argparse.Namespace:
     )
     parser.add_argument(
         "--dialect",
-        choices=["c11", "gnu11"],
+        choices=["c90", "gnu90", "c11", "gnu11"],
         default="c11",
         help="dialect for preprocessing and the acceptance comparison",
     )

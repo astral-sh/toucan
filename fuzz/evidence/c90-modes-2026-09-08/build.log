@@ -1,0 +1,10 @@
+   Compiling toucan_layout v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_layout)
+   Compiling toucan_parser v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_parser)
+   Compiling toucan_source v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_source)
+   Compiling toucan_preprocessor v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_preprocessor)
+   Compiling toucan_target v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_target)
+   Compiling toucan_semantic v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_semantic)
+   Compiling toucan_bindings v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_bindings)
+   Compiling toucan v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan)
+   Compiling toucan-fuzz v0.0.0 (/home/dev-user/.codex/worktrees/toucan-c90-modes/fuzz)
+    Finished `release` profile [optimized + debuginfo] target(s) in 1m 04s

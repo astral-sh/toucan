@@ -90,17 +90,23 @@ class TranslationUnitAuditTests(unittest.TestCase):
             profile["definitions"],
             [["VALUE", "1"], ["VALUE", None], ["VALUE", "2"], ["NDEBUG", "1"]],
         )
-        self.assertEqual(profile["unmodeled_compiler_flags"], ["-std=c90"])
+        self.assertEqual(profile["unmodeled_compiler_flags"], [])
+        self.assertEqual(profile["language_mode"], "c90")
         for flag in ("-include", "-imacros", "-iquote", "-isystem", "-nostdinc"):
             with self.assertRaises(RuntimeError):
                 audit.toucan_flags([flag, "header"], Path.cwd())
 
-    def test_language_mode_mapping_does_not_relabel_c90(self):
+    def test_language_modes_preserve_last_option_and_unknown_flags(self):
         for flags, mode, unmodeled in [
             (["-std=c11"], "c11", []),
             (["-std=c11", "-std=gnu11"], "gnu11", []),
-            (["-std=c11", "-std=c90"], "gnu11", ["-std=c90"]),
-            (["-std=c90", "-std=c11"], "c11", ["-std=c90"]),
+            (["-std=c11", "-std=c90"], "c90", []),
+            (["-std=c90", "-std=c11"], "c11", []),
+            (["-std=c89"], "c90", []),
+            (["-std=gnu89"], "gnu90", []),
+            (["-std=iso9899:1990"], "c90", []),
+            (["-std=c17", "-std=c90"], "c90", ["-std=c17"]),
+            (["-std=c90", "-std=c17"], "gnu11", ["-std=c17"]),
         ]:
             profile = audit.toucan_flags(flags, Path.cwd())
             self.assertEqual(profile["language_mode"], mode)

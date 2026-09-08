@@ -1,4 +1,4 @@
-# C11 and GNU11
+# C language modes
 
 Toucan defaults to GNU11. Select C11 when the build uses `-std=c11`:
 
@@ -14,8 +14,9 @@ let profile = CompilerProfile::new(Target::X86_64UnknownLinuxGnu, Compiler::Clan
 let config = Config::with_profile(profile);
 ```
 
-The build-script adapter accepts `.clang_arg("-std=c11")` and
-`.clang_arg("-std=gnu11")`. The last standard option wins. A compiler profile
+The CLI and build-script adapter accept C90, GNU90, C11, and GNU11. For example,
+use `.clang_arg("-std=c90")` for a C90 build. `c89` and `iso9899:1990` are aliases
+for C90; `gnu89` is an alias for GNU90. The last standard option wins. A compiler profile
 owns the mode; checked translation units retain it so constant-evaluation
 fragments and later type queries use the same keywords as the original source.
 
@@ -45,6 +46,18 @@ parser mode. Replacement bodies stop at the first newline and remove comments.
 Clang applies enabled trigraph replacement to those bodies; GNU does not.
 Definitions cannot splice into another definition or forced include.
 
+C90 and GNU90 omit `__STDC_VERSION__`. They define `__GNUC_GNU_INLINE__` where
+C11 modes define `__GNUC_STDC_INLINE__`; Windows defines neither. GCC C90 omits
+`__STDC_UTF_16__` and `__STDC_UTF_32__`, while Clang keeps both macros. ISO C90 has
+the same strict-mode platform macros and trigraph defaults as ISO C11.
+
+ISO C90 [comment handling](c90-comments.md) follows the selected compiler.
+Compilation and `-E` differ in the native compilers. The facade and build-script
+adapter select compilation behavior; the CLI's `preprocess` command selects
+preprocessing-only behavior. Clang C90 compilation normalizes `-D` operations in
+argument order, including a definition later removed by `-U`, before storing the
+final macro map. This preserves Clang's comment-extension state.
+
 The standalone preprocessor has no compiler dependency. Its default remains
 C11 trigraph replacement with caller-supplied replacement tokens. Its
 `PredefinedMacroMode` option selects raw tokens, GNU command-line definitions, or
@@ -59,20 +72,106 @@ and [driver option order](https://github.com/llvm/llvm-project/blob/llvmorg-18.1
 
 ## Coverage and remaining modes
 
-Inspection and binding reports add `language_mode`, spelled `c11` or `gnu11`.
+Inspection and binding reports retain `language_mode`, spelled `c90`, `gnu90`,
+`c11`, or `gnu11`.
 The experimental inspection versions remain 3 (declarations) and 5 (checked
 code). Older serialized compiler profiles default a missing field to GNU11.
 Declaration debug hashes change because the unit records this explicit field;
 generated Rust binding bytes are independent of the metadata.
 
-C90, C99, C17, C23 and corresponding GNU modes are not modeled. Unsupported
+C90 uses `inline` as an identifier; GNU90 reserves it. Both permit `restrict` as
+an identifier and retain the underscored alternatives `__inline__` and
+`__restrict__`. UTF-prefixed literals require a C11 mode. The compiler profiles
+retain non-pedantic extensions such as `_Atomic`, `_Generic`, compound literals,
+designated initializers, and variable-length arrays. GCC rejects declarations
+in a C90 `for` initializer; Clang accepts them as an extension.
+
+C90 implicit-int syntax covers object, typedef, function, qualified parameter,
+and identifier-list parameter declarations. Missing identifier-list parameter
+declarations produce `int` objects in source order. Retained analysis records
+their real identifier-list occurrences and parameter-entry types without
+inventing explicit declaration syntax.
+
+A direct call to an undeclared ordinary name introduces `extern int name()` in
+the innermost scope, with default argument promotions. Parenthesized undeclared
+names remain errors. Later declarations are checked for compatible types and
+linkage. Each implied declaration has an `ImplicitFunction` retained occurrence,
+and declarations in different blocks share the externally linked entity.
+Clang's Microsoft compatibility profile also accepts a later written `static`
+function declaration while preserving its earlier external linkage, including
+after an implied declaration. Native LLVM output verifies that the definition
+remains externally visible; retained entity and declaration linkage agree.
+
+Implicit declarations of library builtins remain unsupported: compilers can give
+`malloc` a pointer-returning prototype even without a header. A conservative union
+of ordinary library names from pinned
+[Clang](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/include/clang/Basic/Builtins.def)
+and [GCC](https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/gcc/builtins.def)
+catalogs, plus reserved names, requires a supplied declaration. This union also
+includes names disabled in individual profiles. Incompatible out-of-scope
+function declarations remain an explicit unsupported warning-recovery case.
+[`generate_implicit_library_names.py`](../scripts/generate_implicit_library_names.py)
+reproduces the 1,084-name guard from checksum-verified upstream catalog files.
+
+C90 decimal integer constants consider unsigned `long` before `long long`, as
+the native profiles do. Values above the supported integer range and signed
+MS-compatible `LL` overflow recovery remain errors. C11's existing rejection of
+implicit declarations is unchanged, including cases GCC only warns about by
+default. Inline-definition ownership and its language-specific constraints are
+separate pending work; this layer does not claim them from the inline predefines.
+
+C99, C17, C23 and corresponding GNU modes are not modeled. Unsupported
 standard flags remain errors in the CLI and build-script adapter. The source
 audit records its selected analysis mode and leaves unmodeled compiler flags
-visible: libgit2's current `-std=c90` is not relabeled C11. C90 support and GNU's
-omitted-middle conditional expression (`x ?: y`) are tracked conformance work.
+visible. Libgit2's original `-std=c90` now selects C90. GNU's omitted-middle
+conditional expression (`x ?: y`) remains tracked conformance work.
 Assembly bodies on Windows retain their existing explicit unsupported diagnostic.
 
-## Validation
+## C90/GNU90 validation
+
+The [admission evidence](../corpus/evidence/c90-modes-2026-09-08/summary.json)
+records native compiler decisions, full commands, diagnostics, and source hashes.
+Focused tests compare 228 decisions across both C90 modes, GCC 13.3, and Clang
+18.1.3 targeting Linux, macOS, and Windows. A Windows LLVM emission check verifies
+the external linkage described above. Separate generated-binding tests execute
+C calls and struct round trips with both native C compilers and Rust 1.64.0.
+
+All seven untouched source-audit translation units pass through both preprocessing
+routes, with ordinary and retained results agreeing in all 14 pairs. Both libgit2
+inputs use their original C90 build flag. This is a functional source audit;
+its individual timing observations are not a comparative performance claim.
+The workspace suite passes 690 tests, with 185 opt-in tests ignored in that run.
+The focused native checks run separately; the changed crates pass Clippy.
+
+The [checked-analysis fuzz campaign](../fuzz/evidence/c90-modes-2026-09-08/evidence.json.gz)
+passes 31,857 inputs in 181 seconds with AddressSanitizer, no artifacts, and
+543 MiB peak RSS. The initial archive covers all seven profiles from its base
+revision and all four modes for each of 77 seed files, preserving every original
+input byte. Source hashes remain unchanged during the run. LeakSanitizer is
+disabled in this ptrace environment; these results are a bounded campaign.
+
+### Integration with all eleven profiles
+
+The [integration evidence](../corpus/evidence/c90-integration-2026-09-08/summary.json)
+records the C90 layer combined with Microsoft integer and calling-convention
+syntax, retained `_Noreturn` metadata, and all eleven compiler profiles. The
+workspace passes 732 tests, with 192 opt-in tests ignored in that run; focused
+native checks run separately. The native C90 table covers 320 decisions, including
+Microsoft syntax, plus the Windows external-linkage LLVM check. The 56-observation
+feature-query table confirms that GCC's `gnu::` attribute namespace is enabled
+in GNU90 and GNU11 and returns zero in ISO modes; Clang rejects scoped query
+arguments. The differential CLI table remains at 180/184 because empty scalar
+initializers are reserved for the following implementation layer.
+
+All 117 semantic fuzzer seed files retain their exact bytes across 44
+profile/mode settings. The preprocessing fuzzer keeps its independent 20 settings
+for each of six seeds. A checked-analysis AddressSanitizer campaign executes
+12,583 inputs in 121 seconds with 592 MiB peak RSS, no artifacts, and unchanged
+source hashes. Its initial archive contains every profile/mode setting for all
+82 checked seeds, plus the invalid-UTF-8 input. LeakSanitizer remains disabled.
+The earlier evidence directories are preserved without changes.
+
+## Earlier C11/GNU11 validation
 
 The [recorded evidence](../corpus/evidence/language-modes-2026-09-08.json.gz) includes
 compiler versions, exact commands, source/binary hashes, and raw observations.
@@ -110,3 +209,9 @@ cover the merged BMI, binary128, and vector layers: all 1,050 seed/profile/mode
 pairs agree between ordinary and retained analysis (747 accepted, 303 matching
 diagnostics). The generated C11 bindings also pass with Rust 1.64. Campaign seeds
 cover both modes for every profile and both trigraph settings for preprocessing.
+
+The [combined integration](../corpus/evidence/c90-root-integration-2026-09-08/summary.json)
+also includes Microsoft declaration attributes and literal-query optimization.
+It checks 3,696 ordinary/retained seed pairs across all 44 profile/mode settings,
+keeps eight existing binding artifacts byte-identical, and reruns native C90 FFI
+with Rust 1.64. The original archives retain their own source revisions.

@@ -58,9 +58,10 @@ ordinary include directories. A sysroot adds `usr/include` and the selected Linu
 multiarch directory. Target headers and compiler resource directories must be
 supplied explicitly; no host compiler or SDK discovery occurs.
 
-The adapter defaults to GNU11. [C11 and GNU11](../../docs/language-modes.md)
-select keywords and predefined macros; C11 does not enable pedantic diagnostics.
-Other language modes remain explicit errors.
+The adapter defaults to GNU11. [C90, GNU90, C11, and GNU11](../../docs/language-modes.md)
+select syntax, declaration rules, and predefined macros without enabling pedantic
+diagnostics. C89 and GNU89 spellings are aliases for C90 and GNU90. Other language
+modes remain explicit errors.
 
 The adapter reads `BINDGEN_EXTRA_CLANG_ARGS` with shell quoting. Target-specific
 forms take precedence, first using the Cargo target spelling, then replacing its

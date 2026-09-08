@@ -201,8 +201,17 @@ def toucan_flags(flags: list[str], cwd: Path) -> dict:
         arg = flags[index]
         if arg.startswith("-std="):
             mode = arg.removeprefix("-std=")
-            if mode in ("c11", "gnu11"):
-                language_mode = mode
+            modes = {
+                "c11": "c11",
+                "gnu11": "gnu11",
+                "c90": "c90",
+                "c89": "c90",
+                "iso9899:1990": "c90",
+                "gnu90": "gnu90",
+                "gnu89": "gnu90",
+            }
+            if mode in modes:
+                language_mode = modes[mode]
                 language_mode_source = arg
             else:
                 unmodeled.append(arg)

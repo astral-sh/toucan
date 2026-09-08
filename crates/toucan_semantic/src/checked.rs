@@ -185,6 +185,8 @@ pub enum OccurrenceKind {
     Declarator,
     Parameter,
     OldStyleParameter,
+    /// A C90 function declaration implied by its first direct call in a scope.
+    ImplicitFunction,
     Field,
     StructDeclarator,
     Record,
@@ -898,6 +900,43 @@ impl Builder {
         self.code.declarations[site.index()].flexible_array_storage =
             declaration.flexible_array_storage.clone();
         Ok(Some(site))
+    }
+
+    pub(crate) fn implicit_function_declaration(
+        &mut self,
+        callee: &Node<ast::Expression>,
+        name: &str,
+        ty: &Type,
+    ) -> Result<(), Error> {
+        let original = self
+            .find(OccurrenceKind::Expression, callee)?
+            .ok_or_else(|| {
+                Error::new(
+                    callee.span.start,
+                    "implicit function has no retained callee occurrence",
+                )
+            })?;
+        let id = self.occurrence(OccurrenceKind::ImplicitFunction, &callee.node, callee.span)?;
+        self.code.occurrences[id.index()].type_owner =
+            self.code.occurrences[original.index()].type_owner;
+        self.code.occurrences[id.index()].attribute_argument =
+            self.code.occurrences[original.index()].attribute_argument;
+        self.local_declaration(
+            callee,
+            OccurrenceKind::ImplicitFunction,
+            LocalDeclaration {
+                name: Some(name),
+                name_span: Some(callee.span),
+                ty,
+                kind: EntityKind::Function,
+                storage: Storage::None,
+                linked: true,
+                register: false,
+                definition: false,
+                allocation: None,
+            },
+        )?;
+        Ok(())
     }
 
     pub(crate) fn local_declaration<T>(

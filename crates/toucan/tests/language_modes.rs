@@ -15,13 +15,12 @@ fn profile_defaults_and_caller_overrides_select_the_header_api() {
                 .iter()
                 .map(|d| d.name.as_str())
                 .collect::<Vec<_>>();
-            let strict =
-                mode == LanguageMode::C11 && profile.target() != Target::X86_64PcWindowsMsvc;
+            let strict = !mode.is_gnu() && profile.target() != Target::X86_64PcWindowsMsvc;
             assert_eq!(names.contains(&"standard"), strict);
             assert_eq!(names.contains(&"extension"), !strict);
             assert_eq!(
                 names.contains(&"bare_unix"),
-                mode == LanguageMode::Gnu11
+                mode.is_gnu()
                     && matches!(
                         profile.target(),
                         Target::X86_64UnknownLinuxGnu
@@ -162,6 +161,13 @@ fn command_line_and_physical_trigraphs_match_native_preprocessing() {
                         .defines
                         .insert("VALUE".into(), body.into());
                     config.preprocessor.forced_includes.clear();
+                    config.preprocessor.line_comments = match config.preprocessor.line_comments {
+                        toucan::LineComments::GnuC90 => toucan::LineComments::GnuC90Preprocessing,
+                        toucan::LineComments::ClangC90 => {
+                            toucan::LineComments::ClangC90Preprocessing
+                        }
+                        mode => mode,
+                    };
                     let pp = toucan::Preprocessor::new(config.preprocessor)
                         .preprocess_str(&input, source)
                         .unwrap();
@@ -215,7 +221,15 @@ fn profile_language_mode_round_trips_and_old_profiles_default_to_gnu11() {
             assert_eq!(mode.to_string().parse::<LanguageMode>().unwrap(), mode);
         }
     }
-    assert!("c90".parse::<LanguageMode>().is_err());
+    assert_eq!("c89".parse::<LanguageMode>().unwrap(), LanguageMode::C90);
+    assert_eq!(
+        "iso9899:1990".parse::<LanguageMode>().unwrap(),
+        LanguageMode::C90
+    );
+    assert_eq!(
+        "gnu89".parse::<LanguageMode>().unwrap(),
+        LanguageMode::Gnu90
+    );
     assert!("c17".parse::<LanguageMode>().is_err());
 }
 

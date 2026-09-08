@@ -2,7 +2,7 @@
 use std::sync::Arc;
 
 use toucan_preprocessor::{FeatureQueries, FeatureQuery, FeatureQueryProvider, QueryDialect};
-use toucan_target::{Compiler, CompilerProfile, LanguageMode};
+use toucan_target::{Compiler, CompilerProfile};
 
 #[derive(Debug)]
 struct Catalog(CompilerProfile);
@@ -11,7 +11,7 @@ impl FeatureQueryProvider for Catalog {
     fn query(&self, kind: FeatureQuery, namespace: Option<&str>, name: &str) -> u64 {
         if namespace.is_some_and(|namespace| {
             self.0.compiler() != Compiler::Gnu
-                || self.0.language_mode() != LanguageMode::Gnu11
+                || !self.0.language_mode().is_gnu()
                 || !matches!(namespace, "gnu" | "__gnu__")
         }) {
             return 0;

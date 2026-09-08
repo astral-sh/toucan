@@ -166,7 +166,7 @@ float_format -> FloatFormat =
     { FloatFormat::Double }
 
 character_constant -> String =
-    c:$([LuU]? "'" character+ "'") { String::from(c) }
+    c:$(("L" / c11<[uU]>)? "'" character+ "'") { String::from(c) }
 
 character = [^'\\\n] / escape_sequence
 
@@ -181,7 +181,7 @@ pub string_literal -> Node<Vec<String>> = s:node<list1<string_literal0>> { s }
 string_literal0 -> String =
     s:$(encoding_prefix? "\"" string_char* "\"") { String::from(s) }
 
-encoding_prefix = "u8" / [uUL]
+encoding_prefix = "L" / c11<"u8" / [uU]>
 
 string_char = [^"\\\n] / escape_sequence
 
@@ -495,7 +495,16 @@ declaration0 -> Declaration =
 declaration_seq<h, t> = h:h _ t:t { (concat(h, t.0), t.1) }
 
 declaration1 -> (Vec<Node<DeclarationSpecifier>>, Vec<Node<InitDeclarator>>) =
-    declaration_seq<declaration_specifiers_unique, declaration2>
+    declaration_seq<declaration_specifiers_unique, declaration2> /
+    c90<implicit_declaration>
+
+// In a block, a bare identifier starts an expression statement. At file scope,
+// C90 also permits an implicit-int declaration without declaration specifiers.
+implicit_declaration -> (Vec<Node<DeclarationSpecifier>>, Vec<Node<InitDeclarator>>) =
+    s:implicit_declaration_specifiers _ d:cs1<node<init_declarator>> { (s, d) }
+
+implicit_declaration_specifiers -> Vec<Node<DeclarationSpecifier>> =
+    s:declaration_specifiers_unique {? if !s.is_empty() || env.symbols.len() == 1 { Ok(s) } else { Err("declaration specifier") } }
 
 declaration2 -> (Vec<Node<DeclarationSpecifier>>, Vec<Node<InitDeclarator>>) =
     declaration_auto_type /
@@ -534,7 +543,8 @@ declaration_typedef_tail -> (Vec<Node<DeclarationSpecifier>>, Vec<Node<InitDecla
 
 declaration_typedef_tail0 -> (Vec<Node<DeclarationSpecifier>>, Vec<Node<InitDeclarator>>) =
     declaration_seq<declaration_unique_type, declaration_typedef_tail1<declaration_specifiers_unique>> /
-    declaration_seq<declaration_nonunique_type, declaration_typedef_tail1<declaration_specifiers_nonunique>>
+    declaration_seq<declaration_nonunique_type, declaration_typedef_tail1<declaration_specifiers_nonunique>> /
+    c90<declaration_typedef_tail1<declaration_specifiers_unique>>
 
 // What can follow after typedef + type name
 declaration_typedef_tail1<s> = s:s _ d:declaration_type_declarators { (s, d) }
@@ -710,7 +720,8 @@ struct_field -> StructField =
 
 specifier_qualifiers -> Vec<Node<SpecifierQualifier>> =
     list_eq1_n<node<specifier_qualifier_unique_type0>, node<specifier_qualifier_qualifier0>> /
-    list_ge1_n<node<specifier_qualifier_nonunique_type0>, node<specifier_qualifier_qualifier0>>
+    list_ge1_n<node<specifier_qualifier_nonunique_type0>, node<specifier_qualifier_qualifier0>> /
+    c90<list1<node<specifier_qualifier_qualifier0>>>
 
 specifier_qualifier_unique_type0 -> SpecifierQualifier =
     s:node<type_specifier_unique> { SpecifierQualifier::TypeSpecifier(s) }
@@ -776,7 +787,7 @@ type_qualifier -> Node<TypeQualifier> = node<type_qualifier0>
 
 type_qualifier0 -> TypeQualifier =
     K<"const"    / gnu<"__const">> { TypeQualifier::Const } /
-    K<"restrict" / gnu<"__restrict" "__"?>> { TypeQualifier::Restrict } /
+    (c11<K<"restrict">> / K<gnu<"__restrict" "__"?>>) { TypeQualifier::Restrict } /
     K<"volatile" / gnu<"__volatile" "__"?>> { TypeQualifier::Volatile } /
     clang<K<"_Nonnull">> { TypeQualifier::Nonnull } /
     clang<K<"_Null_unspecified">> { TypeQualifier::NullUnspecified } /
@@ -791,7 +802,7 @@ type_qualifier0 -> TypeQualifier =
 function_specifier -> Node<FunctionSpecifier> = node<function_specifier0>
 
 function_specifier0 -> FunctionSpecifier =
-    K<"inline" / gnu<"__inline" "__"?>> { FunctionSpecifier::Inline } /
+    (&inline_guard K<"inline"> / K<gnu<"__inline" "__"?>>) { FunctionSpecifier::Inline } /
     K<"_Noreturn"> { FunctionSpecifier::Noreturn }
 
 ////
@@ -900,7 +911,7 @@ ellipsis -> Ellipsis =
 parameter_declaration -> Node<ParameterDeclaration> = node<parameter_declaration0>
 
 parameter_declaration0 -> ParameterDeclaration =
-    s:declaration_specifiers _ d:parameter_declarator _ a:gnu<attribute_specifier_list>? {
+    s:(declaration_specifiers / c90<list1<node<declaration_specifier_nontype>>>) _ d:parameter_declarator _ a:gnu<attribute_specifier_list>? {
         ParameterDeclaration {
             specifiers: s,
             declarator: d,
@@ -1247,7 +1258,7 @@ external_declaration0 -> ExternalDeclaration =
 
 function_definition -> FunctionDefinition =
     gnu<K<"__extension__">>?
-    _ a:declaration_specifiers _ b:function_definition_declarator
+    _ a:(declaration_specifiers / c90<declaration_specifiers_unique>) _ b:function_definition_declarator
     _ e:clang<attribute_specifier_list>? _ c:list0<declaration>
     _ d:node<compound_statement> {
         FunctionDefinition {
@@ -1572,3 +1583,9 @@ clang_guard = {? if env.extensions_clang { Ok(()) } else { Err("clang extensions
 // Bare extension keywords are disabled by ISO modes; underscore spellings remain.
 gnu_keyword<E> = &gnu_keyword_guard e:K<E> { e }
 gnu_keyword_guard = {? if env.gnu_keywords { Ok(()) } else { Err("GNU keywords disabled") } }
+
+c90<E> = &c90_guard e:E { e }
+c90_guard = {? if env.standard == ::driver::Standard::C90 { Ok(()) } else { Err("C90 syntax disabled") } }
+c11<E> = &c11_guard e:E { e }
+c11_guard = {? if env.standard == ::driver::Standard::C11 { Ok(()) } else { Err("C11 syntax disabled") } }
+inline_guard = {? if env.standard == ::driver::Standard::C11 || env.gnu_keywords { Ok(()) } else { Err("inline keyword disabled") } }

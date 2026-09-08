@@ -136,7 +136,7 @@ struct Input {
 }
 
 impl Input {
-    fn config(&self, arguments: &ArgMatches) -> Result<Config> {
+    fn config(&self, arguments: &ArgMatches, preprocessing: bool) -> Result<Config> {
         let target = match &self.target {
             Some(target) => Target::parse(target)?,
             None => host_target()?,
@@ -146,6 +146,13 @@ impl Input {
             None => CompilerProfile::default_for(target),
         };
         let mut config = Config::with_profile(profile.with_language_mode(self.language_mode));
+        if preprocessing {
+            config.preprocessor.line_comments = match config.preprocessor.line_comments {
+                toucan::LineComments::GnuC90 => toucan::LineComments::GnuC90Preprocessing,
+                toucan::LineComments::ClangC90 => toucan::LineComments::ClangC90Preprocessing,
+                mode => mode,
+            };
+        }
         // As in compiler drivers, a later -std resets earlier trigraph flags.
         if let Some(enabled) = self.trigraphs {
             let standard = arguments
@@ -205,6 +212,8 @@ impl Input {
             .flatten()
             .zip(&self.undefines)
             .peekable();
+        let mut macros = (config.preprocessor.line_comments == toucan::LineComments::ClangC90)
+            .then(|| toucan::CommandLineMacroNormalizer::new(&config.preprocessor));
         while defines.peek().is_some() || undefines.peek().is_some() {
             let define_next = match (defines.peek(), undefines.peek()) {
                 (Some((d, _)), Some((u, _))) => d < u,
@@ -215,6 +224,14 @@ impl Input {
                 let (_, define) = defines.next().expect("peeked definition");
                 let (name, value) = define.split_once('=').unwrap_or((define, "1"));
                 anyhow::ensure!(!name.is_empty(), "macro name must not be empty");
+                let prepared = macros
+                    .as_mut()
+                    .map(|macros| macros.prepare(name, value))
+                    .transpose()
+                    .map_err(anyhow::Error::msg)?;
+                let (name, value) = prepared.as_ref().map_or((name, value), |(name, value)| {
+                    (name.as_str(), value.as_str())
+                });
                 let identifier = name.split('(').next().unwrap_or(name);
                 config
                     .preprocessor
@@ -228,6 +245,9 @@ impl Input {
                 let (_, name) = undefines.next().expect("peeked undefinition");
                 config.preprocessor.undefine(name);
             }
+        }
+        if macros.is_some() {
+            config.preprocessor.predefined_macro_mode = toucan::PredefinedMacroMode::Tokens;
         }
         Ok(config)
     }
@@ -283,7 +303,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
     let arguments = arguments.subcommand().context("missing command")?.1;
     match cli.command {
         Command::Preprocess { input, output } => {
-            let config = input.config(arguments)?;
+            let config = input.config(arguments, true)?;
             let preprocessed =
                 toucan::Preprocessor::new(config.preprocessor).preprocess(&input.header)?;
             write_output(output, &preprocessed.source)
@@ -293,7 +313,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
             output,
             checked_code,
         } => {
-            let mut config = input.config(arguments)?;
+            let mut config = input.config(arguments, false)?;
             config.analysis.retain_code = checked_code;
             let compilation = toucan::parse_file(&input.header, &config)?;
             write_output(
@@ -302,7 +322,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
             )
         }
         Command::Check { input } => {
-            let compilation = toucan::parse_file(&input.header, &input.config(arguments)?)?;
+            let compilation = toucan::parse_file(&input.header, &input.config(arguments, false)?)?;
             eprintln!(
                 "Analyzed {} declarations for {}",
                 compilation.unit().declarations.len(),
@@ -344,7 +364,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 .iter()
                 .map(std::fs::read_to_string)
                 .collect::<Result<Vec<_>, _>>()?;
-            let compilation = toucan::parse_file(&input.header, &input.config(arguments)?)?;
+            let compilation = toucan::parse_file(&input.header, &input.config(arguments, false)?)?;
             let (source, metadata) = compilation.bindings(&BindingOptions {
                 no_layout_tests: false,
                 allowlist,
