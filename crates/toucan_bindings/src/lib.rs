@@ -98,7 +98,7 @@ impl std::str::FromStr for RustTarget {
 /// Integer macro representation policy; evaluation always retains the C type.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum MacroType {
-    /// Preserve the C expression's width and signedness.
+    /// Preserve C Boolean values as Rust `bool`, and other integers by width and signedness.
     #[default]
     C,
     /// Use the smallest unsigned 32-, 64-, or 128-bit type for nonnegative values.
@@ -575,7 +575,8 @@ pub fn generate_with_macros(
                 )?);
             }
             MacroValue::Integer(value) => {
-                let emitted = normalize_macro(*value, options.macro_policy(c_name))?;
+                let policy = options.macro_policy(c_name);
+                let emitted = normalize_macro(*value, policy)?;
                 if emitted.bits != value.bits || emitted.signed != value.signed {
                     macro_types.push(MacroIntegerType {
                         c_name: c_name.clone(),
@@ -586,7 +587,16 @@ pub fn generate_with_macros(
                         rust_signed: emitted.signed,
                     });
                 }
-                source.push_str(&integer_constant_named(&name, emitted)?);
+                if policy == MacroType::C && value.rank == 0 {
+                    writeln!(
+                        source,
+                        "pub const {name}: ::core::primitive::bool = {};",
+                        value.value != 0
+                    )
+                    .unwrap();
+                } else {
+                    source.push_str(&integer_constant_named(&name, emitted)?);
+                }
             }
             MacroValue::WideString {
                 element_type,
@@ -698,6 +708,14 @@ fn floating_constant_named(
 }
 
 fn normalize_macro(value: IntegerValue, policy: MacroType) -> Result<IntegerValue, Error> {
+    // Validate the original C representation before an explicit integer policy
+    // changes its width. Enum projection uses a separate integer-only formatter.
+    if value.rank == 0 && (value.bits != 8 || value.signed || value.value > 1) {
+        return Err(Error(
+            "invalid C _Bool macro metadata: expected unsigned 8-bit storage and value 0 or 1"
+                .into(),
+        ));
+    }
     validate_integer(value)?;
     if policy == MacroType::C || (value.signed && value.signed_value() < 0) {
         return Ok(value);
@@ -1974,6 +1992,28 @@ mod tests {
     use super::*;
     use toucan_semantic::analyze;
     use toucan_target::Target;
+
+    #[test]
+    fn enum_projection_does_not_turn_boolean_initializers_into_bool() {
+        // Caller-provided values can retain the initializer's rank. Exercise
+        // both ordinary and packed-width projections without claiming that the
+        // frontend already accepts packed enum attributes.
+        for bits in [8, 32] {
+            for value in [0, 1] {
+                let source = IntegerValue {
+                    value,
+                    bits: 8,
+                    signed: false,
+                    rank: 0,
+                };
+                let emitted = convert_enum_constant(source, bits, false).unwrap();
+                assert_eq!(
+                    integer_constant("ENUM", emitted).unwrap(),
+                    format!("pub const ENUM: ::core::primitive::u{bits} = {value};\n")
+                );
+            }
+        }
+    }
 
     #[test]
     fn emits_transitive_types_callbacks_const_and_variadics() {

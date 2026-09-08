@@ -14,6 +14,7 @@ on:
       - "scripts/prepare_corpus.py"
       - "scripts/audit_translation_units.py"
       - "scripts/tests/test_translation_unit_audit.py"
+      - "scripts/tests/test_verify_corpus.py"
       - "scripts/verify_corpus.py"
       - "scripts/compare_bindings.py"
       - "scripts/verify_equivalence.py"

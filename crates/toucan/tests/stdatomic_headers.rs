@@ -172,7 +172,7 @@ fn c11_lock_free_macro_preserves_evaluator_boolean_metadata() {
             })
             .unwrap();
         assert!(
-            bindings.contains("pub const LOCK_FREE: ::core::primitive::u8 = 1;"),
+            bindings.contains("pub const LOCK_FREE: ::core::primitive::bool = true;"),
             "{bindings}"
         );
         let value =
@@ -182,8 +182,7 @@ fn c11_lock_free_macro_preserves_evaluator_boolean_metadata() {
             (value.rank, value.bits, value.signed, value.value),
             (0, 8, false, 1)
         );
-        // Integer macro emission currently preserves width/sign as u8; this
-        // assertion does not claim a Rust bool projection.
+        // C Boolean values remain part of the integer-macro count.
         assert_eq!(report.integer_macros, 1);
     }
 }

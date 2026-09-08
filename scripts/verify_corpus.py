@@ -20,6 +20,9 @@ INTEGER_CONSTANT = re.compile(
     r"^pub const ((?:r#)?\w+): (?:::core::primitive::)?([iu])(8|16|32|64|128) =",
     re.MULTILINE,
 )
+BOOLEAN_CONSTANT = re.compile(
+    r"^pub const ((?:r#)?\w+): (?:::core::primitive::)?bool =", re.MULTILINE
+)
 STRING_CONSTANT = re.compile(
     r"^pub const ((?:r#)?\w+): &\[(?:::core::primitive::)?u8(?:; \d+)?\] =",
     re.MULTILINE,
@@ -103,16 +106,17 @@ def generate_probes(
         "fn main() {",
     ]
     integers = INTEGER_CONSTANT.findall(source)
+    booleans = BOOLEAN_CONSTANT.findall(source)
     cstrings = set(CSTR_CONSTANT.findall(source))
     strings = STRING_CONSTANT.findall(source) + sorted(cstrings)
     constants = set(re.findall(r"^pub const ((?:r#)?\w+):", source, re.MULTILINE))
     renamed_macros = metadata.get("renamed_macros", {})
     if renamed_macros.keys() - constants:
         raise RuntimeError("renamed macro metadata names a missing constant")
-    covered = {constant for constant, _, _ in integers} | set(strings)
-    if not integers or constants != covered:
+    covered = {constant for constant, _, _ in integers} | set(booleans) | set(strings)
+    if not (integers or booleans) or constants != covered:
         raise RuntimeError(
-            f"constant probe coverage is incomplete: {len(integers)} integers, unrecognized declarations {sorted(constants - covered)}"
+            f"constant probe coverage is incomplete: {len(integers)} integers, {len(booleans)} booleans, unrecognized declarations {sorted(constants - covered)}"
         )
     enum_constants = {}
     for index, enumeration in enumerate(metadata["enum_constants"]):
@@ -221,6 +225,28 @@ def generate_probes(
             f'printf("constant_signed.{constant}=%d\\n", _Generic(({expression}), _Bool: 0, char: ((char)-1 < 0), unsigned char: 0, unsigned short: 0, unsigned int: 0, unsigned long: 0, unsigned long long: 0, unsigned __int128: 0, default: 1));'
         )
         rust.append(f'println!("constant_signed.{constant}={int(sign == "i")}");')
+    for constant in booleans:
+        if constant in enum_constants or constant in macro_types:
+            raise RuntimeError(
+                f"Boolean constant has integer projection metadata: {constant}"
+            )
+        expression = renamed_macros.get(constant, constant)
+        c.append(f'printf("constant.{constant}=%u\\n", (unsigned)({expression}));')
+        rust.append(f'println!("constant.{constant}={{}}", u8::from(b::{constant}));')
+        c.append(f'printf("constant_size.{constant}=%zu\\n", sizeof({expression}));')
+        rust.append(
+            f'println!("constant_size.{constant}={{}}", core::mem::size_of_val(&b::{constant}));'
+        )
+        c.append(
+            f'printf("constant_signed.{constant}=%d\\n", _Generic(({expression}), _Bool: 0, char: ((char)-1 < 0), unsigned char: 0, unsigned short: 0, unsigned int: 0, unsigned long: 0, unsigned long long: 0, unsigned __int128: 0, default: 1));'
+        )
+        rust.append(f'println!("constant_signed.{constant}=0");')
+        # An unsigned byte also has size one and values 0/1. Check the C type
+        # independently so those facts cannot conceal a wrong Bool projection.
+        c.append(
+            f'printf("constant_bool.{constant}=%d\\n", _Generic(({expression}), _Bool: 1, default: 0));'
+        )
+        rust.append(f'println!("constant_bool.{constant}=1");')
     for constant in strings:
         expression = renamed_macros.get(constant, constant)
         c.append(
@@ -259,7 +285,7 @@ def generate_probes(
     else:
         rust.append("}")
     coverage = {
-        "integer_constants": len(integers),
+        "integer_constants": len(integers) + len(booleans),
         "enum_constants": len(enum_constants),
         "anonymous_enum_projections": sum(
             enumeration["c_type"] is None for enumeration in metadata["enum_constants"]
@@ -269,6 +295,8 @@ def generate_probes(
         "field_offsets": offset_count,
         "ffi_fixture": str(ROOT / "corpus" / "ffi" / f"{name}.rs") if run_ffi else None,
     }
+    if booleans:
+        coverage["boolean_constants"] = len(booleans)
     return "\n".join(c) + "\n", "\n".join(rust) + "\n", coverage
 
 

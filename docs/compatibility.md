@@ -873,6 +873,20 @@ unsupported. No SVE execution or AArch64 C-to-Rust runtime equivalence is claime
 by this layer. The [validation record](../corpus/evidence/arm-vector-types-2026-09-08.json)
 includes cross-compiler probes and the unchanged ARM SQLite translation unit.
 
+### Boolean macro constants
+
+The default C macro policy emits actual `_Bool` constants as Rust `bool`.
+Comparisons, logical operators, promoted conditional expressions and enum aliases
+keep their C integer types. `--macro-type unsigned` and per-name unsigned policies
+still emit the documented unsigned integer widths; a per-name C policy restores
+Boolean output. Normalization reports retain the original C width and signedness.
+Invalid public Boolean metadata is rejected before applying an integer override.
+
+The [Boolean macro evidence](../corpus/evidence/bool-macros-2026-09-08.json) compares
+generated consumers with independent GCC/Clang value, size and `_Generic` type
+probes, including Rust 1.64. Packed enum attributes remain a separate unsupported
+source feature; their compiler-accepted minimized input is recorded for follow-up.
+
 ### Native atomic headers and Clang intrinsics
 
 The Clang profiles check the `__c11_atomic_*` operations used by Clang's
