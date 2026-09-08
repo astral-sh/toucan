@@ -9,7 +9,7 @@ use super::{
     unmapped_span,
 };
 use crate::analyze::Analyzer;
-use crate::target_features::ParsedTarget;
+use crate::target_features::{ParsedMinimumVectorWidth, ParsedTarget};
 use crate::{Error, FunctionOptions};
 
 /// One written target annotation, including compiler-significant argument order.
@@ -27,6 +27,22 @@ impl TargetAttribute {
     }
 }
 
+/// One written Clang width hint; duplicate hints remain in source order.
+#[derive(Debug, Serialize)]
+pub struct MinimumVectorWidthAttribute {
+    value: u32,
+    source: SourceSpan,
+}
+impl MinimumVectorWidthAttribute {
+    /// Width requested in bits, after Clang's unsigned argument interpretation.
+    pub fn value(&self) -> u32 {
+        self.value
+    }
+    pub fn source(&self) -> &SourceSpan {
+        &self.source
+    }
+}
+
 /// Options visible at one declaration; an entity may have later declarations.
 #[derive(Debug, Serialize)]
 pub struct FunctionOptionSite {
@@ -34,6 +50,8 @@ pub struct FunctionOptionSite {
     entity: EntityId,
     effective: FunctionOptions,
     attributes: Vec<TargetAttribute>,
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    minimum_vector_width: Vec<MinimumVectorWidthAttribute>,
     always_inline: Option<SourceSpan>,
     no_inline: Option<SourceSpan>,
 }
@@ -49,6 +67,10 @@ impl FunctionOptionSite {
     }
     pub fn attributes(&self) -> &[TargetAttribute] {
         &self.attributes
+    }
+    /// Written width hints, including duplicates and annotations ignored after a definition.
+    pub fn minimum_vector_width(&self) -> &[MinimumVectorWidthAttribute] {
+        &self.minimum_vector_width
     }
     /// Present for an explicitly written always_inline, not inherited occurrences.
     pub fn always_inline(&self) -> Option<&SourceSpan> {
@@ -103,7 +125,7 @@ impl InlineTargetRequirement {
 }
 
 impl CheckedCode {
-    /// Source declarations with target or mandatory-inline properties.
+    /// Source declarations with target, inline, or minimum vector width properties.
     pub fn function_option_sites(&self) -> impl Iterator<Item = &FunctionOptionSite> {
         self.function_options.values()
     }
@@ -138,14 +160,16 @@ impl Builder {
         &mut self,
         site: SiteId,
         options: Option<&FunctionOptions>,
-        attributes: &[ParsedTarget],
+        written: (&[ParsedTarget], &[ParsedMinimumVectorWidth]),
         always_inline: Option<(Span, bool)>,
         no_inline: Option<(Span, bool)>,
         affects_entity: bool,
     ) -> Result<(), Error> {
+        let (attributes, widths) = written;
         let Some(options) = options.filter(|options| {
             !options.is_default()
                 || !attributes.is_empty()
+                || !widths.is_empty()
                 || always_inline.is_some()
                 || no_inline.is_some()
         }) else {
@@ -163,8 +187,10 @@ impl Builder {
                     + attribute.arguments.len() * std::mem::size_of::<String>()
             })
             .sum::<usize>()
-            + option_bytes(options);
-        self.budget.charge(1 + attributes.len(), 2, bytes, offset)?;
+            + option_bytes(options)
+            + widths.len() * std::mem::size_of::<MinimumVectorWidthAttribute>();
+        self.budget
+            .charge(1 + attributes.len() + widths.len(), 2, bytes, offset)?;
         let mut attributes = attributes
             .iter()
             .map(|attribute| TargetAttribute {
@@ -173,6 +199,14 @@ impl Builder {
             })
             .collect::<Vec<_>>();
         attributes.sort_by_key(|attribute| attribute.source.range.start);
+        let mut minimum_vector_width = widths
+            .iter()
+            .map(|attribute| MinimumVectorWidthAttribute {
+                value: attribute.value,
+                source: unmapped_span(attribute.span),
+            })
+            .collect::<Vec<_>>();
+        minimum_vector_width.sort_by_key(|attribute| attribute.source.range.start);
         self.code.function_options.insert(
             site.index(),
             FunctionOptionSite {
@@ -180,6 +214,7 @@ impl Builder {
                 entity,
                 effective: options.clone(),
                 attributes,
+                minimum_vector_width,
                 always_inline: always_inline.map(|(span, _)| unmapped_span(span)),
                 no_inline: no_inline.map(|(span, _)| unmapped_span(span)),
             },
@@ -252,6 +287,10 @@ impl Builder {
         }
         for site in self.code.function_options.values_mut() {
             for attribute in &mut site.attributes {
+                let span = Span::span(attribute.source.range.start, attribute.source.range.end);
+                attribute.source = map_span(offsets, span, &mut self.budget)?;
+            }
+            for attribute in &mut site.minimum_vector_width {
                 let span = Span::span(attribute.source.range.start, attribute.source.range.end);
                 attribute.source = map_span(offsets, span, &mut self.budget)?;
             }

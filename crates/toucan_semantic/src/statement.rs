@@ -1025,7 +1025,7 @@ impl Analyzer {
                             checked.attach_function_options(
                                 site,
                                 function_options.as_ref(),
-                                &extra.target_attributes,
+                                (&extra.target_attributes, &extra.minimum_vector_width),
                                 extra.always_inline,
                                 extra.no_inline,
                                 options_affect_entity,
@@ -1153,7 +1153,7 @@ impl Analyzer {
                 checked.attach_function_options(
                     site,
                     function_options.as_ref(),
-                    &extra.target_attributes,
+                    (&extra.target_attributes, &extra.minimum_vector_width),
                     extra.always_inline,
                     extra.no_inline,
                     options_affect_entity,

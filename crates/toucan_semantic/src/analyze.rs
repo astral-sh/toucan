@@ -472,6 +472,7 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Attributes {
     pub(crate) target_attributes: Vec<crate::target_features::ParsedTarget>,
+    pub(crate) minimum_vector_width: Vec<crate::target_features::ParsedMinimumVectorWidth>,
     pub(crate) always_inline: Option<(lang_c::span::Span, bool)>,
     pub(crate) no_inline: Option<(lang_c::span::Span, bool)>,
     target_type_name: bool,
@@ -523,6 +524,12 @@ impl Attributes {
         Ok(())
     }
     pub(crate) fn require_function_attributes(&self, function: bool) -> Result<(), Error> {
+        if !function && let Some(attribute) = self.minimum_vector_width.first() {
+            return Err(Error::new(
+                attribute.span.start,
+                "min_vector_width requires a function declaration",
+            ));
+        }
         if !function
             && !self.target_type_name
             && let Some(attribute) = self
@@ -1503,7 +1510,10 @@ impl Analyzer {
                 checked.attach_function_options(
                     site,
                     function_options.as_ref(),
-                    &declarator_attributes.target_attributes,
+                    (
+                        &declarator_attributes.target_attributes,
+                        &declarator_attributes.minimum_vector_width,
+                    ),
                     declarator_attributes.always_inline,
                     declarator_attributes.no_inline,
                     true,
@@ -1972,10 +1982,21 @@ impl Analyzer {
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
     ) -> Result<PreparedSpecifiers, Error> {
+        self.prepare_specifiers_context(specifiers, false)
+    }
+
+    fn prepare_specifiers_context(
+        &mut self,
+        specifiers: &[Node<ast::DeclarationSpecifier>],
+        type_name: bool,
+    ) -> Result<PreparedSpecifiers, Error> {
         let mut types = Vec::new();
         let mut qualifiers = Qualifiers::default();
         let mut atomic = false;
-        let mut attributes = Attributes::default();
+        let mut attributes = Attributes {
+            target_type_name: type_name,
+            ..Attributes::default()
+        };
         let mut record_attributes = Attributes::default();
         let mut after_tag_definition = false;
         for specifier in specifiers {
@@ -2152,6 +2173,7 @@ impl Analyzer {
     fn specifier_qualifiers(
         &mut self,
         specifiers: &[Node<ast::SpecifierQualifier>],
+        type_name: bool,
     ) -> Result<(Type, Attributes), Error> {
         let specifiers = specifiers
             .iter()
@@ -2175,7 +2197,8 @@ impl Analyzer {
                 )
             })
             .collect::<Vec<_>>();
-        self.specifiers(&specifiers)
+        let prepared = self.prepare_specifiers_context(&specifiers, type_name)?;
+        self.complete_specifiers(&specifiers, prepared, None)
     }
 
     fn base_type(&mut self, types: &[Node<ast::TypeSpecifier>]) -> Result<Type, Error> {
@@ -2408,7 +2431,7 @@ impl Analyzer {
         if let Some(ty) = self.type_names.get(&key) {
             return Ok(ty.clone());
         }
-        let (ty, mut attributes) = self.specifier_qualifiers(&name.specifiers)?;
+        let (ty, mut attributes) = self.specifier_qualifiers(&name.specifiers, true)?;
         attributes.target_type_name = true;
         attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
@@ -2471,6 +2494,9 @@ impl Analyzer {
         extra
             .target_attributes
             .extend(attributes.target_attributes.iter().cloned());
+        extra
+            .minimum_vector_width
+            .extend_from_slice(&attributes.minimum_vector_width);
         extra.always_inline =
             crate::target_features::merge_inline(extra.always_inline, attributes.always_inline);
         extra.no_inline =
@@ -2722,6 +2748,7 @@ impl Analyzer {
         let mut alias_convention = None;
         let mut nodebug_arguments = None;
         let mut target_attributes = Vec::new();
+        let mut minimum_vector_width = Vec::new();
         let mut always_inline = None;
         let mut no_inline = None;
         let split = declaration
@@ -2749,6 +2776,7 @@ impl Analyzer {
                             ast::PointerQualifier::Extension(extensions) => {
                                 let mut attributes = Attributes {
                                     alias_base,
+                                    target_type_name: type_name,
                                     ..Attributes::default()
                                 };
                                 self.attributes(extensions, &mut attributes)?;
@@ -2756,6 +2784,8 @@ impl Analyzer {
                                     nodebug_arguments.or(attributes.nodebug_arguments);
                                 target_attributes
                                     .extend(attributes.target_attributes.iter().cloned());
+                                minimum_vector_width
+                                    .extend_from_slice(&attributes.minimum_vector_width);
                                 always_inline = crate::target_features::merge_inline(
                                     always_inline,
                                     attributes.always_inline,
@@ -3124,10 +3154,14 @@ impl Analyzer {
                 });
             }
         }
-        let mut attributes = Attributes::default();
+        let mut attributes = Attributes {
+            target_type_name: type_name,
+            ..Attributes::default()
+        };
         self.attributes(&declaration.node.extensions, &mut attributes)?;
         attributes.nodebug_arguments = attributes.nodebug_arguments.or(nodebug_arguments);
         attributes.target_attributes.extend(target_attributes);
+        attributes.minimum_vector_width.extend(minimum_vector_width);
         attributes.always_inline =
             crate::target_features::merge_inline(attributes.always_inline, always_inline);
         attributes.no_inline =
@@ -3177,6 +3211,9 @@ impl Analyzer {
                 attributes
                     .target_attributes
                     .extend(inner_attributes.target_attributes);
+                attributes
+                    .minimum_vector_width
+                    .extend(inner_attributes.minimum_vector_width);
                 attributes.always_inline = crate::target_features::merge_inline(
                     attributes.always_inline,
                     inner_attributes.always_inline,
@@ -3307,7 +3344,7 @@ impl Analyzer {
                     }
                     ast::StructDeclaration::Field(field) => {
                         let (base, attributes) =
-                            self.specifier_qualifiers(&field.node.specifiers)?;
+                            self.specifier_qualifiers(&field.node.specifiers, false)?;
                         attributes.require_function_attributes(false)?;
                         attributes.require_no_weak()?;
                         attributes.require_no_transparent_union()?;
@@ -3900,6 +3937,31 @@ impl Analyzer {
                 ast::Extension::Attribute(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
                     match name {
+                        "min_vector_width" => {
+                            if self.unit.compiler == Compiler::Gnu || result.target_type_name {
+                                // Ignoring an attribute does not skip parsing its expressions.
+                                // GNU additionally permits bare identifier arguments without lookup.
+                                let checkpoint = self.sve_feature_checkpoint();
+                                for argument in &attribute.arguments {
+                                    if self.unit.compiler != Compiler::Gnu
+                                        || !matches!(argument.node, ast::Expression::Identifier(_))
+                                    {
+                                        self.expression_info(argument)?;
+                                    }
+                                }
+                                self.discard_sve_feature_uses(checkpoint);
+                            } else {
+                                if result.minimum_vector_width.len() >= 256 {
+                                    return Err(Error::new(
+                                        extension.span.start,
+                                        "minimum vector width attribute count exceeds the 256-entry limit",
+                                    ));
+                                }
+                                result.minimum_vector_width.push(
+                                    self.parse_minimum_vector_width(attribute, extension.span)?,
+                                );
+                            }
+                        }
                         "target" => {
                             if result.target_attributes.len() >= 256 {
                                 return Err(Error::new(

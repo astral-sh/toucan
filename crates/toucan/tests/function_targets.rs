@@ -1,8 +1,8 @@
 use toucan::{Compiler, CompilerProfile, Config, Target};
 
 const HEADER: &str = r#"
-__attribute__((target("mmx"))) int add(int, int);
-__attribute__((target("no-mmx"))) int callback(int (*)(int), int);
+__attribute__((target("mmx"),min_vector_width(128))) int add(int, int);
+__attribute__((target("no-mmx"),min_vector_width(64))) int callback(int (*)(int), int);
 "#;
 
 #[test]
@@ -154,4 +154,25 @@ fn sparse_target_metadata_serializes_without_changing_empty_outputs() {
     let code = serde_json::to_value(analysis.checked().unwrap()).unwrap();
     assert!(code.get("function_options").is_none());
     assert!(code.get("inline_targets").is_none());
+}
+
+#[test]
+fn minimum_vector_width_serializes_as_an_optional_declaration_hint() {
+    let profile = CompilerProfile::new(Target::X86_64UnknownLinuxGnu, Compiler::Clang).unwrap();
+    let analysis = toucan::semantic::analyze_with_profile(
+        "__attribute__((min_vector_width(128), min_vector_width(256))) int f(void);",
+        profile,
+        &toucan::AnalysisOptions {
+            retain_code: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    let unit = serde_json::to_value(analysis.unit()).unwrap();
+    assert_eq!(unit["function_options"]["0"]["minimum_vector_width"], 128);
+    let checked = serde_json::to_value(analysis.checked().unwrap()).unwrap();
+    let sites = checked["function_options"].as_object().unwrap();
+    let site = sites.values().next().unwrap();
+    assert_eq!(site["minimum_vector_width"][0]["value"], 128);
+    assert_eq!(site["minimum_vector_width"][1]["value"], 256);
 }

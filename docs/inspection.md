@@ -85,3 +85,9 @@ analysis results. Expression queries use a separate occurrence registry and rese
 identities beyond those inherited from their input translation unit.
 
 See [VLA type identities](vla-type-identity.md) for construction limits and validation.
+
+The sparse function options may include `minimum_vector_width` for a Clang
+function declaration. This is the explicit hint in bits, not the backend's
+computed vector width. Checked option sites additionally retain the ordered
+written hints and their source spans. Absent hints omit these optional fields;
+this is additive within the experimental schemas 3 and 4.

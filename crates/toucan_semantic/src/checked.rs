@@ -58,7 +58,10 @@ pub use statement::{
     FunctionBody, Label, OldStyleDefinition, ParameterEntry, ParameterEvaluationOrder, Statement,
     StatementCoverage, StatementId, StatementKind,
 };
-pub use target::{FunctionOptionSite, InlineTargetRequirement, InlineTargetStage, TargetAttribute};
+pub use target::{
+    FunctionOptionSite, InlineTargetRequirement, InlineTargetStage, MinimumVectorWidthAttribute,
+    TargetAttribute,
+};
 
 use std::collections::{BTreeMap, HashMap};
 use std::hash::{BuildHasher, RandomState};

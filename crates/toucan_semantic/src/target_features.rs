@@ -77,12 +77,14 @@ impl FunctionTarget {
     }
 }
 
-/// Effective function declaration properties relevant to feature-sensitive inlining.
+/// Effective function declaration properties, separate from its C type and ABI.
 #[derive(Clone, Debug, Default, PartialEq, Eq, Serialize)]
 pub struct FunctionOptions {
     target: Option<FunctionTarget>,
     always_inline: bool,
     no_inline: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    minimum_vector_width: Option<u32>,
 }
 
 impl FunctionOptions {
@@ -102,12 +104,21 @@ impl FunctionOptions {
         self.no_inline
     }
 
+    /// Explicit Clang optimization hint, in bits. This does not enable an ISA or
+    /// predict LLVM's computed width, which types and inlining can increase.
+    pub fn minimum_vector_width(&self) -> Option<u32> {
+        self.minimum_vector_width
+    }
+
     pub(crate) fn mmx(&self) -> bool {
         self.target.as_ref().is_none_or(|target| target.mmx)
     }
 
     pub(crate) fn is_default(&self) -> bool {
-        self.target.is_none() && !self.always_inline && !self.no_inline
+        self.target.is_none()
+            && !self.always_inline
+            && !self.no_inline
+            && self.minimum_vector_width.is_none()
     }
 }
 
@@ -121,6 +132,12 @@ impl TranslationUnit {
             ));
         }
         for (&index, options) in &self.function_options {
+            if self.compiler != Compiler::Clang && options.minimum_vector_width.is_some() {
+                return Err(Error::new(
+                    0,
+                    "minimum vector width requires the Clang compiler profile",
+                ));
+            }
             if self.compiler == Compiler::Gnu && options.always_inline && options.no_inline {
                 return Err(Error::new(0, "conflicting effective GNU inline options"));
             }
@@ -183,6 +200,12 @@ fn is_x86(target: Target) -> bool {
     )
 }
 
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct ParsedMinimumVectorWidth {
+    pub(crate) span: Span,
+    pub(crate) value: u32,
+}
+
 #[derive(Clone, Debug)]
 pub(crate) struct ParsedTarget {
     pub(crate) span: Span,
@@ -207,6 +230,35 @@ impl ParsedTarget {
 }
 
 impl Analyzer {
+    pub(crate) fn parse_minimum_vector_width(
+        &mut self,
+        attribute: &ast::Attribute,
+        span: Span,
+    ) -> Result<ParsedMinimumVectorWidth, Error> {
+        let [argument] = attribute.arguments.as_slice() else {
+            return Err(Error::new(
+                span.start,
+                "min_vector_width takes one integer constant argument",
+            ));
+        };
+        if !self.is_integer_constant_expression(argument, 0)? {
+            return Err(Error::new(
+                argument.span.start,
+                "min_vector_width requires an integer constant expression",
+            ));
+        }
+        // Clang zero-extends the original integer's bits, before conversion to
+        // u32: (signed char)-1 is 255, whereas a negative LP64 long is too wide.
+        let value = self.eval(argument)?;
+        let value = u32::try_from(value.value).map_err(|_| {
+            Error::new(
+                argument.span.start,
+                "min_vector_width exceeds 32 unsigned bits",
+            )
+        })?;
+        Ok(ParsedMinimumVectorWidth { span, value })
+    }
+
     /// Preserve arguments without evaluating them; GNU ignores non-function placements.
     pub(crate) fn parse_target_attribute(
         &self,
@@ -356,6 +408,12 @@ impl Analyzer {
         attributes: &Attributes,
         previous_index: Option<usize>,
     ) -> Result<FunctionOptions, Error> {
+        if attributes.minimum_vector_width.len() > 256 {
+            return Err(Error::new(
+                attributes.minimum_vector_width[256].span.start,
+                "minimum vector width attribute count exceeds the 256-entry limit",
+            ));
+        }
         let mut options = self
             .visible_function_options(name)
             .cloned()
@@ -363,6 +421,7 @@ impl Analyzer {
         if !attributes.target_attributes.is_empty()
             || attributes.always_inline.is_some()
             || attributes.no_inline.is_some()
+            || !attributes.minimum_vector_width.is_empty()
         {
             let defined =
                 previous_index.is_some_and(|index| self.unit.declarations[index].is_definition);
@@ -468,6 +527,16 @@ impl Analyzer {
             if let Some((span, true)) = attribute {
                 return Err(Error::new(span.start, format!("{name} takes no arguments")));
             }
+        }
+        if !defined
+            && let Some(attribute) = attributes
+                .minimum_vector_width
+                .iter()
+                .min_by_key(|attribute| attribute.span.start)
+        {
+            // Explicit declarations replace inherited hints. Multiple annotations
+            // on one declaration use the first, after every argument was checked.
+            options.minimum_vector_width = Some(attribute.value);
         }
         if self.unit.compiler == Compiler::Clang {
             // Both accepted Clang annotations remain significant: noinline

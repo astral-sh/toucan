@@ -107,3 +107,39 @@ prior declaration index and allocates scope maps only when an annotation needs o
 The final short four-header timing batch measured roughly 0.9–1.8% overhead on
 this shared host. The report retains the initial and final samples and executable
 hashes; these measurements do not establish statistical equivalence.
+
+## Minimum vector width
+
+Clang's `min_vector_width` is a function optimization hint. Toucan preserves it as
+`FunctionOptions::minimum_vector_width()`, in bits, and keeps each written hint
+with its source span in `FunctionOptionSite::minimum_vector_width()`. It does not
+change C type compatibility, enable instructions, or change generated Rust ABIs.
+The value is a declaration hint: LLVM can compute a greater minimum from vector
+parameter types or inlining. Toucan does not perform that lowering calculation.
+Clang accepts the hint on all five targets; the pinned Arm backend probes do not
+emit an LLVM width attribute.
+
+The argument must be an integer constant expression whose original bit pattern
+fits in 32 unsigned bits. For example, `(signed char)-1` requests 255 bits, `-1`
+requests 4294967295, and `-1L` fails on LP64 targets. Zero and non-power-of-two
+widths are accepted. The first hint on a declaration wins, but every argument is
+checked. A later explicit declaration replaces an inherited hint. New hints after
+a definition are ignored after validation. The first linked block declaration
+can supply the inherited hint; subsequent block declarations have lexical scope.
+
+Clang ignores width annotations on type-name operands after checking supplied
+argument expressions. GNU ignores this unknown attribute, including its arity;
+it still parses composite arguments and permits bare identifier arguments without
+lookup. Such ignored arguments create any written types but produce no runtime
+feature obligation. Their arithmetic is not evaluated as a width constant.
+
+[Clang's attribute reference](https://releases.llvm.org/18.1.4/tools/clang/docs/AttributeReference.html#min-vector-width)
+and [the pinned argument handler](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/Sema/SemaDeclAttr.cpp)
+define these rules. Native diagnostics, emitted LLVM hints, inlining differences,
+source hashes and ordinary/retained parity are recorded in the
+[width-hint evidence](../corpus/evidence/minimum-vector-width-2026-09-08.json).
+The [constant-expression probes](../corpus/evidence/minimum-vector-width-ice-2026-09-08.json)
+also cover nonconstant operands in discarded branches. The
+[integration report](../corpus/evidence/minimum-vector-width-integration-2026-09-08.json)
+records the combined workspace suite and retained-graph seed checks after
+declaration alignment and old-style definitions.
