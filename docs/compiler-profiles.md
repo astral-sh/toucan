@@ -67,6 +67,15 @@ decoding likewise provide `*_with_profile` methods.
 
 ## Header compatibility and limits
 
+The Microsoft ABI profile recognizes `_int8` / `__int8`, `_int16` / `__int16`,
+`_int32` / `__int32`, and `_int64` / `__int64` as language keywords, including
+inside function bodies, casts, and constant macros. Their unmodified C types are
+`char`, `short`, `int`, and `long long`. In particular, `__int8` retains plain
+`char` identity; `signed __int8` is `signed char`. These spellings remain ordinary
+identifiers on the other profiles. This support does not establish Windows SDK
+header coverage; Microsoft declaration attributes and calling-convention keywords
+have separate syntax and semantic requirements.
+
 Compatibility version macros remain conservative: GNU 4.2.1 and, for Clang,
 Clang 4.0. They select supported header branches; they do not claim every feature
 of those releases or match the installed validation compiler. Capability queries

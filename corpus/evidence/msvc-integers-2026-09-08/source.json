@@ -1,0 +1,19 @@
+{
+  "base": "1be727f05f3996c37f0398625e7c5a19156e89ef",
+  "files": {
+    "crates/toucan/tests/msvc_integers.rs": "01ccd755d0d50f99a9092a1d24a8945366c9d246bff531f930c46b05d365aa51",
+    "crates/toucan_parser/README.md": "1f4e479ce3e4fd787f139aa691dbe6969440e97f87baddec5b89bd44426ea12f",
+    "crates/toucan_parser/grammar.rustpeg": "c3e8aa1fa943e325ba191a3a8ca7717fc384cf7fb972ed1895a345c2890ab03f",
+    "crates/toucan_parser/scripts/instrument.py": "66b4f6fbe1eaa219a984b13d6316b02d5597f6b290f83bab1f643db4e7f75053",
+    "crates/toucan_parser/src/ast.rs": "b31ef3e004d1028601089c881c04c5bed420deedae6df156d4b629da05f0b84b",
+    "crates/toucan_parser/src/driver.rs": "6351255982efa91cf572233d46c779b9912edc26ab013716d61733104f469c0d",
+    "crates/toucan_parser/src/env.rs": "8e4f683bb969fa147b97d00e34fd234a5a71276eb97a96705e6d06f145aa98c1",
+    "crates/toucan_parser/src/measure.rs": "02575728cea5acb44bd7e9214562cf48f91190ae11e734478e0132488029896d",
+    "crates/toucan_parser/src/parser.rs": "4a26a7e7ac47ffd87ed5d20ce1e8b6c59d9f0716c1ed7228e43debdabd4036b2",
+    "crates/toucan_parser/src/strings.rs": "b3a36f49de4bc1ee77873a7b7ae91aa34c36efda3a1914c253c85599852e9dda",
+    "crates/toucan_parser/tests/msvc.rs": "3aa279ed33963ab5a0783ac3da7b2823447214d0dea4e62bc409623227ac1198",
+    "crates/toucan_semantic/src/analyze.rs": "9a868cbe6d8dd0ebbeb5e7f3d50c13b38b7cfeb377cb446b23a8c9b38a5f8674",
+    "docs/compiler-profiles.md": "b01fd52da636d0e7b687a512e985b99d9068f5981d77590aea06870afe640478",
+    "fuzz/seeds/checked/msvc_integers.h": "5e6339a8158123819b5f4e428e7856a5bcefee5517ad41adf987e30949a83d08"
+  }
+}

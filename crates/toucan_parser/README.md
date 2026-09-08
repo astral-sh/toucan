@@ -34,6 +34,12 @@ the extension grammar to semantic consumers that validate compiler availability.
 extensions. Standard C11 permits those identifiers, while GNU11 reserves them.
 The core-only flavor never enables GNU keywords.
 
+`Config::extensions_msvc` reserves the Microsoft `_int8` / `__int8`, `_int16` /
+`__int16`, `_int32` / `__int32`, and `_int64` / `__int64` keywords. The AST retains
+their written widths; semantic checking determines their C types and valid
+specifier combinations. With this option disabled, these names remain available
+as ordinary identifiers and typedef names.
+
 GNU attributes on null statements have a distinct `Statement::Attribute` node.
 Semantic checking determines which statement annotations are supported; the visitor
 preserves their attributes and source spans.

@@ -73,7 +73,13 @@ fn analyze_on_parser_stack(
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
     let (source, packs) = prepare_source(source)?;
-    let parsed = parse(&source, 0, profile.compiler(), profile.language_mode())?;
+    let parsed = parse(
+        &source,
+        0,
+        profile.target(),
+        profile.compiler(),
+        profile.language_mode(),
+    )?;
     let packs = packs
         .into_iter()
         .map(|(offset, pack)| (parsed.offsets.pragma_offset(offset), pack))
@@ -222,6 +228,7 @@ fn evaluate_on_parser_stack<Value>(
     let parsed = parse(
         &source,
         expression_offset,
+        unit.target,
         unit.compiler,
         unit.language_mode,
     )
@@ -294,6 +301,7 @@ struct Parsed {
 fn parse(
     source: &str,
     diagnostic_offset: usize,
+    target: Target,
     compiler: Compiler,
     language_mode: toucan_target::LanguageMode,
 ) -> Result<Parsed, Error> {
@@ -308,6 +316,7 @@ fn parse(
         cpp_command: String::new(),
         cpp_options: Vec::new(),
         gnu_keywords: language_mode == toucan_target::LanguageMode::Gnu11,
+        extensions_msvc: target == Target::X86_64PcWindowsMsvc,
         flavor: match compiler {
             Compiler::Gnu => driver::Flavor::GnuC11WithClangExtensions,
             Compiler::Clang => driver::Flavor::ClangC11,
@@ -2202,6 +2211,9 @@ impl Analyzer {
         let mut int128 = false;
         let mut special = None;
         let mut direct_complex_base = false;
+        let msvc_short = types
+            .iter()
+            .any(|ty| matches!(ty.node, ast::TypeSpecifier::MsvcInteger(16)));
         for ty in types {
             if self.int128_specifiers.contains(&ty.span.start) {
                 if std::mem::replace(&mut int128, true) {
@@ -2213,8 +2225,17 @@ impl Analyzer {
                 continue;
             }
             match &ty.node {
-                ast::TypeSpecifier::Long => long += 1,
-                ast::TypeSpecifier::Short if !short => short = true,
+                ast::TypeSpecifier::MsvcInteger(8) if !char_ => char_ = true,
+                ast::TypeSpecifier::MsvcInteger(16) => short = true,
+                ast::TypeSpecifier::MsvcInteger(32) if !int => int = true,
+                ast::TypeSpecifier::MsvcInteger(64) => long = 2,
+                ast::TypeSpecifier::Long => {
+                    if long >= 2 {
+                        return Err(Error::new(ty.span.start, "too many long type specifiers"));
+                    }
+                    long += 1;
+                }
+                ast::TypeSpecifier::Short if !short || msvc_short => short = true,
                 ast::TypeSpecifier::Signed if !signed => signed = true,
                 ast::TypeSpecifier::Unsigned if !unsigned => unsigned = true,
                 ast::TypeSpecifier::Char if !char_ => char_ = true,

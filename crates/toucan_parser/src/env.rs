@@ -15,6 +15,7 @@ pub struct Env {
     pub extensions_gnu: bool,
     pub gnu_keywords: bool,
     pub extensions_clang: bool,
+    pub extensions_msvc: bool,
     pub gnu_float128_typedef: bool,
     pub reserved: HashSet<&'static str>,
     // Parameter scopes are normally discarded at the end of their declarators.
@@ -32,6 +33,7 @@ impl Env {
             extensions_gnu: false,
             gnu_keywords: false,
             extensions_clang: false,
+            extensions_msvc: false,
             gnu_float128_typedef: false,
             symbols: vec![HashMap::default()],
             reserved,
@@ -49,6 +51,7 @@ impl Env {
             extensions_gnu: true,
             gnu_keywords: true,
             extensions_clang: false,
+            extensions_msvc: false,
             gnu_float128_typedef: true,
             symbols: vec![symbols],
             reserved,
@@ -67,6 +70,7 @@ impl Env {
             extensions_gnu: true,
             gnu_keywords: true,
             extensions_clang: true,
+            extensions_msvc: false,
             gnu_float128_typedef: false,
             symbols: vec![symbols],
             reserved,
@@ -84,6 +88,17 @@ impl Env {
         self.gnu_keywords = enabled && self.extensions_gnu;
         for name in ["asm", "typeof"] {
             if self.gnu_keywords {
+                self.reserved.insert(name);
+            } else {
+                self.reserved.remove(name);
+            }
+        }
+    }
+
+    pub fn set_msvc_extensions(&mut self, enabled: bool) {
+        self.extensions_msvc = enabled;
+        for name in strings::RESERVED_MSVC {
+            if enabled {
                 self.reserved.insert(name);
             } else {
                 self.reserved.remove(name);

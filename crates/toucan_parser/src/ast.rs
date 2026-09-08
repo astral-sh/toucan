@@ -662,6 +662,9 @@ pub enum TypeSpecifier {
     Short,
     /// `int`
     Int,
+    /// Microsoft `_int8` / `__int8`, `_int16` / `__int16`, `_int32` / `__int32`,
+    /// or `_int64` / `__int64` keyword, retaining the written width.
+    MsvcInteger(u8),
     /// `long`
     Long,
     /// `float`

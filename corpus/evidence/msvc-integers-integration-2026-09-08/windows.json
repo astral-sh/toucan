@@ -1,0 +1,57 @@
+{
+  "status": "passed",
+  "commands": [
+    {
+      "command": [
+        "/home/dev-user/code/oss/toucan/target/debug/toucan",
+        "bindgen",
+        "/home/dev-user/.cache/toucan/msvc-integrated-windows/api.h",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        "--rust-target",
+        "1.64",
+        "-o",
+        "/home/dev-user/.cache/toucan/msvc-integrated-windows/bindings.rs",
+        "--report",
+        "/home/dev-user/.cache/toucan/msvc-integrated-windows/report.json"
+      ],
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/msrv-rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc",
+        "--target=x86_64-pc-windows-msvc",
+        "--edition=2021",
+        "--crate-type=lib",
+        "--emit=metadata",
+        "/home/dev-user/.cache/toucan/msvc-integrated-windows/consumer.rs",
+        "-o",
+        "/home/dev-user/.cache/toucan/msvc-integrated-windows/stable.rmeta"
+      ],
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/msrv-rustup/toolchains/1.64.0-x86_64-unknown-linux-gnu/bin/rustc",
+        "--target=x86_64-pc-windows-msvc",
+        "--edition=2021",
+        "--crate-type=lib",
+        "--emit=metadata",
+        "/home/dev-user/.cache/toucan/msvc-integrated-windows/consumer.rs",
+        "-o",
+        "/home/dev-user/.cache/toucan/msvc-integrated-windows/1.64.0.rmeta"
+      ],
+      "status": 0,
+      "stdout": "",
+      "stderr": ""
+    }
+  ],
+  "bindings_sha256": "0345922be6ad48b5546d6155db126ce96adabb11e4fca85f37bfd86485e8a0d5",
+  "source_sha256": "5aea1d3e43d620e2a2abb7ad30ee2329feb9cbf4786637578313da6065661029",
+  "toucan_sha256": "400b98476c82195f8a83fde68e730900aca9ddb07649bf4ec9638b3b3110ecd1",
+  "scope": "Actual Rust1.64 and current Rust compile Windows metadata. No Windows executable ran."
+}

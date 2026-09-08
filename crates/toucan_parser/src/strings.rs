@@ -101,6 +101,10 @@ pub const RESERVED_GNU: &[&str] = &[
 ];
 
 // Ref: https://clang.llvm.org/docs/AttributeReference.html
+pub const RESERVED_MSVC: &[&str] = &[
+    "_int8", "__int8", "_int16", "__int16", "_int32", "__int32", "_int64", "__int64",
+];
+
 pub const RESERVED_CLANG: &[&str] = &[
     "__float128",
     // Only enabled with -fms-extensions and only affect *-*-win32 targets

@@ -1,0 +1,34 @@
+{
+  "status": "passed",
+  "reported_test_counts": {
+    "parser": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    "native": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    "workspace": {
+      "passed": 706,
+      "failed": 0,
+      "ignored": 185
+    }
+  },
+  "checked_seed_pairs": 1760,
+  "accepted": 1243,
+  "matching_diagnostics": 517,
+  "native_clang_source_comparisons": 519,
+  "parser_regeneration_byte_identical": true,
+  "parser_guards": 510,
+  "parser_rules": 235,
+  "parser_loops": 79,
+  "original_header_artifacts_equal": 4,
+  "executed_musl_abi_binding_artifacts_equal": 4,
+  "windows_bindings_equal": true,
+  "windows_generated_rust_1_64_and_current_metadata": "passed",
+  "source_manifest_sha256": "142457788df774745c23e5f8305c62783fbbc7388172bdfe71173df7e3a13cf6",
+  "scope": "Microsoft integer syntax, source type identity and canonical bindings. Native compiler decisions use seven Clang targets. Windows Rust checks compile metadata without executing Windows code. The shared compiler classifier now rejects driver-reported crashes too."
+}

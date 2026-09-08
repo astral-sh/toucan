@@ -649,6 +649,7 @@ type_specifier_unique -> TypeSpecifier =
     t:typedef_name { TypeSpecifier::TypedefName(t) }
 
 type_specifier_nonunique -> TypeSpecifier =
+    width:msvc<K<msvc_integer_width>> { TypeSpecifier::MsvcInteger(width) } /
     K<"char"> { TypeSpecifier::Char } /
     K<"short"> { TypeSpecifier::Short } /
     K<"int"> { TypeSpecifier::Int } /
@@ -1260,6 +1261,13 @@ function_definition_declarator -> Node<Declarator> =
 gnu<E> = &gnu_guard e:E { e }
 
 gnu_guard = {? if env.extensions_gnu { Ok(()) } else { Err("gnu extensions disabled") } }
+
+msvc<E> = &msvc_guard e:E { e }
+
+msvc_guard = {? if env.extensions_msvc { Ok(()) } else { Err("Microsoft extensions disabled") } }
+
+msvc_integer_width -> u8 =
+    "_" "_"? "int" width:("8" { 8 } / "16" { 16 } / "32" { 32 } / "64" { 64 }) { width }
 
 ////
 // GNU attributes

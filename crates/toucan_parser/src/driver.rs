@@ -25,6 +25,8 @@ pub struct Config {
     /// Recognize bare asm/typeof keywords; underscored forms follow the flavor.
     /// StdC11 always leaves these identifiers available.
     pub gnu_keywords: bool,
+    /// Recognize Microsoft extension keywords, independently of GNU keywords.
+    pub extensions_msvc: bool,
 }
 
 impl Config {
@@ -35,6 +37,7 @@ impl Config {
             cpp_options: vec!["-E".into()],
             flavor: Flavor::GnuC11,
             gnu_keywords: true,
+            extensions_msvc: false,
         }
     }
 
@@ -45,6 +48,7 @@ impl Config {
             cpp_options: vec!["-E".into()],
             flavor: Flavor::ClangC11,
             gnu_keywords: true,
+            extensions_msvc: false,
         }
     }
 }
@@ -245,6 +249,7 @@ pub fn parse_preprocessed_with_limits(
             Flavor::GnuC11WithClangExtensions => Env::with_gnu_and_clang_extensions(),
         };
         env.set_gnu_keywords(config.gnu_keywords);
+        env.set_msvc_extensions(config.extensions_msvc);
         translation_unit_with_limits(&source, &mut env, limits)
     });
     match parsed {
