@@ -38,6 +38,8 @@ impl Analyzer {
                         | ast::UnaryOperator::Minus
                         | ast::UnaryOperator::Complement
                         | ast::UnaryOperator::Negate
+                        | ast::UnaryOperator::Real
+                        | ast::UnaryOperator::Imaginary
                 ) && self.is_integer_constant_expression(&unary.node.operand, depth + 1)?
             }
             ast::Expression::BinaryOperator(binary) => {
@@ -299,7 +301,14 @@ impl Analyzer {
                 })
             }
             ast::Expression::UnaryOperator(unary) => {
-                let value = promote(self.eval(&unary.node.operand)?);
+                let value = self.eval(&unary.node.operand)?;
+                if unary.node.operator.node == ast::UnaryOperator::Real {
+                    return Ok(value);
+                }
+                if unary.node.operator.node == ast::UnaryOperator::Imaginary {
+                    return Ok(IntegerValue::new(0, value.bits, value.signed, value.rank));
+                }
+                let value = promote(value);
                 match unary.node.operator.node {
                     ast::UnaryOperator::Plus => Ok(value),
                     ast::UnaryOperator::Minus => {

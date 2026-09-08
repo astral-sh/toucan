@@ -64,7 +64,12 @@ impl Analyzer {
             ast::Expression::UnaryOperator(unary) => {
                 if !matches!(
                     unary.node.operator.node,
-                    Unary::Plus | Unary::Minus | Unary::Complement | Unary::Negate
+                    Unary::Plus
+                        | Unary::Minus
+                        | Unary::Complement
+                        | Unary::Negate
+                        | Unary::Real
+                        | Unary::Imaginary
                 ) || !self.known_constant_operand(&unary.node.operand)?
                 {
                     return Ok(false);
@@ -150,6 +155,7 @@ impl Analyzer {
                         || self.infinity_builtin_kind(name).is_some()
                         || self.nan_builtin(name).is_some()
                         || name == "__builtin_complex"
+                        || self.gnu_sync_profile() && self.complex_unary_builtin(name).is_some()
                 }) {
                     return Ok(false);
                 }

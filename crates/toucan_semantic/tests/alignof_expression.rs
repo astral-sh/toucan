@@ -262,6 +262,31 @@ int identifier_list(parameter) int parameter __attribute__((aligned(32))); {
 }
 "#;
 
+fn component_alignment_assertions(gnu: bool) -> String {
+    let scalar = if gnu { 32 } else { 4 };
+    format!(
+        r#"
+volatile double _Complex complex_value __attribute__((aligned(32)));
+int scalar_value __attribute__((aligned(32)));
+_Static_assert(_Alignof(complex_value)==32,"complex object");
+_Static_assert(_Alignof(__real__ complex_value)==8,"real component");
+_Static_assert(_Alignof(__imag__ complex_value)==8,"imaginary component");
+_Static_assert(_Alignof(__real__ scalar_value)=={scalar},"real scalar");
+_Static_assert(_Alignof(__imag__ scalar_value)==4,"imaginary scalar");
+"#
+    )
+}
+
+#[test]
+fn complex_components_use_component_alignment_and_scalar_queries_keep_profile_rules() {
+    for profile in CompilerProfile::ALL {
+        check(
+            &component_alignment_assertions(profile.compiler() == Compiler::Gnu),
+            profile,
+        );
+    }
+}
+
 #[test]
 fn parameter_alignment_is_visible_after_the_definition_scope_is_promoted() {
     for profile in CompilerProfile::ALL
@@ -285,9 +310,10 @@ fn alignment_queries_do_not_execute_operand_effects() {
         } else {
             ""
         };
+        let components = component_alignment_assertions(compiler != "clang");
         std::fs::write(
             &input,
-            format!("{EFFECTS}\n{parameters}\nint main(void){{return f(3)!=4;}}"),
+            format!("{EFFECTS}\n{parameters}\n{components}\nint main(void){{return f(3)!=4;}}"),
         )
         .unwrap();
         for opt in ["-O0", "-O2"] {

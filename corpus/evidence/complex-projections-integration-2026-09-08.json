@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "integration_base": "5a22445",
+  "frozen_patch_sha256": "8b4bd172aa52183657790ee8abba3ca264363d1c80e76d104412bd1725203b98",
+  "integration": [
+    "Preserve expression alignment origins alongside the independent volatile-place flag.",
+    "Complex component projections clear object alignment origins; real-scalar projection preserves them only under GNU.",
+    "Regenerate the merged alignment/projection grammar with 501 guarded terminal arms and unchanged loop/rule counts."
+  ],
+  "validation": {
+    "focused_native_tests": 16,
+    "parser_tests": 34,
+    "checked_seed_replay": {
+      "profiles": 7,
+      "accepted": 355,
+      "matching_diagnostics": 114,
+      "normal_retained_unit_equality": true,
+      "graph_invariants": true
+    },
+    "parser_reproduction": {
+      "PYTHONOPTIMIZE": "1",
+      "byte_identical": true,
+      "sha256": "c57b6528ee909eb50591499331973522210a84567e8e5ca4b34d4265de8796b1"
+    },
+    "clippy": "workspace all targets/all features, warnings denied",
+    "logs": {
+      "tests": {
+        "path": "/tmp/toucan-projections-integrated-tests.log",
+        "sha256": "25bd933c1d8a347e1a911fd18eaee73ae4e847a9e87023a78487fc0e91e7bc85"
+      },
+      "clippy": {
+        "path": "/tmp/toucan-projections-integrated-clippy.log",
+        "sha256": "b887c7e2717d0ec578b3cd3c01b05e3719914e2b65c6f0f56e3af10d2f6a4e7f"
+      },
+      "replay": {
+        "path": "/tmp/toucan-projections-integrated-replay.log",
+        "sha256": "043ed925329b7ce2b27b8c1735d71e902ab36ce9a009d4bd6bcb6832f970b755"
+      }
+    }
+  }
+}

@@ -99,6 +99,8 @@ struct Address {
     whole: Range,
     subobject: Range,
     gnu_subobject: Range,
+    /// Clang treats a projected component as a designator into the complex object.
+    clang_subobject: Option<Range>,
     offset: i128,
     /// The type of the original subobject used by Clang's designator.
     designated: Type,
@@ -206,7 +208,13 @@ impl Analyzer {
             (0, ObjectSizeFoldStage::CodeGeneration, true)
         } else {
             let whole_view = mode & 1 == 0 || !address.valid_designator || address.root_address;
-            let bytes = if whole_view { whole } else { subobject };
+            let bytes = if whole_view {
+                whole
+            } else {
+                address.clang_subobject.map_or(subobject, |range| {
+                    range.remaining(address.offset).min(whole)
+                })
+            };
             // Clang 18's frontend does not recover the complete string-literal
             // object type, while its array-element designator supports modes1/3.
             let stage = if address.offset >= 0 && address.origin == Origin::String && whole_view {
@@ -485,6 +493,7 @@ impl Analyzer {
                         whole: range,
                         subobject: range,
                         gnu_subobject: range,
+                        clang_subobject: None,
                         offset: 0,
                         designated: ty.clone(),
                         pointee: ty.clone(),
@@ -605,6 +614,42 @@ impl Analyzer {
                 }))
             }
             ast::Expression::UnaryOperator(unary)
+                if matches!(
+                    unary.node.operator.node,
+                    ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary
+                ) =>
+            {
+                let Some(mut location) = self.object_location(&unary.node.operand, depth + 1)?
+                else {
+                    return Ok(None);
+                };
+                if !matches!(self.unit.resolve(&location.ty)?.kind, TypeKind::Complex(_)) {
+                    return Ok(
+                        (unary.node.operator.node == ast::UnaryOperator::Real).then_some(location)
+                    );
+                }
+                let ty = self.expression_type(expression)?;
+                let size = i128::from(self.unit.layout(&ty)?.size_bytes());
+                if unary.node.operator.node == ast::UnaryOperator::Imaginary {
+                    let Some(offset) = location.address.offset.checked_add(size) else {
+                        return Ok(None);
+                    };
+                    location.address.offset = offset;
+                }
+                let Some(end) = location.address.offset.checked_add(size) else {
+                    return Ok(None);
+                };
+                location.address.clang_subobject = Some(location.object);
+                location.address.root_address = false;
+                location.object = Range {
+                    start: location.address.offset,
+                    end,
+                };
+                location.containing_array = None;
+                location.ty = ty;
+                Ok(Some(location))
+            }
+            ast::Expression::UnaryOperator(unary)
                 if unary.node.operator.node == ast::UnaryOperator::Indirection =>
             {
                 let Some(mut address) = self.object_pointer(&unary.node.operand, depth + 1)? else {
@@ -705,6 +750,8 @@ impl Analyzer {
                         | ast::UnaryOperator::Minus
                         | ast::UnaryOperator::Complement
                         | ast::UnaryOperator::Negate
+                        | ast::UnaryOperator::Real
+                        | ast::UnaryOperator::Imaginary
                 ) =>
             {
                 self.object_discarded_effects(&unary.node.operand, depth + 1)?

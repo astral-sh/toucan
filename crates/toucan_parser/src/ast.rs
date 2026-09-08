@@ -411,6 +411,10 @@ pub enum UnaryOperator {
     Complement,
     /// `!operand`
     Negate,
+    /// GNU `__real__ operand` (also `__real`).
+    Real,
+    /// GNU `__imag__ operand` (also `__imag`).
+    Imaginary,
 }
 
 /// Unary operator expression

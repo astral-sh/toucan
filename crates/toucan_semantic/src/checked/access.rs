@@ -205,6 +205,14 @@ impl ExprUse {
 }
 
 impl Expression {
+    /// Whether accessing this lvalue reads/writes volatile storage. GNU complex
+    /// projections can have this property even with an unqualified result type.
+    /// The operand use determines whether an access occurs (a place/address use
+    /// alone does not read it).
+    pub fn is_volatile_place(&self) -> bool {
+        self.volatile_place
+    }
+
     /// Atomic store/update performed by this expression, with C's sequentially
     /// consistent ordering. Loads appear as AtomicLoad operand conversions.
     pub fn atomic_access(&self) -> Option<super::AtomicAccess> {

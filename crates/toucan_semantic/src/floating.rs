@@ -211,6 +211,49 @@ impl Analyzer {
                         kind,
                         signaling,
                     })
+                } else if let Some((kind, operator)) =
+                    name.and_then(|name| self.complex_unary_builtin(name))
+                {
+                    self.builtin_call_type(call)?;
+                    if !self.gnu_sync_profile() {
+                        return Err(Error::new(
+                            offset,
+                            "Clang complex projection/conjugation builtins are not frontend constant expressions",
+                        ));
+                    }
+                    let value = self.eval_arithmetic(&call.node.arguments[0])?;
+                    let ArithmeticValue::Complex {
+                        real,
+                        imaginary,
+                        signaling,
+                        ..
+                    } = self.convert_arithmetic(
+                        value,
+                        &Type::new(TypeKind::Complex(kind)),
+                        offset,
+                    )?
+                    else {
+                        unreachable!()
+                    };
+                    Ok(match operator {
+                        Unary::Real => ArithmeticValue::Floating {
+                            value: real,
+                            kind,
+                            signaling: signaling[0],
+                        },
+                        Unary::Imaginary => ArithmeticValue::Floating {
+                            value: imaginary,
+                            kind,
+                            signaling: signaling[1],
+                        },
+                        Unary::Complement => ArithmeticValue::Complex {
+                            real,
+                            imaginary: -imaginary,
+                            kind,
+                            signaling,
+                        },
+                        _ => unreachable!(),
+                    })
                 } else if name == Some("__builtin_complex") {
                     let ty = self.complex_constructor_type(call)?;
                     let TypeKind::Complex(kind) = ty.kind else {
@@ -326,6 +369,16 @@ impl Analyzer {
                         let (real, imaginary) = match unary.node.operator.node {
                             Unary::Plus => (real, imaginary),
                             Unary::Minus => (-real, -imaginary),
+                            Unary::Complement => (real, -imaginary),
+                            Unary::Real | Unary::Imaginary => {
+                                let index =
+                                    usize::from(unary.node.operator.node == Unary::Imaginary);
+                                return Ok(ArithmeticValue::Floating {
+                                    value: [real, imaginary][index],
+                                    kind,
+                                    signaling: signaling[index],
+                                });
+                            }
                             _ => {
                                 return Err(Error::new(
                                     offset,
@@ -346,7 +399,8 @@ impl Analyzer {
                         signaling,
                     } => {
                         let value = match unary.node.operator.node {
-                            Unary::Plus => value,
+                            Unary::Plus | Unary::Real => value,
+                            Unary::Imaginary => Quad::ZERO,
                             Unary::Minus => -value,
                             _ => {
                                 return Err(Error::new(
@@ -358,10 +412,21 @@ impl Analyzer {
                         Ok(ArithmeticValue::Floating {
                             value,
                             kind,
-                            signaling,
+                            signaling: signaling && unary.node.operator.node != Unary::Imaginary,
                         })
                     }
                     ArithmeticValue::Integer(value) => {
+                        if unary.node.operator.node == Unary::Real {
+                            return Ok(ArithmeticValue::Integer(value));
+                        }
+                        if unary.node.operator.node == Unary::Imaginary {
+                            return Ok(ArithmeticValue::Integer(IntegerValue::new(
+                                0,
+                                value.bits,
+                                value.signed,
+                                value.rank,
+                            )));
+                        }
                         let value = promote(value);
                         let result = match unary.node.operator.node {
                             Unary::Plus => value,

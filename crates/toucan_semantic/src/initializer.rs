@@ -983,7 +983,10 @@ impl Analyzer {
                         .builtin_name(call)
                         .and_then(|name| self.nan_builtin(name))
                         .is_some()
-                    || self.builtin_name(call) == Some("__builtin_complex") =>
+                    || self.builtin_name(call) == Some("__builtin_complex")
+                    || self
+                        .builtin_name(call)
+                        .is_some_and(|name| self.complex_unary_builtin(name).is_some()) =>
             {
                 self.eval_arithmetic(expression)?;
                 Ok(ConstantKind::Arithmetic)
@@ -1041,7 +1044,9 @@ impl Analyzer {
                 ast::UnaryOperator::Plus
                 | ast::UnaryOperator::Minus
                 | ast::UnaryOperator::Complement
-                | ast::UnaryOperator::Negate => {
+                | ast::UnaryOperator::Negate
+                | ast::UnaryOperator::Real
+                | ast::UnaryOperator::Imaginary => {
                     if self.static_initializer(&unary.node.operand)? == ConstantKind::Arithmetic {
                         Ok(ConstantKind::Arithmetic)
                     } else {
@@ -1213,6 +1218,23 @@ impl Analyzer {
                 } else {
                     Err(invalid())
                 }
+            }
+            ast::Expression::UnaryOperator(unary)
+                if matches!(
+                    unary.node.operator.node,
+                    ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary
+                ) =>
+            {
+                let ty = self.expression_type(&unary.node.operand)?;
+                if self.gnu_sync_profile()
+                    && matches!(self.unit.resolve(&ty)?.kind, TypeKind::Complex(_))
+                {
+                    return Err(Error::new(
+                        offset,
+                        "GNU complex component addresses are not static initializer constants",
+                    ));
+                }
+                self.static_lvalue(&unary.node.operand)
             }
             ast::Expression::UnaryOperator(unary)
                 if unary.node.operator.node == ast::UnaryOperator::Indirection =>

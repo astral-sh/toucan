@@ -110,6 +110,7 @@ pub struct Expression {
     pub(crate) bitfield: Option<u64>,
     pub(crate) register: bool,
     pub(crate) vector_element: bool,
+    pub(crate) volatile_place: bool,
     pub(crate) kind: ExprKind,
 }
 
@@ -137,7 +138,9 @@ operators!(
     Plus,
     Minus,
     Complement,
-    Negate
+    Negate,
+    Real,
+    Imaginary
 );
 operators!(
     Binary,
@@ -183,6 +186,15 @@ pub enum Builtin {
     VectorShuffle,
     /// Constructs a complex value from two matching real floating components.
     Complex,
+    ComplexReal,
+    ComplexRealFloat,
+    ComplexRealLongDouble,
+    ComplexImaginary,
+    ComplexImaginaryFloat,
+    ComplexImaginaryLongDouble,
+    ComplexConjugate,
+    ComplexConjugateFloat,
+    ComplexConjugateLongDouble,
     X86(crate::x86::X86Intrinsic),
     Sync(crate::sync::SyncOperation),
     Atomic(crate::atomic::AtomicOperation),
@@ -254,6 +266,15 @@ impl Builtin {
         Some(match name {
             "__builtin_shuffle" => Self::VectorShuffle,
             "__builtin_complex" => Self::Complex,
+            "__builtin_creal" => Self::ComplexReal,
+            "__builtin_crealf" => Self::ComplexRealFloat,
+            "__builtin_creall" => Self::ComplexRealLongDouble,
+            "__builtin_cimag" => Self::ComplexImaginary,
+            "__builtin_cimagf" => Self::ComplexImaginaryFloat,
+            "__builtin_cimagl" => Self::ComplexImaginaryLongDouble,
+            "__builtin_conj" => Self::ComplexConjugate,
+            "__builtin_conjf" => Self::ComplexConjugateFloat,
+            "__builtin_conjl" => Self::ComplexConjugateLongDouble,
             "__builtin_va_start" => Self::VaStart,
             "__builtin_va_end" => Self::VaEnd,
             "__builtin_va_copy" => Self::VaCopy,
@@ -620,6 +641,7 @@ impl Builder {
             bitfield: expression.bitfield,
             register: expression.register,
             vector_element: expression.vector_element,
+            volatile_place: expression.volatile_place,
             alignment_origin: self.expression_builder.alignment_origins.get(&id).copied(),
         }
     }
@@ -783,6 +805,7 @@ impl Builder {
             bitfield: info.bitfield,
             register: info.register,
             vector_element: info.vector_element,
+            volatile_place: properties.volatile_lvalue,
             kind,
         });
         self.expression_builder
@@ -1136,7 +1159,9 @@ impl Analyzer {
                             None
                         };
                         (UseContext::ReadModifyWrite, destination)
-                    } else if operator == Unary::Address {
+                    } else if operator == Unary::Address
+                        || matches!(operator, Unary::Real | Unary::Imaginary) && info.lvalue
+                    {
                         (UseContext::Place, None)
                     } else if matches!(operator, Unary::Plus | Unary::Minus | Unary::Complement)
                         && integer
@@ -1444,7 +1469,8 @@ impl Analyzer {
             }
         };
         let function = matches!(self.unit.resolve(&info.ty)?.kind, TypeKind::Function(_));
-        let volatile_lvalue = info.lvalue && self.unit.qualifiers(&info.ty)?.is_volatile;
+        let volatile_lvalue =
+            info.lvalue && (info.volatile_place || self.unit.qualifiers(&info.ty)?.is_volatile);
         let atomic_access = match &kind {
             ExprKind::Unary {
                 operand,
@@ -1630,6 +1656,11 @@ impl Analyzer {
                     (
                         UseContext::Value,
                         Some((ty.clone(), Conversion::Assignment)),
+                    )
+                } else if let Some((kind, _)) = self.complex_unary_builtin(name) {
+                    (
+                        UseContext::Value,
+                        Some((Type::new(TypeKind::Complex(kind)), Conversion::Assignment)),
                     )
                 } else if nan.is_some() {
                     (

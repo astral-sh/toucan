@@ -42,6 +42,26 @@ impl Analyzer {
         character.pointer()
     }
 
+    /// Standard complex projection/conjugation builtins use ordinary fixed prototypes.
+    pub(crate) fn complex_unary_builtin(
+        &self,
+        name: &str,
+    ) -> Option<(FloatKind, ast::UnaryOperator)> {
+        use ast::UnaryOperator::{Complement, Imaginary, Real};
+        Some(match name {
+            "__builtin_crealf" => (FloatKind::Float, Real),
+            "__builtin_creal" => (FloatKind::Double, Real),
+            "__builtin_creall" => (FloatKind::LongDouble, Real),
+            "__builtin_cimagf" => (FloatKind::Float, Imaginary),
+            "__builtin_cimag" => (FloatKind::Double, Imaginary),
+            "__builtin_cimagl" => (FloatKind::LongDouble, Imaginary),
+            "__builtin_conjf" => (FloatKind::Float, Complement),
+            "__builtin_conj" => (FloatKind::Double, Complement),
+            "__builtin_conjl" => (FloatKind::LongDouble, Complement),
+            _ => return None,
+        })
+    }
+
     /// GNU/Clang's component constructor preserves each operand's real value.
     pub(crate) fn complex_constructor_type(
         &mut self,
@@ -166,6 +186,22 @@ impl Analyzer {
         let Some(name) = self.builtin_name(call) else {
             return Ok(None);
         };
+        if let Some((kind, operation)) = self.complex_unary_builtin(name) {
+            let [operand] = call.node.arguments.as_slice() else {
+                return Err(Error::new(
+                    call.span.start,
+                    "complex projection/conjugation builtin requires one argument",
+                ));
+            };
+            self.check_assignment(&Type::new(TypeKind::Complex(kind)), operand)?;
+            return Ok(Some(Type::new(
+                if operation == ast::UnaryOperator::Complement {
+                    TypeKind::Complex(kind)
+                } else {
+                    TypeKind::Float(kind)
+                },
+            )));
+        }
         if name == "__builtin_complex" {
             return self.complex_constructor_type(call).map(Some);
         }

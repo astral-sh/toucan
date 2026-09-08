@@ -316,12 +316,16 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 assert!(code.entity(*entity).is_some());
             }
             ExprKind::Unary {
+                operator,
                 operand,
                 computation_type,
                 write_back,
                 ..
             } => {
                 expression_use(code, operand);
+                if matches!(operator, Unary::Real | Unary::Imaginary) {
+                    assert_eq!(operand.context(),if expression.category()==ValueCategory::ObjectLvalue {UseContext::Place}else{UseContext::Value});
+                }
                 for ty in [computation_type, write_back].into_iter().flatten() {
                     assert!(code.ty(*ty).is_some());
                 }

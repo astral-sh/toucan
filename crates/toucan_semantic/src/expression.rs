@@ -15,6 +15,8 @@ pub(crate) struct ExpressionInfo {
     pub(crate) bitfield: Option<u64>,
     pub(crate) register: bool,
     pub(crate) vector_element: bool,
+    /// Component places retain volatile access independently of their C type.
+    pub(crate) volatile_place: bool,
     pub(crate) alignment_origin: Option<crate::alignof::OriginId>,
 }
 
@@ -26,6 +28,7 @@ impl ExpressionInfo {
             bitfield: None,
             register: false,
             vector_element: false,
+            volatile_place: false,
             alignment_origin: None,
         }
     }
@@ -37,6 +40,7 @@ impl ExpressionInfo {
             bitfield: None,
             register: false,
             vector_element: false,
+            volatile_place: false,
             alignment_origin: None,
         }
     }
@@ -269,6 +273,16 @@ impl Analyzer {
                     return Ok(info);
                 }
                 let operand = self.expression_info(&unary.node.operand)?;
+                if matches!(
+                    unary.node.operator.node,
+                    ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary
+                ) {
+                    return self.complex_projection(
+                        operand,
+                        unary.node.operator.node == ast::UnaryOperator::Imaginary,
+                        offset,
+                    );
+                }
                 let value = self.converted_type(&operand, offset)?;
                 match unary.node.operator.node {
                     ast::UnaryOperator::Address => {
@@ -329,6 +343,7 @@ impl Analyzer {
                             bitfield: None,
                             register: false,
                             vector_element: false,
+                            volatile_place: false,
                             alignment_origin,
                         });
                     }
@@ -350,6 +365,14 @@ impl Analyzer {
                     {
                         value
                     }
+                    ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary => {
+                        unreachable!("handled above")
+                    }
+                    ast::UnaryOperator::Complement
+                        if matches!(value.kind, TypeKind::Complex(_)) =>
+                    {
+                        self.complex_unary_result(&operand, value)?
+                    }
                     ast::UnaryOperator::Complement => {
                         let result = integer_to_type(self.promoted_integer(&operand, offset)?);
                         self.check_arithmetic_alignment(&operand, &result, offset)?;
@@ -357,7 +380,9 @@ impl Analyzer {
                     }
                     ast::UnaryOperator::Plus | ast::UnaryOperator::Minus => {
                         self.require_arithmetic(&value, offset)?;
-                        if matches!(value.kind, TypeKind::Float(_) | TypeKind::Complex(_)) {
+                        if matches!(value.kind, TypeKind::Complex(_)) {
+                            self.complex_unary_result(&operand, value)?
+                        } else if matches!(value.kind, TypeKind::Float(_)) {
                             value
                         } else {
                             let result = integer_to_type(self.promoted_integer(&operand, offset)?);
@@ -370,12 +395,6 @@ impl Analyzer {
                     | ast::UnaryOperator::PostIncrement
                     | ast::UnaryOperator::PostDecrement => {
                         self.require_modifiable(&operand, offset)?;
-                        if matches!(value.kind, TypeKind::Complex(_)) {
-                            return Err(Error::new(
-                                offset,
-                                "GNU complex increment and decrement are unsupported",
-                            ));
-                        }
                         if matches!(value.kind, TypeKind::Vector { .. }) {
                             if !self.gnu_vector_profile() {
                                 return Err(Error::new(
@@ -389,7 +408,7 @@ impl Analyzer {
                         if let TypeKind::Pointer(pointee) = &value.kind {
                             self.require_complete_object(pointee, offset)?;
                         }
-                        value
+                        self.complex_unary_result(&operand, value)?
                     }
                 }
             }
@@ -488,6 +507,7 @@ impl Analyzer {
                     lvalue,
                     bitfield,
                     vector_element: false,
+                    volatile_place: false,
                     alignment_origin,
                     register: member.node.operator.node == ast::MemberOperator::Direct
                         && base.register,
@@ -752,6 +772,7 @@ impl Analyzer {
                 bitfield: None,
                 register: left.register,
                 vector_element: true,
+                volatile_place: false,
                 alignment_origin: None,
             });
         }
@@ -1236,7 +1257,7 @@ impl Analyzer {
         ))
     }
 
-    fn require_arithmetic(&self, ty: &Type, offset: usize) -> Result<(), Error> {
+    pub(crate) fn require_arithmetic(&self, ty: &Type, offset: usize) -> Result<(), Error> {
         if self.is_arithmetic(ty)? {
             Ok(())
         } else {

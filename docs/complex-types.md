@@ -96,8 +96,9 @@ describe why layout equivalence is insufficient.
 
 ## Remaining extensions
 
-GNU real/imaginary projection, conjugation, complex increment/decrement,
-integer complex, half/extended complex formats, and two-component brace
+[GNU component operations](complex-projections.md) support projection,
+conjugation, increment/decrement, and the fixed projection/conjugation builtins.
+Integer complex, half/extended complex formats, and two-component brace
 initializers remain unsupported. GNU atomic component projection needs a
 separate model: GCC exposes nonatomic component storage, while Clang rejects it.
 `STDC` floating-state pragmas retain explicit diagnostics. None is silently

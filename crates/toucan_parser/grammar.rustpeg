@@ -307,7 +307,9 @@ unary_operator -> UnaryOperator =
     "+" { UnaryOperator::Plus } /
     "-" { UnaryOperator::Minus } /
     "~" { UnaryOperator::Complement } /
-    "!" { UnaryOperator::Negate }
+    "!" { UnaryOperator::Negate } /
+    gnu<K<"__real" "__"?>> { UnaryOperator::Real } /
+    gnu<K<"__imag" "__"?>> { UnaryOperator::Imaginary }
 
 sizeof_expression -> Expression =
     n:sizeof_ty_expression { Expression::SizeOfTy(n) } /

@@ -330,3 +330,68 @@ where
         imaginary.rounded::<F>().ok_or_else(fail)?,
     ])
 }
+
+impl crate::analyze::Analyzer {
+    /// GCC preserves ordinary complex operand qualifiers on unary value results.
+    pub(crate) fn complex_unary_result(
+        &self,
+        operand: &crate::expression::ExpressionInfo,
+        value: crate::Type,
+    ) -> Result<crate::Type, Error> {
+        if self.gnu_sync_profile()
+            && matches!(value.kind, crate::TypeKind::Complex(_))
+            && self.unit.atomic_value(&operand.ty)?.is_none()
+        {
+            Ok(operand.ty.clone())
+        } else {
+            Ok(value)
+        }
+    }
+
+    /// GNU projections preserve a source place without inventing record fields.
+    pub(crate) fn complex_projection(
+        &self,
+        mut operand: crate::expression::ExpressionInfo,
+        imaginary: bool,
+        offset: usize,
+    ) -> Result<crate::expression::ExpressionInfo, Error> {
+        use crate::expression::ExpressionInfo;
+        use crate::{Type, TypeKind};
+        if self.unit.atomic_value(&operand.ty)?.is_some() {
+            return Err(Error::new(
+                offset,
+                if self.gnu_sync_profile() {
+                    "GNU projection of atomic storage requires unsupported component-access semantics"
+                } else {
+                    "the Clang profile rejects projection of an atomic operand"
+                },
+            ));
+        }
+        let ty = self.unit.resolve(&operand.ty)?;
+        if let TypeKind::Complex(kind) = ty.kind {
+            operand.volatile_place |= self.unit.qualifiers(&operand.ty)?.is_volatile;
+            operand.ty = Type::new(TypeKind::Float(kind));
+            operand.alignment_origin = None;
+            return Ok(operand);
+        }
+        self.require_arithmetic(&operand.ty, offset)?;
+        if imaginary && operand.bitfield.is_some() && self.gnu_sync_profile() {
+            return Err(Error::new(
+                offset,
+                "GNU imaginary projection of a bitfield requires an unsupported precise-width integer result",
+            ));
+        }
+        if !self.gnu_sync_profile() && (operand.bitfield.is_some() || operand.vector_element) {
+            return Ok(ExpressionInfo::value(
+                self.converted_type(&operand, offset)?,
+            ));
+        }
+        if imaginary {
+            return Ok(ExpressionInfo::value(operand.ty));
+        }
+        if !self.gnu_sync_profile() {
+            operand.alignment_origin = None;
+        }
+        Ok(operand)
+    }
+}

@@ -257,7 +257,9 @@ enumeration!(UnaryOperator {
     Plus,
     Minus,
     Complement,
-    Negate
+    Negate,
+    Real,
+    Imaginary
 });
 structure!(UnaryOperatorExpression { operator, operand });
 structure!(CastExpression {

@@ -214,6 +214,8 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             UnaryOperator::Minus => "Minus",
             UnaryOperator::Complement => "Complement",
             UnaryOperator::Negate => "Negate",
+            UnaryOperator::Real => "Real",
+            UnaryOperator::Imaginary => "Imaginary",
         });
         visit_unary_operator(&mut self.block(), n, span);
     }

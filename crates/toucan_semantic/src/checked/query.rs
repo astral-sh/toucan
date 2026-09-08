@@ -222,6 +222,15 @@ impl Builder {
                 | Builtin::HugeValueLongDouble => Absent,
                 Builtin::ConstantQuery
                 | Builtin::Complex
+                | Builtin::ComplexReal
+                | Builtin::ComplexRealFloat
+                | Builtin::ComplexRealLongDouble
+                | Builtin::ComplexImaginary
+                | Builtin::ComplexImaginaryFloat
+                | Builtin::ComplexImaginaryLongDouble
+                | Builtin::ComplexConjugate
+                | Builtin::ComplexConjugateFloat
+                | Builtin::ComplexConjugateLongDouble
                 | Builtin::Expect
                 | Builtin::Nan
                 | Builtin::NanFloat
