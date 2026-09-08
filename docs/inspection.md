@@ -42,6 +42,10 @@ adjustment to pointers. Evaluation metadata describes what happens when a
 construct is reached; enclosing conditions and control flow still determine
 whether execution reaches it.
 
+Sparse function option and inline-target maps preserve per-declaration target settings,
+written attribute spans, and compiler-specific inlining stages. They are omitted
+when empty. See [per-function target options](function-targets.md).
+
 ## Resolve source locations
 
 Source ranges use half-open UTF-8 byte offsets into `preprocessed.source`.

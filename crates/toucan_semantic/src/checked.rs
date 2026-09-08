@@ -20,6 +20,7 @@ mod ownership;
 mod query;
 pub(crate) mod references;
 pub(crate) mod statement;
+pub(crate) mod target;
 
 pub use crate::atomic::AtomicOperation;
 pub use crate::atomic_type::AtomicAccess;
@@ -56,8 +57,9 @@ pub use statement::{
     BodyId, Coverage as StatementStatus, DeclarationGroup, DeclarationGroupId, ForInitializer,
     FunctionBody, Label, Statement, StatementCoverage, StatementId, StatementKind,
 };
+pub use target::{FunctionOptionSite, InlineTargetRequirement, InlineTargetStage, TargetAttribute};
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::hash::{BuildHasher, RandomState};
 use std::ops::Range;
 
@@ -348,6 +350,12 @@ pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> O
 
 #[derive(Debug, Serialize)]
 pub struct CheckedCode {
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) function_options: BTreeMap<usize, target::FunctionOptionSite>,
+    #[serde(skip)]
+    pub(crate) function_option_entities: BTreeMap<usize, usize>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) inline_targets: BTreeMap<usize, target::InlineTargetRequirement>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) diagnostic_attributes: Vec<attributes::DiagnosticAttribute>,
     pub(crate) type_operands: Vec<ownership::TypeOperand>,
@@ -442,6 +450,9 @@ impl Builder {
             expression_builder: expression::ExpressionBuilder::default(),
             statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
+                function_options: BTreeMap::new(),
+                function_option_entities: BTreeMap::new(),
+                inline_targets: BTreeMap::new(),
                 diagnostic_attributes: Vec::new(),
                 type_operands: Vec::new(),
                 statements: Vec::new(),
@@ -937,6 +948,7 @@ impl Builder {
         self.finish_statements()?;
         self.finish_references(offsets)?;
         self.finish_diagnostic_attributes(offsets)?;
+        self.finish_function_option_spans(offsets)?;
         self.finish_initializer_coverage()?;
         self.finish_bounds(offsets)?;
         self.finish_type_ownership()?;

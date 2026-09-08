@@ -7,6 +7,26 @@ use toucan::semantic::{Analysis, TranslationUnit, Type, TypeKind};
 pub(super) fn check(analysis: &Analysis, source: &str) {
     let unit = analysis.unit();
     let code = analysis.checked().expect("retention requested");
+    unit.validate_function_options().unwrap();
+    for site in code.function_option_sites() {
+        let declaration = code.declaration(site.declaration()).unwrap();
+        assert_eq!(declaration.entity(), site.entity());
+        assert_eq!(code.entity(site.entity()).unwrap().kind(), EntityKind::Function);
+        assert_eq!(code.function_options(site.declaration()).unwrap().entity(), site.entity());
+        for attribute in site.attributes() {
+            source_span(source, attribute.source());
+        }
+        for span in [site.always_inline(), site.no_inline()].into_iter().flatten() {
+            source_span(source, span);
+        }
+    }
+    for requirement in code.inline_target_requirements() {
+        assert_eq!(code.entity(requirement.callee()).unwrap().kind(), EntityKind::Function);
+        let expression = code.expression(requirement.expression()).unwrap();
+        assert!(matches!(expression.kind(), ExprKind::Call {direct_callee: Some(callee), ..} if *callee == requirement.callee()));
+        assert!(requirement.callee_options().always_inline());
+        assert!(code.inline_target_requirement(requirement.expression()).is_some());
+    }
     for &record in unit.record_origins.keys() {
         let origin = unit.record_origin(record).unwrap();
         assert!(unit.records[record].transparent_union);

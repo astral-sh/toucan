@@ -23,6 +23,7 @@ pub(crate) struct FunctionScope {
 }
 
 pub(crate) struct FunctionContext {
+    pub(crate) target_options: crate::FunctionOptions,
     signature: FunctionType,
     parameter_scope: usize,
     statement_expressions: BTreeMap<(usize, usize), ExpressionInfo>,
@@ -319,7 +320,18 @@ impl Analyzer {
         if let Some(checked) = &mut self.checked {
             checked.definition = checked.find(OccurrenceKind::Function, definition)?;
         }
+        let previous_index = self
+            .unit
+            .declarations
+            .iter()
+            .position(|declaration| declaration.name == name);
+        let definition_options =
+            self.definition_target_options(definition, &name, previous_index)?;
+        let previous_options = self
+            .definition_options
+            .replace((definition_options, previous_index));
         let result = self.declaration(&declaration, true);
+        self.definition_options = previous_options;
         if let Some(checked) = &mut self.checked {
             checked.definition = None;
         }
@@ -364,7 +376,13 @@ impl Analyzer {
         if let Some(parameters) = &parameters {
             signature.parameters = parameters.parameters.clone();
         }
+        let target_options = self
+            .function_options
+            .get(&name)
+            .cloned()
+            .unwrap_or_default();
         self.current_function = Some(FunctionContext {
+            target_options,
             signature,
             parameter_scope: self.lexical_scopes.len(),
             statement_expressions: BTreeMap::new(),
@@ -700,6 +718,21 @@ impl Analyzer {
                 ));
             }
             extra.require_function_attributes(function && !is_typedef)?;
+            let previous_file = if (function && !is_typedef) || is_extern {
+                self.unit
+                    .declarations
+                    .iter()
+                    .position(|declaration| declaration.name == name)
+            } else {
+                None
+            };
+            let options_affect_entity = self.unit.compiler == toucan_target::Compiler::Gnu
+                || (previous_file.is_none() && !self.block_externs.contains_key(&name));
+            let function_options = if function && !is_typedef {
+                Some(self.check_function_options(&name, &extra, previous_file)?)
+            } else {
+                None
+            };
             self.check_diagnostic_attributes(&name, &extra.diagnostic_attributes)?;
             let returns_twice = if function && !is_typedef {
                 self.check_returns_twice(&name, &extra)?
@@ -839,21 +872,14 @@ impl Analyzer {
                     .block_externs
                     .get(&name)
                     .map(|previous| &previous.ty)
-                    .or_else(|| {
-                        self.unit
-                            .declarations
-                            .iter()
-                            .find(|declaration| declaration.name == name)
-                            .map(|declaration| &declaration.ty)
-                    })
+                    .or_else(|| previous_file.map(|index| &self.unit.declarations[index].ty))
             {
                 ty = self.inherit_calling_convention(ty, previous)?;
             }
             let internal_linkage = linked
-                && self.unit.declarations.iter().any(|declaration| {
-                    declaration.name == name
-                        && declaration.kind != DeclarationKind::Typedef
-                        && declaration.is_static
+                && previous_file.is_some_and(|index| {
+                    let declaration = &self.unit.declarations[index];
+                    declaration.kind != DeclarationKind::Typedef && declaration.is_static
                 });
             if linked {
                 if item.node.initializer.is_some() {
@@ -871,11 +897,7 @@ impl Analyzer {
                         "conflicting block extern declarations",
                     ));
                 }
-                if let Some(previous) = self
-                    .unit
-                    .declarations
-                    .iter()
-                    .find(|declaration| declaration.name == name)
+                if let Some(previous) = previous_file.map(|index| &self.unit.declarations[index])
                     && previous.kind != DeclarationKind::Typedef
                     && (!self.compatible(&previous.ty, &ty)?
                         || previous.is_thread_local != thread_local)
@@ -947,6 +969,14 @@ impl Analyzer {
                                 site,
                                 returns_twice,
                                 extra.returns_twice,
+                            )?;
+                            checked.attach_function_options(
+                                site,
+                                function_options.as_ref(),
+                                &extra.target_attributes,
+                                extra.always_inline,
+                                extra.no_inline,
+                                options_affect_entity,
                             )?;
                             checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                         }
@@ -1053,6 +1083,14 @@ impl Analyzer {
                 }
                 checked.attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
                 checked.attach_returns_twice(site, returns_twice, extra.returns_twice)?;
+                checked.attach_function_options(
+                    site,
+                    function_options.as_ref(),
+                    &extra.target_attributes,
+                    extra.always_inline,
+                    extra.no_inline,
+                    options_affect_entity,
+                )?;
                 checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                 let allocation = self
                     .lexical_scopes

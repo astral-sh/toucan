@@ -60,6 +60,11 @@ constant-expression rules; no host floating representation substitutes for the t
 [Half and bfloat types](half-types.md) preserve separate nominal identities and
 encodings. GNU excess-precision constant cases that are not modeled fail explicitly.
 
+[Per-function target options](function-targets.md) retain declaration identity
+separately from C function types. Sparse metadata preserves visible options and
+feature-sensitive inlining stages; evaluated intrinsic requirements use the same
+unevaluated and discarded-branch boundaries as SVE checks.
+
 The fixed-argument GNU `clz`/`ctz` builtins and their `l`/`ll` variants use unsigned
 C parameter conversions and return `int`. Constant evaluation diagnoses zero after
 conversion, following [GCC's undefined-result contract](https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html).

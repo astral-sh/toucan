@@ -125,23 +125,54 @@ impl Analyzer {
                     "SVE feature-use count exceeds the 65536-entry limit",
                 ));
             }
-            self.sve_feature_uses.push(offset);
+            self.sve_feature_uses
+                .push(crate::target_features::FeatureUse::Sve(offset));
         }
         Ok(())
     }
 
     pub(crate) fn validate_sve_features(&self) -> Result<(), Error> {
-        if let Some(&offset) = self.sve_feature_uses.first() {
-            Err(Error::new(
-                offset,
-                "evaluated SVE values require unsupported target-feature configuration",
-            ))
-        } else {
-            Ok(())
+        for usage in &self.sve_feature_uses {
+            match usage {
+                crate::target_features::FeatureUse::Sve(offset) => {
+                    return Err(Error::new(
+                        *offset,
+                        "evaluated SVE values require unsupported target-feature configuration",
+                    ));
+                }
+                crate::target_features::FeatureUse::X86 { offset, intrinsic } => {
+                    return Err(Error::new(
+                        *offset,
+                        format!(
+                            "evaluated {intrinsic} requires MMX, disabled by this function's target attribute"
+                        ),
+                    ));
+                }
+                crate::target_features::FeatureUse::Inline {
+                    offset,
+                    callee,
+                    declaration_time,
+                } => {
+                    if *declaration_time
+                        || self
+                            .function_options
+                            .get(callee)
+                            .is_some_and(|options| options.always_inline() && options.mmx())
+                    {
+                        return Err(Error::new(
+                            *offset,
+                            format!(
+                                "always_inline function `{callee}` requires MMX, disabled by the caller's target attribute"
+                            ),
+                        ));
+                    }
+                }
+            }
         }
+        Ok(())
     }
 
-    /// Only query a checked condition when an SVE use needs its constant branch
+    /// Only query a checked condition when a pending feature use needs its constant branch
     /// decision. Speculation cannot add feature obligations of its own.
     pub(crate) fn sve_constant_truth(
         &mut self,

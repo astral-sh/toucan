@@ -1417,7 +1417,8 @@ impl Analyzer {
             kind,
             explicit_type_use,
             (type_name_use, type_name),
-        )
+        )?;
+        self.retain_inline_target(expression)
     }
 
     fn retain_call(&mut self, call: &Node<ast::CallExpression>) -> Result<ExprKind, Error> {

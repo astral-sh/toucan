@@ -780,6 +780,7 @@ impl Analyzer {
                 ));
             }
         }
+        self.require_x86_features(intrinsic, call.span.start)?;
         Ok(signature.result)
     }
 }

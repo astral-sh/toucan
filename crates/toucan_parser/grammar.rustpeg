@@ -1219,11 +1219,14 @@ external_declaration0 -> ExternalDeclaration =
 
 function_definition -> FunctionDefinition =
     gnu<K<"__extension__">>?
-    _ a:declaration_specifiers _ b:function_definition_declarator _ c:list0<declaration>
+    _ a:declaration_specifiers _ b:function_definition_declarator
+    _ e:clang<attribute_specifier_list>? _ c:list0<declaration>
     _ d:node<compound_statement> {
         FunctionDefinition {
             specifiers: a,
-            declarator: b,
+            declarator: if e.as_ref().is_some_and(|extensions| !extensions.is_empty()) {
+                checked_with_ext!(__state.budget, b, e)
+            } else { b },
             declarations: c,
             statement: d,
         }

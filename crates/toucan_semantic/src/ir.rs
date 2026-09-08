@@ -13,6 +13,9 @@ pub struct TranslationUnit {
     /// Compiler behavior retained independently from the physical target.
     pub compiler: target::Compiler,
     pub declarations: Vec<Declaration>,
+    /// Sparse per-function compilation properties, keyed by declaration index.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub function_options: BTreeMap<usize, crate::FunctionOptions>,
     pub records: Vec<Record>,
     /// Nominal GNU typedef variants mapped directly to their source record.
     /// Field declaration identities belong to the source record.

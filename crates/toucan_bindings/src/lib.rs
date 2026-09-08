@@ -239,6 +239,7 @@ pub fn generate_with_macros(
     options: &Options,
     macros: &BTreeMap<String, Option<MacroValue>>,
 ) -> Result<Bindings, Error> {
+    unit.validate_function_options()?;
     if let Some(namespace) = &options.helper_namespace
         && (namespace.is_empty()
             || !namespace.bytes().enumerate().all(|(index, byte)| {

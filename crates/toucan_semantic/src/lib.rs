@@ -32,6 +32,7 @@ mod parser_extensions;
 mod returns_twice;
 mod statement;
 mod sync;
+mod target_features;
 mod transparent_union;
 mod variadic_pack;
 mod vector;
@@ -48,6 +49,7 @@ pub use literals::{
     DecodedString, StringEncoding, decode_character_literal, decode_character_literal_with_profile,
     decode_string_literals,
 };
+pub use target_features::{FunctionOptions, FunctionTarget, X86TargetOption};
 
 /// A source-positioned syntax, semantic, or unsupported-feature diagnostic.
 #[derive(Clone, Debug, thiserror::Error, serde::Serialize)]

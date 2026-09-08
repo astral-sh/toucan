@@ -111,6 +111,7 @@ fn analyze_on_parser_stack(
         analyzer.validate_block_externs()?;
         analyzer.validate_weak_symbol_aliases()?;
         analyzer.validate_returns_twice_aliases()?;
+        analyzer.finish_inline_targets()?;
         let checked = analyzer
             .checked
             .take()
@@ -162,6 +163,7 @@ fn evaluate_on_parser_stack<Value>(
     evaluate: impl FnOnce(&mut Analyzer, &Node<ast::Expression>) -> Result<Value, Error>,
 ) -> Result<Value, Error> {
     unit.profile()?;
+    unit.validate_function_options()?;
     let identifiers = validate_expression_source(expression)?;
     for value in unit.constants.values() {
         value.validate()?;
@@ -469,6 +471,10 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Attributes {
+    pub(crate) target_attributes: Vec<crate::target_features::ParsedTarget>,
+    pub(crate) always_inline: Option<(lang_c::span::Span, bool)>,
+    pub(crate) no_inline: Option<(lang_c::span::Span, bool)>,
+    target_type_name: bool,
     nodebug_arguments: Option<usize>,
     pub(crate) transparent_union: Option<lang_c::span::Span>,
     pub(crate) weak: Option<lang_c::span::Span>,
@@ -516,6 +522,18 @@ impl Attributes {
         Ok(())
     }
     pub(crate) fn require_function_attributes(&self, function: bool) -> Result<(), Error> {
+        if !function
+            && !self.target_type_name
+            && let Some(attribute) = self
+                .target_attributes
+                .iter()
+                .find(|attribute| attribute.clang)
+        {
+            return Err(Error::new(
+                attribute.span.start,
+                "target attribute requires a function declaration",
+            ));
+        }
         if !function && let Some(span) = self.returns_twice {
             return Err(Error::new(
                 span.start,
@@ -664,6 +682,9 @@ pub(crate) struct PreparedSpecifiers {
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) lexical_function_options: BTreeMap<usize, BTreeMap<String, crate::FunctionOptions>>,
+    pub(crate) definition_options: Option<(crate::FunctionOptions, Option<usize>)>,
+    pub(crate) function_options: BTreeMap<String, crate::FunctionOptions>,
     pub(crate) array_identities: crate::array_identity::Registry,
     // Completed query checks prevent nested constant folding from replaying operand typing.
     pub(crate) checked_overflow_predicates: HashMap<(usize, usize), (u8, bool)>,
@@ -685,7 +706,7 @@ pub(crate) struct Analyzer {
     defining_enums: HashSet<usize>,
     tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
-    record_attributes: HashSet<usize>,
+    pub(crate) record_attributes: HashSet<usize>,
     pub(crate) character_literals: HashMap<usize, String>,
     pub(crate) string_literals: HashMap<usize, Vec<String>>,
     pub(crate) empty_initializers: HashSet<usize>,
@@ -696,7 +717,7 @@ pub(crate) struct Analyzer {
     pub(crate) variably_modified_parents: Vec<Option<usize>>,
     pub(crate) function_scope: Option<crate::statement::FunctionScope>,
     pub(crate) current_function: Option<crate::statement::FunctionContext>,
-    pub(crate) sve_feature_uses: Vec<usize>,
+    pub(crate) sve_feature_uses: Vec<crate::target_features::FeatureUse>,
     pub(crate) suppress_sve_features: bool,
     pub(crate) sve_feature_labels: usize,
     pub(crate) block_externs: HashMap<String, BlockExtern>,
@@ -721,6 +742,7 @@ impl Analyzer {
             target: profile.target(),
             compiler: profile.compiler(),
             declarations: Vec::new(),
+            function_options: BTreeMap::new(),
             records: Vec::new(),
             record_origins: BTreeMap::new(),
             enums: Vec::new(),
@@ -749,6 +771,9 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            lexical_function_options: BTreeMap::new(),
+            definition_options: None,
+            function_options: Self::inherited_function_options(&unit),
             array_identities: crate::array_identity::Registry::default(),
             allow_late_object_size_folds: false,
             diagnostic_kinds: HashMap::new(),
@@ -823,6 +848,8 @@ impl Analyzer {
     }
 
     pub(crate) fn leave_prototype(&mut self) -> Vec<Parameter> {
+        self.lexical_function_options
+            .remove(&self.lexical_scopes.len());
         let scope = self
             .lexical_scopes
             .pop()
@@ -1156,6 +1183,22 @@ impl Analyzer {
             }
             declarator_attributes.require_function_attributes(kind == DeclarationKind::Function)?;
             self.check_diagnostic_attributes(&name, &declarator_attributes.diagnostic_attributes)?;
+            let previous_index = if definition {
+                self.definition_options.as_ref().map(|(_, index)| *index)
+            } else {
+                None
+            }
+            .unwrap_or_else(|| {
+                self.unit
+                    .declarations
+                    .iter()
+                    .position(|previous| previous.name == name)
+            });
+            let function_options = if kind == DeclarationKind::Function {
+                Some(self.check_function_options(&name, &declarator_attributes, previous_index)?)
+            } else {
+                None
+            };
             let returns_twice = if kind == DeclarationKind::Function {
                 self.check_returns_twice(&name, &declarator_attributes)?
             } else {
@@ -1186,12 +1229,7 @@ impl Analyzer {
                 ));
             }
             let is_definition = definition || item.node.initializer.is_some();
-            let declaration_index = if let Some(previous_index) = self
-                .unit
-                .declarations
-                .iter()
-                .position(|previous| previous.name == name)
-            {
+            let declaration_index = if let Some(previous_index) = previous_index {
                 let previous = &self.unit.declarations[previous_index];
                 if kind == DeclarationKind::Function {
                     ty = self.inherit_calling_convention(ty, &previous.ty)?;
@@ -1312,6 +1350,13 @@ impl Analyzer {
                 });
                 index
             };
+            if let Some(options) = &function_options
+                && !options.is_default()
+            {
+                self.unit
+                    .function_options
+                    .insert(declaration_index, options.clone());
+            }
             let checked_site = if let Some(checked) = &mut self.checked {
                 checked.file_declaration(
                     item,
@@ -1347,6 +1392,14 @@ impl Analyzer {
                 if let Some(inference) = &inference {
                     checked.retain_type_inference(site, inference)?;
                 }
+                checked.attach_function_options(
+                    site,
+                    function_options.as_ref(),
+                    &declarator_attributes.target_attributes,
+                    declarator_attributes.always_inline,
+                    declarator_attributes.no_inline,
+                    true,
+                )?;
                 checked.attach_diagnostic_attributes(
                     site,
                     &declarator_attributes.diagnostic_attributes,
@@ -2242,6 +2295,7 @@ impl Analyzer {
             return Ok(ty.clone());
         }
         let (ty, mut attributes) = self.specifier_qualifiers(&name.specifiers)?;
+        attributes.target_type_name = true;
         attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
         attributes.require_no_transparent_union()?;
@@ -2280,6 +2334,14 @@ impl Analyzer {
             attributes.type_use,
             attributes.type_name_use,
         )?;
+        extra.target_type_name |= attributes.target_type_name;
+        extra
+            .target_attributes
+            .extend(attributes.target_attributes.iter().cloned());
+        extra.always_inline =
+            crate::target_features::merge_inline(extra.always_inline, attributes.always_inline);
+        extra.no_inline =
+            crate::target_features::merge_inline(extra.no_inline, attributes.no_inline);
         extra.nodebug_arguments = extra.nodebug_arguments.or(attributes.nodebug_arguments);
         if name.is_some() {
             self.check_nodebug_function_like(&ty, &extra)?;
@@ -2339,6 +2401,9 @@ impl Analyzer {
         };
         let mut alias_convention = None;
         let mut nodebug_arguments = None;
+        let mut target_attributes = Vec::new();
+        let mut always_inline = None;
+        let mut no_inline = None;
         let split = declaration
             .node
             .derived
@@ -2369,6 +2434,16 @@ impl Analyzer {
                                 self.attributes(extensions, &mut attributes)?;
                                 nodebug_arguments =
                                     nodebug_arguments.or(attributes.nodebug_arguments);
+                                target_attributes
+                                    .extend(attributes.target_attributes.iter().cloned());
+                                always_inline = crate::target_features::merge_inline(
+                                    always_inline,
+                                    attributes.always_inline,
+                                );
+                                no_inline = crate::target_features::merge_inline(
+                                    no_inline,
+                                    attributes.no_inline,
+                                );
                                 if alias_base {
                                     merge_convention(
                                         &mut alias_convention,
@@ -2868,6 +2943,12 @@ impl Analyzer {
         let mut attributes = Attributes::default();
         self.attributes(&declaration.node.extensions, &mut attributes)?;
         attributes.nodebug_arguments = attributes.nodebug_arguments.or(nodebug_arguments);
+        attributes.target_attributes.extend(target_attributes);
+        attributes.always_inline =
+            crate::target_features::merge_inline(attributes.always_inline, always_inline);
+        attributes.no_inline =
+            crate::target_features::merge_inline(attributes.no_inline, no_inline);
+        attributes.target_type_name = type_name;
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, declaration.span.start)?;
         }
@@ -2909,6 +2990,17 @@ impl Analyzer {
                 attributes.nodebug_arguments = attributes
                     .nodebug_arguments
                     .or(inner_attributes.nodebug_arguments);
+                attributes
+                    .target_attributes
+                    .extend(inner_attributes.target_attributes);
+                attributes.always_inline = crate::target_features::merge_inline(
+                    attributes.always_inline,
+                    inner_attributes.always_inline,
+                );
+                attributes.no_inline = crate::target_features::merge_inline(
+                    attributes.no_inline,
+                    inner_attributes.no_inline,
+                );
                 attributes.weak = attributes.weak.or(inner_attributes.weak);
                 attributes.returns_twice =
                     attributes.returns_twice.or(inner_attributes.returns_twice);
@@ -3588,6 +3680,29 @@ impl Analyzer {
                 ast::Extension::Attribute(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
                     match name {
+                        "target" => {
+                            if result.target_attributes.len() >= 256 {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "target attribute count exceeds the 256-entry limit",
+                                ));
+                            }
+                            result
+                                .target_attributes
+                                .push(self.parse_target_attribute(attribute, extension.span)?);
+                        }
+                        "always_inline" => {
+                            result.always_inline = crate::target_features::merge_inline(
+                                result.always_inline,
+                                Some((extension.span, !attribute.arguments.is_empty())),
+                            )
+                        }
+                        "noinline" => {
+                            result.no_inline = crate::target_features::merge_inline(
+                                result.no_inline,
+                                Some((extension.span, !attribute.arguments.is_empty())),
+                            )
+                        }
                         "nodebug" => {
                             // Debug information is outside the retained semantic graph.
                             // GCC ignores this unknown attribute, including its arguments.
@@ -3785,9 +3900,7 @@ impl Analyzer {
                         | "const"
                         | "visibility"
                         | "sentinel"
-                        | "always_inline"
                         | "gnu_inline"
-                        | "noinline"
                         | "unused"
                         | "used"
                         | "artificial"

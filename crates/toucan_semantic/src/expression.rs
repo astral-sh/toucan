@@ -486,6 +486,7 @@ impl Analyzer {
                     self.require_definite_object(&function.return_type, offset)?;
                 }
                 self.require_sve_value(&function.return_type, offset)?;
+                self.require_inline_features(call)?;
                 if self.gnu_sync_profile()
                     && self.unit.atomic_value(&function.return_type)?.is_some()
                 {
