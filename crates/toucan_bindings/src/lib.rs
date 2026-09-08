@@ -1398,12 +1398,12 @@ impl Emitter<'_> {
                 )));
             }
             if let Some(width) = field.bit_width {
+                if self.has_qualifier(&field.ty, |ty| ty.qualifiers.is_volatile)? {
+                    return Err(Error(format!(
+                        "`{name}` has a volatile {kind} bitfield; access width and ordering are unsupported"
+                    )));
+                }
                 if let Some(storage) = &union_storage {
-                    if self.has_qualifier(&field.ty, |ty| ty.qualifiers.is_volatile)? {
-                        return Err(Error(format!(
-                            "`{name}` has a volatile union bitfield; access width and ordering are unsupported"
-                        )));
-                    }
                     if let Some((getter, setter)) = accessor_names.get(&index) {
                         let member = layout.fields[index]
                             .ok_or_else(|| Error("named bitfield has no layout".into()))?;
@@ -1651,7 +1651,7 @@ impl Emitter<'_> {
             writeln!(source, "        value as {rust_type}").unwrap();
         }
         source.push_str("    }\n");
-        if union && self.is_const(ty)? {
+        if self.is_const(ty)? {
             return Ok(());
         }
         if union {

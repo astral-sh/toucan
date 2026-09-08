@@ -176,7 +176,7 @@ configuration. See CI results for changes made after that run.
   64 bits and values that cannot be represented without truncation are rejected.
 - Rust bindings reject records containing bitfields passed by value, field-level
   alignment, and combined packing and explicit record alignment. Union bitfields
-  have the pointer-based representation described below; volatile union bitfields and
+  have the pointer-based representation described below; volatile bitfields and
   bitfields with Rust enum representations remain unsupported.
 - Function-like macros and object macros that are not supported integer, finite
   `float`/`double`, or string constants are reported as omitted. SQLite's `SQLITE_STATIC` and
@@ -270,8 +270,8 @@ leave the bytes they access uninitialized. Each accessor requires all bytes
 overlapping that bitfield to be initialized. Setters preserve the other bits in
 those bytes, so they have the same initialization requirement as getters. The
 implementation uses raw byte accesses without creating references to inactive
-storage. Const bitfields have no setter. Volatile union bitfields are rejected
-because the required access width and ordering are not implemented.
+storage. Const bitfields have no setter in structs or unions. Volatile bitfields
+are rejected in both because the required access width and ordering are not implemented.
 
 Unions containing bitfields, and records containing those unions, cannot yet be
 passed or returned by value, including callback arguments. Equal size and alignment
@@ -279,3 +279,10 @@ do not prove equal calling conventions. Tests compare layouts with Clang on all
 five targets and initialized storage bytes with native GCC and Clang, exercising
 callbacks in both directions through union pointers. Generated accessors and
 layout assertions are also tested with Rust 1.64.
+
+The [bitfield safety evidence](../corpus/evidence/bitfield-safety-2026-09-08.json)
+records qualifier regressions and bounded Miri checks for partially initialized
+union storage, packed access through unaligned copies, and uninitialized struct
+padding. An intentionally invalid union read is rejected by Miri. These interpreter
+checks cover the recorded generated Rust examples; they do not execute C FFI or
+cover every generated binding.
