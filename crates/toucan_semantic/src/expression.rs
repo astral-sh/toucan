@@ -852,7 +852,17 @@ impl Analyzer {
                 {
                     return Err(Error::new(offset, "pointer assignment discards qualifiers"));
                 }
-                self.composite_pointer(pointee, source, offset)?;
+                // Assignment uses the destination type. Constructing a common
+                // type would apply conditional-expression alignment rules to
+                // conversions that preserve the declared pointer's alignment.
+                let to = self.unqualified(pointee)?;
+                let from = self.unqualified(source)?;
+                if !self.compatible(&to, &from)?
+                    && !matches!(to.kind, TypeKind::Void)
+                    && !matches!(from.kind, TypeKind::Void)
+                {
+                    return Err(Error::new(offset, "incompatible pointer types"));
+                }
                 return Ok(());
             }
         }

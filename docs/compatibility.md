@@ -581,7 +581,10 @@ Arithmetic and conditional expressions involving an unpromoted typedef with a
 changed alignment currently produce an explicit diagnostic. GCC and Clang retain
 different typedef identities in these result types; Toucan does not discard that
 observable `typeof` alignment. Combining pointer types with changed-alignment
-pointees also produces an explicit diagnostic. Integer promotions and ordinary object, pointer,
+pointees also produces an explicit diagnostic. Pointer assignment, initialization,
+returns and prototype arguments preserve the destination's declared alignment and
+permit compatible aligned aliases. They still reject discarded qualifiers and
+incompatible nested pointer types. Integer promotions and ordinary object, pointer,
 array and member uses remain supported.
 
 [Validation evidence](../corpus/evidence/aligned-typedefs-2026-09-08.json) includes
