@@ -87,3 +87,32 @@ bounds logical nodes, graph references, and owned payload bytes. The defaults ar
 1,000,000 nodes, 4,000,000 references, and 128 MiB of charged payload. Allocator
 overhead is not included. Existing parser, input-size, and semantic nesting limits
 also apply. Exceeding a limit returns a diagnostic; no partial graph is returned.
+
+## Written type ownership
+
+A declaration's `TypeUse::functions()` links each written function declarator to
+its prototype scope and parameter sites. `FunctionUse::path()` distinguishes
+nested callbacks and return types. Definition scopes are promoted in place, so a
+function body's parameters and its declaration's parameter links share identities.
+Parameter sites retain both adjusted pointer types and written array minimums.
+Typedefs reuse their original prototype links. Conditional function-pointer
+expressions may retain multiple written origins at the same path; these do not
+assert that their parameter contracts are identical.
+
+GNU `typeof` operands have their own arena. Starting at a declaration site, follow
+`occurrence()` → `Occurrence::type_owner()` → `Occurrence::type_operands()`.
+Type owners also exist for declarations without a named declarator. Expressions
+with written type names expose `Expression::type_name()`; its occurrence owns the
+corresponding operands. Nested `typeof(type-name)` inputs link directly to that
+type name and its type use.
+
+Each operand records its lexical scope, checked input and evaluation context.
+`Required` means required when execution reaches that owner; it does not bypass
+conditional or short-circuit control. Prototype and unevaluated uses are explicit.
+`MayBeOmitted` records noncontributing variably modified type operands within
+`sizeof(type)`. For example, `typeof(p++)` with a pointer to a VLA can evaluate
+`p++` while reusing an existing bound. A later use of a typedef shares the bound
+and does not acquire the original declaration's operand execution.
+
+[Ownership validation](../corpus/evidence/type-ownership-2026-09-08.json) records
+native side-effect probes, external corpus parity and default allocation checks.

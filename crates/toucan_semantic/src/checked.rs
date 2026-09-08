@@ -14,12 +14,13 @@ mod access;
 pub(crate) mod bounds;
 pub(crate) mod expression;
 pub(crate) mod initializer;
+mod ownership;
 pub(crate) mod references;
 pub(crate) mod statement;
 
 pub use bounds::{
-    Bound, BoundEvaluation, BoundId, BoundInput, BoundSite, BoundValue, Extent, TypeStep, TypeUse,
-    TypeUseId,
+    Bound, BoundEvaluation, BoundId, BoundInput, BoundSite, BoundValue, Extent, FunctionUse,
+    TypeStep, TypeUse, TypeUseId,
 };
 pub use expression::{
     Binary, Builtin, Conversion, ConversionStep, Coverage as ExpressionStatus, ExprId, ExprKind,
@@ -30,6 +31,7 @@ pub use initializer::{
     Coverage as InitializerStatus, Entry as InitializerEntry, Initializer, InitializerCoverage,
     InitializerKind, Subobject,
 };
+pub use ownership::{TypeOperand, TypeOperandEvaluation, TypeOperandId, TypeOperandInput};
 pub use references::{Reference, ReferenceKind};
 pub use statement::{
     Assembly, AssemblyLocation, AssemblyOperand, AssemblyText, Assertion, AssertionId, BlockItem,
@@ -158,6 +160,7 @@ pub enum OccurrenceKind {
     Enumerator,
     Function,
     TypeName,
+    TypeOf,
     Expression,
     Initializer,
     InitializerItem,
@@ -181,6 +184,10 @@ pub struct SourceSpan {
 
 #[derive(Debug, Serialize)]
 pub struct Occurrence {
+    /// Nearest written declaration, parameter, field, function, or type name.
+    /// Type owners point to themselves. This is syntax ownership, not execution.
+    pub(crate) type_owner: Option<OccurrenceId>,
+    pub(crate) type_operands: Vec<ownership::TypeOperandId>,
     /// Attribute argument grammar also uses expression nodes for metadata such as `printf`.
     pub(crate) attribute_argument: bool,
     pub(crate) kind: OccurrenceKind,
@@ -303,6 +310,7 @@ pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> O
 
 #[derive(Debug, Serialize)]
 pub struct CheckedCode {
+    pub(crate) type_operands: Vec<ownership::TypeOperand>,
     pub(crate) statements: Vec<statement::Statement>,
     pub(crate) statement_coverage: Vec<statement::StatementCoverage>,
     pub(crate) bodies: Vec<statement::FunctionBody>,
@@ -350,6 +358,7 @@ pub(crate) struct Builder {
     reference_builder: references::ReferenceBuilder,
     initializer_builder: initializer::InitializerBuilder,
     bounds_builder: bounds::BoundsBuilder,
+    ownership_builder: ownership::OwnershipBuilder,
     expression_builder: expression::ExpressionBuilder,
     code: CheckedCode,
     budget: Budget,
@@ -381,9 +390,11 @@ impl Builder {
             reference_builder: references::ReferenceBuilder::default(),
             initializer_builder: initializer::InitializerBuilder::default(),
             bounds_builder: bounds::BoundsBuilder::default(),
+            ownership_builder: ownership::OwnershipBuilder::default(),
             expression_builder: expression::ExpressionBuilder::default(),
             statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
+                type_operands: Vec::new(),
                 statements: Vec::new(),
                 statement_coverage: Vec::new(),
                 bodies: Vec::new(),
@@ -440,9 +451,12 @@ impl Builder {
         node: &T,
         span: Span,
     ) -> Result<OccurrenceId, Error> {
-        self.budget.charge(1, 2, 0, span.start)?;
+        // Reserve the type-owner edge even for occurrences without a type owner.
+        self.budget.charge(1, 3, 0, span.start)?;
         let id = OccurrenceId(self.code.occurrences.len() as u32);
         self.code.occurrences.push(Occurrence {
+            type_owner: self.ownership_builder.catalog_owner,
+            type_operands: Vec::new(),
             attribute_argument: self.attribute_depth != 0,
             kind,
             source: unmapped_span(span),
@@ -860,6 +874,7 @@ impl Builder {
         self.finish_references(offsets)?;
         self.finish_initializer_coverage()?;
         self.finish_bounds(offsets)?;
+        self.finish_type_ownership()?;
         for (occurrence, missing, kind) in self
             .code
             .expression_coverage
@@ -1016,10 +1031,14 @@ macro_rules! visit_occurrence {
             if self.error.is_some() {
                 return;
             }
-            if let Err(error) = self.occurrence(OccurrenceKind::$kind, node, *span) {
-                self.error = Some(error);
-                return;
-            }
+            let occurrence = match self.occurrence(OccurrenceKind::$kind, node, *span) {
+                Ok(id) => id,
+                Err(error) => {
+                    self.error = Some(error);
+                    return;
+                }
+            };
+            let previous_owner = self.catalog_type_owner(occurrence);
             if self.depth >= 256 {
                 self.error = Some(Error::new(
                     span.start,
@@ -1034,6 +1053,7 @@ macro_rules! visit_occurrence {
             self.depth += 1;
             visit::$method(self, node, span);
             self.depth -= 1;
+            self.ownership_builder.catalog_owner = previous_owner;
         }
     };
 }
@@ -1094,7 +1114,13 @@ impl<'ast> Visit<'ast> for Builder {
     visit_occurrence!(visit_enum_type, ast::EnumType, Enum);
     visit_occurrence!(visit_enumerator, ast::Enumerator, Enumerator);
     visit_occurrence!(visit_function_definition, ast::FunctionDefinition, Function);
-    visit_occurrence!(visit_type_name, ast::TypeName, TypeName);
+    visit_occurrence!(
+        visit_type_name,
+        ast::TypeName,
+        TypeName,
+        |builder: &mut Builder, name: &ast::TypeName| builder.catalog_type_name(name)
+    );
+    visit_occurrence!(visit_type_of, ast::TypeOf, TypeOf);
     visit_occurrence!(visit_expression, ast::Expression, Expression);
     visit_occurrence!(visit_initializer, ast::Initializer, Initializer);
     visit_occurrence!(

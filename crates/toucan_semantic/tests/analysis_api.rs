@@ -144,3 +144,68 @@ fn type_uses_keep_runtime_bounds_and_parameter_contracts() {
     );
     assert!(code.bound(source_use.extents()[0].bound()).is_some());
 }
+
+#[test]
+fn public_type_ownership_links_survive_source_drop() {
+    use toucan_semantic::checked::{
+        OccurrenceKind, TypeOperandEvaluation, TypeOperandInput, TypeStep,
+    };
+    let source = String::from(
+        "void accept(int n, int (*callback)(int data[static n])); int f(int n) { int a[n]; int (*p)[n]=&a; typedef typeof(p++) P; P q; return sizeof(typeof(*p)); }",
+    );
+    let analysis = analyze_with_options(
+        &source,
+        TARGET,
+        &AnalysisOptions {
+            retain_code: true,
+            ..AnalysisOptions::default()
+        },
+    )
+    .unwrap();
+    drop(source);
+    let code = analysis.checked().unwrap();
+    let (_, site) = code
+        .declarations()
+        .find(|(_, s)| code.entity(s.entity()).unwrap().name() == Some("accept"))
+        .unwrap();
+    let functions = code.type_use(site.type_use()).unwrap().functions();
+    assert_eq!(functions.len(), 2);
+    let callback = functions
+        .iter()
+        .find(|f| f.path() == [TypeStep::Parameter(1), TypeStep::Pointer])
+        .unwrap();
+    let parameter = code.declaration(callback.parameters()[0]).unwrap();
+    assert_eq!(parameter.scope(), callback.scope());
+    let bound = code
+        .type_use(parameter.declared_type_use().unwrap())
+        .unwrap()
+        .extents()[0]
+        .bound();
+    assert!(code.bound(bound).unwrap().minimum());
+    let (_, alias) = code
+        .declarations()
+        .find(|(_, s)| code.entity(s.entity()).unwrap().name() == Some("P"))
+        .unwrap();
+    let owner = code
+        .occurrence(alias.occurrence())
+        .unwrap()
+        .type_owner()
+        .unwrap();
+    let operand_id = code.occurrence(owner).unwrap().type_operands()[0];
+    let operand = code.type_operand(operand_id).unwrap();
+    assert_eq!(operand.owner(), owner);
+    assert_eq!(operand.evaluation(), TypeOperandEvaluation::Required);
+    assert_eq!(
+        code.occurrence(operand.occurrence()).unwrap().kind(),
+        OccurrenceKind::TypeOf
+    );
+    let TypeOperandInput::Expression(input) = operand.input() else {
+        panic!()
+    };
+    assert!(code.expression(input.expression()).is_some());
+    assert!(code.scope(operand.scope()).is_some());
+    assert!(code.expressions().any(|(_, e)| e.type_name().is_some()));
+    for (id, operand) in code.type_operands() {
+        assert!(std::ptr::eq(operand, code.type_operand(id).unwrap()));
+    }
+}

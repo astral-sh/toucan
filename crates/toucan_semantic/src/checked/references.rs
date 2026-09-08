@@ -163,9 +163,9 @@ impl Analyzer {
         ty: &Type,
         path: &[usize],
         name: &Node<ast::Identifier>,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<super::bounds::TypeUseId>, Error> {
         if self.checked.is_none() {
-            return Ok(());
+            return Ok(None);
         }
         let mut ty = ty;
         let mut target = None;
@@ -198,7 +198,8 @@ impl Analyzer {
             EntityKind::Field { record, index },
             name.span.start,
         )?;
-        checked.reference(entity, ReferenceKind::Field, name.span)
+        checked.reference(entity, ReferenceKind::Field, name.span)?;
+        Ok(checked.entity_type_use(entity))
     }
 }
 

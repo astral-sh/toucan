@@ -11,8 +11,8 @@ use serde::Serialize;
 
 use super::expression::{Binary, Conversion, ExprId, ExprKind, Unary};
 use super::{
-    Builder, EntityId, EntityKind, OccurrenceId, OccurrenceKind, ScopeId, SourceSpan, TypeId,
-    map_span, unmapped_span,
+    Builder, EntityId, EntityKind, OccurrenceId, OccurrenceKind, ScopeId, SiteId, SourceSpan,
+    TypeId, map_span, unmapped_span,
 };
 use crate::{Error, Type, TypeKind};
 
@@ -46,10 +46,19 @@ pub struct Extent {
     pub(crate) path: Vec<TypeStep>,
     pub(crate) bound: BoundId,
 }
+/// A written function declarator within a type use. Multiple origins at one path
+/// are alternatives inherited by a composite expression, not a merged prototype.
+#[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
+pub struct FunctionUse {
+    pub(crate) path: Vec<TypeStep>,
+    pub(crate) scope: ScopeId,
+    pub(crate) parameters: Vec<SiteId>,
+}
 #[derive(Debug, Serialize)]
 pub struct TypeUse {
     pub(crate) shape: TypeId,
     pub(crate) extents: Vec<Extent>,
+    pub(crate) functions: Vec<FunctionUse>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
@@ -111,19 +120,25 @@ pub(crate) struct BoundContext {
     pub(crate) minimum: bool,
     pub(crate) constant: Option<u64>,
 }
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum ParameterAdjustment {
+    Array,
+    Function,
+}
 #[derive(Default)]
 pub(super) struct BoundsBuilder {
     plain: HashMap<TypeId, TypeUseId>,
     starts: HashMap<OccurrenceId, usize>,
     entities: HashMap<EntityId, TypeUseId>,
     pending: HashMap<(ScopeId, String), TypeUseId>,
-    parameters: HashMap<OccurrenceId, TypeUseId>,
+    parameters: HashMap<OccurrenceId, (TypeUseId, Option<ParameterAdjustment>)>,
     type_names: HashMap<(usize, usize), TypeUseId>,
     spans: Vec<Span>,
 }
 
 impl Builder {
     pub(super) fn begin_bound_context(&mut self, occurrence: OccurrenceId) {
+        self.begin_type_operand_context(occurrence);
         self.bounds_builder
             .starts
             .insert(occurrence, self.code.bounds.len());
@@ -134,15 +149,28 @@ impl Builder {
         kind: &ExprKind,
         type_name: Option<TypeUseId>,
     ) {
+        self.finish_type_operand_context(owner, kind, type_name);
         let start = self
             .bounds_builder
             .starts
             .get(&owner)
             .copied()
             .unwrap_or(self.code.bounds.len());
+        if let ExprKind::SizeOfValue { variable, .. } = kind {
+            if !variable {
+                for bound in &mut self.code.bounds[start..] {
+                    if matches!(
+                        bound.evaluation,
+                        BoundEvaluation::Required | BoundEvaluation::MayBeOmitted
+                    ) {
+                        bound.evaluation = BoundEvaluation::Unevaluated;
+                    }
+                }
+            }
+            return;
+        }
         let sizeof_use = match kind {
             ExprKind::SizeOfType(_) => type_name,
-            ExprKind::SizeOfValue { operand, .. } => Some(operand.type_use),
             _ => None,
         };
         if let Some(id) = sizeof_use {
@@ -247,33 +275,52 @@ impl Builder {
             }
         }
     }
+    pub(crate) fn entity_type_use(&self, entity: EntityId) -> Option<TypeUseId> {
+        self.bounds_builder.entities.get(&entity).copied()
+    }
     pub(crate) fn site_type_use(&self, site: super::SiteId) -> TypeUseId {
         self.code.declarations[site.index()].type_use
     }
 
     pub(crate) fn plain_type_use(&mut self, ty: &Type, offset: usize) -> Result<TypeUseId, Error> {
         let shape = self.intern_type(ty, offset)?;
-        self.type_use(shape, Vec::new(), offset)
+        self.type_use(shape, Vec::new(), Vec::new(), offset)
     }
     fn type_use(
         &mut self,
         shape: TypeId,
         extents: Vec<Extent>,
+        functions: Vec<FunctionUse>,
         offset: usize,
     ) -> Result<TypeUseId, Error> {
         if extents.is_empty()
+            && functions.is_empty()
             && let Some(id) = self.bounds_builder.plain.get(&shape)
         {
             return Ok(*id);
         }
-        let edges = 1 + extents
+        let function_edges: usize = functions
             .iter()
-            .map(|extent| 1 + extent.path.len())
-            .sum::<usize>();
+            .map(|f| 1 + f.path.len() + f.parameters.len())
+            .sum();
+        let edges = 1
+            + function_edges
+            + extents
+                .iter()
+                .map(|extent| 1 + extent.path.len())
+                .sum::<usize>();
         self.budget.charge(
             1,
             edges,
-            extents.len() * std::mem::size_of::<Extent>()
+            functions.len() * std::mem::size_of::<FunctionUse>()
+                + functions
+                    .iter()
+                    .map(|f| {
+                        f.path.len() * std::mem::size_of::<TypeStep>()
+                            + f.parameters.len() * std::mem::size_of::<SiteId>()
+                    })
+                    .sum::<usize>()
+                + extents.len() * std::mem::size_of::<Extent>()
                 + extents
                     .iter()
                     .map(|e| e.path.len() * std::mem::size_of::<TypeStep>())
@@ -281,10 +328,14 @@ impl Builder {
             offset,
         )?;
         let id = TypeUseId(self.code.type_uses.len() as u32);
-        if extents.is_empty() {
+        if extents.is_empty() && functions.is_empty() {
             self.bounds_builder.plain.insert(shape, id);
         }
-        self.code.type_uses.push(TypeUse { shape, extents });
+        self.code.type_uses.push(TypeUse {
+            shape,
+            extents,
+            functions,
+        });
         Ok(id)
     }
     pub(crate) fn retype_use(
@@ -297,13 +348,19 @@ impl Builder {
         if self.code.type_uses[id.index()].shape == shape {
             return Ok(id);
         }
+        let functions = self.code.type_uses[id.index()]
+            .functions
+            .iter()
+            .filter(|f| function_type(ty, &f.path))
+            .cloned()
+            .collect();
         let extents = self.code.type_uses[id.index()]
             .extents
             .iter()
             .filter(|extent| extent_type(ty, &extent.path).is_some())
             .cloned()
             .collect();
-        self.type_use(shape, extents, offset)
+        self.type_use(shape, extents, functions, offset)
     }
     pub(crate) fn wrap_type_use(
         &mut self,
@@ -317,6 +374,10 @@ impl Builder {
         for extent in &mut extents {
             extent.path.insert(0, step.clone());
         }
+        let mut functions = self.code.type_uses[id.index()].functions.clone();
+        for function in &mut functions {
+            function.path.insert(0, step.clone());
+        }
         if let Some(bound) = bound {
             extents.insert(
                 0,
@@ -327,7 +388,7 @@ impl Builder {
             );
         }
         let shape = self.intern_type(ty, offset)?;
-        self.type_use(shape, extents, offset)
+        self.type_use(shape, extents, functions, offset)
     }
     pub(crate) fn project_type_use(
         &mut self,
@@ -336,6 +397,16 @@ impl Builder {
         step: TypeStep,
         offset: usize,
     ) -> Result<TypeUseId, Error> {
+        let functions = self.code.type_uses[id.index()]
+            .functions
+            .iter()
+            .filter(|f| f.path.first() == Some(&step))
+            .map(|f| FunctionUse {
+                path: f.path[1..].to_vec(),
+                scope: f.scope,
+                parameters: f.parameters.clone(),
+            })
+            .collect();
         let extents = self.code.type_uses[id.index()]
             .extents
             .iter()
@@ -346,22 +417,45 @@ impl Builder {
             })
             .collect();
         let shape = self.intern_type(ty, offset)?;
-        self.type_use(shape, extents, offset)
+        self.type_use(shape, extents, functions, offset)
     }
     pub(crate) fn function_type_use(
         &mut self,
         result: TypeUseId,
         parameters: &[TypeUseId],
+        scope: Option<ScopeId>,
         ty: &Type,
         offset: usize,
     ) -> Result<TypeUseId, Error> {
         let mut extents = Vec::new();
+        let mut functions = Vec::new();
+        if let Some(scope) = scope {
+            let parameters = self.code.scopes[scope.index()]
+                .declarations
+                .iter()
+                .copied()
+                .filter(|id| {
+                    self.code.entities[self.code.declarations[id.index()].entity.index()].kind
+                        == EntityKind::Parameter
+                })
+                .collect();
+            functions.push(FunctionUse {
+                path: Vec::new(),
+                scope,
+                parameters,
+            });
+        }
         for (id, step) in std::iter::once((result, TypeStep::Return)).chain(
             parameters
                 .iter()
                 .enumerate()
                 .map(|(i, id)| (*id, TypeStep::Parameter(i))),
         ) {
+            for function in &self.code.type_uses[id.index()].functions {
+                let mut function = function.clone();
+                function.path.insert(0, step.clone());
+                functions.push(function);
+            }
             for extent in &self.code.type_uses[id.index()].extents {
                 let mut path = vec![step.clone()];
                 path.extend_from_slice(&extent.path);
@@ -372,7 +466,7 @@ impl Builder {
             }
         }
         let shape = self.intern_type(ty, offset)?;
-        self.type_use(shape, extents, offset)
+        self.type_use(shape, extents, functions, offset)
     }
     pub(crate) fn array_bound(
         &mut self,
@@ -446,10 +540,20 @@ impl Builder {
         &mut self,
         parameter: &Node<ast::ParameterDeclaration>,
         id: TypeUseId,
+        resolved: &TypeKind,
     ) -> Result<(), Error> {
         if let Some(occurrence) = self.find(OccurrenceKind::Parameter, parameter)? {
             self.budget.charge(0, 1, 0, parameter.span.start)?;
-            self.bounds_builder.parameters.insert(occurrence, id);
+            let adjustment = match resolved {
+                TypeKind::Array { .. } | TypeKind::VariableArray { .. } => {
+                    Some(ParameterAdjustment::Array)
+                }
+                TypeKind::Function(_) => Some(ParameterAdjustment::Function),
+                _ => None,
+            };
+            self.bounds_builder
+                .parameters
+                .insert(occurrence, (id, adjustment));
         }
         Ok(())
     }
@@ -468,18 +572,16 @@ impl Builder {
                     .pending
                     .remove(&(self.current, name.clone()))
             });
-        let declared = self.bounds_builder.parameters.remove(&occurrence).or(named);
+        let parameter = self.bounds_builder.parameters.remove(&occurrence);
+        let adjustment = parameter.as_ref().and_then(|(_, adjustment)| *adjustment);
+        let declared = parameter.map(|(id, _)| id).or(named);
         let mut result = match declared {
             Some(id) => id,
             None => self.plain_type_use(ty, offset)?,
         };
         let parameter = self.code.entities[entity.index()].kind == EntityKind::Parameter;
         if parameter {
-            let original = &self.code.types[self.code.type_uses[result.index()].shape.index()];
-            if matches!(
-                original.kind,
-                TypeKind::Array { .. } | TypeKind::VariableArray { .. }
-            ) {
+            if adjustment == Some(ParameterAdjustment::Array) {
                 let mut extents = self.code.type_uses[result.index()].extents.clone();
                 extents.retain(|extent| !extent.path.is_empty());
                 for extent in &mut extents {
@@ -487,8 +589,16 @@ impl Builder {
                         extent.path[0] = TypeStep::Pointer;
                     }
                 }
+                let mut functions = self.code.type_uses[result.index()].functions.clone();
+                for function in &mut functions {
+                    if function.path.first() == Some(&TypeStep::Element) {
+                        function.path[0] = TypeStep::Pointer;
+                    }
+                }
                 let shape = self.intern_type(ty, offset)?;
-                result = self.type_use(shape, extents, offset)?;
+                result = self.type_use(shape, extents, functions, offset)?;
+            } else if adjustment == Some(ParameterAdjustment::Function) {
+                result = self.wrap_type_use(result, ty, TypeStep::Pointer, None, offset)?;
             } else {
                 result = self.retype_use(result, ty, offset)?;
             }
@@ -504,32 +614,38 @@ impl Builder {
         specs: &[Node<ast::TypeSpecifier>],
         ty: &Type,
         offset: usize,
+        variably_modified: bool,
+        definition_parameter: bool,
     ) -> Result<TypeUseId, Error> {
         let inherited = if let [specifier] = specs {
             match &specifier.node {
                 ast::TypeSpecifier::TypedefName(name) => self
                     .entity_for_name(&name.node.name)
                     .and_then(|id| self.bounds_builder.entities.get(&id).copied()),
-                ast::TypeSpecifier::TypeOf(value) => match &value.node {
-                    ast::TypeOf::Type(name) => self.type_name_use(&name.node),
-                    ast::TypeOf::Expression(expr) => {
-                        let expression = self.expression_id(expr)?;
-                        let id = self.code.expressions[expression.index()].type_use;
-                        if self.code.type_uses[id.index()].extents.is_empty() {
-                            let occurrence = self.code.expressions[expression.index()].occurrence;
-                            let start = self.bounds_builder.starts[&occurrence];
-                            for bound in &mut self.code.bounds[start..] {
-                                if matches!(
-                                    bound.evaluation,
-                                    BoundEvaluation::Required | BoundEvaluation::MayBeOmitted
-                                ) {
-                                    bound.evaluation = BoundEvaluation::Unevaluated;
+                ast::TypeSpecifier::TypeOf(value) => {
+                    self.retain_type_operand(value, variably_modified, definition_parameter)?;
+                    match &value.node {
+                        ast::TypeOf::Type(name) => self.type_name_use(&name.node),
+                        ast::TypeOf::Expression(expr) => {
+                            let expression = self.expression_id(expr)?;
+                            let id = self.code.expressions[expression.index()].type_use;
+                            if !variably_modified {
+                                let occurrence =
+                                    self.code.expressions[expression.index()].occurrence;
+                                let start = self.bounds_builder.starts[&occurrence];
+                                for bound in &mut self.code.bounds[start..] {
+                                    if matches!(
+                                        bound.evaluation,
+                                        BoundEvaluation::Required | BoundEvaluation::MayBeOmitted
+                                    ) {
+                                        bound.evaluation = BoundEvaluation::Unevaluated;
+                                    }
                                 }
                             }
+                            Some(id)
                         }
-                        Some(id)
                     }
-                },
+                }
                 _ => None,
             }
         } else {
@@ -564,9 +680,15 @@ impl Builder {
         offset: usize,
     ) -> Result<TypeUseId, Error> {
         let mut extents = self.code.type_uses[id.index()].extents.clone();
+        let mut functions = self.code.type_uses[id.index()].functions.clone();
         for conversion in conversions {
             match conversion.kind {
                 Conversion::ArrayDecay => {
+                    for function in &mut functions {
+                        if function.path.first() == Some(&TypeStep::Element) {
+                            function.path[0] = TypeStep::Pointer;
+                        }
+                    }
                     extents.retain(|e| !e.path.is_empty());
                     for extent in &mut extents {
                         if extent.path.first() == Some(&TypeStep::Element) {
@@ -575,6 +697,9 @@ impl Builder {
                     }
                 }
                 Conversion::FunctionDecay => {
+                    for function in &mut functions {
+                        function.path.insert(0, TypeStep::Pointer);
+                    }
                     for extent in &mut extents {
                         extent.path.insert(0, TypeStep::Pointer);
                     }
@@ -593,8 +718,9 @@ impl Builder {
             extents.clear();
         }
         extents.retain(|extent| extent_type(ty, &extent.path).is_some());
+        functions.retain(|f| function_type(ty, &f.path));
         let shape = self.intern_type(ty, offset)?;
-        self.type_use(shape, extents, offset)
+        self.type_use(shape, extents, functions, offset)
     }
     pub(super) fn expression_type_use(
         &mut self,
@@ -701,6 +827,19 @@ impl Builder {
                 ..
             } => self.retype_use(value.type_use, ty, offset),
             ExprKind::Call { callee, .. } => {
+                let functions = self.code.type_uses[callee.type_use.index()]
+                    .functions
+                    .iter()
+                    .filter_map(|f| {
+                        f.path
+                            .strip_prefix(&[TypeStep::Pointer, TypeStep::Return])
+                            .map(|path| FunctionUse {
+                                path: path.to_vec(),
+                                scope: f.scope,
+                                parameters: f.parameters.clone(),
+                            })
+                    })
+                    .collect();
                 let extents = self.code.type_uses[callee.type_use.index()]
                     .extents
                     .iter()
@@ -715,7 +854,7 @@ impl Builder {
                     })
                     .collect();
                 let shape = self.intern_type(ty, offset)?;
-                self.type_use(shape, extents, offset)
+                self.type_use(shape, extents, functions, offset)
             }
             _ => plain(self),
         }
@@ -808,7 +947,15 @@ impl Builder {
             extents.push(Extent { path, bound });
         }
         let shape = self.intern_type(ty, span.start)?;
-        self.type_use(shape, extents, span.start)
+        let mut functions = Vec::new();
+        for id in uses {
+            for function in &self.code.type_uses[id.index()].functions {
+                if function_type(ty, &function.path) && !functions.contains(function) {
+                    functions.push(function.clone());
+                }
+            }
+        }
+        self.type_use(shape, extents, functions, span.start)
     }
     pub(super) fn finish_bounds(
         &mut self,
@@ -820,7 +967,7 @@ impl Builder {
         Ok(())
     }
 }
-fn extent_type<'a>(mut ty: &'a Type, path: &[TypeStep]) -> Option<&'a TypeKind> {
+fn path_type<'a>(mut ty: &'a Type, path: &[TypeStep]) -> Option<&'a TypeKind> {
     for step in path {
         ty = match (step, &ty.kind) {
             (_, TypeKind::Typedef(_)) => return Some(&ty.kind),
@@ -836,11 +983,21 @@ fn extent_type<'a>(mut ty: &'a Type, path: &[TypeStep]) -> Option<&'a TypeKind> 
             _ => return None,
         };
     }
+    Some(&ty.kind)
+}
+fn extent_type<'a>(ty: &'a Type, path: &[TypeStep]) -> Option<&'a TypeKind> {
+    path_type(ty, path).filter(|kind| {
+        matches!(
+            kind,
+            TypeKind::Array { .. } | TypeKind::VariableArray { .. } | TypeKind::Typedef(_)
+        )
+    })
+}
+fn function_type(ty: &Type, path: &[TypeStep]) -> bool {
     matches!(
-        ty.kind,
-        TypeKind::Array { .. } | TypeKind::VariableArray { .. } | TypeKind::Typedef(_)
+        path_type(ty, path),
+        Some(TypeKind::Function(_) | TypeKind::Typedef(_))
     )
-    .then_some(&ty.kind)
 }
 
 pub(crate) fn type_name_key(name: &ast::TypeName) -> (usize, usize) {

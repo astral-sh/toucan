@@ -73,6 +73,8 @@ pub struct ExprUse {
 
 #[derive(Debug, Serialize)]
 pub struct Expression {
+    /// Written type-name owner, independent of its reusable canonical/type-use shape.
+    pub(crate) type_name: Option<OccurrenceId>,
     pub(crate) type_name_use: Option<super::bounds::TypeUseId>,
     pub(crate) type_use: super::bounds::TypeUseId,
     pub(crate) occurrence: OccurrenceId,
@@ -452,17 +454,20 @@ impl Builder {
         function: bool,
         kind: ExprKind,
         explicit_type_use: Option<super::bounds::TypeUseId>,
-        type_name_use: Option<super::bounds::TypeUseId>,
+        written_type: (Option<super::bounds::TypeUseId>, Option<OccurrenceId>),
     ) -> Result<(), Error> {
+        let (type_name_use, type_name) = written_type;
         let offset = self.parsed_spans[occurrence.index()].start;
         self.finish_bound_context(occurrence, &kind, type_name_use);
         let type_use = self.expression_type_use(&kind, &info.ty, explicit_type_use, occurrence)?;
         let ty = self.intern_type(&info.ty, offset)?;
-        self.budget.charge(1, 4, 0, offset)?;
+        self.budget
+            .charge(1, 4 + usize::from(type_name.is_some()), 0, offset)?;
         let id = ExprId(self.code.expressions.len() as u32);
         self.code.expressions.push(Expression {
             type_use,
             type_name_use,
+            type_name,
             occurrence,
             scope: self.current,
             ty,
@@ -677,6 +682,7 @@ impl Analyzer {
         let offset = expression.span.start;
         let mut explicit_type_use = None;
         let mut type_name_use = None;
+        let mut type_name = None;
         let kind = match &expression.node {
             ast::Expression::Constant(constant) => match &constant.node {
                 ast::Constant::Integer(integer) => {
@@ -804,6 +810,9 @@ impl Analyzer {
                 let destination = self.type_name(&cast.node.type_name.node)?;
                 explicit_type_use = self.code_builder().type_name_use(&cast.node.type_name.node);
                 type_name_use = explicit_type_use;
+                type_name = self
+                    .code_builder()
+                    .type_name_occurrence(&cast.node.type_name.node);
                 let destination = self.unqualified(&destination)?;
                 ExprKind::Cast {
                     destination: self.retained_type(&destination, offset)?,
@@ -844,7 +853,8 @@ impl Analyzer {
                 };
                 let fields =
                     self.retained_field_path(&ty, &member.node.identifier.node.name, offset)?;
-                self.retain_member_reference(&ty, &fields, &member.node.identifier)?;
+                explicit_type_use =
+                    self.retain_member_reference(&ty, &fields, &member.node.identifier)?;
                 self.code_builder().budget.charge(
                     0,
                     fields.len(),
@@ -871,6 +881,9 @@ impl Analyzer {
                     .code_builder()
                     .type_name_use(&argument.node.type_name.node);
                 type_name_use = explicit_type_use;
+                type_name = self
+                    .code_builder()
+                    .type_name_occurrence(&argument.node.type_name.node);
                 ExprKind::VaArg {
                     list: self.retained_use(&argument.node.va_list, UseContext::Place, None)?,
                     requested_type: self.retained_type(&info.ty, offset)?,
@@ -879,6 +892,7 @@ impl Analyzer {
             ast::Expression::SizeOfTy(size) => {
                 let ty = self.type_name(&size.node.0.node)?;
                 type_name_use = self.code_builder().type_name_use(&size.node.0.node);
+                type_name = self.code_builder().type_name_occurrence(&size.node.0.node);
                 ExprKind::SizeOfType(self.retained_type(&ty, offset)?)
             }
             ast::Expression::SizeOfVal(size) => {
@@ -900,6 +914,9 @@ impl Analyzer {
             ast::Expression::AlignOf(alignment) => {
                 let ty = self.type_name(&alignment.node.0.node)?;
                 type_name_use = self.code_builder().type_name_use(&alignment.node.0.node);
+                type_name = self
+                    .code_builder()
+                    .type_name_occurrence(&alignment.node.0.node);
                 ExprKind::AlignOf(self.retained_type(&ty, offset)?)
             }
             ast::Expression::OffsetOf(offset_of) => self.retain_offset_of(offset_of)?,
@@ -956,6 +973,9 @@ impl Analyzer {
                     .code_builder()
                     .type_name_use(&literal.node.type_name.node);
                 type_name_use = explicit_type_use;
+                type_name = self
+                    .code_builder()
+                    .type_name_occurrence(&literal.node.type_name.node);
                 ExprKind::CompoundLiteral {
                     initializer: self.code_builder().initializer_id(occurrence, offset)?,
                 }
@@ -1004,7 +1024,7 @@ impl Analyzer {
             function,
             kind,
             explicit_type_use,
-            type_name_use,
+            (type_name_use, type_name),
         )
     }
 

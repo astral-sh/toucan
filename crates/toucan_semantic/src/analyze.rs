@@ -1394,6 +1394,9 @@ impl Analyzer {
                 _ => {}
             }
         }
+        if let Some(checked) = &mut self.checked {
+            checked.begin_specifier_operands(&types)?;
+        }
         let mut ty = self.base_type(&types)?;
         if let Some(checked) = &mut self.checked {
             for specifier in &types {
@@ -1437,7 +1440,18 @@ impl Analyzer {
         let offset = specifiers.first().map_or(0, |item| item.span.start);
         self.check_restrict(&ty, offset)?;
         if let Some(checked) = &mut self.checked {
-            attributes.type_use = Some(checked.base_type_use(&types, &ty, offset)?);
+            let variably_modified = self.unit.is_variably_modified(&ty)?;
+            let definition_parameter = self
+                .lexical_scopes
+                .last()
+                .is_some_and(|scope| scope.is_definition_parameters);
+            attributes.type_use = Some(checked.base_type_use(
+                &types,
+                &ty,
+                offset,
+                variably_modified,
+                definition_parameter,
+            )?);
         }
         Ok((ty, attributes))
     }
@@ -1749,6 +1763,7 @@ impl Analyzer {
             .chain(declaration.node.derived[split..].iter().rev())
         {
             let mut retained_bound = None;
+            let mut prototype_scope = None;
             let mut parameter_uses = self.checked.as_ref().map(|_| Vec::new());
             ty = match &derived.node {
                 ast::DerivedDeclarator::Pointer(qualifiers) => {
@@ -1924,7 +1939,8 @@ impl Analyzer {
                         ));
                     }
                     if let Some(checked) = &mut self.checked {
-                        checked.enter_scope(ScopeKind::Prototype, derived.span, None)?;
+                        prototype_scope =
+                            Some(checked.enter_scope(ScopeKind::Prototype, derived.span, None)?);
                     }
                     self.lexical_scopes.push(LexicalScope {
                         is_definition_parameters: self.definition_parameters
@@ -2016,7 +2032,11 @@ impl Analyzer {
                             ));
                         }
                         if let (Some(checked), Some(id)) = (&mut self.checked, declared_type_use) {
-                            checked.parameter_type_use(parameter, id)?;
+                            checked.parameter_type_use(
+                                parameter,
+                                id,
+                                &self.unit.resolve(&parameter_type)?.kind,
+                            )?;
                         }
                         parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
                             TypeKind::Array { element, .. }
@@ -2166,6 +2186,7 @@ impl Analyzer {
                         checked.function_type_use(
                             current,
                             parameter_uses.as_deref().unwrap_or_default(),
+                            prototype_scope,
                             &ty,
                             derived.span.start,
                         )?

@@ -746,6 +746,86 @@ impl CheckedCode {
     }
 }
 
+impl TypeUse {
+    /// Written function declarators within this type, including nested callbacks.
+    /// Multiple entries at one path are distinct possible origins, not a merged
+    /// parameter scope. Each parameter site preserves its written array contracts.
+    pub fn functions(&self) -> &[FunctionUse] {
+        &self.functions
+    }
+}
+impl FunctionUse {
+    /// Path from the containing type use to this function shape.
+    pub fn path(&self) -> &[TypeStep] {
+        &self.path
+    }
+    /// The written prototype scope, promoted to function scope for a definition.
+    pub fn scope(&self) -> ScopeId {
+        self.scope
+    }
+    /// Parameter sites in written order, including unnamed non-void parameters.
+    pub fn parameters(&self) -> &[SiteId] {
+        &self.parameters
+    }
+}
+impl Occurrence {
+    /// Nearest written declaration, parameter, field, function, or type-name owner.
+    /// Owners point to themselves; this edge describes syntax, not execution.
+    pub fn type_owner(&self) -> Option<OccurrenceId> {
+        self.type_owner
+    }
+    /// GNU `typeof` operands written directly in this owner's type specifiers.
+    /// A nested type name owns its own operands. Typedef reuse does not copy them.
+    pub fn type_operands(&self) -> &[TypeOperandId] {
+        &self.type_operands
+    }
+}
+impl Expression {
+    /// The written type-name occurrence for a cast, compound literal, `sizeof`,
+    /// `_Alignof`, or `va_arg`. Follow its operands separately from shared bounds.
+    pub fn type_name(&self) -> Option<OccurrenceId> {
+        self.type_name
+    }
+}
+impl TypeOperand {
+    /// The written GNU `typeof` specifier.
+    pub fn occurrence(&self) -> OccurrenceId {
+        self.occurrence
+    }
+    /// The declaration, parameter, field, function, or type name that owns this use.
+    pub fn owner(&self) -> OccurrenceId {
+        self.owner
+    }
+    /// The lexical scope in which the input was checked.
+    pub fn scope(&self) -> ScopeId {
+        self.scope
+    }
+    /// Whether the operand is evaluated when execution reaches its written owner.
+    /// Conditional and short-circuit parents still determine whether it is reached.
+    pub fn evaluation(&self) -> TypeOperandEvaluation {
+        self.evaluation
+    }
+    /// The checked expression use or written type-name use without array decay.
+    pub fn input(&self) -> &TypeOperandInput {
+        &self.input
+    }
+}
+impl CheckedCode {
+    /// Looks up a GNU `typeof` operand by an ID from this analysis owner.
+    pub fn type_operand(&self, id: TypeOperandId) -> Option<&TypeOperand> {
+        self.type_operands.get(id.index())
+    }
+    /// Iterates written GNU `typeof` operands with their owner-local IDs.
+    pub fn type_operands(
+        &self,
+    ) -> impl ExactSizeIterator<Item = (TypeOperandId, &TypeOperand)> + DoubleEndedIterator {
+        self.type_operands
+            .iter()
+            .enumerate()
+            .map(|(index, node)| (TypeOperandId(index as u32), node))
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -767,6 +847,7 @@ mod tests {
         assert!(code.initializer(InitializerId(u32::MAX)).is_none());
         assert!(code.statement(StatementId(u32::MAX)).is_none());
         assert!(code.type_use(TypeUseId(u32::MAX)).is_none());
+        assert!(code.type_operand(TypeOperandId(u32::MAX)).is_none());
         assert!(code.bound(BoundId(u32::MAX)).is_none());
     }
 }
