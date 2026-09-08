@@ -157,6 +157,14 @@ impl Analyzer {
                 return Ok(ExpressionInfo::object(ty));
             }
             ast::Expression::Statement(statement) => return self.statement_expression(statement),
+            ast::Expression::TypesCompatible(query) => {
+                self.eval_types_compatible(query)?;
+                integer_to_type(IntegerValue::int(0))
+            }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                return self.expression_info(selected);
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 return self.expression_info(selected);

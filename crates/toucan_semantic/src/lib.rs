@@ -16,6 +16,7 @@ mod floating;
 mod fortified;
 mod initializer;
 mod integer;
+mod introspection;
 mod ir;
 mod literals;
 mod object_extent;

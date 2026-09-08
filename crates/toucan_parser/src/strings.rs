@@ -68,6 +68,8 @@ pub const RESERVED_GNU: &[&str] = &[
     "__asm__",
     "__attribute",
     "__attribute__",
+    "__builtin_choose_expr",
+    "__builtin_types_compatible_p",
     "__builtin_offsetof",
     "__builtin_va_arg",
     "__complex",

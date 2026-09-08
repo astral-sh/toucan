@@ -34,6 +34,10 @@ impl Analyzer {
     ) -> Result<bool, Error> {
         use ast::{BinaryOperator as Binary, UnaryOperator as Unary};
         match &expression.node {
+            ast::Expression::TypesCompatible(query) => {
+                self.eval_types_compatible(query)?;
+                return Ok(true);
+            }
             ast::Expression::StringLiteral(_) => return Ok(true),
             ast::Expression::Constant(_)
             | ast::Expression::SizeOfTy(_)
@@ -99,6 +103,10 @@ impl Analyzer {
                 if matches!(self.unit.resolve(&ty)?.kind, TypeKind::Pointer(_)) {
                     return Ok(true);
                 }
+            }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                return self.known_constant_operand(selected);
             }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;

@@ -118,7 +118,8 @@ impl Builder {
             })
         };
         match kind {
-            ExprKind::Integer(_)
+            ExprKind::TypesCompatible { .. }
+            | ExprKind::Integer(_)
             | ExprKind::Float { .. }
             | ExprKind::String(_)
             | ExprKind::Name(_)
@@ -259,6 +260,19 @@ impl Builder {
                 }
             },
             ExprKind::VaArg { .. } => Present,
+            ExprKind::Choose {
+                then_expression,
+                else_expression,
+                then_selected,
+                ..
+            } => {
+                self.expression_builder.query_summaries[if *then_selected {
+                    then_expression.index()
+                } else {
+                    else_expression.index()
+                }]
+                .effects
+            }
             ExprKind::Generic { arms, selected, .. } => {
                 self.expression_builder.query_summaries[arms[*selected].expression.index()].effects
             }

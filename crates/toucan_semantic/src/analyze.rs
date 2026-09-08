@@ -632,6 +632,8 @@ pub(crate) struct Analyzer {
     pub(crate) transparent_variant_bytes: usize,
     pub(crate) has_variadic_packs: bool,
     pub(crate) generic_selections: HashMap<(usize, usize), usize>,
+    pub(crate) choose_selections: HashMap<(usize, usize), bool>,
+    pub(crate) type_compatibility_results: HashMap<(usize, usize), bool>,
     pub(crate) weak_symbols: BTreeMap<String, lang_c::span::Span>,
     pub(crate) function_effects: BTreeMap<String, crate::returns_twice::FunctionEffects>,
     pub(crate) diagnostic_kinds: HashMap<String, u8>,
@@ -728,6 +730,8 @@ impl Analyzer {
             transparent_variant_bytes: 0,
             has_variadic_packs: false,
             generic_selections: HashMap::new(),
+            choose_selections: HashMap::new(),
+            type_compatibility_results: HashMap::new(),
             checked_atomic_queries: HashSet::new(),
             checked_overflow_predicates: HashMap::new(),
             type_names: HashMap::new(),
@@ -1402,7 +1406,7 @@ impl Analyzer {
                 {
                     return Ok(false);
                 }
-                if !self.compatible_at(&left.return_type, &right.return_type, depth + 1)? {
+                if !self.compatible_return_type(&left.return_type, &right.return_type, depth + 1)? {
                     return Ok(false);
                 }
                 if !left.prototype || !right.prototype {

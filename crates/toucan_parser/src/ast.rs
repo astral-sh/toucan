@@ -183,6 +183,12 @@ pub enum Expression {
     /// (C11 6.5.1.1)
     GenericSelection(Box<Node<GenericSelection>>),
 
+    /// GNU compatibility query with two unevaluated type-name operands.
+    TypesCompatible(Box<Node<TypesCompatibleExpression>>),
+
+    /// GNU compile-time selection without the usual conditional conversions.
+    Choose(Box<Node<ChooseExpression>>),
+
     /// Structure and union members
     ///
     /// Both direct (`.`) and indirect (`->`) access.
@@ -276,9 +282,22 @@ pub enum MemberOperator {
     Indirect,
 }
 
-/// Generic selection expression
-///
-/// (C11 6.5.1.1)
+/// GNU query comparing two unevaluated type names.
+#[derive(Debug, PartialEq, Clone)]
+pub struct TypesCompatibleExpression {
+    pub left: Node<TypeName>,
+    pub right: Node<TypeName>,
+}
+
+/// GNU compile-time expression selection.
+#[derive(Debug, PartialEq, Clone)]
+pub struct ChooseExpression {
+    pub condition: Box<Node<Expression>>,
+    pub then_expression: Box<Node<Expression>>,
+    pub else_expression: Box<Node<Expression>>,
+}
+
+/// C11 generic selection.
 #[derive(Debug, PartialEq, Clone)]
 pub struct GenericSelection {
     pub expression: Box<Node<Expression>>,

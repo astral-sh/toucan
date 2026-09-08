@@ -38,8 +38,8 @@ pub use bounds::{
 };
 pub use expression::{
     Binary, Builtin, Conversion, ConversionStep, Coverage as ExpressionStatus, ExprId, ExprKind,
-    ExprUse, Expression, ExpressionCoverage, GenericArm, OffsetMember, Unary, UseContext,
-    ValueCategory,
+    ExprUse, Expression, ExpressionCoverage, GenericArm, OffsetMember, TypeNameOperand, Unary,
+    UseContext, ValueCategory,
 };
 pub use initializer::{
     Coverage as InitializerStatus, Entry as InitializerEntry, Initializer, InitializerCoverage,

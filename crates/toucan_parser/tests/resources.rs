@@ -346,3 +346,17 @@ fn minimum_nesting_matches_native_c11_compilers() {
         }
     }
 }
+
+#[test]
+fn nested_introspection_respects_generated_rule_and_owned_tree_limits() {
+    let source = format!(
+        "int x={}0{};",
+        "__builtin_choose_expr(1,".repeat(2000),
+        ",0)".repeat(2000)
+    );
+    let error = parse_preprocessed(&Config::with_gcc(), source).unwrap_err();
+    assert!(matches!(
+        error.resource.unwrap().kind,
+        ResourceKind::RuleDepth | ResourceKind::AstDepth
+    ));
+}

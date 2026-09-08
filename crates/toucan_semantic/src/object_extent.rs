@@ -403,6 +403,10 @@ impl Analyzer {
                     depth + 1,
                 )
             }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.object_pointer(selected, depth + 1)
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 self.object_pointer(selected, depth + 1)
@@ -454,6 +458,11 @@ impl Analyzer {
             return Ok(None);
         };
         match &expression.node {
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.object_location(selected, depth + 1)
+            }
+
             ast::Expression::Identifier(_)
             | ast::Expression::StringLiteral(_)
             | ast::Expression::CompoundLiteral(_) => {
@@ -644,6 +653,7 @@ impl Analyzer {
             return Ok(None);
         };
         Ok(match &expression.node {
+            ast::Expression::TypesCompatible(_) => Some(false),
             ast::Expression::Constant(_) | ast::Expression::StringLiteral(_) => Some(false),
             ast::Expression::Identifier(_) => {
                 let ty = self.expression_type(expression)?;
@@ -768,6 +778,10 @@ impl Analyzer {
                     )
                 };
                 combine_effects(condition, branches)
+            }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.object_discarded_effects(selected, depth + 1)?
             }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;

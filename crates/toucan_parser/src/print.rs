@@ -149,6 +149,18 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
         });
         visit_member_operator(&mut self.block(), n, span);
     }
+    fn visit_types_compatible_expression(
+        &mut self,
+        n: &'ast TypesCompatibleExpression,
+        span: &'ast Span,
+    ) {
+        self.name("TypesCompatibleExpression");
+        visit_types_compatible_expression(&mut self.block(), n, span);
+    }
+    fn visit_choose_expression(&mut self, n: &'ast ChooseExpression, span: &'ast Span) {
+        self.name("ChooseExpression");
+        visit_choose_expression(&mut self.block(), n, span);
+    }
     fn visit_generic_selection(&mut self, n: &'ast GenericSelection, span: &'ast Span) {
         self.name("GenericSelection");
         visit_generic_selection(&mut self.block(), n, span);

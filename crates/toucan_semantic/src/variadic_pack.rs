@@ -42,6 +42,10 @@ impl Analyzer {
             {
                 self.argument_pack(&unary.node.operand)
             }
+            ast::Expression::Choose(selection) => {
+                let selected = self.checked_choose_expression(selection)?;
+                self.argument_pack(selected)
+            }
             ast::Expression::GenericSelection(selection) => {
                 let key = (selection.span.start, selection.span.end);
                 let index = *self.generic_selections.get(&key).ok_or_else(|| {

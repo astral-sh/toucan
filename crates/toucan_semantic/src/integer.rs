@@ -95,6 +95,14 @@ impl Analyzer {
                 }
                 true
             }
+            ast::Expression::TypesCompatible(query) => {
+                self.eval_types_compatible(query)?;
+                true
+            }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.is_integer_constant_expression(selected, depth + 1)?
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 self.is_integer_constant_expression(selected, depth + 1)?
@@ -194,6 +202,11 @@ impl Analyzer {
                         format!("`{}` is not an integer constant", identifier.node.name),
                     )
                 }),
+            ast::Expression::TypesCompatible(query) => self.eval_types_compatible(query),
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.eval(selected)
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 self.eval(selected)

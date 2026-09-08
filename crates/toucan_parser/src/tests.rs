@@ -364,3 +364,13 @@ fn standalone_string_rule_uses_resource_accounting() {
     let value = ::parser::string_literal("\"one\" \"two\"", &mut env).unwrap();
     assert_eq!(value.node, ["\"one\"", "\"two\""]);
 }
+
+#[test]
+fn introspection_nodes_have_checked_structural_measurements() {
+    let source = "__builtin_choose_expr(__builtin_types_compatible_p(const int[2], int[2]), (int[3]){1,2,3}, 0)";
+    let mut env = Env::with_gnu();
+    // Every checked constructor compares its cached metrics with an exhaustive
+    // structural walk in this unit-test build.
+    let expression = parser::expression(source, &mut env).unwrap();
+    assert!(matches!(expression.node, ::ast::Expression::Choose(_)));
+}

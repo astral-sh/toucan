@@ -1329,7 +1329,25 @@ gnu_primary_expression -> Expression =
     statement_expression /
     offsetof_expression /
     va_arg_expression /
+    types_compatible_expression /
+    choose_expression /
     keyword_expression
+
+types_compatible_expression -> Expression =
+    n:node<types_compatible_expression_inner> { Expression::TypesCompatible(Box::new(n)) }
+
+types_compatible_expression_inner -> TypesCompatibleExpression =
+    K<"__builtin_types_compatible_p"> _ "(" _ left:type_name _ "," _ right:type_name _ ")" {
+        TypesCompatibleExpression { left: left, right: right }
+    }
+
+choose_expression -> Expression =
+    n:node<choose_expression_inner> { Expression::Choose(Box::new(n)) }
+
+choose_expression_inner -> ChooseExpression =
+    K<"__builtin_choose_expr"> _ "(" _ c:assignment_expression _ "," _ t:assignment_expression _ "," _ e:assignment_expression _ ")" {
+        ChooseExpression { condition: c, then_expression: t, else_expression: e }
+    }
 
 statement_expression -> Expression =
     "(" _ s:scoped<node<compound_statement>> _ ")" { Expression::Statement(Box::new(s)) }

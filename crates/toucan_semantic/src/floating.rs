@@ -208,6 +208,10 @@ impl Analyzer {
                 let value = self.eval_arithmetic(&cast.node.expression)?;
                 self.convert_arithmetic(value, &ty, offset)
             }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.eval_arithmetic(selected)
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 self.eval_arithmetic(selected)

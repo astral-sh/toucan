@@ -257,6 +257,7 @@ impl Builder {
         if matches!(
             kind,
             ExprKind::AlignOf(_)
+                | ExprKind::TypesCompatible { .. }
                 | ExprKind::BuiltinCall {
                     query_evaluation: Some(super::QueryEvaluation::Unevaluated(_)),
                     ..
@@ -271,21 +272,8 @@ impl Builder {
                 }
             }
         }
-        if let ExprKind::Generic {
-            control,
-            arms,
-            selected,
-        } = kind
-        {
-            let ranges: Vec<_> = std::iter::once(control.expression)
-                .chain(
-                    arms.iter()
-                        .enumerate()
-                        .filter(|(index, _)| index != selected)
-                        .map(|(_, arm)| arm.expression),
-                )
-                .map(|id| self.parsed_spans[self.code.expressions[id.index()].occurrence.index()])
-                .collect();
+        let ranges = self.unevaluated_selection_ranges(kind);
+        if !ranges.is_empty() {
             for (bound, span) in self.code.bounds[start..]
                 .iter_mut()
                 .zip(&self.bounds_builder.spans[start..])
@@ -886,6 +874,21 @@ impl Builder {
                 let right = self.before_composite_conversion(else_value, offset)?;
                 self.composite_type_use(&[left, right], Some(condition.expression), ty, owner)
             }
+            ExprKind::Choose {
+                then_expression,
+                else_expression,
+                then_selected,
+                ..
+            } => self.retype_use(
+                self.code.expressions[if *then_selected {
+                    then_expression.index()
+                } else {
+                    else_expression.index()
+                }]
+                .type_use,
+                ty,
+                offset,
+            ),
             ExprKind::Generic { arms, selected, .. } => self.retype_use(
                 self.code.expressions[arms[*selected].expression.index()].type_use,
                 ty,

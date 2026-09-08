@@ -445,6 +445,11 @@ impl Analyzer {
                 };
                 combine(condition, branches)
             }
+            ast::Expression::Choose(selection) => {
+                let selected = self.checked_choose_expression(selection)?;
+                recurse(self, selected)?
+            }
+            ast::Expression::TypesCompatible(_) => Some(false),
             ast::Expression::GenericSelection(selection) => {
                 let index = self
                     .generic_selections

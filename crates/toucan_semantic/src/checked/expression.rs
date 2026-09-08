@@ -321,6 +321,15 @@ impl Builtin {
     }
 }
 
+/// A checked written type, including its source occurrence and runtime bounds.
+#[derive(Debug, Serialize)]
+pub struct TypeNameOperand {
+    /// The written type-name source site.
+    pub occurrence: OccurrenceId,
+    /// The checked shape and identities of any runtime bounds.
+    pub type_use: super::TypeUseId,
+}
+
 #[derive(Debug, Serialize)]
 pub struct GenericArm {
     pub(crate) ty: Option<TypeId>,
@@ -396,6 +405,21 @@ pub enum ExprKind {
     OffsetOf {
         record: TypeId,
         members: Vec<OffsetMember>,
+    },
+    /// Both written types are checked, but their bounds and typeof operands are
+    /// unevaluated. The int result is an integer constant expression.
+    TypesCompatible {
+        left: TypeNameOperand,
+        right: TypeNameOperand,
+        compatible: bool,
+    },
+    /// The condition is an unevaluated integer constant expression. Only the
+    /// selected arm executes; its original type and value category are preserved.
+    Choose {
+        condition: ExprUse,
+        then_expression: ExprId,
+        else_expression: ExprId,
+        then_selected: bool,
     },
     Generic {
         control: ExprUse,
@@ -615,6 +639,42 @@ impl Builder {
         Ok(())
     }
 
+    pub(super) fn unevaluated_selection_ranges(&self, kind: &ExprKind) -> Vec<lang_c::span::Span> {
+        let range =
+            |id: ExprId| self.parsed_spans[self.code.expressions[id.index()].occurrence.index()];
+        match kind {
+            ExprKind::Generic {
+                control,
+                arms,
+                selected,
+            } => std::iter::once(control.expression)
+                .chain(
+                    arms.iter()
+                        .enumerate()
+                        .filter(|(index, _)| index != selected)
+                        .map(|(_, arm)| arm.expression),
+                )
+                .map(range)
+                .collect(),
+            ExprKind::Choose {
+                condition,
+                then_expression,
+                else_expression,
+                then_selected,
+            } => {
+                vec![
+                    range(condition.expression),
+                    range(if *then_selected {
+                        *else_expression
+                    } else {
+                        *then_expression
+                    }),
+                ]
+            }
+            _ => Vec::new(),
+        }
+    }
+
     pub(super) fn entity_for_name(&self, name: &str) -> Option<EntityId> {
         let mut scope = Some(self.current);
         while let Some(id) = scope {
@@ -817,6 +877,24 @@ impl Analyzer {
         self.retained_use(expression, UseContext::Value, None)
     }
 
+    fn retained_type_name_operand(
+        &mut self,
+        name: &Node<ast::TypeName>,
+    ) -> Result<TypeNameOperand, Error> {
+        let builder = self.code_builder();
+        builder.budget.charge(0, 2, 0, name.span.start)?;
+        let occurrence = builder.type_name_occurrence(&name.node).ok_or_else(|| {
+            Error::new(name.span.start, "type operand has no retained occurrence")
+        })?;
+        let type_use = builder
+            .type_name_use(&name.node)
+            .ok_or_else(|| Error::new(name.span.start, "type operand has no retained type use"))?;
+        Ok(TypeNameOperand {
+            occurrence,
+            type_use,
+        })
+    }
+
     fn retained_field_path(
         &self,
         ty: &Type,
@@ -844,6 +922,19 @@ impl Analyzer {
                     ..
                 } => id = operand.expression,
                 ExprKind::Cast { value, .. } => id = value.expression,
+                ExprKind::Choose {
+                    then_expression,
+                    else_expression,
+                    then_selected,
+                    ..
+                } => {
+                    id = if *then_selected {
+                        *then_expression
+                    } else {
+                        *else_expression
+                    };
+                }
+                ExprKind::Generic { arms, selected, .. } => id = arms[*selected].expression,
                 _ => return None,
             }
         }
@@ -1155,6 +1246,33 @@ impl Analyzer {
                 ExprKind::AlignOf(self.retained_type(&ty, offset)?)
             }
             ast::Expression::OffsetOf(offset_of) => self.retain_offset_of(offset_of)?,
+            ast::Expression::TypesCompatible(query) => {
+                let compatible = self.eval_types_compatible(query)?.truth();
+                ExprKind::TypesCompatible {
+                    left: self.retained_type_name_operand(&query.node.left)?,
+                    right: self.retained_type_name_operand(&query.node.right)?,
+                    compatible,
+                }
+            }
+            ast::Expression::Choose(selection) => {
+                let then_selected = *self
+                    .choose_selections
+                    .get(&(selection.span.start, selection.span.end))
+                    .ok_or_else(|| Error::new(offset, "compile-time selection was not checked"))?;
+                self.code_builder().budget.charge(0, 3, 0, offset)?;
+                ExprKind::Choose {
+                    condition: self.retained_use(
+                        &selection.node.condition,
+                        UseContext::UnevaluatedValue,
+                        None,
+                    )?,
+                    then_expression: self
+                        .retained_expression_id(&selection.node.then_expression)?,
+                    else_expression: self
+                        .retained_expression_id(&selection.node.else_expression)?,
+                    then_selected,
+                }
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)? as *const Node<ast::Expression>;
                 let mut arms = Vec::new();

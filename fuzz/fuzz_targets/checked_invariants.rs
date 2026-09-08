@@ -393,6 +393,37 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     }
                 }
             }
+            ExprKind::TypesCompatible { left, right, .. } => {
+                for operand in [left, right] {
+                    assert_eq!(
+                        code.occurrence(operand.occurrence).unwrap().kind(),
+                        OccurrenceKind::TypeName
+                    );
+                    assert!(code.type_use(operand.type_use).is_some());
+                }
+            }
+            ExprKind::Choose {
+                condition,
+                then_expression,
+                else_expression,
+                then_selected,
+            } => {
+                expression_use(code, condition);
+                assert_eq!(condition.context(), UseContext::UnevaluatedValue);
+                assert!(code.expression(*then_expression).is_some());
+                assert!(code.expression(*else_expression).is_some());
+                let selected = code
+                    .expression(if *then_selected {
+                        *then_expression
+                    } else {
+                        *else_expression
+                    })
+                    .unwrap();
+                assert_eq!(expression.ty(), selected.ty());
+                assert_eq!(expression.category(), selected.category());
+                assert_eq!(expression.bitfield(), selected.bitfield());
+                assert_eq!(expression.register(), selected.register());
+            }
             ExprKind::Generic {
                 control,
                 arms,

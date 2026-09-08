@@ -134,6 +134,8 @@ both are arithmetic constants, evaluation returns the converted first argument.
 `__builtin_unreachable` and `__builtin_trap` have void type and take no arguments.
 Ordinary declarations can shadow intrinsic call names.
 
+GNU [`__builtin_types_compatible_p` and `__builtin_choose_expr`](type-introspection.md) preserve type identity, selected value categories, and unevaluated type/arm operands. Their checked operations retain both written types or all three selection expressions.
+
 `__builtin_constant_p` checks one value operand and returns `int`. Its conservative
 constant evaluator returns one only for supported, valid constant folds; zero
 means this frontend did not prove the operand constant. This includes arithmetic

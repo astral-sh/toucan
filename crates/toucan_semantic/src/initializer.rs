@@ -1112,6 +1112,14 @@ impl Analyzer {
                     &conditional.node.else_expression
                 })
             }
+            ast::Expression::TypesCompatible(query) => {
+                self.eval_types_compatible(query)?;
+                Ok(ConstantKind::Arithmetic)
+            }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.static_initializer(selected)
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 self.static_initializer(selected)
@@ -1136,6 +1144,11 @@ impl Analyzer {
             )
         };
         match &expression.node {
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.static_lvalue(selected)
+            }
+
             ast::Expression::Identifier(identifier) => {
                 if self.object_has_static_storage(&identifier.node.name) {
                     Ok(())
