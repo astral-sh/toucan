@@ -2,6 +2,16 @@ name: Upstream corpus
 
 on:
   pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "corpus/manifest.json"
+      - "corpus/probes.json"
+      - "corpus/ffi/**"
+      - "scripts/prepare_corpus.py"
+      - "scripts/verify_corpus.py"
+      - ".github/workflows/corpus.yml"
   push:
     branches: [main]
   workflow_dispatch:
