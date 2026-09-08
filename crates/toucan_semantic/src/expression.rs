@@ -141,7 +141,12 @@ impl Analyzer {
                 let source = self.value_expression_type(&cast.node.expression)?;
                 let destination = self.type_name(&cast.node.type_name.node)?;
                 let destination = self.unit.resolve(&destination)?.clone();
-                if !matches!(destination.kind, TypeKind::Void) {
+                if matches!(destination.kind, TypeKind::Record(_))
+                    && self.compatible(&source, &self.unqualified(&destination)?)?
+                {
+                    // GNU permits a value cast to the same struct or union type.
+                    self.require_complete_object(&destination, offset)?;
+                } else if !matches!(destination.kind, TypeKind::Void) {
                     self.require_scalar(&source, offset)?;
                     self.require_scalar(&destination, offset)?;
                     if matches!(
