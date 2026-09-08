@@ -370,16 +370,8 @@ impl Analyzer {
             }
             ast::Expression::SizeOfVal(size) => self.sizeof_expression(&size.node.0),
             ast::Expression::AlignOf(alignment) => {
-                let checkpoint = self.sve_feature_checkpoint();
-                let ty = self.type_name(&alignment.node.0.node)?;
-                self.discard_sve_feature_uses(checkpoint);
-                if !self.is_complete_object(&ty, 0)? {
-                    return Err(Error::new(
-                        offset,
-                        "alignment requires a complete object type",
-                    ));
-                }
-                Ok(self.size_value(self.unit.alignment(&ty)?))
+                let value = self.alignment_query(alignment)?;
+                Ok(self.size_value(value.bytes))
             }
             ast::Expression::OffsetOf(expression) => {
                 let mut ty = self.type_name(&expression.node.type_name.node)?;

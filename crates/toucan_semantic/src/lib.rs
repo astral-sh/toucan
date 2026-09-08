@@ -4,6 +4,7 @@
 //! constructs return diagnostics; function bodies are checked even when a binding
 //! consumer omits their definitions from its generated API.
 
+mod alignof;
 mod analyze;
 mod arm;
 mod array_identity;

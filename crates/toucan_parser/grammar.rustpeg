@@ -332,9 +332,16 @@ alignof_expression -> Expression =
 
 alignof -> Box<Node<AlignOf>> = box<node<alignof0>>
 
+alignof_kind -> AlignOfKind =
+    K<"_Alignof"> { AlignOfKind::C11 } /
+    K<gnu<"__alignof" "__"?>> { AlignOfKind::Gnu }
+
 alignof0 -> AlignOf =
-    K<"_Alignof" / gnu<"__alignof" "__"?>> _ "(" _ t:type_name _ ")" {
-        AlignOf(Box::new(t))
+    k:alignof_kind _ "(" _ t:type_name _ ")" {
+        AlignOf { kind: k, operand: AlignOfOperand::TypeName(Box::new(t)) }
+    } /
+    k:alignof_kind _ e:unary_expression {
+        AlignOf { kind: k, operand: AlignOfOperand::Expression(e) }
     }
 
 ////

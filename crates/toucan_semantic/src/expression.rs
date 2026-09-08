@@ -15,6 +15,7 @@ pub(crate) struct ExpressionInfo {
     pub(crate) bitfield: Option<u64>,
     pub(crate) register: bool,
     pub(crate) vector_element: bool,
+    pub(crate) alignment_origin: Option<crate::alignof::OriginId>,
 }
 
 impl ExpressionInfo {
@@ -25,6 +26,7 @@ impl ExpressionInfo {
             bitfield: None,
             register: false,
             vector_element: false,
+            alignment_origin: None,
         }
     }
 
@@ -35,6 +37,7 @@ impl ExpressionInfo {
             bitfield: None,
             register: false,
             vector_element: false,
+            alignment_origin: None,
         }
     }
 }
@@ -115,6 +118,7 @@ impl Analyzer {
                 } else if let Some(ty) = self.parameter_type(name) {
                     let mut info = ExpressionInfo::object(ty.clone());
                     info.register = self.is_register_object(name);
+                    info.alignment_origin = self.identifier_alignment_origin(name, offset)?;
                     return Ok(info);
                 } else if let Some(declaration) = self
                     .unit
@@ -124,9 +128,17 @@ impl Analyzer {
                 {
                     match declaration.kind {
                         DeclarationKind::Variable => {
-                            return Ok(ExpressionInfo::object(declaration.ty.clone()));
+                            let mut info = ExpressionInfo::object(declaration.ty.clone());
+                            info.alignment_origin =
+                                self.declaration_alignment_origin(declaration.alignment, offset)?;
+                            return Ok(info);
                         }
-                        DeclarationKind::Function => declaration.ty.clone(),
+                        DeclarationKind::Function => {
+                            let mut info = ExpressionInfo::value(declaration.ty.clone());
+                            info.alignment_origin =
+                                self.declaration_alignment_origin(declaration.alignment, offset)?;
+                            return Ok(info);
+                        }
                         DeclarationKind::Typedef => {
                             return Err(Error::new(offset, "a typedef name is not an expression"));
                         }
@@ -173,7 +185,11 @@ impl Analyzer {
                 return self.expression_info(selected);
             }
             ast::Expression::Cast(cast) => {
-                let source = self.value_expression_type(&cast.node.expression)?;
+                let source_info = self.expression_info(&cast.node.expression)?;
+                self.require_sve_value(&source_info.ty, cast.node.expression.span.start)?;
+                let source = self.converted_type(&source_info, cast.node.expression.span.start)?;
+                let source_origin = source_info.alignment_origin;
+                drop(source_info);
                 let destination = self.type_name(&cast.node.type_name.node)?;
                 let written_destination = self.unit.resolve(&destination)?.clone();
                 let atomic_destination;
@@ -218,11 +234,22 @@ impl Analyzer {
                         return Err(Error::new(offset, "invalid scalar cast"));
                     }
                 }
-                if self.gnu_sync_profile() {
-                    self.unqualified(destination)?
+                let ty = if self.gnu_sync_profile() {
+                    // GCC casts discard typedef alignment on the result value.
+                    // The pointed-to type remains part of a pointer cast's type.
+                    let mut ty = self.unqualified(destination)?;
+                    ty.alignment = None;
+                    ty
                 } else {
                     self.unqualified(&written_destination)?
+                };
+                let mut info = ExpressionInfo::value(ty);
+                if matches!(source.kind, TypeKind::Pointer(_))
+                    && matches!(self.unit.resolve(&info.ty)?.kind, TypeKind::Pointer(_))
+                {
+                    info.alignment_origin = source_origin;
                 }
+                return Ok(info);
             }
             ast::Expression::UnaryOperator(unary) => {
                 // In &*E neither operator is evaluated and the result is E after
@@ -231,11 +258,15 @@ impl Analyzer {
                     && let ast::Expression::UnaryOperator(indirection) = &unary.node.operand.node
                     && indirection.node.operator.node == ast::UnaryOperator::Indirection
                 {
-                    let ty = self.value_expression_type(&indirection.node.operand)?;
+                    let source = self.expression_info(&indirection.node.operand)?;
+                    self.require_sve_value(&source.ty, indirection.node.operand.span.start)?;
+                    let ty = self.converted_type(&source, indirection.node.operand.span.start)?;
                     if !matches!(ty.kind, TypeKind::Pointer(_)) {
                         return Err(Error::new(offset, "indirection requires a pointer"));
                     }
-                    return Ok(ExpressionInfo::value(ty));
+                    let mut info = ExpressionInfo::value(ty);
+                    info.alignment_origin = source.alignment_origin;
+                    return Ok(info);
                 }
                 let operand = self.expression_info(&unary.node.operand)?;
                 let value = self.converted_type(&operand, offset)?;
@@ -270,7 +301,10 @@ impl Analyzer {
                                 "address requires an lvalue or function designator",
                             ));
                         }
-                        operand.ty.pointer()
+                        let origin = self.address_alignment_origin(&operand, offset)?;
+                        let mut info = ExpressionInfo::value(operand.ty.pointer());
+                        info.alignment_origin = origin;
+                        return Ok(info);
                     }
                     ast::UnaryOperator::Indirection => {
                         let TypeKind::Pointer(pointee) = value.kind else {
@@ -284,12 +318,18 @@ impl Analyzer {
                         }
                         let function =
                             matches!(self.unit.resolve(&pointee)?.kind, TypeKind::Function(_));
+                        let alignment_origin = self.dereference_alignment_origin(
+                            operand.alignment_origin,
+                            &pointee,
+                            offset,
+                        )?;
                         return Ok(ExpressionInfo {
                             ty: *pointee,
                             lvalue: !function,
                             bitfield: None,
                             register: false,
                             vector_element: false,
+                            alignment_origin,
                         });
                     }
                     ast::UnaryOperator::Negate => {
@@ -438,11 +478,17 @@ impl Analyzer {
                 }
                 let (field, bitfield) =
                     self.member_type(&ty, &member.node.identifier.node.name, offset, 0)?;
+                let alignment_origin = if bitfield.is_none() {
+                    self.member_alignment_origin(&ty, &member.node.identifier.node.name, offset)?
+                } else {
+                    None
+                };
                 return Ok(ExpressionInfo {
                     ty: field,
                     lvalue,
                     bitfield,
                     vector_element: false,
+                    alignment_origin,
                     register: member.node.operator.node == ast::MemberOperator::Direct
                         && base.register,
                 });
@@ -520,10 +566,7 @@ impl Analyzer {
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::AlignOf(alignment) => {
-                let checkpoint = self.sve_feature_checkpoint();
-                let ty = self.type_name(&alignment.node.0.node)?;
-                self.discard_sve_feature_uses(checkpoint);
-                self.require_complete_object(&ty, offset)?;
+                self.alignment_query(alignment)?;
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::OffsetOf(_) => {
@@ -709,6 +752,7 @@ impl Analyzer {
                 bitfield: None,
                 register: left.register,
                 vector_element: true,
+                alignment_origin: None,
             });
         }
         if !matches!(operator, Op::Index | Op::LogicalAnd | Op::LogicalOr)
@@ -764,11 +808,28 @@ impl Analyzer {
         }
         let ty = match operator {
             Op::Index => {
-                for (pointer, index) in [(&left_value, &right_value), (&right_value, &left_value)] {
+                for (pointer, index, origin, index_expression) in [
+                    (
+                        &left_value,
+                        &right_value,
+                        left.alignment_origin,
+                        &binary.node.rhs,
+                    ),
+                    (
+                        &right_value,
+                        &left_value,
+                        right.alignment_origin,
+                        &binary.node.lhs,
+                    ),
+                ] {
                     if let TypeKind::Pointer(pointee) = &pointer.kind {
                         self.integer_type(index, offset)?;
                         self.require_complete_object(pointee, offset)?;
-                        return Ok(ExpressionInfo::object((**pointee).clone()));
+                        let origin = self.zero_offset_alignment_origin(origin, index_expression)?;
+                        let mut info = ExpressionInfo::object((**pointee).clone());
+                        info.alignment_origin =
+                            self.dereference_alignment_origin(origin, pointee, offset)?;
+                        return Ok(info);
                     }
                 }
                 return Err(Error::new(
@@ -899,11 +960,19 @@ impl Analyzer {
                 self.check_arithmetic_alignment(&right, &ty, offset)?;
             }
         }
-        Ok(ExpressionInfo::value(if assignment {
-            left_value
-        } else {
-            ty
-        }))
+        let left_pointer = matches!(left_value.kind, TypeKind::Pointer(_));
+        let mut info = ExpressionInfo::value(if assignment { left_value } else { ty });
+        if !assignment
+            && matches!(operator, Op::Plus | Op::Minus)
+            && matches!(info.ty.kind, TypeKind::Pointer(_))
+        {
+            info.alignment_origin = if left_pointer {
+                self.zero_offset_alignment_origin(left.alignment_origin, &binary.node.rhs)?
+            } else {
+                self.zero_offset_alignment_origin(right.alignment_origin, &binary.node.lhs)?
+            };
+        }
+        Ok(info)
     }
 
     /// Checks the constraints shared by assignment, initialization and prototype arguments.

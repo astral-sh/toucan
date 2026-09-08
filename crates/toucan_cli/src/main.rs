@@ -1,3 +1,5 @@
+mod inspection;
+
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -228,30 +230,10 @@ fn run(cli: Cli) -> Result<()> {
             let mut config = input.config()?;
             config.analysis.retain_code = checked_code;
             let compilation = toucan::parse_file(&input.header, &config)?;
-            let manifest = if checked_code {
-                let preprocessed = compilation.preprocessed();
-                let mappings: Vec<_> = preprocessed.mappings.iter().map(|mapping| {
-                    let origin = &mapping.origin;
-                    let kind = match origin.kind {
-                        toucan::OriginKind::Token => "token",
-                        toucan::OriginKind::MacroInvocation => "macro_invocation",
-                        toucan::OriginKind::Directive => "directive",
-                    };
-                    serde_json::json!({
-                        "generated": mapping.generated,
-                        "origin": {"path": origin.path.as_ref(), "line": origin.line, "column": origin.column, "kind": kind},
-                    })
-                }).collect();
-                serde_json::json!({
-                    "schema_version": 4,
-                    "translation_unit": compilation.unit(),
-                    "checked_code": compilation.checked(),
-                    "preprocessed": {"source": preprocessed.source, "mappings": mappings},
-                })
-            } else {
-                serde_json::json!({ "schema_version": 3, "translation_unit": compilation.unit() })
-            };
-            write_output(output, &(serde_json::to_string_pretty(&manifest)? + "\n"))
+            write_output(
+                output,
+                &(inspection::serialize(&compilation, checked_code)? + "\n"),
+            )
         }
         Command::Check { input } => {
             let compilation = toucan::parse_file(&input.header, &input.config()?)?;

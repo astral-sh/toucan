@@ -45,3 +45,5 @@
 "\"=m\""
 "\"memory\""
 "\"%[value]\""
+"_Alignof"
+"__alignof__"

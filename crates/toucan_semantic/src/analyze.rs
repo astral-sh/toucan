@@ -744,6 +744,7 @@ pub(crate) struct Analyzer {
     pub(crate) suppress_sve_features: bool,
     pub(crate) sve_feature_labels: usize,
     pub(crate) block_externs: HashMap<String, BlockExtern>,
+    pub(crate) alignment_queries: crate::alignof::AlignmentQueries,
     type_names: HashMap<(usize, usize), Type>,
 }
 
@@ -834,6 +835,7 @@ impl Analyzer {
             type_compatibility_results: HashMap::new(),
             checked_atomic_queries: HashSet::new(),
             checked_overflow_predicates: HashMap::new(),
+            alignment_queries: crate::alignof::AlignmentQueries::default(),
             type_names: HashMap::new(),
         }
     }
@@ -906,6 +908,7 @@ impl Analyzer {
                     .collect(),
                 parameters: scope.parameters.clone(),
                 register: scope.register.clone(),
+                alignments: scope.alignments.clone(),
                 old_style: None,
             });
         }

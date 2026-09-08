@@ -206,3 +206,9 @@ commands, limits, and final libFuzzer statistics. Fuzzer counts include rejected
 and invalid UTF-8; they do not measure accepted programs or prove execution
 semantics. LeakSanitizer remained disabled because process inspection is unavailable
 under ptrace. A clean bounded run does not establish complete safety or conformance.
+
+The expression-alignment seed covers packed fields, declared object alignment,
+pointer-cast provenance, `_Generic`, and unevaluated VLA bounds. Exact replay
+checks the public retained graph on all seven compiler profiles; see the
+[alignment evidence](../corpus/evidence/expression-alignment-2026-09-08.json).
+This replay is separate from the sanitizer campaigns above.

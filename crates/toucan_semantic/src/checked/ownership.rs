@@ -254,7 +254,7 @@ impl Builder {
         }
         if matches!(
             kind,
-            ExprKind::AlignOf(_)
+            ExprKind::AlignOf { .. }
                 | ExprKind::TypesCompatible { .. }
                 | ExprKind::BuiltinCall {
                     query_evaluation: Some(super::QueryEvaluation::Unevaluated(_)),

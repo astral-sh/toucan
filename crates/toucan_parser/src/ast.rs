@@ -368,7 +368,23 @@ pub struct SizeOfVal(pub Box<Node<Expression>>);
 ///
 /// (C11 6.5.3)
 #[derive(Debug, PartialEq, Clone)]
-pub struct AlignOf(pub Box<Node<TypeName>>);
+pub struct AlignOf {
+    pub kind: AlignOfKind,
+    pub operand: AlignOfOperand,
+}
+
+/// The spelling selects required or GNU preferred alignment rules.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum AlignOfKind {
+    C11,
+    Gnu,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum AlignOfOperand {
+    TypeName(Box<Node<TypeName>>),
+    Expression(Box<Node<Expression>>),
+}
 
 /// All operators with one operand
 ///

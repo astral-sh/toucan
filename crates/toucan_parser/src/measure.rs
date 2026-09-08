@@ -244,7 +244,9 @@ structure!(CompoundLiteral {
 });
 tuple_structure!(SizeOfTy { 0 });
 tuple_structure!(SizeOfVal { 0 });
-tuple_structure!(AlignOf { 0 });
+structure!(AlignOf { kind, operand });
+enumeration!(AlignOfKind { C11, Gnu });
+enumeration!(AlignOfOperand { TypeName(v0), Expression(v0) });
 enumeration!(UnaryOperator {
     PostIncrement,
     PostDecrement,

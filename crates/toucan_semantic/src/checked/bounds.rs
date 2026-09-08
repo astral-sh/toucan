@@ -260,7 +260,7 @@ impl Builder {
         }
         if matches!(
             kind,
-            ExprKind::AlignOf(_)
+            ExprKind::AlignOf { .. }
                 | ExprKind::TypesCompatible { .. }
                 | ExprKind::BuiltinCall {
                     query_evaluation: Some(super::QueryEvaluation::Unevaluated(_)),
@@ -1299,7 +1299,7 @@ mod tests {
         assert!(
             code.expressions
                 .iter()
-                .filter(|e| matches!(e.kind, ExprKind::SizeOfType(_) | ExprKind::AlignOf(_)))
+                .filter(|e| matches!(e.kind, ExprKind::SizeOfType(_) | ExprKind::AlignOf { .. }))
                 .all(|e| e.type_name_use.is_some())
         );
     }

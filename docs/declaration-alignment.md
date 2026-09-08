@@ -53,9 +53,8 @@ allows the remaining interface to be generated.
 
 The [evidence report](../corpus/evidence/declaration-alignment-2026-09-08.json)
 records compiler constraints, native C/Rust access, cross-target record layouts,
-and memory measurements on pinned real projects. Expression forms of GNU
-`__alignof__` remain a separate extension; this layer retains their prerequisite
-object and function facts.
+and memory measurements on pinned real projects. Expression forms of `_Alignof` and GNU `__alignof__` consume these retained
+object and function facts; see [expression alignment](expression-alignment.md).
 
 ## Resource measurements
 

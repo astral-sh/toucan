@@ -486,10 +486,20 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 expression_use(code, list);
                 assert!(code.ty(*requested_type).is_some());
             }
-            ExprKind::SizeOfType(ty) | ExprKind::AlignOf(ty) => {
+            ExprKind::SizeOfType(ty) => {
                 assert!(code.ty(*ty).is_some());
             }
             ExprKind::SizeOfValue { operand, .. } => expression_use(code, operand),
+            ExprKind::AlignOf { operand, alignment_bytes, .. } => {
+                assert!(alignment_bytes.is_power_of_two());
+                match operand {
+                    toucan::semantic::checked::AlignmentOperand::Type(operand) => {
+                        assert!(code.occurrence(operand.occurrence).is_some());
+                        assert!(code.type_use(operand.type_use).is_some());
+                    }
+                    toucan::semantic::checked::AlignmentOperand::Expression(operand) => expression_use(code, operand),
+                }
+            }
             ExprKind::OffsetOf { record, members } => {
                 let mut ty = code.ty(*record).unwrap();
                 for member in members {

@@ -777,7 +777,12 @@ pub fn visit_alignof<'ast, V: Visit<'ast> + ?Sized>(
     alignofty: &'ast AlignOf,
     _span: &'ast Span,
 ) {
-    visitor.visit_type_name(&alignofty.0.node, &alignofty.0.span);
+    match &alignofty.operand {
+        AlignOfOperand::TypeName(name) => visitor.visit_type_name(&name.node, &name.span),
+        AlignOfOperand::Expression(expression) => {
+            visitor.visit_expression(&expression.node, &expression.span)
+        }
+    }
 }
 
 pub fn visit_unary_operator<'ast, V: Visit<'ast> + ?Sized>(

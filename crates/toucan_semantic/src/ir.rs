@@ -663,6 +663,68 @@ impl TranslationUnit {
         Ok(layout)
     }
 
+    /// Returns a non-bitfield member's alignment under its containing record's
+    /// packing rules. Alignment on the containing object or record does not raise
+    /// the member's declared alignment.
+    pub fn record_field_alignment(&self, record: usize, field: usize) -> Result<u64, Error> {
+        let record = self
+            .records
+            .get(record)
+            .ok_or_else(|| Error::new(0, "invalid record identity"))?;
+        let field = record
+            .fields
+            .as_ref()
+            .and_then(|fields| fields.get(field))
+            .ok_or_else(|| Error::new(0, "invalid or incomplete record field"))?;
+        if field.bit_width.is_some() {
+            return Err(Error::new(0, "bitfields have no queryable alignment"));
+        }
+        let mut annotations = Vec::new();
+        if record.packed {
+            annotations.push(target::Annotation::Packed);
+        }
+        if let Some(pack) = record.pack {
+            annotations.push(target::Annotation::PragmaPack(
+                pack.checked_mul(8)
+                    .ok_or_else(|| Error::new(0, "pack alignment overflows"))?,
+            ));
+        }
+        let mut field_annotations = Vec::new();
+        if field.packed {
+            field_annotations.push(target::Annotation::Packed);
+        }
+        if let Some(alignment) = field.alignment {
+            field_annotations.push(target::Annotation::Align(Some(
+                alignment
+                    .checked_mul(8)
+                    .ok_or_else(|| Error::new(0, "alignment overflows"))?,
+            )));
+        }
+        let ty = self.layout_type(
+            &field.ty,
+            &mut HashSet::new(),
+            &mut HashMap::new(),
+            0,
+            false,
+        )?;
+        let layout = self
+            .profile()?
+            .layout(&target::Type {
+                annotations,
+                variant: target::TypeVariant::Record(target::Record {
+                    kind: target::RecordKind::Struct,
+                    fields: vec![target::Field {
+                        ty,
+                        annotations: field_annotations,
+                        named: true,
+                        bit_width: None,
+                    }],
+                }),
+            })
+            .map_err(|error| Error::new(0, error.to_string()))?;
+        Ok(layout.field_alignment_bits / 8)
+    }
+
     fn layout_type(
         &self,
         ty: &Type,

@@ -20,6 +20,9 @@ pub(crate) struct FunctionScope {
     pub(crate) constants: Vec<(String, IntegerValue)>,
     pub(crate) parameters: Vec<Parameter>,
     pub(crate) register: HashSet<String>,
+    #[allow(clippy::box_collection)]
+    pub(crate) alignments:
+        Option<Box<std::collections::HashMap<String, crate::DeclarationAlignment>>>,
     pub(crate) old_style: Option<crate::old_style::Signature>,
 }
 
@@ -418,6 +421,11 @@ impl Analyzer {
                     scope.constants.push((name.clone(), previous));
                     scope.names.insert(name, None);
                 }
+                analyzer
+                    .lexical_scopes
+                    .last_mut()
+                    .expect("function body scope")
+                    .alignments = parameters.alignments;
                 for parameter in parameters.parameters {
                     if matches!(analyzer.unit.resolve(&parameter.ty)?.kind, TypeKind::Void)
                         && parameter.name.is_none()

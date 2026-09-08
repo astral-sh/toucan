@@ -8,7 +8,7 @@ toucan inspect api.h --target x86_64-unknown-linux-gnu --checked-code --output a
 ```
 
 The command preprocesses and checks the entire input, including function bodies.
-Its version 4 JSON contains:
+Its version 5 JSON contains:
 
 - `translation_unit`: target and compiler identities, declarations, canonical types,
   records, and enumerations.
@@ -79,7 +79,7 @@ expression or determine a composite array's runtime size. Ordinary C compatibili
 continues to use its existing VLA rules.
 
 Consumers matching `TypeKind::VariableArray` in Rust must bind `identity` or use
-`..`. JSON consumers should accept schemas 3/4 and read the added field when exact
+`..`. JSON consumers should accept schema 3 for declarations and 5 for checked code, and read the field when exact
 type identity matters. Identities are not interchangeable between independent
 analysis results. Expression queries use a separate occurrence registry and reserve
 identities beyond those inherited from their input translation unit.
@@ -90,9 +90,42 @@ The sparse function options may include `minimum_vector_width` for a Clang
 function declaration. This is the explicit hint in bits, not the backend's
 computed vector width. Checked option sites additionally retain the ordered
 written hints and their source spans. Absent hints omit these optional fields;
-this is additive within the experimental schemas 3 and 4.
+these fields remain available in declaration schema 3 and checked schema 5.
 
 Checked expression output may include `ShuffleVector`: two value operands plus
 either ordered constant lane selections or a dynamic mask. Static undefined
 lanes and unevaluated index expressions remain explicit. This adds an expression
-variant within experimental schema 4; it does not change the default schema.
+variant in checked schema 5; it does not change declaration-only schema 3.
+
+## Migration from version 4
+
+Checked-code version 5 changes `ExprKind::AlignOf` from a tuple carrying one
+`TypeNameOperand` to a struct carrying `kind`, `operand`, and `alignment_bytes`.
+Declaration-only inspection stays at version 3. In JSON, the previous type query:
+
+```json
+{"AlignOf":{"occurrence":12,"type_use":9}}
+```
+
+becomes:
+
+```json
+{"AlignOf":{"kind":"C11","operand":{"Type":{"occurrence":12,"type_use":9}},"alignment_bytes":4}}
+```
+
+`kind` distinguishes C11 `_Alignof` from GNU `__alignof`/`__alignof__`.
+An expression operand is `{"Expression": <ExprUse>}` with an unevaluated use
+context. Consumers can follow that expression to its source occurrence, lexical
+scope, and checked type. The result is the query's alignment in bytes; querying
+only the operand's type can lose object and member alignment. See
+[expression alignment](expression-alignment.md) for compiler-specific rules.
+
+## Full-width numeric values
+
+Integer values and floating bit patterns serialize as exact decimal JSON numbers,
+including values wider than 64 bits. For example, `1u128 << 100` is written as
+`1267650600228229401496703205376`, without conversion to a floating-point number or
+string. The CLI serializes borrowed typed envelopes directly so `serde_json::Value`
+limits cannot cause an inspection panic. Consumers need a JSON decoder that
+preserves the integer width they use; decoding these fields directly into Rust
+`u128` works without `arbitrary_precision`.

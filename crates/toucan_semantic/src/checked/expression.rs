@@ -420,7 +420,11 @@ pub enum ExprKind {
         operand: ExprUse,
         variable: bool,
     },
-    AlignOf(TypeId),
+    AlignOf {
+        kind: super::AlignmentKind,
+        operand: super::AlignmentOperand,
+        alignment_bytes: u64,
+    },
     OffsetOf {
         record: TypeId,
         members: Vec<OffsetMember>,
@@ -504,6 +508,7 @@ pub(super) struct ExpressionBuilder {
     states: HashMap<OccurrenceId, State>,
     assignments: HashMap<(ExprId, TypeId), AssignmentId>,
     statement_results: HashMap<OccurrenceId, Option<ExprId>>,
+    alignment_origins: HashMap<ExprId, crate::alignof::OriginId>,
 }
 
 impl Builder {
@@ -615,6 +620,7 @@ impl Builder {
             bitfield: expression.bitfield,
             register: expression.register,
             vector_element: expression.vector_element,
+            alignment_origin: self.expression_builder.alignment_origins.get(&id).copied(),
         }
     }
 
@@ -744,6 +750,21 @@ impl Builder {
                 effects: self.query_effects(&kind),
                 volatile_lvalue: properties.volatile_lvalue,
             });
+        if let Some(origin) = info.alignment_origin {
+            if self.expression_builder.alignment_origins.len() >= 65_536 {
+                return Err(Error::new(
+                    offset,
+                    "retained alignment origin count exceeds the 65536-entry limit",
+                ));
+            }
+            self.budget.charge(
+                0,
+                0,
+                std::mem::size_of::<(ExprId, crate::alignof::OriginId)>(),
+                offset,
+            )?;
+            self.expression_builder.alignment_origins.insert(id, origin);
+        }
         self.code.expressions.push(Expression {
             atomic_access: properties.atomic_access,
             type_use,
@@ -1276,12 +1297,26 @@ impl Analyzer {
                 }
             }
             ast::Expression::AlignOf(alignment) => {
-                let ty = self.type_name(&alignment.node.0.node)?;
-                type_name_use = self.code_builder().type_name_use(&alignment.node.0.node);
-                type_name = self
-                    .code_builder()
-                    .type_name_occurrence(&alignment.node.0.node);
-                ExprKind::AlignOf(self.retained_type(&ty, offset)?)
+                let result = self.alignment_query(alignment)?;
+                let operand = match &alignment.node.operand {
+                    ast::AlignOfOperand::TypeName(name) => {
+                        type_name_use = self.code_builder().type_name_use(&name.node);
+                        type_name = self.code_builder().type_name_occurrence(&name.node);
+                        super::AlignmentOperand::Type(self.retained_type_name_operand(name)?)
+                    }
+                    ast::AlignOfOperand::Expression(expression) => {
+                        super::AlignmentOperand::Expression(self.retained_use(
+                            expression,
+                            UseContext::Unevaluated,
+                            None,
+                        )?)
+                    }
+                };
+                ExprKind::AlignOf {
+                    kind: alignment.node.kind.into(),
+                    operand,
+                    alignment_bytes: result.bytes,
+                }
             }
             ast::Expression::OffsetOf(offset_of) => self.retain_offset_of(offset_of)?,
             ast::Expression::TypesCompatible(query) => {

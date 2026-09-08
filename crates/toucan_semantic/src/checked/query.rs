@@ -128,7 +128,7 @@ impl Builder {
             | ExprKind::Name(_)
             | ExprKind::SizeOfType(_)
             | ExprKind::SizeOfValue { .. }
-            | ExprKind::AlignOf(_)
+            | ExprKind::AlignOf { .. }
             | ExprKind::OffsetOf { .. } => Absent,
             ExprKind::Unary {
                 operator, operand, ..

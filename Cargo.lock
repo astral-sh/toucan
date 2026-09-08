@@ -447,6 +447,7 @@ dependencies = [
  "anyhow",
  "clap",
  "mimalloc",
+ "serde",
  "serde_json",
  "tempfile",
  "tikv-jemallocator",
