@@ -1019,6 +1019,8 @@ pub enum Statement {
     Labeled(Node<LabeledStatement>),
     Compound(Vec<Node<BlockItem>>),
     Expression(Option<Box<Node<Expression>>>),
+    /// GNU attributes attached to a null statement.
+    Attribute(Vec<Node<Extension>>),
     If(Node<IfStatement>),
     Switch(Node<SwitchStatement>),
     While(Node<WhileStatement>),

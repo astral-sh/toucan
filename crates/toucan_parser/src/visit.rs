@@ -1339,6 +1339,11 @@ pub fn visit_statement<'ast, V: Visit<'ast> + ?Sized>(
             visitor.visit_expression(&r.node, &r.span);
         }
         Statement::Asm(ref a) => visitor.visit_asm_statement(&a.node, &a.span),
+        Statement::Attribute(ref attributes) => {
+            for attribute in attributes {
+                visitor.visit_extension(&attribute.node, &attribute.span);
+            }
+        }
         _ => {}
     }
 }

@@ -69,6 +69,10 @@ pub enum StatementKind {
     Checking,
     Block(Vec<BlockItem>),
     Expression(Option<ExprUse>),
+    /// A warning-suppression annotation; execution continues normally.
+    Fallthrough {
+        switch: StatementId,
+    },
     Return(Option<ExprUse>),
     If {
         condition: ExprUse,
@@ -664,6 +668,11 @@ impl Analyzer {
                         .transpose()?,
                 )
             }
+            ast::Statement::Attribute(_) => StatementKind::Fallthrough {
+                switch: self
+                    .statement_builder()
+                    .control_target(Some(ControlKind::Switch), offset)?,
+            },
             ast::Statement::If(selection) => StatementKind::If {
                 condition: self.retained_value(&selection.node.condition)?,
                 then_statement: self

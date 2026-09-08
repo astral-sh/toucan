@@ -19,6 +19,10 @@ The workspace publishes this fork as `toucan_parser`; `toucan_semantic` depends 
 
 `__extension__` accepts a cast expression as its operand, preserving the operand's type and value. This includes the `__extension__ (int)1` spelling used in compiler resource headers.
 
+GNU attributes on null statements have a distinct `Statement::Attribute` node.
+Semantic checking determines which statement annotations are supported; the visitor
+preserves their attributes and source spans.
+
 The package name and imports in examples and development binaries are updated. Handwritten code has mechanical fixes for current Rust and Clippy warnings. Two local lint allowances preserve the existing AST representation and `Span::span` API. The generated header enumerates the Clippy style lints produced by the pinned generator. The crate forbids unsafe Rust. No generator is run during ordinary builds.
 
 ## Regeneration
@@ -32,6 +36,6 @@ cargo fmt -p toucan_parser --check
 cargo test -p toucan_parser
 ```
 
-Run `make` from this directory. The checked-in parser was generated with `peg` 0.5.4 and formatted with `rustfmt` 1.9.0-stable (Rust 1.98.0); `grammar.rustfmt` fixes the output settings. Compared with the upstream parser, regeneration changes only `typeof_specifier0`, the function-declarator scope rules, the `__extension__` operand rule, and the documented lint header. Review that diff when regenerating with another formatter version.
+Run `make` from this directory. The checked-in parser was generated with `peg` 0.5.4 and formatted with `rustfmt` 1.9.0-stable (Rust 1.98.0); `grammar.rustfmt` fixes the output settings. Compared with the upstream parser, regeneration changes only `typeof_specifier0`, the function-declarator scope rules, the `__extension__` operand rule, GNU attribute statements, and the documented lint header. Review that diff when regenerating with another formatter version.
 
 The upstream reference runner reads `reftests/`. It updates expected output only when `TEST_UPDATE` is explicitly set. New parser tests cover typedef/type-expression ambiguity; semantic tests compare constraints and runtime VLA behavior with GCC and Clang.

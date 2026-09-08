@@ -580,6 +580,7 @@ fn print_array_size(p: &mut Printer, n: &ArraySize) {
 fn print_statement(p: &mut Printer, n: &Statement) {
     match *n {
         Statement::Compound(_) => p.w.write_str(" Compound").unwrap(),
+        Statement::Attribute(_) => p.w.write_str(" Attribute").unwrap(),
         Statement::Goto(_) => p.w.write_str(" Goto").unwrap(),
         Statement::Continue => p.w.write_str(" Continue").unwrap(),
         Statement::Break => p.w.write_str(" Break").unwrap(),

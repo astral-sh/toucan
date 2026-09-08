@@ -32,6 +32,7 @@ pub(crate) struct FunctionContext {
     switches: Vec<SwitchContext>,
     labels: BTreeMap<String, JumpScope>,
     gotos: Vec<(String, usize, JumpScope)>,
+    fallthrough: Vec<(usize, usize)>,
 }
 
 #[derive(Clone, Copy)]
@@ -41,6 +42,7 @@ struct JumpScope {
 }
 
 struct SwitchContext {
+    offset: usize,
     ty: IntegerValue,
     ranges: BTreeMap<u128, u128>,
     has_default: bool,
@@ -116,6 +118,7 @@ impl Analyzer {
         let id = context.expression_parents.len();
         context.expression_parents.push(previous);
         context.active_expression = Some(id);
+        let outer_fallthrough = std::mem::take(&mut context.fallthrough);
         let result = self.with_block(statement.span, |analyzer| {
             let ast::Statement::Compound(items) = &statement.node else {
                 return Err(Error::new(
@@ -167,6 +170,7 @@ impl Analyzer {
                     }
                 }
             }
+            analyzer.require_no_fallthrough()?;
             if let Some(checked) = &mut analyzer.checked {
                 checked.statement_expression_result(statement, final_value)?;
             }
@@ -200,6 +204,7 @@ impl Analyzer {
         });
         let context = self.function_context_mut();
         context.active_expression = previous;
+        context.fallthrough = outer_fallthrough;
         if let Ok(result) = &result {
             context.statement_expressions.insert(key, result.clone());
         }
@@ -361,6 +366,7 @@ impl Analyzer {
             switches: Vec::new(),
             labels: BTreeMap::new(),
             gotos: Vec::new(),
+            fallthrough: Vec::new(),
         });
         let reuse = parameters
             .as_ref()
@@ -457,6 +463,7 @@ impl Analyzer {
                 .transpose()?
                 .flatten();
             analyzer.block_items(items)?;
+            analyzer.require_no_fallthrough()?;
             if let Some(id) = checked_statement {
                 analyzer.retain_statement(&definition.node.statement, id)?;
             }
@@ -652,6 +659,9 @@ impl Analyzer {
                 name.ok_or_else(|| Error::new(item.span.start, "local declaration has no name"))?;
             let variably_modified = self.unit.is_variably_modified(&ty)?;
             let function = matches!(self.unit.resolve(&ty)?.kind, TypeKind::Function(_));
+            if (!is_typedef && !function) || variably_modified {
+                self.require_no_fallthrough()?;
+            }
             extra.require_function_diagnostics(function && !is_typedef)?;
             self.check_diagnostic_attributes(&name, &extra.diagnostic_attributes)?;
             if variably_modified && (is_extern || function) {
@@ -962,7 +972,7 @@ impl Analyzer {
         if let Some(checked) = &mut self.checked {
             checked.enter_control(ControlKind::Loop, 0)?;
         }
-        let result = check(self);
+        let result = check(self).and_then(|()| self.require_no_fallthrough());
         if let Some(checked) = &mut self.checked {
             checked.leave_control();
         }
@@ -1009,8 +1019,58 @@ impl Analyzer {
         self.with_block(statement.span, |analyzer| analyzer.statement(statement))
     }
 
+    /// Pending annotations follow ordinary control flow through empty blocks and
+    /// merged if branches, and must reach a label in their enclosing switch.
+    fn require_no_fallthrough(&self) -> Result<(), Error> {
+        if let Some((offset, _)) = self.function_context().fallthrough.first() {
+            return Err(Error::new(
+                *offset,
+                "fallthrough annotation does not directly precede a switch label",
+            ));
+        }
+        Ok(())
+    }
+
     fn statement_inner(&mut self, statement: &Node<ast::Statement>) -> Result<(), Error> {
         let offset = statement.span.start;
+        match &statement.node {
+            ast::Statement::Compound(_)
+            | ast::Statement::Expression(None)
+            | ast::Statement::Attribute(_) => {}
+            ast::Statement::Labeled(labeled) => match &labeled.node.label.node {
+                ast::Label::Identifier(_) => {
+                    let mut child = &labeled.node.statement.node;
+                    while let ast::Statement::Labeled(nested) = child {
+                        if !matches!(nested.node.label.node, ast::Label::Identifier(_)) {
+                            break;
+                        }
+                        child = &nested.node.statement.node;
+                    }
+                    if !matches!(
+                        child,
+                        ast::Statement::Expression(None) | ast::Statement::Compound(_)
+                    ) {
+                        self.require_no_fallthrough()?;
+                    }
+                }
+                _ => {
+                    let context = self.function_context();
+                    if let Some((annotation, target)) = context.fallthrough.first()
+                        && context
+                            .switches
+                            .last()
+                            .is_none_or(|current| current.offset != *target)
+                    {
+                        return Err(Error::new(
+                            *annotation,
+                            "fallthrough annotation crosses a switch boundary",
+                        ));
+                    }
+                    self.function_context_mut().fallthrough.clear();
+                }
+            },
+            _ => self.require_no_fallthrough()?,
+        }
         match &statement.node {
             ast::Statement::Compound(items) => {
                 self.with_statement(statement.span, |analyzer| analyzer.block_items(items))
@@ -1019,6 +1079,36 @@ impl Analyzer {
                 if let Some(expression) = expression {
                     self.value_expression_type(expression)?;
                 }
+                Ok(())
+            }
+            ast::Statement::Attribute(attributes) => {
+                self.require_no_fallthrough()?;
+                let [attribute] = attributes.as_slice() else {
+                    return Err(Error::new(
+                        offset,
+                        "a fallthrough statement requires exactly one attribute",
+                    ));
+                };
+                let ast::Extension::Attribute(attribute) = &attribute.node else {
+                    return Err(Error::new(offset, "unsupported statement attribute"));
+                };
+                if attribute.name.node.trim_matches('_') != "fallthrough" {
+                    return Err(Error::new(
+                        offset,
+                        "only fallthrough attributes are supported on null statements",
+                    ));
+                }
+                if !attribute.arguments.is_empty() {
+                    return Err(Error::new(
+                        offset,
+                        "fallthrough attributes do not take arguments",
+                    ));
+                }
+                let context = self.function_context_mut();
+                let switch = context.switches.last().ok_or_else(|| {
+                    Error::new(offset, "fallthrough annotation is outside a switch")
+                })?;
+                context.fallthrough.push((offset, switch.offset));
                 Ok(())
             }
             ast::Statement::Return(expression) => {
@@ -1038,9 +1128,13 @@ impl Analyzer {
             ast::Statement::If(selection) => self.with_statement(statement.span, |analyzer| {
                 analyzer.scalar_condition(&selection.node.condition)?;
                 analyzer.substatement(&selection.node.then_statement)?;
+                let mut then_fallthrough =
+                    std::mem::take(&mut analyzer.function_context_mut().fallthrough);
                 if let Some(statement) = &selection.node.else_statement {
                     analyzer.substatement(statement)?;
                 }
+                then_fallthrough.append(&mut analyzer.function_context_mut().fallthrough);
+                analyzer.function_context_mut().fallthrough = then_fallthrough;
                 Ok(())
             }),
             ast::Statement::While(iteration) => self.with_statement(statement.span, |analyzer| {
@@ -1095,6 +1189,7 @@ impl Analyzer {
                 let variably_modified = analyzer.active_variably_modified();
                 let context = analyzer.function_context_mut();
                 context.switches.push(SwitchContext {
+                    offset,
                     ty,
                     ranges: BTreeMap::new(),
                     has_default: false,
@@ -1104,7 +1199,9 @@ impl Analyzer {
                 if let Some(checked) = &mut analyzer.checked {
                     checked.enter_control(ControlKind::Switch, offset)?;
                 }
-                let result = analyzer.substatement(&selection.node.statement);
+                let result = analyzer
+                    .substatement(&selection.node.statement)
+                    .and_then(|()| analyzer.require_no_fallthrough());
                 if let Some(checked) = &mut analyzer.checked {
                     checked.leave_control();
                 }

@@ -496,6 +496,12 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     }
                 }
             }
+            StatementKind::Fallthrough { switch } => {
+                assert!(matches!(
+                    code.statement(*switch).unwrap().kind(),
+                    StatementKind::Switch { .. }
+                ));
+            }
             StatementKind::Expression(value) | StatementKind::Return(value) => {
                 if let Some(value) = value {
                     expression_use(code, value);

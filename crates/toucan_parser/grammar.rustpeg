@@ -1042,6 +1042,7 @@ static_assert0 -> StaticAssert =
 pub statement -> Box<Node<Statement>> = box<node<statement0>>
 
 statement0 -> Statement =
+    gnu<attribute_statement> /
     s:node<labeled_statement> { Statement::Labeled(s) } /
     scoped<compound_statement> /
     expression_statement /
@@ -1083,6 +1084,7 @@ compound_statement -> Statement =
     "{" _ b:list0<node<block_item>> _ "}" { Statement::Compound(b) }
 
 block_item -> BlockItem =
+    s:node<gnu<attribute_statement>> { BlockItem::Statement(s) } /
     d:declaration { BlockItem::Declaration(d) } /
     s:static_assert { BlockItem::StaticAssert(s) } /
     s:node<statement0> { BlockItem::Statement(s) }
@@ -1093,6 +1095,9 @@ block_item -> BlockItem =
 
 expression_statement -> Statement =
     e:expression? _ ";" { Statement::Expression(e) }
+
+attribute_statement -> Statement =
+    a:attribute_specifier _ ";" { Statement::Attribute(a) }
 
 ////
 // 6.8.4 Selection statement

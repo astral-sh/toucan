@@ -128,6 +128,21 @@ their arguments to the target's exact-width unsigned types. Constant evaluation
 swaps bytes after that conversion. The 64-bit result is `unsigned long` on Linux
 and `unsigned long long` on Darwin and Windows; both are 64 bits on these targets.
 
+## GNU fallthrough statements
+
+`__attribute__((fallthrough));` and its underscored spelling annotate a null
+statement in a switch. Retained statements identify the enclosing switch; the
+annotation does not transfer control. Empty statements, lexical blocks, typedefs,
+tag declarations, function prototypes, and static assertions can precede the next
+case or default. Annotations in `if` branches retain their separate paths.
+
+Placement checks reject intervening object declarations or executable statements,
+loop and statement-expression boundaries, and a missing following switch label.
+This is a supported common subset: GCC and Clang differ on some placements and
+when they diagnose them. Duplicate annotations, multiple attributes, and other GNU
+attributes on null statements remain unsupported. Native tests compile valid cases
+with both compilers and check rejected placements with Clang.
+
 ## GNU statement expressions
 
 Statement expressions (`({ ...; expression; })`) check their local declarations,
