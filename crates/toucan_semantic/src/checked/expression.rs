@@ -156,6 +156,10 @@ pub enum Builtin {
     Expect,
     Unreachable,
     Trap,
+    Memset,
+    Memcpy,
+    Memmove,
+    Memcmp,
 }
 impl Builtin {
     fn from_name(name: &str) -> Option<Self> {
@@ -166,6 +170,10 @@ impl Builtin {
             "__builtin_expect" => Self::Expect,
             "__builtin_unreachable" => Self::Unreachable,
             "__builtin_trap" => Self::Trap,
+            "__builtin_memset" => Self::Memset,
+            "__builtin_memcpy" => Self::Memcpy,
+            "__builtin_memmove" => Self::Memmove,
+            "__builtin_memcmp" => Self::Memcmp,
             _ => return None,
         })
     }
@@ -1030,7 +1038,10 @@ impl Analyzer {
 
     fn retain_call(&mut self, call: &Node<ast::CallExpression>) -> Result<ExprKind, Error> {
         let offset = call.span.start;
-        if let Some(builtin) = self.builtin_name(call).and_then(Builtin::from_name) {
+        if let Some(name) = self.builtin_name(call)
+            && let Some(builtin) = Builtin::from_name(name)
+        {
+            let memory = self.memory_builtin_signature(name);
             let callee_occurrence = self
                 .code_builder()
                 .find(OccurrenceKind::Expression, &call.node.callee)?
@@ -1043,7 +1054,12 @@ impl Analyzer {
                 TypeKind::Array { .. }
             );
             for (index, argument) in call.node.arguments.iter().enumerate() {
-                let (context, destination) = if builtin == Builtin::Expect {
+                let (context, destination) = if let Some(signature) = &memory {
+                    (
+                        UseContext::Value,
+                        Some((signature.parameters[index].clone(), Conversion::Assignment)),
+                    )
+                } else if builtin == Builtin::Expect {
                     (
                         UseContext::Value,
                         Some((
@@ -1315,6 +1331,93 @@ mod tests {
 
     fn scalar(code: &CheckedCode, id: TypeId, kind: IntegerKind) {
         assert_eq!(ty(code, id).kind, TypeKind::Integer(kind));
+    }
+
+    #[test]
+    fn memory_intrinsics_retain_argument_conversions_and_identities() {
+        let source = "void f(void) { char destination[4]; const char source[4] = {1,2,3,4}; short size = 4; long byte = 255; __builtin_memset(destination, byte, size); __builtin_memcpy(destination, source, size); __builtin_memmove(destination, source, size); __builtin_memcmp(destination, source, size); }";
+        for target in Target::ALL {
+            let code = checked(source, target);
+            let mut found = Vec::new();
+            for expression in &code.expressions {
+                let ExprKind::BuiltinCall {
+                    builtin,
+                    arguments,
+                    callee_occurrence,
+                } = &expression.kind
+                else {
+                    continue;
+                };
+                found.push(*builtin);
+                assert!(
+                    source[code.occurrences[callee_occurrence.index()]
+                        .source
+                        .range
+                        .clone()]
+                    .starts_with("__builtin_mem")
+                );
+                assert_eq!(arguments.len(), 3);
+                assert!(
+                    arguments
+                        .iter()
+                        .all(|argument| argument.context == UseContext::Value)
+                );
+                assert_eq!(
+                    kinds(&arguments[0]),
+                    vec![Conversion::ArrayDecay, Conversion::Assignment]
+                );
+                assert_eq!(
+                    kinds(&arguments[2]),
+                    vec![Conversion::Lvalue, Conversion::Assignment]
+                );
+                scalar(
+                    &code,
+                    arguments[2].effective_type,
+                    if target.long_width() == 64 {
+                        IntegerKind::UnsignedLong
+                    } else {
+                        IntegerKind::UnsignedLongLong
+                    },
+                );
+                let TypeKind::Pointer(destination) = &ty(&code, arguments[0].effective_type).kind
+                else {
+                    panic!("destination pointer")
+                };
+                assert_eq!(destination.kind, TypeKind::Void);
+                assert_eq!(destination.qualifiers.is_const, *builtin == Builtin::Memcmp);
+                if *builtin == Builtin::Memset {
+                    scalar(&code, arguments[1].effective_type, IntegerKind::Int);
+                    assert_eq!(
+                        kinds(&arguments[1]),
+                        vec![Conversion::Lvalue, Conversion::Assignment]
+                    );
+                } else {
+                    let TypeKind::Pointer(source) = &ty(&code, arguments[1].effective_type).kind
+                    else {
+                        panic!("source pointer")
+                    };
+                    assert_eq!(source.kind, TypeKind::Void);
+                    assert!(source.qualifiers.is_const);
+                }
+                assert_eq!(expression.category, ValueCategory::Value);
+                if *builtin == Builtin::Memcmp {
+                    scalar(&code, expression.ty, IntegerKind::Int);
+                } else {
+                    assert!(
+                        matches!(&ty(&code, expression.ty).kind, TypeKind::Pointer(pointee) if pointee.kind == TypeKind::Void && !pointee.qualifiers.is_const)
+                    );
+                }
+            }
+            assert_eq!(
+                found,
+                [
+                    Builtin::Memset,
+                    Builtin::Memcpy,
+                    Builtin::Memmove,
+                    Builtin::Memcmp
+                ]
+            );
+        }
     }
 
     #[test]

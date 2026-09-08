@@ -3,9 +3,51 @@
 use lang_c::{ast, span::Node};
 
 use crate::analyze::Analyzer;
+use crate::integer::integer_to_type;
 use crate::{Error, IntegerKind, IntegerValue, Type, TypeKind};
 
+pub(crate) struct MemorySignature {
+    pub(crate) result: Type,
+    pub(crate) parameters: [Type; 3],
+}
+
 impl Analyzer {
+    /// Library builtins use the target's ordinary C parameter conversions.
+    /// Keep this signature shared with retained argument-use construction.
+    pub(crate) fn memory_builtin_signature(&self, name: &str) -> Option<MemorySignature> {
+        if !matches!(
+            name,
+            "__builtin_memset" | "__builtin_memcpy" | "__builtin_memmove" | "__builtin_memcmp"
+        ) {
+            return None;
+        }
+        let pointer = Type::new(TypeKind::Void).pointer();
+        let mut constant = Type::new(TypeKind::Void);
+        constant.qualifiers.is_const = true;
+        let constant = constant.pointer();
+        let int = Type::new(TypeKind::Integer(IntegerKind::Int));
+        Some(MemorySignature {
+            result: if name == "__builtin_memcmp" {
+                int.clone()
+            } else {
+                pointer.clone()
+            },
+            parameters: [
+                if name == "__builtin_memcmp" {
+                    constant.clone()
+                } else {
+                    pointer
+                },
+                if name == "__builtin_memset" {
+                    int
+                } else {
+                    constant
+                },
+                integer_to_type(self.size_value(0)),
+            ],
+        })
+    }
+
     /// Recognizes intrinsics only when an ordinary declaration has not shadowed
     /// their names. Intrinsics never become exported external declarations.
     pub(crate) fn builtin_name<'a>(&self, call: &'a Node<ast::CallExpression>) -> Option<&'a str> {
@@ -36,10 +78,12 @@ impl Analyzer {
         let Some(name) = self.builtin_name(call) else {
             return Ok(None);
         };
+        let memory = self.memory_builtin_signature(name);
         let arity = match name {
             "__builtin_va_start" | "__builtin_va_copy" | "__builtin_expect" => 2,
             "__builtin_va_end" => 1,
             "__builtin_unreachable" | "__builtin_trap" => 0,
+            _ if memory.is_some() => 3,
             _ => return Ok(None),
         };
         let arguments = &call.node.arguments;
@@ -49,6 +93,12 @@ impl Analyzer {
                 offset,
                 format!("{name} requires {arity} arguments"),
             ));
+        }
+        if let Some(signature) = memory {
+            for (argument, parameter) in arguments.iter().zip(&signature.parameters) {
+                self.check_assignment(parameter, argument)?;
+            }
+            return Ok(Some(signature.result));
         }
         match name {
             "__builtin_expect" => {

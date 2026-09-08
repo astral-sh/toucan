@@ -112,6 +112,12 @@ both are arithmetic constants, evaluation returns the converted first argument.
 `__builtin_unreachable` and `__builtin_trap` have void type and take no arguments.
 Ordinary declarations can shadow intrinsic call names.
 
+Direct calls to `__builtin_memset`, `__builtin_memcpy`, `__builtin_memmove`, and
+`__builtin_memcmp` use their C library prototypes, including the target's `size_t`
+type and pointer qualifiers. Retained calls identify the operation and preserve
+each argument's conversions. Memory-content constant evaluation and using these
+builtin names as function values remain unsupported.
+
 ## GNU statement expressions
 
 Statement expressions (`({ ...; expression; })`) check their local declarations,
