@@ -15,21 +15,22 @@ use crate::{DecodedString, Error, IntegerValue, Type, TypeKind};
 macro_rules! id {
     ($name:ident) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-        pub(crate) struct $name(u32);
+        pub struct $name(pub(crate) u32);
+        impl $name {
+            /// Returns the owner-local arena index.
+            pub fn index(self) -> usize {
+                self.0 as usize
+            }
+        }
     };
 }
 id!(StatementId);
-impl StatementId {
-    pub(crate) fn index(self) -> usize {
-        self.0 as usize
-    }
-}
 id!(DeclarationGroupId);
 id!(AssertionId);
 id!(BodyId);
 
 #[derive(Debug, Serialize)]
-pub(crate) struct FunctionBody {
+pub struct FunctionBody {
     pub(crate) entity: EntityId,
     pub(crate) declaration: SiteId,
     pub(crate) statement: StatementId,
@@ -39,13 +40,14 @@ pub(crate) struct FunctionBody {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct StatementCoverage {
+pub struct StatementCoverage {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) status: Coverage,
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum Coverage {
+#[non_exhaustive]
+pub enum Coverage {
     Checked(StatementId),
     AttributeArgument,
     ParserInserted,
@@ -53,15 +55,17 @@ pub(crate) enum Coverage {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Statement {
+pub struct Statement {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) scope: ScopeId,
     pub(crate) kind: StatementKind,
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum StatementKind {
-    /// Only present while a statement's children are being checked.
+#[non_exhaustive]
+pub enum StatementKind {
+    /// Reserved for construction; never present in a successful analysis.
+    #[doc(hidden)]
     Checking,
     Block(Vec<BlockItem>),
     Expression(Option<ExprUse>),
@@ -108,14 +112,16 @@ pub(crate) enum StatementKind {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum BlockItem {
+#[non_exhaustive]
+pub enum BlockItem {
     Declaration(DeclarationGroupId),
     Statement(StatementId),
     Assertion(AssertionId),
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum ForInitializer {
+#[non_exhaustive]
+pub enum ForInitializer {
     Empty,
     Expression(ExprUse),
     Declaration(DeclarationGroupId),
@@ -123,7 +129,8 @@ pub(crate) enum ForInitializer {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum Label {
+#[non_exhaustive]
+pub enum Label {
     Identifier(String),
     Case {
         expression: ExprUse,
@@ -143,7 +150,7 @@ pub(crate) enum Label {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct DeclarationGroup {
+pub struct DeclarationGroup {
     pub(crate) occurrence: OccurrenceId,
     /// Sites introduced in this declaration's lexical scope. Nested prototype
     /// and statement-expression bindings retain their separate scopes.
@@ -151,7 +158,7 @@ pub(crate) struct DeclarationGroup {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Assertion {
+pub struct Assertion {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) scope: ScopeId,
     /// Evaluated at translation time, with no runtime effect.
@@ -162,7 +169,7 @@ pub(crate) struct Assertion {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Assembly {
+pub struct Assembly {
     pub(crate) template: AssemblyText,
     pub(crate) basic: bool,
     pub(crate) volatile: bool,
@@ -172,13 +179,13 @@ pub(crate) struct Assembly {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct AssemblyText {
+pub struct AssemblyText {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) value: String,
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct AssemblyOperand {
+pub struct AssemblyOperand {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) name: Option<String>,
     pub(crate) constraints: AssemblyText,
@@ -192,7 +199,7 @@ pub(crate) struct AssemblyOperand {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct AssemblyLocation {
+pub struct AssemblyLocation {
     pub(crate) register: bool,
     pub(crate) memory: bool,
     pub(crate) immediate: bool,

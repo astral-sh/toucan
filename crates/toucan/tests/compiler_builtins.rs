@@ -10,8 +10,8 @@ fn compiler_integer_types_are_available_to_system_headers() {
         config.preprocessor.allow_filesystem = false;
         if target == Target::X86_64PcWindowsMsvc {
             let result = toucan::parse_source(Path::new("empty.h"), "", &config).unwrap();
-            assert!(!result.unit.typedefs.contains_key("__int128_t"));
-            assert!(!result.unit.typedefs.contains_key("__uint128_t"));
+            assert!(!result.unit().typedefs.contains_key("__int128_t"));
+            assert!(!result.unit().typedefs.contains_key("__uint128_t"));
             continue;
         }
         let result = toucan::parse_source(
@@ -27,28 +27,28 @@ fn compiler_integer_types_are_available_to_system_headers() {
             ("__int128_t", IntegerKind::Int128),
             ("__uint128_t", IntegerKind::UnsignedInt128),
         ] {
-            let ty = &result.unit.typedefs[name];
+            let ty = &result.unit().typedefs[name];
             assert_eq!(ty.kind, TypeKind::Integer(kind));
-            let layout = result.unit.layout(ty).unwrap();
+            let layout = result.unit().layout(ty).unwrap();
             assert_eq!((layout.size_bytes(), layout.alignment_bytes()), (16, 16));
         }
         let record = result
-            .unit
+            .unit()
             .records
             .iter()
             .position(|record| record.name.as_deref() == Some("neon_state"))
             .unwrap();
         let layout = result
-            .unit
+            .unit()
             .layout(&toucan::semantic::Type::new(TypeKind::Record(record)))
             .unwrap();
         assert_eq!((layout.size_bytes(), layout.alignment_bytes()), (512, 16));
         let offset = result
-            .preprocessed
+            .preprocessed()
             .source
             .find("__uint128_t registers")
             .unwrap();
-        let origin = result.preprocessed.resolve_location(offset).unwrap();
+        let origin = result.preprocessed().resolve_location(offset).unwrap();
         assert_eq!(
             (origin.path.as_ref(), origin.line),
             (Path::new("system.h"), 4)

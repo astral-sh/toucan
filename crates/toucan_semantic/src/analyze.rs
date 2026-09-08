@@ -24,6 +24,24 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
     analyze_inner(source, target, None).map(|(unit, _)| unit)
 }
 
+/// Checks preprocessed C and optionally retains its owned semantic graph.
+///
+/// A successful retained result has complete expression, statement, and initializer
+/// coverage, excluding parser-inserted tokens and attribute metadata. Unsupported
+/// retention returns a source-positioned diagnostic rather than an incomplete graph.
+pub fn analyze_with_options(
+    source: &str,
+    target: Target,
+    options: &crate::AnalysisOptions,
+) -> Result<crate::Analysis, Error> {
+    let (unit, checked) = analyze_inner(
+        source,
+        target,
+        options.retain_code.then_some(options.limits),
+    )?;
+    Ok(crate::Analysis { unit, checked })
+}
+
 pub(crate) fn analyze_inner(
     source: &str,
     target: Target,

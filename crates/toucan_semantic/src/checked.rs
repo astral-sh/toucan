@@ -1,11 +1,41 @@
-//! Private foundation for optional checked-code retention. The public frontend
-//! still returns declaration IR until a complete owned code model is available.
+//! Owned semantic facts retained by [`crate::analyze_with_options`].
+//!
+//! IDs belong to one [`crate::Analysis`]. They are stable for that owner's lifetime,
+//! but must not be mixed between analyses. Lookups return `None` for out-of-range
+//! IDs; an in-range ID from another owner cannot be detected. The owner exposes no
+//! mutable references, so callers cannot invalidate graph links.
+//!
+//! Source ranges refer to the original preprocessed input. These nodes own their
+//! payloads and remain usable after that input is dropped. This is a checked syntax
+//! graph, not lowered code or a control-flow graph. In particular, written operand
+//! and initializer order does not impose an order on C side effects.
 
+mod access;
 pub(crate) mod bounds;
 pub(crate) mod expression;
 pub(crate) mod initializer;
 pub(crate) mod references;
 pub(crate) mod statement;
+
+pub use bounds::{
+    Bound, BoundEvaluation, BoundId, BoundInput, BoundSite, BoundValue, Extent, TypeStep, TypeUse,
+    TypeUseId,
+};
+pub use expression::{
+    Binary, Builtin, Conversion, ConversionStep, Coverage as ExpressionStatus, ExprId, ExprKind,
+    ExprUse, Expression, ExpressionCoverage, GenericArm, OffsetMember, Unary, UseContext,
+    ValueCategory,
+};
+pub use initializer::{
+    Coverage as InitializerStatus, Entry as InitializerEntry, Initializer, InitializerCoverage,
+    InitializerKind, Subobject,
+};
+pub use references::{Reference, ReferenceKind};
+pub use statement::{
+    Assembly, AssemblyLocation, AssemblyOperand, AssemblyText, Assertion, AssertionId, BlockItem,
+    BodyId, Coverage as StatementStatus, DeclarationGroup, DeclarationGroupId, ForInitializer,
+    FunctionBody, Label, Statement, StatementCoverage, StatementId, StatementKind,
+};
 
 use std::collections::HashMap;
 use std::hash::{BuildHasher, RandomState};
@@ -22,9 +52,11 @@ use crate::{Declaration, DeclarationKind, Error, FlexibleArrayStorage, Type, Typ
 macro_rules! id {
     ($name:ident) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-        pub(crate) struct $name(u32);
+        /// An owner-local ID. Obtain values from [`CheckedCode`] iteration or links.
+        pub struct $name(u32);
         impl $name {
-            pub(crate) fn index(self) -> usize {
+            /// Returns the owner-local arena index.
+            pub fn index(self) -> usize {
                 self.0 as usize
             }
         }
@@ -37,15 +69,24 @@ id!(ScopeId);
 id!(TypeId);
 id!(InitializerId);
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-pub(crate) struct AssignmentId(u32);
+pub struct AssignmentId(u32);
+impl AssignmentId {
+    /// Returns the owner-local arena index.
+    pub fn index(self) -> usize {
+        self.0 as usize
+    }
+}
 
 /// Limits logical retained nodes, references and owned payload, including the
 /// occurrence catalog and interned type trees. Allocator overhead is not counted.
-#[derive(Clone, Copy)]
-pub(crate) struct Limits {
-    pub(crate) nodes: usize,
-    pub(crate) edges: usize,
-    pub(crate) payload_bytes: usize,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct Limits {
+    /// Maximum logical retained nodes, capped at `u32::MAX`.
+    pub nodes: usize,
+    /// Maximum logical references between retained nodes.
+    pub edges: usize,
+    /// Maximum charged owned payload bytes; excludes allocator overhead.
+    pub payload_bytes: usize,
 }
 
 impl Default for Limits {
@@ -104,7 +145,8 @@ impl Budget {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-pub(crate) enum OccurrenceKind {
+#[non_exhaustive]
+pub enum OccurrenceKind {
     Declaration,
     InitDeclarator,
     Declarator,
@@ -128,7 +170,7 @@ pub(crate) enum OccurrenceKind {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct SourceSpan {
+pub struct SourceSpan {
     /// Covering range in the original preprocessed source.
     pub(crate) range: Range<usize>,
     /// Only populated when the original pieces are disjoint or reordered.
@@ -138,7 +180,7 @@ pub(crate) struct SourceSpan {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Occurrence {
+pub struct Occurrence {
     /// Attribute argument grammar also uses expression nodes for metadata such as `printf`.
     pub(crate) attribute_argument: bool,
     pub(crate) kind: OccurrenceKind,
@@ -146,7 +188,8 @@ pub(crate) struct Occurrence {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum ScopeKind {
+#[non_exhaustive]
+pub enum ScopeKind {
     File,
     Prototype,
     Function,
@@ -154,7 +197,7 @@ pub(crate) enum ScopeKind {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Scope {
+pub struct Scope {
     pub(crate) parent: Option<ScopeId>,
     pub(crate) kind: ScopeKind,
     pub(crate) source: SourceSpan,
@@ -162,7 +205,8 @@ pub(crate) struct Scope {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum EntityKind {
+#[non_exhaustive]
+pub enum EntityKind {
     Variable,
     Function,
     Typedef,
@@ -184,7 +228,7 @@ impl From<DeclarationKind> for EntityKind {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Entity {
+pub struct Entity {
     pub(crate) body: Option<statement::BodyId>,
     pub(crate) name: Option<String>,
     pub(crate) kind: EntityKind,
@@ -194,21 +238,23 @@ pub(crate) struct Entity {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum Storage {
+#[non_exhaustive]
+pub enum Storage {
     None,
     Automatic,
     Static,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum Linkage {
+#[non_exhaustive]
+pub enum Linkage {
     None,
     Internal,
     External,
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct DeclarationSite {
+pub struct DeclarationSite {
     pub(crate) body: Option<statement::BodyId>,
     pub(crate) initializer: Option<InitializerId>,
     pub(crate) type_use: bounds::TypeUseId,
@@ -256,7 +302,7 @@ pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> O
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct CheckedCode {
+pub struct CheckedCode {
     pub(crate) statements: Vec<statement::Statement>,
     pub(crate) statement_coverage: Vec<statement::StatementCoverage>,
     pub(crate) bodies: Vec<statement::FunctionBody>,
@@ -814,6 +860,45 @@ impl Builder {
         self.finish_references(offsets)?;
         self.finish_initializer_coverage()?;
         self.finish_bounds(offsets)?;
+        for (occurrence, missing, kind) in self
+            .code
+            .expression_coverage
+            .iter()
+            .map(|entry| {
+                (
+                    entry.occurrence,
+                    matches!(entry.status, expression::Coverage::Missing),
+                    "expression",
+                )
+            })
+            .chain(self.code.statement_coverage.iter().map(|entry| {
+                (
+                    entry.occurrence,
+                    matches!(entry.status, statement::Coverage::Missing),
+                    "statement",
+                )
+            }))
+            .chain(self.code.initializer_coverage.iter().map(|entry| {
+                (
+                    entry.occurrence,
+                    matches!(entry.status, initializer::Coverage::Missing),
+                    "initializer",
+                )
+            }))
+        {
+            if missing {
+                return Err(Error::new(
+                    self.parsed_spans[occurrence.index()].start,
+                    format!("checked-code retention does not support this {kind}"),
+                ));
+            }
+        }
+        if let Some(span) = self.ambiguous_spans.first() {
+            return Err(Error::new(
+                span.start,
+                "checked-code retention has an ambiguous source occurrence",
+            ));
+        }
         for (scope, span) in self.code.scopes.iter_mut().zip(self.scope_spans) {
             if scope.kind != ScopeKind::File {
                 scope.source = map_span(offsets, span, &mut self.budget)?;
@@ -1241,6 +1326,19 @@ mod tests {
     }
 
     #[test]
+    fn finalization_rejects_unchecked_written_code() {
+        let parsed = lang_c::driver::parse_preprocessed(
+            &lang_c::driver::Config::default(),
+            "int f(void) { return 1; }".into(),
+        )
+        .unwrap();
+        let builder = Builder::new(&parsed.unit, parsed.source.len(), Limits::default()).unwrap();
+        let error = builder.finish(&SourceMap::default()).unwrap_err();
+        assert!(error.message.contains("does not support this expression"));
+        assert_eq!(&parsed.source[error.offset..error.offset + 1], "1");
+    }
+
+    #[test]
     fn clone_aliases_reuse_only_unambiguous_occurrences() {
         let parsed = lang_c::driver::parse_preprocessed(
             &lang_c::driver::Config::default(),
@@ -1278,12 +1376,9 @@ mod tests {
             builder.find(OccurrenceKind::Declarator, &copied).unwrap(),
             None
         );
-        let code = builder.finish(&SourceMap::default()).unwrap();
-        assert_eq!(code.ambiguous_aliases.len(), 1);
-        assert_eq!(
-            code.ambiguous_aliases[0].range,
-            original.span.start..original.span.end
-        );
+        let error = builder.finish(&SourceMap::default()).unwrap_err();
+        assert!(error.message.contains("ambiguous source occurrence"));
+        assert_eq!(error.offset, original.span.start);
     }
 
     #[test]

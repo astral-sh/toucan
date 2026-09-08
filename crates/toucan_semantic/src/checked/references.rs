@@ -16,14 +16,15 @@ use crate::analyze::Analyzer;
 use crate::{Error, Field, Type, TypeKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum ReferenceKind {
+#[non_exhaustive]
+pub enum ReferenceKind {
     Typedef,
     Tag,
     Field,
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Reference {
+pub struct Reference {
     pub(crate) target: EntityId,
     pub(crate) scope: ScopeId,
     pub(crate) kind: ReferenceKind,

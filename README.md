@@ -154,7 +154,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 ```
 
-`Compilation::unit` exposes the declarations and types for other consumers. Use
+`Compilation::unit()` exposes the declarations and types for other consumers.
+Set `Config::analysis.retain_code` to retain typed bodies, expressions, initializers,
+and source references through `Compilation::checked()`. See the
+[analysis API](docs/analysis-api.md) for ownership, runtime bounds, and source locations. Use
 `parse_file` for files, and configure include directories, predefined macros, virtual
 headers, and resource limits through `Config::preprocessor`.
 

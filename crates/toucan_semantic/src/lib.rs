@@ -7,7 +7,7 @@
 mod analyze;
 mod asm;
 mod builtins;
-mod checked;
+pub mod checked;
 mod expression;
 mod floating;
 mod initializer;
@@ -17,7 +17,7 @@ mod literals;
 mod parser_extensions;
 mod statement;
 
-pub use analyze::{analyze, evaluate_arithmetic, evaluate_integer};
+pub use analyze::{analyze, analyze_with_options, evaluate_arithmetic, evaluate_integer};
 pub use ir::*;
 pub use literals::{
     DecodedString, StringEncoding, decode_character_literal, decode_string_literals,
@@ -37,5 +37,53 @@ impl Error {
             message: message.into(),
             offset,
         }
+    }
+}
+
+/// Controls optional semantic retention. The default checks all supported C code
+/// without allocating the retained graph.
+#[derive(Clone, Copy, Debug, Default)]
+pub struct AnalysisOptions {
+    /// Retain checked expressions, statements, initializers, and their bindings.
+    pub retain_code: bool,
+    /// Resource limits applied only when `retain_code` is enabled.
+    pub limits: checked::Limits,
+}
+
+/// Owns declarations and, optionally, their immutable checked semantic graph.
+///
+/// The source text need not outlive this value. Retained source ranges refer to
+/// byte offsets in that input, so keep it separately if source excerpts are needed.
+///
+/// The owner cannot be used to mutate declarations behind retained IDs:
+///
+/// ```compile_fail
+/// use toucan_semantic::{analyze_with_options, AnalysisOptions};
+/// use toucan_target::Target;
+/// let analysis = analyze_with_options("int x;", Target::X86_64UnknownLinuxGnu,
+///     &AnalysisOptions::default()).unwrap();
+/// analysis.unit().declarations.clear();
+/// ```
+///
+/// Node IDs refer only to this analysis. Consuming it with [`Self::into_unit`]
+/// discards the checked graph before returning mutable declaration data.
+#[derive(Debug, serde::Serialize)]
+pub struct Analysis {
+    unit: TranslationUnit,
+    checked: Option<checked::CheckedCode>,
+}
+
+impl Analysis {
+    /// Returns the checked translation unit and its target-specific types.
+    pub fn unit(&self) -> &TranslationUnit {
+        &self.unit
+    }
+    /// Returns retained code when requested by [`AnalysisOptions::retain_code`].
+    pub fn checked(&self) -> Option<&checked::CheckedCode> {
+        self.checked.as_ref()
+    }
+    /// Discards retained code and returns the owned declaration representation.
+    pub fn into_unit(self) -> TranslationUnit {
+        self.unit
     }
 }

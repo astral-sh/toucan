@@ -63,7 +63,7 @@ fn blocked_functions_and_caller_rust_remain_visible_in_the_report() {
     assert_eq!(report.declarations, 2);
     assert!(
         compilation
-            .unit
+            .unit()
             .declarations
             .iter()
             .any(|declaration| declaration.name == "remove_one")

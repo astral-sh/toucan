@@ -7,7 +7,7 @@ Toucan separates reusable compiler components from application policy.
 | `toucan_source` | Immutable source files, checked byte spans, and source locations |
 | `toucan_target` | Explicit target data models and a `repc` layout adapter |
 | `toucan_preprocessor` | Tokens, macro expansion, conditional expressions, includes, and limits |
-| `toucan_semantic` | The `lang-c` adapter, declaration types, and integer constant evaluation |
+| `toucan_semantic` | The `lang-c` adapter, target-specific types, constant evaluation, and checked code |
 | `toucan_bindings` | Type selection, Rust declarations, layout assertions, and bitfield accessors |
 | `toucan` | Integrated library configuration, macro constants, and reports |
 | `toucan_cli` | Argument parsing, files, terminal output, and optional allocators |
@@ -42,7 +42,10 @@ than exposing the dependency's AST.
 Integers retain width, signedness, and conversion rank. Constant evaluation follows
 C promotions and usual arithmetic conversions, checks signed overflow and invalid
 shifts, and respects short-circuit operators. An unevaluated operand of `sizeof` is
-type-checked without evaluating its arithmetic.
+type-checked without evaluating its arithmetic. Floating constants use a software
+APFloat evaluator with the selected target's format, including x87 and binary128
+`long double`. Arithmetic constant evaluation is separate from C's stricter integer
+constant-expression rules; no host floating representation substitutes for the target.
 
 The semantic layer checks declarations, expressions, initializers, and function
 bodies. Lexical scopes keep local names out of the exported declarations while
@@ -62,7 +65,10 @@ Struct bitfields use byte storage and integer accessors. Gaps between storage un
 use `MaybeUninit` so C padding is not treated as an initialized Rust field. Accessors
 support signed and unsigned fields and preserve neighboring bits. Records containing
 bitfields cannot currently be passed or returned by value: matching memory layout
-does not prove calling ABI equivalence. Union bitfields are also rejected.
+does not prove calling ABI equivalence. Union bitfields use overlapping
+`MaybeUninit` storage with unsafe accessors requiring the accessed bytes to be
+initialized. Const bitfields have no setters; volatile bitfields are diagnosed
+because their required access width and ordering are unsupported.
 
 ## Process and resource policy
 
@@ -85,7 +91,28 @@ from the frontend's input. Declarations that require an unsupported Rust ABI
 representation produce an error when selected; selected unsupported macros appear
 in the report. The CLI can turn macro omissions into errors.
 
-The integrated API returns the semantic translation unit separately from generated
-bindings. An indexer or compatibility checker can consume it without generating
-Rust. The checker validates supported function bodies, but the public representation does
-not yet expose a typed body or control-flow graph for downstream analyzers.
+The integrated API owns its semantic translation unit independently of generated
+bindings. An indexer or compatibility checker can inspect declarations without
+generating Rust. `semantic::analyze` returns declaration data with no retained-code
+allocations. `semantic::analyze_with_options` optionally retains an owned checked
+syntax graph. Its immutable `Analysis` keeps declarations and graph IDs together;
+`Compilation` also owns preprocessed text and source provenance. Both expose shared
+references. Consuming `Analysis::into_unit` discards code before returning declaration
+data that the caller can mutate.
+
+Retained code links written occurrences to lexical scopes, declaration sites, and
+entity identities. Expressions record C types, value categories, and conversions
+at each operand use. Separate type uses attach variable bounds and static parameter
+contracts to canonical type shapes. Bodies retain statements, labels, control-flow targets,
+assembly operands, and declaration groups. Initializers preserve brace boundaries,
+anonymous-member paths, sparse ranges, string copy lengths, implicit zero fill,
+and final flexible-array storage. Written order does not impose an evaluation order
+on side effects. This is a checked syntax graph, not a lowered control-flow graph.
+
+A successful retained analysis accounts for all parsed expressions, statements,
+and initializers, with explicit classifications for attribute metadata and
+parser-inserted text. Incomplete retention produces an error. Resource limits bound
+logical nodes, references, and owned payload; they apply only when retention is
+requested. IDs are local to one analysis and cannot be mixed between owners.
+
+See [the analysis API](analysis-api.md) for traversal and source-mapping examples.

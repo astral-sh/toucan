@@ -213,15 +213,15 @@ fn run(cli: Cli) -> Result<()> {
         Command::Inspect { input, output } => {
             let compilation = toucan::parse_file(&input.header, &input.config()?)?;
             let manifest =
-                serde_json::json!({ "schema_version": 1, "translation_unit": compilation.unit });
+                serde_json::json!({ "schema_version": 1, "translation_unit": compilation.unit() });
             write_output(output, &(serde_json::to_string_pretty(&manifest)? + "\n"))
         }
         Command::Check { input } => {
             let compilation = toucan::parse_file(&input.header, &input.config()?)?;
             eprintln!(
                 "Analyzed {} declarations for {}",
-                compilation.unit.declarations.len(),
-                compilation.unit.target
+                compilation.unit().declarations.len(),
+                compilation.unit().target
             );
             Ok(())
         }

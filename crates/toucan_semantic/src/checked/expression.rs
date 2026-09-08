@@ -15,22 +15,25 @@ use crate::integer::integer_to_type;
 use crate::{DecodedString, Error, FloatKind, IntegerKind, IntegerValue, Type, TypeKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-pub(crate) struct ExprId(pub(crate) u32);
+pub struct ExprId(pub(crate) u32);
 impl ExprId {
-    pub(crate) fn index(self) -> usize {
+    /// Returns the owner-local arena index.
+    pub fn index(self) -> usize {
         self.0 as usize
     }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum ValueCategory {
+#[non_exhaustive]
+pub enum ValueCategory {
     Value,
     ObjectLvalue,
     FunctionDesignator,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum Conversion {
+#[non_exhaustive]
+pub enum Conversion {
     Lvalue,
     ArrayDecay,
     FunctionDecay,
@@ -44,7 +47,8 @@ pub(crate) enum Conversion {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum UseContext {
+#[non_exhaustive]
+pub enum UseContext {
     Value,
     Place,
     ReadModifyWrite,
@@ -53,13 +57,13 @@ pub(crate) enum UseContext {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct ConversionStep {
+pub struct ConversionStep {
     pub(crate) kind: Conversion,
     pub(crate) target_type: TypeId,
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct ExprUse {
+pub struct ExprUse {
     pub(crate) type_use: super::bounds::TypeUseId,
     pub(crate) expression: ExprId,
     pub(crate) effective_type: TypeId,
@@ -68,7 +72,7 @@ pub(crate) struct ExprUse {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Expression {
+pub struct Expression {
     pub(crate) type_name_use: Option<super::bounds::TypeUseId>,
     pub(crate) type_use: super::bounds::TypeUseId,
     pub(crate) occurrence: OccurrenceId,
@@ -83,9 +87,10 @@ pub(crate) struct Expression {
 macro_rules! operators {
     ($name:ident, $ast:ident, $($variant:ident),* $(,)?) => {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-        pub(crate) enum $name { $($variant),* }
-        impl From<&ast::$ast> for $name {
-            fn from(operator: &ast::$ast) -> Self {
+        #[non_exhaustive]
+        pub enum $name { $($variant),* }
+        impl $name {
+            fn from_ast(operator: &ast::$ast) -> Self {
                 match operator { $(ast::$ast::$variant => Self::$variant),* }
             }
         }
@@ -141,7 +146,8 @@ operators!(
 );
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum Builtin {
+#[non_exhaustive]
+pub enum Builtin {
     VaStart,
     VaEnd,
     VaCopy,
@@ -164,13 +170,14 @@ impl Builtin {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct GenericArm {
+pub struct GenericArm {
     pub(crate) ty: Option<TypeId>,
     pub(crate) expression: ExprId,
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum ExprKind {
+#[non_exhaustive]
+pub enum ExprKind {
     Integer(IntegerValue),
     Float {
         digits: String,
@@ -250,7 +257,8 @@ pub(crate) enum ExprKind {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum OffsetMember {
+#[non_exhaustive]
+pub enum OffsetMember {
     Field(Vec<usize>),
     Index(ExprId),
 }
@@ -258,13 +266,14 @@ pub(crate) enum OffsetMember {
 /// Every parsed expression is accounted for, including metadata grammar and
 /// operators represented by their parent's dedicated semantic form.
 #[derive(Debug, Serialize)]
-pub(crate) struct ExpressionCoverage {
+pub struct ExpressionCoverage {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) status: Coverage,
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum Coverage {
+#[non_exhaustive]
+pub enum Coverage {
     Typed(ExprId),
     BuiltinCallee(ExprId),
     CanceledIndirection(ExprId),
@@ -728,7 +737,7 @@ impl Analyzer {
                         pointer: self.retained_value(&indirection.node.operand)?,
                     }
                 } else {
-                    let operator = Unary::from(&unary.node.operator.node);
+                    let operator = Unary::from_ast(&unary.node.operator.node);
                     let operand_info = self.expression_info(&unary.node.operand)?;
                     let update = matches!(
                         operator,
@@ -1085,7 +1094,7 @@ impl Analyzer {
         let right = self.expression_info(&binary.node.rhs)?;
         let left_value = self.converted_type(&left, offset)?;
         let right_value = self.converted_type(&right, offset)?;
-        let operator = Binary::from(&binary.node.operator.node);
+        let operator = Binary::from_ast(&binary.node.operator.node);
         let assignment = matches!(
             operator,
             Binary::Assign

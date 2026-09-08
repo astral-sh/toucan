@@ -97,7 +97,7 @@ fn floating_macro_shadowing_and_name_collisions_follow_existing_rules() {
     assert!(bindings.contains("pub const VALUE: ::core::primitive::f32"));
     assert!(!bindings.contains("pub const OMITTED:"));
     assert_eq!(report.renamed_macros["__toucan_self_"], "self");
-    assert_eq!(compilation.unit.constants["VALUE"].value, 1);
+    assert_eq!(compilation.unit().constants["VALUE"].value, 1);
     assert_eq!(report.enum_constants[0].emitted.len(), 1);
     for declaration in [
         "extern double value;",

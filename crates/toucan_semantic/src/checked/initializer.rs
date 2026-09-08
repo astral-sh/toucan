@@ -20,7 +20,7 @@ pub(crate) enum Origin<'a> {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Initializer {
+pub struct Initializer {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) scope: ScopeId,
     pub(crate) ty: TypeId,
@@ -30,7 +30,10 @@ pub(crate) struct Initializer {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum InitializerKind {
+#[non_exhaustive]
+pub enum InitializerKind {
+    /// Reserved for construction; never present in a successful analysis.
+    #[doc(hidden)]
     Pending,
     Expression(AssignmentId),
     /// The referenced String expression owns decoded code units, including its
@@ -56,7 +59,7 @@ pub(crate) enum InitializerKind {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct Entry {
+pub struct Entry {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) designators: Vec<OccurrenceId>,
     pub(crate) path: Vec<Subobject>,
@@ -64,7 +67,8 @@ pub(crate) struct Entry {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum Subobject {
+#[non_exhaustive]
+pub enum Subobject {
     Field {
         record: usize,
         field: usize,
@@ -101,13 +105,14 @@ pub(crate) struct InitializerBuilder {
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) struct InitializerCoverage {
+pub struct InitializerCoverage {
     pub(crate) occurrence: OccurrenceId,
     pub(crate) status: Coverage,
 }
 
 #[derive(Debug, Serialize)]
-pub(crate) enum Coverage {
+#[non_exhaustive]
+pub enum Coverage {
     Retained(InitializerId),
     AttributeArgument,
     ParserInserted,

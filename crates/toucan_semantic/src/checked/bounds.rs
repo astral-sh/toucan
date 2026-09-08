@@ -17,39 +17,43 @@ use super::{
 use crate::{Error, Type, TypeKind};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-pub(crate) struct TypeUseId(pub(crate) u32);
+pub struct TypeUseId(pub(crate) u32);
 impl TypeUseId {
-    pub(crate) fn index(self) -> usize {
+    /// Returns the owner-local arena index.
+    pub fn index(self) -> usize {
         self.0 as usize
     }
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
-pub(crate) struct BoundId(pub(crate) u32);
+pub struct BoundId(pub(crate) u32);
 impl BoundId {
-    pub(crate) fn index(self) -> usize {
+    /// Returns the owner-local arena index.
+    pub fn index(self) -> usize {
         self.0 as usize
     }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
-pub(crate) enum TypeStep {
+#[non_exhaustive]
+pub enum TypeStep {
     Pointer,
     Element,
     Return,
     Parameter(usize),
 }
 #[derive(Clone, Debug, PartialEq, Eq, Hash, Serialize)]
-pub(crate) struct Extent {
+pub struct Extent {
     pub(crate) path: Vec<TypeStep>,
     pub(crate) bound: BoundId,
 }
 #[derive(Debug, Serialize)]
-pub(crate) struct TypeUse {
+pub struct TypeUse {
     pub(crate) shape: TypeId,
     pub(crate) extents: Vec<Extent>,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum BoundEvaluation {
+#[non_exhaustive]
+pub enum BoundEvaluation {
     Constant,
     /// Required when the enclosing declaration or expression is evaluated.
     /// Conditional and short-circuit parents still govern whether it is reached.
@@ -60,7 +64,8 @@ pub(crate) enum BoundEvaluation {
     Derived,
 }
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum BoundSite {
+#[non_exhaustive]
+pub enum BoundSite {
     Declaration,
     FunctionEntry,
     Prototype,
@@ -68,13 +73,15 @@ pub(crate) enum BoundSite {
     Composite,
 }
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
-pub(crate) enum BoundInput {
+#[non_exhaustive]
+pub enum BoundInput {
     Runtime(BoundId),
     Constant(u64),
     Unspecified,
 }
 #[derive(Debug, Serialize)]
-pub(crate) enum BoundValue {
+#[non_exhaustive]
+pub enum BoundValue {
     Expression(ExprId),
     Constant {
         expression: ExprId,
@@ -88,7 +95,7 @@ pub(crate) enum BoundValue {
     },
 }
 #[derive(Debug, Serialize)]
-pub(crate) struct Bound {
+pub struct Bound {
     pub(crate) source: SourceSpan,
     pub(crate) owner: Option<OccurrenceId>,
     pub(crate) scope: ScopeId,

@@ -12,7 +12,7 @@ pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions, RustTa
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
 pub use toucan_preprocessor::{ForcedInclude, OriginKind, SourceLocation, SourceMapping};
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};
-pub use toucan_semantic::{self as semantic, TranslationUnit};
+pub use toucan_semantic::{self as semantic, Analysis, AnalysisOptions, TranslationUnit};
 pub use toucan_source as source;
 pub use toucan_target::{self as target, Target};
 
@@ -20,6 +20,8 @@ pub use toucan_target::{self as target, Target};
 pub struct Config {
     pub target: Target,
     pub preprocessor: PreprocessorConfig,
+    /// Optional owned semantic graph retention; disabled by default.
+    pub analysis: AnalysisOptions,
 }
 
 impl Config {
@@ -68,6 +70,7 @@ impl Config {
         Self {
             target,
             preprocessor,
+            analysis: AnalysisOptions::default(),
         }
     }
 }
@@ -78,10 +81,14 @@ pub struct Timings {
     pub analysis: Duration,
 }
 
+/// Owns preprocessed source, target-specific declarations, and optional checked code.
+///
+/// Shared access keeps declaration IDs and source ranges valid together. Request
+/// retained code through [`Config::analysis`] before parsing.
 pub struct Compilation {
-    pub unit: TranslationUnit,
-    pub preprocessed: Preprocessed,
-    pub timings: Timings,
+    analysis: Analysis,
+    preprocessed: Preprocessed,
+    timings: Timings,
 }
 
 /// A semantic diagnostic with its original source anchor, when available.
@@ -138,28 +145,30 @@ pub enum Error {
 pub fn parse_file(path: &Path, config: &Config) -> Result<Compilation, Error> {
     let start = Instant::now();
     let preprocessed = Preprocessor::new(config.preprocessor.clone()).preprocess(path)?;
-    finish(preprocessed, config.target, start.elapsed())
+    finish(preprocessed, config, start.elapsed())
 }
 
 pub fn parse_source(path: &Path, source: &str, config: &Config) -> Result<Compilation, Error> {
     let start = Instant::now();
     let preprocessed =
         Preprocessor::new(config.preprocessor.clone()).preprocess_str(path, source)?;
-    finish(preprocessed, config.target, start.elapsed())
+    finish(preprocessed, config, start.elapsed())
 }
 
 fn finish(
     preprocessed: Preprocessed,
-    target: Target,
+    config: &Config,
     preprocessing: Duration,
 ) -> Result<Compilation, Error> {
     let start = Instant::now();
-    let unit = semantic::analyze(&preprocessed.source, target).map_err(|error| SemanticError {
-        origin: preprocessed.resolve_location(error.offset).cloned(),
-        error,
-    })?;
+    let analysis =
+        semantic::analyze_with_options(&preprocessed.source, config.target, &config.analysis)
+            .map_err(|error| SemanticError {
+                origin: preprocessed.resolve_location(error.offset).cloned(),
+                error,
+            })?;
     Ok(Compilation {
-        unit,
+        analysis,
         preprocessed,
         timings: Timings {
             preprocessing,
@@ -201,25 +210,72 @@ pub struct SkippedMacro {
 }
 
 impl Compilation {
+    /// Returns the immutable semantic owner, including optional checked code.
+    pub fn analysis(&self) -> &Analysis {
+        &self.analysis
+    }
+    /// Returns checked target-specific declarations.
+    pub fn unit(&self) -> &TranslationUnit {
+        self.analysis.unit()
+    }
+    /// Returns the original preprocessed source and its token origins.
+    pub fn preprocessed(&self) -> &Preprocessed {
+        &self.preprocessed
+    }
+    /// Returns time spent preprocessing and checking this compilation.
+    pub fn timings(&self) -> &Timings {
+        &self.timings
+    }
+    /// Returns retained code when requested by [`Config::analysis`].
+    pub fn checked(&self) -> Option<&semantic::checked::CheckedCode> {
+        self.analysis.checked()
+    }
+    /// Resolves the token origins intersecting a retained source span.
+    ///
+    /// Disjoint fragments retain their mapped order. Repeated origins can occur,
+    /// especially for macros: a macro origin anchors its outer invocation, not a
+    /// full expansion trace. Parser-inserted spans have no original locations.
+    pub fn source_locations<'a>(
+        &'a self,
+        span: &'a semantic::checked::SourceSpan,
+    ) -> impl Iterator<Item = &'a SourceLocation> + 'a {
+        std::iter::once(span.range())
+            .filter(move |_| span.fragments().is_empty() && !span.synthetic())
+            .chain(
+                span.fragments()
+                    .iter()
+                    .filter(move |_| !span.synthetic())
+                    .cloned(),
+            )
+            .flat_map(|range| {
+                let mappings = &self.preprocessed.mappings;
+                let first = mappings.partition_point(|entry| entry.generated.end <= range.start);
+                mappings[first..]
+                    .iter()
+                    .take_while(move |entry| entry.generated.start < range.end)
+                    .map(|entry| &entry.origin)
+            })
+    }
+
     /// Generates declarations and supported object-like macro constants. The
     /// report identifies selected macros that were not emitted. With no allowlist,
     /// reserved `__` macros are omitted unless they shadow a declaration.
     pub fn bindings(&self, options: &BindingOptions) -> Result<(String, Report), Error> {
         let declared_names: BTreeSet<_> = self
-            .unit
+            .unit()
             .declarations
             .iter()
             .map(|item| item.name.as_str())
-            .chain(self.unit.constants.keys().map(String::as_str))
+            .chain(self.unit().constants.keys().map(String::as_str))
             .chain(
-                self.unit
+                self.unit()
                     .records
                     .iter()
                     .filter(|item| item.scope == semantic::Scope::File)
                     .filter_map(|item| item.name.as_deref()),
             )
             .chain(
-                self.unit
+                self.unit()
                     .enums
                     .iter()
                     .filter(|item| item.scope == semantic::Scope::File)
@@ -266,13 +322,13 @@ impl Compilation {
                     continue;
                 }
             };
-            if expression.trim() == name && self.unit.constants.contains_key(name) {
+            if expression.trim() == name && self.unit().constants.contains_key(name) {
                 // System headers commonly define enum members as self-aliases so
                 // #ifdef can detect them. Preserve their enum-compatible Rust type.
                 macros.remove(name);
                 continue;
             }
-            match string_literal(&expression, self.unit.target) {
+            match string_literal(&expression, self.unit().target) {
                 Ok(Some(value)) => {
                     macros.insert(name.clone(), Some(value));
                     string_macros += 1;
@@ -281,9 +337,9 @@ impl Compilation {
                     name: name.clone(),
                     reason: error.to_string(),
                 }),
-                Ok(None) => match semantic::evaluate_integer(&self.unit, &expression)
+                Ok(None) => match semantic::evaluate_integer(self.unit(), &expression)
                     .map(semantic::ArithmeticConstant::Integer)
-                    .or_else(|_| semantic::evaluate_arithmetic(&self.unit, &expression))
+                    .or_else(|_| semantic::evaluate_arithmetic(self.unit(), &expression))
                 {
                     Ok(semantic::ArithmeticConstant::Integer(value)) => {
                         macros.insert(
@@ -316,10 +372,10 @@ impl Compilation {
                 },
             }
         }
-        let bindings = toucan_bindings::generate_with_macros(&self.unit, options, &macros)?;
+        let bindings = toucan_bindings::generate_with_macros(self.unit(), options, &macros)?;
         let source = bindings.source;
         let report = Report {
-            target: self.unit.target.triple().into(),
+            target: self.unit().target.triple().into(),
             rust_target: options.rust_target.to_string(),
             dependencies: self.preprocessed.dependencies.clone(),
             declarations: bindings.declarations,

@@ -33,7 +33,7 @@ fn macros_replace_enumerators_without_changing_semantic_values() {
     assert_eq!(report.enum_constants.len(), 1);
     assert_eq!(report.enum_constants[0].emitted.len(), 1);
     assert_eq!(report.enum_constants[0].emitted[0].c_name, "SELF");
-    assert_eq!(compilation.unit.constants["REPLACED"].value, 1);
+    assert_eq!(compilation.unit().constants["REPLACED"].value, 1);
 }
 
 #[test]
