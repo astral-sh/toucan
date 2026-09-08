@@ -25,8 +25,8 @@ generated declarations can target Rust 1.64 or later.
 `size_t_is_usize`, `rust_target`, `layout_tests`, `raw_line`,
 `blocklist_function`, `blocklist_type`, and `rustified_enum(".*")`. Generation returns bindings
 with `Display`, `write_to_file`, and a `report()` containing omitted macros and
-dependencies. Compile-time ABI assertions remain enabled when runtime layout
-tests are disabled.
+dependencies. Compile-time size and alignment assertions remain enabled when
+runtime layout tests are disabled.
 
 Function blocklists accept exact identifiers or prefixes ending in `.*`, with
 optional anchors. Other regular expressions and selective Rust enum conversion
@@ -80,3 +80,8 @@ both Linux and macOS architectures.
 The [saved Linux run](../../corpus/evidence/bindgen-builder-2026-09-08/summary.json)
 records all four configurations and 25 byte-identical runtime artifacts. It
 includes the consumed generated files and unchanged build-script hash.
+
+For complete application paths, `scripts/verify_astral_builder.py` builds pinned
+ty and uv through zstd-sys's unchanged build script and compares their compression
+tests and CLI behavior. The [consumer guide](../../docs/astral-consumers.md#run-the-unchanged-bindgen-build-script)
+describes the manifest-only activation and source/lock/artifact checks.

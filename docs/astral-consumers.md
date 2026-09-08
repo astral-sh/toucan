@@ -125,3 +125,45 @@ This is evidence for two real consumer paths on native x86-64 Linux. It does not
 run either project's complete test suite, establish performance parity, validate
 all workspace packages or features, or provide native macOS/Windows execution
 coverage.
+
+## Run the unchanged bindgen build script
+
+The builder adapter has a separate gate:
+
+```sh
+python3 scripts/verify_astral_builder.py \
+  --cache /tmp/toucan-project-consumers \
+  --output /tmp/toucan-astral-builder-evidence \
+  --offline
+```
+
+Use a fresh output directory. The cache can reuse the pinned source archives and
+Cargo targets from the earlier consumer runner; `--offline` requires those
+archives to be present. Cargo resolution runs offline and preserves each existing
+locked package version and dependency edge. Newly required frontend dependencies
+are recorded. The driver saves and restores each project's original lockfile and
+checks its entire source inventory before and after the build. A later run can use
+`--zstd-source /path/to/earlier-output/zstd-sys` to reuse that package identity and
+compiled Cargo artifacts. Reuse checks every file against the pinned package and
+the two exact manifest edits; pre-replaced binding files are rejected.
+
+The gate changes only the scratch **zstd-sys Cargo.toml**:
+
+1. Its `bindgen` build-dependency becomes the `toucan_bindgen` package.
+2. Its `std` feature includes `bindgen`. Both pinned consumers already select
+   `std`, so this activates binding generation in their actual builds.
+
+The zstd-sys build script, C sources, and Rust sources stay byte-identical to the
+pinned package. All ty and uv C/Rust sources and manifests stay unchanged. Cargo's
+selected artifact records identify the binaries under test and the zstd-sys
+libraries linked into the binary and library-test builds. Their dependency files
+must reference Toucan-generated `OUT_DIR/bindings.rs` for the native Rust host,
+with no checked-in binding input active.
+
+The driver compares both `ty_vendored` tests, all 19 `uv-extract` tests, ty's exact
+valid/invalid diagnostics, uv's zstd-compressed-wheel installation and installed
+bytes, and rejection of a truncated zstd response with the expected EOF error.
+The [builder evidence](../corpus/evidence/astral-builder-a7fab44/summary.json)
+records the native Linux run and the source, lock, generated binding, selected
+artifact, and runtime hashes. It covers these two pinned consumer paths; it does
+not run either workspace's full test suite or measure application performance.

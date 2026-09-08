@@ -1,0 +1,14 @@
+{
+  "schema_version": 1,
+  "integration_base": "8c463b6",
+  "frozen_patch_sha256": "06a9db25b249b9e89fe43c4e335260470eb59c77b7e03b47716ac91b6257b80a",
+  "integration": "Apply the frozen a7fab44 consumer evidence and runner. Sort imports under repository Ruff rules, preserve the runner executable bit, and describe layout assertions precisely.",
+  "validation": {
+    "driver_regression_tests": 6,
+    "ruff": "all configured checks and format check passed"
+  },
+  "files": {
+    "scripts/verify_astral_builder.py": "3ea0861e8497fc5a7f8026f6728e6e1f19c2c7080eb7397d311ada4c4da20250",
+    "scripts/tests/test_verify_astral_builder.py": "c23e37b6b25635094d324481e41f81f7e502718fe7f06b03299e34aa7252457e"
+  }
+}
