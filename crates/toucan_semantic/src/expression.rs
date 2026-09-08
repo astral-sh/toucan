@@ -122,6 +122,17 @@ impl Analyzer {
             ast::Expression::Identifier(identifier) => {
                 let name = &identifier.node.name;
                 self.check_auto_reference(name, offset)?;
+                if let Some(operation) = self.allocation_reference(name)? {
+                    if self.unit.compiler == toucan_target::Compiler::Clang {
+                        return Err(Error::new(
+                            offset,
+                            "builtin functions must be directly called",
+                        ));
+                    }
+                    return Ok(ExpressionInfo::value(Type::new(TypeKind::Function(
+                        Box::new(operation.signature(self.unit.target)),
+                    ))));
+                }
                 if let Some(value) = self.unit.constants.get(name) {
                     integer_to_type(*value)
                 } else if let Some(ty) = self.parameter_type(name) {
@@ -592,7 +603,12 @@ impl Analyzer {
             }
             ast::Expression::SizeOfTy(size) => {
                 let checkpoint = self.sve_feature_checkpoint();
-                let ty = self.type_name(&size.node.0.node)?;
+                let allocation_context = self.allocation_context(false);
+                let ty = self.type_name(&size.node.0.node);
+                let ty =
+                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
+                        analyzer.unit.is_variable_length_array(ty)
+                    })?;
                 if !self.unit.is_variable_length_array(&ty)? {
                     self.discard_sve_feature_uses(checkpoint);
                 }
@@ -636,8 +652,11 @@ impl Analyzer {
             ));
         }
         let checkpoint = self.sve_feature_checkpoint();
-        let control = self.value_expression_type(&selection.node.expression)?;
+        let allocation_context = self.allocation_context(false);
+        let control = self.value_expression_type(&selection.node.expression);
         self.discard_sve_feature_uses(checkpoint);
+        self.restore_allocation_context(allocation_context, false);
+        let control = control?;
         let mut types = Vec::new();
         let mut expressions = Vec::new();
         let mut selected = None;
@@ -1183,7 +1202,12 @@ impl Analyzer {
 
     fn sizeof_operand_type(&mut self, expression: &Node<ast::Expression>) -> Result<Type, Error> {
         let checkpoint = self.sve_feature_checkpoint();
-        let operand = self.expression_info(expression)?;
+        let allocation_context = self.allocation_context(false);
+        let operand = self.expression_info(expression);
+        let operand =
+            self.finish_allocation_operand(allocation_context, operand, |analyzer, operand| {
+                analyzer.unit.is_variable_length_array(&operand.ty)
+            })?;
         if !self.unit.is_variable_length_array(&operand.ty)? {
             self.discard_sve_feature_uses(checkpoint);
         }

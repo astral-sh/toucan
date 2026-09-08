@@ -6,6 +6,7 @@
 
 mod alignment_names;
 mod alignof;
+mod allocation;
 mod analyze;
 mod arm;
 mod array_identity;
@@ -57,6 +58,7 @@ mod weak;
 mod wide_float;
 mod x86;
 
+pub use allocation::AllocationOperation;
 pub use analyze::{
     analyze, analyze_with_options, analyze_with_profile, evaluate_arithmetic, evaluate_integer,
     evaluate_vector,

@@ -182,6 +182,7 @@ operators!(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub enum Builtin {
+    Allocation(crate::AllocationOperation),
     /// GNU one- or two-vector shuffle. The last argument is an integer mask;
     /// each mask lane selects modulo the concatenated input lane count. All
     /// operands are evaluated once in ordinary unspecified argument order.
@@ -267,6 +268,9 @@ impl Builtin {
     }
 
     fn from_name(name: &str) -> Option<Self> {
+        if let Some(operation) = crate::AllocationOperation::from_name(name) {
+            return Some(Self::Allocation(operation));
+        }
         Some(match name {
             "__builtin_shuffle" => Self::VectorShuffle,
             "__builtin_complex" => Self::Complex,
@@ -390,6 +394,8 @@ pub enum ExprKind {
     },
     String(DecodedString),
     Name(EntityId),
+    /// GNU function reference to the corresponding C library symbol.
+    BuiltinFunction(crate::AllocationOperation),
     Unary {
         operator: Unary,
         operand: ExprUse,
@@ -433,6 +439,15 @@ pub enum ExprKind {
     },
     BuiltinCall {
         builtin: Builtin,
+        /// An explicit declaration of this library builtin, when present.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        declaration: Option<EntityId>,
+        /// Non-return promise captured from this builtin's visible declaration.
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        noreturn: bool,
+        /// An explicit symbol override honored by the compiler.
+        #[serde(skip_serializing_if = "Option::is_none")]
+        link_name: Option<String>,
         /// Present only for constant and object-size query intrinsics.
         query_evaluation: Option<super::QueryEvaluation>,
         /// Structural extent and compiler-result facts for object-size queries.
@@ -1128,6 +1143,14 @@ impl Analyzer {
                 )?;
                 ExprKind::String(decoded)
             }
+            ast::Expression::Identifier(identifier)
+                if self.allocation_reference(&identifier.node.name)?.is_some() =>
+            {
+                ExprKind::BuiltinFunction(
+                    self.allocation_reference(&identifier.node.name)?
+                        .expect("checked allocation builtin"),
+                )
+            }
             ast::Expression::Identifier(identifier) => {
                 let entity = self
                     .code_builder()
@@ -1565,7 +1588,15 @@ impl Analyzer {
         if self.builtin_name(call) == Some("__builtin_shufflevector") {
             return self.retain_shuffle_vector(call);
         }
-        if let Some(name) = self.builtin_name(call)
+        let allocation = if let ast::Expression::Identifier(identifier) = &call.node.callee.node {
+            self.allocation_reference(&identifier.node.name)?
+                .map(|operation| (identifier.node.name.as_str(), operation))
+        } else {
+            None
+        };
+        if let Some(name) = allocation
+            .map(|(name, _)| name)
+            .or_else(|| self.builtin_name(call))
             && let Some(builtin) = Builtin::from_name(name)
         {
             let x86 = if let Builtin::X86(intrinsic) = builtin {
@@ -1598,6 +1629,27 @@ impl Analyzer {
             } else {
                 None
             };
+            let allocation =
+                allocation.map(|(_, operation)| operation.parameters(self.unit.target));
+            let declaration = allocation
+                .as_ref()
+                .and_then(|_| self.code_builder().entity_for_name(name));
+            let noreturn = allocation.is_some() && self.visible_noreturn(name);
+            let link_name = if let Builtin::Allocation(operation) = builtin {
+                let link = self.allocation_symbol(operation);
+                if link != operation.library_symbol() {
+                    let bytes = link.len();
+                    self.code_builder().budget.charge(0, 0, bytes, offset)?;
+                    Some(self.allocation_symbol(operation).to_owned())
+                } else {
+                    None
+                }
+            } else {
+                None
+            };
+            if declaration.is_some() {
+                self.code_builder().budget.charge(0, 1, 0, offset)?;
+            }
             let memory = self.memory_builtin_signature(name);
             let nan = self.nan_builtin(name);
             let object_size = self.object_size_signature(name);
@@ -1625,7 +1677,15 @@ impl Analyzer {
                     arguments.push(self.retained_use(argument, UseContext::VariadicPack, None)?);
                     continue;
                 }
-                let (context, destination) = if let Some(destination) = &elementwise {
+                let (context, destination) = if let Some(signature) = &allocation {
+                    (
+                        UseContext::Value,
+                        Some((
+                            signature.parameters()[index].clone(),
+                            Conversion::Assignment,
+                        )),
+                    )
+                } else if let Some(destination) = &elementwise {
                     let info = self.expression_info(argument)?;
                     let destination =
                         self.integer_arithmetic_operand_type(&info, destination, offset)?;
@@ -1788,6 +1848,9 @@ impl Analyzer {
             }
             return Ok(ExprKind::BuiltinCall {
                 builtin,
+                declaration,
+                noreturn,
+                link_name,
                 query_evaluation,
                 object_size,
                 callee_occurrence,

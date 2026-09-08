@@ -72,6 +72,7 @@ impl Analyzer {
                 "alignment query count exceeds the 65536-entry limit",
             ));
         }
+        let allocation_context = self.allocation_context(false);
         let bytes = self.alignment_operand(|analyzer| match &query.node.operand {
             ast::AlignOfOperand::TypeName(name) => {
                 let ty = analyzer.type_name(&name.node)?;
@@ -90,7 +91,9 @@ impl Analyzer {
                 }
                 analyzer.object_query_alignment(&info, expression.span.start)
             }
-        })?;
+        });
+        self.restore_allocation_context(allocation_context, false);
+        let bytes = bytes?;
         let result = AlignmentResult { bytes };
         self.alignment_queries.results.insert(key, result);
         Ok(result)

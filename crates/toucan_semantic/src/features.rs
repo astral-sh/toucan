@@ -19,7 +19,8 @@ pub fn has_builtin(profile: CompilerProfile, name: &str) -> bool {
     {
         return profile.compiler() == Compiler::Clang;
     }
-    if crate::atomic::AtomicOperation::from_name(name).is_some()
+    if crate::AllocationOperation::from_name(name).is_some()
+        || crate::atomic::AtomicOperation::from_name(name).is_some()
         || crate::sync::SyncOperation::from_name(name).is_some()
         || builtins::infinity_kind(name).is_some()
         || builtins::nan_kind(name).is_some()

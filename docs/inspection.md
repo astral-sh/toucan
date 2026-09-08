@@ -159,3 +159,9 @@ can also carry `noreturn_source`. Missing fields mean false or no written marker
 The existing `FunctionType.noreturn` field is the separate Clang type contract;
 C11 `_Noreturn` does not set it. See [non-returning declarations](noreturn.md) for
 snapshot and lexical-scope semantics.
+
+Allocation builtins add `Allocation` operations and GNU `BuiltinFunction` references
+to checked expressions. A `BuiltinCall` may also contain an explicit declaration
+entity, a captured `noreturn` promise, and a compiler-honored `link_name` override.
+These optional fields are additive in checked schema 5; ordinary declaration
+symbols continue to use `link_name` in schema 3.

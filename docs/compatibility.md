@@ -1062,3 +1062,9 @@ spans survive macro expansion. Late declarations preserve earlier call facts.
 Generated bindings keep the written C return type. See
 [non-returning declarations](noreturn.md) for lexical inheritance and the
 remaining control-flow diagnostic limits.
+
+### Allocation builtins
+
+The four C allocation builtins use target-correct prototypes, converted argument
+uses, and explicit library-symbol identity. See [allocation builtins](allocation-builtins.md)
+for GNU/Clang declaration rules and remaining ownership/deallocator-contract limits.

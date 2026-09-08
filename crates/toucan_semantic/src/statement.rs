@@ -689,7 +689,7 @@ impl Analyzer {
                 }
             };
             let inference = inferred.as_ref().map(|(_, _, inference)| inference);
-            let (name, mut ty, extra) =
+            let (name, mut ty, mut extra) =
                 self.declarator(base.clone(), &item.node.declarator, attributes)?;
             extra.check_nodebug_subject()?;
             if let Some(inference) = inference {
@@ -742,6 +742,30 @@ impl Analyzer {
             } else {
                 None
             };
+            if !is_typedef {
+                let external = (function || is_extern)
+                    && !is_static
+                    && !previous_file.is_some_and(|index| self.unit.declarations[index].is_static)
+                    && !self
+                        .block_externs
+                        .get(&name)
+                        .is_some_and(|prior| prior.is_static);
+                let builtin = self.allocation_declaration(
+                    &name,
+                    &mut ty,
+                    external,
+                    false,
+                    &mut extra.link_name,
+                    item.span.start,
+                )?;
+                if builtin
+                    && self.unit.compiler == toucan_target::Compiler::Gnu
+                    && name != "__builtin_free"
+                    && extra.c11_noreturn.is_none()
+                {
+                    extra.noreturn = None;
+                }
+            }
             let noreturn = function
                 && !is_typedef
                 && self.declaration_noreturn(

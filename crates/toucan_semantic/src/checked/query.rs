@@ -126,6 +126,7 @@ impl Builder {
             | ExprKind::ImaginaryFloat { .. }
             | ExprKind::String(_)
             | ExprKind::Name(_)
+            | ExprKind::BuiltinFunction(_)
             | ExprKind::SizeOfType(_)
             | ExprKind::SizeOfValue { .. }
             | ExprKind::AlignOf { .. }
@@ -207,7 +208,10 @@ impl Builder {
                 }
             }
             ExprKind::BuiltinCall {
-                builtin, arguments, ..
+                builtin,
+                arguments,
+                declaration,
+                ..
             } => match builtin {
                 Builtin::X86(intrinsic) => {
                     if intrinsic.has_side_effects() {
@@ -258,7 +262,11 @@ impl Builder {
                     operands(arguments)
                 }
                 // Clang's object-size builtins do not carry the const attribute.
-                Builtin::Nontemporal(_)
+                Builtin::Allocation(_) if declaration.is_some() => {
+                    Unresolved.combine(operands(arguments))
+                }
+                Builtin::Allocation(_)
+                | Builtin::Nontemporal(_)
                 | Builtin::C11Atomic(_)
                 | Builtin::Atomic(_)
                 | Builtin::Sync(_)

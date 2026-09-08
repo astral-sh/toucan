@@ -15,7 +15,10 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         assert!(code.occurrence(attribute.owner()).is_some());
         for parameter in attribute.parameters() {
             let site = code.declaration(parameter.declaration()).unwrap();
-            assert_eq!(code.entity(site.entity()).unwrap().kind(), EntityKind::Parameter);
+            assert_eq!(
+                code.entity(site.entity()).unwrap().kind(),
+                EntityKind::Parameter
+            );
         }
     }
     for site in code.function_option_sites() {
@@ -133,7 +136,9 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         }
     }
     for (id, entity) in code.entities() {
-        if entity.noreturn() { assert_eq!(entity.kind(), EntityKind::Function); }
+        if entity.noreturn() {
+            assert_eq!(entity.kind(), EntityKind::Function);
+        }
         if let Some(declaration) = entity.declaration() {
             let declaration = &unit.declarations[declaration];
             assert_eq!(
@@ -330,6 +335,16 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 let ty = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
                 assert!(matches!(ty.kind, TypeKind::Complex(_)));
             }
+            ExprKind::BuiltinFunction(operation) => {
+                assert_eq!(unit.compiler, toucan::Compiler::Gnu);
+                assert!(!operation.library_symbol().is_empty());
+                assert!(matches!(
+                    unit.resolve(code.ty(expression.ty()).unwrap())
+                        .unwrap()
+                        .kind,
+                    TypeKind::Function(_)
+                ));
+            }
             ExprKind::Name(entity) => {
                 assert!(code.entity(*entity).is_some());
             }
@@ -342,7 +357,14 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             } => {
                 expression_use(code, operand);
                 if matches!(operator, Unary::Real | Unary::Imaginary) {
-                    assert_eq!(operand.context(),if expression.category()==ValueCategory::ObjectLvalue {UseContext::Place}else{UseContext::Value});
+                    assert_eq!(
+                        operand.context(),
+                        if expression.category() == ValueCategory::ObjectLvalue {
+                            UseContext::Place
+                        } else {
+                            UseContext::Value
+                        }
+                    );
                 }
                 for ty in [computation_type, write_back].into_iter().flatten() {
                     assert!(code.ty(*ty).is_some());
@@ -404,8 +426,16 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 ..
             } => {
                 expression_use(code, callee);
-                let TypeKind::Pointer(pointee) = &unit.resolve(code.ty(callee.effective_type()).unwrap()).unwrap().kind else { panic!("call pointer type") };
-                let TypeKind::Function(function) = &unit.resolve(pointee).unwrap().kind else { panic!("call function type") };
+                let TypeKind::Pointer(pointee) = &unit
+                    .resolve(code.ty(callee.effective_type()).unwrap())
+                    .unwrap()
+                    .kind
+                else {
+                    panic!("call pointer type")
+                };
+                let TypeKind::Function(function) = &unit.resolve(pointee).unwrap().kind else {
+                    panic!("call function type")
+                };
                 assert!(!function.noreturn || *noreturn);
                 if *noreturn && !function.noreturn {
                     assert!(code.entity(direct_callee.unwrap()).unwrap().noreturn());
@@ -427,7 +457,11 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 let TypeKind::Vector { lanes: result, .. } = unit.resolve(ty).unwrap().kind else {
                     panic!("convertvector destination");
                 };
-                let TypeKind::Vector { lanes: input, .. } = unit.resolve(code.ty(value.effective_type()).unwrap()).unwrap().kind else {
+                let TypeKind::Vector { lanes: input, .. } = unit
+                    .resolve(code.ty(value.effective_type()).unwrap())
+                    .unwrap()
+                    .kind
+                else {
                     panic!("convertvector source");
                 };
                 assert_eq!(input, result);
@@ -477,16 +511,41 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 callee_occurrence,
                 arguments,
                 builtin,
+                declaration,
+                link_name,
                 ..
             } => {
                 assert!(code.occurrence(*callee_occurrence).is_some());
-                if let Builtin::Elementwise(_) = builtin {
-                    assert_eq!(arguments.len(),2);
+                if let Some(id) = declaration {
+                    assert!(code.entity(*id).is_some());
+                }
+                if let Some(link) = link_name {
+                    assert!(link.len() <= 1_048_576);
+                }
+                if let Builtin::Allocation(operation) = builtin {
+                    use toucan::semantic::AllocationOperation;
+                    let arity = if matches!(
+                        operation,
+                        AllocationOperation::Malloc | AllocationOperation::Free
+                    ) {
+                        1
+                    } else {
+                        2
+                    };
+                    assert_eq!(arguments.len(), arity);
                     for argument in arguments {
-                        assert_eq!(argument.context(),UseContext::Value);
+                        assert_eq!(argument.context(), UseContext::Value);
+                    }
+                }
+                if let Builtin::Elementwise(_) = builtin {
+                    assert_eq!(arguments.len(), 2);
+                    for argument in arguments {
+                        assert_eq!(argument.context(), UseContext::Value);
                         // Equal integer/vector value types can retain different
                         // typedef alignment sugar when no conversion occurs.
-                        let operand = unit.resolve(code.ty(argument.effective_type()).unwrap()).unwrap();
+                        let operand = unit
+                            .resolve(code.ty(argument.effective_type()).unwrap())
+                            .unwrap();
                         let result = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
                         assert_eq!(operand.kind, result.kind);
                         assert_eq!(operand.qualifiers, result.qualifiers);
@@ -500,7 +559,9 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     assert_eq!(arguments.len(), 2);
                     for argument in arguments {
                         assert_eq!(argument.context(), UseContext::Value);
-                        let ty = unit.resolve(code.ty(argument.effective_type()).unwrap()).unwrap();
+                        let ty = unit
+                            .resolve(code.ty(argument.effective_type()).unwrap())
+                            .unwrap();
                         assert!(matches!(ty.kind, TypeKind::Float(component) if component == kind));
                     }
                 }
@@ -547,14 +608,20 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 assert!(code.ty(*ty).is_some());
             }
             ExprKind::SizeOfValue { operand, .. } => expression_use(code, operand),
-            ExprKind::AlignOf { operand, alignment_bytes, .. } => {
+            ExprKind::AlignOf {
+                operand,
+                alignment_bytes,
+                ..
+            } => {
                 assert!(alignment_bytes.is_power_of_two());
                 match operand {
                     toucan::semantic::checked::AlignmentOperand::Type(operand) => {
                         assert!(code.occurrence(operand.occurrence).is_some());
                         assert!(code.type_use(operand.type_use).is_some());
                     }
-                    toucan::semantic::checked::AlignmentOperand::Expression(operand) => expression_use(code, operand),
+                    toucan::semantic::checked::AlignmentOperand::Expression(operand) => {
+                        expression_use(code, operand)
+                    }
                 }
             }
             ExprKind::OffsetOf { record, members } => {
@@ -726,14 +793,23 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             assert!(code.declaration(*parameter).is_some());
         }
         if let Some(old_style) = body.old_style() {
-            assert_eq!(old_style.evaluation_order(), ParameterEvaluationOrder::UnspecifiedBetweenParameters);
+            assert_eq!(
+                old_style.evaluation_order(),
+                ParameterEvaluationOrder::UnspecifiedBetweenParameters
+            );
             assert_eq!(old_style.parameters().len(), body.parameters().len());
             for (entry, parameter) in old_style.parameters().iter().zip(body.parameters()) {
                 assert_eq!(entry.declaration(), *parameter);
                 let site = code.declaration(*parameter).unwrap();
                 assert_eq!(site.scope(), body.scope());
-                assert_eq!(code.entity(site.entity()).unwrap().kind(), EntityKind::Parameter);
-                assert_eq!(code.occurrence(entry.identifier()).unwrap().kind(), OccurrenceKind::OldStyleParameter);
+                assert_eq!(
+                    code.entity(site.entity()).unwrap().kind(),
+                    EntityKind::Parameter
+                );
+                assert_eq!(
+                    code.occurrence(entry.identifier()).unwrap().kind(),
+                    OccurrenceKind::OldStyleParameter
+                );
                 assert_eq!(coverage[entry.identifier().index()] & 16, 0);
                 coverage[entry.identifier().index()] |= 16;
                 let mut ty = code.type_use(entry.incoming()).unwrap().shape();
@@ -1068,7 +1144,10 @@ fn type_shape(unit: &TranslationUnit, root: &Type) {
                 if let Some(id) = function.parameter_contracts {
                     for &position in &unit.parameter_contracts(id).unwrap().no_escape {
                         let parameter = &function.parameters[position as usize];
-                        assert!(matches!(unit.resolve(&parameter.ty).unwrap().kind, TypeKind::Pointer(_)));
+                        assert!(matches!(
+                            unit.resolve(&parameter.ty).unwrap().kind,
+                            TypeKind::Pointer(_)
+                        ));
                     }
                 }
                 pending.push(&function.return_type);

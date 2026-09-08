@@ -867,6 +867,9 @@ struct DeclaratorContext<'a> {
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) allocation_uses: u8,
+    pub(crate) allocation_evaluation: crate::allocation::Evaluation,
+    pub(crate) allocation_symbols: Option<Box<crate::allocation::Symbols>>,
     pub(crate) noreturn_registry: Option<Box<crate::noreturn::Registry>>,
     pub(crate) alignment_registry: Option<Box<crate::type_alignment::Registry>>,
     pub(crate) has_type_noreturn: bool,
@@ -967,6 +970,9 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            allocation_uses: 0,
+            allocation_evaluation: Default::default(),
+            allocation_symbols: None,
             noreturn_registry: None,
             alignment_registry: None,
             has_type_noreturn: crate::noescape::has_type_noreturn(&unit),
@@ -1053,6 +1059,7 @@ impl Analyzer {
 
     pub(crate) fn leave_prototype(&mut self) -> Vec<Parameter> {
         self.leave_noreturn_scope();
+        self.leave_allocation_scope();
         self.lexical_function_options
             .remove(&self.lexical_scopes.len());
         let scope = self
@@ -1443,6 +1450,29 @@ impl Analyzer {
             {
                 is_static = false;
             }
+            if !is_typedef {
+                let external = !is_static
+                    && !previous_index.is_some_and(|index| self.unit.declarations[index].is_static)
+                    && !self
+                        .block_externs
+                        .get(&name)
+                        .is_some_and(|prior| prior.is_static);
+                let builtin = self.allocation_declaration(
+                    &name,
+                    &mut ty,
+                    external,
+                    definition,
+                    &mut declarator_attributes.link_name,
+                    item.span.start,
+                )?;
+                if builtin
+                    && self.unit.compiler == Compiler::Gnu
+                    && name != "__builtin_free"
+                    && declarator_attributes.c11_noreturn.is_none()
+                {
+                    declarator_attributes.noreturn = None;
+                }
+            }
             let function_options = if kind == DeclarationKind::Function {
                 Some(self.check_function_options(&name, &declarator_attributes, previous_index)?)
             } else {
@@ -1650,7 +1680,10 @@ impl Analyzer {
                 previous.symbol_binding = symbol_binding;
                 previous.ty = ty;
                 previous.is_definition |= is_definition;
-                if previous.link_name.is_none() {
+                if previous.link_name.is_none()
+                    || (!is_static
+                        && crate::AllocationOperation::from_name(&previous.name).is_some())
+                {
                     previous.link_name = declarator_attributes.link_name;
                 }
                 previous_index
@@ -2523,7 +2556,13 @@ impl Analyzer {
                         ast::TypeSpecifier::TypeOf(value) => match &value.node {
                             ast::TypeOf::Type(ty) => {
                                 let checkpoint = self.sve_feature_checkpoint();
-                                let mut ty = self.type_name(&ty.node)?;
+                                let allocation_context = self.allocation_context(false);
+                                let ty = self.type_name(&ty.node);
+                                let mut ty = self.finish_allocation_operand(
+                                    allocation_context,
+                                    ty,
+                                    |analyzer, ty| analyzer.unit.is_variably_modified(ty),
+                                )?;
                                 if !self.unit.is_variably_modified(&ty)? {
                                     self.discard_sve_feature_uses(checkpoint);
                                 }
@@ -2532,7 +2571,13 @@ impl Analyzer {
                             }
                             ast::TypeOf::Expression(expression) => {
                                 let checkpoint = self.sve_feature_checkpoint();
-                                let mut ty = self.expression_type(expression)?;
+                                let allocation_context = self.allocation_context(false);
+                                let ty = self.expression_type(expression);
+                                let mut ty = self.finish_allocation_operand(
+                                    allocation_context,
+                                    ty,
+                                    |analyzer, ty| analyzer.unit.is_variably_modified(ty),
+                                )?;
                                 if !self.unit.is_variably_modified(&ty)? {
                                     self.discard_sve_feature_uses(checkpoint);
                                 }
@@ -3256,7 +3301,12 @@ impl Analyzer {
                         },
                         ast::ArraySize::VariableExpression(expression)
                         | ast::ArraySize::StaticExpression(expression) => {
-                            let bound = self.value_expression_type(expression)?;
+                            // Array bounds have their own expression context, even
+                            // inside a prototype or an unevaluated outer operand.
+                            let allocation_context = self.allocation_context(true);
+                            let bound = self.value_expression_type(expression);
+                            self.restore_allocation_context(allocation_context, false);
+                            let bound = bound?;
                             self.integer_type(&bound, expression.span.start)?;
                             let constant = if self.is_integer_constant_expression(expression, 0)? {
                                 // Undefined arithmetic does not form an ICE. Such an

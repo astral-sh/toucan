@@ -1045,7 +1045,8 @@ impl Analyzer {
                 if matches!(
                     self.unit.resolve(&ty)?.kind,
                     TypeKind::Array { .. } | TypeKind::Function(_)
-                ) && self.object_has_static_storage(&identifier.node.name)
+                ) && (self.object_has_static_storage(&identifier.node.name)
+                    || self.allocation_reference(&identifier.node.name)?.is_some())
                 {
                     Ok(ConstantKind::Address)
                 } else {
@@ -1212,7 +1213,9 @@ impl Analyzer {
             }
 
             ast::Expression::Identifier(identifier) => {
-                if self.object_has_static_storage(&identifier.node.name) {
+                if self.object_has_static_storage(&identifier.node.name)
+                    || self.allocation_reference(&identifier.node.name)?.is_some()
+                {
                     Ok(())
                 } else {
                     Err(invalid())

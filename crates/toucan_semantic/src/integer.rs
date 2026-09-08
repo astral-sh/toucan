@@ -80,7 +80,12 @@ impl Analyzer {
             }
             ast::Expression::SizeOfTy(size) => {
                 let checkpoint = self.sve_feature_checkpoint();
-                let ty = self.type_name(&size.node.0.node)?;
+                let allocation_context = self.allocation_context(false);
+                let ty = self.type_name(&size.node.0.node);
+                let ty =
+                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
+                        analyzer.unit.is_variable_length_array(ty)
+                    })?;
                 if !self.unit.is_variable_length_array(&ty)? {
                     self.discard_sve_feature_uses(checkpoint);
                 }
@@ -88,7 +93,12 @@ impl Analyzer {
             }
             ast::Expression::SizeOfVal(size) => {
                 let checkpoint = self.sve_feature_checkpoint();
-                let ty = self.expression_type(&size.node.0)?;
+                let allocation_context = self.allocation_context(false);
+                let ty = self.expression_type(&size.node.0);
+                let ty =
+                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
+                        analyzer.unit.is_variable_length_array(ty)
+                    })?;
                 if !self.unit.is_variable_length_array(&ty)? {
                     self.discard_sve_feature_uses(checkpoint);
                 }
@@ -371,7 +381,12 @@ impl Analyzer {
             }
             ast::Expression::SizeOfTy(size) => {
                 let checkpoint = self.sve_feature_checkpoint();
-                let ty = self.type_name(&size.node.0.node)?;
+                let allocation_context = self.allocation_context(false);
+                let ty = self.type_name(&size.node.0.node);
+                let ty =
+                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
+                        analyzer.unit.is_variable_length_array(ty)
+                    })?;
                 if !self.unit.is_variable_length_array(&ty)? {
                     self.discard_sve_feature_uses(checkpoint);
                 }
