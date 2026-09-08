@@ -54,6 +54,8 @@ fn generated_c90_bindings_call_compiled_definitions_and_preserve_constants() {
         assert!(report.skipped_macros.is_empty(), "{report:?}");
         let output = Command::new(&compiler)
             .arg(format!("-std={mode}"))
+            // Apple Clang promotes this valid C90 construct to an error by default.
+            .arg("-Wno-error=implicit-function-declaration")
             .arg("-c")
             .arg(&input)
             .arg("-o")

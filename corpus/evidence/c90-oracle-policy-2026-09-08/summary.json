@@ -1,0 +1,73 @@
+{
+  "source": "int f(void){return missing(1.0f);} int missing(double);\n",
+  "compiler": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n",
+  "warning_policy_wrapper": "#!/bin/sh\nexec /usr/bin/clang -Werror=implicit-function-declaration \"$@\"\n",
+  "controls": [
+    {
+      "command": [
+        "/tmp/toucan-c90-clang-error-default",
+        "-std=c90",
+        "-fsyntax-only",
+        "/tmp/toucan-c90-policy-control.c"
+      ],
+      "normalized": false,
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "/tmp/toucan-c90-policy-control.c:1:20: error: implicit declaration of function 'missing' [-Werror,-Wimplicit-function-declaration]\n    1 | int f(void){return missing(1.0f);} int missing(double);\n      |                    ^\n1 error generated.\n"
+    },
+    {
+      "command": [
+        "/tmp/toucan-c90-clang-error-default",
+        "-std=c90",
+        "-Wno-error=implicit-function-declaration",
+        "-fsyntax-only",
+        "/tmp/toucan-c90-policy-control.c"
+      ],
+      "normalized": true,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "/tmp/toucan-c90-policy-control.c:1:20: warning: implicit declaration of function 'missing' [-Wimplicit-function-declaration]\n    1 | int f(void){return missing(1.0f);} int missing(double);\n      |                    ^\n1 warning generated.\n"
+    },
+    {
+      "command": [
+        "/tmp/toucan-c90-clang-error-default",
+        "-std=gnu90",
+        "-fsyntax-only",
+        "/tmp/toucan-c90-policy-control.c"
+      ],
+      "normalized": false,
+      "exit_code": 1,
+      "stdout": "",
+      "stderr": "/tmp/toucan-c90-policy-control.c:1:20: error: implicit declaration of function 'missing' [-Werror,-Wimplicit-function-declaration]\n    1 | int f(void){return missing(1.0f);} int missing(double);\n      |                    ^\n1 error generated.\n"
+    },
+    {
+      "command": [
+        "/tmp/toucan-c90-clang-error-default",
+        "-std=gnu90",
+        "-Wno-error=implicit-function-declaration",
+        "-fsyntax-only",
+        "/tmp/toucan-c90-policy-control.c"
+      ],
+      "normalized": true,
+      "exit_code": 0,
+      "stdout": "",
+      "stderr": "/tmp/toucan-c90-policy-control.c:1:20: warning: implicit declaration of function 'missing' [-Wimplicit-function-declaration]\n    1 | int f(void){return missing(1.0f);} int missing(double);\n      |                    ^\n1 warning generated.\n"
+    }
+  ],
+  "macos_original": {
+    "run": 34259874578,
+    "job": 102174859446,
+    "compiler": "Apple Clang17.0.0 (clang-1700.0.13.5)",
+    "status": "two C90 oracle failures; implicit-function-declaration promoted to error"
+  },
+  "local_validation": {
+    "current_test_count": 7,
+    "rust_1_64_test_count": 1,
+    "scope": "GNU and Clang semantic checks, with the Apple diagnostic level reproduced using a Clang wrapper. Generated C90/GNU90 Rust FFI calls execute on native x86-64 Linux. Native macOS rerun remains separate."
+  },
+  "artifacts": {
+    "current.log.gz": "0396e93cc85bf51087c2d074223d07046813a10d8d527bfcc62789ca150b7633",
+    "macos-intel.log.gz": "f1053144bbc02bc80a1f89f8285f7fd9da1792974f3bb7d3e5cf560d981fa4ee",
+    "rust-1.64.log.gz": "098b44c328cc871670d5dcf8db8fff34f5001621301203d318098cc35f0ba767"
+  }
+}

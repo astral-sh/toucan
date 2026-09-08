@@ -194,3 +194,17 @@ this isolated test locally with Apple Clang; no headers are copied or edited.
 The separate native musl jobs validate actual musl sysroots and runtime calls.
 The [saved local validation](../corpus/evidence/apple-musl-resource-oracle-2026-09-08.json)
 records the failure, oracle selection, test results, and untouched header hashes.
+
+## Apple Clang's C90 implicit-declaration diagnostic
+
+Apple Clang 17 (`clang-1700.0.13.5`) treats implicit function declarations as
+errors by default even with `-std=c90` or `-std=gnu90`. The C90 scope and generated
+FFI tests exercise this valid language behavior, so their compiler commands use
+`-Wno-error=implicit-function-declaration`. Invalid redeclarations still require
+matching compiler rejection. C99 and later language checks are unchanged.
+
+The [evidence](../corpus/evidence/c90-oracle-policy-2026-09-08/summary.json)
+preserves the original Intel macOS failures and local controls that reproduce
+the diagnostic severity with Clang. The corrected scope checks and C/Rust calls
+pass locally, including actual Rust 1.64. Those local results do not replace
+native macOS CI validation.

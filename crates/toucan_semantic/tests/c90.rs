@@ -242,7 +242,11 @@ fn c90_scope_and_syntax_decisions_match_compilers() {
             ] {
                 std::fs::write(&input, source).unwrap();
                 let mut command = Command::new(if gnu { &gcc } else { &clang });
-                command.arg(format!("-std={mode}")).arg("-fsyntax-only");
+                // C90 implicit declarations remain valid despite Apple Clang
+                // promoting this diagnostic to an error by default.
+                command
+                    .arg(format!("-std={mode}"))
+                    .args(["-Wno-error=implicit-function-declaration", "-fsyntax-only"]);
                 if !gnu {
                     command.arg(format!("--target={}", profile.target()));
                 }
@@ -264,6 +268,7 @@ fn c90_scope_and_syntax_decisions_match_compilers() {
         .args([
             "--target=x86_64-pc-windows-msvc",
             "-std=c90",
+            "-Wno-error=implicit-function-declaration",
             "-O0",
             "-S",
             "-emit-llvm",
