@@ -1085,6 +1085,16 @@ fn invalid_quoted_header_names_are_diagnosed() {
 
 #[test]
 fn native_header_paths_use_host_filesystem_semantics() {
+    check_native_header_paths(false);
+}
+
+#[test]
+#[ignore = "requires a native C compiler (CC or cc); run with --include-ignored"]
+fn native_header_paths_match_c_compiler() {
+    check_native_header_paths(true);
+}
+
+fn check_native_header_paths(compare_compiler: bool) {
     use std::fs;
     use std::process::Command;
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -1174,6 +1184,10 @@ fn native_header_paths_use_host_filesystem_semantics() {
         .preprocess_str(&entry, &source)
         .unwrap_err();
     assert!(error.message.contains("missing absolute header"));
+
+    if !compare_compiler {
+        return;
+    }
 
     let compiler = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
     let output = Command::new(compiler)

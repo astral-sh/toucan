@@ -1,0 +1,1 @@
+double sum(int n, ...) { __builtin_va_list args, copy; __builtin_va_start(args, n); __builtin_va_copy(copy, args); double total=0; for (int i=0; i<n; ++i) total += __builtin_va_arg(copy, double); __builtin_va_end(copy); __builtin_va_end(args); return total; }

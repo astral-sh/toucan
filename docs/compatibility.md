@@ -196,10 +196,18 @@ exercise argument passing in addition to size and alignment. Successful probes
 establish the tested representations and calls; they do not validate every C
 declaration constraint or every possible use of these APIs.
 
-The [dependency audit](../corpus/evidence/dependency-audit-2026-09-08.json) found no
-known RustSec advisories in the workspace, fuzzing, or comparison tool lockfiles on
-2026-09-08. It records the database revision and lockfile checksums; yanked package
+The [expanded dependency audit](../corpus/evidence/dependency-audit-2026-09-08-expanded.json)
+found no known RustSec advisories or informational warnings across all five
+lockfiles: the workspace, fuzzing, comparison tool, zstd consumer, and SQLite
+consumer. It records the database revision and lockfile checksums; yanked package
 status was not checked.
+
+The [body-checking fuzz campaigns](../fuzz/evidence/readiness-2026-09-08.json)
+processed 1,281,684 inputs across preprocessing, semantic analysis, and binding
+generation after fixing exponential record-member traversal and recursive parser
+stack exhaustion. Each campaign ran for 301 seconds with AddressSanitizer and
+explicit input, time, and memory limits. The report records the tested sources;
+it does not cover subsequent changes or establish complete safety.
 
 ## Requirements for a production release
 

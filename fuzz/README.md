@@ -32,3 +32,43 @@ AddressSanitizer was enabled. LeakSanitizer was disabled for these local runs be
 it cannot inspect processes in the development environment's ptrace sandbox. CI
 runs the default sanitizer configuration. These small runs leave substantial work
 for sustained fuzzing and independent review.
+
+## Body checking and resource limits
+
+The [body-checking campaign](evidence/readiness-2026-09-08.json) records three
+301-second runs after the record traversal and parser-chain fixes:
+
+| Target | Fuzzer inputs | Maximum input size | Peak RSS |
+| --- | ---: | ---: | ---: |
+| Preprocessor | 641,846 | 16 KiB | 525 MiB |
+| Semantics and layout | 588,980 | 16 KiB | 513 MiB |
+| Bindings | 50,858 | 8 KiB | 514 MiB |
+
+All three runs completed without sanitizer findings, timeouts, or memory-limit
+failures. Inputs include invalid C and rejected UTF-8; these counts do not measure
+accepted programs or output equivalence. The harnesses use the x86_64 Linux target
+and the binding harness uses default options. New seeds cover GNU statement
+expressions, variadic bodies, variable arrays, inline assembly, sparse
+initializers, repeated record members, and control flow. The shared `c.dict`
+provides C and preprocessor syntax for mutations. All semantic and binding seeds
+were separately checked for frontend acceptance.
+
+The accompanying boundedness review found two defects that mutation limits alone
+would not reliably reach: repeated record-member traversal made a 981-byte
+assignment exceed the five-second timeout, and 94–105 KiB label/statement chains
+overflowed the parser stack. The report preserves reproducer hashes, before/after
+results, compiler and binary hashes, source hashes, seeds, commands, and limits.
+The fixes also passed 5,444 native corpus comparisons with unchanged Rust output.
+
+AddressSanitizer was enabled. A direct LeakSanitizer probe failed because process
+inspection is unavailable under ptrace; leak checking remained disabled. These
+bounded local runs complement the compiler differential tests and native FFI
+checks. They do not establish complete safety or frontend conformance.
+
+To reproduce a target with the checked-in seeds and dictionary:
+
+```console
+mkdir -p /tmp/toucan-fuzz-semantic
+cp fuzz/seeds/semantic/*.h /tmp/toucan-fuzz-semantic/
+cargo +nightly fuzz run semantic /tmp/toucan-fuzz-semantic -- -dict=fuzz/c.dict -max_total_time=300 -max_len=16384 -len_control=0 -timeout=5 -rss_limit_mb=1024 -print_final_stats=1
+```
