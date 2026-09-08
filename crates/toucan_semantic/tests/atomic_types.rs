@@ -354,7 +354,7 @@ fn native_atomic_reads_stores_updates_and_bounds() {
     std::fs::create_dir_all(&folder).unwrap();
     std::fs::write(folder.join("probe.c"), NATIVE_OPERATIONS).unwrap();
     let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
-    for compiler in [gcc, "clang".into()] {
+    for (compiler, gnu) in [(gcc, true), ("clang".into(), false)] {
         for optimization in ["-O0", "-O2"] {
             let mut command = Command::new(&compiler);
             command.current_dir(&folder).args([
@@ -364,8 +364,13 @@ fn native_atomic_reads_stores_updates_and_bounds() {
                 "-o",
                 "probe",
             ]);
+            if gnu || cfg!(target_os = "linux") {
+                // GCC's atomic float updates use __atomic_feraiseexcept on
+                // AArch64 Darwin too; its implementation lives in libatomic.
+                command.arg("-latomic");
+            }
             if cfg!(target_os = "linux") {
-                command.args(["-latomic", "-lm"]);
+                command.arg("-lm");
             }
             let output = command.output().unwrap();
             assert!(
