@@ -16,6 +16,7 @@ pub struct Env {
     pub gnu_keywords: bool,
     pub extensions_clang: bool,
     pub extensions_msvc: bool,
+    pub clang_calling_conventions: bool,
     pub gnu_float128_typedef: bool,
     pub reserved: HashSet<&'static str>,
     // Parameter scopes are normally discarded at the end of their declarators.
@@ -34,6 +35,7 @@ impl Env {
             gnu_keywords: false,
             extensions_clang: false,
             extensions_msvc: false,
+            clang_calling_conventions: false,
             gnu_float128_typedef: false,
             symbols: vec![HashMap::default()],
             reserved,
@@ -52,6 +54,7 @@ impl Env {
             gnu_keywords: true,
             extensions_clang: false,
             extensions_msvc: false,
+            clang_calling_conventions: false,
             gnu_float128_typedef: true,
             symbols: vec![symbols],
             reserved,
@@ -65,12 +68,14 @@ impl Env {
         reserved.extend(strings::RESERVED_C11.iter());
         reserved.extend(strings::RESERVED_GNU.iter());
         reserved.extend(strings::RESERVED_CLANG.iter());
+        reserved.extend(strings::RESERVED_CLANG_CALLING_CONVENTIONS.iter());
         Env {
             definition_scopes: None,
             extensions_gnu: true,
             gnu_keywords: true,
             extensions_clang: true,
             extensions_msvc: false,
+            clang_calling_conventions: true,
             gnu_float128_typedef: false,
             symbols: vec![symbols],
             reserved,
@@ -81,6 +86,10 @@ impl Env {
         let mut env = Self::with_clang();
         env.gnu_float128_typedef = true;
         env.reserved.remove("__float128");
+        env.clang_calling_conventions = false;
+        for name in strings::RESERVED_CLANG_CALLING_CONVENTIONS {
+            env.reserved.remove(name);
+        }
         env
     }
 
@@ -96,6 +105,15 @@ impl Env {
     }
 
     pub fn set_msvc_extensions(&mut self, enabled: bool) {
+        if !self.clang_calling_conventions && self.extensions_msvc != enabled {
+            for name in strings::RESERVED_CLANG_CALLING_CONVENTIONS {
+                if enabled {
+                    self.reserved.insert(name);
+                } else {
+                    self.reserved.remove(name);
+                }
+            }
+        }
         self.extensions_msvc = enabled;
         for name in strings::RESERVED_MSVC {
             if enabled {

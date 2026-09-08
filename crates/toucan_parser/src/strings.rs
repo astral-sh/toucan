@@ -102,7 +102,29 @@ pub const RESERVED_GNU: &[&str] = &[
 
 // Ref: https://clang.llvm.org/docs/AttributeReference.html
 pub const RESERVED_MSVC: &[&str] = &[
-    "_int8", "__int8", "_int16", "__int16", "_int32", "__int32", "_int64", "__int64",
+    "_int8",
+    "__int8",
+    "_int16",
+    "__int16",
+    "_int32",
+    "__int32",
+    "_int64",
+    "__int64",
+    "_cdecl",
+    "_stdcall",
+    "_fastcall",
+    "_thiscall",
+    "_vectorcall",
+];
+
+pub const RESERVED_CLANG_CALLING_CONVENTIONS: &[&str] = &[
+    "__cdecl",
+    "__stdcall",
+    "__fastcall",
+    "__thiscall",
+    "__vectorcall",
+    "__regcall",
+    "__pascal",
 ];
 
 pub const RESERVED_CLANG: &[&str] = &[
@@ -112,12 +134,6 @@ pub const RESERVED_CLANG: &[&str] = &[
     "__multiple_inheritance",
     "__virtual_inheritance",
     "__unspecified_inheritance",
-    // Calling conventions
-    "__fastcall",
-    "__regcall",
-    "__stdcall",
-    "__thiscall",
-    "__vectorcall",
     // Nullability attributes
     "_Nonnull",
     "_Null_unspecified",

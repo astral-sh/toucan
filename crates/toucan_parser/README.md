@@ -40,6 +40,14 @@ their written widths; semantic checking determines their C types and valid
 specifier combinations. With this option disabled, these names remain available
 as ordinary identifiers and typedef names.
 
+Calling-convention keywords retain a distinct extension node and their original
+spelling. Clang flavors recognize `__cdecl`, `__stdcall`, `__fastcall`,
+`__thiscall`, `__vectorcall`, `__regcall`, and `__pascal`; Microsoft extensions
+also enable the single-underscore aliases except `_regcall` and `_pascal`.
+Keywords are accepted in declaration specifiers, pointer qualifiers, and
+parenthesized named or abstract declarators. Semantic checking determines which
+conventions affect the selected target.
+
 GNU attributes on null statements have a distinct `Statement::Attribute` node.
 Semantic checking determines which statement annotations are supported; the visitor
 preserves their attributes and source spans.

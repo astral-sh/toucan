@@ -1,7 +1,7 @@
 extern crate toucan_parser;
 
-use toucan_parser::ast::TypeSpecifier;
-use toucan_parser::driver::{parse_preprocessed, parse_preprocessed_with_limits, Config};
+use toucan_parser::ast::{Extension, TypeSpecifier};
+use toucan_parser::driver::{parse_preprocessed, parse_preprocessed_with_limits, Config, Flavor};
 use toucan_parser::limits::{ParseLimits, ResourceKind};
 use toucan_parser::span::Span;
 use toucan_parser::visit::{self, Visit};
@@ -54,4 +54,44 @@ fn microsoft_widths_preserve_spans_and_resource_limits() {
         parsed.statistics
     );
     assert!(parse_preprocessed(&Config::with_clang(), source.into()).is_err());
+}
+
+#[derive(Default)]
+struct Conventions(Vec<(String, Span)>);
+
+impl<'ast> Visit<'ast> for Conventions {
+    fn visit_extension(&mut self, extension: &'ast Extension, span: &'ast Span) {
+        if let Extension::CallingConvention(attribute) = extension {
+            self.0.push((attribute.name.node.clone(), *span));
+        }
+        visit::visit_extension(self, extension, span);
+    }
+}
+
+#[test]
+fn calling_keywords_keep_their_written_spelling_and_span() {
+    let source = "typedef int (__cdecl *F)(int); int (*_stdcall value)(int);";
+    let config = Config {
+        extensions_msvc: true,
+        ..Config::with_clang()
+    };
+    let parsed = parse_preprocessed(&config, source.into()).unwrap();
+    let mut conventions = Conventions::default();
+    conventions.visit_translation_unit(&parsed.unit);
+    assert_eq!(
+        conventions
+            .0
+            .iter()
+            .map(|(name, span)| (name.as_str(), &source[span.start..span.end]))
+            .collect::<Vec<_>>(),
+        [("__cdecl", "__cdecl"), ("_stdcall", "_stdcall")]
+    );
+    let core = Config {
+        flavor: Flavor::StdC11,
+        ..config
+    };
+    assert_eq!(
+        parse_preprocessed(&core, source.into()).unwrap().unit,
+        parsed.unit
+    );
 }

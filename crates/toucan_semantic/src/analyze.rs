@@ -2831,6 +2831,33 @@ impl Analyzer {
             ));
         }
         self.nesting += 1;
+        // In a parenthesized declarator, its incoming type may already be a
+        // function. Leading conventions annotate that function before a new
+        // pointer or an outer function is constructed around it.
+        let mut leading_convention_applied = false;
+        if self.unit.compiler == Compiler::Clang
+            && declaration
+                .node
+                .extensions
+                .iter()
+                .any(|extension| is_calling_extension(&extension.node))
+            && self.has_function_boundary(&ty)?
+        {
+            let extensions = declaration
+                .node
+                .extensions
+                .iter()
+                .filter(|extension| is_calling_extension(&extension.node))
+                .cloned()
+                .collect::<Vec<_>>();
+            let mut attributes = Attributes {
+                alias_base,
+                ..Attributes::default()
+            };
+            self.attributes(&extensions, &mut attributes)?;
+            ty = self.apply_calling_convention(ty, &attributes, declaration.span.start)?;
+            leading_convention_applied = true;
+        }
         let mut type_use = if let Some(checked) = &mut self.checked {
             Some(match base_use {
                 Some(id) => id,
@@ -2840,6 +2867,7 @@ impl Analyzer {
             None
         };
         let mut alias_convention = None;
+        let mut pending_pointer_convention = None;
         let mut nodebug_arguments = None;
         let mut target_attributes = Vec::new();
         let mut minimum_vector_width = Vec::new();
@@ -2898,6 +2926,18 @@ impl Analyzer {
                                         attributes.calling_convention,
                                         qualifier.span.start,
                                     )?;
+                                }
+                                if self.unit.compiler == Compiler::Clang
+                                    && attributes.calling_convention.is_some()
+                                {
+                                    attributes.alias_base = true;
+                                    if !self.has_function_boundary(&pointer)? {
+                                        merge_convention(
+                                            &mut pending_pointer_convention,
+                                            attributes.calling_convention.take(),
+                                            qualifier.span.start,
+                                        )?;
+                                    }
                                 }
                                 pointer = self.apply_calling_convention(
                                     pointer,
@@ -3288,7 +3328,11 @@ impl Analyzer {
         if let Some(bytes) = attributes.vector_size {
             ty = self.vector_type(ty, bytes, declaration.span.start)?;
         }
-        let calling_convention = attributes.calling_convention;
+        let calling_convention = if leading_convention_applied {
+            None
+        } else {
+            attributes.calling_convention
+        };
         let (name, ty, mut attributes) = match &declaration.node.kind.node {
             ast::DeclaratorKind::Identifier(identifier) => {
                 (Some(identifier.node.name.clone()), ty, attributes)
@@ -3358,6 +3402,17 @@ impl Analyzer {
                 calling_convention,
                 alias_base,
                 type_noreturn: attributes.type_noreturn,
+                ..Attributes::default()
+            },
+            declaration.span.start,
+        )?;
+        // A convention after `*` can precede its function prototype, as in
+        // `int *__cdecl f(int)`, when no incoming callback type consumed it.
+        let ty = self.apply_calling_convention(
+            ty,
+            &Attributes {
+                calling_convention: pending_pointer_convention,
+                alias_base: true,
                 ..Attributes::default()
             },
             declaration.span.start,
@@ -3917,6 +3972,24 @@ impl Analyzer {
         self.apply_convention_at(ty, convention, offset, 0, attributes.alias_base)
     }
 
+    /// Finds a function through declarator pointers and arrays, without walking
+    /// through the function's return type or record members.
+    fn has_function_boundary<'a>(&'a self, mut ty: &'a Type) -> Result<bool, Error> {
+        for _ in 0..128 {
+            match &self.unit.resolve(ty)?.kind {
+                TypeKind::Function(_) => return Ok(true),
+                TypeKind::Pointer(element)
+                | TypeKind::Array { element, .. }
+                | TypeKind::VariableArray { element, .. } => ty = element,
+                _ => return Ok(false),
+            }
+        }
+        Err(Error::new(
+            0,
+            "calling convention type nesting exceeds the 128-level limit",
+        ))
+    }
+
     fn apply_convention_at(
         &self,
         ty: Type,
@@ -4060,8 +4133,25 @@ impl Analyzer {
                     )?);
                 }
                 ast::Extension::AvailabilityAttribute(_) => {}
-                ast::Extension::Attribute(attribute) => {
+                ast::Extension::Attribute(attribute)
+                | ast::Extension::CallingConvention(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
+                    if matches!(extension.node, ast::Extension::CallingConvention(_)) {
+                        match name {
+                            "pascal" => continue,
+                            "vectorcall" | "regcall" if self.unit.target.is_aarch64() => continue,
+                            "vectorcall" | "regcall" => {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    format!(
+                                        "unsupported calling-convention keyword `{}` on this target",
+                                        attribute.name.node
+                                    ),
+                                ));
+                            }
+                            _ => {}
+                        }
+                    }
                     match crate::attributes::Attribute::from_name(name) {
                         Some(crate::attributes::Attribute::MinimumVectorWidth) => {
                             if self.unit.compiler == Compiler::Gnu || result.target_type_name {
@@ -4431,6 +4521,25 @@ impl Analyzer {
             .layout(&ty)
             .map_err(|error| Error::new(offset, error.message))?;
         Ok(ty)
+    }
+}
+
+/// Type attributes that attach to the next function boundary of a declarator.
+fn is_calling_extension(extension: &ast::Extension) -> bool {
+    match extension {
+        ast::Extension::CallingConvention(_) => true,
+        ast::Extension::Attribute(attribute) => matches!(
+            attribute.name.node.trim_matches('_'),
+            "cdecl"
+                | "stdcall"
+                | "fastcall"
+                | "thiscall"
+                | "ms_abi"
+                | "sysv_abi"
+                | "aarch64_vector_pcs"
+                | "aarch64_sve_pcs"
+        ),
+        _ => false,
     }
 }
 

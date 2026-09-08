@@ -1596,7 +1596,9 @@ pub fn visit_extension<'ast, V: Visit<'ast> + ?Sized>(
     span: &'ast Span,
 ) {
     match *extension {
-        Extension::Attribute(ref a) => visitor.visit_attribute(a, span),
+        Extension::Attribute(ref a) | Extension::CallingConvention(ref a) => {
+            visitor.visit_attribute(a, span)
+        }
         Extension::AsmLabel(ref a) => visitor.visit_string_literal(&a.node, &a.span),
         Extension::AvailabilityAttribute(ref a) => {
             visitor.visit_availability_attribute(&a.node, &a.span)

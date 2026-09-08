@@ -323,6 +323,27 @@ diagnostics. Nonfunction attachments also produce diagnostics. Clang's
 
 ## Calling conventions
 
+Clang profiles recognize the `__cdecl`, `__stdcall`, `__fastcall`, and
+`__thiscall` keywords in function declarations, callbacks, casts, and typedefs.
+The MSVC profile also accepts `_cdecl`, `_stdcall`, `_fastcall`, `_thiscall`, and
+`_vectorcall`. GNU profiles leave the double-underscore keyword names available
+as ordinary identifiers. `__stdcall`, `__fastcall`, `__thiscall`, and `__pascal`
+are ignored on the supported 64-bit targets, as in Clang; `__cdecl` retains an
+explicit request for the target's default convention.
+
+Declaration placement selects the function type. For example, if `Microsoft` is
+an `ms_abi` function typedef on x86-64 Linux, `Microsoft *__cdecl f(int)` changes
+the returned callback to the C convention. A convention written on a pointer can
+replace the convention of its function type; a conflicting convention directly
+on the function typedef remains an error. Native tests exercise generated
+bindings returning both C and Microsoft callbacks, and C calls into Rust
+callbacks, with optimized and unoptimized C and Rust.
+
+`__vectorcall` and `__regcall` use unsupported x86-64 ABIs and produce explicit
+diagnostics. AArch64 ignores these keywords as Clang does. Accepting these
+keywords does not establish Windows SDK header or native Windows runtime
+coverage.
+
 Function types retain GNU `ms_abi` and `sysv_abi` attributes on x86-64. Compatibility
 checks distinguish the two conventions and follow the target compiler profile for
 attribute placement and inherited declarations. Rust declarations, function typedefs,

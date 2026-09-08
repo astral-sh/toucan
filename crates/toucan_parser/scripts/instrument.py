@@ -81,7 +81,7 @@ def instrument(source):
         r"\1\n                if !__state.budget.step(__pos) { return Failed; }",
         source,
     )
-    require(loops == changed == 79, (loops, changed))
+    require(loops == changed == 81, (loops, changed))
     # Exhaustion is terminal, including optional, repetition and negative-lookahead
     # branches. Ordinary Failed => Failed arms already propagate without actions.
     source, guarded = re.subn(
@@ -89,7 +89,7 @@ def instrument(source):
         r"\1Failed if __state.budget.failure.is_some() => return Failed,\1\2",
         source,
     )
-    require(guarded == 510, guarded)
+    require(guarded == 531, guarded)
 
     def wrap(body, indent):
         prefix = f"""{indent}if !__state.budget.enter(__pos) {{ return Failed; }}
@@ -117,7 +117,7 @@ def instrument(source):
         re.MULTILINE | re.DOTALL,
     )
     source, count = rules.subn(lambda m: m[1] + wrap(m[2], "    ") + m[3], source)
-    require(count == 235, count)
+    require(count == 239, count)
 
     exports = re.compile(
         r"pub fn (\w+)<'input>\(__input: &'input str, env: &mut Env\) -> ParseResult<([^\n]+)> \{\n.*?\n\}",

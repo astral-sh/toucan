@@ -1256,6 +1256,8 @@ pub enum Extension {
     ///
     /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Attribute-Syntax.html)
     Attribute(Attribute),
+    /// A calling-convention keyword such as `__cdecl`, preserving its spelling.
+    CallingConvention(Attribute),
     /// Assembler name for an object
     ///
     /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Asm-Labels.html)

@@ -559,6 +559,7 @@ declaration_specifiers_nonunique  -> Vec<Node<DeclarationSpecifier>> =
     list0<node<declaration_specifier_nontype / declaration_specifier_nonunique_type0>>
 
 declaration_specifier_nontype -> DeclarationSpecifier =
+    s:node<calling_convention_keyword> { DeclarationSpecifier::Extension(vec![s]) } /
     s:storage_class_specifier { DeclarationSpecifier::StorageClass(s) } /
     s:type_qualifier { DeclarationSpecifier::TypeQualifier(s) } /
     s:function_specifier { DeclarationSpecifier::Function(s) } /
@@ -715,6 +716,7 @@ specifier_qualifier_nonunique_type0 -> SpecifierQualifier =
     s:node<type_specifier_nonunique> { SpecifierQualifier::TypeSpecifier(s) }
 
 specifier_qualifier_qualifier0 -> SpecifierQualifier =
+    s:node<calling_convention_keyword> { SpecifierQualifier::Extension(vec![s]) } /
     a:alignment_specifier { SpecifierQualifier::Alignment(a) } /
     q:type_qualifier { SpecifierQualifier::TypeQualifier(q) } /
     e:gnu<attribute_specifier> { SpecifierQualifier::Extension(e) }
@@ -803,7 +805,7 @@ alignment_specifier0 -> AlignmentSpecifier =
 declarator -> Node<Declarator> = node<declarator0>
 
 declarator0 -> Declarator =
-    attr:gnu<attribute_specifier_list>? _
+    attr:declarator_prefix_extensions _
     pointer:list0<pointer> _
     kind:node<direct_declarator> _
     derived:list0<node<derived_declarator>>
@@ -811,7 +813,7 @@ declarator0 -> Declarator =
         Declarator {
             kind: kind,
             derived: concat(pointer, derived),
-            extensions: attr.unwrap_or_default(),
+            extensions: attr,
         }
     }
 
@@ -882,6 +884,7 @@ pointer0 -> DerivedDeclarator =
     }
 
 pointer_qualifier -> PointerQualifier =
+    s:node<calling_convention_keyword> { PointerQualifier::Extension(vec![s]) } /
     q:type_qualifier { PointerQualifier::TypeQualifier(q) } /
     e:gnu<attribute_specifier> { PointerQualifier::Extension(e) }
 
@@ -924,6 +927,9 @@ type_name0 -> TypeName =
 abstract_declarator -> Node<Declarator> = node<abstract_declarator0>
 
 abstract_declarator0 -> Declarator =
+    attr:list1<node<calling_convention_keyword>> _ d:abstract_declarator0 {
+        Declarator { extensions: concat(attr, d.extensions), ..d }
+    } /
     p:list0<pointer> _ k:node<direct_abstract_declarator> _ d:list0<derived_abstract_declarator> {
         Declarator {
             kind: k,
@@ -1268,6 +1274,23 @@ msvc_guard = {? if env.extensions_msvc { Ok(()) } else { Err("Microsoft extensio
 
 msvc_integer_width -> u8 =
     "_" "_"? "int" width:("8" { 8 } / "16" { 16 } / "32" { 32 } / "64" { 64 }) { width }
+
+declarator_prefix_extensions -> Vec<Node<Extension>> =
+    attrs:list0<gnu<attribute_specifier> / (a:node<calling_convention_keyword> { vec![a] })> {
+        attrs.into_iter().flat_map(|a| a).collect()
+    }
+
+calling_convention_keyword -> Extension =
+    name:node<calling_convention_name> {
+        Extension::CallingConvention(Attribute { name, arguments: Vec::new() })
+    }
+
+calling_convention_name -> String =
+    &clang_calling_guard
+    name:$(K<"__" ("cdecl" / "stdcall" / "fastcall" / "thiscall" / "vectorcall" / "regcall" / "pascal")>) { name.into() } /
+    name:$(msvc<K<"_" ("cdecl" / "stdcall" / "fastcall" / "thiscall" / "vectorcall")>>) { name.into() }
+
+clang_calling_guard = {? if env.clang_calling_conventions || env.extensions_msvc { Ok(()) } else { Err("calling convention keywords disabled") } }
 
 ////
 // GNU attributes
