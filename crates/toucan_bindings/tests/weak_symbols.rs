@@ -140,6 +140,26 @@ fn c_wrappers_observe_missing_weak_symbols_and_strong_overrides() {
             "{}",
             String::from_utf8_lossy(&output.stderr)
         );
+        let provider = directory.path().join("liboptional.dylib");
+        let hidden_provider = directory.path().join("liboptional.hidden");
+        if cfg!(target_os = "macos") {
+            // Mach-O resolves weak imports against a provider at link time.
+            // A weakly loaded provider may then be absent at runtime.
+            let output = Command::new(compiler)
+                .arg("-dynamiclib")
+                .arg("strong.o")
+                .arg("-o")
+                .arg(&provider)
+                .arg(format!("-Wl,-install_name,{}", provider.display()))
+                .current_dir(directory.path())
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{compiler}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
         for present in [false, true] {
             let mut command = Command::new("rustc");
             command
@@ -157,18 +177,29 @@ fn c_wrappers_observe_missing_weak_symbols_and_strong_overrides() {
                 .current_dir(directory.path());
             if present {
                 command.args(["-C", "link-arg=strong.o"]);
+            } else if cfg!(target_os = "macos") {
+                command
+                    .arg("-C")
+                    .arg(format!("link-arg=-Wl,-weak_library,{}", provider.display()));
             }
             let output = command.output().unwrap();
             assert!(
                 output.status.success(),
-                "rustc: {}",
+                "{compiler} fixture, rustc: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
             let mut command = Command::new(directory.path().join("probe"));
             if present {
                 command.arg("present");
             }
-            assert!(command.status().unwrap().success());
+            if !present && cfg!(target_os = "macos") {
+                std::fs::rename(&provider, &hidden_provider).unwrap();
+            }
+            let status = command.status();
+            if !present && cfg!(target_os = "macos") {
+                std::fs::rename(&hidden_provider, &provider).unwrap();
+            }
+            assert!(status.unwrap().success(), "{compiler}: present={present}");
         }
     }
 }
