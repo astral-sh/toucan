@@ -175,22 +175,50 @@ fn date_time_obey_builtin_redefinition_and_expansion_rules() {
 }
 
 #[test]
+#[ignore = "requires GCC or Clang with SOURCE_DATE_EPOCH support; run with --include-ignored"]
 fn date_time_match_native_preprocessor() {
     use std::io::Write;
     use std::process::{Command, Stdio};
 
-    let mut timestamps: Vec<_> = TIMESTAMPS.iter().map(|&(seconds, _, _)| seconds).collect();
-    // Sample the whole supported range, beyond the explicit calendar boundaries.
+    let compiler = std::env::var_os("CC").unwrap_or_else(|| "cc".into());
+    let version = Command::new(&compiler).arg("--version").output().unwrap();
+    assert!(version.status.success(), "C compiler --version failed");
+    let version = String::from_utf8(version.stdout).unwrap();
+    assert!(
+        version.contains("Free Software Foundation")
+            || version.to_ascii_lowercase().contains("clang"),
+        "date oracle requires GCC or Clang, got: {version}"
+    );
+    // The Windows CRT's _gmtime64 ends at 3000-12-31 23:59:59 UTC.
+    // MinGW GCC can crash when libcpp dereferences an out-of-range gmtime result.
+    // Keep Toucan's full range covered by the pure tests above; native probes
+    // only compare timestamps within the host runtime's documented range.
+    // https://learn.microsoft.com/cpp/c-runtime-library/reference/gmtime-gmtime32-gmtime64
+    let oracle_max = if cfg!(windows) {
+        32_535_215_999
+    } else {
+        PreprocessingTimestamp::MAX_UNIX_SECONDS
+    };
+    eprintln!("date oracle: {version}; maximum epoch {oracle_max}");
+    let mut timestamps: Vec<_> = TIMESTAMPS
+        .iter()
+        .map(|&(seconds, _, _)| seconds)
+        .filter(|seconds| *seconds <= oracle_max)
+        .collect();
+    if !timestamps.contains(&oracle_max) {
+        timestamps.push(oracle_max);
+    }
+    // Sample the oracle's supported range beyond the calendar boundaries.
     let mut state = 0x1234_5678_u64;
     for _ in 0..48 {
         state = state
             .wrapping_mul(6_364_136_223_846_793_005)
             .wrapping_add(1);
-        timestamps.push(state % (PreprocessingTimestamp::MAX_UNIX_SECONDS + 1));
+        timestamps.push(state % (oracle_max + 1));
     }
     let source = "#if !defined(__DATE__) || !defined(__TIME__)\n#error missing standard macro\n#endif\n#define DATE __DATE__\n#define TIME __TIME__\nDATE TIME\n#line 90 \"remapped.h\"\nDATE TIME\n";
     for seconds in timestamps {
-        let mut child = Command::new(std::env::var_os("CC").unwrap_or_else(|| "cc".into()))
+        let mut child = Command::new(&compiler)
             .args(["-E", "-P", "-std=c11", "-pedantic-errors", "-x", "c", "-"])
             .env("SOURCE_DATE_EPOCH", seconds.to_string())
             .env("TZ", "Pacific/Honolulu")
@@ -208,7 +236,7 @@ fn date_time_match_native_preprocessor() {
         let output = child.wait_with_output().unwrap();
         assert!(
             output.status.success(),
-            "{}",
+            "timestamp {seconds}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
         let expected = String::from_utf8(output.stdout).unwrap();

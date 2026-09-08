@@ -7,7 +7,7 @@ use toucan_semantic::{
 };
 use toucan_target::Target;
 
-const NATIVE: Target = Target::X86_64UnknownLinuxGnu;
+const GNU: Target = Target::X86_64UnknownLinuxGnu;
 
 fn strings(tokens: &[&str], target: Target) -> toucan_semantic::DecodedString {
     let tokens = tokens
@@ -19,31 +19,31 @@ fn strings(tokens: &[&str], target: Target) -> toucan_semantic::DecodedString {
 
 #[test]
 fn escapes_preserve_code_units_and_concatenation_boundaries() {
-    let value = strings(&[r#""\a\b\f\n\r\t\v\\\'\"\?\0\1\10\100\xff""#], NATIVE);
+    let value = strings(&[r#""\a\b\f\n\r\t\v\\\'\"\?\0\1\10\100\xff""#], GNU);
     assert_eq!(
         value.to_bytes().unwrap(),
         [7, 8, 12, 10, 13, 9, 11, 92, 39, 34, 63, 0, 1, 8, 64, 255, 0]
     );
     assert_eq!(
-        strings(&[r#""\0123\x40""#, r#""A""#], NATIVE).code_units,
+        strings(&[r#""\0123\x40""#, r#""A""#], GNU).code_units,
         [10, 51, 64, 65, 0]
     );
     assert_eq!(
-        strings(&[r#""\x1234""#, r#"L"""#], NATIVE).code_units,
+        strings(&[r#""\x1234""#, r#"L"""#], GNU).code_units,
         [0x1234, 0]
     );
-    assert_eq!(strings(&[r#"u"\xd800""#], NATIVE).code_units, [0xd800, 0]);
+    assert_eq!(strings(&[r#"u"\xd800""#], GNU).code_units, [0xd800, 0]);
     assert_eq!(
-        strings(&[r#"U"\xffffffff""#], NATIVE).code_units,
+        strings(&[r#"U"\xffffffff""#], GNU).code_units,
         [u32::MAX, 0]
     );
     assert_eq!(
-        strings(&[r#""\u0024\u0040\u0060""#], NATIVE)
+        strings(&[r#""\u0024\u0040\u0060""#], GNU)
             .to_bytes()
             .unwrap(),
         b"$@`\0"
     );
-    assert!(strings(&[r#"u"abc""#], NATIVE).to_bytes().is_none());
+    assert!(strings(&[r#"u"abc""#], GNU).to_bytes().is_none());
     for literal in [
         r#""\x""#,
         r#""\x100""#,
@@ -58,11 +58,11 @@ fn escapes_preserve_code_units_and_concatenation_boundaries() {
         r#""\U00110000""#,
         r#""\u12""#,
     ] {
-        let error = decode_string_literals(&[literal.to_owned()], NATIVE, 17).unwrap_err();
+        let error = decode_string_literals(&[literal.to_owned()], GNU, 17).unwrap_err();
         assert_eq!(error.offset, 17, "{literal}");
     }
     for tokens in [[r#"u8"x""#, r#"L"y""#], [r#"u"x""#, r#"U"y""#]] {
-        assert!(decode_string_literals(&tokens.map(str::to_owned), NATIVE, 0).is_err());
+        assert!(decode_string_literals(&tokens.map(str::to_owned), GNU, 0).is_err());
     }
 }
 
@@ -242,7 +242,7 @@ fn literal_types_check_initializers_on_every_target() {
 fn decoding_limits_public_input_before_allocating_code_units() {
     let source = format!("\"{}\"", "a".repeat(16 * 1024 * 1024));
     assert!(
-        decode_string_literals(&[source], NATIVE, 0)
+        decode_string_literals(&[source], GNU, 0)
             .unwrap_err()
             .message
             .contains("limit")
@@ -268,6 +268,7 @@ fn compile(compiler: &str, source: &str, args: &[&str]) -> std::process::Output 
 #[test]
 #[ignore = "requires GCC and Clang; run with --include-ignored"]
 fn literal_constraints_match_native_compilers() {
+    let target = native_target();
     for compiler in ["gcc", "clang"] {
         for (sources, valid) in [(VALID, true), (INVALID, false)] {
             for source in sources {
@@ -280,7 +281,7 @@ fn literal_constraints_match_native_compilers() {
                 );
             }
         }
-        let output = compile(compiler, &wide_source(NATIVE), &["-fsyntax-only"]);
+        let output = compile(compiler, &wide_source(target), &["-fsyntax-only"]);
         assert!(
             output.status.success(),
             "{compiler}: {}",
@@ -312,9 +313,9 @@ fn literal_types_match_clang_on_every_target() {
 #[test]
 fn universal_character_spelling_survives_the_parser_adapter() {
     let source = r#"enum { A = U'\u00e9', B = U'\U0001f600' }; _Static_assert(A == 233 && B == 128512, "values");"#;
-    analyze(source, NATIVE).unwrap();
+    analyze(source, GNU).unwrap();
     let source = r#"int x; enum { X = U'\u0041' };"#;
-    let error = analyze(source, NATIVE).unwrap_err();
+    let error = analyze(source, GNU).unwrap_err();
     assert_eq!(error.offset, source.find("U'").unwrap());
     assert!(error.message.contains("universal character name"));
 }
@@ -322,6 +323,7 @@ fn universal_character_spelling_survives_the_parser_adapter() {
 #[test]
 #[ignore = "requires native GCC and Clang; run with --include-ignored"]
 fn code_units_and_character_values_match_native_compilers() {
+    let target = native_target();
     let literals: &[&[&str]] = &[
         &[r#""\a\b\f\n\r\t\v\\\'\"\?\0\1\10\100\xff""#],
         &[r#""\0123\x40""#, r#""A""#],
@@ -338,7 +340,7 @@ fn code_units_and_character_values_match_native_compilers() {
     let mut declarations = String::new();
     let mut checks = String::new();
     for (index, tokens) in literals.iter().enumerate() {
-        let value = strings(tokens, NATIVE);
+        let value = strings(tokens, target);
         let (ty, bits) = match value.element_type {
             IntegerKind::Char => ("char", 8),
             IntegerKind::UnsignedShort => ("unsigned short", 16),
@@ -373,7 +375,7 @@ fn code_units_and_character_values_match_native_compilers() {
             characters.extend(["'é'", "L'ab'", r"u'\U0001f600'"]);
         }
         for character in characters {
-            let value = decode_character_literal(character, NATIVE, 0).unwrap();
+            let value = decode_character_literal(character, target, 0).unwrap();
             character_checks.push_str(&format!(
                 "if ((long long)({character}) != {}LL) return 2;\n",
                 value.signed_value()
@@ -423,4 +425,14 @@ fn is_gnu_compiler(compiler: &str) -> bool {
         "unknown compiler: {version}"
     );
     gnu
+}
+
+fn native_target() -> Target {
+    match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") => Target::X86_64UnknownLinuxGnu,
+        ("aarch64", "linux") => Target::Aarch64UnknownLinuxGnu,
+        ("x86_64", "macos") => Target::X86_64AppleDarwin,
+        ("aarch64", "macos") => Target::Aarch64AppleDarwin,
+        host => panic!("native literal oracle requires Linux or macOS: {host:?}"),
+    }
 }
