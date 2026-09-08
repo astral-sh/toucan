@@ -185,7 +185,7 @@ the target, that covered 109–111 records and 628–638 ordinary field offsets.
 comparison gate passed with no unexplained differences; exact API equivalence
 remains false, with each accepted difference recorded and justified.
 
-The [recorded evidence](corpus/evidence/native-equivalence-2026-09-08.json) identifies
+The [recorded evidence](corpus/evidence/native-06cefbe/summary.json) identifies
 the tested commits and configurations. See [compatibility](docs/compatibility.md)
 for coverage and gaps. [Benchmarks](docs/benchmarks.md) and [fuzzing](fuzz/README.md)
 record separate performance and malformed-input checks.

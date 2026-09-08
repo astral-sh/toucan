@@ -374,6 +374,19 @@
       "clippy_exit_code": 0,
       "actionlint_exit_code": 0
     },
-    "native_macos_workaround_validation": "Pending the next CI run; the earlier Apple crash is not counted as successful conformance."
+    "native_macos_workaround_validation": {
+      "aarch64-apple-darwin": {
+        "status": "passed",
+        "source_commit": "dbda83c",
+        "job": "https://github.com/astral-sh/toucan/actions/runs/34219192884/job/102038043364",
+        "compiler": "Apple clang-1700.0.13.5 plus Homebrew Clang18.1.8 for the exact cast cases",
+        "raw_log_sha256": "c28f3100583850565bc3d136c83b528773cad6fceae0361867b7ffd5944af7c0",
+        "workspace_test_counts": {
+          "passed": 691,
+          "failed": 0,
+          "ignored": 0
+        }
+      }
+    }
   }
 }

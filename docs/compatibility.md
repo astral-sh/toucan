@@ -348,13 +348,13 @@ compiler ABI is used; flags such as `-fshort-enums` are not implied.
 
 | Target | Layout model | Native validation |
 | --- | --- | --- |
-| `x86_64-unknown-linux-gnu` | Implemented; GCC and Clang probes | [C/FFI and differential checks passed](../corpus/evidence/native-equivalence-2026-09-08.json) |
-| `aarch64-unknown-linux-gnu` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-equivalence-2026-09-08.json) |
-| `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-equivalence-2026-09-08.json) |
-| `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-equivalence-2026-09-08.json) |
+| `x86_64-unknown-linux-gnu` | Implemented; GCC and Clang probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
+| `aarch64-unknown-linux-gnu` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
+| `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
+| `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
 | `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | Not run; MSVC header syntax is incomplete |
 
-The recorded [native run](https://github.com/astral-sh/toucan/actions/runs/34176518153)
+The recorded [native run](https://github.com/astral-sh/toucan/actions/runs/34216957161)
 passed on 2026-09-08, using GCC 13.3.0 on Linux and Apple Clang 17.0.0 on macOS.
 The evidence identifies the tested checkout, PR head, and executable for each
 configuration. See CI results for changes made after that run.

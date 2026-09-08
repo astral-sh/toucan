@@ -35,6 +35,9 @@ copies from function results at O0 and O2. The cast cases do not establish
 compatibility with the affected Apple compiler. The
 [saved report](../corpus/evidence/apple-atomic-pointer-oracle-2026-09-08.json)
 preserves the failing job, exact sources, flags, and upstream probe results.
+The [ARM macOS validation](https://github.com/astral-sh/toucan/actions/runs/34219192884/job/102038043364)
+passed the full native workspace suite with Apple Clang and Homebrew Clang 18.1.8
+under this selection policy.
 
 ## Apple Clang SVE feature diagnostics
 
