@@ -88,11 +88,14 @@ Each command accepts `--target`, `--sysroot`, `-I`, `-D`, and `-U`:
 toucan preprocess api.h --output api.i
 toucan check api.h
 toucan inspect api.h --output api.json
+toucan inspect api.h --checked-code --output checked-api.json
 ```
 
 `preprocess` expands macros and includes. `check` validates declarations and function
 bodies within the supported scope. Unsupported constructs produce diagnostics. `inspect` writes the semantic representation as versioned
-JSON. The library API and JSON schema are experimental.
+JSON. Add `--checked-code` to include typed bodies, expressions, initializers, and
+source mappings; see [checked inspection](docs/inspection.md). The library API and
+JSON schema are experimental.
 
 The CLI captures one UTC timestamp for `__DATE__` and `__TIME__`. Set
 `SOURCE_DATE_EPOCH` to Unix seconds for reproducible output; malformed values fail

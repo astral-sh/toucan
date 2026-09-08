@@ -84,6 +84,9 @@ enum Command {
         input: Input,
         #[arg(short, long)]
         output: Option<PathBuf>,
+        /// Include checked expressions, bodies, initializers, and source references.
+        #[arg(long)]
+        checked_code: bool,
     },
     /// Check declarations, initializers, and function bodies.
     Check {
@@ -210,10 +213,37 @@ fn run(cli: Cli) -> Result<()> {
                 toucan::Preprocessor::new(config.preprocessor).preprocess(&input.header)?;
             write_output(output, &preprocessed.source)
         }
-        Command::Inspect { input, output } => {
-            let compilation = toucan::parse_file(&input.header, &input.config()?)?;
-            let manifest =
-                serde_json::json!({ "schema_version": 1, "translation_unit": compilation.unit() });
+        Command::Inspect {
+            input,
+            output,
+            checked_code,
+        } => {
+            let mut config = input.config()?;
+            config.analysis.retain_code = checked_code;
+            let compilation = toucan::parse_file(&input.header, &config)?;
+            let manifest = if checked_code {
+                let preprocessed = compilation.preprocessed();
+                let mappings: Vec<_> = preprocessed.mappings.iter().map(|mapping| {
+                    let origin = &mapping.origin;
+                    let kind = match origin.kind {
+                        toucan::OriginKind::Token => "token",
+                        toucan::OriginKind::MacroInvocation => "macro_invocation",
+                        toucan::OriginKind::Directive => "directive",
+                    };
+                    serde_json::json!({
+                        "generated": mapping.generated,
+                        "origin": {"path": origin.path.as_ref(), "line": origin.line, "column": origin.column, "kind": kind},
+                    })
+                }).collect();
+                serde_json::json!({
+                    "schema_version": 2,
+                    "translation_unit": compilation.unit(),
+                    "checked_code": compilation.checked(),
+                    "preprocessed": {"source": preprocessed.source, "mappings": mappings},
+                })
+            } else {
+                serde_json::json!({ "schema_version": 1, "translation_unit": compilation.unit() })
+            };
             write_output(output, &(serde_json::to_string_pretty(&manifest)? + "\n"))
         }
         Command::Check { input } => {
