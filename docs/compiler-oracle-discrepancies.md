@@ -208,3 +208,23 @@ preserves the original Intel macOS failures and local controls that reproduce
 the diagnostic severity with Clang. The corrected scope checks and C/Rust calls
 pass locally, including actual Rust 1.64. Those local results do not replace
 native macOS CI validation.
+
+## Native ARM fixture link order
+
+The native AArch64 GNU linker can discard libc under `--as-needed` when a C
+object passed through Rust's `-C link-arg` appears after the system libraries.
+GCC 13's stack-protector references then fail to resolve. The FloatN fixture
+exposed this with an unresolved `__stack_chk_guard` and `DSO missing from command
+line` error.
+
+The shared test helper now archives each C object and supplies it through Rust's
+native static-library options. This places the fixture before the system
+libraries while retaining its original compiler flags and stack protection.
+The FloatN, non-object query, and omitted-conditional FFI fixtures all passed
+the [native ARM job](https://github.com/astral-sh/toucan/actions/runs/34276674090/job/102231280883)
+with GCC 13.3.0, Clang 18.1.3, and Rust 1.98.1.
+
+The [saved log and source identities](../corpus/evidence/native-link-order-2bbc3ef/summary.json)
+tie the run to PR 227 head `2bbc3efd`. GitHub's checkout merge commit `eb5607cc`
+has the same source tree as that head. This completes native ARM validation of
+the repair after the earlier local cross-link and emulated runtime checks.
