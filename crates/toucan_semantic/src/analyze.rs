@@ -1047,6 +1047,23 @@ impl Analyzer {
                 let previous = &self.unit.declarations[previous_index];
                 if kind == DeclarationKind::Function {
                     ty = self.inherit_calling_convention(ty, &previous.ty)?;
+                    if let (TypeKind::Function(prior), TypeKind::Function(current)) = (
+                        &self.unit.resolve(&previous.ty)?.kind,
+                        &self.unit.resolve(&ty)?.kind,
+                    ) && ((definition && !current.prototype && !prior.parameters.is_empty())
+                        || (previous.is_definition
+                            && !prior.prototype
+                            && !current.parameters.is_empty()))
+                    {
+                        // An empty list in a definition means zero parameters;
+                        // an empty list in a declaration leaves them unspecified.
+                        return Err(Error::new(
+                            item.span.start,
+                            format!(
+                                "empty parameter definition of `{name}` conflicts with its prototype"
+                            ),
+                        ));
+                    }
                 }
                 if previous.kind != kind || !self.compatible(&previous.ty, &ty)? {
                     return Err(Error::new(
