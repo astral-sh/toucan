@@ -1,4 +1,7 @@
-use lang_c::{ast, span::Node};
+use lang_c::{
+    ast,
+    span::{Node, Span},
+};
 
 use crate::analyze::Analyzer;
 use crate::{
@@ -15,6 +18,30 @@ struct FlexibleState {
     member_index: usize,
     elements: Option<u64>,
     permitted: bool,
+}
+
+#[derive(Clone, Copy)]
+enum InitializerView<'a> {
+    Expression(&'a Node<ast::Expression>),
+    List(&'a [Node<ast::InitializerListItem>]),
+}
+
+#[derive(Clone, Copy)]
+struct InitializerRef<'a> {
+    node: InitializerView<'a>,
+    span: Span,
+}
+
+impl<'a> From<&'a Node<ast::Initializer>> for InitializerRef<'a> {
+    fn from(initializer: &'a Node<ast::Initializer>) -> Self {
+        Self {
+            node: match &initializer.node {
+                ast::Initializer::Expression(expression) => InitializerView::Expression(expression),
+                ast::Initializer::List(items) => InitializerView::List(items),
+            },
+            span: initializer.span,
+        }
+    }
 }
 
 impl Analyzer {
@@ -55,7 +82,30 @@ impl Analyzer {
         static_storage: bool,
     ) -> Result<Type, Error> {
         self.enter_expression(initializer.span.start)?;
-        let result = self.initializer_inner(ty, initializer, static_storage, None);
+        let result = self.initializer_inner(ty, initializer.into(), static_storage, None);
+        self.leave_expression();
+        result
+    }
+
+    /// Compound literals borrow their written list, preserving occurrence identity
+    /// and avoiding a fresh copy each time their type is queried.
+    pub(crate) fn check_initializer_list(
+        &mut self,
+        ty: &Type,
+        items: &[Node<ast::InitializerListItem>],
+        span: Span,
+        static_storage: bool,
+    ) -> Result<Type, Error> {
+        self.enter_expression(span.start)?;
+        let result = self.initializer_inner(
+            ty,
+            InitializerRef {
+                node: InitializerView::List(items),
+                span,
+            },
+            static_storage,
+            None,
+        );
         self.leave_expression();
         result
     }
@@ -99,7 +149,8 @@ impl Analyzer {
             permitted: static_storage,
         };
         self.enter_expression(initializer.span.start)?;
-        let result = self.initializer_inner(ty, initializer, static_storage, Some(&mut flexible));
+        let result =
+            self.initializer_inner(ty, initializer.into(), static_storage, Some(&mut flexible));
         self.leave_expression();
         let ty = result?;
         let storage = flexible
@@ -181,7 +232,7 @@ impl Analyzer {
     fn initializer_inner(
         &mut self,
         ty: &Type,
-        initializer: &Node<ast::Initializer>,
+        initializer: InitializerRef<'_>,
         static_storage: bool,
         mut flexible: Option<&mut FlexibleState>,
     ) -> Result<Type, Error> {
@@ -201,8 +252,8 @@ impl Analyzer {
                 "initializer requires a complete object type",
             ));
         }
-        match &initializer.node {
-            ast::Initializer::Expression(expression) => {
+        match initializer.node {
+            InitializerView::Expression(expression) => {
                 if matches!(resolved.kind, TypeKind::Array { .. }) {
                     return self.string_initializer(ty, expression);
                 }
@@ -224,12 +275,12 @@ impl Analyzer {
                 }
                 Ok(ty.clone())
             }
-            ast::Initializer::List(items) => {
+            InitializerView::List(items) => {
                 let items =
                     if items.len() == 1 && self.empty_initializers.contains(&items[0].span.start) {
                         &[][..]
                     } else {
-                        items.as_slice()
+                        items
                     };
                 if matches!(resolved.kind, TypeKind::Array { .. })
                     && let [item] = items
@@ -508,7 +559,12 @@ impl Analyzer {
         })
     }
 
-    fn subobject(&self, root: &Type, path: &[u64], offset: usize) -> Result<Type, Error> {
+    pub(crate) fn subobject(
+        &self,
+        root: &Type,
+        path: &[u64],
+        offset: usize,
+    ) -> Result<Type, Error> {
         let mut ty = root.clone();
         for index in path {
             ty = match &self.unit.resolve(&ty)?.kind {
@@ -638,7 +694,7 @@ impl Analyzer {
         Ok(path)
     }
 
-    fn member_designator(
+    pub(crate) fn member_designator(
         &self,
         ty: &Type,
         name: &str,
@@ -709,11 +765,12 @@ impl Analyzer {
             }
             ast::Expression::CompoundLiteral(literal) => {
                 let ty = self.type_name(&literal.node.type_name.node)?;
-                let initializer = Node::new(
-                    ast::Initializer::List(literal.node.initializer_list.clone()),
+                let ty = self.check_initializer_list(
+                    &ty,
+                    &literal.node.initializer_list,
                     literal.span,
-                );
-                let ty = self.check_initializer(&ty, &initializer, true)?;
+                    true,
+                )?;
                 Ok(
                     if matches!(self.unit.resolve(&ty)?.kind, TypeKind::Array { .. }) {
                         if self.in_function_body() {

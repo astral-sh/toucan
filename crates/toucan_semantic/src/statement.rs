@@ -124,6 +124,7 @@ impl Analyzer {
             };
             let gnu = analyzer.gnu_statement_expressions();
             let mut result = None;
+            let mut final_value = None;
             let mut significant = 0;
             let mut direct_expression = false;
             for item in items {
@@ -131,12 +132,14 @@ impl Analyzer {
                     ast::BlockItem::Declaration(declaration) => {
                         analyzer.block_declaration(declaration, false)?;
                         result = None;
+                        final_value = None;
                         significant += 1;
                     }
                     ast::BlockItem::StaticAssert(assertion) => {
                         analyzer.static_assert(assertion)?;
                         if !gnu {
                             result = None;
+                            final_value = None;
                         }
                     }
                     ast::BlockItem::Statement(statement) => {
@@ -147,11 +150,15 @@ impl Analyzer {
                         significant += 1;
                         direct_expression =
                             matches!(statement.node, ast::Statement::Expression(Some(_)));
-                        result = final_expression(statement)
+                        final_value = final_expression(statement);
+                        result = final_value
                             .map(|expression| analyzer.expression_info(expression))
                             .transpose()?;
                     }
                 }
+            }
+            if let Some(checked) = &mut analyzer.checked {
+                checked.statement_expression_result(statement, final_value)?;
             }
             let Some(result) = result else {
                 return Ok(ExpressionInfo::value(Type::new(TypeKind::Void)));
@@ -404,6 +411,9 @@ impl Analyzer {
                     false,
                     definition.span.start,
                 )?;
+                if let Some(checked) = &mut analyzer.checked {
+                    checked.synthetic_object(predefined, definition.span.start)?;
+                }
             }
             let ast::Statement::Compound(items) = &definition.node.statement.node else {
                 return Err(Error::new(
@@ -785,28 +795,7 @@ impl Analyzer {
                     .linked
                     .insert(name.clone());
             }
-            if let Some(initializer) = &item.node.initializer {
-                let (completed, storage) =
-                    self.check_object_initializer(&ty, initializer, is_static)?;
-                ty = completed;
-                let scope = self.lexical_scopes.last_mut().expect("block scope");
-                if let Some(storage) = storage {
-                    scope.flexible_array_storage.insert(name.clone(), storage);
-                }
-                let index = scope.names[&name].expect("object binding");
-                scope.parameters[index].ty = ty.clone();
-            }
-            if !linked && !self.is_complete_object(&ty, 0)? {
-                return Err(Error::new(
-                    item.span.start,
-                    "local object requires a complete type",
-                ));
-            }
-            if let Some(checked) = &mut self.checked {
-                let allocation = self
-                    .lexical_scopes
-                    .last()
-                    .and_then(|scope| scope.flexible_array_storage.get(&name));
+            let checked_site = if let Some(checked) = &mut self.checked {
                 checked.local_declaration(
                     item,
                     OccurrenceKind::InitDeclarator,
@@ -829,9 +818,35 @@ impl Analyzer {
                         linked,
                         register,
                         definition: !linked,
-                        allocation,
+                        allocation: None,
                     },
-                )?;
+                )?
+            } else {
+                None
+            };
+            if let Some(initializer) = &item.node.initializer {
+                let (completed, storage) =
+                    self.check_object_initializer(&ty, initializer, is_static)?;
+                ty = completed;
+                let scope = self.lexical_scopes.last_mut().expect("block scope");
+                if let Some(storage) = storage {
+                    scope.flexible_array_storage.insert(name.clone(), storage);
+                }
+                let index = scope.names[&name].expect("object binding");
+                scope.parameters[index].ty = ty.clone();
+            }
+            if !linked && !self.is_complete_object(&ty, 0)? {
+                return Err(Error::new(
+                    item.span.start,
+                    "local object requires a complete type",
+                ));
+            }
+            if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
+                let allocation = self
+                    .lexical_scopes
+                    .last()
+                    .and_then(|scope| scope.flexible_array_storage.get(&name));
+                checked.complete_declaration(site, &ty, allocation)?;
             }
         }
         Ok(())

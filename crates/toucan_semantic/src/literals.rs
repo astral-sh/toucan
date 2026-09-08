@@ -5,7 +5,7 @@ use crate::{Error, IntegerKind, IntegerValue};
 const MAX_LITERAL_BYTES: usize = 16 * 1024 * 1024;
 
 /// The encoding selected by C11 string-literal prefixes and concatenation.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, serde::Serialize)]
 pub enum StringEncoding {
     Ordinary,
     Utf8,
@@ -17,7 +17,7 @@ pub enum StringEncoding {
 /// A C string object's code units, including its implicit terminating NUL.
 /// Numeric escapes retain their code-unit values even when they do not form valid
 /// Unicode. The target determines the width and signedness of wide characters.
-#[derive(Clone, Debug, Eq, PartialEq)]
+#[derive(Clone, Debug, Eq, PartialEq, serde::Serialize)]
 pub struct DecodedString {
     pub encoding: StringEncoding,
     pub element_type: IntegerKind,

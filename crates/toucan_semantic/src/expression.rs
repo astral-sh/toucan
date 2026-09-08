@@ -49,8 +49,22 @@ impl Analyzer {
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<ExpressionInfo, Error> {
+        let occurrence = if let Some(checked) = &mut self.checked {
+            match checked.begin_expression(expression)? {
+                crate::checked::expression::BeginExpression::Cached(info) => return Ok(info),
+                crate::checked::expression::BeginExpression::Check(occurrence) => occurrence,
+            }
+        } else {
+            None
+        };
         self.enter_expression(expression.span.start)?;
         let result = self.expression_info_inner(expression);
+        let result = result.and_then(|info| {
+            if let Some(occurrence) = occurrence {
+                self.retain_expression(expression, occurrence, &info)?;
+            }
+            Ok(info)
+        });
         self.leave_expression();
         result
     }
@@ -127,11 +141,12 @@ impl Analyzer {
                         "compound literals cannot have variable-length array type",
                     ));
                 }
-                let initializer = Node::new(
-                    ast::Initializer::List(literal.node.initializer_list.clone()),
+                let ty = self.check_initializer_list(
+                    &ty,
+                    &literal.node.initializer_list,
                     literal.span,
-                );
-                let ty = self.check_initializer(&ty, &initializer, !self.in_function_body())?;
+                    !self.in_function_body(),
+                )?;
                 return Ok(ExpressionInfo::object(ty));
             }
             ast::Expression::Statement(statement) => return self.statement_expression(statement),
@@ -631,7 +646,11 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
     ) -> Result<(), Error> {
         let source = self.value_expression_type(expression)?;
-        self.check_assignment_type(destination, &source, expression)
+        self.check_assignment_type(destination, &source, expression)?;
+        if self.checked.is_some() {
+            self.retain_assignment(expression, destination)?;
+        }
+        Ok(())
     }
 
     fn check_assignment_type(
@@ -748,7 +767,7 @@ impl Analyzer {
         })
     }
 
-    fn unqualified(&self, ty: &Type) -> Result<Type, Error> {
+    pub(crate) fn unqualified(&self, ty: &Type) -> Result<Type, Error> {
         let mut ty = self.unit.resolve(ty)?.clone();
         ty.qualifiers = Qualifiers::default();
         Ok(ty)
@@ -764,7 +783,7 @@ impl Analyzer {
         Ok(())
     }
 
-    fn is_arithmetic(&self, ty: &Type) -> Result<bool, Error> {
+    pub(crate) fn is_arithmetic(&self, ty: &Type) -> Result<bool, Error> {
         Ok(matches!(
             self.unit.resolve(ty)?.kind,
             TypeKind::Bool | TypeKind::Integer(_) | TypeKind::Enum(_) | TypeKind::Float(_)
@@ -790,7 +809,7 @@ impl Analyzer {
         }
     }
 
-    fn promoted_integer(
+    pub(crate) fn promoted_integer(
         &self,
         expression: &ExpressionInfo,
         offset: usize,
@@ -803,7 +822,7 @@ impl Analyzer {
         }
     }
 
-    fn arithmetic_type(
+    pub(crate) fn arithmetic_type(
         &self,
         left: &ExpressionInfo,
         right: &ExpressionInfo,
@@ -826,7 +845,12 @@ impl Analyzer {
 
     /// A common pointed-to type may add top-level qualifiers; nested pointers must
     /// already be compatible, so this does not permit `char **` to `const char **`.
-    fn composite_pointer(&self, left: &Type, right: &Type, offset: usize) -> Result<Type, Error> {
+    pub(crate) fn composite_pointer(
+        &self,
+        left: &Type,
+        right: &Type,
+        offset: usize,
+    ) -> Result<Type, Error> {
         let mut qualifiers =
             union_qualifiers(self.unit.qualifiers(left)?, self.unit.qualifiers(right)?);
         let left = self.unqualified(left)?;

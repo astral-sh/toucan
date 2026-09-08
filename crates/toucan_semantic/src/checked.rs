@@ -2,6 +2,8 @@
 //! still returns declaration IR until expressions, initializers and VLA type uses
 //! can be retained without missing semantic facts.
 
+pub(crate) mod expression;
+
 use std::collections::HashMap;
 use std::hash::{BuildHasher, RandomState};
 use std::ops::Range;
@@ -19,7 +21,7 @@ macro_rules! id {
         #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, Serialize)]
         pub(crate) struct $name(u32);
         impl $name {
-            fn index(self) -> usize {
+            pub(crate) fn index(self) -> usize {
                 self.0 as usize
             }
         }
@@ -123,6 +125,8 @@ pub(crate) struct SourceSpan {
 
 #[derive(Debug, Serialize)]
 pub(crate) struct Occurrence {
+    /// Attribute argument grammar also uses expression nodes for metadata such as `printf`.
+    pub(crate) attribute_argument: bool,
     pub(crate) kind: OccurrenceKind,
     pub(crate) source: SourceSpan,
 }
@@ -233,6 +237,9 @@ pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> O
 
 #[derive(Debug, Serialize)]
 pub(crate) struct CheckedCode {
+    pub(crate) expressions: Vec<expression::Expression>,
+    pub(crate) assignment_conversions: Vec<expression::ExprUse>,
+    pub(crate) expression_coverage: Vec<expression::ExpressionCoverage>,
     pub(crate) occurrences: Vec<Occurrence>,
     pub(crate) scopes: Vec<Scope>,
     pub(crate) entities: Vec<Entity>,
@@ -261,6 +268,7 @@ enum EntityKey {
 }
 
 pub(crate) struct Builder {
+    expression_builder: expression::ExpressionBuilder,
     code: CheckedCode,
     budget: Budget,
     addresses: HashMap<(OccurrenceKind, usize, usize, usize), OccurrenceId>,
@@ -270,6 +278,7 @@ pub(crate) struct Builder {
     name_spans: Vec<Option<Span>>,
     ambiguous_spans: Vec<Span>,
     entities: HashMap<EntityKey, EntityId>,
+    names: HashMap<ScopeId, HashMap<String, EntityId>>,
     type_hashes: HashMap<u64, Vec<TypeId>>,
     hasher: RandomState,
     current: ScopeId,
@@ -277,6 +286,7 @@ pub(crate) struct Builder {
     pub(crate) definition: Option<OccurrenceId>,
     error: Option<Error>,
     depth: usize,
+    attribute_depth: usize,
 }
 
 impl Builder {
@@ -286,7 +296,11 @@ impl Builder {
         limits: Limits,
     ) -> Result<Self, Error> {
         let mut builder = Self {
+            expression_builder: expression::ExpressionBuilder::default(),
             code: CheckedCode {
+                expressions: Vec::new(),
+                assignment_conversions: Vec::new(),
+                expression_coverage: Vec::new(),
                 occurrences: Vec::new(),
                 scopes: Vec::new(),
                 entities: Vec::new(),
@@ -307,12 +321,14 @@ impl Builder {
             name_spans: Vec::new(),
             ambiguous_spans: Vec::new(),
             entities: HashMap::new(),
+            names: HashMap::new(),
             type_hashes: HashMap::new(),
             hasher: RandomState::new(),
             current: ScopeId(0),
             definition: None,
             error: None,
             depth: 0,
+            attribute_depth: 0,
         };
         builder.scope(ScopeKind::File, Span::span(0, source_len), None)?;
         builder.visit_translation_unit(unit);
@@ -331,6 +347,7 @@ impl Builder {
         self.budget.charge(1, 2, 0, span.start)?;
         let id = OccurrenceId(self.code.occurrences.len() as u32);
         self.code.occurrences.push(Occurrence {
+            attribute_argument: self.attribute_depth != 0,
             kind,
             source: unmapped_span(span),
         });
@@ -429,7 +446,7 @@ impl Builder {
         id
     }
 
-    fn intern_type(&mut self, ty: &Type, offset: usize) -> Result<TypeId, Error> {
+    pub(crate) fn intern_type(&mut self, ty: &Type, offset: usize) -> Result<TypeId, Error> {
         let hash = self.hasher.hash_one(ty);
         if let Some(ids) = self.type_hashes.get(&hash) {
             for id in ids {
@@ -499,7 +516,50 @@ impl Builder {
         });
         self.name_spans.push(name_span);
         self.code.scopes[self.current.index()].declarations.push(id);
+        if !matches!(
+            self.code.entities[entity.index()].kind,
+            EntityKind::Record(_) | EntityKind::Enum(_)
+        ) {
+            self.bind_name(entity, offset)?;
+        }
         Ok(id)
+    }
+
+    fn bind_name(&mut self, entity: EntityId, offset: usize) -> Result<(), Error> {
+        if let Some(name) = &self.code.entities[entity.index()].name {
+            let names = self.names.entry(self.current).or_default();
+            if let Some(binding) = names.get_mut(name) {
+                *binding = entity;
+            } else {
+                self.budget.charge(0, 1, name.len(), offset)?;
+                names.insert(name.clone(), entity);
+            }
+        }
+        Ok(())
+    }
+
+    pub(crate) fn complete_declaration(
+        &mut self,
+        site: SiteId,
+        ty: &Type,
+        allocation: Option<&FlexibleArrayStorage>,
+    ) -> Result<(), Error> {
+        let occurrence = self.code.declarations[site.index()].occurrence;
+        let ty = self.intern_type(ty, self.parsed_spans[occurrence.index()].start)?;
+        let site = &mut self.code.declarations[site.index()];
+        site.ty = ty;
+        site.flexible_array_storage = allocation.cloned();
+        Ok(())
+    }
+
+    pub(crate) fn synthetic_object(&mut self, name: &str, offset: usize) -> Result<(), Error> {
+        let entity = self.entity(
+            EntityKey::Ordinary(self.current, name.to_owned()),
+            Some(name),
+            EntityKind::Variable,
+            offset,
+        )?;
+        self.bind_name(entity, offset)
     }
 
     pub(crate) fn file_declaration<T>(
@@ -510,14 +570,14 @@ impl Builder {
         index: usize,
         definition: bool,
         name_span: Option<Span>,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<SiteId>, Error> {
         let occurrence = if let Some(id) = self.definition {
             Some(id)
         } else {
             self.find(kind, item)?
         };
         let Some(occurrence) = occurrence else {
-            return Ok(());
+            return Ok(None);
         };
         let entity_kind = declaration.kind.into();
         let key = if declaration.kind == DeclarationKind::Typedef {
@@ -554,7 +614,7 @@ impl Builder {
         )?;
         self.code.declarations[site.index()].flexible_array_storage =
             declaration.flexible_array_storage.clone();
-        Ok(())
+        Ok(Some(site))
     }
 
     pub(crate) fn local_declaration<T>(
@@ -562,9 +622,9 @@ impl Builder {
         item: &Node<T>,
         occurrence_kind: OccurrenceKind,
         declaration: LocalDeclaration<'_>,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<SiteId>, Error> {
         let Some(occurrence) = self.find(occurrence_kind, item)? else {
-            return Ok(());
+            return Ok(None);
         };
         let key = match declaration.name {
             Some(name) if declaration.linked => EntityKey::Linked(name.to_owned()),
@@ -595,7 +655,7 @@ impl Builder {
         )?;
         self.code.declarations[site.index()].flexible_array_storage =
             declaration.allocation.cloned();
-        Ok(())
+        Ok(Some(site))
     }
 
     pub(crate) fn tag<T>(
@@ -672,9 +732,10 @@ impl Builder {
     }
 
     pub(crate) fn finish(mut self, offsets: &SourceMap) -> Result<CheckedCode, Error> {
-        for (occurrence, span) in self.code.occurrences.iter_mut().zip(self.parsed_spans) {
-            occurrence.source = map_span(offsets, span, &mut self.budget)?;
+        for (occurrence, span) in self.code.occurrences.iter_mut().zip(&self.parsed_spans) {
+            occurrence.source = map_span(offsets, *span, &mut self.budget)?;
         }
+        self.finish_expression_coverage()?;
         for (scope, span) in self.code.scopes.iter_mut().zip(self.scope_spans) {
             if scope.kind != ScopeKind::File {
                 scope.source = map_span(offsets, span, &mut self.budget)?;
@@ -805,6 +866,15 @@ macro_rules! visit_occurrence {
 }
 
 impl<'ast> Visit<'ast> for Builder {
+    fn visit_attribute(&mut self, node: &'ast ast::Attribute, span: &'ast Span) {
+        if self.error.is_some() {
+            return;
+        }
+        self.attribute_depth += 1;
+        visit::visit_attribute(self, node, span);
+        self.attribute_depth -= 1;
+    }
+
     visit_occurrence!(visit_declaration, ast::Declaration, Declaration);
     visit_occurrence!(visit_init_declarator, ast::InitDeclarator, InitDeclarator);
     visit_occurrence!(visit_declarator, ast::Declarator, Declarator);

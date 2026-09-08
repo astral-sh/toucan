@@ -110,6 +110,15 @@ impl Analyzer {
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<IntegerValue, Error> {
+        if self
+            .checked
+            .as_mut()
+            .map(|checked| checked.expression_needs_check(expression))
+            .transpose()?
+            .unwrap_or(false)
+        {
+            self.expression_info(expression)?;
+        }
         self.enter_expression(expression.span.start)?;
         let result = self.eval_inner(expression);
         self.leave_expression();

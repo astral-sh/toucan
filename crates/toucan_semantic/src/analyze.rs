@@ -987,6 +987,18 @@ impl Analyzer {
                 });
                 index
             };
+            let checked_site = if let Some(checked) = &mut self.checked {
+                checked.file_declaration(
+                    item,
+                    OccurrenceKind::InitDeclarator,
+                    &self.unit.declarations[declaration_index],
+                    declaration_index,
+                    is_definition,
+                    declarator_name_span(&item.node.declarator),
+                )?
+            } else {
+                None
+            };
             if kind == DeclarationKind::Variable
                 && !is_definition
                 && storage.class != Some(ast::StorageClassSpecifier::Extern)
@@ -998,14 +1010,12 @@ impl Analyzer {
             if let Some(initializer) = &item.node.initializer {
                 self.initialize_declaration(declaration_index, &initializer_type, initializer)?;
             }
-            if let Some(checked) = &mut self.checked {
-                checked.file_declaration(
-                    item,
-                    OccurrenceKind::InitDeclarator,
-                    &self.unit.declarations[declaration_index],
-                    declaration_index,
-                    is_definition,
-                    declarator_name_span(&item.node.declarator),
+            if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
+                let declaration = &self.unit.declarations[declaration_index];
+                checked.complete_declaration(
+                    site,
+                    &declaration.ty,
+                    declaration.flexible_array_storage.as_ref(),
                 )?;
             }
         }
