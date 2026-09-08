@@ -293,21 +293,16 @@ fn integer_machine_modes_preserve_width_and_signedness() {
 }
 
 #[test]
-fn extended_float_compatibility_typedefs_are_preserved() {
-    let unit = analyze("typedef float _Float32; typedef double _Float64; typedef double _Float32x; typedef long double _Float64x; extern _Float64 strtof64(const char *); extern _Float128 future(void);", TARGET).unwrap();
-    assert_eq!(
-        evaluate_integer(&unit, "sizeof(_Float32)").unwrap().value,
-        4
-    );
-    assert_eq!(
-        evaluate_integer(&unit, "sizeof(_Float64)").unwrap().value,
-        8
-    );
+fn clang_glibc_float_typedefs_are_preserved() {
+    let analysis = toucan_semantic::analyze_with_profile("typedef float _Float32; typedef double _Float64; typedef double _Float32x; typedef long double _Float64x; typedef __float128 _Float128; extern _Float64 strtof64(const char *); extern _Float128 future(void);", toucan_target::CompilerProfile::new(TARGET, toucan_target::Compiler::Clang).unwrap(), &Default::default()).unwrap();
+    let unit = analysis.unit();
+    assert_eq!(evaluate_integer(unit, "sizeof(_Float32)").unwrap().value, 4);
+    assert_eq!(evaluate_integer(unit, "sizeof(_Float64)").unwrap().value, 8);
     let TypeKind::Function(function) = &unit.declarations.last().unwrap().ty.kind else {
         panic!("function")
     };
     assert!(matches!(
-        function.return_type.kind,
+        unit.resolve(&function.return_type).unwrap().kind,
         TypeKind::Float(toucan_semantic::FloatKind::Extended { width: 128, .. })
     ));
     assert_eq!(unit.layout(&function.return_type).unwrap().size_bits, 128);

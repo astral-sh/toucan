@@ -1249,83 +1249,6 @@ impl Analyzer {
             ));
         }
         let is_typedef = storage.class == Some(ast::StorageClassSpecifier::Typedef);
-        // glibc defines the TS spellings as typedefs for older compiler profiles.
-        // lang-c recognizes their spelling as a type specifier even in this
-        // declaration position, so recover the explicit typedef name here.
-        if declaration.node.declarators.is_empty()
-            && is_typedef
-            && let Some(Node {
-                node:
-                    ast::DeclarationSpecifier::TypeSpecifier(Node {
-                        node: ast::TypeSpecifier::TS18661Float(float),
-                        span,
-                    }),
-                ..
-            }) = declaration.node.specifiers.last()
-            && !self.int128_specifiers.contains(&span.start)
-        {
-            let name = extended_float_name(float);
-            let (ty, attributes) = self.specifiers(
-                &declaration.node.specifiers[..declaration.node.specifiers.len() - 1],
-            )?;
-            attributes.check_nodebug_subject()?;
-            attributes.require_function_attributes(false)?;
-            attributes.require_no_weak()?;
-            attributes.require_no_transparent_union()?;
-            if attributes.packed
-                || attributes.alignment.is_some()
-                || attributes.c11_alignment.is_some()
-                || attributes.mode.is_some()
-            {
-                return Err(Error::new(
-                    declaration.span.start,
-                    "attributes on extended float compatibility typedefs are unsupported",
-                ));
-            }
-            if self
-                .unit
-                .typedefs
-                .insert(name.clone(), ty.clone())
-                .is_some()
-            {
-                return Err(Error::new(
-                    declaration.span.start,
-                    "duplicate extended float typedef",
-                ));
-            }
-            self.unit.declarations.push(Declaration {
-                function_definition_kind: None,
-                dll_storage_class: None,
-                alignment: crate::DeclarationAlignment::default(),
-                name,
-                ty,
-                kind: DeclarationKind::Typedef,
-                returns_twice: false,
-                noreturn: false,
-                symbol_binding: crate::SymbolBinding::Strong,
-                link_name: None,
-                is_static: false,
-                is_thread_local: false,
-                is_definition: false,
-                flexible_array_storage: None,
-            });
-            if let Some(checked) = &mut self.checked {
-                let index = self.unit.declarations.len() - 1;
-                checked.file_declaration(
-                    declaration,
-                    OccurrenceKind::Declaration,
-                    &self.unit.declarations[index],
-                    index,
-                    false,
-                    declaration
-                        .node
-                        .specifiers
-                        .last()
-                        .map(|specifier| specifier.span),
-                )?;
-            }
-            return Ok(());
-        }
         let mut auto = self.auto_declaration(declaration)?;
         let explicit = if auto.is_none() {
             Some(self.declaration_specifiers(&declaration.node)?)
@@ -1490,6 +1413,7 @@ impl Analyzer {
                 is_static = false;
             }
             if !is_typedef {
+                self.require_linked_float_name(&name, item.span.start)?;
                 let external = !is_static
                     && !previous_index.is_some_and(|index| self.unit.declarations[index].is_static)
                     && !self
@@ -2719,53 +2643,48 @@ impl Analyzer {
                             TypeKind::Float(FloatKind::FLOAT128)
                         }
                         ast::TypeSpecifier::TS18661Float(float) => {
-                            let name = extended_float_name(float);
-                            if self.unit.typedefs.contains_key(&name) {
-                                TypeKind::Typedef(name)
-                            } else {
-                                if matches!(
-                                    float.format,
-                                    ast::TS18661FloatFormat::BinaryInterchange
-                                        | ast::TS18661FloatFormat::BinaryExtended
-                                ) && matches!(float.width, 32 | 64)
-                                {
-                                    if self.unit.compiler != Compiler::Gnu {
-                                        return Err(Error::new(
-                                            ty.span.start,
-                                            "GNU _Float32/_Float64/_Float32x/_Float64x types are unavailable in the Clang profile",
-                                        ));
-                                    }
-                                    direct_complex_base = true;
+                            if matches!(
+                                float.format,
+                                ast::TS18661FloatFormat::BinaryInterchange
+                                    | ast::TS18661FloatFormat::BinaryExtended
+                            ) && matches!(float.width, 32 | 64)
+                            {
+                                if self.unit.compiler != Compiler::Gnu {
+                                    return Err(Error::new(
+                                        ty.span.start,
+                                        "GNU _Float32/_Float64/_Float32x/_Float64x types are unavailable in the Clang profile",
+                                    ));
                                 }
-                                if float.format == ast::TS18661FloatFormat::BinaryInterchange
-                                    && float.width == 128
-                                {
-                                    if self.unit.compiler != toucan_target::Compiler::Gnu {
-                                        return Err(Error::new(
-                                            ty.span.start,
-                                            "the Clang profile rejects the _Float128 type spelling",
-                                        ));
-                                    }
-                                    direct_complex_base = true;
-                                }
-                                TypeKind::Float(FloatKind::Extended {
-                                    format: match float.format {
-                                        ast::TS18661FloatFormat::BinaryInterchange => {
-                                            crate::ExtendedFloatFormat::BinaryInterchange
-                                        }
-                                        ast::TS18661FloatFormat::BinaryExtended => {
-                                            crate::ExtendedFloatFormat::BinaryExtended
-                                        }
-                                        ast::TS18661FloatFormat::DecimalInterchange => {
-                                            crate::ExtendedFloatFormat::DecimalInterchange
-                                        }
-                                        ast::TS18661FloatFormat::DecimalExtended => {
-                                            crate::ExtendedFloatFormat::DecimalExtended
-                                        }
-                                    },
-                                    width: float.width,
-                                })
+                                direct_complex_base = true;
                             }
+                            if float.format == ast::TS18661FloatFormat::BinaryInterchange
+                                && float.width == 128
+                            {
+                                if self.unit.compiler != toucan_target::Compiler::Gnu {
+                                    return Err(Error::new(
+                                        ty.span.start,
+                                        "the Clang profile rejects the _Float128 type spelling",
+                                    ));
+                                }
+                                direct_complex_base = true;
+                            }
+                            TypeKind::Float(FloatKind::Extended {
+                                format: match float.format {
+                                    ast::TS18661FloatFormat::BinaryInterchange => {
+                                        crate::ExtendedFloatFormat::BinaryInterchange
+                                    }
+                                    ast::TS18661FloatFormat::BinaryExtended => {
+                                        crate::ExtendedFloatFormat::BinaryExtended
+                                    }
+                                    ast::TS18661FloatFormat::DecimalInterchange => {
+                                        crate::ExtendedFloatFormat::DecimalInterchange
+                                    }
+                                    ast::TS18661FloatFormat::DecimalExtended => {
+                                        crate::ExtendedFloatFormat::DecimalExtended
+                                    }
+                                },
+                                width: float.width,
+                            })
                         }
                         _ => {
                             return Err(Error::new(
@@ -5056,24 +4975,6 @@ fn has_function_derivation(mut declaration: &Node<ast::Declarator>) -> bool {
             return false;
         }
     }
-}
-
-fn extended_float_name(float: &ast::TS18661FloatType) -> String {
-    let prefix = match float.format {
-        ast::TS18661FloatFormat::BinaryInterchange | ast::TS18661FloatFormat::BinaryExtended => {
-            "_Float"
-        }
-        _ => "_Decimal",
-    };
-    let suffix = if matches!(
-        float.format,
-        ast::TS18661FloatFormat::BinaryExtended | ast::TS18661FloatFormat::DecimalExtended
-    ) {
-        "x"
-    } else {
-        ""
-    };
-    format!("{prefix}{}{suffix}", float.width)
 }
 
 fn add_qualifier(

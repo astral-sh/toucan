@@ -164,11 +164,15 @@ fn builtin_typedef_shadowing_preserves_prior_types_and_parameter_scopes() {
         for source in [
             "typedef int __float128;__float128 x;_Static_assert(sizeof(x)==4,\"shadow\");",
             "void f(int __float128){__float128=1;} void g(void){typedef int __float128;__float128 x=2;}",
-            "int __float128=1; int f(void){return __float128;}",
             "int f(void){int __float128=1; {typedef char __float128;__float128 x=0;}return __float128;}",
         ] {
             parity(source, profile, true);
         }
+        parity(
+            "int __float128=1; int f(void){return __float128;}",
+            profile,
+            !profile.target().is_x86_64(),
+        );
         if matches!(
             profile.target(),
             Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl

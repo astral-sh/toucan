@@ -34,6 +34,20 @@ pub(crate) fn predefined_type(name: &str, target: Target, compiler: Compiler) ->
 }
 
 impl crate::analyze::Analyzer {
+    /// GNU's predefined typedef may be shadowed locally or replaced by a typedef,
+    /// but cannot be redeclared as an object or function with linkage.
+    pub(crate) fn require_linked_float_name(&self, name: &str, offset: usize) -> Result<(), Error> {
+        if predefined_type(name, self.unit.target, self.unit.compiler).is_some() {
+            return Err(Error::new(
+                offset,
+                format!(
+                    "predefined typedef `{name}` cannot name an object or function with linkage"
+                ),
+            ));
+        }
+        Ok(())
+    }
+
     pub(crate) fn floating_machine_mode(
         &self,
         ty: &Type,

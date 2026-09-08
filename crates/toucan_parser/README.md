@@ -29,6 +29,10 @@ GNU `q`/`Q` floating suffixes and Clang `__float128` preserve distinct AST varia
 GNU `__float128` uses the lexical typedef environment and supports ordinary identifier
 shadowing. `GnuC11WithClangExtensions` keeps GNU builtin-name identity while exposing
 the extension grammar to semantic consumers that validate compiler availability.
+Clang keeps `_Float32`, `_Float64`, `_Float32x`, `_Float64x`, and `_Float128`
+available as ordinary identifiers and typedef names. GNU reserves those spellings;
+both compiler families reserve `_Float16`. These rules are independent of C mode
+and preprocessor version-marker overrides.
 
 `Config::gnu_keywords` controls bare `asm`/`typeof` independently of underscored
 extensions. Standard C11 permits those identifiers, while GNU11 reserves them.

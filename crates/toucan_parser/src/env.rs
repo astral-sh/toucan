@@ -84,7 +84,13 @@ impl Env {
         reserved.extend(strings::RESERVED_CLANG.iter());
         reserved.extend(strings::RESERVED_CLANG_CALLING_CONVENTIONS.iter());
         if !gnu_types {
-            for name in ["_Float32", "_Float64", "_Float32x", "_Float64x"] {
+            for name in [
+                "_Float32",
+                "_Float64",
+                "_Float32x",
+                "_Float64x",
+                "_Float128",
+            ] {
                 reserved.remove(name);
             }
         }
@@ -121,8 +127,10 @@ impl Env {
             || !matches!(
                 ty,
                 TS18661FloatType {
-                    format: TS18661FloatFormat::BinaryInterchange
-                        | TS18661FloatFormat::BinaryExtended,
+                    format: TS18661FloatFormat::BinaryInterchange,
+                    width: 32 | 64 | 128,
+                } | TS18661FloatType {
+                    format: TS18661FloatFormat::BinaryExtended,
                     width: 32 | 64,
                 }
             )

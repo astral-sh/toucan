@@ -35,16 +35,26 @@ still apply. GNU arithmetic on altered-alignment floating typedefs also retains
 the existing explicit unsupported diagnostic; it does not silently erase their
 observable result alignment.
 
-The default GNU version markers now select glibc's distinct builtin types.
-Callers overriding the version macros for older header branches can still use
-the legacy typedef spellings. This is an intentional compatibility exception:
-GCC 13 itself reserves these names and rejects such replacement typedefs.
+GNU reserves `_Float16`, `_Float32`, `_Float64`, `_Float32x`, `_Float64x`, and
+`_Float128` as keywords in every supported C mode. Replacement typedefs and
+identifier declarations using these names are rejected. Clang reserves `_Float16`
+and `__float128`; the other five names are ordinary identifiers that headers can
+introduce as typedefs, including `_Float128`.
+
+The default GNU version markers select glibc's distinct builtin types. Overriding
+those markers changes conditional header branches, not the compiler's keywords.
+Forcing a legacy header branch that redeclares a GNU floating keyword now produces
+a diagnostic, matching GCC 13 with the same override. Explicit source macros still
+expand before parsing, including macros whose names match these keywords.
 [Version-profile validation](compiler-version-predefines.md) exercises the
 default header route and generated calls to the installed glibc.
 
 The rules follow [GCC 13's additional floating types](https://gcc.gnu.org/onlinedocs/gcc-13.3.0/gcc/Floating-Types.html)
 and its [arithmetic and argument conversions](https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/gcc/c/c-typeck.cc).
 Native tests compare object bytes, source constraints, and generated C/Rust calls.
+The [floating-name conformance record](../corpus/evidence/floating-names-2026-09-08/summary.json)
+covers keyword/typedef namespaces, version overrides, and the unchanged modern
+project header outputs after removing the legacy acceptance exception.
 Cross-compiled assembly supports the AArch64 ABI review; it is not native execution
 on this x86-64 host. Unsupported `_FloatN` mathematical builtin families remain
 separate features.

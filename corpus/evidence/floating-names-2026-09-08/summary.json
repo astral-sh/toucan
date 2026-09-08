@@ -1,0 +1,59 @@
+{
+  "schema_version": 1,
+  "base_commit": "858ed52dba42e20601ff57fec3a106a280314ace",
+  "source_manifest_sha256": "cb1b253a2a1b9aee92033d16eff975dbfa5188d2924423e8fa31686b60e548ea",
+  "archive_sha256": "864e9a8d426bce6833ec522a37d67fa7ea61c0bcffcf5030bd935ec9d599217d",
+  "binaries": {
+    "toucan": {
+      "path": "/home/dev-user/.cache/toucan/floating-name-conformance/final-frozen/toucan",
+      "sha256": "cf21197cb5edac1aa5ec50fa4809f816eab4c12f7b6bd85c181ef9fff4526127"
+    },
+    "checked-replay": {
+      "path": "/home/dev-user/.cache/toucan/floating-name-conformance/final-frozen/checked-replay",
+      "sha256": "7558b760849853bedd7f263ac9cd1e66050abceedd36b55432cb33fe845231dc"
+    },
+    "floatn-tests": {
+      "path": "/home/dev-user/.cache/toucan/floating-name-conformance/final-frozen/floatn-tests",
+      "sha256": "6f8b91f55028c692ee1774e783a6ad8a8c291bbf814cdb7732958add6cd4da21"
+    }
+  },
+  "native_comparisons": {
+    "count": 11088,
+    "mismatches": 0,
+    "names": 7,
+    "cases_per_name": 22,
+    "modes": 8,
+    "compiler_target_configurations": 9
+  },
+  "checked_replay": {
+    "pairs": 8448,
+    "accepted": 5569,
+    "rejected": 2879
+  },
+  "headers": {
+    "unchanged_outputs": 8,
+    "glibc_version_override_pairs": 4
+  },
+  "native_runtime": {
+    "floatn_current_rust": 4,
+    "floatn_rust_1_64": 4,
+    "glibc_current_rust": 2,
+    "glibc_rust_1_64": 2
+  },
+  "tests": {
+    "semantic": 40,
+    "facade": 3,
+    "bindings": 2
+  },
+  "checks": [
+    "Workspace and fuzz Clippy, all targets, warnings denied",
+    "Rustfmt and diff checks",
+    "Generated parser and grammar unchanged"
+  ],
+  "limitations": [
+    "No new timing or sanitizer campaign",
+    "Native execution recorded on x86-64 Linux only",
+    "Parent integration owns combined workspace and platform CI",
+    "Probe scripts preserve original compiler/sysroot/cache paths"
+  ]
+}

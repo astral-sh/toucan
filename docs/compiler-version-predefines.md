@@ -23,6 +23,10 @@ the CLI accepts equivalent `-D` options. Source `#undef` directives remain
 respected. Changing a macro does not change the compiler family stored in the
 translation unit, its layout rules, or its feature-query catalog. Select that
 family with `CompilerProfile` or `--compiler` and use matching resource headers.
+In particular, overriding GNU's version to select legacy floating typedefs does
+not permit redeclaring its `_FloatN` keywords. Such a header branch is diagnosed,
+matching the same override in native GCC. Clang's ordinary `_Float32`, `_Float64`,
+`_Float32x`, `_Float64x`, and `_Float128` aliases remain available.
 
 ## Validation
 

@@ -753,6 +753,9 @@ impl Analyzer {
                 None
             };
             if !is_typedef {
+                if function || is_extern {
+                    self.require_linked_float_name(&name, item.span.start)?;
+                }
                 let external = (function || is_extern)
                     && !is_static
                     && !previous_file.is_some_and(|index| self.unit.declarations[index].is_static)

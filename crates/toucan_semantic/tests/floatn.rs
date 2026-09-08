@@ -196,8 +196,8 @@ fn constants_round_without_losing_nominal_type() {
 }
 
 #[test]
-fn clang_names_and_legacy_header_typedefs_remain_ordinary_types() {
-    for p in profiles() {
+fn clang_float_names_remain_ordinary_types() {
+    for p in profiles().filter(|p| p.compiler() == Compiler::Clang) {
         let a=check("typedef float _Float32;typedef double _Float64;typedef double _Float32x;typedef long double _Float64x;_Float32 f(_Float32 x){return x;}",p).unwrap();
         assert_eq!(
             evaluate_integer(a.unit(), "sizeof(_Float32)")
@@ -205,12 +205,10 @@ fn clang_names_and_legacy_header_typedefs_remain_ordinary_types() {
                 .value,
             4
         );
-        if p.compiler() == Compiler::Clang {
-            check("int _Float32;int f(int _Float64){typedef int _Float32x;_Float32x n=_Float64;return n;}",p).unwrap();
-            check("void f(void){typedef int _Float32;_Float32 n=1;}", p).unwrap();
-            check("void f(void){typedef float _Float32;_Float32 n=1;}", p).unwrap();
-            assert!(check("double x=1.0f32;", p).is_err());
-        }
+        check("int _Float32;int f(int _Float64){typedef int _Float32x;_Float32x n=_Float64;return n;}",p).unwrap();
+        check("void f(void){typedef int _Float32;_Float32 n=1;}", p).unwrap();
+        check("void f(void){typedef float _Float32;_Float32 n=1;}", p).unwrap();
+        assert!(check("double x=1.0f32;", p).is_err());
     }
 }
 
