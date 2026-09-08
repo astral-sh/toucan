@@ -288,10 +288,6 @@ fn invalid_input_returns_errors() {
         },
     };
     assert!(matches!(target.layout(&array), Err(LayoutError::Abi(_))));
-    assert!(matches!(
-        Target::X86_64PcWindowsMsvc.builtin_layout(B::Int128),
-        Err(LayoutError::UnsupportedBuiltin { .. })
-    ));
 }
 
 #[test]

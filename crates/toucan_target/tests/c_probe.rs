@@ -34,6 +34,45 @@ fn fixtures() -> Vec<(&'static str, &'static str, Type, Vec<&'static str>)> {
     ];
     vec![
         (
+            "int128",
+            "struct int128 { char c; __int128 i; unsigned __int128 u; };",
+            record(
+                vec![
+                    field(B::Char, None),
+                    field(B::Int128, None),
+                    field(B::UnsignedInt128, None),
+                ],
+                vec![],
+            ),
+            vec!["c", "i", "u"],
+        ),
+        (
+            "packed_int128",
+            "#pragma pack(push, 2)\nstruct packed_int128 { char c; __int128 i; unsigned __int128 u; };\n#pragma pack(pop)",
+            record(
+                vec![
+                    field(B::Char, None),
+                    field(B::Int128, None),
+                    field(B::UnsignedInt128, None),
+                ],
+                vec![Annotation::PragmaPack(16)],
+            ),
+            vec!["c", "i", "u"],
+        ),
+        (
+            "int128_bits",
+            "struct int128_bits { unsigned __int128 a:65; unsigned __int128 b:12; char c; };",
+            record(
+                vec![
+                    field(B::UnsignedInt128, Some(65)),
+                    field(B::UnsignedInt128, Some(12)),
+                    field(B::Char, None),
+                ],
+                vec![],
+            ),
+            vec!["", "", "c"],
+        ),
+        (
             "natural",
             "struct natural { char c; int i; double d; };",
             record(plain.clone(), vec![]),

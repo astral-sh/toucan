@@ -142,17 +142,7 @@ impl Target {
                     required_alignment_bits: 8,
                 })
             }
-            TypeVariant::Builtin(builtin) => {
-                if matches!(self, Self::X86_64PcWindowsMsvc)
-                    && matches!(builtin, BuiltinType::Int128 | BuiltinType::UnsignedInt128)
-                {
-                    return Err(LayoutError::UnsupportedBuiltin {
-                        target: self,
-                        builtin: *builtin,
-                    });
-                }
-                abi::TypeVariant::Builtin(builtin.to_abi()?)
-            }
+            TypeVariant::Builtin(builtin) => abi::TypeVariant::Builtin(builtin.to_abi()?),
             TypeVariant::Record(record) => {
                 let fields = record
                     .fields

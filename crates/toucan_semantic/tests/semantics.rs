@@ -274,19 +274,16 @@ fn integer_machine_modes_preserve_width_and_signedness() {
         evaluate_integer(&unit, "(wide)1 << 127").unwrap().value,
         1u128 << 127
     );
-    assert!(
-        analyze(
-            "typedef int I __attribute__((mode(TI)));",
-            Target::X86_64PcWindowsMsvc
-        )
-        .is_err()
-    );
     assert!(analyze("typedef float F __attribute__((mode(DF)));", TARGET).is_err());
     let windows = analyze(
-        "typedef int register_t __attribute__((mode(word)));",
+        "typedef int register_t __attribute__((mode(word))); typedef int wide __attribute__((mode(TI)));",
         Target::X86_64PcWindowsMsvc,
     )
     .unwrap();
+    assert_eq!(
+        evaluate_integer(&windows, "sizeof(wide)").unwrap().value,
+        16
+    );
     assert_eq!(
         evaluate_integer(&windows, "sizeof(register_t)")
             .unwrap()

@@ -42,6 +42,7 @@ pub(crate) fn analyze_inner(
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
+    analyzer.int128_specifiers = parsed.int128_specifiers;
     let result = (|| {
         if let Some(limits) = retention {
             analyzer.checked = Some(Box::new(CodeBuilder::new(
@@ -152,6 +153,7 @@ pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<Inte
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
+    analyzer.int128_specifiers = parsed.int128_specifiers;
     analyzer.eval(expression).map_err(|mut error| {
         error.offset = parsed
             .offsets
@@ -167,6 +169,7 @@ struct Parsed {
     character_literals: HashMap<usize, String>,
     offsets: crate::parser_extensions::SourceMap,
     empty_initializers: HashSet<usize>,
+    int128_specifiers: HashSet<usize>,
 }
 
 fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
@@ -217,6 +220,7 @@ fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
         character_literals,
         offsets: adapted.offsets,
         empty_initializers: adapted.empty_initializers,
+        int128_specifiers: adapted.int128_specifiers,
     })
 }
 
@@ -492,6 +496,7 @@ pub(crate) struct Analyzer {
     record_attributes: HashSet<usize>,
     pub(crate) character_literals: HashMap<usize, String>,
     pub(crate) empty_initializers: HashSet<usize>,
+    int128_specifiers: HashSet<usize>,
     nesting: usize,
     pub(crate) capture_function_scope: bool,
     definition_parameters: Option<usize>,
@@ -556,6 +561,7 @@ impl Analyzer {
             record_attributes: HashSet::new(),
             character_literals: HashMap::new(),
             empty_initializers: HashSet::new(),
+            int128_specifiers: HashSet::new(),
             nesting: 0,
             capture_function_scope: false,
             definition_parameters: None,
@@ -746,10 +752,11 @@ impl Analyzer {
                 node:
                     ast::DeclarationSpecifier::TypeSpecifier(Node {
                         node: ast::TypeSpecifier::TS18661Float(float),
-                        ..
+                        span,
                     }),
                 ..
             }) = declaration.node.specifiers.last()
+            && !self.int128_specifiers.contains(&span.start)
         {
             let name = extended_float_name(float);
             let (ty, attributes) = self.specifiers(
@@ -1405,8 +1412,18 @@ impl Analyzer {
         let mut float = false;
         let mut double = false;
         let mut int = false;
+        let mut int128 = false;
         let mut special = None;
         for ty in types {
+            if self.int128_specifiers.contains(&ty.span.start) {
+                if std::mem::replace(&mut int128, true) {
+                    return Err(Error::new(
+                        ty.span.start,
+                        "duplicate __int128 type specifier",
+                    ));
+                }
+                continue;
+            }
             match &ty.node {
                 ast::TypeSpecifier::Long => long += 1,
                 ast::TypeSpecifier::Short if !short => short = true,
@@ -1489,7 +1506,8 @@ impl Analyzer {
             }
         }
         if let Some(special) = special {
-            if long > 0 || short || signed || unsigned || char_ || float || double || int {
+            if long > 0 || short || signed || unsigned || char_ || float || double || int || int128
+            {
                 return Err(Error::new(offset, "invalid modifiers on type"));
             }
             return Ok(Type::new(special));
@@ -1498,6 +1516,7 @@ impl Analyzer {
             || long > 2
             || (long > 0 && short)
             || (signed && unsigned)
+            || (int128 && (long > 0 || short || char_ || float || double || int))
             || (char_ && (long > 0 || short || int || float || double))
             || (float && (double || long > 0 || short || signed || unsigned || int))
             || (double && (long > 1 || short || signed || unsigned || int))
@@ -1513,7 +1532,13 @@ impl Analyzer {
                 FloatKind::Double
             })
         } else {
-            TypeKind::Integer(if char_ {
+            TypeKind::Integer(if int128 {
+                if unsigned {
+                    IntegerKind::UnsignedInt128
+                } else {
+                    IntegerKind::Int128
+                }
+            } else if char_ {
                 if unsigned {
                     IntegerKind::UnsignedChar
                 } else if signed {

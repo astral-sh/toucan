@@ -90,6 +90,7 @@ pub(crate) struct Adapted {
     pub(crate) source: String,
     pub(crate) offsets: SourceMap,
     pub(crate) empty_initializers: std::collections::HashSet<usize>,
+    pub(crate) int128_specifiers: std::collections::HashSet<usize>,
 }
 
 struct Builder<'a> {
@@ -210,11 +211,56 @@ pub(crate) fn adapt(source: &str) -> Result<Adapted, Error> {
             "adapted parser input exceeds the 16 MiB limit",
         ));
     }
+    let (source, int128_specifiers) =
+        normalize_int128(builder.output, &mut adaptations).map_err(|mut error| {
+            error.offset = builder.offsets.original_offset(error.offset);
+            error
+        })?;
     Ok(Adapted {
-        source: builder.output,
+        source,
         offsets: builder.offsets,
         empty_initializers,
+        int128_specifiers,
     })
+}
+
+/// Replace the GNU integer keyword after reordering attributes, so type names
+/// inside those attributes are covered too. The equal-width parser token keeps
+/// every source range unchanged; only marked occurrences have integer semantics.
+fn normalize_int128(
+    source: String,
+    adaptations: &mut usize,
+) -> Result<(String, std::collections::HashSet<usize>), Error> {
+    if !source.contains("__int128") {
+        return Ok((source, std::collections::HashSet::new()));
+    }
+    let mut bytes = source.into_bytes();
+    let mut specifiers = std::collections::HashSet::new();
+    let mut index = 0;
+    while index < bytes.len() {
+        if matches!(bytes[index], b'\'' | b'"') {
+            index = quoted_end(&bytes, index);
+        } else if bytes[index].is_ascii_alphabetic() || bytes[index] == b'_' {
+            let start = index;
+            while bytes
+                .get(index)
+                .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+            {
+                index += 1;
+            }
+            if &bytes[start..index] == b"__int128" {
+                check_adaptations(adaptations, start)?;
+                bytes[start..index].copy_from_slice(b"_Float16");
+                specifiers.insert(start);
+            }
+        } else {
+            index += 1;
+        }
+    }
+    Ok((
+        String::from_utf8(bytes).expect("equal-width ASCII replacement preserves UTF-8"),
+        specifiers,
+    ))
 }
 
 fn skip_space(bytes: &[u8], mut index: usize) -> usize {

@@ -13,6 +13,13 @@ extensions.
 Layout supports packing, explicit alignment, and bitfields. Binding generation has
 additional representation constraints described below.
 
+GNU `__int128` and `unsigned __int128` work in declarations, casts, constants,
+and function bodies. Compiler probes cover scalar, packed-record, and bitfield
+layouts on all five targets, including Clang's Windows extension; Microsoft C
+does not accept this GNU spelling. Generated 128-bit ABI types require Rust 1.78
+or newer with its bundled LLVM, following Rust's
+[ABI correction](https://blog.rust-lang.org/2024/03/30/i128-layout-update/).
+
 ## String and character literals
 
 C11 ordinary, `u8`, `u`, `U`, and `L` strings use UTF-8, UTF-16, or UTF-32
