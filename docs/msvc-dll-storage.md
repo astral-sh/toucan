@@ -189,6 +189,14 @@ The [integrated library checks](../corpus/evidence/dll-libraries-root-integratio
 repeat those 12 cross-linked consumers after the declaration corrections and
 confirm that the eight existing project and musl binding outputs are unchanged.
 
+The [native Windows run](../corpus/evidence/windows-dll-native-f57e9fa/summary.json)
+executes all 12 consumers with Rust 1.64.0 and 1.98.1 and Clang 20.1.8. Both C
+and Rust checks pass for calls, data mutation, and function/data address identity
+through two DLLs. The archive includes the executables and all 48 verified case
+hashes; the tested GitHub merge tree matches the recorded implementation commit.
+This establishes the DLL runtime behavior of those probes. Windows SDK headers,
+complete project consumers, and ARM Windows remain separate coverage.
+
 Compiler rules were checked against Clang 18's
 [declaration redeclaration handling](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/lib/Sema/SemaDecl.cpp)
 and [DLL attribute merging](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/lib/Sema/SemaDeclAttr.cpp).
