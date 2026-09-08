@@ -34,3 +34,10 @@ path = "fuzz_targets/bindings.rs"
 test = false
 doc = false
 bench = false
+
+[[bin]]
+name = "checked"
+path = "fuzz_targets/checked.rs"
+test = false
+doc = false
+bench = false

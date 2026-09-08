@@ -6,10 +6,17 @@ Install `cargo-fuzz` and a nightly Rust toolchain, then run a target from the re
 cargo +nightly fuzz run preprocess -- -max_total_time=60
 cargo +nightly fuzz run semantic -- -max_total_time=60
 cargo +nightly fuzz run bindings -- -max_total_time=60
+cargo +nightly fuzz run checked -- -max_total_time=60
 ```
 
 Targets exercise UTF-8 input, bounded preprocessing, declaration analysis, layout,
-and binding generation. Invalid input may return a diagnostic; panics, aborts,
+and binding generation. The `checked` target selects among all five target profiles
+and compares analysis with and without retained code. Successful results must have
+identical declarations; invalid inputs must produce the same diagnostic, except
+when the separate retention limits are reached. It also exercises layout queries
+on the retained analysis owner. This target explicitly rejects invalid UTF-8 so
+the reproducer bytes are exactly the source used for analysis and target selection.
+Invalid input may return a diagnostic; panics, aborts,
 timeouts, and sanitizer failures are findings. Minimize failures and add regression
 tests before fixing them. Short local runs are smoke tests, not a completed fuzz campaign.
 
@@ -45,8 +52,8 @@ The [body-checking campaign](evidence/readiness-2026-09-08.json) records three
 | Bindings | 50,858 | 8 KiB | 514 MiB |
 
 All three runs completed without sanitizer findings, timeouts, or memory-limit
-failures. Inputs include invalid C and rejected UTF-8; these counts do not measure
-accepted programs or output equivalence. The harnesses use the x86_64 Linux target
+failures. The older typed `&str` harnesses can analyze a valid prefix before an invalid
+UTF-8 byte; these counts do not measure accepted programs or output equivalence. The harnesses use the x86_64 Linux target
 and the binding harness uses default options. New seeds cover GNU statement
 expressions, variadic bodies, variable arrays, inline assembly, sparse
 initializers, repeated record members, and control flow. The shared `c.dict`

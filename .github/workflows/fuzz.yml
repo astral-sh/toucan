@@ -36,7 +36,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p fuzz/logs
-          for fuzz_target in preprocess semantic bindings; do
+          for fuzz_target in preprocess semantic bindings checked; do
             mkdir -p "fuzz/corpus/$fuzz_target"
             cp "fuzz/seeds/$fuzz_target/"*.h "fuzz/corpus/$fuzz_target/"
             cargo fuzz run "$fuzz_target" "fuzz/corpus/$fuzz_target" -- \
