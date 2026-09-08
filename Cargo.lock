@@ -417,6 +417,7 @@ name = "toucan"
 version = "0.0.1"
 dependencies = [
  "serde",
+ "serde_json",
  "tempfile",
  "thiserror",
  "toucan_bindings",

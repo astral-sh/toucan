@@ -17,6 +17,7 @@ toucan_semantic = { version = "0.0.1", path = "../toucan_semantic" }
 toucan_bindings = { version = "0.0.1", path = "../toucan_bindings" }
 
 [dev-dependencies]
+serde_json.workspace = true
 tempfile.workspace = true
 
 [lints]

@@ -133,3 +133,11 @@ The verification report records the frontend executable checksum, target, host, 
 versions, source archive checksums, header checksums, binding checksums, selected declaration
 counts, skipped macros, probe coverage, timings, and every command. Timings describe individual
 verification runs; they are not a comparative benchmark.
+
+## Complete C sources
+
+The [translation-unit audit](translation-units.md) checks seven pinned, untouched
+C sources with their actual build flags. It compares normal and retained analysis
+through Toucan preprocessing and unchanged compiler-preprocessed input. Linux CI
+requires all seven Toucan-route inputs to pass; compiler-route gaps remain explicit
+in the report.

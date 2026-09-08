@@ -8,9 +8,12 @@ on:
       - "crates/**"
       - "corpus/manifest.json"
       - "corpus/probes.json"
+      - "corpus/translation-units.json"
       - "corpus/ffi/**"
       - "corpus/oracles/**"
       - "scripts/prepare_corpus.py"
+      - "scripts/audit_translation_units.py"
+      - "scripts/tests/test_translation_unit_audit.py"
       - "scripts/verify_corpus.py"
       - "scripts/compare_bindings.py"
       - "scripts/verify_equivalence.py"
@@ -109,6 +112,20 @@ jobs:
         run: |
           set -euo pipefail
           "$CORPUS_PYTHON" scripts/prepare_corpus.py --cache corpus/cache --gh gh --jobs 2 --workers 2
+
+      - name: Check complete C translation units
+        if: runner.os == 'Linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+          "$CORPUS_PYTHON" -m unittest discover -s scripts/tests -v
+          cargo build --locked --release -p toucan --example audit_translation_unit
+          "$CORPUS_PYTHON" scripts/audit_translation_units.py \
+            --cache corpus/cache \
+            --probe target/release/examples/audit_translation_unit \
+            --revision "${{ github.sha }}" \
+            --target "${{ matrix.target }}" \
+            --output corpus/results/translation-units
 
       - name: Run native C and Rust probes
         shell: bash
@@ -243,6 +260,8 @@ jobs:
             corpus/results/**/*.rs
             corpus/results/**/*.c
             corpus/results/**/*.d
+            corpus/results/**/*.i
+            corpus/results/**/*.unit
             corpus/results/**/*.zst
             corpus/results/**/*.dict
             corpus/cache/prepared.json
