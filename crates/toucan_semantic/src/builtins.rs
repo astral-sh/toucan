@@ -97,7 +97,7 @@ impl Analyzer {
         let byte_swap = self.byte_swap_type(name);
         let arity = match name {
             "__builtin_va_start" | "__builtin_va_copy" | "__builtin_expect" => 2,
-            "__builtin_va_end" => 1,
+            "__builtin_va_end" | "__builtin_constant_p" => 1,
             "__builtin_unreachable" | "__builtin_trap" => 0,
             _ if memory.is_some() => 3,
             _ if byte_swap.is_some() => 1,
@@ -122,6 +122,19 @@ impl Analyzer {
             return Ok(Some(ty));
         }
         match name {
+            "__builtin_constant_p" => {
+                let ty = self.value_expression_type(&arguments[0])?;
+                if matches!(
+                    self.unit.target,
+                    toucan_target::Target::X86_64UnknownLinuxGnu
+                        | toucan_target::Target::Aarch64UnknownLinuxGnu
+                ) {
+                    self.require_complete_object(&ty, arguments[0].span.start)?;
+                } else {
+                    self.check_constant_query_type_operands(&arguments[0])?;
+                }
+                return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));
+            }
             "__builtin_expect" => {
                 let ty = Type::new(TypeKind::Integer(IntegerKind::Long));
                 for argument in arguments {

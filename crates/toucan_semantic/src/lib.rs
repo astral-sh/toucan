@@ -8,6 +8,7 @@ mod analyze;
 mod asm;
 mod builtins;
 pub mod checked;
+mod constant_query;
 mod expression;
 mod floating;
 mod initializer;

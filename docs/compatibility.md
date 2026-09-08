@@ -117,6 +117,24 @@ both are arithmetic constants, evaluation returns the converted first argument.
 `__builtin_unreachable` and `__builtin_trap` have void type and take no arguments.
 Ordinary declarations can shadow intrinsic call names.
 
+`__builtin_constant_p` checks one value operand and returns `int`. Its conservative
+constant evaluator returns one only for supported, valid constant folds; zero
+means this frontend did not prove the operand constant. This includes arithmetic
+constants, literal strings, supported pointer casts, and folded conditional or
+short-circuit expressions. Object-value propagation, statement-expression values,
+and compound-literal values are not proofs. This policy does not predict GCC or
+Clang optimization: both compilers can change a local-variable query from zero to
+one at `-O2`. The retained query preserves its unevaluated value operand and C
+array/function conversions. See [GCC's constant-query contract](https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html).
+
+GCC-profile queries suppress nested VLA bounds and `typeof` operands. Clang can
+evaluate a fresh VLA bound inside an otherwise unevaluated query, as in
+`__builtin_constant_p(sizeof(int[n++]))`. Until the graph represents that split
+evaluation context, Clang-profile queries with variably modified written type
+operands return an explicit unsupported diagnostic. Ordinary existing-VLA operands
+remain supported. Clang also accepts void and incomplete-record operands, which
+GCC rejects; argument checking follows the target profile.
+
 Direct calls to `__builtin_memset`, `__builtin_memcpy`, `__builtin_memmove`, and
 `__builtin_memcmp` use their C library prototypes, including the target's `size_t`
 type and pointer qualifiers. Retained calls identify the operation and preserve

@@ -102,6 +102,12 @@ impl Analyzer {
             ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
                 self.eval_expect(call).is_ok()
             }
+            ast::Expression::Call(call)
+                if self.builtin_name(call) == Some("__builtin_constant_p") =>
+            {
+                self.builtin_call_type(call)?;
+                true
+            }
             _ => false,
         })
     }
@@ -163,6 +169,11 @@ impl Analyzer {
             }
             ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
                 self.eval_expect(call)
+            }
+            ast::Expression::Call(call)
+                if self.builtin_name(call) == Some("__builtin_constant_p") =>
+            {
+                self.eval_constant_query(call)
             }
             ast::Expression::Call(call)
                 if self

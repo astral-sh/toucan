@@ -163,6 +163,7 @@ pub enum Builtin {
     ByteSwap16,
     ByteSwap32,
     ByteSwap64,
+    ConstantQuery,
 }
 impl Builtin {
     fn from_name(name: &str) -> Option<Self> {
@@ -180,6 +181,7 @@ impl Builtin {
             "__builtin_bswap16" => Self::ByteSwap16,
             "__builtin_bswap32" => Self::ByteSwap32,
             "__builtin_bswap64" => Self::ByteSwap64,
+            "__builtin_constant_p" => Self::ConstantQuery,
             _ => return None,
         })
     }
@@ -1096,6 +1098,8 @@ impl Analyzer {
                             Conversion::Assignment,
                         )),
                     )
+                } else if builtin == Builtin::ConstantQuery {
+                    (UseContext::UnevaluatedValue, None)
                 } else if builtin == Builtin::VaStart && index == 1 {
                     (UseContext::Unevaluated, None)
                 } else if array_list {

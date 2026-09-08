@@ -251,7 +251,14 @@ impl Builder {
                 }
             }
         }
-        if matches!(kind, ExprKind::AlignOf(_)) {
+        if matches!(
+            kind,
+            ExprKind::AlignOf(_)
+                | ExprKind::BuiltinCall {
+                    builtin: super::Builtin::ConstantQuery,
+                    ..
+                }
+        ) {
             for bound in &mut self.code.bounds[start..] {
                 if matches!(
                     bound.evaluation,
