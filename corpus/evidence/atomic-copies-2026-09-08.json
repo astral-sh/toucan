@@ -1,0 +1,89 @@
+{
+  "base": "frozen __auto_type patch 19364ecbc7355f7af6e831fb14a39af07d8216620cba661ab58cf3512978101d",
+  "minimal_source": "void f(void){_Atomic(int*) p=(_Atomic(int*))0;}",
+  "rationale": "Clang preserves the atomic rvalue wrapper and permits exact-compatible atomic copies. The prior initializer checker discarded the destination wrapper before checking assignment. Preserve that destination for constraints and retained conversions, keeping the ordinary value type for aggregate structure and constant-range checks. No rvalue-to-lvalue load is added.",
+  "compiler_versions": {
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+  },
+  "command_template": [
+    "$CC",
+    "-std=gnu11",
+    "-fsyntax-only",
+    "$SOURCE"
+  ],
+  "probes": {
+    "0": {
+      "source": "void f(void){_Atomic(int*) q=(_Atomic(int*))0;}",
+      "results": {
+        "gcc": {
+          "status": 0,
+          "stderr": ""
+        },
+        "clang": {
+          "status": 0,
+          "stderr": ""
+        }
+      }
+    },
+    "1": {
+      "source": "void f(void){_Atomic(const int*) q=(_Atomic(int*))0;}",
+      "results": {
+        "gcc": {
+          "status": 0,
+          "stderr": ""
+        },
+        "clang": {
+          "status": 1,
+          "stderr": "$PROBES/atomic-assignment-1.c:1:34: error: initializing '_Atomic(const int *)' with an expression of incompatible type '_Atomic(int *)'\n    1 | void f(void){_Atomic(const int*) q=(_Atomic(int*))0;}\n      |                                  ^ ~~~~~~~~~~~~~~~~\n1 error generated.\n"
+        }
+      }
+    },
+    "2": {
+      "source": "void f(void){int *q=(_Atomic(int*))0;}",
+      "results": {
+        "gcc": {
+          "status": 0,
+          "stderr": ""
+        },
+        "clang": {
+          "status": 1,
+          "stderr": "$PROBES/atomic-assignment-2.c:1:19: error: initializing 'int *' with an expression of incompatible type '_Atomic(int *)'\n    1 | void f(void){int *q=(_Atomic(int*))0;}\n      |                   ^ ~~~~~~~~~~~~~~~~\n1 error generated.\n"
+        }
+      }
+    },
+    "3": {
+      "source": "struct S{int x;};struct S f(void);void g(void){_Atomic(struct S) q=(_Atomic(struct S))f();}",
+      "results": {
+        "gcc": {
+          "status": 0,
+          "stderr": ""
+        },
+        "clang": {
+          "status": 0,
+          "stderr": ""
+        }
+      }
+    },
+    "braces": {
+      "source": "void f(void){_Atomic int value={(_Atomic(int))1};}",
+      "results": {
+        "gcc": {
+          "status": 0,
+          "stderr": ""
+        },
+        "clang": {
+          "status": 1,
+          "stderr": "$PROBES/atomic-copy-braces.c:1:32: error: illegal initializer type '_Atomic(int)'\n    1 | void f(void){_Atomic int value={(_Atomic(int))1};}\n      |                                ^\n1 error generated.\n"
+        }
+      }
+    }
+  },
+  "validation": [
+    "GCC and Clang native scalar/pointer/aggregate values at -O0 and -O2",
+    "all five semantic target profiles and normal/retained parity",
+    "retained atomic rvalue copies have no AtomicLoad conversion",
+    "Clang atomic pointer to non-atomic or differently-qualified atomic pointer copies remain rejected",
+    "21 focused atomic type, copy and auto_type tests passed, including native layout/runtime oracles; semantic all-target Clippy passed"
+  ]
+}

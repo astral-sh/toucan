@@ -907,8 +907,17 @@ impl Analyzer {
         source: &Type,
         expression: &Node<ast::Expression>,
     ) -> Result<(), Error> {
-        let destination = self.atomic_value_type(destination)?;
         let offset = expression.span.start;
+        // Clang preserves an atomic rvalue's type. An exact copy requires no
+        // lvalue load and cannot use the non-atomic pointer/record constraints.
+        if self.unit.atomic_value(destination)?.is_some()
+            && self.unit.atomic_value(source)?.is_some()
+            && self.compatible(&self.unqualified(destination)?, &self.unqualified(source)?)?
+        {
+            self.require_complete_object(destination, offset)?;
+            return Ok(());
+        }
+        let destination = self.atomic_value_type(destination)?;
         if (self.is_arithmetic(&destination)? && self.is_arithmetic(source)?)
             || (matches!(destination.kind, TypeKind::Bool)
                 && matches!(source.kind, TypeKind::Pointer(_)))

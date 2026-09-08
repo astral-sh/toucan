@@ -794,6 +794,14 @@ compiler layout and constraint probes, native operations, retained graph checks,
 and non-atomic allocation comparison. Layout does not establish lock freedom or
 implement a concurrent memory model.
 
+Exact atomic rvalue assignment and initialization preserve the atomic type in
+Clang profiles, including pointers and aggregates. These value copies add no
+atomic-load conversion. Clang still rejects an atomic pointer rvalue where an
+ordinary pointer or a differently qualified atomic pointer is required; GNU
+profiles apply their existing atomic-to-value conversion. The
+[copy evidence](../corpus/evidence/atomic-copies-2026-09-08.json) includes native
+compiler and retained-graph checks.
+
 ## AArch64 vector declarations
 
 The GNU AArch64 profile recognizes `__Float32x4_t` and `__Float64x2_t` as

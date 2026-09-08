@@ -34,10 +34,8 @@ supported for GNU profiles; Clang 18 leaves `_Atomic(__auto_type)` undeduced in 
 AST, accepts incompatible wildcard type comparisons, and crashes on `sizeof`
 even in syntax-only mode. Toucan diagnoses that Clang form instead of inventing
 a concrete type. Plain Clang inference from an already atomic initializer is
-supported and tested. The existing assignment checker still rejects exact atomic
-pointer or aggregate rvalue copies in Clang profiles, including inferred copies;
-those receive an incompatible-assignment diagnostic pending the atomic assignment
-follow-up. Scalar atomic initializers and atomic pointer lvalue copies are covered.
+supported and tested. Exact atomic rvalue copies preserve that type without an
+atomic load; ordinary atomic lvalue initializers retain their load conversion.
 
 A separate existing VLA issue is tracked by the compiler probes: a conditional
 expression with pointer-to-VLA casts can evaluate bound expressions in both arms

@@ -271,6 +271,7 @@ impl Analyzer {
             }
             self.initializer_inner_impl(
                 &value,
+                ty,
                 initializer,
                 requires_constant,
                 flexible,
@@ -278,7 +279,7 @@ impl Analyzer {
             )?;
             ty.clone()
         } else {
-            self.initializer_inner_impl(ty, initializer, requires_constant, flexible, retained)?
+            self.initializer_inner_impl(ty, ty, initializer, requires_constant, flexible, retained)?
         };
         if let Some(id) = retained {
             self.code_builder().finish_initializer(id, &result)?;
@@ -289,6 +290,7 @@ impl Analyzer {
     fn initializer_inner_impl(
         &mut self,
         ty: &Type,
+        destination: &Type,
         initializer: InitializerRef<'_>,
         requires_constant: bool,
         mut flexible: Option<&mut FlexibleState>,
@@ -325,7 +327,7 @@ impl Analyzer {
                     }
                     return Ok(completed);
                 }
-                self.check_assignment(ty, expression)?;
+                self.check_assignment(destination, expression)?;
                 if requires_constant {
                     if matches!(resolved.kind, TypeKind::Vector { .. })
                         && !matches!(expression.node, ast::Expression::CompoundLiteral(_))
@@ -350,7 +352,7 @@ impl Analyzer {
                     }
                 }
                 if let Some(id) = retained {
-                    self.retained_initializer_expression(id, ty, expression)?;
+                    self.retained_initializer_expression(id, destination, expression)?;
                 }
                 Ok(ty.clone())
             }

@@ -186,11 +186,6 @@ fn atomic_deduction_preserves_nested_array_bounds() {
         "int f(int n){__auto_type q=(_Atomic(int(*)[n++]))0;return sizeof *q;}",
     ] {
         for target in Target::ALL {
-            if source.contains("q=(_Atomic") && !gnu(target) {
-                let error = analyze(source, target).unwrap_err();
-                assert!(error.message.contains("incompatible assignment"), "{error}");
-                continue;
-            }
             let a = checked(source, target);
             let code = a.checked().unwrap();
             let (_, site) = code
