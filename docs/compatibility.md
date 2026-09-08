@@ -785,9 +785,8 @@ observable `typeof` alignment. Direct atomic aggregate member access is diagnose
 
 Selected atomic bindings currently report that storage and call ABI need an
 explicit Rust representation. Atomic aggregate call conventions can differ from
-ordinary records even when their size matches. Clang `__c11_atomic_*` builtins and
-complete native `<stdatomic.h>` integration are separate work; no general atomic
-binding interoperability is claimed by this semantic slice.
+ordinary records even when their size matches. Atomic binding interoperability
+requires a separate storage and call-ABI implementation.
 
 [Atomic type evidence](../corpus/evidence/atomic-types-2026-09-08.json) records
 compiler layout and constraint probes, native operations, retained graph checks,
@@ -837,3 +836,37 @@ existing aligned vector representation, while by-value vector FFI remains
 unsupported. No SVE execution or AArch64 C-to-Rust runtime equivalence is claimed
 by this layer. The [validation record](../corpus/evidence/arm-vector-types-2026-09-08.json)
 includes cross-compiler probes and the unchanged ARM SQLite translation unit.
+
+### Native atomic headers and Clang intrinsics
+
+The Clang profiles check the `__c11_atomic_*` operations used by Clang's
+`stdatomic.h`, plus its fetch-nand/min/max extensions. `C11AtomicOperation`
+distinguishes initialization, loads, stores, exchanges, weak/strong
+compare-exchange, fetch operations, fences, and lock-free queries. Parameter
+conversions and memory-order operands remain explicit. Compare-exchange retains
+an ordinary expected-value pointer, which is written on failure. Invalid orders
+and incompatible pointer/qualifier constraints produce diagnostics.
+
+C11 pointer fetch-add/sub operands count elements; GNU `__atomic` pointer operands
+count bytes. C11 result type uses preserve the address operand's VLA bound identity.
+Initialization does not imply an atomic store. The C11 lock-free query evaluates
+its size operand and folds only zero and the guaranteed scalar sizes 1, 2, 4, and
+8 to true. Other sizes remain runtime/target-dependent rather than becoming false.
+Clang's function-pointer atomic arithmetic extension is explicitly unsupported.
+
+Predefined character, least/fast integer, and scalar lock-free macros support the
+native atomic typedefs. GNU fast16/32 types use `long`; Clang uses `short`/`int`.
+The unchanged Clang resource header and its standard operations are checked on
+Darwin and Microsoft targets with an explicit freestanding configuration. GNU's
+header declarations are checked; its load/store macros still require the separate
+`__auto_type` implementation. Linux Clang needs an independent compiler-profile
+choice before its resource header can be used with the correct atomic layout.
+
+[Atomic header evidence](../corpus/evidence/stdatomic-2026-09-08.json) includes
+compiler predefines, cross-target type constraints, native operations, retained
+VLA identities, and ordinary-path allocation comparison. It also preserves two
+Clang 18 native failures: failed compare-exchange omits expected-buffer copyback
+for a three-byte record, and pointer-to-VLA fetch-add uses a zero stride. The
+positive runtime checks cover three-byte record load/exchange, four-byte record
+compare-exchange, fixed-size pointer arithmetic, and VLA initialization/load;
+they do not claim those compiler failures pass or validate a Toucan code generator.

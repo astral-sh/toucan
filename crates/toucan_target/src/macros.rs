@@ -22,6 +22,8 @@ impl Target {
             ("__STDC_HOSTED__", "1"),
             ("__STDC_VERSION__", "201112L"),
             ("__CHAR_BIT__", "8"),
+            ("__CHAR16_TYPE__", "unsigned short"),
+            ("__CHAR32_TYPE__", "unsigned int"),
             ("__ATOMIC_RELAXED", "0"),
             ("__ATOMIC_CONSUME", "1"),
             ("__ATOMIC_ACQUIRE", "2"),
@@ -213,15 +215,41 @@ impl Target {
             (64, signed64, unsigned64, max64, umax64),
         ] {
             for modifier in ["", "_LEAST", "_FAST"] {
+                // GNU LP64 chooses long for fast16/32; Clang uses the narrow
+                // integer types even on LP64. These are compiler-profile facts.
+                let (signed, unsigned, maximum, unsigned_maximum, actual_width) =
+                    if modifier == "_FAST" && !apple && !windows && matches!(width, 16 | 32) {
+                        (signed_ptr, unsigned_ptr, signed_max, unsigned_max, 64)
+                    } else {
+                        (signed, unsigned, maximum, unsigned_maximum, width)
+                    };
                 define(&format!("__INT{modifier}{width}_TYPE__"), signed);
                 define(&format!("__UINT{modifier}{width}_TYPE__"), unsigned);
                 define(&format!("__INT{modifier}{width}_MAX__"), maximum);
                 define(&format!("__UINT{modifier}{width}_MAX__"), unsigned_maximum);
                 define(
                     &format!("__INT{modifier}{width}_WIDTH__"),
-                    &width.to_string(),
+                    &actual_width.to_string(),
                 );
             }
+        }
+
+        // Every supported default target guarantees lock-free scalar atomics
+        // through eight bytes. This makes no claim about 16-byte atomics or
+        // misaligned objects, and does not advertise optional ISA features.
+        for scalar in [
+            "BOOL", "CHAR", "CHAR16_T", "CHAR32_T", "WCHAR_T", "SHORT", "INT", "LONG", "LLONG",
+            "POINTER",
+        ] {
+            if !windows {
+                define(&format!("__GCC_ATOMIC_{scalar}_LOCK_FREE"), "2");
+            }
+            if apple || windows {
+                define(&format!("__CLANG_ATOMIC_{scalar}_LOCK_FREE"), "2");
+            }
+        }
+        if !windows {
+            define("__GCC_ATOMIC_TEST_AND_SET_TRUEVAL", "1");
         }
 
         let (long_double_size, mantissa, max_exponent, biggest_alignment) = match self {

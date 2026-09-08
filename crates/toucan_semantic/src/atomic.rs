@@ -143,7 +143,7 @@ impl AtomicOperation {
 pub(crate) struct AtomicSignature {
     pub(crate) result: Type,
     pub(crate) parameters: [Option<Type>; 6],
-    sources: [Option<Type>; 6],
+    pub(crate) sources: [Option<Type>; 6],
     pub(crate) context: UseContext,
     pub(crate) conversions: [Conversion; 6],
 }
@@ -418,10 +418,30 @@ impl Analyzer {
         op: AtomicOperation,
         call: &Node<ast::CallExpression>,
     ) -> Result<(), Error> {
-        use AtomicOperation as A;
         let Some((success, failure)) = op.memory_order_arguments() else {
             return Ok(());
         };
+        self.check_atomic_order_arguments(
+            call,
+            success,
+            failure,
+            matches!(op, AtomicOperation::Load | AtomicOperation::LoadGeneric),
+            matches!(
+                op,
+                AtomicOperation::Store | AtomicOperation::StoreGeneric | AtomicOperation::Clear
+            ),
+        )
+    }
+
+    /// Validates explicit order operands for the GNU and Clang C11 families.
+    pub(crate) fn check_atomic_order_arguments(
+        &mut self,
+        call: &Node<ast::CallExpression>,
+        success: usize,
+        failure: Option<usize>,
+        load: bool,
+        store: bool,
+    ) -> Result<(), Error> {
         let mut known = [None; 2];
         for (slot, index) in [Some(success), failure].into_iter().enumerate() {
             let Some(index) = index else {
@@ -452,9 +472,9 @@ impl Analyzer {
                     },
                 ));
             }
-            let valid = if slot == 1 || matches!(op, A::Load | A::LoadGeneric) {
+            let valid = if slot == 1 || load {
                 matches!(order, 0 | 1 | 2 | 5)
-            } else if matches!(op, A::Store | A::StoreGeneric | A::Clear) {
+            } else if store {
                 matches!(order, 0 | 3 | 5)
             } else {
                 true
@@ -484,7 +504,10 @@ impl Analyzer {
         Ok(())
     }
 
-    fn atomic_query_size(&mut self, call: &Node<ast::CallExpression>) -> Result<u64, Error> {
+    pub(crate) fn atomic_query_size(
+        &mut self,
+        call: &Node<ast::CallExpression>,
+    ) -> Result<u64, Error> {
         let value = self.eval_arithmetic(&call.node.arguments[0])?;
         let ty = crate::integer::integer_to_type(self.size_value(0));
         self.convert_arithmetic(value, &ty, call.span.start)?

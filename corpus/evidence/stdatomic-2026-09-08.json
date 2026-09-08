@@ -1,0 +1,2486 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-08",
+  "base_commit": "c462cce617392e144b70c012c3c405185db69e29",
+  "references": [
+    "https://www.open-std.org/jtc1/sc22/wg14/www/docs/n1570.pdf",
+    "https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/Sema/SemaChecking.cpp",
+    "https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/CodeGen/CGBuiltin.cpp",
+    "https://releases.llvm.org/18.1.8/tools/clang/docs/LanguageExtensions.html"
+  ],
+  "source_hashes": {
+    "crates/toucan_semantic/src/atomic.rs": "bf067eb22a429d091b7e93919daa517b2790caaaee50f837ac9050999fa0b82c",
+    "crates/toucan_semantic/src/builtins.rs": "35c883bff8b4f8795a3c1c8537d873166ea6f98e31a8db5ec81dba718b650bfc",
+    "crates/toucan_semantic/src/checked.rs": "008309f1acfba80c1232a28d5354b6bb7421e27e259ef0c7d6fe0069229e654a",
+    "crates/toucan_semantic/src/checked/bounds.rs": "edc26fba9bc967da913cb6f258945f0bb11079fc8e0754efc8deec4993252bf1",
+    "crates/toucan_semantic/src/checked/expression.rs": "1b18c586e80d4aeecb765208f7824ba2dfaccf3530335fb475fdd88ebc70ccfc",
+    "crates/toucan_semantic/src/checked/query.rs": "783b086cfcc3d1f979fd2151cbaae23d268b43e21b49e48242eb3e268d9d1866",
+    "crates/toucan_semantic/src/constant_query.rs": "bec3c90ff71eba00393d0cf801e69171cffaceba483e25770a77ea4df82460c6",
+    "crates/toucan_semantic/src/integer.rs": "143ce98e7b28c5eac05ccecb205b80dfc2d14df573106bfc252cbab17fbc1a0a",
+    "crates/toucan_semantic/src/lib.rs": "fe9b41a752eb8b16f8b69030e36760a0bb379c9252667c8aa0694ce79f78e0a2",
+    "crates/toucan_semantic/src/overflow.rs": "c9519c0c108e50f2609edfd4ef5eed0586ac8e86f177b91ec2c7fe2473b89966",
+    "crates/toucan_target/src/macros.rs": "fcb74acac65e92900f1b3ad78f328462764ee15591958a0c1c902f89cd17f78f",
+    "docs/compatibility.md": "048cae9f368e560d7a82f6d0cfb853eeb62423e22fad8cb0979d7742f7d463dc",
+    "crates/toucan_semantic/src/c11_atomic.rs": "9e7b0288bff9de6815ea8ea78ea71d1905b850efdccb05371bc1230b467f3509",
+    "crates/toucan_semantic/tests/c11_atomic_builtins.rs": "233cf3d9a02b961b4d020fbbc6649ef7325a9fc793afa7b0ce1a386be46ea32b",
+    "crates/toucan/tests/stdatomic_headers.rs": "0492b125f9dcf9cf1a3862ccaf63fb86cd7e1289fcbbb5021b06de5151ce428f",
+    "fuzz/seeds/checked/c11_atomic.h": "9fc4f43a1dda110ff4197061cb4b2a5a230a4a72a0168f2c318191907c27be89",
+    "fuzz/seeds/checked/c11_atomic_bounds.h": "e42758721d03c5e90967d20d353b314fd0add024130a1da90271505b39b9496c"
+  },
+  "tools": {
+    "gcc": {
+      "command": [
+        "gcc",
+        "--version"
+      ],
+      "identity": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "driver_path": "/usr/bin/gcc",
+      "driver_sha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26"
+    },
+    "clang": {
+      "command": [
+        "clang",
+        "--version"
+      ],
+      "identity": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n",
+      "driver_path": "/usr/bin/clang",
+      "driver_sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+    },
+    "rustc": {
+      "command": [
+        "rustc",
+        "-vV"
+      ],
+      "identity": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+      "driver_path": "/home/dev-user/.cargo/bin/rustc",
+      "driver_sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71"
+    }
+  },
+  "validation": {
+    "workspace_passed_tests": 428,
+    "c11_atomic_passed_tests": 6,
+    "header_macro_passed_tests": 4,
+    "strict_cross_clang_invocations": 78,
+    "exploratory_clang_constraints": 92,
+    "native_positive_executions": 2,
+    "native_expected_compiler_failures": 4,
+    "retained_graph_cases": 6,
+    "logs": {
+      "workspace-final": {
+        "path": "/tmp/toucan-stdatomic-workspace-final.log",
+        "sha256": "5ab47e951cdd70f0c5bb6dba19427b3b17dde289dd0b785a44db739fe81b9b5f",
+        "passed_tests": 428
+      },
+      "tests-final": {
+        "path": "/tmp/toucan-stdatomic-tests-final.log",
+        "sha256": "2e029cdb3e26be9548cd395bd6eafcc8ef9b3185594f69166f3e88af27f99a74",
+        "passed_tests": 6
+      },
+      "headers-final": {
+        "path": "/tmp/toucan-stdatomic-headers-final.log",
+        "sha256": "326147fce266e9c68b25fb8b6d2f04bfe6716f6ada2af90af54fac4fa18d3d9c",
+        "passed_tests": 4
+      },
+      "clippy-final": {
+        "path": "/tmp/toucan-stdatomic-clippy-final.log",
+        "sha256": "f8551101fad7c59260689e173cd2036bd78be3e85d29ce5395da265760ba03f0",
+        "passed_tests": 0
+      },
+      "build": {
+        "path": "/tmp/toucan-stdatomic-build.log",
+        "sha256": "35c9c3990a13f5f73c28232a96e41f737933e6fc904ade67f0cd3e8834b70236",
+        "passed_tests": 0
+      },
+      "measure": {
+        "path": "/tmp/toucan-stdatomic-measure.log",
+        "sha256": "53e299d000a5ac783801f5a1b5122b151f7843a30f68b640df109b1bd3a17cda",
+        "passed_tests": 0
+      },
+      "invariants": {
+        "path": "/tmp/toucan-stdatomic-invariants.log",
+        "sha256": "ff1c6db8f3d619a3040fe6ebcbbcb5e5d47a671d51c8ed8944e252dc511c3638",
+        "passed_tests": 0
+      }
+    }
+  },
+  "commands": {
+    "workspace": "CARGO_HOME=/home/dev-user/.cache/toucan/cargo CARGO_TARGET_DIR=/home/dev-user/.cache/toucan/stdatomic-target taskset -c 2,3 cargo test --workspace",
+    "semantic_native": "CARGO_HOME=/home/dev-user/.cache/toucan/cargo CARGO_TARGET_DIR=/home/dev-user/.cache/toucan/stdatomic-target taskset -c 2,3 cargo test -p toucan_semantic --test c11_atomic_builtins -- --include-ignored",
+    "headers": "CARGO_HOME=/home/dev-user/.cache/toucan/cargo CARGO_TARGET_DIR=/home/dev-user/.cache/toucan/stdatomic-target taskset -c 2,3 cargo test -p toucan --test stdatomic_headers -- --include-ignored",
+    "clippy": "CARGO_HOME=/home/dev-user/.cache/toucan/cargo CARGO_TARGET_DIR=/home/dev-user/.cache/toucan/stdatomic-target taskset -c 2,3 cargo clippy --workspace --all-targets --all-features -- -D warnings",
+    "release": "CARGO_HOME=/home/dev-user/.cache/toucan/cargo CARGO_TARGET_DIR=/home/dev-user/.cache/toucan/stdatomic-target taskset -c 2,3 cargo build --release -p toucan -p toucan_cli"
+  },
+  "compiler_predefines": [
+    {
+      "command": [
+        "gcc",
+        "-dM",
+        "-E",
+        "-x",
+        "c",
+        "-"
+      ],
+      "returncode": 0,
+      "macros": {
+        "__UINT_LEAST16_MAX__": "0xffff",
+        "__ATOMIC_ACQUIRE": "2",
+        "__UINT_LEAST8_TYPE__": "unsigned char",
+        "__GCC_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__UINT_FAST64_MAX__": "0xffffffffffffffffUL",
+        "__SIG_ATOMIC_TYPE__": "int",
+        "__UINT_FAST8_MAX__": "0xff",
+        "__INT_LEAST8_WIDTH__": "8",
+        "__UINT_LEAST64_MAX__": "0xffffffffffffffffUL",
+        "__UINT_LEAST8_MAX__": "0xff",
+        "__GCC_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__INT_LEAST16_WIDTH__": "16",
+        "__GCC_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__ATOMIC_SEQ_CST": "5",
+        "__INT_LEAST64_MAX__": "0x7fffffffffffffffL",
+        "__INT_FAST32_MAX__": "0x7fffffffffffffffL",
+        "__UINT_LEAST32_MAX__": "0xffffffffU",
+        "__INT_FAST16_TYPE__": "long int",
+        "__ATOMIC_HLE_RELEASE": "131072",
+        "__ATOMIC_HLE_ACQUIRE": "65536",
+        "__INT_FAST64_TYPE__": "long int",
+        "__INT_LEAST32_MAX__": "0x7fffffff",
+        "__GCC_ATOMIC_INT_LOCK_FREE": "2",
+        "__INT_FAST32_TYPE__": "long int",
+        "__UINT_LEAST16_TYPE__": "short unsigned int",
+        "__INT_LEAST16_TYPE__": "short int",
+        "__SIG_ATOMIC_MAX__": "0x7fffffff",
+        "__GCC_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__INT_FAST16_MAX__": "0x7fffffffffffffffL",
+        "__UINT_FAST32_MAX__": "0xffffffffffffffffUL",
+        "__UINT_LEAST64_TYPE__": "long unsigned int",
+        "__UINT_FAST16_TYPE__": "long unsigned int",
+        "__INT_FAST32_WIDTH__": "64",
+        "__INT_LEAST16_MAX__": "0x7fff",
+        "__SIG_ATOMIC_WIDTH__": "32",
+        "__INT_LEAST64_TYPE__": "long int",
+        "__INT_LEAST8_TYPE__": "signed char",
+        "__INT_FAST8_MAX__": "0x7f",
+        "__INT_FAST16_WIDTH__": "64",
+        "__SIG_ATOMIC_MIN__": "(-__SIG_ATOMIC_MAX__ - 1)",
+        "__GCC_ATOMIC_LONG_LOCK_FREE": "2",
+        "__INT_FAST64_WIDTH__": "64",
+        "__INT_FAST64_MAX__": "0x7fffffffffffffffL",
+        "__GCC_ATOMIC_TEST_AND_SET_TRUEVAL": "1",
+        "__UINT_FAST64_TYPE__": "long unsigned int",
+        "__GCC_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__UINT_LEAST32_TYPE__": "unsigned int",
+        "__INT_LEAST8_MAX__": "0x7f",
+        "__INT_LEAST64_WIDTH__": "64",
+        "__ATOMIC_RELAXED": "0",
+        "__INT_LEAST32_TYPE__": "int",
+        "__INT_FAST8_TYPE__": "signed char",
+        "__INT_FAST8_WIDTH__": "8",
+        "__UINT_FAST32_TYPE__": "long unsigned int",
+        "__INT_LEAST32_WIDTH__": "32",
+        "__ATOMIC_CONSUME": "1",
+        "__GCC_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__UINT_FAST16_MAX__": "0xffffffffffffffffUL",
+        "__GCC_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__UINT_FAST8_TYPE__": "unsigned char",
+        "__ATOMIC_ACQ_REL": "4",
+        "__ATOMIC_RELEASE": "3",
+        "__CHAR16_TYPE__": "short unsigned int",
+        "__CHAR32_TYPE__": "unsigned int"
+      },
+      "version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n"
+    },
+    {
+      "command": [
+        "clang",
+        "--target=x86_64-unknown-linux-gnu",
+        "-dM",
+        "-E",
+        "-x",
+        "c",
+        "-"
+      ],
+      "returncode": 0,
+      "macros": {
+        "__ATOMIC_ACQUIRE": "2",
+        "__ATOMIC_ACQ_REL": "4",
+        "__ATOMIC_CONSUME": "1",
+        "__ATOMIC_RELAXED": "0",
+        "__ATOMIC_RELEASE": "3",
+        "__ATOMIC_SEQ_CST": "5",
+        "__CLANG_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_INT_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_LONG_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__GCC_ATOMIC_INT_LOCK_FREE": "2",
+        "__GCC_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__GCC_ATOMIC_LONG_LOCK_FREE": "2",
+        "__GCC_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__GCC_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__GCC_ATOMIC_TEST_AND_SET_TRUEVAL": "1",
+        "__GCC_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__INT_FAST16_MAX__": "32767",
+        "__INT_FAST16_TYPE__": "short",
+        "__INT_FAST16_WIDTH__": "16",
+        "__INT_FAST32_MAX__": "2147483647",
+        "__INT_FAST32_TYPE__": "int",
+        "__INT_FAST32_WIDTH__": "32",
+        "__INT_FAST64_MAX__": "9223372036854775807L",
+        "__INT_FAST64_TYPE__": "long int",
+        "__INT_FAST64_WIDTH__": "64",
+        "__INT_FAST8_MAX__": "127",
+        "__INT_FAST8_TYPE__": "signed char",
+        "__INT_FAST8_WIDTH__": "8",
+        "__INT_LEAST16_MAX__": "32767",
+        "__INT_LEAST16_TYPE__": "short",
+        "__INT_LEAST16_WIDTH__": "16",
+        "__INT_LEAST32_MAX__": "2147483647",
+        "__INT_LEAST32_TYPE__": "int",
+        "__INT_LEAST32_WIDTH__": "32",
+        "__INT_LEAST64_MAX__": "9223372036854775807L",
+        "__INT_LEAST64_TYPE__": "long int",
+        "__INT_LEAST64_WIDTH__": "64",
+        "__INT_LEAST8_MAX__": "127",
+        "__INT_LEAST8_TYPE__": "signed char",
+        "__INT_LEAST8_WIDTH__": "8",
+        "__SIG_ATOMIC_MAX__": "2147483647",
+        "__SIG_ATOMIC_WIDTH__": "32",
+        "__UINT_FAST16_MAX__": "65535",
+        "__UINT_FAST16_TYPE__": "unsigned short",
+        "__UINT_FAST32_MAX__": "4294967295U",
+        "__UINT_FAST32_TYPE__": "unsigned int",
+        "__UINT_FAST64_MAX__": "18446744073709551615UL",
+        "__UINT_FAST64_TYPE__": "long unsigned int",
+        "__UINT_FAST8_MAX__": "255",
+        "__UINT_FAST8_TYPE__": "unsigned char",
+        "__UINT_LEAST16_MAX__": "65535",
+        "__UINT_LEAST16_TYPE__": "unsigned short",
+        "__UINT_LEAST32_MAX__": "4294967295U",
+        "__UINT_LEAST32_TYPE__": "unsigned int",
+        "__UINT_LEAST64_MAX__": "18446744073709551615UL",
+        "__UINT_LEAST64_TYPE__": "long unsigned int",
+        "__UINT_LEAST8_MAX__": "255",
+        "__UINT_LEAST8_TYPE__": "unsigned char",
+        "__CHAR16_TYPE__": "unsigned short",
+        "__CHAR32_TYPE__": "unsigned int"
+      },
+      "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n"
+    },
+    {
+      "command": [
+        "clang",
+        "--target=aarch64-unknown-linux-gnu",
+        "-dM",
+        "-E",
+        "-x",
+        "c",
+        "-"
+      ],
+      "returncode": 0,
+      "macros": {
+        "__ATOMIC_ACQUIRE": "2",
+        "__ATOMIC_ACQ_REL": "4",
+        "__ATOMIC_CONSUME": "1",
+        "__ATOMIC_RELAXED": "0",
+        "__ATOMIC_RELEASE": "3",
+        "__ATOMIC_SEQ_CST": "5",
+        "__CLANG_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_INT_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_LONG_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__GCC_ATOMIC_INT_LOCK_FREE": "2",
+        "__GCC_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__GCC_ATOMIC_LONG_LOCK_FREE": "2",
+        "__GCC_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__GCC_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__GCC_ATOMIC_TEST_AND_SET_TRUEVAL": "1",
+        "__GCC_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__INT_FAST16_MAX__": "32767",
+        "__INT_FAST16_TYPE__": "short",
+        "__INT_FAST16_WIDTH__": "16",
+        "__INT_FAST32_MAX__": "2147483647",
+        "__INT_FAST32_TYPE__": "int",
+        "__INT_FAST32_WIDTH__": "32",
+        "__INT_FAST64_MAX__": "9223372036854775807L",
+        "__INT_FAST64_TYPE__": "long int",
+        "__INT_FAST64_WIDTH__": "64",
+        "__INT_FAST8_MAX__": "127",
+        "__INT_FAST8_TYPE__": "signed char",
+        "__INT_FAST8_WIDTH__": "8",
+        "__INT_LEAST16_MAX__": "32767",
+        "__INT_LEAST16_TYPE__": "short",
+        "__INT_LEAST16_WIDTH__": "16",
+        "__INT_LEAST32_MAX__": "2147483647",
+        "__INT_LEAST32_TYPE__": "int",
+        "__INT_LEAST32_WIDTH__": "32",
+        "__INT_LEAST64_MAX__": "9223372036854775807L",
+        "__INT_LEAST64_TYPE__": "long int",
+        "__INT_LEAST64_WIDTH__": "64",
+        "__INT_LEAST8_MAX__": "127",
+        "__INT_LEAST8_TYPE__": "signed char",
+        "__INT_LEAST8_WIDTH__": "8",
+        "__SIG_ATOMIC_MAX__": "2147483647",
+        "__SIG_ATOMIC_WIDTH__": "32",
+        "__UINT_FAST16_MAX__": "65535",
+        "__UINT_FAST16_TYPE__": "unsigned short",
+        "__UINT_FAST32_MAX__": "4294967295U",
+        "__UINT_FAST32_TYPE__": "unsigned int",
+        "__UINT_FAST64_MAX__": "18446744073709551615UL",
+        "__UINT_FAST64_TYPE__": "long unsigned int",
+        "__UINT_FAST8_MAX__": "255",
+        "__UINT_FAST8_TYPE__": "unsigned char",
+        "__UINT_LEAST16_MAX__": "65535",
+        "__UINT_LEAST16_TYPE__": "unsigned short",
+        "__UINT_LEAST32_MAX__": "4294967295U",
+        "__UINT_LEAST32_TYPE__": "unsigned int",
+        "__UINT_LEAST64_MAX__": "18446744073709551615UL",
+        "__UINT_LEAST64_TYPE__": "long unsigned int",
+        "__UINT_LEAST8_MAX__": "255",
+        "__UINT_LEAST8_TYPE__": "unsigned char",
+        "__CHAR16_TYPE__": "unsigned short",
+        "__CHAR32_TYPE__": "unsigned int"
+      },
+      "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n"
+    },
+    {
+      "command": [
+        "clang",
+        "--target=x86_64-apple-darwin",
+        "-dM",
+        "-E",
+        "-x",
+        "c",
+        "-"
+      ],
+      "returncode": 0,
+      "macros": {
+        "__ATOMIC_ACQUIRE": "2",
+        "__ATOMIC_ACQ_REL": "4",
+        "__ATOMIC_CONSUME": "1",
+        "__ATOMIC_RELAXED": "0",
+        "__ATOMIC_RELEASE": "3",
+        "__ATOMIC_SEQ_CST": "5",
+        "__CLANG_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_INT_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_LONG_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__GCC_ATOMIC_INT_LOCK_FREE": "2",
+        "__GCC_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__GCC_ATOMIC_LONG_LOCK_FREE": "2",
+        "__GCC_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__GCC_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__GCC_ATOMIC_TEST_AND_SET_TRUEVAL": "1",
+        "__GCC_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__INT_FAST16_MAX__": "32767",
+        "__INT_FAST16_TYPE__": "short",
+        "__INT_FAST16_WIDTH__": "16",
+        "__INT_FAST32_MAX__": "2147483647",
+        "__INT_FAST32_TYPE__": "int",
+        "__INT_FAST32_WIDTH__": "32",
+        "__INT_FAST64_MAX__": "9223372036854775807LL",
+        "__INT_FAST64_TYPE__": "long long int",
+        "__INT_FAST64_WIDTH__": "64",
+        "__INT_FAST8_MAX__": "127",
+        "__INT_FAST8_TYPE__": "signed char",
+        "__INT_FAST8_WIDTH__": "8",
+        "__INT_LEAST16_MAX__": "32767",
+        "__INT_LEAST16_TYPE__": "short",
+        "__INT_LEAST16_WIDTH__": "16",
+        "__INT_LEAST32_MAX__": "2147483647",
+        "__INT_LEAST32_TYPE__": "int",
+        "__INT_LEAST32_WIDTH__": "32",
+        "__INT_LEAST64_MAX__": "9223372036854775807LL",
+        "__INT_LEAST64_TYPE__": "long long int",
+        "__INT_LEAST64_WIDTH__": "64",
+        "__INT_LEAST8_MAX__": "127",
+        "__INT_LEAST8_TYPE__": "signed char",
+        "__INT_LEAST8_WIDTH__": "8",
+        "__SIG_ATOMIC_MAX__": "2147483647",
+        "__SIG_ATOMIC_WIDTH__": "32",
+        "__UINT_FAST16_MAX__": "65535",
+        "__UINT_FAST16_TYPE__": "unsigned short",
+        "__UINT_FAST32_MAX__": "4294967295U",
+        "__UINT_FAST32_TYPE__": "unsigned int",
+        "__UINT_FAST64_MAX__": "18446744073709551615ULL",
+        "__UINT_FAST64_TYPE__": "long long unsigned int",
+        "__UINT_FAST8_MAX__": "255",
+        "__UINT_FAST8_TYPE__": "unsigned char",
+        "__UINT_LEAST16_MAX__": "65535",
+        "__UINT_LEAST16_TYPE__": "unsigned short",
+        "__UINT_LEAST32_MAX__": "4294967295U",
+        "__UINT_LEAST32_TYPE__": "unsigned int",
+        "__UINT_LEAST64_MAX__": "18446744073709551615ULL",
+        "__UINT_LEAST64_TYPE__": "long long unsigned int",
+        "__UINT_LEAST8_MAX__": "255",
+        "__UINT_LEAST8_TYPE__": "unsigned char",
+        "__CHAR16_TYPE__": "unsigned short",
+        "__CHAR32_TYPE__": "unsigned int"
+      },
+      "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n"
+    },
+    {
+      "command": [
+        "clang",
+        "--target=aarch64-apple-darwin",
+        "-dM",
+        "-E",
+        "-x",
+        "c",
+        "-"
+      ],
+      "returncode": 0,
+      "macros": {
+        "__ARM_FEATURE_ATOMICS": "1",
+        "__ATOMIC_ACQUIRE": "2",
+        "__ATOMIC_ACQ_REL": "4",
+        "__ATOMIC_CONSUME": "1",
+        "__ATOMIC_RELAXED": "0",
+        "__ATOMIC_RELEASE": "3",
+        "__ATOMIC_SEQ_CST": "5",
+        "__CLANG_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_INT_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_LONG_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__GCC_ATOMIC_INT_LOCK_FREE": "2",
+        "__GCC_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__GCC_ATOMIC_LONG_LOCK_FREE": "2",
+        "__GCC_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__GCC_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__GCC_ATOMIC_TEST_AND_SET_TRUEVAL": "1",
+        "__GCC_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__INT_FAST16_MAX__": "32767",
+        "__INT_FAST16_TYPE__": "short",
+        "__INT_FAST16_WIDTH__": "16",
+        "__INT_FAST32_MAX__": "2147483647",
+        "__INT_FAST32_TYPE__": "int",
+        "__INT_FAST32_WIDTH__": "32",
+        "__INT_FAST64_MAX__": "9223372036854775807LL",
+        "__INT_FAST64_TYPE__": "long long int",
+        "__INT_FAST64_WIDTH__": "64",
+        "__INT_FAST8_MAX__": "127",
+        "__INT_FAST8_TYPE__": "signed char",
+        "__INT_FAST8_WIDTH__": "8",
+        "__INT_LEAST16_MAX__": "32767",
+        "__INT_LEAST16_TYPE__": "short",
+        "__INT_LEAST16_WIDTH__": "16",
+        "__INT_LEAST32_MAX__": "2147483647",
+        "__INT_LEAST32_TYPE__": "int",
+        "__INT_LEAST32_WIDTH__": "32",
+        "__INT_LEAST64_MAX__": "9223372036854775807LL",
+        "__INT_LEAST64_TYPE__": "long long int",
+        "__INT_LEAST64_WIDTH__": "64",
+        "__INT_LEAST8_MAX__": "127",
+        "__INT_LEAST8_TYPE__": "signed char",
+        "__INT_LEAST8_WIDTH__": "8",
+        "__SIG_ATOMIC_MAX__": "2147483647",
+        "__SIG_ATOMIC_WIDTH__": "32",
+        "__UINT_FAST16_MAX__": "65535",
+        "__UINT_FAST16_TYPE__": "unsigned short",
+        "__UINT_FAST32_MAX__": "4294967295U",
+        "__UINT_FAST32_TYPE__": "unsigned int",
+        "__UINT_FAST64_MAX__": "18446744073709551615ULL",
+        "__UINT_FAST64_TYPE__": "long long unsigned int",
+        "__UINT_FAST8_MAX__": "255",
+        "__UINT_FAST8_TYPE__": "unsigned char",
+        "__UINT_LEAST16_MAX__": "65535",
+        "__UINT_LEAST16_TYPE__": "unsigned short",
+        "__UINT_LEAST32_MAX__": "4294967295U",
+        "__UINT_LEAST32_TYPE__": "unsigned int",
+        "__UINT_LEAST64_MAX__": "18446744073709551615ULL",
+        "__UINT_LEAST64_TYPE__": "long long unsigned int",
+        "__UINT_LEAST8_MAX__": "255",
+        "__UINT_LEAST8_TYPE__": "unsigned char",
+        "__CHAR16_TYPE__": "unsigned short",
+        "__CHAR32_TYPE__": "unsigned int"
+      },
+      "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n"
+    },
+    {
+      "command": [
+        "clang",
+        "--target=x86_64-pc-windows-msvc",
+        "-dM",
+        "-E",
+        "-x",
+        "c",
+        "-"
+      ],
+      "returncode": 0,
+      "macros": {
+        "__ATOMIC_ACQUIRE": "2",
+        "__ATOMIC_ACQ_REL": "4",
+        "__ATOMIC_CONSUME": "1",
+        "__ATOMIC_RELAXED": "0",
+        "__ATOMIC_RELEASE": "3",
+        "__ATOMIC_SEQ_CST": "5",
+        "__CLANG_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_INT_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_LONG_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__CLANG_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__INT_FAST16_MAX__": "32767",
+        "__INT_FAST16_TYPE__": "short",
+        "__INT_FAST16_WIDTH__": "16",
+        "__INT_FAST32_MAX__": "2147483647",
+        "__INT_FAST32_TYPE__": "int",
+        "__INT_FAST32_WIDTH__": "32",
+        "__INT_FAST64_MAX__": "9223372036854775807LL",
+        "__INT_FAST64_TYPE__": "long long int",
+        "__INT_FAST64_WIDTH__": "64",
+        "__INT_FAST8_MAX__": "127",
+        "__INT_FAST8_TYPE__": "signed char",
+        "__INT_FAST8_WIDTH__": "8",
+        "__INT_LEAST16_MAX__": "32767",
+        "__INT_LEAST16_TYPE__": "short",
+        "__INT_LEAST16_WIDTH__": "16",
+        "__INT_LEAST32_MAX__": "2147483647",
+        "__INT_LEAST32_TYPE__": "int",
+        "__INT_LEAST32_WIDTH__": "32",
+        "__INT_LEAST64_MAX__": "9223372036854775807LL",
+        "__INT_LEAST64_TYPE__": "long long int",
+        "__INT_LEAST64_WIDTH__": "64",
+        "__INT_LEAST8_MAX__": "127",
+        "__INT_LEAST8_TYPE__": "signed char",
+        "__INT_LEAST8_WIDTH__": "8",
+        "__SIG_ATOMIC_MAX__": "2147483647",
+        "__SIG_ATOMIC_WIDTH__": "32",
+        "__UINT_FAST16_MAX__": "65535",
+        "__UINT_FAST16_TYPE__": "unsigned short",
+        "__UINT_FAST32_MAX__": "4294967295U",
+        "__UINT_FAST32_TYPE__": "unsigned int",
+        "__UINT_FAST64_MAX__": "18446744073709551615ULL",
+        "__UINT_FAST64_TYPE__": "long long unsigned int",
+        "__UINT_FAST8_MAX__": "255",
+        "__UINT_FAST8_TYPE__": "unsigned char",
+        "__UINT_LEAST16_MAX__": "65535",
+        "__UINT_LEAST16_TYPE__": "unsigned short",
+        "__UINT_LEAST32_MAX__": "4294967295U",
+        "__UINT_LEAST32_TYPE__": "unsigned int",
+        "__UINT_LEAST64_MAX__": "18446744073709551615ULL",
+        "__UINT_LEAST64_TYPE__": "long long unsigned int",
+        "__UINT_LEAST8_MAX__": "255",
+        "__UINT_LEAST8_TYPE__": "unsigned char",
+        "__CHAR16_TYPE__": "unsigned short",
+        "__CHAR32_TYPE__": "unsigned int"
+      },
+      "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n"
+    },
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/aarch64-gcc-13/usr/bin/aarch64-linux-gnu-gcc-13",
+        "-B/home/dev-user/.cache/toucan/aarch64-gcc-13/usr/lib/gcc-cross/aarch64-linux-gnu/13",
+        "-dM",
+        "-E",
+        "-x",
+        "c",
+        "-"
+      ],
+      "returncode": 0,
+      "macros": {
+        "__UINT_LEAST16_MAX__": "0xffff",
+        "__ATOMIC_ACQUIRE": "2",
+        "__UINT_LEAST8_TYPE__": "unsigned char",
+        "__GCC_ATOMIC_CHAR_LOCK_FREE": "2",
+        "__GCC_ATOMIC_CHAR32_T_LOCK_FREE": "2",
+        "__UINT_FAST32_TYPE__": "long unsigned int",
+        "__UINT_FAST64_MAX__": "0xffffffffffffffffUL",
+        "__SIG_ATOMIC_TYPE__": "int",
+        "__UINT_FAST8_MAX__": "0xff",
+        "__INT_LEAST8_WIDTH__": "8",
+        "__UINT_LEAST64_MAX__": "0xffffffffffffffffUL",
+        "__UINT_LEAST8_MAX__": "0xff",
+        "__INT_FAST32_WIDTH__": "64",
+        "__INT_LEAST16_WIDTH__": "16",
+        "__GCC_ATOMIC_POINTER_LOCK_FREE": "2",
+        "__ATOMIC_SEQ_CST": "5",
+        "__INT_LEAST64_MAX__": "0x7fffffffffffffffL",
+        "__INT_FAST32_MAX__": "0x7fffffffffffffffL",
+        "__INT_FAST16_TYPE__": "long int",
+        "__GCC_ATOMIC_LONG_LOCK_FREE": "2",
+        "__SIG_ATOMIC_WIDTH__": "32",
+        "__INT_FAST64_TYPE__": "long int",
+        "__INT_FAST64_WIDTH__": "64",
+        "__INT_LEAST32_MAX__": "0x7fffffff",
+        "__GCC_ATOMIC_INT_LOCK_FREE": "2",
+        "__INT_FAST32_TYPE__": "long int",
+        "__UINT_LEAST16_TYPE__": "short unsigned int",
+        "__GCC_ATOMIC_TEST_AND_SET_TRUEVAL": "1",
+        "__INT_LEAST16_TYPE__": "short int",
+        "__SIG_ATOMIC_MAX__": "0x7fffffff",
+        "__INT_LEAST64_WIDTH__": "64",
+        "__GCC_ATOMIC_WCHAR_T_LOCK_FREE": "2",
+        "__ATOMIC_RELAXED": "0",
+        "__INT_FAST16_MAX__": "0x7fffffffffffffffL",
+        "__UINT_FAST32_MAX__": "0xffffffffffffffffUL",
+        "__UINT_LEAST64_TYPE__": "long unsigned int",
+        "__UINT_FAST16_TYPE__": "long unsigned int",
+        "__INT_LEAST16_MAX__": "0x7fff",
+        "__INT_LEAST64_TYPE__": "long int",
+        "__INT_LEAST8_TYPE__": "signed char",
+        "__INT_FAST8_MAX__": "0x7f",
+        "__INT_FAST16_WIDTH__": "64",
+        "__SIG_ATOMIC_MIN__": "(-__SIG_ATOMIC_MAX__ - 1)",
+        "__INT_FAST64_MAX__": "0x7fffffffffffffffL",
+        "__UINT_FAST64_TYPE__": "long unsigned int",
+        "__GCC_ATOMIC_CHAR16_T_LOCK_FREE": "2",
+        "__UINT_LEAST32_TYPE__": "unsigned int",
+        "__GCC_ATOMIC_BOOL_LOCK_FREE": "2",
+        "__INT_LEAST8_MAX__": "0x7f",
+        "__INT_LEAST32_TYPE__": "int",
+        "__UINT_FAST8_TYPE__": "unsigned char",
+        "__INT_FAST8_TYPE__": "signed char",
+        "__INT_FAST8_WIDTH__": "8",
+        "__INT_LEAST32_WIDTH__": "32",
+        "__ATOMIC_CONSUME": "1",
+        "__GCC_ATOMIC_LLONG_LOCK_FREE": "2",
+        "__UINT_FAST16_MAX__": "0xffffffffffffffffUL",
+        "__GCC_ATOMIC_SHORT_LOCK_FREE": "2",
+        "__UINT_LEAST32_MAX__": "0xffffffffU",
+        "__ATOMIC_ACQ_REL": "4",
+        "__ATOMIC_RELEASE": "3",
+        "__CHAR16_TYPE__": "short unsigned int",
+        "__CHAR32_TYPE__": "unsigned int"
+      },
+      "stderr": ""
+    }
+  ],
+  "constraints": [
+    {
+      "name": "init_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_init(p,0);}",
+      "sha256": "e33be27c17b0637f566f65960d8422b27ec90dd1458d25e7df1e8926c058e074",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/init_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "init_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_init(p,0);}",
+      "sha256": "16aa8e822888ebc5b28791ead026af263a6a4d3a77300fe16a472bc58491241f",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/init_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "init_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_init(p,0);}",
+      "sha256": "8ea77529ba2a8f7c87c39241a4bb685ec7d3ccd0408ffcb149dde5cd8300088d",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/init_float.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "init_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_init(p,(struct S){0});}",
+      "sha256": "2c06b23cdb9bca130ee2d40b340ef8bcfcff8fb467a419f6745eff9b0958a1db",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/init_record.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "init_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_init(p,0);}",
+      "sha256": "fbaa294f7e90a4dedb1b7a189dc952c85e80156ec3dfdc84b237f04d7982a313",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/init_ptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "init_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_init(p,0);}",
+      "sha256": "98b84a6a37c23cc3fc919e631f37ccf39ac3a6370e28185845898b803b80b332",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/init_voidptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "load_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_load(p,0);}",
+      "sha256": "7f17161c1e682f2a0578087bb7c27cf4e1b9f57790928472ea9a256aaa2a2bbe",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/load_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "load_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_load(p,0);}",
+      "sha256": "eb8a3aa97f146200abffaaf4306fa808a9bf4349b030d46b352ebf803f50fae9",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/load_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "load_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_load(p,0);}",
+      "sha256": "ea5f4b4a192bfbc1017b5f68b0d39babd1351da18517366758880cc49feb01c6",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/load_float.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "load_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_load(p,0);}",
+      "sha256": "837bcd68763ae81bb4b8b2e47b350c2f8ca0cb3db3d308dbd1c39ae398832565",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/load_record.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "load_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_load(p,0);}",
+      "sha256": "2dc69ee9564290bffc2ff9df40c066d9535e80436644c38393ca71fa8dd06ea3",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/load_ptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "load_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_load(p,0);}",
+      "sha256": "38114a461f794dd511734b9b8ce771694f68f20f867279268df4905c9a4e593c",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/load_voidptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "store_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_store(p,0,5);}",
+      "sha256": "46e39c3fcec11afeab4c83ddc48ae950a3428cd25f300d82108fc77573ae76d5",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/store_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "store_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_store(p,0,5);}",
+      "sha256": "9d637151c8f74899e9b2348628763cbd0c8d90480aba8a910f5d0c07ed675c32",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/store_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "store_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_store(p,0,5);}",
+      "sha256": "cc0cdfb5735d9c50024c8164aa981b530839129f7696526341da49256f984fa7",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/store_float.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "store_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_store(p,(struct S){0},5);}",
+      "sha256": "3cea2aad9db986ce25dca6d2fb3c343440e5936d2a23c65c43f94c0ff4fde046",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/store_record.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "store_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_store(p,0,5);}",
+      "sha256": "da6fe1c14b5b8851c70638daac9fd20edf4e5ca3a91ee8ee3045c2a652d6a1a4",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/store_ptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "store_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_store(p,0,5);}",
+      "sha256": "8c6a14143cff1c283e73b310c96dc35b3626d5fba0263075e052945c9ca7282d",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/store_voidptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "exchange_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_exchange(p,0,5);}",
+      "sha256": "de73de766e38970bd8296fa97415aeab69fabcc6ce13511070c3763b23b0b3f6",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/exchange_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "exchange_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_exchange(p,0,5);}",
+      "sha256": "016fa89dcb6d3411a4709eb44dacbb6e4494c09a4e66115e83c889f4a8fecaa2",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/exchange_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "exchange_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_exchange(p,0,5);}",
+      "sha256": "9ea915617b9a80d88b0d1f9cd5a6b931a796898b7a3f981b63eede59c6198d10",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/exchange_float.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "exchange_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_exchange(p,(struct S){0},5);}",
+      "sha256": "32cc7f36122c8d230e18a8f43873e8750534932f218387ab7d2e581c8db5644f",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/exchange_record.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "exchange_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_exchange(p,0,5);}",
+      "sha256": "c986e9b66e6a6111b856bb6dc332580248bf886d138136b5e4fc5dd324a75448",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/exchange_ptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "exchange_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_exchange(p,0,5);}",
+      "sha256": "7557513cb11217a3a61e5bce00e73aa03b2bcc903256f7f8e31e8d7bbcc59692",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/exchange_voidptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_strong_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_compare_exchange_strong(p,q,0,5,2);}",
+      "sha256": "fe76484e797d94be61f493ed1f298b732734045babd239eefc483ebd9cf2f714",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_strong_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_strong_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_compare_exchange_strong(p,q,0,5,2);}",
+      "sha256": "4ea8d02fabb6ecc93ddd2f9b9505b9b578cb93f01136077bfc67bd088a8fb81c",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_strong_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_strong_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_compare_exchange_strong(p,q,0,5,2);}",
+      "sha256": "4db95a1ce85dd886ea1d3d67f8df6bb198b38fe929d2a99ee37b3838e02411e9",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_strong_float.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_strong_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_compare_exchange_strong(p,q,(struct S){0},5,2);}",
+      "sha256": "aaefbb37c85592e5849e3287c5ccee519678c127ffb97f3ac1931bfe92380113",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_strong_record.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_strong_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_compare_exchange_strong(p,q,0,5,2);}",
+      "sha256": "9915a40f0fc562473ffcaa9c2ba6ac8aa07dc042c814bc91094067fa39d96ad6",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_strong_ptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_strong_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_compare_exchange_strong(p,q,0,5,2);}",
+      "sha256": "3b07e8ad5a23860720e91dd694cb630a9beb43549fbea5db1f46452d14a9f8b8",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_strong_voidptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_weak_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_compare_exchange_weak(p,q,0,5,2);}",
+      "sha256": "1fdb1542947fb663bdc3f3e70f7b4f2c1211abd2628ae96b917effecc1ed15ec",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_weak_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_weak_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_compare_exchange_weak(p,q,0,5,2);}",
+      "sha256": "c1b0e4731083e0fedabf85d3778ae029ad84c9a822303159229ece26bff1a9e6",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_weak_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_weak_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_compare_exchange_weak(p,q,0,5,2);}",
+      "sha256": "091f0cc365cf78a89bda5fc1d882f274831fe5758e22407acae538373c6da3c6",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_weak_float.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_weak_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_compare_exchange_weak(p,q,(struct S){0},5,2);}",
+      "sha256": "5de85990ae79ac33f1de0974a7ef3c2a4412fb1f0b3b2d6c7a6a7f86def83fea",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_weak_record.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_weak_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_compare_exchange_weak(p,q,0,5,2);}",
+      "sha256": "f6a5017697e43cee9a5fab9b731c078b66da63b1fed80cafa4dab99ebaa5e6f9",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_weak_ptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "compare_exchange_weak_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_compare_exchange_weak(p,q,0,5,2);}",
+      "sha256": "418627d8c2943c113c3ba8c69f4e2a48e8893c3b69e9396a497a3a93821c47e0",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/compare_exchange_weak_voidptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_add_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_fetch_add(p,0,5);}",
+      "sha256": "4acc96fb8c501e5054c5f1124ea63b958a5b4019dd8d2e9c6acda3148e25c22e",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_add_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_add_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_fetch_add(p,0,5);}",
+      "sha256": "c2f012710c2bf4df647fdd4c654058ee664d617520806753aec2ba7cfdf64c48",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_add_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_add_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_fetch_add(p,0,5);}",
+      "sha256": "2f618205fce65270e8545bb6862974711f83f44c1ef59c26dbcc41f923a610a6",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_add_float.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_add_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_fetch_add(p,0,5);}",
+      "sha256": "f66564d85d1819e71b56d8ec09a9f7700d4bb4bc664c70046b896d3ac6ab6dda",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_add_record.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "448e9bd7efa083ba95c454c542a0ffa4300db543de8e75b485dff97c8f009e71",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_add_record.c:1:60: error: address argument to atomic operation must be a pointer to atomic integer, pointer or supported floating point type ('_Atomic(struct S) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_fetch_add(p,0,5);}\n      |                                                            ^                      ~"
+    },
+    {
+      "name": "fetch_add_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_fetch_add(p,0,5);}",
+      "sha256": "3143184ae805cfdce84fd6dd3e69aa7edc2b3c4fde4a78565fefc803b26deb35",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_add_ptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_add_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_fetch_add(p,0,5);}",
+      "sha256": "e2e2e159cc7c0d48b166cb3902d3abc1b5045affefce8697b211fc1bca3fd0d9",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_add_voidptr.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "2eefa93968776444f92337602f23b1f6096b17cd1afd6bbefe12bafca4806798",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_add_voidptr.c:1:79: error: incomplete type 'void' where a complete type is required\n    1 | struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_fetch_add(p,0,5);}\n      |                                                                               ^"
+    },
+    {
+      "name": "fetch_sub_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_fetch_sub(p,0,5);}",
+      "sha256": "a3d03bc3eb9a93d4a75086deaf2c513b4dccfe6bb1e8b6a954e0ce2774a14867",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_sub_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_sub_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_fetch_sub(p,0,5);}",
+      "sha256": "879affb0f1cbf0bc52da1812cb48d9bd90842b740921bd55fea0b64be96431a5",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_sub_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_sub_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_fetch_sub(p,0,5);}",
+      "sha256": "aba34eec4989329afea8e3477ff0edd983ae1eef94076402565fb101b35232d0",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_sub_float.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_sub_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_fetch_sub(p,0,5);}",
+      "sha256": "f9942e10adad9ebaf0dcc49eeefbea8f87dbba713555179dd6c6c5f16b82e4bf",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_sub_record.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "923a82d23f96f9841c4da0e60d42b31b929ad6fedd094f51fdb2f9504349c143",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_sub_record.c:1:60: error: address argument to atomic operation must be a pointer to atomic integer, pointer or supported floating point type ('_Atomic(struct S) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_fetch_sub(p,0,5);}\n      |                                                            ^                      ~"
+    },
+    {
+      "name": "fetch_sub_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_fetch_sub(p,0,5);}",
+      "sha256": "88dbb00a388d985657447f06061b2c01c904285860ad43e19c354d9f8f531d4a",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_sub_ptr.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_sub_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_fetch_sub(p,0,5);}",
+      "sha256": "98310c9f64808cb39e75c28ec0e4a47a2ffbad7bb69e407a312b2fb6f5806c3b",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_sub_voidptr.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "c0a5ff351eab0595fecb9465ab7a75904e067d686968d2b8e0799f68365b2a2d",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_sub_voidptr.c:1:79: error: incomplete type 'void' where a complete type is required\n    1 | struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_fetch_sub(p,0,5);}\n      |                                                                               ^"
+    },
+    {
+      "name": "fetch_and_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_fetch_and(p,0,5);}",
+      "sha256": "a55d98dcbdc85af4d8080b18f34f203ffa0733cc1ba8bbb4880f86f352d4893a",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_and_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_and_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_fetch_and(p,0,5);}",
+      "sha256": "d0dd1967ef56f7f19947a3fbb742c438e61923eba92ef241fb76abe837a096f4",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_and_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_and_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_fetch_and(p,0,5);}",
+      "sha256": "697db17e5acb13f713f816b288763d67494e90511c99432d028469451aa3d791",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_and_float.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "10ca8dc6644c8a5a607e061103d3ebe4ebc4f41f1b3bb2c0187ef62c65605ffb",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_and_float.c:1:54: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(float) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_fetch_and(p,0,5);}\n      |                                                      ^                      ~"
+    },
+    {
+      "name": "fetch_and_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_fetch_and(p,0,5);}",
+      "sha256": "5aacece3226d92db27fb3f022519a5f224a79e7e440a1bbd5ef15ce0c9e55487",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_and_record.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "29e5185b7cab28d3f74ec351a89fe0a3a9ae611ddd43386568fa862c33147397",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_and_record.c:1:60: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(struct S) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_fetch_and(p,0,5);}\n      |                                                            ^                      ~"
+    },
+    {
+      "name": "fetch_and_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_fetch_and(p,0,5);}",
+      "sha256": "d43436444159a563de92cfc7472df22010491970e0f44348a406f3763fca1368",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_and_ptr.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "dfce65fc531eced46560ab4d0f4e8c44dd439c3bd2acd954120c7700222d86ea",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_and_ptr.c:1:54: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(int *) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_fetch_and(p,0,5);}\n      |                                                      ^                      ~"
+    },
+    {
+      "name": "fetch_and_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_fetch_and(p,0,5);}",
+      "sha256": "aa63686e4482322aff5ad2aec66028a5993c159cc3308d5d05b803754705c96b",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_and_voidptr.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "26581924760a3bba59e184a565f55b35513ce10f7308757478d89c422cfdfa00",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_and_voidptr.c:1:56: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(void *) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_fetch_and(p,0,5);}\n      |                                                        ^                      ~"
+    },
+    {
+      "name": "fetch_or_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_fetch_or(p,0,5);}",
+      "sha256": "24ed22ed5ab631269a0a0dca8a77051dc1c331b4ad12182b41d0490eefcc1988",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_or_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_or_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_fetch_or(p,0,5);}",
+      "sha256": "f087bdb49aae58dd65a1a1616736868dd84fcf704af8858bf71bf238b1ff0642",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_or_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_or_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_fetch_or(p,0,5);}",
+      "sha256": "5369ded736d8398b1bb71ea00bc4e613bde26f8ee21473d4c1ed7eb8360f0380",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_or_float.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "70e8451ecba4b8fb0db297a27e22a31b1fec6b5f35e3f8e9418c2ad06017d41b",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_or_float.c:1:54: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(float) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_fetch_or(p,0,5);}\n      |                                                      ^                     ~"
+    },
+    {
+      "name": "fetch_or_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_fetch_or(p,0,5);}",
+      "sha256": "4b78795bb81ed99ff50c3a5142d6e705c79ce410ccac0195c03eca62bf059f26",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_or_record.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "dd325df8ba638e9a41b7b8bd912749ee5a9ad31695975d733a3610f83fa9adf3",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_or_record.c:1:60: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(struct S) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_fetch_or(p,0,5);}\n      |                                                            ^                     ~"
+    },
+    {
+      "name": "fetch_or_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_fetch_or(p,0,5);}",
+      "sha256": "ee48a51ecd4ce9deaea2ea1c55b91168743efe4f4f7190cf7988700145ea70e5",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_or_ptr.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "075c484c31b525407823e1d3d3eef2df7fc5b54a99a643cb10e6af3fe71d8fe0",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_or_ptr.c:1:54: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(int *) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_fetch_or(p,0,5);}\n      |                                                      ^                     ~"
+    },
+    {
+      "name": "fetch_or_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_fetch_or(p,0,5);}",
+      "sha256": "e887ee86f9dfba4dc2b5fa780ade5a12231359744f2ba70aa985c791267c89bf",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_or_voidptr.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "42a73ead88b8a80ba69c0957f4c69dbc119891576eb1008b4a8e8ef7fd84c1b7",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_or_voidptr.c:1:56: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(void *) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_fetch_or(p,0,5);}\n      |                                                        ^                     ~"
+    },
+    {
+      "name": "fetch_xor_int",
+      "source": "struct S{int x;}; void f(_Atomic(int) *p,int *q){__c11_atomic_fetch_xor(p,0,5);}",
+      "sha256": "d47ff18b2821dfc307f9089dc0aad7945533236d47e21fccffbfa7e4b8bb58de",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_xor_int.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_xor_bool",
+      "source": "struct S{int x;}; void f(_Atomic(_Bool) *p,_Bool *q){__c11_atomic_fetch_xor(p,0,5);}",
+      "sha256": "1857abdd5fbeb77fd762b2df2e9f37ff9b0aead37c117d05c12f4f5cd9e95a34",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_xor_bool.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "fetch_xor_float",
+      "source": "struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_fetch_xor(p,0,5);}",
+      "sha256": "db832da40f2c8afab1dcb978553ed3a5f6c656be228664ca0488451406701071",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_xor_float.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "e884d1e99f742526d3fa129ddb0d3240d2ccb1ae939b6cb2350a3d0b9f391b74",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_xor_float.c:1:54: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(float) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(float) *p,float *q){__c11_atomic_fetch_xor(p,0,5);}\n      |                                                      ^                      ~"
+    },
+    {
+      "name": "fetch_xor_record",
+      "source": "struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_fetch_xor(p,0,5);}",
+      "sha256": "cf4f3cab5616ed9ddec65b83a18fdd26e6202bf63383e94109206553d303649c",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_xor_record.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "46991af1b2f18fc7eee18ec2afbadecc9233d41e4be478354e41bfc75fbac5d9",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_xor_record.c:1:60: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(struct S) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(struct S) *p,struct S *q){__c11_atomic_fetch_xor(p,0,5);}\n      |                                                            ^                      ~"
+    },
+    {
+      "name": "fetch_xor_ptr",
+      "source": "struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_fetch_xor(p,0,5);}",
+      "sha256": "8f461c7cf983c2521a82bfac1b316828339f12bfd0dbf8563ec04edddbc3ea5b",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_xor_ptr.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "c43a3ecf11e15c3ea21afaf78a61e9a59fac4f332432a4642e6cf89acf32500d",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_xor_ptr.c:1:54: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(int *) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(int *) *p,int * *q){__c11_atomic_fetch_xor(p,0,5);}\n      |                                                      ^                      ~"
+    },
+    {
+      "name": "fetch_xor_voidptr",
+      "source": "struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_fetch_xor(p,0,5);}",
+      "sha256": "28a3126f57ae9a2a335a43ba57d6a39a2b26a5aecd5837a6db18bebb554fea56",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_xor_voidptr.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "b82184c762eb859800817b269e90f24e70d7f8db0a6cd3e098d4688dbd1a7aef",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/fetch_xor_voidptr.c:1:56: error: address argument to atomic operation must be a pointer to atomic integer ('_Atomic(void *) *' invalid)\n    1 | struct S{int x;}; void f(_Atomic(void *) *p,void * *q){__c11_atomic_fetch_xor(p,0,5);}\n      |                                                        ^                      ~"
+    },
+    {
+      "name": "ordinary",
+      "source": "void f(int*p){__c11_atomic_load(p,5);}",
+      "sha256": "8769c8581e49a759e20e0427f8eb27515e43a8c6cbb0bbc14e170f1e7148a67a",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/ordinary.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "65abb2b2f458a7fd0be37edfb777651a737646e350c5166f72b915974916747c",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/ordinary.c:1:15: error: address argument to atomic operation must be a pointer to _Atomic type ('int *' invalid)\n    1 | void f(int*p){__c11_atomic_load(p,5);}\n      |               ^                 ~"
+    },
+    {
+      "name": "constload",
+      "source": "void f(const _Atomic(int)*p){__c11_atomic_load(p,5);}",
+      "sha256": "721d8709ff86e693637fccfa65ed8d5c6563e6658bd4a2bbf0670faeb556839f",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/constload.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "conststore",
+      "source": "void f(const _Atomic(int)*p){__c11_atomic_store(p,1,5);}",
+      "sha256": "e013510b3bb78159d0ef178c69e54c304a9d9bbce168c0ab98553cb40c4048d0",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/conststore.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "49feddc2f29efaffac538f0c75a67b70485ec69da75f90070fb19c1870872d99",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/conststore.c:1:30: error: address argument to atomic operation must be a pointer to non-const _Atomic type ('const _Atomic(int) *' invalid)\n    1 | void f(const _Atomic(int)*p){__c11_atomic_store(p,1,5);}\n      |                              ^                  ~"
+    },
+    {
+      "name": "constinit",
+      "source": "void f(const _Atomic(int)*p){__c11_atomic_init(p,1);}",
+      "sha256": "3822fed5dc1456219a3d0cdb559938bf1cbf0950ae92d1d7042b6fee0f4fd147",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/constinit.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "f0471095acad5690542b46f2ee09355cb4d41261cf285fec9aa206656acf2983",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/constinit.c:1:30: error: address argument to atomic operation must be a pointer to non-const _Atomic type ('const _Atomic(int) *' invalid)\n    1 | void f(const _Atomic(int)*p){__c11_atomic_init(p,1);}\n      |                              ^                 ~"
+    },
+    {
+      "name": "volatileload",
+      "source": "void f(volatile _Atomic(int)*p){__c11_atomic_load(p,5);}",
+      "sha256": "5f7c4cc790481364b181fd9342769b98992004aa7aa908de2577eb30a3763cde",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/volatileload.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "constexpected",
+      "source": "void f(_Atomic(int)*p,const int*q){__c11_atomic_compare_exchange_strong(p,q,1,5,2);}",
+      "sha256": "3622647a8e2fe322031e6496dff4fdcac77b3a7b02f4c56f9dfa39ea42b73860",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/constexpected.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "29f933d8099ae56d08ad66af3422e2dcc8a2512674dd438640f3f7dae45566ff",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/constexpected.c:1:75: warning: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(_Atomic(int)*p,const int*q){__c11_atomic_compare_exchange_strong(p,q,1,5,2);}\n      |                                                                           ^"
+    },
+    {
+      "name": "volatileexpected",
+      "source": "void f(_Atomic(int)*p,volatile int*q){__c11_atomic_compare_exchange_strong(p,q,1,5,2);}",
+      "sha256": "4dfc2e9b712134aacbc05843336f254edc1bb3d1c8ff1e1a388edc59231f2be3",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/volatileexpected.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "25b9ce4b8e0ab1426b7cc0583ed5cef0530e759cb661b4c4f182fa7f6d13333d",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/volatileexpected.c:1:78: warning: passing 'volatile int *' to parameter of type 'int *' discards qualifiers [-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(_Atomic(int)*p,volatile int*q){__c11_atomic_compare_exchange_strong(p,q,1,5,2);}\n      |                                                                              ^"
+    },
+    {
+      "name": "voidexpected",
+      "source": "void f(_Atomic(int)*p,void*q){__c11_atomic_compare_exchange_strong(p,q,1,5,2);}",
+      "sha256": "6e34efcc00f893d1ac739d4c20af40981550f037d38b5948fa5f76ae0f6cf91c",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/voidexpected.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "unsignedexpected",
+      "source": "void f(_Atomic(int)*p,unsigned*q){__c11_atomic_compare_exchange_strong(p,q,1,5,2);}",
+      "sha256": "eb081e098decb2ddeb498c640dd82bf68e4eb555e4505dd5da5645c24f5dfc40",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/unsignedexpected.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "c521855f699dd43e0af4723728358c969c04ac15c378ae07f50b3a960a16ad82",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/unsignedexpected.c:1:74: warning: passing 'unsigned int *' to parameter of type 'int *' converts between pointers to integer types with different sign [-Wpointer-sign]\n    1 | void f(_Atomic(int)*p,unsigned*q){__c11_atomic_compare_exchange_strong(p,q,1,5,2);}\n      |                                                                          ^"
+    },
+    {
+      "name": "atomicexpected",
+      "source": "void f(_Atomic(int)*p,_Atomic(int)*q){__c11_atomic_compare_exchange_strong(p,q,1,5,2);}",
+      "sha256": "5733ed80348fe565f43121650bf2707f0ef07e035fdcd077af7286bf30c45528",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/atomicexpected.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "5dce3fee9bffdcbbb5ceb5d5cd933ee2c5b0f845f7cade48ddca5eb1549ff7c1",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/atomicexpected.c:1:78: warning: incompatible pointer types passing '_Atomic(int) *' to parameter of type 'int *' [-Wincompatible-pointer-types]\n    1 | void f(_Atomic(int)*p,_Atomic(int)*q){__c11_atomic_compare_exchange_strong(p,q,1,5,2);}\n      |                                                                              ^"
+    },
+    {
+      "name": "ptrinteger",
+      "source": "void f(_Atomic(int*)*p){__c11_atomic_store(p,7,5);}",
+      "sha256": "5c15562f4244b9d59ded01c05ca41eaed56edb9058220a828ade1bd71be6e363",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/ptrinteger.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "19483cd5d071df831dcfe196a6e66cb548d900e2dfd14663d6bde37d660ccb5b",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/ptrinteger.c:1:46: error: incompatible integer to pointer conversion passing 'int' to parameter of type 'int *' [-Wint-conversion]\n    1 | void f(_Atomic(int*)*p){__c11_atomic_store(p,7,5);}\n      |                                              ^"
+    },
+    {
+      "name": "ptrconst",
+      "source": "void f(_Atomic(int*)*p,const int*q){__c11_atomic_store(p,q,5);}",
+      "sha256": "db09a278886a0f51a3cbf51c2a29b42c6a4c50561c5571f0f90f67f1d471fb3d",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/ptrconst.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "3338e9bc7d01880e4f1b61b1ee2277a09f24897371ffe0aa7cf1a23cebe0accd",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/ptrconst.c:1:58: warning: passing 'const int *' to parameter of type 'int *' discards qualifiers [-Wincompatible-pointer-types-discards-qualifiers]\n    1 | void f(_Atomic(int*)*p,const int*q){__c11_atomic_store(p,q,5);}\n      |                                                          ^"
+    },
+    {
+      "name": "ptrfloatdelta",
+      "source": "void f(_Atomic(int*)*p,float q){__c11_atomic_fetch_add(p,q,5);}",
+      "sha256": "95f869151e032fd93658cd2c4c75c01b5e8173c55dac023242546613f62034b0",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/ptrfloatdelta.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "ptrptrdelta",
+      "source": "void f(_Atomic(int*)*p,int*q){__c11_atomic_fetch_add(p,q,5);}",
+      "sha256": "5bbda7aab0862637f6f87eb97238c6732ecf00c65cc08d44cc200776e8926170",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/ptrptrdelta.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "6ee18046bf52d1697c334935f988d7fac59546fc07f54c40e8901e81383bb629",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/ptrptrdelta.c:1:56: error: incompatible pointer to integer conversion passing 'int *' to parameter of type 'long' [-Wint-conversion]\n    1 | void f(_Atomic(int*)*p,int*q){__c11_atomic_fetch_add(p,q,5);}\n      |                                                        ^"
+    },
+    {
+      "name": "ptrincomplete",
+      "source": "struct S;void f(_Atomic(struct S*)*p){__c11_atomic_fetch_add(p,1,5);}",
+      "sha256": "90e2abab6e3176dc4b93670873823c457d80f3eaaade83e333d83525a06034d6",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/ptrincomplete.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "e9431e22d47561f0db7b97908152692b5def05afc7ef8eab728fd3269ba39d07",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/ptrincomplete.c:1:62: error: incomplete type 'struct S' where a complete type is required\n    1 | struct S;void f(_Atomic(struct S*)*p){__c11_atomic_fetch_add(p,1,5);}\n      |                                                              ^"
+    },
+    {
+      "name": "ptrfunction",
+      "source": "typedef void F(void);void f(_Atomic(F*)*p){__c11_atomic_fetch_add(p,1,5);}",
+      "sha256": "dfd75a279c87647f4634de993f3c9f9aac69b6aee025e73fd98180cdeecef33d",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/ptrfunction.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "ptrvla",
+      "source": "void f(int n,_Atomic(int(*)[n])*p){__c11_atomic_fetch_add(p,1,5);}",
+      "sha256": "7a560f63b5f0115d3052725fb7e5c1dab50e40413a3dcd11a86d7bd1c1086302",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/ptrvla.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "badloadorder",
+      "source": "void f(_Atomic(int)*p){__c11_atomic_load(p,3);}",
+      "sha256": "c441729903a19873708c22c007e089ecb4262c3373a5aef0980c3f72be6a4bc6",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/badloadorder.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "88bdde281b11730af94e7cf33d5cc7d6a635d6a657412e2bbed9829886042208",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/badloadorder.c:1:44: warning: memory order argument to atomic operation is invalid [-Watomic-memory-ordering]\n    1 | void f(_Atomic(int)*p){__c11_atomic_load(p,3);}\n      |                                            ^"
+    },
+    {
+      "name": "badstoreorder",
+      "source": "void f(_Atomic(int)*p){__c11_atomic_store(p,1,2);}",
+      "sha256": "6980cc0a042affde89a8503e4d75010a16d3d4a1dc26be6142bec53e9ae6458b",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/badstoreorder.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "6da6f4ed2d820f7117b6a69873a0fca79bd8236658887f9d35f1de9a224e612a",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/badstoreorder.c:1:47: warning: memory order argument to atomic operation is invalid [-Watomic-memory-ordering]\n    1 | void f(_Atomic(int)*p){__c11_atomic_store(p,1,2);}\n      |                                               ^"
+    },
+    {
+      "name": "badstrongorder",
+      "source": "void f(_Atomic(int)*p,int*q){__c11_atomic_compare_exchange_strong(p,q,1,0,5);}",
+      "sha256": "da2f6ca4642d8d7e9852002341d7614faebb54dfdb66870dfcbb0fc1a0dd087d",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/badstrongorder.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "badfailure",
+      "source": "void f(_Atomic(int)*p,int*q){__c11_atomic_compare_exchange_strong(p,q,1,5,3);}",
+      "sha256": "15b0d7f58b38281f61016447eb84f6a5e4b11621d93d0743589d70114ae7d575",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/badfailure.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "8a578f2348ee54fdbb043c5eee2b2ddbfdbe2a823a5a9e2407fe2b0695e63610",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/badfailure.c:1:75: warning: failure memory order argument to atomic operation is invalid [-Watomic-memory-ordering]\n    1 | void f(_Atomic(int)*p,int*q){__c11_atomic_compare_exchange_strong(p,q,1,5,3);}\n      |                                                                           ^"
+    },
+    {
+      "name": "query0",
+      "source": "_Static_assert(__c11_atomic_is_lock_free(0)==0, \"zero\");",
+      "sha256": "4d3fd4ca72fceef5d6b9e31f6be9ab92a8ccd53c706daa5eba4fd28f22e91b0a",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/query0.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "3025bb874027f69fc88bb364269643a59c777676f2df4794a10e206d5282326d",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/query0.c:1:16: error: static assertion failed due to requirement '__c11_atomic_is_lock_free(0) == 0': zero\n    1 | _Static_assert(__c11_atomic_is_lock_free(0)==0, \"zero\");\n      |                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    },
+    {
+      "name": "query1",
+      "source": "_Static_assert(__c11_atomic_is_lock_free(1)==1, \"one\");",
+      "sha256": "f416473f262587df198c6a63576e2868e5f4775bd0c2205711687891f0d6811c",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/query1.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    },
+    {
+      "name": "query3",
+      "source": "_Static_assert(__c11_atomic_is_lock_free(3)==0, \"three\");",
+      "sha256": "0bed4e9c19cd98d095a36bb047c64750dc08b20e4cd31e66405c1a7a962ad668",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/query3.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "fe617ce3f323c571aeb312670afd491f64eee7241b9b9e981344337876ac0e88",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/query3.c:1:16: error: static assertion expression is not an integral constant expression\n    1 | _Static_assert(__c11_atomic_is_lock_free(3)==0, \"three\");\n      |                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    },
+    {
+      "name": "query16",
+      "source": "_Static_assert(__c11_atomic_is_lock_free(16)==0, \"sixteen\");",
+      "sha256": "c8eb0b74f4f0d80a7e712d048bf9c2587ad40d51efaf9c6cb6e4ee843d0cefb0",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/query16.c"
+      ],
+      "returncode": 1,
+      "diagnostic_sha256": "5634914619701d2631e2b9b0ea2bf233c358d2b1b6998dd35492d46805894a0e",
+      "diagnostic_excerpt": "/home/dev-user/.cache/toucan/stdatomic-probes/query16.c:1:16: error: static assertion expression is not an integral constant expression\n    1 | _Static_assert(__c11_atomic_is_lock_free(16)==0, \"sixteen\");\n      |                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~"
+    },
+    {
+      "name": "queryruntime",
+      "source": "_Bool f(int n){return __c11_atomic_is_lock_free(n++);}",
+      "sha256": "990b10f057a37c0663a1f638a3c11e59344733f8ce1ebc6466d951e878e3d563",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/queryruntime.c"
+      ],
+      "returncode": 0,
+      "diagnostic_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "diagnostic_excerpt": ""
+    }
+  ],
+  "native": [
+    {
+      "name": "positive",
+      "source": "\nint main(void) {\n    _Atomic(int) x; __c11_atomic_init(&x,10);\n    if(__c11_atomic_load(&x,2)!=10)return 1;\n    __c11_atomic_store(&x,11,3);if(__c11_atomic_exchange(&x,12,5)!=11)return 2;\n    int expected=11;\n    if(__c11_atomic_compare_exchange_strong(&x,&expected,13,5,2)||expected!=12||x!=12)return 3;\n    if(!__c11_atomic_compare_exchange_strong(&x,&expected,13,5,2)||x!=13)return 4;\n    if(__c11_atomic_fetch_add(&x,3,5)!=13||x!=16)return 5;\n    if(__c11_atomic_fetch_sub(&x,3,5)!=16||x!=13)return 6;\n    if(__c11_atomic_fetch_and(&x,7,5)!=13||x!=5)return 7;\n    if(__c11_atomic_fetch_or(&x,8,5)!=5||x!=13)return 8;\n    if(__c11_atomic_fetch_xor(&x,3,5)!=13||x!=14)return 9;\n    if(__c11_atomic_fetch_nand(&x,3,5)!=14||x!=~2)return 10;\n    if(__c11_atomic_fetch_max(&x,20,5)!=~2||x!=20)return 11;\n    if(__c11_atomic_fetch_min(&x,10,5)!=20||x!=10)return 12;\n    _Atomic(_Bool) flag;__c11_atomic_init(&flag,0);\n    if(__c11_atomic_exchange(&flag,1,5)||!flag)return 13;\n    __c11_atomic_store(&flag,0,3);if(flag)return 14;\n    _Atomic(float) f;__c11_atomic_init(&f,2.0f);\n    if(__c11_atomic_fetch_add(&f,1.5f,5)!=2.0f||f!=3.5f)return 15;\n    struct S{char x[3];};struct S a={{1,2,3}},b={{4,5,6}},out;\n    _Atomic(struct S) record;__c11_atomic_init(&record,a);\n    out=__c11_atomic_exchange(&record,b,5);if(out.x[2]!=3)return 16;\n    out=__c11_atomic_load(&record,2);if(out.x[0]!=4)return 17;\n    /* Clang 18 drops expected-buffer copyback for an expanded 3-byte record.\n       Keep that compiler limitation in the evidence; prove CAS with equal-size\n       value/storage while retaining the 3-byte load/exchange checks above. */\n    struct R{int x;};struct R before={1},after={2};_Atomic(struct R) cas;\n    __c11_atomic_init(&cas,after);\n    if(__c11_atomic_compare_exchange_strong(&cas,&before,after,5,2)||before.x!=2)return 18;\n    int values[4];_Atomic(int*) p;__c11_atomic_init(&p,values);\n    if(__c11_atomic_fetch_add(&p,1,5)!=values||p!=values+1)return 19;\n    if(__c11_atomic_fetch_sub(&p,1,5)!=values+1||p!=values)return 20;\n    int n=3;typedef int Row[n++];Row rows[2];_Atomic(Row*) vla;\n    __c11_atomic_init(&vla,rows);if(n!=4)return 21;n=12;\n    /* Clang 18 incorrectly lowers a VLA fetch-add to zero stride; that failing\n       probe is persisted separately. Here verify initialization and loading. */\n    if(__c11_atomic_load(&vla,0)!=rows)return 21;\n    __c11_atomic_thread_fence(5);__c11_atomic_signal_fence(2);\n    int size=4; if(!__c11_atomic_is_lock_free(size++)||size!=5)return 22;\n    if(!__c11_atomic_is_lock_free(0))return 23;\n    return 0;\n}\n",
+      "source_sha256": "cbf2ec819f189390ef993dca2a7ead5c26b937b6c1446774e55798ecedfebae4",
+      "results": [
+        {
+          "command": [
+            "clang",
+            "-std=gnu11",
+            "-O0",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/positive.c",
+            "-o",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/positive-O0",
+            "-latomic"
+          ],
+          "compile_returncode": 0,
+          "diagnostic": "",
+          "binary_sha256": "badfbd2303c33f93b8058f3daf77b1b7bbda7649444bc10060e03f4fe3d76f30",
+          "run_command": [
+            "/home/dev-user/.cache/toucan/stdatomic-probes/positive-O0"
+          ],
+          "returncode": 0,
+          "expected_returncode": 0
+        },
+        {
+          "command": [
+            "clang",
+            "-std=gnu11",
+            "-O2",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/positive.c",
+            "-o",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/positive-O2",
+            "-latomic"
+          ],
+          "compile_returncode": 0,
+          "diagnostic": "",
+          "binary_sha256": "fe5659b495c1bb21689b1076fad04257736376cbb7a1ce4842c23734b78b1c8f",
+          "run_command": [
+            "/home/dev-user/.cache/toucan/stdatomic-probes/positive-O2"
+          ],
+          "returncode": 0,
+          "expected_returncode": 0
+        }
+      ]
+    },
+    {
+      "name": "record-copyback",
+      "source": "struct S{char x[3];};int main(void){struct S expected={{1,2,3}},actual={{4,5,6}};_Atomic(struct S) value;__c11_atomic_init(&value,actual);if(__c11_atomic_compare_exchange_strong(&value,&expected,actual,5,2))return 2;return expected.x[0]!=4;}",
+      "source_sha256": "12dba2e32b579519b03a4cc1c40a9e99be5ae89990d360504d6f68b3dd20d9f7",
+      "results": [
+        {
+          "command": [
+            "clang",
+            "-std=gnu11",
+            "-O0",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/record-copyback.c",
+            "-o",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/record-copyback-O0",
+            "-latomic"
+          ],
+          "compile_returncode": 0,
+          "diagnostic": "",
+          "binary_sha256": "fd9c00d6155e6fcfab0657a3ca0468c1aaa3f0f0e54755d97e35b2a2bc46fe71",
+          "run_command": [
+            "/home/dev-user/.cache/toucan/stdatomic-probes/record-copyback-O0"
+          ],
+          "returncode": 1,
+          "expected_returncode": 1
+        },
+        {
+          "command": [
+            "clang",
+            "-std=gnu11",
+            "-O2",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/record-copyback.c",
+            "-o",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/record-copyback-O2",
+            "-latomic"
+          ],
+          "compile_returncode": 0,
+          "diagnostic": "",
+          "binary_sha256": "cdda537c4d9a228e5152aa465117c53a53a519633b21b0b981e29cb072a06709",
+          "run_command": [
+            "/home/dev-user/.cache/toucan/stdatomic-probes/record-copyback-O2"
+          ],
+          "returncode": 1,
+          "expected_returncode": 1
+        }
+      ],
+      "llvm": {
+        "command": [
+          "clang",
+          "-std=gnu11",
+          "-O0",
+          "-S",
+          "-emit-llvm",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/record-copyback.c",
+          "-o",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/record-copyback.ll"
+        ],
+        "sha256": "451be9daa4068e33229b9ab87b34bbd9698d10674fedd5da1e784c09377e4002",
+        "text": "; ModuleID = '/home/dev-user/.cache/toucan/stdatomic-probes/record-copyback.c'\nsource_filename = \"/home/dev-user/.cache/toucan/stdatomic-probes/record-copyback.c\"\ntarget datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128\"\ntarget triple = \"x86_64-pc-linux-gnu\"\n\n%struct.S = type { [3 x i8] }\n\n@__const.main.expected = private unnamed_addr constant %struct.S { [3 x i8] c\"\\01\\02\\03\" }, align 1\n@__const.main.actual = private unnamed_addr constant %struct.S { [3 x i8] c\"\\04\\05\\06\" }, align 1\n\n; Function Attrs: noinline nounwind optnone uwtable\ndefine dso_local i32 @main() #0 {\n  %1 = alloca i32, align 4\n  %2 = alloca %struct.S, align 1\n  %3 = alloca %struct.S, align 1\n  %4 = alloca { %struct.S, [1 x i8] }, align 4\n  %5 = alloca %struct.S, align 1\n  %6 = alloca { %struct.S, [1 x i8] }, align 4\n  %7 = alloca { %struct.S, [1 x i8] }, align 4\n  %8 = alloca i8, align 1\n  store i32 0, ptr %1, align 4\n  call void @llvm.memcpy.p0.p0.i64(ptr align 1 %2, ptr align 1 @__const.main.expected, i64 3, i1 false)\n  call void @llvm.memcpy.p0.p0.i64(ptr align 1 %3, ptr align 1 @__const.main.actual, i64 3, i1 false)\n  call void @llvm.memset.p0.i64(ptr align 4 %4, i8 0, i64 4, i1 false)\n  %9 = getelementptr inbounds { %struct.S, [1 x i8] }, ptr %4, i32 0, i32 0\n  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %9, ptr align 1 %3, i64 3, i1 false)\n  call void @llvm.memcpy.p0.p0.i64(ptr align 1 %5, ptr align 1 %3, i64 3, i1 false)\n  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %6, ptr align 1 %2, i64 3, i1 false)\n  call void @llvm.memcpy.p0.p0.i64(ptr align 4 %7, ptr align 1 %5, i64 3, i1 false)\n  %10 = load i32, ptr %6, align 4\n  %11 = load i32, ptr %7, align 4\n  %12 = cmpxchg ptr %4, i32 %10, i32 %11 seq_cst acquire, align 4\n  %13 = extractvalue { i32, i1 } %12, 0\n  %14 = extractvalue { i32, i1 } %12, 1\n  br i1 %14, label %16, label %15\n\n15:                                               ; preds = %0\n  store i32 %13, ptr %6, align 4\n  br label %16\n\n16:                                               ; preds = %15, %0\n  %17 = zext i1 %14 to i8\n  store i8 %17, ptr %8, align 1\n  %18 = load i8, ptr %8, align 1\n  %19 = trunc i8 %18 to i1\n  br i1 %19, label %20, label %21\n\n20:                                               ; preds = %16\n  store i32 2, ptr %1, align 4\n  br label %28\n\n21:                                               ; preds = %16\n  %22 = getelementptr inbounds %struct.S, ptr %2, i32 0, i32 0\n  %23 = getelementptr inbounds [3 x i8], ptr %22, i64 0, i64 0\n  %24 = load i8, ptr %23, align 1\n  %25 = sext i8 %24 to i32\n  %26 = icmp ne i32 %25, 4\n  %27 = zext i1 %26 to i32\n  store i32 %27, ptr %1, align 4\n  br label %28\n\n28:                                               ; preds = %21, %20\n  %29 = load i32, ptr %1, align 4\n  ret i32 %29\n}\n\n; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: readwrite)\ndeclare void @llvm.memcpy.p0.p0.i64(ptr noalias nocapture writeonly, ptr noalias nocapture readonly, i64, i1 immarg) #1\n\n; Function Attrs: nocallback nofree nounwind willreturn memory(argmem: write)\ndeclare void @llvm.memset.p0.i64(ptr nocapture writeonly, i8, i64, i1 immarg) #2\n\nattributes #0 = { noinline nounwind optnone uwtable \"frame-pointer\"=\"all\" \"min-legal-vector-width\"=\"0\" \"no-trapping-math\"=\"true\" \"stack-protector-buffer-size\"=\"8\" \"target-cpu\"=\"x86-64\" \"target-features\"=\"+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87\" \"tune-cpu\"=\"generic\" }\nattributes #1 = { nocallback nofree nounwind willreturn memory(argmem: readwrite) }\nattributes #2 = { nocallback nofree nounwind willreturn memory(argmem: write) }\n\n!llvm.module.flags = !{!0, !1, !2, !3, !4}\n!llvm.ident = !{!5}\n\n!0 = !{i32 1, !\"wchar_size\", i32 4}\n!1 = !{i32 8, !\"PIC Level\", i32 2}\n!2 = !{i32 7, !\"PIE Level\", i32 2}\n!3 = !{i32 7, !\"uwtable\", i32 2}\n!4 = !{i32 7, !\"frame-pointer\", i32 2}\n!5 = !{!\"Ubuntu clang version 18.1.3 (1ubuntu1)\"}\n"
+      }
+    },
+    {
+      "name": "vla-stride",
+      "source": "int main(void){int n=3;typedef int Row[n++];Row values[2];_Atomic(Row*) p;__c11_atomic_init(&p,values);n=12;if(__c11_atomic_fetch_add(&p,1,5)!=values)return 2;return p!=values+1;}",
+      "source_sha256": "3d10afdbc8158033dda84a0b4fefc381c121da8c18c0af08241a49570bd60e30",
+      "results": [
+        {
+          "command": [
+            "clang",
+            "-std=gnu11",
+            "-O0",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/vla-stride.c",
+            "-o",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/vla-stride-O0",
+            "-latomic"
+          ],
+          "compile_returncode": 0,
+          "diagnostic": "",
+          "binary_sha256": "99aae3b142c091ef2b7f68978e97fecad9644fb7b31103a239af94746bb5f248",
+          "run_command": [
+            "/home/dev-user/.cache/toucan/stdatomic-probes/vla-stride-O0"
+          ],
+          "returncode": 1,
+          "expected_returncode": 1
+        },
+        {
+          "command": [
+            "clang",
+            "-std=gnu11",
+            "-O2",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/vla-stride.c",
+            "-o",
+            "/home/dev-user/.cache/toucan/stdatomic-probes/vla-stride-O2",
+            "-latomic"
+          ],
+          "compile_returncode": 0,
+          "diagnostic": "",
+          "binary_sha256": "dee1024b3be07002c3e0c53cbfd117a03c3d58951a5c335cbcdb376e94e3551a",
+          "run_command": [
+            "/home/dev-user/.cache/toucan/stdatomic-probes/vla-stride-O2"
+          ],
+          "returncode": 1,
+          "expected_returncode": 1
+        }
+      ],
+      "llvm": {
+        "command": [
+          "clang",
+          "-std=gnu11",
+          "-O0",
+          "-S",
+          "-emit-llvm",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/vla-stride.c",
+          "-o",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/vla-stride.ll"
+        ],
+        "sha256": "1421b18d6487f06edd97ebc9f63e1d6163caca1d0004ee62818c91c4087417f8",
+        "text": "; ModuleID = '/home/dev-user/.cache/toucan/stdatomic-probes/vla-stride.c'\nsource_filename = \"/home/dev-user/.cache/toucan/stdatomic-probes/vla-stride.c\"\ntarget datalayout = \"e-m:e-p270:32:32-p271:32:32-p272:64:64-i64:64-i128:128-f80:128-n8:16:32:64-S128\"\ntarget triple = \"x86_64-pc-linux-gnu\"\n\n; Function Attrs: noinline nounwind optnone uwtable\ndefine dso_local i32 @main() #0 {\n  %1 = alloca i32, align 4\n  %2 = alloca i32, align 4\n  %3 = alloca ptr, align 8\n  %4 = alloca i64, align 8\n  %5 = alloca ptr, align 8\n  %6 = alloca i64, align 8\n  %7 = alloca ptr, align 8\n  %8 = alloca i32, align 4\n  store i32 0, ptr %1, align 4\n  store i32 3, ptr %2, align 4\n  %9 = load i32, ptr %2, align 4\n  %10 = add nsw i32 %9, 1\n  store i32 %10, ptr %2, align 4\n  %11 = zext i32 %9 to i64\n  %12 = call ptr @llvm.stacksave.p0()\n  store ptr %12, ptr %3, align 8\n  %13 = mul nuw i64 2, %11\n  %14 = alloca i32, i64 %13, align 16\n  store i64 %11, ptr %4, align 8\n  store ptr %14, ptr %5, align 8\n  store i32 12, ptr %2, align 4\n  store i64 0, ptr %6, align 8\n  %15 = load i64, ptr %6, align 8\n  %16 = atomicrmw add ptr %5, i64 %15 seq_cst, align 8\n  store i64 %16, ptr %7, align 8\n  %17 = load ptr, ptr %7, align 8\n  %18 = icmp ne ptr %17, %14\n  br i1 %18, label %19, label %20\n\n19:                                               ; preds = %0\n  store i32 2, ptr %1, align 4\n  store i32 1, ptr %8, align 4\n  br label %27\n\n20:                                               ; preds = %0\n  %21 = load atomic i64, ptr %5 seq_cst, align 8\n  %22 = inttoptr i64 %21 to ptr\n  %23 = mul nsw i64 1, %11\n  %24 = getelementptr inbounds i32, ptr %14, i64 %23\n  %25 = icmp ne ptr %22, %24\n  %26 = zext i1 %25 to i32\n  store i32 %26, ptr %1, align 4\n  store i32 1, ptr %8, align 4\n  br label %27\n\n27:                                               ; preds = %20, %19\n  %28 = load ptr, ptr %3, align 8\n  call void @llvm.stackrestore.p0(ptr %28)\n  %29 = load i32, ptr %1, align 4\n  ret i32 %29\n}\n\n; Function Attrs: nocallback nofree nosync nounwind willreturn\ndeclare ptr @llvm.stacksave.p0() #1\n\n; Function Attrs: nocallback nofree nosync nounwind willreturn\ndeclare void @llvm.stackrestore.p0(ptr) #1\n\nattributes #0 = { noinline nounwind optnone uwtable \"frame-pointer\"=\"all\" \"min-legal-vector-width\"=\"0\" \"no-trapping-math\"=\"true\" \"stack-protector-buffer-size\"=\"8\" \"target-cpu\"=\"x86-64\" \"target-features\"=\"+cmov,+cx8,+fxsr,+mmx,+sse,+sse2,+x87\" \"tune-cpu\"=\"generic\" }\nattributes #1 = { nocallback nofree nosync nounwind willreturn }\n\n!llvm.module.flags = !{!0, !1, !2, !3, !4}\n!llvm.ident = !{!5}\n\n!0 = !{i32 1, !\"wchar_size\", i32 4}\n!1 = !{i32 8, !\"PIC Level\", i32 2}\n!2 = !{i32 7, !\"PIE Level\", i32 2}\n!3 = !{i32 7, !\"uwtable\", i32 2}\n!4 = !{i32 7, !\"frame-pointer\", i32 2}\n!5 = !{!\"Ubuntu clang version 18.1.3 (1ubuntu1)\"}\n"
+      }
+    }
+  ],
+  "headers": {
+    "commands": [
+      {
+        "target": "x86_64-apple-darwin",
+        "toucan_command": [
+          "/home/dev-user/.cache/toucan/stdatomic-target/release/toucan",
+          "inspect",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/stdatomic-operations.c",
+          "--target",
+          "x86_64-apple-darwin",
+          "-I",
+          "/usr/lib/llvm-18/lib/clang/18/include",
+          "-D__STDC_HOSTED__=0",
+          "--checked-code",
+          "-o",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/x86_64-apple-darwin-header.json"
+        ],
+        "toucan_returncode": 0,
+        "inspect_sha256": "b6e5bac944a13e58ed637176908910c536748603aa1ac3e0f2bcdcdeb1072561",
+        "compiler_command": [
+          "clang",
+          "-target",
+          "x86_64-apple-darwin",
+          "-std=c11",
+          "-ffreestanding",
+          "-nostdinc",
+          "-isystem",
+          "/usr/lib/llvm-18/lib/clang/18/include",
+          "-fsyntax-only",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/stdatomic-operations.c"
+        ],
+        "compiler_returncode": 0,
+        "compiler_diagnostic": "",
+        "declarations": 80,
+        "checked_counts": {
+          "ambiguous_aliases": 0,
+          "assertions": 3,
+          "assignment_conversions": 50,
+          "bodies": 1,
+          "bounds": 0,
+          "declaration_groups": 3,
+          "declarations": 101,
+          "entities": 104,
+          "expression_coverage": 126,
+          "expressions": 108,
+          "initializer_coverage": 5,
+          "initializers": 5,
+          "occurrences": 466,
+          "references": 54,
+          "scopes": 10,
+          "statement_coverage": 17,
+          "statements": 17,
+          "type_operands": 0,
+          "type_uses": 101,
+          "types": 101
+        }
+      },
+      {
+        "target": "aarch64-apple-darwin",
+        "toucan_command": [
+          "/home/dev-user/.cache/toucan/stdatomic-target/release/toucan",
+          "inspect",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/stdatomic-operations.c",
+          "--target",
+          "aarch64-apple-darwin",
+          "-I",
+          "/usr/lib/llvm-18/lib/clang/18/include",
+          "-D__STDC_HOSTED__=0",
+          "--checked-code",
+          "-o",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/aarch64-apple-darwin-header.json"
+        ],
+        "toucan_returncode": 0,
+        "inspect_sha256": "0b2be663758927f1f6d1092373d5d7a1652b19e89dbfaeeea8fc848f1d684078",
+        "compiler_command": [
+          "clang",
+          "-target",
+          "aarch64-apple-darwin",
+          "-std=c11",
+          "-ffreestanding",
+          "-nostdinc",
+          "-isystem",
+          "/usr/lib/llvm-18/lib/clang/18/include",
+          "-fsyntax-only",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/stdatomic-operations.c"
+        ],
+        "compiler_returncode": 0,
+        "compiler_diagnostic": "",
+        "declarations": 80,
+        "checked_counts": {
+          "ambiguous_aliases": 0,
+          "assertions": 3,
+          "assignment_conversions": 50,
+          "bodies": 1,
+          "bounds": 0,
+          "declaration_groups": 3,
+          "declarations": 101,
+          "entities": 104,
+          "expression_coverage": 126,
+          "expressions": 108,
+          "initializer_coverage": 5,
+          "initializers": 5,
+          "occurrences": 466,
+          "references": 54,
+          "scopes": 10,
+          "statement_coverage": 17,
+          "statements": 17,
+          "type_operands": 0,
+          "type_uses": 101,
+          "types": 101
+        }
+      },
+      {
+        "target": "x86_64-pc-windows-msvc",
+        "toucan_command": [
+          "/home/dev-user/.cache/toucan/stdatomic-target/release/toucan",
+          "inspect",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/stdatomic-operations.c",
+          "--target",
+          "x86_64-pc-windows-msvc",
+          "-I",
+          "/usr/lib/llvm-18/lib/clang/18/include",
+          "-D__STDC_HOSTED__=0",
+          "--checked-code",
+          "-o",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/x86_64-pc-windows-msvc-header.json"
+        ],
+        "toucan_returncode": 0,
+        "inspect_sha256": "a0da7699169f828ccf1277b0758ceb61d571f98420bc4cf0be9e9dd3c230a392",
+        "compiler_command": [
+          "clang",
+          "-target",
+          "x86_64-pc-windows-msvc",
+          "-std=c11",
+          "-ffreestanding",
+          "-nostdinc",
+          "-isystem",
+          "/usr/lib/llvm-18/lib/clang/18/include",
+          "-fsyntax-only",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/stdatomic-operations.c"
+        ],
+        "compiler_returncode": 0,
+        "compiler_diagnostic": "",
+        "declarations": 78,
+        "checked_counts": {
+          "ambiguous_aliases": 0,
+          "assertions": 3,
+          "assignment_conversions": 50,
+          "bodies": 1,
+          "bounds": 0,
+          "declaration_groups": 3,
+          "declarations": 99,
+          "entities": 102,
+          "expression_coverage": 124,
+          "expressions": 108,
+          "initializer_coverage": 5,
+          "initializers": 5,
+          "occurrences": 458,
+          "references": 54,
+          "scopes": 10,
+          "statement_coverage": 17,
+          "statements": 17,
+          "type_operands": 0,
+          "type_uses": 99,
+          "types": 99
+        }
+      },
+      {
+        "target": "x86_64-unknown-linux-gnu",
+        "toucan_command": [
+          "/home/dev-user/.cache/toucan/stdatomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/stdatomic-declarations.c",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "-I",
+          "/usr/lib/gcc/x86_64-linux-gnu/13/include"
+        ],
+        "toucan_returncode": 0,
+        "stdout": "",
+        "stderr": "Analyzed 47 declarations for x86_64-unknown-linux-gnu\n"
+      },
+      {
+        "target": "aarch64-unknown-linux-gnu",
+        "toucan_command": [
+          "/home/dev-user/.cache/toucan/stdatomic-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/stdatomic-probes/stdatomic-declarations.c",
+          "--target",
+          "aarch64-unknown-linux-gnu",
+          "-I",
+          "/usr/lib/gcc/x86_64-linux-gnu/13/include"
+        ],
+        "toucan_returncode": 0,
+        "stdout": "",
+        "stderr": "Analyzed 47 declarations for aarch64-unknown-linux-gnu\n"
+      }
+    ],
+    "source": "\n#include <stdatomic.h>\n_Static_assert(ATOMIC_BOOL_LOCK_FREE == 2, \"bool\");\n_Static_assert(ATOMIC_LLONG_LOCK_FREE == 2, \"long long\");\n_Static_assert(ATOMIC_POINTER_LOCK_FREE == 2, \"pointer\");\nint atomic_operations(void) {\n    atomic_int n = ATOMIC_VAR_INIT(1); atomic_init(&n,2);\n    atomic_store_explicit(&n,3,memory_order_release);\n    int old = atomic_exchange(&n,4), expected=4;\n    if (!atomic_compare_exchange_strong(&n,&expected,5)) return 1;\n    expected=5; atomic_compare_exchange_weak_explicit(&n,&expected,6,memory_order_acq_rel,memory_order_acquire);\n    atomic_fetch_add(&n,1); atomic_fetch_sub(&n,1);\n    atomic_fetch_and(&n,7); atomic_fetch_or(&n,8); atomic_fetch_xor(&n,2);\n    atomic_thread_fence(memory_order_seq_cst); atomic_signal_fence(memory_order_acquire);\n    atomic_flag flag=ATOMIC_FLAG_INIT;\n    atomic_flag_test_and_set(&flag); atomic_flag_clear_explicit(&flag,memory_order_release);\n    return atomic_load(&n)+kill_dependency(old)+atomic_is_lock_free(&n);\n}\n",
+    "source_sha256": "c6e860b52c71ba546f611646a20fb3087de5cbc743db6cf3e511cce2b6f13d83",
+    "gnu_declarations_source": "#include <stdatomic.h>\n_Static_assert(sizeof(atomic_int_fast16_t)==8,\"fast16\");_Static_assert(sizeof(atomic_int_fast32_t)==8,\"fast32\");_Static_assert(ATOMIC_INT_LOCK_FREE==2,\"lockfree\");\n",
+    "gnu_declarations_sha256": "89ef5b98b5178ea9ebec3a248577d8125313bc419d35c93799f506e1358bb67a",
+    "pending_gnu_operations": {
+      "command": [
+        "/home/dev-user/.cache/toucan/stdatomic-target/release/toucan",
+        "check",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/stdatomic-operations.c",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "-I",
+        "/usr/lib/gcc/x86_64-linux-gnu/13/include"
+      ],
+      "returncode": 1,
+      "diagnostic": "error: /home/dev-user/.cache/toucan/stdatomic-probes/stdatomic-operations.c:7:40: C syntax error: unexpected token at \"\" line 13 column 206, expected '!=', '%', '%=', '&', '&&', '&=', '(', '*', '*=', '+', '++', '+=', ',', '-', '--', '-=', '->', '.', '/', '/=', ':', ';', '<', '<<', '<<=', '<=', '=', '==', '>', '>=', '>>', '>>=', '?', '[', '^', '^=', '|', '|=', '||' (macro invocation; preprocessed byte 2710)\n"
+    },
+    "cli_sha256": "e0d8e2eaafd9975764b1506113fd3b3c9a10c836d953f639f3cf67e20f36f392",
+    "headers": {
+      "/usr/lib/llvm-18/lib/clang/18/include/stdatomic.h": "4e4de7f617643a9f6e49c678866c05266b3d8d4145eb653066f1ca3f6e49b0be",
+      "/usr/lib/llvm-18/lib/clang/18/include/stdint.h": "7ce5540d5fb6e8da9760928e76cbdd5ebef329d701ad598d30d8e6f9d5d78b34",
+      "/usr/lib/llvm-18/lib/clang/18/include/stddef.h": "23b9e2c5d397e05164b24bb46466bf14d951b8caec2d8e1a67a95b14f9a38625",
+      "/usr/lib/gcc/x86_64-linux-gnu/13/include/stdatomic.h": "e6544cb60cf2b30c69d47424f7b04ab18bd2bc97e03a9c852b238f95ed26f3ca"
+    },
+    "bounded_query": {
+      "command": [
+        "/home/dev-user/.cache/toucan/stdatomic-target/release/toucan",
+        "check",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/nested-query.c",
+        "--target",
+        "x86_64-apple-darwin"
+      ],
+      "source_sha256": "4c4e4d5693ff9dd01ebee6513d3c075d9ac142237b2b93e5c6411404d68dac5f",
+      "depth": 24,
+      "elapsed_seconds": 0.004478304006624967,
+      "returncode": 0,
+      "stdout": "",
+      "stderr": "Analyzed 2 declarations for x86_64-apple-darwin\n"
+    }
+  },
+  "allocations": {
+    "baseline": {
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--extern",
+        "toucan_semantic=/home/dev-user/.cache/toucan/stdatomic-baseline-target/release/libtoucan_semantic.rlib",
+        "--extern",
+        "toucan_target=/home/dev-user/.cache/toucan/stdatomic-baseline-target/release/deps/libtoucan_target-1ae44c1205377f36.rlib",
+        "-L",
+        "dependency=/home/dev-user/.cache/toucan/stdatomic-baseline-target/release/deps",
+        "-O",
+        "/tmp/toucan-transparent-alias-allocations.rs",
+        "-o",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/allocations-baseline"
+      ],
+      "source_sha256": "5a99a10a476baeb40bd13d8c0617e76777ed02c9f10d3fe73e88f36beb93c06f",
+      "binary_sha256": "324429f3ae817b753c05319361b872470f136ff650bb7b40cac3cc3963740f2a",
+      "result": "0: 95 allocations, 26109 bytes; 2 declarations\n1: 291 allocations, 58480 bytes; 1 declarations\n2: 13473 allocations, 2472562 bytes; 100 declarations\n3: 213 allocations, 40066 bytes; 3 declarations\n"
+    },
+    "changed": {
+      "command": [
+        "rustc",
+        "--edition=2024",
+        "--extern",
+        "toucan_semantic=/home/dev-user/.cache/toucan/stdatomic-target/release/deps/libtoucan_semantic-6473f2ffaadd94e0.rlib",
+        "--extern",
+        "toucan_target=/home/dev-user/.cache/toucan/stdatomic-target/release/deps/libtoucan_target-41aa4a05952283af.rlib",
+        "-L",
+        "dependency=/home/dev-user/.cache/toucan/stdatomic-target/release/deps",
+        "-O",
+        "/tmp/toucan-transparent-alias-allocations.rs",
+        "-o",
+        "/home/dev-user/.cache/toucan/stdatomic-probes/allocations-changed"
+      ],
+      "source_sha256": "5a99a10a476baeb40bd13d8c0617e76777ed02c9f10d3fe73e88f36beb93c06f",
+      "binary_sha256": "6777fc57d47a5ffc5bb69ae63453fde7a9bc450b2de2d39d54f1d3a7b1f8c132",
+      "result": "0: 95 allocations, 26109 bytes; 2 declarations\n1: 291 allocations, 58480 bytes; 1 declarations\n2: 13473 allocations, 2472562 bytes; 100 declarations\n3: 213 allocations, 40066 bytes; 3 declarations\n"
+    }
+  },
+  "retained_graph": {
+    "command": [
+      "rustc",
+      "--edition=2024",
+      "-O",
+      "/home/dev-user/.cache/toucan/stdatomic-probes/invariants.rs",
+      "--extern",
+      "toucan=/home/dev-user/.cache/toucan/stdatomic-target/release/libtoucan.rlib",
+      "-L",
+      "dependency=/home/dev-user/.cache/toucan/stdatomic-target/release/deps",
+      "-o",
+      "/home/dev-user/.cache/toucan/stdatomic-probes/invariants"
+    ],
+    "source_sha256": "1fe5ecb6a8e11089ea763735953a5e90d0ba88a200569e52714e7078f933c3f9",
+    "helper_sha256": "743763a793195d98b26e48deb6e4e7cdbb1a7907726ca5208d3953d491776c30",
+    "binary_sha256": "28fbaafffdc0260973166fd9ba2ce5106d1e6781a822b67d87e04fa5ea197520",
+    "returncode": 0,
+    "stdout": "x86_64-apple-darwin: c11_atomic.h passed\naarch64-apple-darwin: c11_atomic.h passed\nx86_64-pc-windows-msvc: c11_atomic.h passed\nx86_64-apple-darwin: c11_atomic_bounds.h passed\naarch64-apple-darwin: c11_atomic_bounds.h passed\nx86_64-pc-windows-msvc: c11_atomic_bounds.h passed\n"
+  },
+  "scope": [
+    "C11AtomicOperation distinguishes seventeen Clang spellings from GNU AtomicOperation. The Clang target profiles preserve object access, ordinary expected-buffer writes, initialization, weak/strong CAS, orders, argument conversions, and evaluated lock-free-query operands. Linux targets remain GNU profiles and diagnose __c11_atomic calls rather than mixing GNU layout with Clang semantics.",
+    "Cross-compiler tests check source typing on x86_64/aarch64 Darwin and x86_64 Microsoft targets using Clang. Pointer/sign/qualifier warnings are promoted to errors in the strict constraint matrix; exploratory diagnostics retain plain Clang acceptance. Invalid memory orders and unsupported function-pointer arithmetic have explicit Toucan diagnostics.",
+    "The unchanged Clang resource stdatomic header is parsed with its resource include path and explicit freestanding configuration on all three Clang targets. The unchanged GNU header declarations pass both GNU targets with the target-specific predefined macros. GNU operational macros require the separate __auto_type implementation; the exact current diagnostic is preserved.",
+    "Earlier atomic-type evidence incorrectly named least8 as the first missing header predefine. Rechecking GCC13 stdatomic.h identifies __CHAR16_TYPE__ at line55, followed by __CHAR32_TYPE__. This layer adds both and corrects GNU fast16/32 to long, verified against native GCC 13 and cross-GCC 13 dumps. Required scalar lock-free macros are 2 for these default profiles, without a 16-byte guarantee.",
+    "The positive C program executes under native Clang 18 at O0 and O2 on x86_64 Linux. They establish compiler runtime behavior independently of the Toucan semantic analysis. Toucan does not generate their machine code or implement a concurrent memory model. These native executions do not establish native Darwin/Windows ABI compatibility.",
+    "Two separate native compiler failures are retained at O0 and O2: failed compare-exchange on an expanded three-byte record does not copy the value back to its ordinary expected buffer, and fetch-add on a pointer-to-VLA uses a zero stride. Their complete source, LLVM, commands, binary hashes and returncodes remain in this report. Retained C11 semantics are not weakened to model these compiler codegen failures.",
+    "Positive native cases cover scalar/record initialization, ordered load/store/exchange, scalar and four-byte-record compare-exchange, integer/floating/Boolean fetch operations, fixed-size pointer scaling, VLA initialization/load, fences and query operand evaluation. Three-byte-record compare-exchange and VLA fetch-add are excluded from positive claims; their failing compiler probes are explicit.",
+    "Six checked seed/profile cases walk the retained graph, while focused source tests compare ordinary and retained units and preserve a single local VLA bound through load/fetch-add/exchange result types. All operations suppress a surrounding Clang constant query when their operands/effects are observable.",
+    "The 24-level query chain completes on the immutable release binary with the bounded atomic-query cache. Four ordinary semantic allocation samples exactly match c462cce. This is not a frontend speed benchmark or a new sanitizer campaign.",
+    "Selected atomic Rust storage/call ABI remains an explicit diagnostic in the earlier atomic-type layer. C Bool macro constants preserve rank 0, 8-bit, unsigned semantic metadata but currently project to Rust u8 via the existing width/sign macro emitter; Bool projection is a separate binding follow-up."
+  ],
+  "raw_reports": {
+    "predefs.json": {
+      "path": "/home/dev-user/.cache/toucan/stdatomic-probes/predefs.json",
+      "sha256": "ec2c7e74ec2c8a6a35d4f5295cbe64d3548afbeef38da83dfcd4f74a294751c2"
+    },
+    "constraints.json": {
+      "path": "/home/dev-user/.cache/toucan/stdatomic-probes/constraints.json",
+      "sha256": "a58bc825d021bc702af19c3e62fad7705754bcf908e227e27c5c734e446105ac"
+    },
+    "headers.json": {
+      "path": "/home/dev-user/.cache/toucan/stdatomic-probes/headers.json",
+      "sha256": "aa71d9de712ad3e10857b6ca421b6419bcb155b2ddea06bdcd89ea5ce9569a6e"
+    },
+    "native.json": {
+      "path": "/home/dev-user/.cache/toucan/stdatomic-probes/native.json",
+      "sha256": "b0e6e06d4226a96efc6362abc6b606339757b0cee663a8b7df8cc6515cdf6169"
+    },
+    "allocations.json": {
+      "path": "/home/dev-user/.cache/toucan/stdatomic-probes/allocations.json",
+      "sha256": "6e211f38cf8382b7f677b72f900a97fbdf553e3589668186f2b445ee545469ba"
+    },
+    "invariants.json": {
+      "path": "/home/dev-user/.cache/toucan/stdatomic-probes/invariants.json",
+      "sha256": "8f8b9f8284704b280089c9d9f9d00d09d2c20042febe89c7076c5c1d37f07f03"
+    }
+  },
+  "primary_source_snapshots": {
+    "SemaChecking.cpp": "55f776fcce3abfd99b012cd0e5db3dbc407e1764b08c319320aabfe386dcf121",
+    "CGBuiltin.cpp": "4c0cf4e0e608720220ea2d5889777bf230ce2ce361f3efe65a47bca53e7db2b2"
+  }
+}

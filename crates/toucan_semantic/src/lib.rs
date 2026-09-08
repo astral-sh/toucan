@@ -10,6 +10,7 @@ mod asm;
 mod atomic;
 mod atomic_type;
 mod builtins;
+mod c11_atomic;
 pub mod checked;
 mod constant_query;
 mod expression;

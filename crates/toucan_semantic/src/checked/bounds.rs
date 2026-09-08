@@ -902,6 +902,21 @@ impl Builder {
                 result: Some(value),
                 ..
             } => self.retype_use(value.type_use, ty, offset),
+            ExprKind::BuiltinCall {
+                builtin: super::expression::Builtin::C11Atomic(_),
+                arguments,
+                ..
+            } if matches!(ty.kind, TypeKind::Pointer(_)) => {
+                let address = &arguments[0];
+                let TypeKind::Pointer(atomic) =
+                    self.code.types[address.effective_type.index()].kind.clone()
+                else {
+                    return plain(self);
+                };
+                let storage =
+                    self.project_type_use(address.type_use, &atomic, TypeStep::Pointer, offset)?;
+                self.project_type_use(storage, ty, TypeStep::AtomicValue, offset)
+            }
             ExprKind::Call { callee, .. } => {
                 let functions = self.code.type_uses[callee.type_use.index()]
                     .functions

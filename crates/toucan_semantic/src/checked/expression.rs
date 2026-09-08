@@ -184,6 +184,7 @@ pub enum Builtin {
     X86(crate::x86::X86Intrinsic),
     Sync(crate::sync::SyncOperation),
     Atomic(crate::atomic::AtomicOperation),
+    C11Atomic(crate::c11_atomic::C11AtomicOperation),
     Overflow(crate::overflow::OverflowIntrinsic),
     VaStart,
     VaEnd,
@@ -311,6 +312,10 @@ impl Builtin {
                 } else if let Some(intrinsic) = crate::overflow::OverflowIntrinsic::from_name(name)
                 {
                     Self::Overflow(intrinsic)
+                } else if let Some(operation) =
+                    crate::c11_atomic::C11AtomicOperation::from_name(name)
+                {
+                    Self::C11Atomic(operation)
                 } else if let Some(operation) = crate::atomic::AtomicOperation::from_name(name) {
                     Self::Atomic(operation)
                 } else {
@@ -1430,10 +1435,10 @@ impl Analyzer {
             } else {
                 None
             };
-            let atomic = if let Builtin::Atomic(operation) = builtin {
-                Some(self.atomic_signature(operation, call)?)
-            } else {
-                None
+            let atomic = match builtin {
+                Builtin::Atomic(operation) => Some(self.atomic_signature(operation, call)?),
+                Builtin::C11Atomic(operation) => Some(self.c11_atomic_signature(operation, call)?),
+                _ => None,
             };
             let sync = if let Builtin::Sync(operation) = builtin {
                 Some((operation, self.sync_signature(operation, call)?))

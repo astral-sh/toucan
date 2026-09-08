@@ -492,6 +492,7 @@ impl Analyzer {
                         || self.nan_builtin(name).is_some()
                         || name == "__builtin_expect"
                         || name == "__atomic_is_lock_free"
+                        || name == "__c11_atomic_is_lock_free"
                         || OverflowIntrinsic::from_name(name)
                             .is_some_and(OverflowIntrinsic::is_predicate)
                 }) {

@@ -221,9 +221,13 @@ impl Builder {
                 Builtin::Overflow(intrinsic) if intrinsic.is_predicate() => operands(arguments),
                 Builtin::Overflow(_) => Present,
                 Builtin::Atomic(crate::atomic::AtomicOperation::AlwaysLockFree) => Absent,
-                Builtin::Atomic(crate::atomic::AtomicOperation::IsLockFree) => operands(arguments),
+                Builtin::Atomic(crate::atomic::AtomicOperation::IsLockFree)
+                | Builtin::C11Atomic(crate::c11_atomic::C11AtomicOperation::IsLockFree) => {
+                    operands(arguments)
+                }
                 // Clang's object-size builtins do not carry the const attribute.
-                Builtin::Atomic(_)
+                Builtin::C11Atomic(_)
+                | Builtin::Atomic(_)
                 | Builtin::Sync(_)
                 | Builtin::ObjectSize
                 | Builtin::DynamicObjectSize

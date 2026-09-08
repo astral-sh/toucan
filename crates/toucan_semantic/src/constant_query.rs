@@ -117,6 +117,9 @@ impl Analyzer {
             }
             ast::Expression::Call(call) => {
                 let name = self.builtin_name(call);
+                if name == Some("__c11_atomic_is_lock_free") {
+                    return Ok(self.eval_c11_atomic_lock_free(call).is_ok());
+                }
                 if name
                     .and_then(crate::atomic::AtomicOperation::from_name)
                     .is_some_and(crate::atomic::AtomicOperation::is_lock_free_query)

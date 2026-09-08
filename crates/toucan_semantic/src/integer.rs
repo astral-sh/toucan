@@ -116,6 +116,11 @@ impl Analyzer {
                 self.is_integer_constant_expression(selected, depth + 1)?
             }
             ast::Expression::Call(call)
+                if self.builtin_name(call) == Some("__c11_atomic_is_lock_free") =>
+            {
+                self.eval_c11_atomic_lock_free(call).is_ok()
+            }
+            ast::Expression::Call(call)
                 if self
                     .builtin_name(call)
                     .and_then(crate::atomic::AtomicOperation::from_name)
@@ -218,6 +223,11 @@ impl Analyzer {
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 self.eval(selected)
+            }
+            ast::Expression::Call(call)
+                if self.builtin_name(call) == Some("__c11_atomic_is_lock_free") =>
+            {
+                self.eval_c11_atomic_lock_free(call)
             }
             ast::Expression::Call(call)
                 if self
