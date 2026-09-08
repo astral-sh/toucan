@@ -5,7 +5,8 @@
     "archive_sha256": "babff09f8302fb18bc0ba465983801acccb2035777f8ff43b1da1f25a9c23e5b",
     "license": "MIT",
     "package": "ty",
-    "binary": "ty"
+    "binary": "ty",
+    "library_tests": [{"package": "ty_vendored", "features": ["zstd"]}]
   },
   "uv": {
     "repository": "astral-sh/uv",
@@ -13,6 +14,7 @@
     "archive_sha256": "9ef2613de29543b8e1975837ed1483d245db4fefaaa9f79507fc87a0dfc63af0",
     "license": "MIT OR Apache-2.0",
     "package": "uv",
-    "binary": "uv"
+    "binary": "uv",
+    "library_tests": [{"package": "uv-extract", "features": []}]
   }
 }

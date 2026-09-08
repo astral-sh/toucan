@@ -533,14 +533,16 @@ versions used by the inspected Ruff and uv checkouts and exercises bulk and
 streaming compression. Its evidence is separate from the default-output bindgen
 comparison below.
 
-The [refreshed ty and uv integration](../corpus/evidence/astral-consumers-caf6bcf/summary.json)
-uses bindings generated at `caf6bcf`. Both pinned projects build with their locked
+The [refreshed ty and uv integration](../corpus/evidence/astral-consumers-dbda83c/summary.json)
+uses bindings generated at `dbda83c`. Both pinned projects build with their locked
 dependencies, changing only the zstd-sys binding files and its Cargo path override.
-ty produces matching valid/invalid diagnostics after loading its compressed
+The selected `ty_vendored` and `uv-extract` library suites pass all 21 tests with
+both original and generated bindings, with identical named results and no ignored
+tests. ty produces matching valid/invalid diagnostics after loading its compressed
 typeshed; uv installs and imports a zstd-encoded wheel and rejects a truncated
-frame. The report preserves compiler dependency records showing which bindings
-were consumed. These are focused native Linux scenarios, not full project test
-suites or a measurement of end-to-end ty/uv performance.
+frame. Dependency records identify the bindings consumed by binary and test builds.
+These are native Linux scenarios and selected library suites, not the full project
+test suites or an end-to-end ty/uv performance comparison.
 
 ## Recorded evidence
 

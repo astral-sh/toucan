@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "source_commit": "dbda83cd7ef64f5c4532c47030eee6a8046710f0",
+  "toucan_sha256": "90b4e84b18e74b1ab5b9de8cb977902a933d01fced54b490a19aee9d5e3f7657",
+  "status": "passed",
+  "scope": [
+    "Pinned ty and uv locked builds and matching runtime scenarios using upstream and freshly generated zstd-sys bindings.",
+    "The full selected ty_vendored (zstd) and uv-extract library suites pass with identical named results in both configurations.",
+    "Compiler dependency records identify the actual binding inputs in both binary and test builds."
+  ],
+  "library_tests": {
+    "ty": {
+      "upstream": [
+        {
+          "passed": 2,
+          "ignored": 0,
+          "package": "ty_vendored"
+        }
+      ],
+      "generated": [
+        {
+          "passed": 2,
+          "ignored": 0,
+          "package": "ty_vendored"
+        }
+      ]
+    },
+    "uv": {
+      "upstream": [
+        {
+          "passed": 19,
+          "ignored": 0,
+          "package": "uv-extract"
+        }
+      ],
+      "generated": [
+        {
+          "passed": 19,
+          "ignored": 0,
+          "package": "uv-extract"
+        }
+      ]
+    }
+  },
+  "limitations": [
+    "Native x86-64 Linux only; selected library suites and focused CLI scenarios do not cover every test or feature in either workspace.",
+    "Builds use upstream debug/development profiles; this is not a performance comparison.",
+    "The frontend source predates later function-target, K&R, and object-alignment changes."
+  ],
+  "runner_sources": {
+    "scripts/verify_astral_consumers.py": "3c3c41ff43fe6115f778336c085a88f6231927fe78b77e7157c2c632de6d004d",
+    "scripts/verify_zstd_consumer.py": "175d8d4e145d17642030dec61a48dd829f37fcffe3f8de550aff40ae11a54f7e",
+    "corpus/consumers/astral.json": "1ee03f0107649bf71ca8ec9352d16f00b1dc15ec7180c3595388e5ef466d8688"
+  },
+  "archived_files": {
+    "dep-info/ty/generated/binary/zstd_sys-70a0b85deb764981.d": "a3b2d5c86b1f43e9c2bb9ac3eb1b934f709bc5a74cdbceaa741af5045917fd0e",
+    "dep-info/ty/generated/binary/zstd_sys-e077e0a423334a6f.d": "8e32c13cb9f65e1f32c767ecdcf78b50e83621e4d8bd151d0619d8faff0a6254",
+    "dep-info/ty/generated/ty_vendored/zstd_sys-70a0b85deb764981.d": "a3b2d5c86b1f43e9c2bb9ac3eb1b934f709bc5a74cdbceaa741af5045917fd0e",
+    "dep-info/ty/generated/ty_vendored/zstd_sys-e077e0a423334a6f.d": "8e32c13cb9f65e1f32c767ecdcf78b50e83621e4d8bd151d0619d8faff0a6254",
+    "dep-info/ty/upstream/binary/zstd_sys-21d71e1ce1a75a44.d": "d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2",
+    "dep-info/ty/upstream/binary/zstd_sys-fff0f1aed6e3ed9b.d": "47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c",
+    "dep-info/ty/upstream/ty_vendored/zstd_sys-21d71e1ce1a75a44.d": "d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2",
+    "dep-info/ty/upstream/ty_vendored/zstd_sys-fff0f1aed6e3ed9b.d": "47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c",
+    "dep-info/uv/generated/binary/zstd_sys-dc9e8a24d8cda9dd.d": "1049ba627886e2536865ff37fc2faf43ad053238d73a18c1442c8d7de241c50d",
+    "dep-info/uv/generated/uv-extract/zstd_sys-dc9e8a24d8cda9dd.d": "1049ba627886e2536865ff37fc2faf43ad053238d73a18c1442c8d7de241c50d",
+    "dep-info/uv/upstream/binary/zstd_sys-4e75c4015752c8db.d": "9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135",
+    "dep-info/uv/upstream/uv-extract/zstd_sys-4e75c4015752c8db.d": "9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135",
+    "report.json": "d0d5152b38a1cbc768afd9944879c354bf571a215c2000748ea07ed3d65dff5e",
+    "source.json": "f7ccc17c3aebf2b102fa1a3a799ed5d115530ee71483064eaf979f7f98c80e81",
+    "zstd.json": "433391f111da9a2306248c9890cacc24d3507c04c86d5e623bcb59535d7e3d9c"
+  }
+}

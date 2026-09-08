@@ -52,6 +52,19 @@ in a build cache. The prepared crate changes `bindings_zstd.rs` and
 and compile `bindings_zstd.rs`. Experimental and threaded features have separate
 coverage in the zstd consumer matrix.
 
+## Upstream library tests
+
+Add `--library-tests` to the full build command to run the manifest's selected
+upstream library suites: `ty_vendored` with its `zstd` feature and `uv-extract`.
+Each suite runs with upstream bindings and again with generated bindings. Cargo
+must select the expected test executable and `zstd-sys` inputs for each build.
+The runner rejects empty or filtered test runs and requires identical named
+results. Ignored tests remain recorded as ignored.
+
+These suites cover the bundled typeshed archive and uv's archive handling code.
+The existing CLI runtime checks still run. This option does not run every test
+in either workspace and cannot be combined with `--runtime-only`.
+
 ## Runtime checks
 
 - **Ty:** a valid program imports `pathlib`, `datetime`, `collections.abc`, and
@@ -83,6 +96,16 @@ active binding hashes, Cargo commands, and dep-info. Archive extraction uses
 Python's data filter; any normalized symlink spelling is reported separately.
 
 ## Recorded result
+
+The [expanded `dbda83c` run](../corpus/evidence/astral-consumers-dbda83c/summary.json)
+passed both projects' locked builds and CLI scenarios with fresh bindings. It also
+passed both `ty_vendored` tests with `zstd` enabled and all 19 `uv-extract` library
+tests, with identical named results under upstream and generated bindings. No tests
+in these selected suites were ignored. Retained dependency files identify the
+binding inputs in both test builds and binary builds. This run used native
+x86-64 Linux and does not cover every test in either workspace.
+
+### Earlier result
 
 The [2026-09-08 report](../corpus/evidence/astral-consumers-2026-09-08/report.json)
 records successful upstream and generated builds and runtime comparisons for both
