@@ -104,6 +104,9 @@ def main() -> None:
             str(header),
             "--no-doc-comments",
             "--no-layout-tests",
+            "--no-prepend-enum-name",
+            "--default-macro-constant-type",
+            "signed",
             "--formatter",
             "none",
         ]
