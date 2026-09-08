@@ -115,7 +115,30 @@ pub struct FunctionType {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum CallingConvention {
+    /// The target's default C convention, with no explicit ABI attribute.
     C,
+    /// An explicitly requested System V x86-64 convention.
+    SysV64,
+    /// An explicitly requested Microsoft x64 convention.
+    Win64,
+}
+
+impl CallingConvention {
+    /// Normalizes an explicit convention that matches the target's default.
+    /// Retaining the original value in the type preserves declaration attributes.
+    pub fn for_target(self, target: Target) -> Result<Self, Error> {
+        match (self, target) {
+            (Self::C, _) => Ok(Self::C),
+            (Self::SysV64, Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin)
+            | (Self::Win64, Target::X86_64PcWindowsMsvc) => Ok(Self::C),
+            (Self::SysV64, Target::X86_64PcWindowsMsvc)
+            | (Self::Win64, Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin) => Ok(self),
+            _ => Err(Error::new(
+                0,
+                "explicit x86-64 calling conventions are unsupported on this target",
+            )),
+        }
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]

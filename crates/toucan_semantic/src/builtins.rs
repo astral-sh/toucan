@@ -65,6 +65,14 @@ impl Analyzer {
                         "va_start requires a variadic function body",
                     ));
                 };
+                if function.calling_convention.for_target(self.unit.target)?
+                    != crate::CallingConvention::C
+                {
+                    return Err(Error::new(
+                        offset,
+                        "va_start with a nondefault variadic ABI is unsupported",
+                    ));
+                }
                 if !function.variadic {
                     return Err(Error::new(
                         offset,

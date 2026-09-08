@@ -76,6 +76,26 @@ condition behavior follow the target's GCC or Clang profile. Constant evaluation
 of statement-expression bodies and GCC's precise-width bitfield result types
 remain unsupported and produce diagnostics.
 
+## Calling conventions
+
+Function types retain GNU `ms_abi` and `sysv_abi` attributes on x86-64. Compatibility
+checks distinguish the two conventions and follow the target compiler profile for
+attribute placement and inherited declarations. Rust declarations, function typedefs,
+and callback pointers use `extern "C"`, `extern "win64"`, or `extern "sysv64"` as
+appropriate. An explicit convention matching the platform default uses Rust's C ABI.
+
+The x86-32 `cdecl`, `stdcall`, `fastcall`, and `thiscall` attributes have the platform
+ABI on the supported 64-bit targets. Other conventions remain unsupported. The
+`ms_abi` and `sysv_abi` attributes are currently rejected on AArch64; in particular,
+Clang's AArch64 `ms_abi` changes the convention and cannot safely be discarded.
+
+Clang IR probes cover all five targets. Native x86-64 GCC/Clang tests call C from
+Rust and Rust callbacks from C with mixed register/stack arguments and aggregate
+returns. Variadic extern declarations are checked by rustc; these tests do not
+establish nondefault-ABI variadic argument traversal. Ordinary `va_start` in a
+function with a nondefault ABI is rejected; the corresponding target-specific
+argument-list built-ins remain unsupported.
+
 ## Targets
 
 The canonical target triples accepted by `--target` are listed below. The default

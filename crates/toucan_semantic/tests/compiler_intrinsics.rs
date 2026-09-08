@@ -175,3 +175,24 @@ fn intrinsics_match_native_gcc_and_five_clang_targets() {
         }
     }
 }
+
+#[test]
+fn va_start_uses_the_target_default_variadic_abi() {
+    for target in [
+        Target::X86_64UnknownLinuxGnu,
+        Target::X86_64AppleDarwin,
+        Target::X86_64PcWindowsMsvc,
+    ] {
+        for attribute in ["sysv_abi", "ms_abi"] {
+            let source = format!(
+                "void __attribute__(({attribute})) f(int n, ...) {{ __builtin_va_list a; __builtin_va_start(a, n); __builtin_va_end(a); }}"
+            );
+            let default = (attribute == "ms_abi") == (target == Target::X86_64PcWindowsMsvc);
+            let result = analyze(&source, target);
+            assert_eq!(result.is_ok(), default, "{target}: {source}: {result:?}");
+            if let Err(error) = result {
+                assert!(error.message.contains("nondefault variadic ABI"), "{error}");
+            }
+        }
+    }
+}

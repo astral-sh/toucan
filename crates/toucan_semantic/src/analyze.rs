@@ -354,6 +354,8 @@ pub(crate) struct Attributes {
     alignment: Option<u64>,
     link_name: Option<String>,
     mode: Option<String>,
+    calling_convention: Option<CallingConvention>,
+    alias_base: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -759,7 +761,7 @@ impl Analyzer {
                     .filter(|derived| matches!(derived.node, ast::DerivedDeclarator::Function(_)))
                     .map(|derived| derived.span.start);
             }
-            let declarator = self.declarator(base.clone(), &item.node.declarator);
+            let declarator = self.declarator(base.clone(), &item.node.declarator, &attributes);
             self.definition_parameters = previous_parameters;
             let (name, mut ty, mut declarator_attributes) = declarator?;
             if self.unit.is_variably_modified(&ty)? {
@@ -793,12 +795,14 @@ impl Analyzer {
                     ));
                 }
                 if let Some(previous) = self.unit.typedefs.get(&name) {
-                    if self.unit.resolve(previous)? != self.unit.resolve(&ty)? {
+                    if !self.same_type(previous, &ty, 0)? {
                         return Err(Error::new(
                             item.span.start,
                             format!("conflicting typedef `{name}`"),
                         ));
                     }
+                    ty = self.composite_type(previous, &ty, 0)?;
+                    self.unit.typedefs.insert(name.clone(), ty.clone());
                 } else {
                     self.unit.typedefs.insert(name.clone(), ty.clone());
                 }
@@ -847,6 +851,9 @@ impl Analyzer {
                 .position(|previous| previous.name == name)
             {
                 let previous = &self.unit.declarations[previous_index];
+                if kind == DeclarationKind::Function {
+                    ty = self.inherit_calling_convention(ty, &previous.ty)?;
+                }
                 if previous.kind != kind || !self.compatible(&previous.ty, &ty)? {
                     return Err(Error::new(
                         item.span.start,
@@ -957,6 +964,61 @@ impl Analyzer {
         self.compatible_at(left, right, 0)
     }
 
+    /// Typedef redeclarations require the same type, rather than a compatible
+    /// incomplete/complete pair. Parameter names and equivalent ABI spellings
+    /// do not create distinct function types.
+    pub(crate) fn same_type(&self, left: &Type, right: &Type, depth: usize) -> Result<bool, Error> {
+        if depth >= 128 {
+            return Err(Error::new(
+                0,
+                "type identity nesting exceeds the 128-level limit",
+            ));
+        }
+        if self.unit.qualifiers(left)? != self.unit.qualifiers(right)? {
+            return Ok(false);
+        }
+        let left = self.unit.resolve(left)?;
+        let right = self.unit.resolve(right)?;
+        Ok(match (&left.kind, &right.kind) {
+            (TypeKind::Pointer(a), TypeKind::Pointer(b)) => self.same_type(a, b, depth + 1)?,
+            (
+                TypeKind::Array {
+                    element: a,
+                    length: al,
+                },
+                TypeKind::Array {
+                    element: b,
+                    length: bl,
+                },
+            ) => al == bl && self.same_type(a, b, depth + 1)?,
+            (TypeKind::VariableArray { element: a }, TypeKind::VariableArray { element: b }) => {
+                self.same_type(a, b, depth + 1)?
+            }
+            (TypeKind::Function(a), TypeKind::Function(b)) => {
+                if a.prototype != b.prototype
+                    || a.variadic != b.variadic
+                    || a.parameters.len() != b.parameters.len()
+                    || a.calling_convention.for_target(self.unit.target)?
+                        != b.calling_convention.for_target(self.unit.target)?
+                    || !self.same_type(&a.return_type, &b.return_type, depth + 1)?
+                {
+                    return Ok(false);
+                }
+                for (a, b) in a.parameters.iter().zip(&b.parameters) {
+                    let mut a = self.unit.resolve(&a.ty)?.clone();
+                    let mut b = self.unit.resolve(&b.ty)?.clone();
+                    a.qualifiers = Qualifiers::default();
+                    b.qualifiers = Qualifiers::default();
+                    if !self.same_type(&a, &b, depth + 1)? {
+                        return Ok(false);
+                    }
+                }
+                true
+            }
+            _ => left.kind == right.kind,
+        })
+    }
+
     fn compatible_at(&self, left: &Type, right: &Type, depth: usize) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
@@ -1000,6 +1062,11 @@ impl Analyzer {
                 self.compatible_at(left, right, depth + 1)
             }
             (TypeKind::Function(left), TypeKind::Function(right)) => {
+                if left.calling_convention.for_target(self.unit.target)?
+                    != right.calling_convention.for_target(self.unit.target)?
+                {
+                    return Ok(false);
+                }
                 if !self.compatible_at(&left.return_type, &right.return_type, depth + 1)? {
                     return Ok(false);
                 }
@@ -1123,6 +1190,13 @@ impl Analyzer {
                 } else {
                     (**b).clone()
                 };
+                if function.calling_convention == CallingConvention::C {
+                    function.calling_convention = if a.calling_convention != CallingConvention::C {
+                        a.calling_convention
+                    } else {
+                        b.calling_convention
+                    };
+                }
                 function.return_type =
                     self.composite_type(&a.return_type, &b.return_type, depth + 1)?;
                 if a.prototype && b.prototype {
@@ -1192,6 +1266,16 @@ impl Analyzer {
             }
         }
         let mut ty = self.base_type(&types)?;
+        attributes.alias_base = matches!(
+            types.as_slice(),
+            [Node {
+                node: ast::TypeSpecifier::TypedefName(_),
+                ..
+            }]
+        ) && matches!(
+            self.unit.resolve(&ty)?.kind,
+            TypeKind::Pointer(_) | TypeKind::Array { .. }
+        );
         // Attributes on an object declaration do not change the canonical tag.
         // Normalization records attributes written between `struct` and its tag;
         // attributes following the closing brace also belong to the type.
@@ -1418,11 +1502,11 @@ impl Analyzer {
         if let Some(ty) = self.type_names.get(&key) {
             return Ok(ty.clone());
         }
-        let (ty, _) = self.specifier_qualifiers(&name.specifiers)?;
+        let (ty, attributes) = self.specifier_qualifiers(&name.specifiers)?;
         let ty = if let Some(declarator) = &name.declarator {
-            self.declarator(ty, declarator)?.1
+            self.declarator(ty, declarator, &attributes)?.1
         } else {
-            ty
+            self.apply_calling_convention(ty, &attributes, start)?
         };
         self.type_names.insert(key, ty.clone());
         Ok(ty)
@@ -1432,8 +1516,27 @@ impl Analyzer {
         &mut self,
         ty: Type,
         declaration: &Node<ast::Declarator>,
+        attributes: &Attributes,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
-        self.declarator_at(ty, declaration, None)
+        let alias_base = attributes.alias_base && !has_function_derivation(declaration);
+        let (name, ty, extra) = self.declarator_at(ty, declaration, None, alias_base)?;
+        if attributes.calling_convention.is_none() {
+            return Ok((name, ty, extra));
+        }
+        let mut attributes = attributes.clone();
+        attributes.alias_base = alias_base;
+        if attributes.alias_base
+            && attributes.calling_convention.is_some()
+            && extra.calling_convention.is_some()
+            && attributes.calling_convention != extra.calling_convention
+        {
+            return Err(Error::new(
+                declaration.span.start,
+                "conflicting calling convention attributes",
+            ));
+        }
+        let ty = self.apply_calling_convention(ty, &attributes, declaration.span.start)?;
+        Ok((name, ty, extra))
     }
 
     /// `parameter_array` identifies the outermost array adjusted to a pointer.
@@ -1442,6 +1545,7 @@ impl Analyzer {
         mut ty: Type,
         declaration: &Node<ast::Declarator>,
         parameter_array: Option<usize>,
+        alias_base: bool,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
         if self.nesting >= 128 {
             return Err(Error::new(
@@ -1450,6 +1554,7 @@ impl Analyzer {
             ));
         }
         self.nesting += 1;
+        let mut alias_convention = None;
         let split = declaration
             .node
             .derived
@@ -1469,8 +1574,23 @@ impl Analyzer {
                                 add_qualifier(&mut pointer.qualifiers, qualifier)?
                             }
                             ast::PointerQualifier::Extension(extensions) => {
-                                let mut attributes = Attributes::default();
+                                let mut attributes = Attributes {
+                                    alias_base,
+                                    ..Attributes::default()
+                                };
                                 self.attributes(extensions, &mut attributes)?;
+                                if alias_base {
+                                    merge_convention(
+                                        &mut alias_convention,
+                                        attributes.calling_convention,
+                                        qualifier.span.start,
+                                    )?;
+                                }
+                                pointer = self.apply_calling_convention(
+                                    pointer,
+                                    &attributes,
+                                    qualifier.span.start,
+                                )?;
                                 if attributes.packed
                                     || attributes.alignment.is_some()
                                     || attributes.mode.is_some()
@@ -1587,7 +1707,13 @@ impl Analyzer {
                                 "alignment is not permitted on a parameter",
                             ));
                         }
-                        let (base, _) = self.specifiers(&parameter.node.specifiers)?;
+                        let (base, mut attributes) = self.specifiers(&parameter.node.specifiers)?;
+                        attributes.alias_base = attributes.alias_base
+                            && !parameter
+                                .node
+                                .declarator
+                                .as_ref()
+                                .is_some_and(has_function_derivation);
                         let mut array_qualifiers = Qualifiers::default();
                         let (name, mut parameter_type) =
                             if let Some(declarator) = &parameter.node.declarator {
@@ -1607,12 +1733,24 @@ impl Analyzer {
                                     base,
                                     declarator,
                                     array.map(|(offset, _)| offset),
+                                    attributes.alias_base,
                                 )?;
                                 (name, ty)
                             } else {
                                 (None, base)
                             };
-                        self.attributes(&parameter.node.extensions, &mut Attributes::default())?;
+                        parameter_type = self.apply_calling_convention(
+                            parameter_type,
+                            &attributes,
+                            parameter.span.start,
+                        )?;
+                        let mut extra = Attributes::default();
+                        self.attributes(&parameter.node.extensions, &mut extra)?;
+                        parameter_type = self.apply_calling_convention(
+                            parameter_type,
+                            &extra,
+                            parameter.span.start,
+                        )?;
                         let qualifiers = self.unit.qualifiers(&parameter_type)?;
                         if matches!(self.unit.resolve(&parameter_type)?.kind, TypeKind::Void)
                             && (qualifiers != Qualifiers::default()
@@ -1730,14 +1868,22 @@ impl Analyzer {
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, declaration.span.start)?;
         }
-        let result = match &declaration.node.kind.node {
+        let calling_convention = attributes.calling_convention;
+        let (name, ty, mut attributes) = match &declaration.node.kind.node {
             ast::DeclaratorKind::Identifier(identifier) => {
                 (Some(identifier.node.name.clone()), ty, attributes)
             }
             ast::DeclaratorKind::Abstract => (None, ty, attributes),
             ast::DeclaratorKind::Declarator(inner) => {
                 let (name, ty, inner_attributes) =
-                    self.declarator_at(ty, inner, parameter_array)?;
+                    self.declarator_at(ty, inner, parameter_array, alias_base)?;
+                if alias_base {
+                    merge_convention(
+                        &mut alias_convention,
+                        inner_attributes.calling_convention,
+                        declaration.span.start,
+                    )?;
+                }
                 if inner_attributes.packed {
                     attributes.packed = true;
                 }
@@ -1750,8 +1896,25 @@ impl Analyzer {
                 (name, ty, attributes)
             }
         };
+        let ty = self.apply_calling_convention(
+            ty,
+            &Attributes {
+                calling_convention,
+                alias_base,
+                ..Attributes::default()
+            },
+            declaration.span.start,
+        )?;
+        if alias_base {
+            merge_convention(
+                &mut alias_convention,
+                attributes.calling_convention,
+                declaration.span.start,
+            )?;
+            attributes.calling_convention = alias_convention;
+        }
         self.nesting -= 1;
-        Ok(result)
+        Ok((name, ty, attributes))
     }
 
     fn record(&mut self, declaration: &Node<ast::StructType>) -> Result<usize, Error> {
@@ -1846,7 +2009,7 @@ impl Analyzer {
                             for declarator in &field.node.declarators {
                                 let (name, ty, extra) =
                                     if let Some(declarator) = &declarator.node.declarator {
-                                        self.declarator(base.clone(), declarator)?
+                                        self.declarator(base.clone(), declarator, &attributes)?
                                     } else {
                                         (None, base.clone(), Attributes::default())
                                     };
@@ -2144,6 +2307,124 @@ impl Analyzer {
         Ok(id)
     }
 
+    /// Clang lets a later unannotated declaration inherit an established ABI.
+    pub(crate) fn inherit_calling_convention(
+        &self,
+        ty: Type,
+        previous: &Type,
+    ) -> Result<Type, Error> {
+        if !matches!(
+            self.unit.target,
+            Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc
+        ) {
+            return Ok(ty);
+        }
+        let TypeKind::Function(function) = &self.unit.resolve(&ty)?.kind else {
+            return Ok(ty);
+        };
+        let TypeKind::Function(previous) = &self.unit.resolve(previous)?.kind else {
+            return Ok(ty);
+        };
+        if function.calling_convention != CallingConvention::C
+            || previous.calling_convention == CallingConvention::C
+        {
+            return Ok(ty);
+        }
+        let mut ty = self.unit.resolve(&ty)?.clone();
+        let TypeKind::Function(function) = &mut ty.kind else {
+            unreachable!()
+        };
+        function.calling_convention = previous.calling_convention;
+        Ok(ty)
+    }
+
+    /// Applies an ABI attribute at the declaration's type boundary. GCC accepts
+    /// a function or one pointer to a function; Clang also traverses arrays and
+    /// additional pointers, and can replace conventions inside pointer aliases.
+    pub(crate) fn apply_calling_convention(
+        &self,
+        ty: Type,
+        attributes: &Attributes,
+        offset: usize,
+    ) -> Result<Type, Error> {
+        let Some(convention) = attributes.calling_convention else {
+            return Ok(ty);
+        };
+        self.apply_convention_at(ty, convention, offset, 0, attributes.alias_base)
+    }
+
+    fn apply_convention_at(
+        &self,
+        ty: Type,
+        convention: CallingConvention,
+        offset: usize,
+        depth: usize,
+        alias_base: bool,
+    ) -> Result<Type, Error> {
+        if depth >= 128 {
+            return Err(Error::new(
+                offset,
+                "calling convention type nesting exceeds the 128-level limit",
+            ));
+        }
+        let qualifiers = self.unit.qualifiers(&ty)?;
+        let mut resolved = self.unit.resolve(&ty)?.clone();
+        let clang = matches!(
+            self.unit.target,
+            Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc
+        );
+        let alias_base = alias_base
+            || (matches!(ty.kind, TypeKind::Typedef(_))
+                && matches!(resolved.kind, TypeKind::Pointer(_) | TypeKind::Array { .. }));
+        resolved.qualifiers = qualifiers;
+        match &mut resolved.kind {
+            TypeKind::Function(function) => {
+                let effective = convention
+                    .for_target(self.unit.target)
+                    .map_err(|mut error| {
+                        error.offset = offset;
+                        error
+                    })?;
+                if !(clang && alias_base)
+                    && function.calling_convention != CallingConvention::C
+                    && function.calling_convention.for_target(self.unit.target)? != effective
+                {
+                    return Err(Error::new(
+                        offset,
+                        "conflicting calling convention attributes",
+                    ));
+                }
+                function.calling_convention = convention;
+            }
+            TypeKind::Pointer(element) => {
+                if !clang && !matches!(self.unit.resolve(element)?.kind, TypeKind::Function(_)) {
+                    return Ok(ty);
+                }
+                **element = self.apply_convention_at(
+                    (**element).clone(),
+                    convention,
+                    offset,
+                    depth + 1,
+                    alias_base,
+                )?;
+            }
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+                if !clang {
+                    return Ok(ty);
+                }
+                **element = self.apply_convention_at(
+                    (**element).clone(),
+                    convention,
+                    offset,
+                    depth + 1,
+                    alias_base,
+                )?;
+            }
+            _ => return Ok(ty),
+        }
+        Ok(resolved)
+    }
+
     fn apply_record_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
         if !attributes.packed && attributes.alignment.is_none() {
             return Ok(());
@@ -2207,7 +2488,43 @@ impl Analyzer {
                             let value = self.eval(&attribute.arguments[0])?.as_u64()?;
                             set_alignment(result, value, extension.span.start)?;
                         }
-                        "cdecl" => {}
+                        "cdecl" | "stdcall" | "fastcall" | "thiscall" | "ms_abi" | "sysv_abi" => {
+                            if !attribute.arguments.is_empty() {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "calling convention attributes take no arguments",
+                                ));
+                            }
+                            let convention = match name {
+                                "ms_abi" => Some(CallingConvention::Win64),
+                                "sysv_abi" => Some(CallingConvention::SysV64),
+                                // GNU ignores these x86-32 conventions on its
+                                // 64-bit targets. Clang retains explicit cdecl.
+                                "cdecl"
+                                    if matches!(self.unit.target, Target::X86_64AppleDarwin) =>
+                                {
+                                    Some(CallingConvention::SysV64)
+                                }
+                                "cdecl"
+                                    if matches!(self.unit.target, Target::X86_64PcWindowsMsvc) =>
+                                {
+                                    Some(CallingConvention::Win64)
+                                }
+                                _ => None,
+                            };
+                            if let Some(convention) = convention {
+                                if result
+                                    .calling_convention
+                                    .is_some_and(|old| old != convention)
+                                {
+                                    return Err(Error::new(
+                                        extension.span.start,
+                                        "conflicting calling convention attributes",
+                                    ));
+                                }
+                                result.calling_convention = Some(convention);
+                            }
+                        }
                         // These attributes do not alter C representation or calling convention.
                         "nothrow"
                         | "leaf"
@@ -2329,6 +2646,41 @@ impl Analyzer {
             .layout(&ty)
             .map_err(|error| Error::new(offset, error.message))?;
         Ok(ty)
+    }
+}
+
+fn merge_convention(
+    current: &mut Option<CallingConvention>,
+    next: Option<CallingConvention>,
+    offset: usize,
+) -> Result<(), Error> {
+    if let Some(next) = next {
+        if current.is_some_and(|current| current != next) {
+            return Err(Error::new(
+                offset,
+                "conflicting calling convention attributes",
+            ));
+        }
+        *current = Some(next);
+    }
+    Ok(())
+}
+
+fn has_function_derivation(mut declaration: &Node<ast::Declarator>) -> bool {
+    loop {
+        if declaration.node.derived.iter().any(|derived| {
+            matches!(
+                derived.node,
+                ast::DerivedDeclarator::Function(_) | ast::DerivedDeclarator::KRFunction(_)
+            )
+        }) {
+            return true;
+        }
+        if let ast::DeclaratorKind::Declarator(inner) = &declaration.node.kind.node {
+            declaration = inner;
+        } else {
+            return false;
+        }
     }
 }
 

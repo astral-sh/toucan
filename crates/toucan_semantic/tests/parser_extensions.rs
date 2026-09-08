@@ -16,6 +16,8 @@ const VALID: &[&str] = &[
     "int f(void); int g(void) { return ((int (__attribute__((noinline)) *)(void))f)(); }",
     "int f(void); int g(void) { return ((int (__attribute__((noinline)) __attribute__((unused)) *)(void))f)(); }",
     "int (__attribute__((noinline)) *f)(void);",
+    "int (__attribute__((stdcall)) *f)(void);",
+    "int (__attribute__((ms_abi)) *f)(void);",
     "int (__attribute__((noinline)) * const *f)(void);",
     "void f(int (__attribute__((noinline)) *)(void));",
     "void f(int (__attribute__ (( __noinline__ )) *)(void));",
@@ -43,8 +45,7 @@ fn empty_compound_literals_and_nested_pointer_attributes_are_checked() {
     }
     for attribute in [
         "vector_size(16)",
-        "stdcall",
-        "ms_abi",
+        "vectorcall",
         "aligned(16)",
         "packed",
         "mode(DI)",

@@ -9,8 +9,8 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 use toucan_semantic::{
-    DeclarationKind, FloatKind, FunctionType, IntegerKind, IntegerValue, RecordKind, Scope,
-    TranslationUnit, Type, TypeKind,
+    CallingConvention, DeclarationKind, FloatKind, FunctionType, IntegerKind, IntegerValue,
+    RecordKind, Scope, TranslationUnit, Type, TypeKind,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -378,7 +378,11 @@ pub fn generate_with_macros(
             emitter.size_t_type(ty)?
         } else if let TypeKind::Function(function) = &unit.resolve(ty)?.kind {
             emitter.check_function(function)?;
-            format!("unsafe extern \"C\" fn{}", emitter.signature(function)?)
+            format!(
+                "unsafe extern \"{}\" fn{}",
+                emitter.abi(function)?,
+                emitter.signature(function)?
+            )
         } else {
             emitter.ty(ty)?
         };
@@ -435,13 +439,31 @@ pub fn generate_with_macros(
             )?);
         }
     }
-    source.push_str(if options.rust_target.minor >= 82 {
-        "\nunsafe extern \"C\" {\n"
+    let extern_keyword = if options.rust_target.minor >= 82 {
+        "unsafe extern"
     } else {
-        "\nextern \"C\" {\n"
-    });
+        "extern"
+    };
+    let mut active_abi = None;
     for declaration in &selected {
         let name = emitter.names.identifier(&declaration.name)?;
+        let abi = match declaration.kind {
+            DeclarationKind::Typedef => continue,
+            DeclarationKind::Function => {
+                let TypeKind::Function(function) = &unit.resolve(&declaration.ty)?.kind else {
+                    return Err(Error(format!("`{name}` is not a function")));
+                };
+                emitter.abi(function)?
+            }
+            DeclarationKind::Variable => "C",
+        };
+        if active_abi != Some(abi) {
+            if active_abi.is_some() {
+                source.push_str("}\n");
+            }
+            writeln!(source, "\n{extern_keyword} {abi:?} {{").unwrap();
+            active_abi = Some(abi);
+        }
         match declaration.kind {
             DeclarationKind::Typedef => {}
             DeclarationKind::Function => {
@@ -474,7 +496,11 @@ pub fn generate_with_macros(
             }
         }
     }
-    source.push_str("}\n");
+    if active_abi.is_some() {
+        source.push_str("}\n");
+    } else {
+        writeln!(source, "\n{extern_keyword} \"C\" {{\n}}").unwrap();
+    }
     let mut renamed_macros = BTreeMap::new();
     let mut macro_types = Vec::new();
     for (name, value) in macros {
@@ -1032,7 +1058,8 @@ impl Emitter<'_> {
                 if let TypeKind::Function(function) = &self.unit.resolve(pointee)?.kind {
                     self.check_function_at(function, depth + 1)?;
                     format!(
-                        "::core::option::Option<unsafe extern \"C\" fn{}>",
+                        "::core::option::Option<unsafe extern \"{}\" fn{}>",
+                        self.abi(function)?,
                         self.signature_at(function, depth + 1)?
                     )
                 } else {
@@ -1069,7 +1096,8 @@ impl Emitter<'_> {
                 if let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind {
                     self.check_function_at(function, depth + 1)?;
                     format!(
-                        "unsafe extern \"C\" fn{}",
+                        "unsafe extern \"{}\" fn{}",
+                        self.abi(function)?,
                         self.signature_at(function, depth + 1)?
                     )
                 } else {
@@ -1104,12 +1132,23 @@ impl Emitter<'_> {
         Ok(format!("({}){result}", args.join(", ")))
     }
 
+    fn abi(&self, function: &FunctionType) -> Result<&'static str, Error> {
+        Ok(
+            match function.calling_convention.for_target(self.unit.target)? {
+                CallingConvention::C => "C",
+                CallingConvention::SysV64 => "sysv64",
+                CallingConvention::Win64 => "win64",
+            },
+        )
+    }
+
     fn check_function(&self, function: &FunctionType) -> Result<(), Error> {
         self.check_function_at(function, 0)
     }
 
     fn check_function_at(&self, function: &FunctionType, depth: usize) -> Result<(), Error> {
         check_depth(depth)?;
+        self.abi(function)?;
         if !function.prototype {
             return Err(Error("C function declaration without a prototype cannot be represented by a Rust function signature".into()));
         }

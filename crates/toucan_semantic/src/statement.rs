@@ -538,9 +538,10 @@ impl Analyzer {
                 }
             }
         }
-        let (base, _) = self.specifiers(&declaration.node.specifiers)?;
+        let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
         for item in &declaration.node.declarators {
-            let (name, mut ty, _) = self.declarator(base.clone(), &item.node.declarator)?;
+            let (name, mut ty, _) =
+                self.declarator(base.clone(), &item.node.declarator, &attributes)?;
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "local declaration has no name"))?;
             let variably_modified = self.unit.is_variably_modified(&ty)?;
@@ -577,9 +578,15 @@ impl Analyzer {
                 }
                 let scope = self.lexical_scopes.last().expect("block scope");
                 if let Some(previous) = scope.typedefs.get(&name) {
-                    if variably_modified || !self.compatible(previous, &ty)? {
+                    if variably_modified || !self.same_type(previous, &ty, 0)? {
                         return Err(Error::new(item.span.start, "conflicting block typedef"));
                     }
+                    ty = self.composite_type(previous, &ty, 0)?;
+                    self.lexical_scopes
+                        .last_mut()
+                        .expect("block scope")
+                        .typedefs
+                        .insert(name, ty);
                     continue;
                 }
                 if scope.names.contains_key(&name) {
@@ -605,6 +612,17 @@ impl Analyzer {
                 ));
             }
             let linked = is_extern || function;
+            if function
+                && let Some(previous) = self.block_externs.get(&name).or_else(|| {
+                    self.unit
+                        .declarations
+                        .iter()
+                        .find(|declaration| declaration.name == name)
+                        .map(|declaration| &declaration.ty)
+                })
+            {
+                ty = self.inherit_calling_convention(ty, previous)?;
+            }
             if linked {
                 if item.node.initializer.is_some() {
                     return Err(Error::new(
