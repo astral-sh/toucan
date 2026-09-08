@@ -156,6 +156,17 @@ type and pointer qualifiers. Retained calls identify the operation and preserve
 each argument's conversions. Memory-content constant evaluation and using these
 builtin names as function values remain unsupported.
 
+Fortified memory/string intrinsics check the `memcpy`, `memmove`, `mempcpy`,
+`memset`, `strcpy`, `stpcpy`, `strcat`, `strncpy`, `stpncpy`, and `strncat` families
+with explicit object-size arguments. Fortified `printf`, `fprintf`, `sprintf`,
+and `snprintf` calls and their `va_list` variants retain the target's fixed
+parameters and ordinary variadic promotions. GCC's stream parameter is `void *`;
+Clang uses the file-scope `FILE` typedef. Retained calls identify each checked
+operation and preserve its evaluated arguments. These facts do not prove buffer
+capacity, valid format strings, or runtime fortify checks. Memory effects are not
+constant-evaluated. Native C/Rust tests cover variadic calls and callbacks at
+`-O0` and `-O2` on the tested host.
+
 `__builtin_bswap16`, `__builtin_bswap32`, and `__builtin_bswap64` check and convert
 their arguments to the target's exact-width unsigned types. Constant evaluation
 swaps bytes after that conversion. The 64-bit result is `unsigned long` on Linux

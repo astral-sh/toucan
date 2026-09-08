@@ -166,6 +166,24 @@ pub enum Builtin {
     ConstantQuery,
     ObjectSize,
     DynamicObjectSize,
+    MemcpyChecked,
+    MemmoveChecked,
+    MempcpyChecked,
+    MemsetChecked,
+    StrcpyChecked,
+    StpcpyChecked,
+    StrcatChecked,
+    StrncpyChecked,
+    StpncpyChecked,
+    StrncatChecked,
+    SprintfChecked,
+    SnprintfChecked,
+    VsprintfChecked,
+    VsnprintfChecked,
+    PrintfChecked,
+    VprintfChecked,
+    FprintfChecked,
+    VfprintfChecked,
     CountLeadingZeros,
     CountLeadingZerosLong,
     CountLeadingZerosLongLong,
@@ -192,6 +210,25 @@ impl Builtin {
             "__builtin_constant_p" => Self::ConstantQuery,
             "__builtin_object_size" => Self::ObjectSize,
             "__builtin_dynamic_object_size" => Self::DynamicObjectSize,
+            "__builtin___memcpy_chk" => Self::MemcpyChecked,
+            "__builtin___memmove_chk" => Self::MemmoveChecked,
+            "__builtin___mempcpy_chk" => Self::MempcpyChecked,
+            "__builtin___memset_chk" => Self::MemsetChecked,
+            "__builtin___strcpy_chk" => Self::StrcpyChecked,
+            "__builtin___stpcpy_chk" => Self::StpcpyChecked,
+            "__builtin___strcat_chk" => Self::StrcatChecked,
+            "__builtin___strncpy_chk" => Self::StrncpyChecked,
+            "__builtin___stpncpy_chk" => Self::StpncpyChecked,
+            "__builtin___strncat_chk" => Self::StrncatChecked,
+            "__builtin___sprintf_chk" => Self::SprintfChecked,
+            "__builtin___snprintf_chk" => Self::SnprintfChecked,
+            "__builtin___vsprintf_chk" => Self::VsprintfChecked,
+            "__builtin___vsnprintf_chk" => Self::VsnprintfChecked,
+            "__builtin___printf_chk" => Self::PrintfChecked,
+            "__builtin___vprintf_chk" => Self::VprintfChecked,
+            "__builtin___fprintf_chk" => Self::FprintfChecked,
+            "__builtin___vfprintf_chk" => Self::VfprintfChecked,
+
             "__builtin_clz" => Self::CountLeadingZeros,
             "__builtin_clzl" => Self::CountLeadingZerosLong,
             "__builtin_clzll" => Self::CountLeadingZerosLongLong,
@@ -1084,6 +1121,7 @@ impl Analyzer {
         {
             let memory = self.memory_builtin_signature(name);
             let object_size = self.object_size_signature(name);
+            let fortified = self.fortified_signature(name, offset)?;
             let unary_parameter = self
                 .byte_swap_type(name)
                 .or_else(|| self.bit_count_type(name));
@@ -1099,7 +1137,17 @@ impl Analyzer {
                 TypeKind::Array { .. }
             );
             for (index, argument) in call.node.arguments.iter().enumerate() {
-                let (context, destination) = if let Some(signature) = &memory {
+                let (context, destination) = if let Some(signature) = &fortified {
+                    let destination = if let Some(parameter) = signature.parameters.get(index) {
+                        (parameter.clone(), Conversion::Assignment)
+                    } else {
+                        (
+                            self.default_argument_type(argument)?,
+                            Conversion::DefaultArgument,
+                        )
+                    };
+                    (UseContext::Value, Some(destination))
+                } else if let Some(signature) = &memory {
                     (
                         UseContext::Value,
                         Some((signature.parameters[index].clone(), Conversion::Assignment)),
@@ -1150,23 +1198,15 @@ impl Analyzer {
         };
         let mut arguments = Vec::new();
         for (index, argument) in call.node.arguments.iter().enumerate() {
-            let info = self.expression_info(argument)?;
             let (destination, conversion) = if function.prototype
                 && let Some(parameter) = function.parameters.get(index)
             {
                 (self.unqualified(&parameter.ty)?, Conversion::Assignment)
             } else {
-                let ty = self.converted_type(&info, offset)?;
-                let promoted = match ty.kind {
-                    TypeKind::Float(FloatKind::Float) => {
-                        Type::new(TypeKind::Float(FloatKind::Double))
-                    }
-                    TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_) => {
-                        integer_to_type(self.promoted_integer(&info, offset)?)
-                    }
-                    _ => ty,
-                };
-                (promoted, Conversion::DefaultArgument)
+                (
+                    self.default_argument_type(argument)?,
+                    Conversion::DefaultArgument,
+                )
             };
             arguments.push(self.retained_use(
                 argument,
@@ -1178,6 +1218,19 @@ impl Analyzer {
             callee,
             direct_callee,
             arguments,
+        })
+    }
+
+    fn default_argument_type(&mut self, argument: &Node<ast::Expression>) -> Result<Type, Error> {
+        let offset = argument.span.start;
+        let info = self.expression_info(argument)?;
+        let ty = self.converted_type(&info, offset)?;
+        Ok(match ty.kind {
+            TypeKind::Float(FloatKind::Float) => Type::new(TypeKind::Float(FloatKind::Double)),
+            TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_) => {
+                integer_to_type(self.promoted_integer(&info, offset)?)
+            }
+            _ => ty,
         })
     }
 

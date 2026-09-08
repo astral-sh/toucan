@@ -106,6 +106,26 @@ impl Analyzer {
         let Some(name) = self.builtin_name(call) else {
             return Ok(None);
         };
+        if let Some(signature) = self.fortified_signature(name, call.span.start)? {
+            let arguments = &call.node.arguments;
+            if arguments.len() < signature.parameters.len()
+                || (!signature.variadic && arguments.len() != signature.parameters.len())
+            {
+                return Err(Error::new(
+                    call.span.start,
+                    "argument count does not match fortified intrinsic prototype",
+                ));
+            }
+            for (index, argument) in arguments.iter().enumerate() {
+                if let Some(parameter) = signature.parameters.get(index) {
+                    self.check_assignment(parameter, argument)?;
+                } else {
+                    let ty = self.value_expression_type(argument)?;
+                    self.require_complete_object(&ty, argument.span.start)?;
+                }
+            }
+            return Ok(Some(signature.result));
+        }
         let memory = self.memory_builtin_signature(name);
         let byte_swap = self.byte_swap_type(name);
         let bit_count = self.bit_count_type(name);

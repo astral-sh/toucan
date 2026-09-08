@@ -11,6 +11,7 @@ pub mod checked;
 mod constant_query;
 mod expression;
 mod floating;
+mod fortified;
 mod initializer;
 mod integer;
 mod ir;
