@@ -273,7 +273,7 @@ unary_expression0 -> Expression =
     unary_cast /
     sizeof_expression /
     alignof_expression /
-    gnu<K<"__extension__">> _ e:unary_expression0 { e }
+    gnu<K<"__extension__">> _ e:cast_expression0 { e }
 
 unary_prefix -> Expression =
     n:node<unary_prefix_inner> { Expression::UnaryOperator(Box::new(n)) }

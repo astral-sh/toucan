@@ -2956,7 +2956,7 @@ fn __parse_unary_expression0<'input>(__input: &'input str, __state: &mut ParseSt
                                                         let __seq_res = __parse__(__input, __state, __pos, env);
                                                         match __seq_res {
                                                             Matched(__pos, _) => {
-                                                                let __seq_res = __parse_unary_expression0(__input, __state, __pos, env);
+                                                                let __seq_res = __parse_cast_expression0(__input, __state, __pos, env);
                                                                 match __seq_res {
                                                                     Matched(__pos, e) => Matched(__pos, { e }),
                                                                     Failed => Failed,

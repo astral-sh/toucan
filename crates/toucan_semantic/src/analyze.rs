@@ -3300,7 +3300,11 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
                     "consecutive prefix operators exceed the 16-operator limit",
                 ));
             }
-        } else if !bytes[index].is_ascii_whitespace() {
+        } else if !(bytes[index].is_ascii_whitespace()
+            || bytes[index].is_ascii_alphabetic()
+            || bytes[index] == b'_'
+            || (bytes[index] == b'/' && matches!(bytes.get(index + 1), Some(b'/' | b'*'))))
+        {
             prefix_run = 0;
         }
         match bytes[index] {
@@ -3377,6 +3381,20 @@ fn check_parse_limits(source: &str) -> Result<(), Error> {
                     "if" | "else" | "for" | "while" | "do" | "switch"
                 ) {
                     control_tokens += 1;
+                }
+                if matches!(
+                    &source[start..=index],
+                    "sizeof" | "_Alignof" | "__alignof" | "__alignof__" | "__extension__"
+                ) {
+                    prefix_run += 1;
+                    if prefix_run > 16 {
+                        return Err(Error::new(
+                            start,
+                            "consecutive prefix operators exceed the 16-operator limit",
+                        ));
+                    }
+                } else {
+                    prefix_run = 0;
                 }
             }
             b';' | b',' => {
