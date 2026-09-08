@@ -56,6 +56,7 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
             }
         }
     }
+    analyzer.finish_tentative_definitions()?;
     Ok(analyzer.unit)
 }
 
@@ -355,11 +356,78 @@ struct PrototypeScope {
     parameters: Vec<Parameter>,
 }
 
+#[derive(Default)]
+struct StorageSpecifiers {
+    class: Option<ast::StorageClassSpecifier>,
+    thread_local: bool,
+}
+
+/// C11 permits one storage class, with `_Thread_local` additionally allowed
+/// beside `static` or `extern`.
+fn storage_specifiers(
+    specifiers: &[Node<ast::DeclarationSpecifier>],
+) -> Result<StorageSpecifiers, Error> {
+    let mut storage = StorageSpecifiers::default();
+    for specifier in specifiers {
+        let ast::DeclarationSpecifier::StorageClass(class) = &specifier.node else {
+            continue;
+        };
+        if class.node == ast::StorageClassSpecifier::ThreadLocal {
+            if storage.thread_local {
+                return Err(Error::new(
+                    class.span.start,
+                    "duplicate thread-local storage specifier",
+                ));
+            }
+            storage.thread_local = true;
+        } else if storage.class.replace(class.node.clone()).is_some() {
+            return Err(Error::new(
+                class.span.start,
+                "multiple storage-class specifiers",
+            ));
+        }
+    }
+    if storage.thread_local
+        && !matches!(
+            storage.class,
+            None | Some(ast::StorageClassSpecifier::Static | ast::StorageClassSpecifier::Extern)
+        )
+    {
+        return Err(Error::new(
+            specifiers[0].span.start,
+            "thread-local storage can only combine with static or extern",
+        ));
+    }
+    Ok(storage)
+}
+
+/// Finds the derivation applied last, including parenthesized declarators.
+fn outermost_derived(
+    mut declarator: &Node<ast::Declarator>,
+) -> Option<&Node<ast::DerivedDeclarator>> {
+    let mut outermost = None;
+    loop {
+        let derived = &declarator.node.derived;
+        if !derived.is_empty() {
+            outermost = derived
+                .iter()
+                .find(|derived| !matches!(derived.node, ast::DerivedDeclarator::Pointer(_)))
+                .or_else(|| derived.last());
+        }
+        if let ast::DeclaratorKind::Declarator(inner) = &declarator.node.kind.node {
+            declarator = inner;
+        } else {
+            return outermost;
+        }
+    }
+}
+
 pub(crate) struct Analyzer {
     pub(crate) unit: TranslationUnit,
     tags: HashMap<String, TagBinding>,
     prototype_scopes: Vec<PrototypeScope>,
     defining_enums: HashSet<usize>,
+    tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
     record_attributes: HashSet<usize>,
     nesting: usize,
@@ -413,6 +481,7 @@ impl Analyzer {
             tags,
             prototype_scopes: Vec::new(),
             defining_enums: HashSet::new(),
+            tentative_definitions: BTreeMap::new(),
             packs: Vec::new(),
             record_attributes: HashSet::new(),
             nesting: 0,
@@ -549,31 +618,75 @@ impl Analyzer {
         declaration: &Node<ast::Declaration>,
         definition: bool,
     ) -> Result<(), Error> {
+        let storage = storage_specifiers(&declaration.node.specifiers)?;
+        if matches!(
+            storage.class,
+            Some(ast::StorageClassSpecifier::Auto | ast::StorageClassSpecifier::Register)
+        ) {
+            return Err(Error::new(
+                declaration.span.start,
+                "auto and register are not permitted at file scope",
+            ));
+        }
+        let is_typedef = storage.class == Some(ast::StorageClassSpecifier::Typedef);
         // glibc defines the TS spellings as typedefs for older compiler profiles.
         // lang-c recognizes their spelling as a type specifier even in this
         // declaration position, so recover the explicit typedef name here.
         if declaration.node.declarators.is_empty()
-            && declaration.node.specifiers.iter().any(|specifier| matches!(&specifier.node, ast::DeclarationSpecifier::StorageClass(storage) if storage.node == ast::StorageClassSpecifier::Typedef))
-            && let Some(Node { node: ast::DeclarationSpecifier::TypeSpecifier(Node { node: ast::TypeSpecifier::TS18661Float(float), .. }), .. }) = declaration.node.specifiers.last()
+            && is_typedef
+            && let Some(Node {
+                node:
+                    ast::DeclarationSpecifier::TypeSpecifier(Node {
+                        node: ast::TypeSpecifier::TS18661Float(float),
+                        ..
+                    }),
+                ..
+            }) = declaration.node.specifiers.last()
         {
             let name = extended_float_name(float);
-            let (ty, attributes) = self.specifiers(&declaration.node.specifiers[..declaration.node.specifiers.len()-1])?;
-            if attributes.packed || attributes.alignment.is_some() || attributes.mode.is_some() { return Err(Error::new(declaration.span.start, "attributes on extended float compatibility typedefs are unsupported")); }
-            if self.unit.typedefs.insert(name.clone(), ty.clone()).is_some() { return Err(Error::new(declaration.span.start, "duplicate extended float typedef")); }
-            self.unit.declarations.push(Declaration { name, ty, kind: DeclarationKind::Typedef, link_name: None, is_static: false, is_definition: false });
+            let (ty, attributes) = self.specifiers(
+                &declaration.node.specifiers[..declaration.node.specifiers.len() - 1],
+            )?;
+            if attributes.packed || attributes.alignment.is_some() || attributes.mode.is_some() {
+                return Err(Error::new(
+                    declaration.span.start,
+                    "attributes on extended float compatibility typedefs are unsupported",
+                ));
+            }
+            if self
+                .unit
+                .typedefs
+                .insert(name.clone(), ty.clone())
+                .is_some()
+            {
+                return Err(Error::new(
+                    declaration.span.start,
+                    "duplicate extended float typedef",
+                ));
+            }
+            self.unit.declarations.push(Declaration {
+                name,
+                ty,
+                kind: DeclarationKind::Typedef,
+                link_name: None,
+                is_static: false,
+                is_definition: false,
+            });
             return Ok(());
         }
         let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
-        let is_typedef = declaration.node.specifiers.iter().any(|specifier| matches!(&specifier.node, ast::DeclarationSpecifier::StorageClass(s) if s.node == ast::StorageClassSpecifier::Typedef));
-        let is_static = declaration.node.specifiers.iter().any(|specifier| matches!(&specifier.node, ast::DeclarationSpecifier::StorageClass(s) if s.node == ast::StorageClassSpecifier::Static));
-        if declaration.node.specifiers.iter().any(|specifier| matches!(&specifier.node, ast::DeclarationSpecifier::StorageClass(s) if s.node == ast::StorageClassSpecifier::ThreadLocal)) {
-            return Err(Error::new(declaration.span.start, "thread-local objects require unsupported Rust TLS bindings"));
-        }
         for item in &declaration.node.declarators {
+            let mut is_static = storage.class == Some(ast::StorageClassSpecifier::Static);
             let (name, mut ty, mut declarator_attributes) =
                 self.declarator(base.clone(), &item.node.declarator)?;
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "declaration has no name"))?;
+            if self.unit.constants.contains_key(&name) {
+                return Err(Error::new(
+                    item.span.start,
+                    format!("declaration conflicts with enumerator `{name}`"),
+                ));
+            }
             if declarator_attributes.link_name.is_none() {
                 declarator_attributes.link_name = attributes.link_name.clone();
             }
@@ -608,6 +721,22 @@ impl Analyzer {
             } else {
                 DeclarationKind::Variable
             };
+            if storage.thread_local {
+                return Err(Error::new(
+                    item.span.start,
+                    if kind == DeclarationKind::Variable {
+                        "thread-local objects require unsupported Rust TLS bindings"
+                    } else {
+                        "thread-local storage requires an object declaration"
+                    },
+                ));
+            }
+            if item.node.initializer.is_some() && kind != DeclarationKind::Variable {
+                return Err(Error::new(
+                    item.span.start,
+                    "only objects can have initializers",
+                ));
+            }
             if definition && kind != DeclarationKind::Function {
                 return Err(Error::new(
                     item.span.start,
@@ -621,7 +750,8 @@ impl Analyzer {
                 ));
             }
             let initializer_type = ty.clone();
-            if let Some(previous_index) = self
+            let is_definition = definition || item.node.initializer.is_some();
+            let declaration_index = if let Some(previous_index) = self
                 .unit
                 .declarations
                 .iter()
@@ -634,41 +764,102 @@ impl Analyzer {
                         format!("conflicting declaration of `{name}`"),
                     ));
                 }
+                if kind != DeclarationKind::Typedef {
+                    // Extern declarations inherit visible linkage. A function
+                    // declaration without storage behaves as an extern declaration.
+                    if storage.class == Some(ast::StorageClassSpecifier::Extern)
+                        || (storage.class.is_none() && kind == DeclarationKind::Function)
+                    {
+                        is_static = previous.is_static;
+                    }
+                    if previous.is_static != is_static {
+                        return Err(Error::new(
+                            item.span.start,
+                            format!("conflicting linkage for `{name}`"),
+                        ));
+                    }
+                    if is_definition && previous.is_definition {
+                        return Err(Error::new(
+                            item.span.start,
+                            format!("multiple definitions of `{name}`"),
+                        ));
+                    }
+                }
                 // A composite type retains all available bounds and prototypes,
                 // including those nested inside pointers and function parameters.
-                ty = self.composite_type(&previous.ty, &ty, 0)?;
+                ty = if definition {
+                    // Definition parameter names belong to its body; names in an
+                    // earlier prototype have no bearing on those declarations.
+                    self.composite_type(&ty, &previous.ty, 0)?
+                } else {
+                    self.composite_type(&previous.ty, &ty, 0)?
+                };
                 let previous = &mut self.unit.declarations[previous_index];
-                previous.ty = ty.clone();
-                // Repeated compatible prototypes need only one binding.
-                if !definition {
-                    if previous.link_name.is_none() {
-                        previous.link_name = declarator_attributes.link_name;
-                    }
-                    if let Some(initializer) = &item.node.initializer {
-                        self.initialize_declaration(
-                            previous_index,
-                            &initializer_type,
-                            initializer,
-                        )?;
-                    }
-                    continue;
+                previous.ty = ty;
+                previous.is_definition |= is_definition;
+                if previous.link_name.is_none() {
+                    previous.link_name = declarator_attributes.link_name;
                 }
+                previous_index
+            } else {
+                let index = self.unit.declarations.len();
+                self.unit.declarations.push(Declaration {
+                    name,
+                    ty,
+                    kind,
+                    link_name: declarator_attributes.link_name,
+                    is_static,
+                    is_definition,
+                });
+                index
+            };
+            if kind == DeclarationKind::Variable
+                && !is_definition
+                && storage.class != Some(ast::StorageClassSpecifier::Extern)
+            {
+                self.tentative_definitions
+                    .entry(declaration_index)
+                    .or_insert(item.span.start);
             }
-            self.unit.declarations.push(Declaration {
-                name,
-                ty,
-                kind,
-                link_name: declarator_attributes.link_name,
-                is_static,
-                is_definition: definition || item.node.initializer.is_some(),
-            });
             if let Some(initializer) = &item.node.initializer {
-                self.initialize_declaration(
-                    self.unit.declarations.len() - 1,
-                    &initializer_type,
-                    initializer,
-                )?;
+                self.initialize_declaration(declaration_index, &initializer_type, initializer)?;
             }
+        }
+        Ok(())
+    }
+
+    /// C11 6.9.2 completes tentative definitions after every declaration is known.
+    fn finish_tentative_definitions(&mut self) -> Result<(), Error> {
+        for (&index, &offset) in &self.tentative_definitions {
+            let declaration = &self.unit.declarations[index];
+            if declaration.is_definition {
+                continue;
+            }
+            let mut ty = declaration.ty.clone();
+            if let TypeKind::Array {
+                element,
+                length: None,
+            } = &self.unit.resolve(&ty)?.kind
+            {
+                ty = Type {
+                    kind: TypeKind::Array {
+                        element: element.clone(),
+                        length: Some(1),
+                    },
+                    qualifiers: self.unit.qualifiers(&ty)?,
+                };
+            }
+            if !self.is_complete_object(&ty, 0)? {
+                return Err(Error::new(
+                    offset,
+                    format!(
+                        "tentative definition of `{}` has incomplete type",
+                        declaration.name
+                    ),
+                ));
+            }
+            self.unit.declarations[index].ty = ty;
+            self.unit.declarations[index].is_definition = true;
         }
         Ok(())
     }
@@ -1078,8 +1269,18 @@ impl Analyzer {
 
     fn declarator(
         &mut self,
+        ty: Type,
+        declaration: &Node<ast::Declarator>,
+    ) -> Result<(Option<String>, Type, Attributes), Error> {
+        self.declarator_at(ty, declaration, None)
+    }
+
+    /// `parameter_array` identifies the outermost array adjusted to a pointer.
+    fn declarator_at(
+        &mut self,
         mut ty: Type,
         declaration: &Node<ast::Declarator>,
+        parameter_array: Option<usize>,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
         if self.nesting >= 128 {
             return Err(Error::new(
@@ -1115,6 +1316,15 @@ impl Analyzer {
                     pointer
                 }
                 ast::DerivedDeclarator::Array(array) => {
+                    if (!array.node.qualifiers.is_empty()
+                        || matches!(array.node.size, ast::ArraySize::StaticExpression(_)))
+                        && parameter_array != Some(derived.span.start)
+                    {
+                        return Err(Error::new(
+                            derived.span.start,
+                            "array qualifiers and static require an outermost parameter array",
+                        ));
+                    }
                     if !self.is_complete_object(&ty, 0)? {
                         return Err(Error::new(
                             derived.span.start,
@@ -1155,16 +1365,67 @@ impl Analyzer {
                     });
                     let prototype = !function.node.parameters.is_empty();
                     for parameter in &function.node.parameters {
+                        let storage = storage_specifiers(&parameter.node.specifiers)?;
+                        if storage.thread_local
+                            || !matches!(
+                                storage.class,
+                                None | Some(ast::StorageClassSpecifier::Register)
+                            )
+                        {
+                            return Err(Error::new(
+                                parameter.span.start,
+                                "only register storage is permitted for a parameter",
+                            ));
+                        }
+                        if parameter.node.specifiers.iter().any(|specifier| {
+                            matches!(specifier.node, ast::DeclarationSpecifier::Alignment(_))
+                        }) {
+                            return Err(Error::new(
+                                parameter.span.start,
+                                "alignment is not permitted on a parameter",
+                            ));
+                        }
                         let (base, _) = self.specifiers(&parameter.node.specifiers)?;
+                        let mut array_qualifiers = Qualifiers::default();
                         let (name, mut parameter_type) =
                             if let Some(declarator) = &parameter.node.declarator {
-                                let (name, ty, _) = self.declarator(base, declarator)?;
+                                let array = outermost_derived(declarator).and_then(|derived| {
+                                    if let ast::DerivedDeclarator::Array(array) = &derived.node {
+                                        Some((derived.span.start, array))
+                                    } else {
+                                        None
+                                    }
+                                });
+                                if let Some((_, array)) = array {
+                                    for qualifier in &array.node.qualifiers {
+                                        add_qualifier(&mut array_qualifiers, qualifier)?;
+                                    }
+                                }
+                                let (name, ty, _) = self.declarator_at(
+                                    base,
+                                    declarator,
+                                    array.map(|(offset, _)| offset),
+                                )?;
                                 (name, ty)
                             } else {
                                 (None, base)
                             };
                         self.attributes(&parameter.node.extensions, &mut Attributes::default())?;
                         let qualifiers = self.unit.qualifiers(&parameter_type)?;
+                        if matches!(self.unit.resolve(&parameter_type)?.kind, TypeKind::Void)
+                            && (qualifiers != Qualifiers::default()
+                                || (storage.class.is_some()
+                                    && matches!(
+                                        self.unit.target,
+                                        Target::X86_64UnknownLinuxGnu
+                                            | Target::Aarch64UnknownLinuxGnu
+                                    )))
+                        {
+                            return Err(Error::new(
+                                parameter.span.start,
+                                "void parameter must be unqualified",
+                            ));
+                        }
                         parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
                             TypeKind::Array { element, .. } => {
                                 // Qualifying an array typedef qualifies its elements.
@@ -1173,7 +1434,9 @@ impl Analyzer {
                                 element.qualifiers.is_const |= qualifiers.is_const;
                                 element.qualifiers.is_volatile |= qualifiers.is_volatile;
                                 element.qualifiers.is_restrict |= qualifiers.is_restrict;
-                                element.pointer()
+                                let mut pointer = element.pointer();
+                                pointer.qualifiers = array_qualifiers;
+                                pointer
                             }
                             TypeKind::Function(_) => parameter_type.pointer(),
                             _ => parameter_type,
@@ -1267,7 +1530,8 @@ impl Analyzer {
             }
             ast::DeclaratorKind::Abstract => (None, ty, attributes),
             ast::DeclaratorKind::Declarator(inner) => {
-                let (name, ty, inner_attributes) = self.declarator(ty, inner)?;
+                let (name, ty, inner_attributes) =
+                    self.declarator_at(ty, inner, parameter_array)?;
                 if inner_attributes.packed {
                     attributes.packed = true;
                 }
