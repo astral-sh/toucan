@@ -2,9 +2,7 @@ use lang_c::{ast, span::Node};
 
 use crate::analyze::Analyzer;
 use crate::integer::{common, integer_to_type, promote};
-use crate::{
-    DeclarationKind, Error, FloatKind, IntegerKind, IntegerValue, Qualifiers, Type, TypeKind,
-};
+use crate::{DeclarationKind, Error, FloatKind, IntegerValue, Qualifiers, Type, TypeKind};
 
 /// An expression's type before array/function conversion, with constraints that
 /// cannot be represented by its type alone.
@@ -62,7 +60,15 @@ impl Analyzer {
         let ty = match &expression.node {
             ast::Expression::Constant(constant) => match &constant.node {
                 ast::Constant::Integer(integer) => integer_to_type(self.literal(integer, offset)?),
-                ast::Constant::Character(_) => integer_to_type(IntegerValue::int(0)),
+                ast::Constant::Character(character) => {
+                    integer_to_type(crate::decode_character_literal(
+                        self.character_literals
+                            .get(&constant.span.start)
+                            .map_or(character.as_str(), String::as_str),
+                        self.unit.target,
+                        offset,
+                    )?)
+                }
                 ast::Constant::Float(float) => {
                     if float.suffix.imaginary {
                         return Err(Error::new(offset, "complex expressions are unsupported"));
@@ -103,10 +109,11 @@ impl Analyzer {
                 }
             }
             ast::Expression::StringLiteral(strings) => {
-                let decoded = crate::analyze::decode_strings(&strings.node, offset)?;
+                let decoded =
+                    crate::decode_string_literals(&strings.node, self.unit.target, offset)?;
                 return Ok(ExpressionInfo::object(Type::new(TypeKind::Array {
-                    element: Box::new(Type::new(TypeKind::Integer(IntegerKind::Char))),
-                    length: Some(decoded.len() as u64 + 1),
+                    element: Box::new(Type::new(TypeKind::Integer(decoded.element_type))),
+                    length: Some(decoded.code_units.len() as u64),
                 })));
             }
             ast::Expression::CompoundLiteral(literal) => {

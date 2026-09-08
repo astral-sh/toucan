@@ -10,10 +10,14 @@ mod floating;
 mod initializer;
 mod integer;
 mod ir;
+mod literals;
 mod statement;
 
 pub use analyze::{analyze, evaluate_integer};
 pub use ir::*;
+pub use literals::{
+    DecodedString, StringEncoding, decode_character_literal, decode_string_literals,
+};
 
 /// A source-positioned syntax, semantic, or unsupported-feature diagnostic.
 #[derive(Clone, Debug, thiserror::Error, serde::Serialize)]

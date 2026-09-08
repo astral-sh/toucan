@@ -196,8 +196,13 @@ impl Analyzer {
         Ok(matches!(
             self.unit.resolve(element)?.kind,
             TypeKind::Integer(
-                IntegerKind::Char | IntegerKind::SignedChar | IntegerKind::UnsignedChar
-            )
+                IntegerKind::Char
+                    | IntegerKind::SignedChar
+                    | IntegerKind::UnsignedChar
+                    | IntegerKind::UnsignedShort
+                    | IntegerKind::Int
+                    | IntegerKind::UnsignedInt
+            ) | TypeKind::Enum(_)
         ))
     }
 
@@ -217,17 +222,37 @@ impl Analyzer {
         }
         let source = self.expression_type(expression)?;
         let TypeKind::Array {
+            element: source_element,
             length: Some(string_length),
-            ..
         } = source.kind
         else {
             unreachable!("string expression has an array type")
         };
         let mut result = self.unit.resolve(ty)?.clone();
         result.qualifiers = self.unit.qualifiers(ty)?;
-        let TypeKind::Array { length, .. } = &mut result.kind else {
+        let TypeKind::Array { element, length } = &mut result.kind else {
             unreachable!()
         };
+        let source_kind = &self.unit.resolve(&source_element)?.kind;
+        let destination_kind = &self.unit.resolve(element)?.kind;
+        let compatible = if *source_kind == TypeKind::Integer(IntegerKind::Char) {
+            matches!(
+                destination_kind,
+                TypeKind::Integer(
+                    IntegerKind::Char | IntegerKind::SignedChar | IntegerKind::UnsignedChar
+                )
+            )
+        } else if matches!(destination_kind, TypeKind::Enum(_)) {
+            self.integer_type(&source_element, offset)? == self.integer_type(element, offset)?
+        } else {
+            source_kind == destination_kind
+        };
+        if !compatible {
+            return Err(Error::new(
+                offset,
+                "string encoding is incompatible with the array element type",
+            ));
+        }
         match length {
             Some(bound) if *bound < string_length - 1 => {
                 return Err(Error::new(

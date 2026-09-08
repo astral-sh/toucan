@@ -23,6 +23,7 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
     let parsed = parse(&source, 0)?;
     let mut analyzer = Analyzer::new(target, packs);
     analyzer.record_attributes = parsed.record_attributes;
+    analyzer.character_literals = parsed.character_literals;
     for external in parsed.unit.0 {
         match external.node {
             ast::ExternalDeclaration::Declaration(declaration) => {
@@ -113,6 +114,7 @@ pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<Inte
     };
     let mut analyzer = Analyzer::from_unit(unit.clone());
     analyzer.record_attributes = parsed.record_attributes;
+    analyzer.character_literals = parsed.character_literals;
     analyzer.eval(expression).map_err(|mut error| {
         error.offset = error.offset.saturating_sub(expression_offset);
         error
@@ -122,6 +124,7 @@ pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<Inte
 struct Parsed {
     unit: ast::TranslationUnit,
     record_attributes: HashSet<usize>,
+    character_literals: HashMap<usize, String>,
 }
 
 fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
@@ -136,6 +139,7 @@ fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
         flavor: driver::Flavor::ClangC11,
     };
     let (source, record_attributes) = normalize_attributes(&source);
+    let (source, character_literals) = crate::literals::normalize_character_escapes(source);
     let parsed = driver::parse_preprocessed(&config, source).map_err(|mut error| {
         let offset = error.offset;
         if diagnostic_offset != 0 && offset >= diagnostic_offset {
@@ -154,6 +158,7 @@ fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
     Ok(Parsed {
         unit: parsed.unit,
         record_attributes,
+        character_literals,
     })
 }
 
@@ -417,6 +422,7 @@ pub(crate) struct Analyzer {
     tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
     record_attributes: HashSet<usize>,
+    pub(crate) character_literals: HashMap<usize, String>,
     nesting: usize,
     pub(crate) capture_function_scope: bool,
     pub(crate) function_scope: Option<crate::statement::FunctionScope>,
@@ -475,6 +481,7 @@ impl Analyzer {
             tentative_definitions: BTreeMap::new(),
             packs: Vec::new(),
             record_attributes: HashSet::new(),
+            character_literals: HashMap::new(),
             nesting: 0,
             capture_function_scope: false,
             function_scope: None,
@@ -2011,7 +2018,11 @@ impl Analyzer {
         for extension in extensions {
             match &extension.node {
                 ast::Extension::AsmLabel(label) => {
-                    result.link_name = Some(decode_strings(&label.node, extension.span.start)?);
+                    result.link_name = Some(decode_strings(
+                        &label.node,
+                        self.unit.target,
+                        extension.span.start,
+                    )?);
                 }
                 ast::Extension::AvailabilityAttribute(_) => {}
                 ast::Extension::Attribute(attribute) => {
@@ -2102,13 +2113,22 @@ impl Analyzer {
         &mut self,
         assertion: &Node<ast::StaticAssert>,
     ) -> Result<(), Error> {
+        let message = crate::decode_string_literals(
+            &assertion.node.message.node,
+            self.unit.target,
+            assertion.node.message.span.start,
+        )?;
         if !self.eval(&assertion.node.expression)?.truth() {
+            let message = message
+                .to_bytes()
+                .and_then(|mut bytes| {
+                    bytes.pop();
+                    String::from_utf8(bytes).ok()
+                })
+                .unwrap_or_else(|| assertion.node.message.node.join(" "));
             return Err(Error::new(
                 assertion.span.start,
-                format!(
-                    "static assertion failed: {}",
-                    decode_strings(&assertion.node.message.node, assertion.span.start)?
-                ),
+                format!("static assertion failed: {message}"),
             ));
         }
         Ok(())
@@ -2211,33 +2231,14 @@ fn set_alignment(attributes: &mut Attributes, value: u64, offset: usize) -> Resu
     Ok(())
 }
 
-pub(crate) fn decode_strings(strings: &[String], offset: usize) -> Result<String, Error> {
-    let mut result = String::new();
-    for string in strings {
-        let Some(string) = string
-            .strip_prefix('"')
-            .and_then(|string| string.strip_suffix('"'))
-        else {
-            return Err(Error::new(offset, "wide string is unsupported here"));
-        };
-        let mut chars = string.chars();
-        while let Some(ch) = chars.next() {
-            if ch != '\\' {
-                result.push(ch);
-                continue;
-            }
-            result.push(match chars.next() {
-                Some('n') => '\n',
-                Some('r') => '\r',
-                Some('t') => '\t',
-                Some('\\') => '\\',
-                Some('"') => '"',
-                Some('0') => '\0',
-                _ => return Err(Error::new(offset, "unsupported string escape")),
-            });
-        }
-    }
-    Ok(result)
+fn decode_strings(strings: &[String], target: Target, offset: usize) -> Result<String, Error> {
+    let decoded = crate::decode_string_literals(strings, target, offset)?;
+    let mut bytes = decoded
+        .to_bytes()
+        .ok_or_else(|| Error::new(offset, "text context requires an ordinary or UTF-8 string"))?;
+    bytes.pop();
+    String::from_utf8(bytes)
+        .map_err(|_| Error::new(offset, "text context requires valid UTF-8 bytes"))
 }
 
 /// Removes line directives while preserving parser byte positions, and records

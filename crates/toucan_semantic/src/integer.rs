@@ -18,7 +18,13 @@ impl Analyzer {
         match &expression.node {
             ast::Expression::Constant(constant) => match &constant.node {
                 ast::Constant::Integer(integer) => self.literal(integer, offset),
-                ast::Constant::Character(character) => character_value(character, offset),
+                ast::Constant::Character(character) => crate::decode_character_literal(
+                    self.character_literals
+                        .get(&constant.span.start)
+                        .map_or(character.as_str(), String::as_str),
+                    self.unit.target,
+                    offset,
+                ),
                 ast::Constant::Float(_) => Err(Error::new(
                     offset,
                     "floating-point expression is not an integer constant expression",
@@ -656,52 +662,4 @@ fn signed_minimum(bits: u8) -> i128 {
     } else {
         -(1i128 << (bits - 1))
     }
-}
-
-fn character_value(character: &str, offset: usize) -> Result<IntegerValue, Error> {
-    let Some(body) = character
-        .strip_prefix('\'')
-        .and_then(|value| value.strip_suffix('\''))
-    else {
-        return Err(Error::new(
-            offset,
-            "wide character constants are unsupported",
-        ));
-    };
-    let value = if let Some(escape) = body.strip_prefix('\\') {
-        match escape {
-            "n" => 10,
-            "r" => 13,
-            "t" => 9,
-            "a" => 7,
-            "b" => 8,
-            "f" => 12,
-            "v" => 11,
-            "\\" => 92,
-            "'" => 39,
-            "\"" => 34,
-            "?" => 63,
-            value if value.starts_with('x') => u32::from_str_radix(&value[1..], 16)
-                .map_err(|_| Error::new(offset, "invalid hexadecimal character escape"))?,
-            value if value.len() <= 3 && value.chars().all(|ch| matches!(ch, '0'..='7')) => {
-                u32::from_str_radix(value, 8)
-                    .map_err(|_| Error::new(offset, "invalid octal character escape"))?
-            }
-            _ => return Err(Error::new(offset, "unsupported character escape")),
-        }
-    } else if body.len() == 1 && body.is_ascii() {
-        u32::from(body.as_bytes()[0])
-    } else {
-        return Err(Error::new(
-            offset,
-            "multicharacter and non-ASCII constants depend on unsupported execution character sets",
-        ));
-    };
-    if value > 127 {
-        return Err(Error::new(
-            offset,
-            "character constant depends on the execution character set",
-        ));
-    }
-    Ok(IntegerValue::int(i128::from(value)))
 }

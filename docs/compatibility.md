@@ -13,6 +13,25 @@ extensions.
 Layout supports packing, explicit alignment, and bitfields. Binding generation has
 additional representation constraints described below.
 
+## String and character literals
+
+C11 ordinary, `u8`, `u`, `U`, and `L` strings use UTF-8, UTF-16, or UTF-32
+code units according to their prefix and target. Adjacent ordinary strings inherit
+the other literal's prefix. Differently prefixed wide strings are rejected.
+Octal and hexadecimal escapes preserve code units, including bytes that are not
+valid UTF-8; universal character names must name valid C11 Unicode scalars.
+Array bounds include the terminating NUL unless an explicit bound omits it.
+
+Character constant types and values use the target's plain `char` and `wchar_t`
+widths and signedness. GNU profiles follow GCC's implementation-defined values for
+multicharacter constants; Apple and Windows profiles reject wide constants that
+require multiple code units, following Clang. Alternative execution character
+sets and C23 `u8` character constants are not implemented.
+
+The semantic literal tests compare values with native GCC and Clang and types and
+array bounds with Clang across all five targets. They also check malformed escapes,
+incompatible array element types, and the public decoder's input-size limit.
+
 ## Targets
 
 The canonical target triples accepted by `--target` are listed below. The default
