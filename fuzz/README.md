@@ -57,7 +57,7 @@ the configured in-memory resource headers.
 ## Recorded smoke tests
 
 The [exact-input profile smoke](evidence/input-profiles-2026-09-08.json) validates
-all four current byte-input harnesses at `48b7d73`, after atomic types and parser
+all four byte-input harnesses at `48b7d73`, after atomic types and parser
 limits. The 31-second AddressSanitizer runs processed 139,050 preprocessing inputs,
 12,910 semantic inputs, 5,096 binding inputs, and 6,782 checked-code inputs without
 findings. Seeds cover every target profile for the three target-aware harnesses.
@@ -120,6 +120,25 @@ cargo +nightly fuzz run semantic /tmp/toucan-fuzz-semantic -- -dict=fuzz/c.dict 
 ```
 
 ## Retained-code differential campaign
+
+The [four-boundary campaign](evidence/2026-09-08-8cb3e06/summary.json) at `8cb3e06`
+completed 2,023,237 executions with AddressSanitizer and no findings:
+
+| Target | Executions | Duration | Peak RSS |
+| --- | ---: | ---: | ---: |
+| Preprocessor | 1,111,545 | 901 s | 519 MiB |
+| Semantics and layout | 492,670 | 901 s | 513 MiB |
+| Bindings | 142,125 | 901 s | 513 MiB |
+| Retained-code comparison | 276,897 | 901 s | 514 MiB |
+
+The reports record fixed source and binary hashes, commands, limits, and sanitizer
+settings. Starting corpus archives and compressed logs are checked in beside them;
+each archive was verified against its recorded input hashes. This source includes
+C11 atomic types, introspection, ARM declarations, native atomic headers, and plain
+`__auto_type`. It precedes atomic Rust storage and explicit Clang/Linux profiles.
+The target-aware harnesses used the five original profiles. All executions ran on
+x86-64 Linux; LeakSanitizer remained disabled under ptrace. Counts include invalid
+input and do not establish complete safety or conformance.
 
 Two [later campaigns](evidence/checked-parser-campaigns-2026-09-08.json) completed
 without findings: 195,925 executions at `caf6bcf` after GNU atomic intrinsics and
