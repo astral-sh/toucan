@@ -12,6 +12,10 @@ pub struct TranslationUnit {
     pub target: Target,
     pub declarations: Vec<Declaration>,
     pub records: Vec<Record>,
+    /// Nominal GNU typedef variants mapped directly to their source record.
+    /// Field declaration identities belong to the source record.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub record_origins: BTreeMap<usize, usize>,
     pub enums: Vec<Enum>,
     pub typedefs: BTreeMap<String, Type>,
     pub constants: BTreeMap<String, IntegerValue>,
@@ -208,6 +212,9 @@ pub enum Scope {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Record {
+    /// Whether the canonical union type carries GNU transparent argument passing.
+    #[serde(skip_serializing_if = "is_false")]
+    pub transparent_union: bool,
     pub name: Option<String>,
     pub scope: Scope,
     pub kind: RecordKind,
@@ -725,4 +732,8 @@ fn aligned_layout_type(inner: target::Type, alignment: Option<NonZeroU32>) -> ta
         },
         None => inner,
     }
+}
+
+fn is_false(value: &bool) -> bool {
+    !value
 }

@@ -426,6 +426,7 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Attributes {
+    pub(crate) transparent_union: Option<lang_c::span::Span>,
     pub(crate) weak: Option<lang_c::span::Span>,
     pub(crate) diagnostic_attributes: Vec<crate::checked::attributes::ParsedDiagnosticAttribute>,
     pub(crate) type_use: Option<crate::checked::bounds::TypeUseId>,
@@ -436,9 +437,20 @@ pub(crate) struct Attributes {
     mode: Option<String>,
     calling_convention: Option<CallingConvention>,
     alias_base: bool,
+    pub(crate) typedef_base: bool,
+    pub(crate) unknown_typedef_origin: bool,
 }
 
 impl Attributes {
+    pub(crate) fn require_no_transparent_union(&self) -> Result<(), Error> {
+        if let Some(span) = self.transparent_union {
+            return Err(Error::new(
+                span.start,
+                "transparent_union requires a union definition or typedef",
+            ));
+        }
+        Ok(())
+    }
     pub(crate) fn require_no_weak(&self) -> Result<(), Error> {
         if let Some(span) = self.weak {
             return Err(Error::new(
@@ -558,6 +570,7 @@ fn outermost_derived(
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) transparent_variant_bytes: usize,
     pub(crate) has_variadic_packs: bool,
     pub(crate) generic_selections: HashMap<(usize, usize), usize>,
     pub(crate) weak_symbols: BTreeMap<String, lang_c::span::Span>,
@@ -602,6 +615,7 @@ impl Analyzer {
             target,
             declarations: Vec::new(),
             records: Vec::new(),
+            record_origins: BTreeMap::new(),
             enums: Vec::new(),
             typedefs: BTreeMap::new(),
             constants: BTreeMap::new(),
@@ -649,6 +663,7 @@ impl Analyzer {
             current_function: None,
             block_externs: HashMap::new(),
             weak_symbols: BTreeMap::new(),
+            transparent_variant_bytes: 0,
             has_variadic_packs: false,
             generic_selections: HashMap::new(),
             type_names: HashMap::new(),
@@ -778,6 +793,7 @@ impl Analyzer {
         };
         let id = self.unit.records.len();
         self.unit.records.push(Record {
+            transparent_union: false,
             name: Some("__toucan_va_list_tag".into()),
             scope: Scope::File,
             kind: RecordKind::Struct,
@@ -846,6 +862,7 @@ impl Analyzer {
             )?;
             attributes.require_function_diagnostics(false)?;
             attributes.require_no_weak()?;
+            attributes.require_no_transparent_union()?;
             if attributes.packed || attributes.alignment.is_some() || attributes.mode.is_some() {
                 return Err(Error::new(
                     declaration.span.start,
@@ -894,6 +911,7 @@ impl Analyzer {
         if declaration.node.declarators.is_empty() {
             attributes.require_function_diagnostics(false)?;
             attributes.require_no_weak()?;
+            attributes.require_no_transparent_union()?;
         }
         for item in &declaration.node.declarators {
             let mut is_static = storage.class == Some(ast::StorageClassSpecifier::Static);
@@ -937,6 +955,7 @@ impl Analyzer {
                     &declarator_attributes,
                     item.span.start,
                 )?;
+                self.apply_transparent_typedef(&mut ty, &attributes, &declarator_attributes)?;
                 if let Some(previous) = self.unit.typedefs.get(&name) {
                     if !self.same_type(previous, &ty, 0)? {
                         return Err(Error::new(
@@ -962,6 +981,9 @@ impl Analyzer {
             } else {
                 DeclarationKind::Variable
             };
+            if kind != DeclarationKind::Typedef {
+                declarator_attributes.require_no_transparent_union()?;
+            }
             declarator_attributes
                 .require_function_diagnostics(kind == DeclarationKind::Function)?;
             self.check_diagnostic_attributes(&name, &declarator_attributes.diagnostic_attributes)?;
@@ -1031,6 +1053,13 @@ impl Analyzer {
                         ));
                     }
                 }
+                self.check_transparent_definition_merge(
+                    &previous.ty,
+                    &ty,
+                    previous.is_definition,
+                    definition,
+                    item.span.start,
+                )?;
                 // A composite type retains all available bounds and prototypes,
                 // including those nested inside pointers and function parameters.
                 ty = if definition {
@@ -1221,7 +1250,12 @@ impl Analyzer {
         })
     }
 
-    fn compatible_at(&self, left: &Type, right: &Type, depth: usize) -> Result<bool, Error> {
+    pub(crate) fn compatible_at(
+        &self,
+        left: &Type,
+        right: &Type,
+        depth: usize,
+    ) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
                 0,
@@ -1307,7 +1341,7 @@ impl Analyzer {
                     a.qualifiers = Qualifiers::default();
                     let mut b = self.unit.resolve(&b.ty)?.clone();
                     b.qualifiers = Qualifiers::default();
-                    if !self.compatible_at(&a, &b, depth + 1)? {
+                    if !self.compatible_parameter_at(&a, &b, depth + 1)? {
                         return Ok(false);
                     }
                 }
@@ -1408,7 +1442,7 @@ impl Analyzer {
                         .zip(&a.parameters)
                         .zip(&b.parameters)
                     {
-                        parameter.ty = self.composite_type(&a.ty, &b.ty, depth + 1)?;
+                        parameter.ty = self.composite_parameter_type(&a.ty, &b.ty, depth + 1)?;
                     }
                 }
                 TypeKind::Function(Box::new(function))
@@ -1515,6 +1549,9 @@ impl Analyzer {
                 }
             }
         }
+        let origin = super::transparent_union::typedef_origin(&types);
+        attributes.typedef_base = origin == Some(true);
+        attributes.unknown_typedef_origin = origin.is_none();
         attributes.alias_base = matches!(
             types.as_slice(),
             [Node {
@@ -1787,11 +1824,13 @@ impl Analyzer {
         let (ty, mut attributes) = self.specifier_qualifiers(&name.specifiers)?;
         attributes.require_function_diagnostics(false)?;
         attributes.require_no_weak()?;
+        attributes.require_no_transparent_union()?;
         attributes.type_name_use = true;
         let (ty, type_use) = if let Some(declarator) = &name.declarator {
             let (_, ty, extra) = self.declarator(ty, declarator, &attributes)?;
             extra.require_function_diagnostics(false)?;
             extra.require_no_weak()?;
+            extra.require_no_transparent_union()?;
             (ty, extra.type_use)
         } else {
             (
@@ -1822,6 +1861,7 @@ impl Analyzer {
             attributes.type_name_use,
         )?;
         extra.weak = extra.weak.or(attributes.weak);
+        extra.transparent_union = extra.transparent_union.or(attributes.transparent_union);
         if !attributes.diagnostic_attributes.is_empty() {
             let mut diagnostic_attributes = attributes.diagnostic_attributes.clone();
             diagnostic_attributes.append(&mut extra.diagnostic_attributes);
@@ -1917,6 +1957,7 @@ impl Analyzer {
                                     || attributes.link_name.is_some()
                                     || !attributes.diagnostic_attributes.is_empty()
                                     || attributes.weak.is_some()
+                                    || attributes.transparent_union.is_some()
                                 {
                                     return Err(Error::new(
                                         qualifier.span.start,
@@ -2106,6 +2147,7 @@ impl Analyzer {
                         let (base, mut attributes) = self.specifiers(&parameter.node.specifiers)?;
                         attributes.require_function_diagnostics(false)?;
                         attributes.require_no_weak()?;
+                        attributes.require_no_transparent_union()?;
                         attributes.alias_base = attributes.alias_base
                             && !parameter
                                 .node
@@ -2137,6 +2179,7 @@ impl Analyzer {
                                 )?;
                                 extra.require_function_diagnostics(false)?;
                                 extra.require_no_weak()?;
+                                extra.require_no_transparent_union()?;
                                 (name, ty, extra.type_use)
                             } else {
                                 (None, base, attributes.type_use)
@@ -2150,6 +2193,7 @@ impl Analyzer {
                         self.attributes(&parameter.node.extensions, &mut extra)?;
                         extra.require_function_diagnostics(false)?;
                         extra.require_no_weak()?;
+                        extra.require_no_transparent_union()?;
                         parameter_type = self.apply_calling_convention(
                             parameter_type,
                             &extra,
@@ -2372,6 +2416,9 @@ impl Analyzer {
                     attributes.link_name = inner_attributes.link_name;
                 }
                 attributes.weak = attributes.weak.or(inner_attributes.weak);
+                attributes.transparent_union = attributes
+                    .transparent_union
+                    .or(inner_attributes.transparent_union);
                 attributes
                     .diagnostic_attributes
                     .extend(inner_attributes.diagnostic_attributes);
@@ -2445,6 +2492,7 @@ impl Analyzer {
                 .last()
                 .and_then(|(_, pack)| *pack);
             self.unit.records.push(Record {
+                transparent_union: false,
                 name: name.clone(),
                 scope: self.scope(),
                 kind,
@@ -2489,6 +2537,7 @@ impl Analyzer {
                             self.specifier_qualifiers(&field.node.specifiers)?;
                         attributes.require_function_diagnostics(false)?;
                         attributes.require_no_weak()?;
+                        attributes.require_no_transparent_union()?;
                         if field.node.declarators.is_empty() {
                             // GNU and Clang accept declarations without members,
                             // including nested tag definitions. Only a directly
@@ -2525,6 +2574,7 @@ impl Analyzer {
                                     };
                                 extra.require_function_diagnostics(false)?;
                                 extra.require_no_weak()?;
+                                extra.require_no_transparent_union()?;
                                 if name.as_ref().is_some_and(|name| {
                                     fields.iter().any(|field| field.name.as_ref() == Some(name))
                                 }) {
@@ -2794,6 +2844,7 @@ impl Analyzer {
             self.attributes(&enumerator.node.extensions, &mut attributes)?;
             attributes.require_function_diagnostics(false)?;
             attributes.require_no_weak()?;
+            attributes.require_no_transparent_union()?;
             let value = if let Some(expression) = &enumerator.node.expression {
                 self.eval(expression)?
             } else if let Some(previous) = previous {
@@ -2973,6 +3024,9 @@ impl Analyzer {
     fn apply_record_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
         attributes.require_function_diagnostics(false)?;
         attributes.require_no_weak()?;
+        if let Some(span) = attributes.transparent_union {
+            self.apply_transparent_record(ty, span.start)?;
+        }
         if !attributes.packed && attributes.alignment.is_none() {
             return Ok(());
         }
@@ -3008,6 +3062,15 @@ impl Analyzer {
                 ast::Extension::Attribute(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
                     match name {
+                        "transparent_union" => {
+                            if !attribute.arguments.is_empty() {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "transparent_union takes no arguments",
+                                ));
+                            }
+                            result.transparent_union = Some(extension.span);
+                        }
                         "weak" => {
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(

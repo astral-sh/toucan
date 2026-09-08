@@ -1255,6 +1255,11 @@ impl Emitter<'_> {
         }
         self.check_value(&function.return_type, &mut BTreeSet::new(), depth + 1)?;
         for parameter in &function.parameters {
+            if self.unit.transparent_union(&parameter.ty)?.is_some() {
+                return Err(Error(
+                    "transparent_union parameters require first-member ABI projection".into(),
+                ));
+            }
             self.check_value(&parameter.ty, &mut BTreeSet::new(), depth + 1)?;
         }
         Ok(())

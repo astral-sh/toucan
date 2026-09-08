@@ -7,6 +7,11 @@ use toucan::semantic::{Analysis, TranslationUnit, Type, TypeKind};
 pub(super) fn check(analysis: &Analysis, source: &str) {
     let unit = analysis.unit();
     let code = analysis.checked().expect("retention requested");
+    for &record in unit.record_origins.keys() {
+        let origin = unit.record_origin(record).unwrap();
+        assert!(unit.records[record].transparent_union);
+        assert_eq!(unit.records[record].fields.as_ref().unwrap().len(), unit.records[origin].fields.as_ref().unwrap().len());
+    }
     let mut coverage = vec![0u8; code.occurrences().len()];
     let mut scope_membership = vec![0u8; code.declarations().len()];
     let mut type_operand_membership = vec![0u8; code.type_operands().len()];
@@ -695,6 +700,9 @@ fn expression_use(code: &CheckedCode, operand: &ExprUse) {
     );
     for step in operand.conversions() {
         assert!(code.ty(step.target_type()).is_some());
+        if let Conversion::TransparentUnion { field } = step.kind() {
+            assert!(matches!(code.entity(field).unwrap().kind(), EntityKind::Field { .. }));
+        }
     }
     if let Some(last) = operand.conversions().last() {
         assert_eq!(last.target_type(), operand.effective_type());

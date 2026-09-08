@@ -1,0 +1,609 @@
+{
+  "recorded_utc": "2026-09-08",
+  "scope": "Correction to the transparent union semantic layer: compare Clang natural/increased member type alignment, while retaining decreased storage alignment and distinct field/union annotations. The transparent type query follows aliases without temporary heap allocation.",
+  "preceding_patch_sha256": "cdb9563690b077dcaa1cd7f58ae56daf9277b1c5ad536b93fe67044a89c53472",
+  "tools": {
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin"
+  },
+  "cases": [
+    {
+      "name": "type_increased",
+      "source": "typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));",
+      "source_sha256": "cf19449a3cfbeb97fbe9fe655ba33db8132c8fdf403b8d517203a82e9f44894b",
+      "results": [
+        {
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c"
+          ],
+          "expected_accepted": false,
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-member-alignment.c:1:59: error: \u2018transparent_union\u2019 attribute ignored [-Werror=attributes]\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                           ^\ncc1: some warnings being treated as errors\n"
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-unknown-linux-gnu"
+          ],
+          "expected_accepted": false,
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-member-alignment.c:1:73: error: alignment of field 'second' (128 bits) does not match the alignment of the first field in transparent union; transparent_union attribute ignored [-Werror,-Wignored-attributes]\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                                         ^\n/tmp/toucan-transparent-member-alignment.c:1:64: note: alignment of first field is 32 bits\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                                ^\n1 error generated.\n"
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=aarch64-unknown-linux-gnu"
+          ],
+          "expected_accepted": false,
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-member-alignment.c:1:73: error: alignment of field 'second' (128 bits) does not match the alignment of the first field in transparent union; transparent_union attribute ignored [-Werror,-Wignored-attributes]\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                                         ^\n/tmp/toucan-transparent-member-alignment.c:1:64: note: alignment of first field is 32 bits\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                                ^\n1 error generated.\n"
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-apple-darwin"
+          ],
+          "expected_accepted": false,
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-member-alignment.c:1:73: error: alignment of field 'second' (128 bits) does not match the alignment of the first field in transparent union; transparent_union attribute ignored [-Werror,-Wignored-attributes]\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                                         ^\n/tmp/toucan-transparent-member-alignment.c:1:64: note: alignment of first field is 32 bits\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                                ^\n1 error generated.\n"
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=aarch64-apple-darwin"
+          ],
+          "expected_accepted": false,
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-member-alignment.c:1:73: error: alignment of field 'second' (128 bits) does not match the alignment of the first field in transparent union; transparent_union attribute ignored [-Werror,-Wignored-attributes]\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                                         ^\n/tmp/toucan-transparent-member-alignment.c:1:64: note: alignment of first field is 32 bits\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                                ^\n1 error generated.\n"
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-pc-windows-msvc"
+          ],
+          "expected_accepted": false,
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-member-alignment.c:1:73: error: alignment of field 'second' (128 bits) does not match the alignment of the first field in transparent union; transparent_union attribute ignored [-Werror,-Wignored-attributes]\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                                         ^\n/tmp/toucan-transparent-member-alignment.c:1:64: note: alignment of first field is 32 bits\n    1 | typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));\n      |                                                                ^\n1 error generated.\n"
+        }
+      ]
+    },
+    {
+      "name": "type_decreased",
+      "source": "typedef int I __attribute__((aligned(1))); typedef union {int first; I second;} U __attribute__((transparent_union));",
+      "source_sha256": "77c54cc25822f26f8b21d6d9e70f4144d05560b9bb0046a92fba37146b74057c",
+      "results": [
+        {
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-unknown-linux-gnu"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=aarch64-unknown-linux-gnu"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-apple-darwin"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=aarch64-apple-darwin"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-pc-windows-msvc"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "name": "field_alignment",
+      "source": "typedef union {int first; int second __attribute__((aligned(16)));} U __attribute__((transparent_union));",
+      "source_sha256": "84189653ddcf7172a1fee3ce9e8647f5bc555a58db3b1bd47949f899158f228a",
+      "results": [
+        {
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c"
+          ],
+          "expected_accepted": false,
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-member-alignment.c:1:15: error: \u2018transparent_union\u2019 attribute ignored [-Werror=attributes]\n    1 | typedef union {int first; int second __attribute__((aligned(16)));} U __attribute__((transparent_union));\n      |               ^\ncc1: some warnings being treated as errors\n"
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-unknown-linux-gnu"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=aarch64-unknown-linux-gnu"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-apple-darwin"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=aarch64-apple-darwin"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-pc-windows-msvc"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "name": "union_alignment",
+      "source": "typedef union __attribute__((aligned(16))) {int first; int second;} U __attribute__((transparent_union));",
+      "source_sha256": "cb56c4fda079577a5c60ab39f2969f17f0fd983af6686335c56a161b328c1048",
+      "results": [
+        {
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c"
+          ],
+          "expected_accepted": false,
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-member-alignment.c:1:44: error: \u2018transparent_union\u2019 attribute ignored [-Werror=attributes]\n    1 | typedef union __attribute__((aligned(16))) {int first; int second;} U __attribute__((transparent_union));\n      |                                            ^\ncc1: some warnings being treated as errors\n"
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-unknown-linux-gnu"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=aarch64-unknown-linux-gnu"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-apple-darwin"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=aarch64-apple-darwin"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c",
+            "--target=x86_64-pc-windows-msvc"
+          ],
+          "expected_accepted": true,
+          "exit_code": 0,
+          "stderr": ""
+        }
+      ]
+    }
+  ],
+  "changed_source_sha256": "430fef251e96be855ea33ad91b5bf7ae6f40b93004f4a8229a3c5ea177a40b43",
+  "regression_command": "cargo test -p toucan_semantic --test transparent_unions -- --include-ignored",
+  "regression_log_sha256": "d70591c5195a2e3a921abf8d7effd1886b5bb499d66f769d9b3d88e4ed42e70f",
+  "local_type_name_oracles": [
+    {
+      "source": "void g(void){union X{int i;unsigned u;};typedef union X U;typedef __typeof__(U) V __attribute__((transparent_union));int f(union X);f(1);}",
+      "source_sha256": "beca52ca6700b2d26fa7c6472fe3124917ad2dc3410b661175c1a3f2311be11e",
+      "results": [
+        {
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c"
+          ],
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c"
+          ],
+          "exit_code": 0,
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "source": "void g(void){union X{int i;unsigned u;};typedef union X U;typedef __typeof__(__typeof__(U)) V __attribute__((transparent_union));int f(union X);f(1);}",
+      "source_sha256": "13d195baf216565e1e245ed9b4e7fc49cb13e5dd17bca40a38c091ef10827dd8",
+      "results": [
+        {
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c"
+          ],
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c"
+          ],
+          "exit_code": 0,
+          "stderr": ""
+        }
+      ]
+    },
+    {
+      "source": "void g(void){union X{int i;unsigned u;};typedef union X U;typedef __typeof__((U){0}) V __attribute__((transparent_union));int f(union X);f(1);}",
+      "source_sha256": "288cb524b545d008b15005d167b50484a5e46a63f4b126d505713ddc1525fc1d",
+      "results": [
+        {
+          "command": [
+            "gcc",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c"
+          ],
+          "exit_code": 0,
+          "stderr": ""
+        },
+        {
+          "command": [
+            "clang",
+            "-std=c11",
+            "-Werror=attributes",
+            "-fsyntax-only",
+            "/tmp/toucan-transparent-member-alignment.c"
+          ],
+          "exit_code": 0,
+          "stderr": ""
+        }
+      ]
+    }
+  ],
+  "global_typeof_oracles": [
+    {
+      "operand": "U",
+      "source": "union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__(U) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}",
+      "results": {
+        "gcc": {
+          "exit_code": 0,
+          "stderr": ""
+        },
+        "clang": {
+          "exit_code": 0,
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "operand": "union X",
+      "source": "union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__(union X) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}",
+      "results": {
+        "gcc": {
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-typeof-probe.c: In function \u2018compatible\u2019:\n/tmp/toucan-transparent-typeof-probe.c:1:159: error: incompatible types when assigning to type \u2018union X\u2019 from type \u2018V\u2019 {aka \u2018union X\u2019}\n    1 | union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__(union X) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}\n      |                                                                                                                                                               ^\n/tmp/toucan-transparent-typeof-probe.c: In function \u2018call\u2019:\n/tmp/toucan-transparent-typeof-probe.c:1:202: error: incompatible type for argument 1 of \u2018f\u2019\n    1 | union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__(union X) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}\n      |                                                                                                                                                                                                          ^\n      |                                                                                                                                                                                                          |\n      |                                                                                                                                                                                                          int\n/tmp/toucan-transparent-typeof-probe.c:1:168: note: expected \u2018union X\u2019 but argument is of type \u2018int\u2019\n    1 | union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__(union X) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}\n      |                                                                                                                                                                        ^~~~~~~\n"
+        },
+        "clang": {
+          "exit_code": 0,
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "operand": "x",
+      "source": "union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__(x) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}",
+      "results": {
+        "gcc": {
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-typeof-probe.c: In function \u2018compatible\u2019:\n/tmp/toucan-transparent-typeof-probe.c:1:153: error: incompatible types when assigning to type \u2018union X\u2019 from type \u2018V\u2019 {aka \u2018union X\u2019}\n    1 | union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__(x) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}\n      |                                                                                                                                                         ^\n/tmp/toucan-transparent-typeof-probe.c: In function \u2018call\u2019:\n/tmp/toucan-transparent-typeof-probe.c:1:196: error: incompatible type for argument 1 of \u2018f\u2019\n    1 | union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__(x) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}\n      |                                                                                                                                                                                                    ^\n      |                                                                                                                                                                                                    |\n      |                                                                                                                                                                                                    int\n/tmp/toucan-transparent-typeof-probe.c:1:162: note: expected \u2018union X\u2019 but argument is of type \u2018int\u2019\n    1 | union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__(x) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}\n      |                                                                                                                                                                  ^~~~~~~\n"
+        },
+        "clang": {
+          "exit_code": 0,
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "operand": "u",
+      "source": "union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__(u) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}",
+      "results": {
+        "gcc": {
+          "exit_code": 0,
+          "stderr": ""
+        },
+        "clang": {
+          "exit_code": 0,
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "operand": "(union X){0}",
+      "source": "union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__((union X){0}) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}",
+      "results": {
+        "gcc": {
+          "exit_code": 1,
+          "stderr": "/tmp/toucan-transparent-typeof-probe.c: In function \u2018compatible\u2019:\n/tmp/toucan-transparent-typeof-probe.c:1:164: error: incompatible types when assigning to type \u2018union X\u2019 from type \u2018V\u2019 {aka \u2018union X\u2019}\n    1 | union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__((union X){0}) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}\n      |                                                                                                                                                                    ^\n/tmp/toucan-transparent-typeof-probe.c: In function \u2018call\u2019:\n/tmp/toucan-transparent-typeof-probe.c:1:207: error: incompatible type for argument 1 of \u2018f\u2019\n    1 | union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__((union X){0}) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}\n      |                                                                                                                                                                                                               ^\n      |                                                                                                                                                                                                               |\n      |                                                                                                                                                                                                               int\n/tmp/toucan-transparent-typeof-probe.c:1:173: note: expected \u2018union X\u2019 but argument is of type \u2018int\u2019\n    1 | union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__((union X){0}) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}\n      |                                                                                                                                                                             ^~~~~~~\n"
+        },
+        "clang": {
+          "exit_code": 0,
+          "stderr": ""
+        }
+      }
+    },
+    {
+      "operand": "(U){0}",
+      "source": "union X{int i;unsigned u;};typedef union X U;union X x; U u;typedef __typeof__((U){0}) V __attribute__((transparent_union));void compatible(union X x,V v){x=v;}int f(union X);int call(int v){return f(v);}",
+      "results": {
+        "gcc": {
+          "exit_code": 0,
+          "stderr": ""
+        },
+        "clang": {
+          "exit_code": 0,
+          "stderr": ""
+        }
+      }
+    }
+  ],
+  "allocation_comparison": {
+    "baseline": {
+      "allocations": {
+        "command": [
+          "rustc",
+          "--edition=2024",
+          "--extern",
+          "toucan_semantic=/home/dev-user/.cache/toucan/transparent-union-baseline-target/release/libtoucan_semantic.rlib",
+          "--extern",
+          "toucan_target=/home/dev-user/.cache/toucan/transparent-union-baseline-target/release/deps/libtoucan_target-1ae44c1205377f36.rlib",
+          "-L",
+          "dependency=/home/dev-user/.cache/toucan/transparent-union-baseline-target/release/deps",
+          "-O",
+          "/tmp/toucan-transparent-alias-allocations.rs",
+          "-o",
+          "/tmp/toucan-transparent-allocations-baseline"
+        ],
+        "source_sha256": "5a99a10a476baeb40bd13d8c0617e76777ed02c9f10d3fe73e88f36beb93c06f",
+        "binary_sha256": "3bf9bea87df3d63409378c47501897cafc58fd9164cee3debafc02a300e87924",
+        "result": "0: 90 allocations, 25085 bytes; 2 declarations\n1: 283 allocations, 52024 bytes; 1 declarations\n2: 13460 allocations, 2444578 bytes; 100 declarations\n3: 206 allocations, 37930 bytes; 3 declarations\n"
+      },
+      "type_size": {
+        "command": [
+          "rustc",
+          "--edition=2024",
+          "--extern",
+          "toucan_semantic=/home/dev-user/.cache/toucan/transparent-union-baseline-target/release/libtoucan_semantic.rlib",
+          "--extern",
+          "toucan_target=/home/dev-user/.cache/toucan/transparent-union-baseline-target/release/deps/libtoucan_target-1ae44c1205377f36.rlib",
+          "-L",
+          "dependency=/home/dev-user/.cache/toucan/transparent-union-baseline-target/release/deps",
+          "-O",
+          "/tmp/toucan-transparent-type-size.rs",
+          "-o",
+          "/tmp/toucan-transparent-type_size-baseline"
+        ],
+        "source_sha256": "96ff06f8322480dbb3dbb2ada2be2b3068c9f36c753917f06125b3da31608143",
+        "binary_sha256": "0b048b4725acb0a4108b4584aafb94a2480190f6acbc5cb5d6623156d5684f3c",
+        "result": "Declaration=128, Type=40, Record=88, Unit=128, ConversionStep=8\n"
+      }
+    },
+    "changed": {
+      "allocations": {
+        "command": [
+          "rustc",
+          "--edition=2024",
+          "--extern",
+          "toucan_semantic=/home/dev-user/.cache/toucan/transparent-union-integrated-target/release/libtoucan_semantic.rlib",
+          "--extern",
+          "toucan_target=/home/dev-user/.cache/toucan/transparent-union-integrated-target/release/deps/libtoucan_target-1ae44c1205377f36.rlib",
+          "-L",
+          "dependency=/home/dev-user/.cache/toucan/transparent-union-integrated-target/release/deps",
+          "-O",
+          "/tmp/toucan-transparent-alias-allocations.rs",
+          "-o",
+          "/tmp/toucan-transparent-allocations-changed"
+        ],
+        "source_sha256": "5a99a10a476baeb40bd13d8c0617e76777ed02c9f10d3fe73e88f36beb93c06f",
+        "binary_sha256": "e718d323cb15e282916c9b6dc81d57e266892045e439500267817df9032233b9",
+        "result": "0: 90 allocations, 25085 bytes; 2 declarations\n1: 283 allocations, 52024 bytes; 1 declarations\n2: 13460 allocations, 2444578 bytes; 100 declarations\n3: 206 allocations, 37930 bytes; 3 declarations\n"
+      },
+      "type_size": {
+        "command": [
+          "rustc",
+          "--edition=2024",
+          "--extern",
+          "toucan_semantic=/home/dev-user/.cache/toucan/transparent-union-integrated-target/release/libtoucan_semantic.rlib",
+          "--extern",
+          "toucan_target=/home/dev-user/.cache/toucan/transparent-union-integrated-target/release/deps/libtoucan_target-1ae44c1205377f36.rlib",
+          "-L",
+          "dependency=/home/dev-user/.cache/toucan/transparent-union-integrated-target/release/deps",
+          "-O",
+          "/tmp/toucan-transparent-type-size.rs",
+          "-o",
+          "/tmp/toucan-transparent-type_size-changed"
+        ],
+        "source_sha256": "96ff06f8322480dbb3dbb2ada2be2b3068c9f36c753917f06125b3da31608143",
+        "binary_sha256": "0af34122de1a62208bb5483f87e8c6678bb171e032ba6adcde41e10da981190f",
+        "result": "Declaration=128, Type=40, Record=88, Unit=152, ConversionStep=12\n"
+      }
+    }
+  },
+  "remaining_limit": "GNU attributed typedefs using typeof(expression) diagnose when expanded local types do not retain whether the expression came from a typedef. Parsed type names, including local aliases and nested typeof type names, preserve the origin without this diagnostic.",
+  "changed_production_sha256": {
+    "crates/toucan_semantic/src/analyze.rs": "039a75b1d514570732329382826ecac3e9ae682017f51f065ed956aaf6b123c7",
+    "crates/toucan_semantic/src/transparent_union.rs": "430fef251e96be855ea33ad91b5bf7ae6f40b93004f4a8229a3c5ea177a40b43"
+  }
+}

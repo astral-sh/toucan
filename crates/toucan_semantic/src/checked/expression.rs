@@ -41,6 +41,10 @@ pub enum Conversion {
     Arithmetic,
     Pointer,
     Assignment,
+    /// Constructs a transparent-union argument through the selected field.
+    TransparentUnion {
+        field: super::EntityId,
+    },
     DefaultArgument,
     ExplicitCast,
     Conditional,
@@ -1292,6 +1296,45 @@ impl Analyzer {
             let (destination, conversion) = if function.prototype
                 && let Some(parameter) = function.parameters.get(index)
             {
+                if let Some(selected) = self.transparent_argument(&parameter.ty, argument)? {
+                    let member = self.unit.records[selected.record].fields.as_ref().unwrap()
+                        [selected.field]
+                        .ty
+                        .clone();
+                    let mut operand = self.retained_use(
+                        argument,
+                        UseContext::Value,
+                        Some((member, Conversion::Assignment)),
+                    )?;
+                    let union = self.unqualified(&parameter.ty)?;
+                    let union_type = self.retained_type(&union, offset)?;
+                    let origin = self.unit.record_origin(selected.record)?;
+                    let field = self
+                        .code_builder()
+                        .entities
+                        .get(&super::EntityKey::Field(origin, selected.field))
+                        .copied()
+                        .ok_or_else(|| {
+                            Error::new(
+                                offset,
+                                "transparent_union field has no retained declaration",
+                            )
+                        })?;
+                    self.code_builder().budget.charge(
+                        0,
+                        2,
+                        std::mem::size_of::<ConversionStep>(),
+                        offset,
+                    )?;
+                    operand.conversions.push(ConversionStep {
+                        kind: Conversion::TransparentUnion { field },
+                        target_type: union_type,
+                    });
+                    operand.effective_type = union_type;
+                    operand.type_use = self.code_builder().plain_type_use(&union, offset)?;
+                    arguments.push(operand);
+                    continue;
+                }
                 (self.unqualified(&parameter.ty)?, Conversion::Assignment)
             } else {
                 (

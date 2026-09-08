@@ -643,6 +643,7 @@ impl Analyzer {
         if declaration.node.declarators.is_empty() {
             attributes.require_function_diagnostics(false)?;
             attributes.require_no_weak()?;
+            attributes.require_no_transparent_union()?;
         }
         for item in &declaration.node.declarators {
             let (name, mut ty, extra) =
@@ -655,6 +656,9 @@ impl Analyzer {
                     &extra,
                     item.span.start,
                 )?;
+                self.apply_transparent_typedef(&mut ty, &attributes, &extra)?;
+            } else {
+                extra.require_no_transparent_union()?;
             }
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "local declaration has no name"))?;

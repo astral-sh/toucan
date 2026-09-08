@@ -139,3 +139,37 @@ logical nodes, references, and owned payload; they apply only when retention is
 requested. IDs are local to one analysis and cannot be mixed between owners.
 
 See [the analysis API](analysis-api.md) for traversal and source-mapping examples.
+
+### Transparent unions
+
+GNU `transparent_union` changes fixed-parameter calls while preserving ordinary
+union storage, return values, and variadic arguments. The semantic API exposes the
+first member through `TranslationUnit::parameter_abi_type`. Retained call operands
+include a `Conversion::TransparentUnion` step naming the source field used to
+construct the union. GCC matches member types; Clang profiles try assignment
+conversions in field order. These rules can select different scalar members.
+
+Direct attributed typedefs create distinct nominal union types on GNU profiles.
+`TranslationUnit::record_origins` maps those variants to their source record;
+`record_origin` validates that direct edge. Field entities belong to the source
+record. Applying the attribute through an existing typedef updates that common
+union type. Clang profiles update the common type for direct typedefs too.
+Additional cloned variant representations have a conservative 16 MiB budget.
+
+The current semantic support requires a non-bitfield integer or pointer first
+member and scalar alternatives. Unsupported aggregate members, invalid widths,
+and union definitions combined with member-typed redeclarations return explicit
+diagnostics. The latter has a GCC/Clang ABI difference. Binding generation rejects
+selected transparent fixed parameters until first-member projection is provided;
+ordinary storage and union-return declarations remain representable.
+
+The [transparent-union evidence](../corpus/evidence/transparent-unions-2026-09-08.json)
+records compiler profile differences, native calls, cross-target LLVM carriers,
+retained field references, the real-source follow-up diagnostics, and an exact
+baseline comparison of default-path allocations.
+
+The [member-alignment probes](../corpus/evidence/transparent-union-member-alignment-2026-09-08.json)
+distinguish a member type’s alignment from field and union layout annotations.
+Clang compares natural or increased member type alignments; typedef alignment
+decreases and overall packed or increased union
+alignment remains a separate storage property.

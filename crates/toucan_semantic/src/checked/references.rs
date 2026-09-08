@@ -186,7 +186,7 @@ impl Analyzer {
                         "retained member index is outside its record",
                     )
                 })?;
-            target = Some((record, index));
+            target = Some((self.unit.record_origin(record)?, index));
             ty = &member.ty;
         }
         let (record, index) =

@@ -369,7 +369,7 @@ impl Analyzer {
                     if function.prototype
                         && let Some(parameter) = function.parameters.get(index)
                     {
-                        self.check_assignment(&parameter.ty, argument)?;
+                        self.check_function_argument(&parameter.ty, argument)?;
                     } else {
                         let ty = self.value_expression_type(argument)?;
                         self.require_complete_object(&ty, argument.span.start)?;
@@ -978,7 +978,7 @@ impl Analyzer {
         Ok(result)
     }
 
-    fn is_null_pointer_constant(
+    pub(crate) fn is_null_pointer_constant(
         &mut self,
         expression: &Node<ast::Expression>,
         ty: &Type,
