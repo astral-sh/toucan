@@ -7,7 +7,7 @@ use toucan_preprocessor::{
 
 #[derive(Debug)]
 struct Catalog {
-    dialect: QueryDialect,
+    fallthrough: u64,
     gnu_namespace: bool,
 }
 impl FeatureQueryProvider for Catalog {
@@ -19,13 +19,7 @@ impl FeatureQueryProvider for Catalog {
             FeatureQuery::Builtin => u64::from(name == "__builtin_bswap32"),
             FeatureQuery::Attribute => match name {
                 "aligned" | "__aligned__" | "packed" => 1,
-                "fallthrough" => {
-                    if self.dialect == QueryDialect::Gnu {
-                        201910
-                    } else {
-                        1
-                    }
-                }
+                "fallthrough" => self.fallthrough,
                 _ => 0,
             },
         }
@@ -37,7 +31,11 @@ fn config(dialect: QueryDialect) -> Config {
         feature_queries: Some(FeatureQueries::new(
             dialect,
             Arc::new(Catalog {
-                dialect,
+                fallthrough: if dialect == QueryDialect::Gnu {
+                    201910
+                } else {
+                    1
+                },
                 gnu_namespace: true,
             }),
         )),
@@ -272,7 +270,47 @@ fn feature_query_syntax_values_and_effects_match_compilers() {
         "aarch64-apple-darwin",
         "x86_64-pc-windows-msvc",
     ];
-    for (compiler, dialect) in [("gcc", QueryDialect::Gnu), ("clang", QueryDialect::Clang)] {
+    let preprocess = |compiler: &str, target: Option<&str>, standard: &str, source: &str| {
+        let mut command = Command::new(compiler);
+        command
+            .args(["-E", "-P", "-x", "c"])
+            .arg(format!("-std={standard}"));
+        if let Some(target) = target {
+            command.arg(format!("--target={target}"));
+        }
+        let mut child = command
+            .arg("-")
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .unwrap();
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(source.as_bytes())
+            .unwrap();
+        child.wait_with_output().unwrap()
+    };
+    let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
+    for (compiler, dialect) in [
+        (gcc.as_str(), QueryDialect::Gnu),
+        ("clang", QueryDialect::Clang),
+    ] {
+        // This catalog tests operator mechanics. Attribute revision dates belong
+        // to the selected compiler, and GCC releases use different values.
+        let revision = preprocess(compiler, None, "gnu11", "__has_attribute(fallthrough)\n");
+        assert_eq!(
+            toucan_test_support::compiler_acceptance(&revision),
+            Ok(true),
+            "{compiler}: {revision:?}"
+        );
+        let fallthrough = String::from_utf8(revision.stdout)
+            .unwrap()
+            .trim()
+            .parse::<u64>()
+            .unwrap();
         let native_targets = ["native"];
         let targets = if dialect == QueryDialect::Gnu {
             &native_targets[..]
@@ -282,31 +320,16 @@ fn feature_query_syntax_values_and_effects_match_compilers() {
         for target in targets {
             for standard in ["c11", "gnu11"] {
                 for (name, source) in CASES {
-                    let mut command = Command::new(compiler);
-                    command
-                        .args(["-E", "-P", "-x", "c"])
-                        .arg(format!("-std={standard}"));
-                    if dialect == QueryDialect::Clang {
-                        command.arg(format!("--target={target}"));
-                    }
-                    let mut child = command
-                        .arg("-")
-                        .stdin(Stdio::piped())
-                        .stdout(Stdio::piped())
-                        .stderr(Stdio::piped())
-                        .spawn()
-                        .unwrap();
-                    child
-                        .stdin
-                        .take()
-                        .unwrap()
-                        .write_all(source.as_bytes())
-                        .unwrap();
-                    let native = child.wait_with_output().unwrap();
+                    let native = preprocess(
+                        compiler,
+                        (dialect == QueryDialect::Clang).then_some(*target),
+                        standard,
+                        source,
+                    );
                     let accepted = toucan_test_support::compiler_acceptance(&native).unwrap();
                     let mut query_config = config(dialect);
                     query_config.feature_queries.as_mut().unwrap().provider = Arc::new(Catalog {
-                        dialect,
+                        fallthrough,
                         gnu_namespace: standard == "gnu11",
                     });
                     let actual = Preprocessor::new(query_config)
@@ -326,6 +349,23 @@ fn feature_query_syntax_values_and_effects_match_compilers() {
                     }
                 }
             }
+        }
+    }
+}
+
+#[test]
+fn feature_query_preserves_catalog_revision_numbers() {
+    for dialect in [QueryDialect::Gnu, QueryDialect::Clang] {
+        for fallthrough in [1, 201910, 202311] {
+            let mut query_config = config(dialect);
+            query_config.feature_queries.as_mut().unwrap().provider = Arc::new(Catalog {
+                fallthrough,
+                gnu_namespace: true,
+            });
+            let result = Preprocessor::new(query_config)
+                .preprocess_str(Path::new("query.h"), "__has_attribute(fallthrough)\n")
+                .unwrap();
+            assert_eq!(result.source, format!("{fallthrough}\n"));
         }
     }
 }

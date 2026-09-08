@@ -1,0 +1,10 @@
+{
+  "base_commit": "197b62c",
+  "counts": {
+    "facade": 6,
+    "semantic": 3,
+    "preprocessor": 5
+  },
+  "clippy": "passed",
+  "native_macos_rerun": false
+}

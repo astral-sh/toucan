@@ -100,23 +100,28 @@ fn constant_evaluation_fragments_inherit_the_unit_mode() {
 fn keyword_modes_match_native_compilers() {
     use std::process::Command;
     use toucan_target::Compiler;
-    let host = match (std::env::consts::ARCH, std::env::consts::OS) {
-        ("x86_64", "linux") => Target::X86_64UnknownLinuxGnu,
-        ("aarch64", "linux") => Target::Aarch64UnknownLinuxGnu,
-        ("x86_64", "macos") => Target::X86_64AppleDarwin,
-        ("aarch64", "macos") => Target::Aarch64AppleDarwin,
-        _ => panic!("unsupported native oracle host"),
-    };
     let directory = tempfile::tempdir().unwrap();
     let input = directory.path().join("modes.c");
     let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
-    let version = Command::new(&gcc).arg("--version").output().unwrap();
-    assert!(version.status.success());
-    let gnu = !String::from_utf8_lossy(&version.stdout)
-        .to_ascii_lowercase()
-        .contains("clang");
+    let native_target = match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") => Some(Target::X86_64UnknownLinuxGnu),
+        ("aarch64", "linux") => Some(Target::Aarch64UnknownLinuxGnu),
+        _ => None,
+    };
+    // GNU profiles are supported on Linux; Darwin and Windows use Clang below.
+    let native_gnu = native_target.map_or_else(Vec::new, |target| {
+        let version = Command::new(&gcc).arg("--version").output().unwrap();
+        assert!(version.status.success(), "{gcc}: {version:?}");
+        assert!(
+            !String::from_utf8_lossy(&version.stdout)
+                .to_ascii_lowercase()
+                .contains("clang"),
+            "the GNU oracle requires GCC; set TOUCAN_GCC to its executable"
+        );
+        vec![(target, false, true)]
+    });
     for (command, targets) in [
-        (gcc.as_str(), vec![(host, false, gnu)]),
+        (gcc.as_str(), native_gnu),
         (
             "clang",
             Target::ALL.map(|target| (target, true, false)).to_vec(),
