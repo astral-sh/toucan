@@ -202,3 +202,30 @@ fn advertised_language_features_match_native_source_acceptance() {
         }
     }
 }
+
+#[test]
+fn query_pragmas_keep_header_inclusion_effects_with_the_semantic_catalog() {
+    for profile in CompilerProfile::ALL
+        .into_iter()
+        .flat_map(|p| LanguageMode::ALL.map(|m| p.with_language_mode(m)))
+    {
+        let mut config = Config::with_profile(profile);
+        config.preprocessor.allow_filesystem = false;
+        config.analysis.retain_code = true;
+        config.preprocessor.virtual_headers.insert("once.h".into(), "enum { available = __has_attribute(_Pragma(\"once\") aligned) };\nstruct Included { int value; };\n".into());
+        let source =
+            "#include <once.h>\n#include <once.h>\n_Static_assert(available, \"attribute\");\n";
+        let compilation = toucan::parse_source(Path::new("include.h"), source, &config)
+            .unwrap_or_else(|error| panic!("{profile:?}: {error}"));
+        assert_eq!(
+            compilation
+                .unit()
+                .records
+                .iter()
+                .filter(|r| r.name.as_deref() == Some("Included"))
+                .count(),
+            1
+        );
+        assert!(compilation.checked().is_some());
+    }
+}

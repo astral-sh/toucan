@@ -41,8 +41,10 @@ assert_eq!(result.expand_object_macro("COUNT")?.as_deref(), Some("4"));
 The `__clang__` predefined macro selects Clang's `include_next` behavior for quoted
 local helper headers. Otherwise, these headers use GCC's search behavior. Standard
 include directories and compiler feature-query macros are not inferred from the host.
-The same profile selects Clang's support for `_Pragma` inside preprocessing conditions;
-GCC rejects that use.
+A configured query dialect selects support for `_Pragma` inside preprocessing
+conditions independently of identity macro overrides: Clang permits it and GNU
+rejects it. Without a query configuration, `__clang__` selects the existing standalone
+behavior.
 
 Each call starts a fresh translation unit. The result contains expanded source, final
 macro definitions, and canonical paths of the filesystem dependencies actually read.
@@ -83,7 +85,12 @@ Source `#define`/`#undef` and configuration overrides replace or remove operator
 Entry points restore the configured initial state; final-environment macro queries
 observe the final operator state. Malformed active queries diagnose even on the
 unevaluated side of `0 && query()`. Inactive directive groups do not evaluate them.
-Expanded `_Pragma` directives inside query arguments remain unsupported.
+Expanding queries preserve supported `_Pragma` effects, including `once` header
+inclusion. Clang also accepts diagnostic and message pragmas there; GNU rejects its
+`GCC diagnostic` and `message` handlers at this boundary. Raw queries and raw
+namespace lookahead do not consume deferred pragmas from wrapper arguments.
+`pack` inside query arguments remains explicitly unsupported: preprocessing-only
+acceptance does not establish support during C compilation.
 
 ## Translation timestamps
 

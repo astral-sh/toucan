@@ -952,7 +952,11 @@ impl Preprocessor {
         let mut ordinary = Vec::with_capacity(expanded.len());
         for token in expanded {
             if token.kind == Kind::Pragma {
-                if !self.macros.contains_key("__clang__") {
+                let clang = self.config.feature_queries.as_ref().map_or_else(
+                    || self.macros.contains_key("__clang__"),
+                    |queries| queries.dialect == QueryDialect::Clang,
+                );
+                if !clang {
                     return Err("_Pragma is not supported in GCC preprocessing conditions".into());
                 }
                 let payload = lex_with_scope(&token.text, self.config.scope_punctuator)?;

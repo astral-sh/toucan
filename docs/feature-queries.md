@@ -57,9 +57,15 @@ query still requires valid operands and, at a Rust call boundary, a supported AB
 The catalog measures implemented support rather than every capability of the
 native compiler. Compiler version macros remain unchanged in this layer.
 
-Expanded `_Pragma` operands inside queries remain unsupported in this layer.
-Preprocessing output alone does not prove that a pragma is valid at the same C
-source position; the compile and preprocess distinctions are tracked separately.
+Expanding query operands preserve supported `_Pragma` effects, including `once`
+when a header is included again. Raw queries and deferred namespace lookahead
+retain their argument constraints. Empty, once, system-header, and ignored clang
+pragmas work under GNU; Clang also permits diagnostic and message handlers.
+Conditional effects follow the configured query dialect even if identity macros
+are overridden. The [pragma evidence](../corpus/evidence/query-pragmas-2026-09-08/summary.json)
+compares original C compilation before preprocessing: Clang accepts some pack
+queries with `-E` but crashes when compiling them. Pack inside a query remains an
+explicit unsupported case; a compiler crash is never counted as source rejection.
 
 ## Validation
 
@@ -121,3 +127,9 @@ also checks 264 feature-selected source pairs across all 44 profile/mode setting
 reference binding artifacts are unchanged. Its ASan campaign runs 488,116 inputs
 in 181 seconds with no findings; source hashes remain unchanged and every seed
 covers all 40 preprocessing settings.
+
+The [pragma integration](../corpus/evidence/query-pragmas-root-integration-2026-09-08/summary.json)
+checks repeated header inclusion with the semantic catalog across all 44 settings,
+reruns native inclusion and identity-override probes, and preserves eight binding
+artifacts. Its ASan run processes 264,003 inputs in 121 seconds with no findings
+and unchanged source hashes.

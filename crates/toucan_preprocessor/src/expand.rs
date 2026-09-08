@@ -37,7 +37,14 @@ impl Expansion<'_> {
         self.recursion += 1;
         let result = self.expand_inner::<true>(pending);
         self.recursion -= 1;
-        result.map(|mut tokens| tokens.pop())
+        result.map(|tokens| {
+            let mut tokens = tokens.into_iter();
+            let first = tokens.next();
+            for token in tokens.rev() {
+                pending.push_front(token);
+            }
+            first
+        })
     }
 
     fn expand_inner<const FIRST: bool>(
@@ -136,13 +143,18 @@ impl Expansion<'_> {
                     .as_ref()
                     .expect("active query configuration");
                 let argument = if queries.permits_namespace(kind) {
-                    self.expand_scoped_query_argument(kind, argument)?
+                    self.expand_scoped_query_argument(kind, argument, &mut output)?
                 } else if queries.expands_argument(kind) {
                     self.expand(argument)?
                 } else {
                     argument
                 };
                 self.charge(&argument)?;
+                let argument = if queries.expands_argument(kind) {
+                    take_query_directives(argument, &mut output, queries.dialect)?
+                } else {
+                    argument
+                };
                 let value = queries.evaluate(kind, &argument)?;
                 let mut replacement = token;
                 replacement.kind = Kind::Number;
@@ -220,16 +232,24 @@ impl Expansion<'_> {
         &mut self,
         kind: FeatureQuery,
         argument: Vec<Token>,
+        directives: &mut Vec<Token>,
     ) -> Result<Vec<Token>, String> {
-        let mut pending = argument.into();
-        let Some(first) = self.expand_first(&mut pending)? else {
-            return Ok(Vec::new());
-        };
         let queries = self
             .config
             .feature_queries
             .as_ref()
             .expect("query configuration");
+        let mut pending = argument.into();
+        let first = loop {
+            match self.expand_first(&mut pending)? {
+                Some(token) if token.kind == Kind::Pragma => {
+                    query_directive(&token, queries.dialect)?;
+                    directives.push(token);
+                }
+                Some(token) => break token,
+                None => return Ok(Vec::new()),
+            }
+        };
         let scope_len = if pending.front().is_some_and(|token| token.text == "::") {
             1
         } else if pending.front().is_some_and(|token| token.colon_scope)
@@ -245,12 +265,13 @@ impl Expansion<'_> {
             tokens.extend(self.expand(pending.into())?);
             Ok(tokens)
         } else {
-            let remainder =
-                if kind == FeatureQuery::CAttribute && queries.dialect == QueryDialect::Clang {
-                    Vec::from(pending)
-                } else {
-                    self.expand(pending.into())?
-                };
+            let remainder = if kind == FeatureQuery::CAttribute
+                && queries.dialect == QueryDialect::Clang
+            {
+                Vec::from(pending)
+            } else {
+                take_query_directives(self.expand(pending.into())?, directives, queries.dialect)?
+            };
             if !remainder.is_empty() {
                 self.charge(&remainder)?;
                 return Err(format!(
@@ -367,6 +388,47 @@ impl Expansion<'_> {
         }
         Ok(())
     }
+}
+
+/// Expanded directives keep their position in the surrounding output stream;
+/// they do not become operands of a compiler feature query.
+fn take_query_directives(
+    tokens: Vec<Token>,
+    output: &mut Vec<Token>,
+    dialect: QueryDialect,
+) -> Result<Vec<Token>, String> {
+    if !tokens.iter().any(|token| token.kind == Kind::Pragma) {
+        return Ok(tokens);
+    }
+    let mut arguments = Vec::with_capacity(tokens.len());
+    for token in tokens {
+        if token.kind == Kind::Pragma {
+            query_directive(&token, dialect)?;
+            output.push(token);
+        } else {
+            arguments.push(token);
+        }
+    }
+    Ok(arguments)
+}
+
+/// Compiler parsers defer some pragma handlers as annotation tokens. Such tokens
+/// cannot stand in for an identifier, even when a preprocessing-only run accepts
+/// the same source. Preserve only handlers supported at this query boundary.
+fn query_directive(token: &Token, dialect: QueryDialect) -> Result<(), String> {
+    let mut words = token.text.split_whitespace();
+    let name = words.next();
+    if name == Some("pack")
+        || dialect == QueryDialect::Gnu
+            && (name == Some("message")
+                || name == Some("GCC") && words.next() == Some("diagnostic"))
+    {
+        return Err(format!(
+            "unsupported pragma in feature-query argument: {}",
+            token.text
+        ));
+    }
+    Ok(())
 }
 
 fn arguments(

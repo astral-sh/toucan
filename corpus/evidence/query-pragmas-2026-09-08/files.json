@@ -1,0 +1,62 @@
+{
+  "logs/all-native.log": {
+    "bytes": 8954,
+    "sha256": "b8ba6294660a6ec2f470dfddf6a96e3ce8b069467563eb23b6eb037b8ea95741"
+  },
+  "logs/clippy.log": {
+    "bytes": 316,
+    "sha256": "6f7297d4a4afd72d2a467912c35cec15a29fbd09b3ec586d7297797e0777a5c1"
+  },
+  "logs/diff.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "logs/fmt.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "logs/gcc14.log": {
+    "bytes": 930,
+    "sha256": "3132814edd09825f06cb2c305117178b40db21282a23bd841654dbb96844b3b4"
+  },
+  "native-probes/compile-vs-preprocess.json": {
+    "bytes": 166275,
+    "sha256": "90c9721896c1948da463ae4d714222a94b23e98a76cd372dd71515e6866efe0e"
+  },
+  "native-probes/handlers.json": {
+    "bytes": 22420,
+    "sha256": "ea4749dabb8084bc9ad694ec640c08c0ddf83bc58ba6b7023cb3378bf29f91f1"
+  },
+  "primary-sources.json": {
+    "bytes": 435,
+    "sha256": "89006a8ac7b61e45b679416a0aef6d11e9fc14f9850abf48a4f2463c3fd7d5d8"
+  },
+  "scripts/toucan-query-pragma-probes.py": {
+    "bytes": 1687,
+    "sha256": "fa685a11845ccf03245621b7144e9ab1fa1c6625d9e019ddc447aa19a76d5e3f"
+  },
+  "scripts/toucan-query-pragmas-capture.py": {
+    "bytes": 5183,
+    "sha256": "9d20398a9b21216b472cd25346be79d5e87032b45143df81e6e0f553ab2c6c8d"
+  },
+  "source/crates/toucan_preprocessor/README.md": {
+    "bytes": 10045,
+    "sha256": "3f7d46a1bea9211bd972182582823111fa5acab02fc81a20e55a0853024b81fe"
+  },
+  "source/crates/toucan_preprocessor/src/expand.rs": {
+    "bytes": 23073,
+    "sha256": "94cbcf1ee2e08e9d753e57b7c589287eb0d73ab155d0c4930d079b1dc0978cc4"
+  },
+  "source/crates/toucan_preprocessor/src/lib.rs": {
+    "bytes": 54877,
+    "sha256": "ea40665a87d303a48d9d673b4c2d2674db0626b5b43db21e92f3291e89ac5770"
+  },
+  "source/crates/toucan_preprocessor/tests/query_pragmas.rs": {
+    "bytes": 15387,
+    "sha256": "3f608ad5e8e676c98edd0f1f72c6fe1d0aa17f7eea42c1975e5ce9019e9882e6"
+  },
+  "versions.json": {
+    "bytes": 733,
+    "sha256": "3c5599edf22741aee0ecc91486416839ea93f8ee289db2627ea2e9e38081bb96"
+  }
+}
