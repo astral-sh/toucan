@@ -56,6 +56,11 @@ pub enum TypeKind {
         element: Box<Type>,
         length: Option<u64>,
     },
+    /// A complete array whose extent is determined at runtime. Unlike an
+    /// incomplete array, its extent cannot be completed by a later declaration.
+    VariableArray {
+        element: Box<Type>,
+    },
     Function(Box<FunctionType>),
     Record(usize),
     Enum(usize),
@@ -267,6 +272,55 @@ impl IntegerValue {
 }
 
 impl TranslationUnit {
+    /// Whether this array's size depends on a runtime bound. Pointers to such
+    /// arrays still have a constant pointer size.
+    pub fn is_variable_length_array(&self, ty: &Type) -> Result<bool, Error> {
+        let mut ty = ty;
+        for _ in 0..128 {
+            match &self.resolve(ty)?.kind {
+                TypeKind::VariableArray { .. } => return Ok(true),
+                TypeKind::Array { element, .. } => ty = element,
+                _ => return Ok(false),
+            }
+        }
+        Err(Error::new(
+            0,
+            "array type nesting exceeds the 128-level limit",
+        ))
+    }
+
+    /// Whether an array bound contributes a variably modified type. Function
+    /// parameter types do not make the containing function variably modified.
+    pub fn is_variably_modified(&self, ty: &Type) -> Result<bool, Error> {
+        let mut ty = ty;
+        for _ in 0..128 {
+            match &self.resolve(ty)?.kind {
+                TypeKind::VariableArray { .. } => return Ok(true),
+                TypeKind::Array { element, .. } | TypeKind::Pointer(element) => ty = element,
+                TypeKind::Function(function) => ty = &function.return_type,
+                _ => return Ok(false),
+            }
+        }
+        Err(Error::new(0, "type nesting exceeds the 128-level limit"))
+    }
+
+    /// Computes alignment even when a complete array has a runtime extent.
+    pub fn alignment(&self, ty: &Type) -> Result<u64, Error> {
+        let mut ty = ty;
+        for _ in 0..128 {
+            match &self.resolve(ty)?.kind {
+                TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+                    ty = element
+                }
+                _ => return Ok(self.layout(ty)?.alignment_bytes()),
+            }
+        }
+        Err(Error::new(
+            0,
+            "array type nesting exceeds the 128-level limit",
+        ))
+    }
+
     /// Collects top-level qualifiers contributed by every typedef in the chain.
     pub fn qualifiers(&self, ty: &Type) -> Result<Qualifiers, Error> {
         let mut ty = ty;
@@ -448,6 +502,12 @@ impl TranslationUnit {
                 element: Box::new(self.layout_type(element, active, cache, depth + 1, false)?),
                 length: *length,
             },
+            TypeKind::VariableArray { .. } => {
+                return Err(Error::new(
+                    0,
+                    "variable-length array size requires a runtime bound",
+                ));
+            }
             TypeKind::Enum(id) => {
                 let enumeration = self
                     .enums

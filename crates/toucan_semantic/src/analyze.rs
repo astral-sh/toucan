@@ -335,6 +335,8 @@ pub(crate) struct TagBinding {
 #[derive(Default)]
 pub(crate) struct LexicalScope {
     pub(crate) is_block: bool,
+    pub(crate) is_definition_parameters: bool,
+    pub(crate) variably_modified: Option<usize>,
     pub(crate) record_ids: Vec<usize>,
     pub(crate) enum_ids: Vec<usize>,
     pub(crate) typedefs: HashMap<String, Type>,
@@ -425,6 +427,8 @@ pub(crate) struct Analyzer {
     pub(crate) character_literals: HashMap<usize, String>,
     nesting: usize,
     pub(crate) capture_function_scope: bool,
+    definition_parameters: Option<usize>,
+    pub(crate) variably_modified_parents: Vec<Option<usize>>,
     pub(crate) function_scope: Option<crate::statement::FunctionScope>,
     pub(crate) block_externs: HashMap<String, Type>,
     type_names: HashMap<(usize, usize), Type>,
@@ -484,6 +488,8 @@ impl Analyzer {
             character_literals: HashMap::new(),
             nesting: 0,
             capture_function_scope: false,
+            definition_parameters: None,
+            variably_modified_parents: Vec::new(),
             function_scope: None,
             block_externs: HashMap::new(),
             type_names: HashMap::new(),
@@ -706,8 +712,21 @@ impl Analyzer {
         let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
         for item in &declaration.node.declarators {
             let mut is_static = storage.class == Some(ast::StorageClassSpecifier::Static);
-            let (name, mut ty, mut declarator_attributes) =
-                self.declarator(base.clone(), &item.node.declarator)?;
+            let previous_parameters = self.definition_parameters;
+            if definition {
+                self.definition_parameters = outermost_derived(&item.node.declarator)
+                    .filter(|derived| matches!(derived.node, ast::DerivedDeclarator::Function(_)))
+                    .map(|derived| derived.span.start);
+            }
+            let declarator = self.declarator(base.clone(), &item.node.declarator);
+            self.definition_parameters = previous_parameters;
+            let (name, mut ty, mut declarator_attributes) = declarator?;
+            if self.unit.is_variably_modified(&ty)? {
+                return Err(Error::new(
+                    item.span.start,
+                    "variably modified identifiers require block or prototype scope",
+                ));
+            }
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "declaration has no name"))?;
             if self.unit.constants.contains_key(&name) {
@@ -931,6 +950,14 @@ impl Analyzer {
                 },
             ) => Ok((a == b || a.is_none() || b.is_none())
                 && self.compatible_at(left, right, depth + 1)?),
+            (
+                TypeKind::VariableArray { element: left },
+                TypeKind::VariableArray { element: right },
+            )
+            | (TypeKind::VariableArray { element: left }, TypeKind::Array { element: right, .. })
+            | (TypeKind::Array { element: left, .. }, TypeKind::VariableArray { element: right }) => {
+                self.compatible_at(left, right, depth + 1)
+            }
             (TypeKind::Function(left), TypeKind::Function(right)) => {
                 if !self.compatible_at(&left.return_type, &right.return_type, depth + 1)? {
                     return Ok(false);
@@ -1014,6 +1041,40 @@ impl Analyzer {
             ) => TypeKind::Array {
                 element: Box::new(self.composite_type(a, b, depth + 1)?),
                 length: a_len.or(*b_len),
+            },
+            (
+                TypeKind::Array {
+                    element: a,
+                    length: Some(length),
+                },
+                TypeKind::VariableArray { element: b },
+            )
+            | (
+                TypeKind::VariableArray { element: a },
+                TypeKind::Array {
+                    element: b,
+                    length: Some(length),
+                },
+            ) => TypeKind::Array {
+                element: Box::new(self.composite_type(a, b, depth + 1)?),
+                length: Some(*length),
+            },
+            (TypeKind::VariableArray { element: a }, TypeKind::VariableArray { element: b })
+            | (
+                TypeKind::VariableArray { element: a },
+                TypeKind::Array {
+                    element: b,
+                    length: None,
+                },
+            )
+            | (
+                TypeKind::Array {
+                    element: a,
+                    length: None,
+                },
+                TypeKind::VariableArray { element: b },
+            ) => TypeKind::VariableArray {
+                element: Box::new(self.composite_type(a, b, depth + 1)?),
             },
             (TypeKind::Function(a), TypeKind::Function(b)) => {
                 let mut function = if a.prototype {
@@ -1390,28 +1451,56 @@ impl Analyzer {
                             "array element must have complete object type",
                         ));
                     }
-                    let length = match &array.node.size {
-                        ast::ArraySize::Unknown => None,
+                    let kind = match &array.node.size {
+                        ast::ArraySize::Unknown => TypeKind::Array {
+                            element: Box::new(ty),
+                            length: None,
+                        },
                         ast::ArraySize::VariableExpression(expression)
                         | ast::ArraySize::StaticExpression(expression) => {
-                            Some(self.eval(expression)?.as_u64()?)
+                            let bound = self.value_expression_type(expression)?;
+                            self.integer_type(&bound, expression.span.start)?;
+                            let constant = if self.is_integer_constant_expression(expression, 0)? {
+                                // Undefined arithmetic does not form an ICE. Such an
+                                // expression remains a runtime bound; executing it is UB.
+                                self.eval(expression).ok()
+                            } else {
+                                None
+                            };
+                            if let Some(constant) = constant {
+                                let length = constant.as_u64()?;
+                                TypeKind::Array {
+                                    element: Box::new(ty),
+                                    length: Some(length),
+                                }
+                            } else {
+                                TypeKind::VariableArray {
+                                    element: Box::new(ty),
+                                }
+                            }
                         }
                         ast::ArraySize::VariableUnknown => {
-                            return Err(Error::new(
-                                derived.span.start,
-                                "variable-length array declarators are unsupported",
-                            ));
+                            if self.lexical_scopes.last().is_none_or(|scope| {
+                                scope.is_block || scope.is_definition_parameters
+                            }) {
+                                return Err(Error::new(
+                                    derived.span.start,
+                                    "star array bounds require function prototype scope",
+                                ));
+                            }
+                            TypeKind::VariableArray {
+                                element: Box::new(ty),
+                            }
                         }
                     };
-                    Type::new(TypeKind::Array {
-                        element: Box::new(ty),
-                        length,
-                    })
+                    Type::new(kind)
                 }
                 ast::DerivedDeclarator::Function(function) => {
                     if matches!(
                         self.unit.resolve(&ty)?.kind,
-                        TypeKind::Array { .. } | TypeKind::Function(_)
+                        TypeKind::Array { .. }
+                            | TypeKind::VariableArray { .. }
+                            | TypeKind::Function(_)
                     ) {
                         return Err(Error::new(
                             derived.span.start,
@@ -1419,6 +1508,8 @@ impl Analyzer {
                         ));
                     }
                     self.lexical_scopes.push(LexicalScope {
+                        is_definition_parameters: self.definition_parameters
+                            == Some(derived.span.start),
                         parameters: Vec::with_capacity(function.node.parameters.len()),
                         ..LexicalScope::default()
                     });
@@ -1486,7 +1577,8 @@ impl Analyzer {
                             ));
                         }
                         parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
-                            TypeKind::Array { element, .. } => {
+                            TypeKind::Array { element, .. }
+                            | TypeKind::VariableArray { element } => {
                                 // Qualifying an array typedef qualifies its elements.
                                 // Parameter adjustment removes only the array layer.
                                 let mut element = (**element).clone();
@@ -1758,6 +1850,12 @@ impl Analyzer {
             let mut member_names = HashSet::new();
             let mut has_named_member = false;
             for (index, field) in fields.iter().enumerate() {
+                if self.unit.is_variably_modified(&field.ty)? {
+                    return Err(Error::new(
+                        declaration.span.start,
+                        "record members cannot have variably modified type",
+                    ));
+                }
                 if matches!(
                     self.unit.resolve(&field.ty)?.kind,
                     TypeKind::Array { length: None, .. }
@@ -1861,6 +1959,7 @@ impl Analyzer {
             TypeKind::Array { element, length } => {
                 length.is_some() && self.is_complete_object(element, depth + 1)?
             }
+            TypeKind::VariableArray { element } => self.is_complete_object(element, depth + 1)?,
             _ => true,
         })
     }
@@ -1877,7 +1976,9 @@ impl Analyzer {
             Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
         ) {
             for _ in 0..128 {
-                let TypeKind::Array { element, .. } = &resolved.kind else {
+                let (TypeKind::Array { element, .. } | TypeKind::VariableArray { element }) =
+                    &resolved.kind
+                else {
                     break;
                 };
                 resolved = self.unit.resolve(element)?;

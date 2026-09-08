@@ -59,6 +59,12 @@ impl Analyzer {
     ) -> Result<Type, Error> {
         let offset = initializer.span.start;
         let resolved = self.unit.resolve(ty)?.clone();
+        if self.unit.is_variable_length_array(ty)? {
+            return Err(Error::new(
+                offset,
+                "variable-length arrays cannot have initializers",
+            ));
+        }
         if !matches!(resolved.kind, TypeKind::Array { length: None, .. })
             && !self.is_complete_object(ty, 0)?
         {

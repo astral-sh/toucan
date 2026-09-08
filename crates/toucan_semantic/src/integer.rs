@@ -3,6 +3,106 @@ use lang_c::{ast, span::Node};
 use crate::{Error, IntegerKind, IntegerValue, Type, TypeKind, analyze::Analyzer};
 
 impl Analyzer {
+    /// Distinguishes integer constant expressions from runtime bounds, including
+    /// expressions that a compiler could fold but which are not C11 ICEs.
+    pub(crate) fn is_integer_constant_expression(
+        &mut self,
+        expression: &Node<ast::Expression>,
+        depth: usize,
+    ) -> Result<bool, Error> {
+        if depth >= 128 {
+            return Err(Error::new(
+                expression.span.start,
+                "constant expression nesting exceeds the 128-level limit",
+            ));
+        }
+        Ok(match &expression.node {
+            ast::Expression::Constant(constant) => {
+                !matches!(constant.node, ast::Constant::Float(_))
+            }
+            ast::Expression::Identifier(identifier) => {
+                self.unit.constants.contains_key(&identifier.node.name)
+            }
+            ast::Expression::Cast(cast) => {
+                let ty = self.type_name(&cast.node.type_name.node)?;
+                matches!(
+                    self.unit.resolve(&ty)?.kind,
+                    TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
+                ) && (matches!(&cast.node.expression.node, ast::Expression::Constant(constant) if matches!(constant.node, ast::Constant::Float(_)))
+                    || self.is_integer_constant_expression(&cast.node.expression, depth + 1)?)
+            }
+            ast::Expression::UnaryOperator(unary) => {
+                matches!(
+                    unary.node.operator.node,
+                    ast::UnaryOperator::Plus
+                        | ast::UnaryOperator::Minus
+                        | ast::UnaryOperator::Complement
+                        | ast::UnaryOperator::Negate
+                ) && self.is_integer_constant_expression(&unary.node.operand, depth + 1)?
+            }
+            ast::Expression::BinaryOperator(binary) => {
+                use ast::BinaryOperator as Op;
+                matches!(
+                    binary.node.operator.node,
+                    Op::Multiply
+                        | Op::Divide
+                        | Op::Modulo
+                        | Op::Plus
+                        | Op::Minus
+                        | Op::ShiftLeft
+                        | Op::ShiftRight
+                        | Op::Less
+                        | Op::Greater
+                        | Op::LessOrEqual
+                        | Op::GreaterOrEqual
+                        | Op::Equals
+                        | Op::NotEquals
+                        | Op::BitwiseAnd
+                        | Op::BitwiseOr
+                        | Op::BitwiseXor
+                        | Op::LogicalAnd
+                        | Op::LogicalOr
+                ) && self.is_integer_constant_expression(&binary.node.lhs, depth + 1)?
+                    && self.is_integer_constant_expression(&binary.node.rhs, depth + 1)?
+            }
+            ast::Expression::Conditional(conditional) => {
+                self.is_integer_constant_expression(&conditional.node.condition, depth + 1)?
+                    && self.is_integer_constant_expression(
+                        &conditional.node.then_expression,
+                        depth + 1,
+                    )?
+                    && self.is_integer_constant_expression(
+                        &conditional.node.else_expression,
+                        depth + 1,
+                    )?
+            }
+            ast::Expression::SizeOfTy(size) => {
+                let ty = self.type_name(&size.node.0.node)?;
+                !self.unit.is_variable_length_array(&ty)?
+            }
+            ast::Expression::SizeOfVal(size) => {
+                let ty = self.expression_type(&size.node.0)?;
+                !self.unit.is_variable_length_array(&ty)?
+            }
+            ast::Expression::AlignOf(_) => true,
+            ast::Expression::OffsetOf(offset) => {
+                for member in &offset.node.designator.node.members {
+                    if let ast::OffsetMember::Index(index) = &member.node
+                        && !self.is_integer_constant_expression(index, depth + 1)?
+                    {
+                        return Ok(false);
+                    }
+                }
+                true
+            }
+            ast::Expression::GenericSelection(selection) => {
+                let selected = self.generic_expression(selection)?;
+                self.is_integer_constant_expression(selected, depth + 1)?
+            }
+            _ => false,
+        })
+    }
+
     pub(crate) fn eval(
         &mut self,
         expression: &Node<ast::Expression>,
@@ -132,9 +232,13 @@ impl Analyzer {
             ast::Expression::SizeOfVal(size) => self.sizeof_expression(&size.node.0),
             ast::Expression::AlignOf(alignment) => {
                 let ty = self.type_name(&alignment.node.0.node)?;
-                self.size_of(&ty, offset)?;
-                let layout = self.unit.layout(&ty)?;
-                Ok(self.size_value(layout.alignment_bytes()))
+                if !self.is_complete_object(&ty, 0)? {
+                    return Err(Error::new(
+                        offset,
+                        "alignment requires a complete object type",
+                    ));
+                }
+                Ok(self.size_value(self.unit.alignment(&ty)?))
             }
             ast::Expression::OffsetOf(expression) => {
                 let mut ty = self.type_name(&expression.node.type_name.node)?;
@@ -188,6 +292,12 @@ impl Analyzer {
     }
 
     pub(crate) fn size_of(&self, ty: &Type, offset: usize) -> Result<IntegerValue, Error> {
+        if self.unit.is_variable_length_array(ty)? {
+            return Err(Error::new(
+                offset,
+                "sizeof a variable-length array is not an integer constant expression",
+            ));
+        }
         if matches!(
             self.unit.resolve(ty)?.kind,
             TypeKind::Array { length: None, .. } | TypeKind::Void | TypeKind::Function(_)

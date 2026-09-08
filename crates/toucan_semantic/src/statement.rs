@@ -20,14 +20,15 @@ struct FunctionContext {
     return_type: Type,
     loops: usize,
     switches: Vec<SwitchContext>,
-    labels: HashSet<String>,
-    gotos: Vec<(String, usize)>,
+    labels: BTreeMap<String, Option<usize>>,
+    gotos: Vec<(String, usize, Option<usize>)>,
 }
 
 struct SwitchContext {
     ty: IntegerValue,
     ranges: BTreeMap<u128, u128>,
     has_default: bool,
+    variably_modified: Option<usize>,
 }
 
 impl Analyzer {
@@ -137,11 +138,12 @@ impl Analyzer {
                 "function definition requires a complete return type",
             ));
         }
+        self.variably_modified_parents.clear();
         let mut context = FunctionContext {
             return_type: function.return_type,
             loops: 0,
             switches: Vec::new(),
-            labels: HashSet::new(),
+            labels: BTreeMap::new(),
             gotos: Vec::new(),
         };
         let parameters = self.function_scope.take();
@@ -214,11 +216,27 @@ impl Analyzer {
                 ));
             };
             analyzer.block_items(items, &mut context)?;
-            for (name, offset) in &context.gotos {
-                if !context.labels.contains(name) {
+            // VM declarations are visited in lexical preorder. An ancestor
+            // therefore contains one contiguous interval of descendant IDs.
+            let mut scope_ends: Vec<_> = (0..analyzer.variably_modified_parents.len()).collect();
+            for id in (0..scope_ends.len()).rev() {
+                if let Some(parent) = analyzer.variably_modified_parents[id] {
+                    scope_ends[parent] = scope_ends[parent].max(scope_ends[id]);
+                }
+            }
+            for (name, offset, active) in &context.gotos {
+                let Some(target) = context.labels.get(name) else {
                     return Err(Error::new(
                         *offset,
                         format!("goto targets undefined label `{name}`"),
+                    ));
+                };
+                if target.is_some_and(|target| {
+                    active.is_none_or(|active| active < target || active > scope_ends[target])
+                }) {
+                    return Err(Error::new(
+                        *offset,
+                        "goto enters the scope of a variably modified identifier",
                     ));
                 }
             }
@@ -352,7 +370,20 @@ impl Analyzer {
             let (name, mut ty, _) = self.declarator(base.clone(), &item.node.declarator)?;
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "local declaration has no name"))?;
+            let variably_modified = self.unit.is_variably_modified(&ty)?;
             let function = matches!(self.unit.resolve(&ty)?.kind, TypeKind::Function(_));
+            if variably_modified && (is_extern || function) {
+                return Err(Error::new(
+                    item.span.start,
+                    "variably modified identifiers cannot have linkage",
+                ));
+            }
+            if is_static && self.unit.is_variable_length_array(&ty)? {
+                return Err(Error::new(
+                    item.span.start,
+                    "variable-length arrays cannot have static storage duration",
+                ));
+            }
             if function
                 && (for_initializer
                     || storage
@@ -373,7 +404,7 @@ impl Analyzer {
                 }
                 let scope = self.lexical_scopes.last().expect("block scope");
                 if let Some(previous) = scope.typedefs.get(&name) {
-                    if !self.compatible(previous, &ty)? {
+                    if variably_modified || !self.compatible(previous, &ty)? {
                         return Err(Error::new(item.span.start, "conflicting block typedef"));
                     }
                     continue;
@@ -389,6 +420,9 @@ impl Analyzer {
                 scope.constants.push((name.clone(), previous));
                 scope.names.insert(name.clone(), None);
                 scope.typedefs.insert(name, ty);
+                if variably_modified {
+                    self.declare_variably_modified();
+                }
                 continue;
             }
             if matches!(self.unit.resolve(&ty)?.kind, TypeKind::Void) {
@@ -464,6 +498,9 @@ impl Analyzer {
                 register,
                 item.span.start,
             )?;
+            if variably_modified {
+                self.declare_variably_modified();
+            }
             if linked {
                 self.lexical_scopes
                     .last_mut()
@@ -616,6 +653,7 @@ impl Analyzer {
                     ty,
                     ranges: BTreeMap::new(),
                     has_default: false,
+                    variably_modified: analyzer.active_variably_modified(),
                 });
                 let result = analyzer.substatement(&selection.node.statement, context);
                 context.switches.pop();
@@ -624,7 +662,14 @@ impl Analyzer {
             ast::Statement::Labeled(labeled) => {
                 match &labeled.node.label.node {
                     ast::Label::Identifier(identifier) => {
-                        if !context.labels.insert(identifier.node.name.clone()) {
+                        if context
+                            .labels
+                            .insert(
+                                identifier.node.name.clone(),
+                                self.active_variably_modified(),
+                            )
+                            .is_some()
+                        {
                             return Err(Error::new(offset, "duplicate label in function"));
                         }
                     }
@@ -641,6 +686,7 @@ impl Analyzer {
                         let switch = context.switches.last_mut().ok_or_else(|| {
                             Error::new(offset, "default label is outside a switch")
                         })?;
+                        self.check_switch_entry(switch, offset)?;
                         if switch.has_default {
                             return Err(Error::new(offset, "duplicate default label"));
                         }
@@ -650,7 +696,11 @@ impl Analyzer {
                 self.statement(&labeled.node.statement, context)
             }
             ast::Statement::Goto(identifier) => {
-                context.gotos.push((identifier.node.name.clone(), offset));
+                context.gotos.push((
+                    identifier.node.name.clone(),
+                    offset,
+                    self.active_variably_modified(),
+                ));
                 Ok(())
             }
             ast::Statement::Break => {
@@ -672,6 +722,37 @@ impl Analyzer {
         }
     }
 
+    /// Uses one ancestry node per VM declaration instead of copying every live
+    /// binding at every jump. Leaving a lexical scope restores its parent's node.
+    fn declare_variably_modified(&mut self) {
+        let parent = self.active_variably_modified();
+        let id = self.variably_modified_parents.len();
+        self.variably_modified_parents.push(parent);
+        self.lexical_scopes
+            .last_mut()
+            .expect("block scope")
+            .variably_modified = Some(id);
+    }
+
+    fn active_variably_modified(&self) -> Option<usize> {
+        self.lexical_scopes
+            .iter()
+            .rev()
+            .find_map(|scope| scope.variably_modified)
+    }
+
+    fn check_switch_entry(&self, switch: &SwitchContext, offset: usize) -> Result<(), Error> {
+        // Every case is lexically inside its switch. A different active node
+        // means an intervening VM declaration would be skipped on entry.
+        if self.active_variably_modified() != switch.variably_modified {
+            return Err(Error::new(
+                offset,
+                "switch enters the scope of a variably modified identifier",
+            ));
+        }
+        Ok(())
+    }
+
     fn case_range(
         &self,
         context: &mut FunctionContext,
@@ -683,6 +764,7 @@ impl Analyzer {
             .switches
             .last_mut()
             .ok_or_else(|| Error::new(offset, "case label is outside a switch"))?;
+        self.check_switch_entry(switch, offset)?;
         let sign = if switch.ty.signed {
             1u128 << (switch.ty.bits - 1)
         } else {

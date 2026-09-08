@@ -911,6 +911,11 @@ impl Emitter<'_> {
                     )
                 }
             }
+            TypeKind::VariableArray { .. } => {
+                return Err(Error(
+                    "variable-length arrays have no fixed Rust representation".into(),
+                ));
+            }
             TypeKind::Array { element, length } => {
                 format!(
                     "[{}; {}]",

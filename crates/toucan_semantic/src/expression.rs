@@ -118,6 +118,12 @@ impl Analyzer {
             }
             ast::Expression::CompoundLiteral(literal) => {
                 let ty = self.type_name(&literal.node.type_name.node)?;
+                if self.unit.is_variable_length_array(&ty)? {
+                    return Err(Error::new(
+                        offset,
+                        "compound literals cannot have variable-length array type",
+                    ));
+                }
                 let initializer = Node::new(
                     ast::Initializer::List(literal.node.initializer_list.clone()),
                     literal.span,
@@ -138,7 +144,9 @@ impl Analyzer {
                     self.require_scalar(&destination, offset)?;
                     if matches!(
                         destination.kind,
-                        TypeKind::Array { .. } | TypeKind::Function(_)
+                        TypeKind::Array { .. }
+                            | TypeKind::VariableArray { .. }
+                            | TypeKind::Function(_)
                     ) || matches!(
                         (&destination.kind, &source.kind),
                         (TypeKind::Pointer(_), TypeKind::Float(_))
@@ -340,11 +348,11 @@ impl Analyzer {
             }
             ast::Expression::SizeOfTy(size) => {
                 let ty = self.type_name(&size.node.0.node)?;
-                self.size_of(&ty, offset)?;
+                self.require_complete_object(&ty, offset)?;
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::SizeOfVal(size) => {
-                self.sizeof_expression(&size.node.0)?;
+                self.sizeof_operand_type(&size.node.0)?;
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::AlignOf(alignment) => {
@@ -395,6 +403,12 @@ impl Analyzer {
             match &association.node {
                 ast::GenericAssociation::Type(association) => {
                     let ty = self.type_name(&association.node.type_name.node)?;
+                    if self.unit.is_variably_modified(&ty)? {
+                        return Err(Error::new(
+                            association.span.start,
+                            "generic association cannot have variably modified type",
+                        ));
+                    }
                     self.require_complete_object(&ty, association.span.start)?;
                     for previous in &types {
                         if self.compatible(previous, &ty)? {
@@ -660,6 +674,11 @@ impl Analyzer {
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<IntegerValue, Error> {
+        let ty = self.sizeof_operand_type(expression)?;
+        self.size_of(&ty, expression.span.start)
+    }
+
+    fn sizeof_operand_type(&mut self, expression: &Node<ast::Expression>) -> Result<Type, Error> {
         let operand = self.expression_info(expression)?;
         if operand.bitfield.is_some() {
             return Err(Error::new(
@@ -667,7 +686,8 @@ impl Analyzer {
                 "sizeof cannot be applied to a bitfield",
             ));
         }
-        self.size_of(&operand.ty, expression.span.start)
+        self.require_complete_object(&operand.ty, expression.span.start)?;
+        Ok(operand.ty)
     }
 
     /// Checks a value context, including array conversion restrictions that rely
@@ -684,7 +704,7 @@ impl Analyzer {
         if expression.register
             && matches!(
                 self.unit.resolve(&expression.ty)?.kind,
-                TypeKind::Array { .. }
+                TypeKind::Array { .. } | TypeKind::VariableArray { .. }
             )
         {
             return Err(Error::new(
@@ -699,7 +719,7 @@ impl Analyzer {
     pub(crate) fn value_type(&self, ty: &Type) -> Result<Type, Error> {
         let resolved = self.unit.resolve(ty)?;
         Ok(match &resolved.kind {
-            TypeKind::Array { element, .. } => {
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
                 let mut element = (**element).clone();
                 element.qualifiers =
                     union_qualifiers(self.unit.qualifiers(&element)?, self.unit.qualifiers(ty)?);
@@ -742,7 +762,14 @@ impl Analyzer {
     }
 
     fn require_complete_object(&self, ty: &Type, offset: usize) -> Result<(), Error> {
-        self.size_of(ty, offset).map(|_| ())
+        if self.is_complete_object(ty, 0)? {
+            Ok(())
+        } else {
+            Err(Error::new(
+                offset,
+                "operation requires a complete object type",
+            ))
+        }
     }
 
     fn promoted_integer(
@@ -828,7 +855,7 @@ impl Analyzer {
             || self.contains_const(&expression.ty, 0)?
             || matches!(
                 self.unit.resolve(&expression.ty)?.kind,
-                TypeKind::Array { .. }
+                TypeKind::Array { .. } | TypeKind::VariableArray { .. }
             )
         {
             return Err(Error::new(
@@ -850,7 +877,9 @@ impl Analyzer {
             return Ok(true);
         }
         match &self.unit.resolve(ty)?.kind {
-            TypeKind::Array { element, .. } => self.contains_const(element, depth + 1),
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+                self.contains_const(element, depth + 1)
+            }
             TypeKind::Record(id) => {
                 if let Some(fields) = &self.unit.records[*id].fields {
                     for field in fields {

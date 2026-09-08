@@ -31,6 +31,15 @@ sets and C23 `u8` character constants are not implemented.
 The semantic literal tests compare values with native GCC and Clang and types and
 array bounds with Clang across all five targets. They also check malformed escapes,
 incompatible array element types, and the public decoder's input-size limit.
+## Variable-length arrays
+
+Variable-length arrays retain a distinct runtime-sized type. Bounds, parameter
+adjustment, storage and scope constraints, and jumps across variably modified
+declarations are checked. `sizeof` on a VLA is valid at runtime and cannot be used
+as an integer constant expression; its alignment is available without a runtime
+bound. Rust bindings support parameters whose outer array layer adjusts to a
+pointer, and reject remaining runtime-sized array layers. Runtime bound expressions
+and typed bodies are not yet exposed through the public IR.
 
 ## Targets
 
@@ -52,12 +61,12 @@ configuration. See CI results for changes made after that run.
 
 ## Current gaps
 
-- Bodies and initializers are type-checked. Variable-length arrays, inline assembly,
-  and GNU statement expressions still require implementation; unsupported constructs
+- Bodies and initializers are type-checked. Inline assembly and GNU statement
+  expressions still require implementation; unsupported constructs
   return diagnostics. Typed bodies are not yet exposed through the public IR.
 - Declaration constraints still need broader conformance testing. Prototype-local
   tags retain distinct identities and are checked against GCC and Clang.
-- C++, K&R function definitions, variable-length arrays, TLS, atomic and complex
+- C++, K&R function definitions, TLS, atomic and complex
   types, unsupported calling conventions, and unknown ABI attributes are rejected.
 - Extended floating-point types retain their identity but do not have supported
   layout or binding representations. `long double` has a target layout, but its Rust
