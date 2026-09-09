@@ -277,7 +277,8 @@ impl Expansion<'_> {
                 ));
             }
             let mut hidden = token.hidden;
-            let mut replacement = if let Some(parameters) = &definition.parameters {
+            let (mut replacement, trailing_space) = if let Some(parameters) = &definition.parameters
+            {
                 pending.pop_front();
                 let (arguments, omitted_variadic, closing) =
                     arguments(pending, parameters.len(), definition.variadic)?;
@@ -292,6 +293,9 @@ impl Expansion<'_> {
                 )?
             };
             self.charge(&replacement)?;
+            if let Some(next) = pending.front_mut() {
+                next.space |= trailing_space;
+            }
             for replacement in &mut replacement {
                 if let Some(docs) = &mut self.documentation {
                     replacement.doc_origin = docs.expanded(
@@ -381,7 +385,7 @@ impl Expansion<'_> {
         definition: &Macro,
         arguments: &[Vec<Token>],
         omitted_variadic: bool,
-    ) -> Result<Vec<Token>, String> {
+    ) -> Result<(Vec<Token>, bool), String> {
         let parameters = definition.parameters.as_ref().expect("function macro");
         let mut raw: BTreeMap<&str, Vec<Token>> = parameters
             .iter()
@@ -451,7 +455,7 @@ impl Expansion<'_> {
                     expanded_arguments.insert(token.text.as_str(), expanded.clone());
                     expanded
                 };
-                if argument.is_empty() && pasted {
+                if argument.is_empty() {
                     argument.push(Token::new(Kind::Placemark, ""));
                 }
                 if let Some(first) = argument.first_mut() {
@@ -570,7 +574,9 @@ fn arguments(
     Ok((arguments, omitted, closing))
 }
 
-fn paste(tokens: Vec<Token>, scope_punctuator: bool) -> Result<Vec<Token>, String> {
+/// Remove placemarkers after pasting, carrying their whitespace to the next
+/// token or back to the caller when it follows the end of the replacement.
+fn paste(tokens: Vec<Token>, scope_punctuator: bool) -> Result<(Vec<Token>, bool), String> {
     let mut output: Vec<Token> = Vec::new();
     let mut tokens = tokens.into_iter();
     while let Some(token) = tokens.next() {
@@ -579,8 +585,9 @@ fn paste(tokens: Vec<Token>, scope_punctuator: bool) -> Result<Vec<Token>, Strin
             continue;
         }
         let left = output.pop().ok_or("`##` cannot begin a replacement list")?;
-        let right = tokens.next().ok_or("`##` cannot end a replacement list")?;
+        let mut right = tokens.next().ok_or("`##` cannot end a replacement list")?;
         if left.kind == Kind::Placemark {
+            right.space = left.space;
             output.push(right);
         } else if right.kind == Kind::Placemark {
             output.push(left);
@@ -601,8 +608,18 @@ fn paste(tokens: Vec<Token>, scope_punctuator: bool) -> Result<Vec<Token>, Strin
             output.push(token);
         }
     }
-    output.retain(|token| token.kind != Kind::Placemark);
-    Ok(output)
+    let mut trailing_space = false;
+    output.retain_mut(|token| {
+        token.space |= trailing_space;
+        if token.kind == Kind::Placemark {
+            trailing_space = token.space;
+            false
+        } else {
+            trailing_space = false;
+            true
+        }
+    });
+    Ok((output, trailing_space))
 }
 
 fn replacement_tokens(text: &str, scope_punctuator: bool) -> Result<Vec<Token>, String> {
