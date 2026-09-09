@@ -987,11 +987,18 @@ impl TranslationUnit {
                     "vectors larger than 16 bytes require unsupported target-feature configuration",
                 ));
             }
+            // Clang's ARMv7 ABI caps natural vector alignment at eight bytes,
+            // even when the vector occupies 16 bytes.
+            let alignment = if self.target.is_armv7() {
+                size.min(64)
+            } else {
+                size
+            };
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&target::Layout {
                     size_bits: size,
-                    alignment_bits: size,
-                    field_alignment_bits: size,
+                    alignment_bits: alignment,
+                    field_alignment_bits: alignment,
                     required_alignment_bits: 8,
                     fields: Vec::new(),
                 }),

@@ -42,6 +42,10 @@ fn default_builder_matches_native_function_eligibility_without_origins() {
                         .layout_tests(false)
                         .clang_arg(format!("--target={}", target.triple()))
                         .clang_arg(format!("-std={}", mode));
+                    if target.is_armv7() {
+                        builder =
+                            builder.rust_target(toucan_bindgen::RustTarget::stable(78, 0).unwrap());
+                    }
                     if callback {
                         builder = builder.parse_callbacks(Box::new(Callbacks(Rc::clone(&log))));
                     }

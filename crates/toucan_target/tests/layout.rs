@@ -39,7 +39,9 @@ fn data_models_are_explicit() {
             target.char_is_signed(),
             !matches!(
                 target,
-                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
+                    | Target::Armv7UnknownLinuxGnueabihf
             )
         );
         let macros = target.predefined_macros();
@@ -88,6 +90,51 @@ fn data_models_are_explicit() {
         }),
         Err(LayoutError::UnsupportedEnumRange(_))
     ));
+}
+
+#[test]
+fn armv7_hard_float_uses_clang_and_the_32_bit_aapcs_vfp_model() {
+    use toucan_target::{Compiler, CompilerProfile};
+
+    let target = Target::parse("armv7-unknown-linux-gnueabihf").unwrap();
+    assert!(target.is_armv7() && target.is_linux());
+    assert!(!target.is_aarch64() && !target.is_x86_64() && !target.is_windows());
+    assert_eq!(
+        CompilerProfile::default_for(target).compiler(),
+        Compiler::Clang
+    );
+    assert!(CompilerProfile::new(target, Compiler::Gnu).is_err());
+    assert_eq!((target.pointer_width(), target.long_width()), (32, 32));
+    assert!(!target.char_is_signed() && !target.wchar_is_signed());
+    assert_eq!(target.default_maximum_alignment(), 8);
+    assert_eq!(
+        (
+            target.builtin_layout(B::LongDouble).unwrap().size_bytes(),
+            target
+                .builtin_layout(B::LongDouble)
+                .unwrap()
+                .alignment_bytes(),
+        ),
+        (8, 8),
+    );
+    assert!(matches!(
+        target.builtin_layout(B::Int128),
+        Err(LayoutError::UnsupportedBuiltin { .. })
+    ));
+    let macros = target.predefined_macros();
+    for (name, value) in [
+        ("__ARM_PCS_VFP", "1"),
+        ("__ARM_ARCH", "7"),
+        ("__ILP32__", "1"),
+        ("__SIZEOF_POINTER__", "4"),
+        ("__SIZEOF_LONG_DOUBLE__", "8"),
+        ("__BIGGEST_ALIGNMENT__", "8"),
+        ("__WCHAR_TYPE__", "unsigned int"),
+        ("__INT64_TYPE__", "long long int"),
+    ] {
+        assert_eq!(&macros[name], value, "{name}");
+    }
+    assert!(!macros.contains_key("__SIZEOF_INT128__"));
 }
 
 #[test]

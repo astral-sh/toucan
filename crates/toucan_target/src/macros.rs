@@ -26,7 +26,9 @@ impl CompilerProfile {
         let compiler = self.compiler();
         let standard = !self.language_mode().is_gnu();
         let i686 = target == Target::I686UnknownLinuxGnu;
-        let (pointer_bytes, pointer_bits) = if i686 { ("4", "32") } else { ("8", "64") };
+        let armv7 = target.is_armv7();
+        let ilp32 = i686 || armv7;
+        let (pointer_bytes, pointer_bits) = if ilp32 { ("4", "32") } else { ("8", "64") };
         let mut macros = BTreeMap::new();
         let mut define = |name: &str, value: &str| {
             macros.insert(name.to_owned(), value.to_owned());
@@ -145,7 +147,7 @@ impl CompilerProfile {
             ] {
                 define(name, value);
             }
-            if i686 {
+            if ilp32 {
                 for (name, value) in [
                     ("__ILP32__", "1"),
                     ("_ILP32", "1"),
@@ -221,6 +223,23 @@ impl CompilerProfile {
             if apple {
                 define("__arm64__", "1");
             }
+        } else if armv7 {
+            for (name, value) in [
+                ("__arm__", "1"),
+                ("__arm", "1"),
+                ("__ARMEL__", "1"),
+                ("__ARM_32BIT_STATE", "1"),
+                ("__ARM_ARCH", "7"),
+                ("__ARM_ARCH_7A__", "1"),
+                ("__ARM_ARCH_PROFILE", "'A'"),
+                ("__ARM_EABI__", "1"),
+                ("__ARM_PCS", "1"),
+                ("__ARM_PCS_VFP", "1"),
+                ("__ARM_FP", "0xc"),
+                ("__VFP_FP__", "1"),
+            ] {
+                define(name, value);
+            }
         } else if i686 {
             for name in ["__i386__", "__i386", "__i686__", "__i686"] {
                 define(name, "1");
@@ -240,9 +259,9 @@ impl CompilerProfile {
             Target::X86_64PcWindowsMsvc | Target::Aarch64PcWindowsMsvc => {
                 ("unsigned short", "16", "2", "65535")
             }
-            Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
-                ("unsigned int", "32", "4", "4294967295U")
-            }
+            Target::Aarch64UnknownLinuxGnu
+            | Target::Aarch64UnknownLinuxMusl
+            | Target::Armv7UnknownLinuxGnueabihf => ("unsigned int", "32", "4", "4294967295U"),
             Target::I686UnknownLinuxGnu if compiler == Compiler::Gnu => {
                 ("long int", "32", "4", "2147483647L")
             }
@@ -263,7 +282,7 @@ impl CompilerProfile {
                 "9223372036854775807LL",
                 "18446744073709551615ULL",
             )
-        } else if i686 {
+        } else if ilp32 {
             ("int", "unsigned int", "2147483647", "4294967295U")
         } else {
             (
@@ -286,7 +305,7 @@ impl CompilerProfile {
             define(name, unsigned_max);
         }
 
-        let (signed64, unsigned64, max64, umax64) = if windows || apple || i686 {
+        let (signed64, unsigned64, max64, umax64) = if windows || apple || ilp32 {
             (
                 "long long int",
                 "long long unsigned int",
@@ -359,6 +378,7 @@ impl CompilerProfile {
             Target::Aarch64AppleDarwin => ("8", "53", "1024", "8"),
             Target::X86_64PcWindowsMsvc | Target::Aarch64PcWindowsMsvc => ("8", "53", "1024", "16"),
             Target::I686UnknownLinuxGnu => ("12", "64", "16384", "16"),
+            Target::Armv7UnknownLinuxGnueabihf => ("8", "53", "1024", "8"),
             Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
                 ("16", "113", "16384", "16")
             }

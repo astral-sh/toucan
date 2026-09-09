@@ -283,12 +283,21 @@ fn atomic_layouts_match_the_target_compiler_profiles() {
             && !cfg!(any(target_arch = "x86", target_arch = "x86_64"));
         let mut source = String::new();
         for (index, ty) in types.iter().enumerate() {
-            if target == Target::I686UnknownLinuxGnu && ty == "__int128" {
+            if matches!(
+                target,
+                Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+            ) && ty == "__int128"
+            {
+                let diagnostic = if target.is_armv7() {
+                    "__int128 is unavailable on ARMv7 GNU Linux"
+                } else {
+                    "__int128 is unavailable on i686 GNU Linux"
+                };
                 assert!(
                     check("typedef __int128 Unsupported;", target)
                         .unwrap_err()
                         .message
-                        .contains("__int128 is unavailable on i686 GNU Linux")
+                        .contains(diagnostic)
                 );
                 continue;
             }

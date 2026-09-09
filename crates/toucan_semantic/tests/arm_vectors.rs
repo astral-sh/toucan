@@ -335,6 +335,58 @@ fn compiler(command: &mut std::process::Command, source: &str) -> std::process::
     child.wait_with_output().unwrap()
 }
 
+#[test]
+#[ignore = "requires Clang's ARMv7 LLVM backend; run with --include-ignored"]
+fn armv7_explicit_base_pcs_is_rejected_before_binding_generation() {
+    use std::process::Command;
+
+    let target = Target::Armv7UnknownLinuxGnueabihf;
+    let source = "typedef struct {float a;float b;} Pair; \
+        float hard(float a,Pair b){return a+b.a;} \
+        float __attribute__((pcs(\"aapcs\"))) soft(float a,Pair b){return a+b.a;}";
+    let output = compiler(
+        Command::new("clang").args([
+            "--target=armv7-unknown-linux-gnueabihf",
+            "-std=gnu11",
+            "-S",
+            "-emit-llvm",
+            "-o",
+            "-",
+            "-x",
+            "c",
+            "-",
+        ]),
+        source,
+    );
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let llvm_ir = String::from_utf8(output.stdout).unwrap();
+    let hard = llvm_ir
+        .lines()
+        .find(|line| line.contains("@hard("))
+        .unwrap();
+    let soft = llvm_ir
+        .lines()
+        .find(|line| line.contains("@soft("))
+        .unwrap();
+    assert!(!hard.contains("arm_aapcscc"), "{hard}");
+    assert!(soft.contains("arm_aapcscc"), "{soft}");
+    let error = parity(source, target).unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("ARMv7 pcs calling convention is unsupported")
+    );
+    parity(
+        "typedef struct {float a;float b;} Pair; float hard(float a,Pair b);",
+        target,
+    )
+    .unwrap();
+}
+
 fn calls_sve_function(assembly: &[u8]) -> bool {
     String::from_utf8_lossy(assembly).lines().any(|line| {
         let mut words = line.split_whitespace();

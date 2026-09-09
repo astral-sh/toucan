@@ -24,6 +24,8 @@ pub enum Target {
     X86_64UnknownLinuxGnu,
     /// The System V i386 ABI with GNU/Linux headers.
     I686UnknownLinuxGnu,
+    /// The ARMv7 AAPCS-VFP hard-float ABI with GNU/Linux headers.
+    Armv7UnknownLinuxGnueabihf,
     /// The AArch64 ELF ABI with GNU/Linux headers.
     Aarch64UnknownLinuxGnu,
     /// The Intel macOS ABI.
@@ -42,7 +44,7 @@ pub enum Target {
 
 impl Target {
     /// All supported targets, in a stable order.
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 10] = [
         Self::X86_64UnknownLinuxGnu,
         Self::Aarch64UnknownLinuxGnu,
         Self::X86_64AppleDarwin,
@@ -52,6 +54,7 @@ impl Target {
         Self::Aarch64UnknownLinuxMusl,
         Self::Aarch64PcWindowsMsvc,
         Self::I686UnknownLinuxGnu,
+        Self::Armv7UnknownLinuxGnueabihf,
     ];
 
     /// Parses a canonical target triple. Unknown triples are rejected.
@@ -67,6 +70,7 @@ impl Target {
         match self {
             Self::X86_64UnknownLinuxGnu => "x86_64-unknown-linux-gnu",
             Self::I686UnknownLinuxGnu => "i686-unknown-linux-gnu",
+            Self::Armv7UnknownLinuxGnueabihf => "armv7-unknown-linux-gnueabihf",
             Self::Aarch64UnknownLinuxGnu => "aarch64-unknown-linux-gnu",
             Self::X86_64AppleDarwin => "x86_64-apple-darwin",
             Self::Aarch64AppleDarwin => "aarch64-apple-darwin",
@@ -83,6 +87,7 @@ impl Target {
             self,
             Self::X86_64UnknownLinuxGnu
                 | Self::I686UnknownLinuxGnu
+                | Self::Armv7UnknownLinuxGnueabihf
                 | Self::Aarch64UnknownLinuxGnu
                 | Self::X86_64UnknownLinuxMusl
                 | Self::Aarch64UnknownLinuxMusl
@@ -106,6 +111,11 @@ impl Target {
                 | Self::Aarch64AppleDarwin
                 | Self::Aarch64PcWindowsMsvc
         )
+    }
+
+    /// Whether the target uses the ARMv7 hard-float ABI.
+    pub const fn is_armv7(self) -> bool {
+        matches!(self, Self::Armv7UnknownLinuxGnueabihf)
     }
 
     /// Whether the target uses the Microsoft C ABI and Windows headers.
@@ -137,6 +147,7 @@ impl Target {
             | Self::Aarch64AppleDarwin
             | Self::X86_64PcWindowsMsvc
             | Self::Aarch64PcWindowsMsvc => 16,
+            Self::Armv7UnknownLinuxGnueabihf => 8,
         }
     }
 
@@ -144,13 +155,18 @@ impl Target {
     pub const fn char_is_signed(self) -> bool {
         !matches!(
             self,
-            Self::Aarch64UnknownLinuxGnu | Self::Aarch64UnknownLinuxMusl
+            Self::Aarch64UnknownLinuxGnu
+                | Self::Aarch64UnknownLinuxMusl
+                | Self::Armv7UnknownLinuxGnueabihf
         )
     }
 
     /// Returns the width of object and function pointers, in bits.
     pub const fn pointer_width(self) -> u64 {
-        if matches!(self, Self::I686UnknownLinuxGnu) {
+        if matches!(
+            self,
+            Self::I686UnknownLinuxGnu | Self::Armv7UnknownLinuxGnueabihf
+        ) {
             32
         } else {
             64
@@ -159,7 +175,12 @@ impl Target {
 
     /// Returns the width of `long`, in bits.
     pub const fn long_width(self) -> u64 {
-        if self.is_windows() || matches!(self, Self::I686UnknownLinuxGnu) {
+        if self.is_windows()
+            || matches!(
+                self,
+                Self::I686UnknownLinuxGnu | Self::Armv7UnknownLinuxGnueabihf
+            )
+        {
             32
         } else {
             64
@@ -179,6 +200,7 @@ impl Target {
                 | Self::Aarch64PcWindowsMsvc
                 | Self::Aarch64UnknownLinuxGnu
                 | Self::Aarch64UnknownLinuxMusl
+                | Self::Armv7UnknownLinuxGnueabihf
         )
     }
 
@@ -200,6 +222,7 @@ impl Target {
         match self {
             Self::X86_64UnknownLinuxGnu => repc::Target::X86_64UnknownLinuxGnu,
             Self::I686UnknownLinuxGnu => repc::Target::I686UnknownLinuxGnu,
+            Self::Armv7UnknownLinuxGnueabihf => repc::Target::Armv7UnknownLinuxGnueabihf,
             Self::Aarch64UnknownLinuxGnu => repc::Target::Aarch64UnknownLinuxGnu,
             Self::X86_64UnknownLinuxMusl => repc::Target::X86_64UnknownLinuxMusl,
             Self::Aarch64UnknownLinuxMusl => repc::Target::Aarch64UnknownLinuxMusl,
@@ -228,6 +251,7 @@ impl Target {
                 }
                 let (size_bits, alignment_bits) = match self {
                     Self::Aarch64AppleDarwin
+                    | Self::Armv7UnknownLinuxGnueabihf
                     | Self::X86_64PcWindowsMsvc
                     | Self::Aarch64PcWindowsMsvc => (64, 64),
                     Self::I686UnknownLinuxGnu => (96, 32),
@@ -241,7 +265,10 @@ impl Target {
                 })
             }
             TypeVariant::Builtin(builtin @ (BuiltinType::Int128 | BuiltinType::UnsignedInt128))
-                if self == Self::I686UnknownLinuxGnu =>
+                if matches!(
+                    self,
+                    Self::I686UnknownLinuxGnu | Self::Armv7UnknownLinuxGnueabihf
+                ) =>
             {
                 return Err(LayoutError::UnsupportedBuiltin {
                     target: self,

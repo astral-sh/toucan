@@ -26,44 +26,55 @@ fn options() -> Options {
     }
 }
 
+fn options_for(target: Target) -> Options {
+    if target.is_armv7() {
+        Options {
+            rust_target: "1.78".parse().unwrap(),
+            ..options()
+        }
+    } else {
+        options()
+    }
+}
+
 #[test]
 fn vector_storage_helpers_preserve_names_and_alignment() {
     for target in Target::ALL {
         let unit = analyze(HEADER, target).unwrap();
-        let source = generate(&unit, &options()).unwrap().source;
-        assert!(source.contains("#[repr(C, align(16))]"));
-        assert!(source.contains("pub type V = __toucan_vector_16_align_16;"));
-        assert!(source.contains("pub type D = __toucan_vector_16_align_16;"));
+        let source = generate(&unit, &options_for(target)).unwrap().source;
+        let alignment = if target.is_armv7() { 8 } else { 16 };
+        let helper = format!("__toucan_vector_16_align_{alignment}");
+        assert!(source.contains(&format!("#[repr(C, align({alignment}))]")));
+        assert!(source.contains(&format!("pub type V = {helper};")));
+        assert!(source.contains(&format!("pub type D = {helper};")));
         let unaligned = analyze(UNALIGNED, target).unwrap();
         if target.is_windows() {
             assert!(
-                generate(&unaligned, &options())
+                generate(&unaligned, &options_for(target))
                     .unwrap_err()
                     .to_string()
                     .contains("field alignment")
             );
         } else {
-            let source = generate(&unaligned, &options()).unwrap().source;
+            let source = generate(&unaligned, &options_for(target)).unwrap().source;
             assert!(source.contains("#[repr(C, align(1))]"));
             assert!(source.contains("pub type Unaligned = __toucan_vector_16_align_1;"));
         }
-        let unit = analyze(
-            &format!("{HEADER}\ntypedef int __toucan_vector_16_align_16;"),
-            target,
-        )
-        .unwrap();
-        let source = generate(&unit, &options()).unwrap().source;
-        assert!(source.contains("pub type V = __toucan_vector_16_align_16_;"));
+        let unit = analyze(&format!("{HEADER}\ntypedef int {helper};"), target).unwrap();
+        let source = generate(&unit, &options_for(target)).unwrap().source;
+        assert!(source.contains(&format!("pub type V = {helper}_;")));
         let source = generate(
             &unit,
             &Options {
                 helper_namespace: Some("api".into()),
-                ..options()
+                ..options_for(target)
             },
         )
         .unwrap()
         .source;
-        assert!(source.contains("pub type V = __toucan_api_vector_16_align_16;"));
+        assert!(source.contains(&format!(
+            "pub type V = __toucan_api_vector_16_align_{alignment};"
+        )));
     }
 }
 
@@ -78,7 +89,7 @@ fn vectors_need_a_pointer_at_ffi_boundaries() {
             "typedef V (*Callback)(void);",
         ] {
             let unit = analyze(&format!("{HEADER}\n{declaration}"), target).unwrap();
-            let error = generate(&unit, &options()).unwrap_err();
+            let error = generate(&unit, &options_for(target)).unwrap_err();
             assert!(
                 error
                     .to_string()
@@ -92,7 +103,7 @@ fn vectors_need_a_pointer_at_ffi_boundaries() {
         ] {
             let unit = analyze(&format!("{HEADER}\n{declaration}"), target).unwrap();
             assert!(
-                generate(&unit, &options())
+                generate(&unit, &options_for(target))
                     .unwrap_err()
                     .to_string()
                     .contains("packed records containing vectors")
@@ -103,7 +114,7 @@ fn vectors_need_a_pointer_at_ffi_boundaries() {
             target,
         )
         .unwrap();
-        generate(&unit, &options()).unwrap();
+        generate(&unit, &options_for(target)).unwrap();
     }
 }
 fn run(command: &mut Command) -> Output {

@@ -89,6 +89,60 @@ fn i686_macros_use_ilp32_and_compiler_specific_integer_types() {
 }
 
 #[test]
+#[ignore = "requires Clang with the ARMv7 hard-float backend"]
+fn armv7_hard_float_predefines_match_cross_target_clang() {
+    use std::process::{Command, Stdio};
+
+    let target = Target::Armv7UnknownLinuxGnueabihf;
+    let model = CompilerProfile::default_for(target).predefined_macros();
+    let output = Command::new("clang")
+        .arg(format!("--target={target}"))
+        .args(["-std=gnu11", "-dM", "-E", "-x", "c", "-"])
+        .stdin(Stdio::null())
+        .output()
+        .expect("cross-target Clang must be installed");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let text = String::from_utf8(output.stdout).unwrap();
+    let native = text
+        .lines()
+        .filter_map(|line| line.strip_prefix("#define ")?.split_once(' '))
+        .collect::<std::collections::BTreeMap<_, _>>();
+    for name in [
+        "__arm__",
+        "__ARMEL__",
+        "__ARM_ARCH",
+        "__ARM_ARCH_PROFILE",
+        "__ARM_EABI__",
+        "__ARM_PCS_VFP",
+        "__ILP32__",
+        "__SIZEOF_POINTER__",
+        "__SIZEOF_LONG__",
+        "__SIZEOF_LONG_DOUBLE__",
+        "__LDBL_MANT_DIG__",
+        "__LDBL_MAX_EXP__",
+        "__BIGGEST_ALIGNMENT__",
+        "__WCHAR_TYPE__",
+        "__WCHAR_UNSIGNED__",
+        "__CHAR_UNSIGNED__",
+        "__INTPTR_TYPE__",
+        "__INT64_TYPE__",
+        "__INTMAX_TYPE__",
+    ] {
+        assert_eq!(
+            model.get(name).map(String::as_str),
+            native.get(name).copied(),
+            "{name}"
+        );
+    }
+    assert!(!native.contains_key("__SIZEOF_INT128__"));
+    assert!(!model.contains_key("__SIZEOF_INT128__"));
+}
+
+#[test]
 #[ignore = "requires Clang with the supported cross targets"]
 fn clang_standard_and_compatibility_markers_match_native_targets() {
     use std::process::Command;

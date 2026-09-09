@@ -123,6 +123,7 @@ pub struct Options {
     /// Wide string macros retain typed code-unit arrays.
     pub generate_cstr: bool,
     /// Minimum Rust version for generated declarations. Defaults to Rust 1.96.
+    /// ARMv7 hard-float requires Rust 1.78 or newer to guard the target ABI.
     /// Caller-provided raw lines are outside this contract.
     pub rust_target: RustTarget,
     /// Omit generated runtime field-offset tests on Rust releases before 1.77.
@@ -412,6 +413,11 @@ fn generate_with_work_budget(
     macros: &BTreeMap<String, Option<MacroValue>>,
     work_budget: &work_budget::WorkBudget,
 ) -> Result<Bindings, Error> {
+    if unit.target.is_armv7() && options.rust_target.minor < 78 {
+        return Err(Error(
+            "ARMv7 hard-float bindings require Rust 1.78 or newer for cfg(target_abi)".into(),
+        ));
+    }
     unit.validate_function_options()?;
     unit.validate_parameter_contracts()?;
     if let Some(dependencies) = &options.type_dependencies {
@@ -713,6 +719,11 @@ fn generate_with_work_budget(
     let (arch, os, environment) = match unit.target.triple() {
         "x86_64-unknown-linux-gnu" => ("x86_64", "linux", ", target_env = \"gnu\""),
         "i686-unknown-linux-gnu" => ("x86", "linux", ", target_env = \"gnu\""),
+        "armv7-unknown-linux-gnueabihf" => (
+            "arm",
+            "linux",
+            ", target_env = \"gnu\", target_abi = \"eabihf\"",
+        ),
         "aarch64-unknown-linux-gnu" => ("aarch64", "linux", ", target_env = \"gnu\""),
         "x86_64-apple-darwin" => ("x86_64", "macos", ""),
         "aarch64-apple-darwin" => ("aarch64", "macos", ""),

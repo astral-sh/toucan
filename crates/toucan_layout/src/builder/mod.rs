@@ -23,7 +23,7 @@ pub fn compute_layout(target: Target, ty: &Type<()>) -> Result<Type<TypeLayout>>
 /// Computes layout with a compiler selected independently from the physical target.
 ///
 /// Every target's default compiler is supported. The additional supported pairs
-/// are Clang with x86-64, i686 GNU Linux, and AArch64 Linux. Other overrides return
+/// are Clang with x86-64, i686 GNU Linux, AArch64 Linux, and ARMv7 hard-float Linux. Other overrides return
 /// [`ErrorType::UnsupportedCompiler`] before inspecting the type. This selects
 /// compiler layout rules, not target features or flags such as `-fshort-enums`.
 pub fn compute_layout_with_compiler(
@@ -37,6 +37,7 @@ pub fn compute_layout_with_compiler(
             (
                 Target::X86_64UnknownLinuxGnu
                     | Target::I686UnknownLinuxGnu
+                    | Target::Armv7UnknownLinuxGnueabihf
                     | Target::Aarch64UnknownLinuxGnu
                     | Target::X86_64UnknownLinuxMusl
                     | Target::Aarch64UnknownLinuxMusl,

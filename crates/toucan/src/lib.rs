@@ -85,7 +85,12 @@ impl Config {
             defines: profile.predefined_macros(),
             ..PreprocessorConfig::default()
         };
-        if !target.is_windows() && target != Target::I686UnknownLinuxGnu {
+        if !target.is_windows()
+            && !matches!(
+                target,
+                Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+            )
+        {
             preprocessor.forced_includes.push(ForcedInclude {
                 path: "<builtin>/integer-types.h".into(),
                 source: include_str!("../resources/integer-types.h").into(),

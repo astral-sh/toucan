@@ -43,6 +43,20 @@ _Static_assert(_Generic(+(Bytes){0}, Bytes: 1, default: 0), "no promotion");
 _Static_assert(_Generic((F){0} + 1.0, F: 1, default: 0), "constant splat");
 "#;
 
+fn source_for_target(target: Target) -> String {
+    if target.is_armv7() {
+        SOURCE
+            .replace("_Alignof(V)==16", "_Alignof(V)==8")
+            .replace(
+                "sizeof(struct Container)==48 && __builtin_offsetof(struct Container,lanes)==16",
+                "sizeof(struct Container)==32 && __builtin_offsetof(struct Container,lanes)==8",
+            )
+            .replace("_Alignof(Reset)==16", "_Alignof(Reset)==8")
+    } else {
+        SOURCE.to_owned()
+    }
+}
+
 fn parity(
     source: &str,
     target: Target,
@@ -67,7 +81,8 @@ fn parity(
 #[test]
 fn vector_layout_operations_and_retained_conversions() {
     for target in Target::ALL {
-        let analysis = parity(SOURCE, target).unwrap_or_else(|error| panic!("{target}: {error}"));
+        let source = source_for_target(target);
+        let analysis = parity(&source, target).unwrap_or_else(|error| panic!("{target}: {error}"));
         let unit = analysis.unit();
         let vector = unit.resolve(&unit.typedefs["V"]).unwrap();
         assert!(matches!(vector.kind, TypeKind::Vector { lanes: 4, .. }));
@@ -79,13 +94,20 @@ fn vector_layout_operations_and_retained_conversions() {
                 .layout(&Type::new(TypeKind::Typedef("V".into())))
                 .unwrap();
             assert_eq!(layout.size_bytes(), bytes);
-            assert_eq!(layout.alignment_bytes(), bytes);
+            assert_eq!(
+                layout.alignment_bytes(),
+                if target.is_armv7() {
+                    bytes.min(8)
+                } else {
+                    bytes
+                }
+            );
         }
         let code = analysis.checked().unwrap();
         let binary = code
             .expressions()
             .find(|(_, node)| {
-                &SOURCE[code.occurrence(node.occurrence()).unwrap().source().range()] == "1 + a"
+                &source[code.occurrence(node.occurrence()).unwrap().source().range()] == "1 + a"
             })
             .unwrap()
             .1;
@@ -209,9 +231,14 @@ fn compiler_input(command: &mut std::process::Command, source: &str) -> std::pro
 fn vectors_match_compiler_types_and_layouts() {
     use std::process::Command;
     for target in Target::ALL {
-        let mut source = SOURCE.to_owned();
+        let mut source = source_for_target(target);
         for bytes in [1, 2, 4, 8, 16] {
-            source.push_str(&format!("typedef unsigned char B{bytes} __attribute__((vector_size({bytes}))); _Static_assert(sizeof(B{bytes})=={bytes} && _Alignof(B{bytes})=={bytes}, \"layout\");\n"));
+            let alignment = if target.is_armv7() {
+                bytes.min(8)
+            } else {
+                bytes
+            };
+            source.push_str(&format!("typedef unsigned char B{bytes} __attribute__((vector_size({bytes}))); _Static_assert(sizeof(B{bytes})=={bytes} && _Alignof(B{bytes})=={alignment}, \"layout\");\n"));
         }
         // Clang uses char/long long masks even on GNU targets. Toucan's Linux
         // profiles use GCC's signed char/long spelling, tested separately below.
@@ -326,8 +353,9 @@ fn vector_masks_and_lane_constraints_follow_target_profiles() {
         } else {
             ("char", "long long")
         };
+        let base = source_for_target(target);
         let source = format!(
-            "{SOURCE}\ntypedef {byte} M8 __attribute__((vector_size(16))); typedef {wide} M64 __attribute__((vector_size(16))); _Static_assert(_Generic((Bytes){{0}}==(Bytes){{0}}, M8: 1, default: 0), \"byte mask\"); _Static_assert(_Generic((D){{0}}==(D){{0}}, M64: 1, default: 0), \"double mask\");\n"
+            "{base}\ntypedef {byte} M8 __attribute__((vector_size(16))); typedef {wide} M64 __attribute__((vector_size(16))); _Static_assert(_Generic((Bytes){{0}}==(Bytes){{0}}, M8: 1, default: 0), \"byte mask\"); _Static_assert(_Generic((D){{0}}==(D){{0}}, M64: 1, default: 0), \"double mask\");\n"
         );
         parity(&source, target).unwrap();
         if gnu {

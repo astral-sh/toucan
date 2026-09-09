@@ -3,7 +3,7 @@ use toucan::{Compiler, CompilerProfile, Config, Target, parse_source};
 
 #[test]
 fn profiles_validate_and_round_trip_without_changing_physical_targets() {
-    assert_eq!(CompilerProfile::ALL.len(), 14);
+    assert_eq!(CompilerProfile::ALL.len(), 15);
     for (index, target) in Target::ALL.into_iter().enumerate() {
         assert!(
             CompilerProfile::ALL.contains(&CompilerProfile::default_for(target)),
@@ -15,7 +15,7 @@ fn profiles_validate_and_round_trip_without_changing_physical_targets() {
         );
         assert_eq!(
             CompilerProfile::new(target, Compiler::Gnu).is_ok(),
-            target.is_linux()
+            target.is_linux() && !target.is_armv7()
         );
     }
     for profile in CompilerProfile::ALL {
@@ -74,6 +74,9 @@ fn profile_macros_keep_linux_types_and_respect_caller_overrides() {
         }
         if profile.target() == Target::I686UnknownLinuxGnu {
             source.push_str("_Static_assert(_Generic((__INT64_TYPE__)0,long long:1,default:0),\"i686 int64\"); _Static_assert(sizeof(long double)==12,\"i686 extended precision\");");
+        }
+        if profile.target().is_armv7() {
+            source.push_str("_Static_assert(_Generic((__INT64_TYPE__)0,long long:1,default:0),\"ARMv7 int64\"); _Static_assert(sizeof(long double)==8,\"ARMv7 double precision\"); _Static_assert(__ARM_PCS_VFP==1,\"hard-float ABI\");");
         }
         let compilation = parse_source(Path::new("profile.h"), &source, &config).unwrap();
         assert_eq!(compilation.unit().profile().unwrap(), profile);

@@ -2831,10 +2831,17 @@ impl Analyzer {
             .any(|ty| matches!(ty.node, ast::TypeSpecifier::MsvcInteger(16)));
         for ty in types {
             if self.int128_specifiers.contains(&ty.span.start) {
-                if self.unit.target == Target::I686UnknownLinuxGnu {
+                if matches!(
+                    self.unit.target,
+                    Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+                ) {
                     return Err(Error::new(
                         ty.span.start,
-                        "__int128 is unavailable on i686 GNU Linux",
+                        if self.unit.target.is_armv7() {
+                            "__int128 is unavailable on ARMv7 GNU Linux"
+                        } else {
+                            "__int128 is unavailable on i686 GNU Linux"
+                        },
                     ));
                 }
                 if std::mem::replace(&mut int128, true) {
@@ -5204,6 +5211,15 @@ impl Analyzer {
                 ast::Extension::Attribute(attribute)
                 | ast::Extension::CallingConvention(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
+                    if self.unit.target.is_armv7() && name == "pcs" {
+                        // `pcs("aapcs")` changes the default hard-float
+                        // argument ABI to base AAPCS. Silently ignoring it
+                        // would emit an incompatible Rust function signature.
+                        return Err(Error::new(
+                            extension.span.start,
+                            "ARMv7 pcs calling convention is unsupported",
+                        ));
+                    }
                     if matches!(extension.node, ast::Extension::CallingConvention(_)) {
                         match name {
                             "pascal" => continue,
@@ -5491,6 +5507,11 @@ impl Analyzer {
                                     extension.span.start,
                                     "calling convention attributes take no arguments",
                                 ));
+                            }
+                            if self.unit.target.is_armv7() {
+                                // Clang accepts these x86 spellings on ARMv7
+                                // but ignores them and uses the default PCS.
+                                continue;
                             }
                             let convention = match name {
                                 "ms_abi" => Some(CallingConvention::Win64),

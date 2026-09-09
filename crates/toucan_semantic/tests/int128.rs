@@ -38,11 +38,14 @@ const INVALID: &[&str] = &[
 
 #[test]
 fn int128_types_use_integer_semantics_in_every_context() {
-    // i686 has neither an integer TI machine mode nor the __int128 spelling.
-    for target in Target::ALL
-        .into_iter()
-        .filter(|target| *target != Target::I686UnknownLinuxGnu)
-    {
+    // Clang on 32-bit i686 and ARMv7 has neither the integer TI machine mode
+    // nor the __int128 spelling.
+    for target in Target::ALL.into_iter().filter(|target| {
+        !matches!(
+            target,
+            Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+        )
+    }) {
         for source in VALID {
             analyze(source, target).unwrap_or_else(|error| panic!("{target}: {source}: {error}"));
         }
@@ -73,6 +76,16 @@ fn int128_types_use_integer_semantics_in_every_context() {
     let source = "void f(void) {} __int128 x = unknown;";
     let error = analyze(source, Target::X86_64UnknownLinuxGnu).unwrap_err();
     assert_eq!(error.offset, source.find("unknown").unwrap());
+    let error = analyze(
+        "typedef __int128 Unsupported;",
+        Target::Armv7UnknownLinuxGnueabihf,
+    )
+    .unwrap_err();
+    assert!(
+        error
+            .message
+            .contains("__int128 is unavailable on ARMv7 GNU Linux")
+    );
 }
 
 #[test]
@@ -81,7 +94,12 @@ fn int128_types_match_compiler_acceptance_on_all_targets() {
     for (compiler, target) in std::iter::once(("gcc", None)).chain(
         Target::ALL
             .into_iter()
-            .filter(|target| *target != Target::I686UnknownLinuxGnu)
+            .filter(|target| {
+                !matches!(
+                    target,
+                    Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+                )
+            })
             .map(|target| ("clang", Some(target))),
     ) {
         for (sources, accepted) in [(VALID, true), (INVALID, false)] {

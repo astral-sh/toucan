@@ -314,6 +314,7 @@ impl Analyzer {
                 | Target::I686UnknownLinuxGnu
                 | Target::X86_64AppleDarwin => 64,
                 Target::Aarch64AppleDarwin
+                | Target::Armv7UnknownLinuxGnueabihf
                 | Target::X86_64PcWindowsMsvc
                 | Target::Aarch64PcWindowsMsvc => 53,
             },

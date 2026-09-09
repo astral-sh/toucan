@@ -344,9 +344,12 @@ fn extended_lanes_round_in_their_target_format() {
     use toucan_semantic::FloatingFormat;
     use toucan_target::Target;
     for profile in CompilerProfile::ALL.into_iter().filter(|profile| {
-        // This fixture declares __int128 vectors and 16-byte long double
-        // vectors, neither of which exists in the i686 compiler profile.
-        profile.target() != Target::I686UnknownLinuxGnu
+        // This fixture declares __int128 vectors, which Clang rejects on
+        // both 32-bit profiles. ARMv7's supported vectors are checked below.
+        !matches!(
+            profile.target(),
+            Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+        )
     }) {
         let prefix = "typedef _Float16 H4 __attribute__((vector_size(8))); typedef __bf16 B4 __attribute__((vector_size(8))); typedef float F4 __attribute__((vector_size(16))); typedef long double L __attribute__((vector_size(16))); typedef __int128 I __attribute__((vector_size(16))); typedef unsigned __int128 U __attribute__((vector_size(16)));";
         let analysis = check(prefix, profile).unwrap();
@@ -401,7 +404,8 @@ fn extended_lanes_round_in_their_target_format() {
             ),
             Target::Aarch64AppleDarwin
             | Target::X86_64PcWindowsMsvc
-            | Target::Aarch64PcWindowsMsvc => (FloatingFormat::Binary64, 0x3ff8000000000000),
+            | Target::Aarch64PcWindowsMsvc
+            | Target::Armv7UnknownLinuxGnueabihf => (FloatingFormat::Binary64, 0x3ff8000000000000),
         };
         assert_eq!(lane.format(), format);
         assert_eq!(lane.to_bits(), expected);
@@ -429,6 +433,50 @@ fn extended_lanes_round_in_their_target_format() {
             assert_eq!(bits(value.lanes()[0]), (0x3fffu128 << 112) | (1u128 << 111));
         }
     }
+}
+
+#[test]
+fn armv7_narrow_and_binary64_long_double_vectors_keep_their_lanes() {
+    use toucan_semantic::FloatingFormat;
+    use toucan_target::Target;
+
+    let profile = CompilerProfile::default_for(Target::Armv7UnknownLinuxGnueabihf);
+    let source = "typedef _Float16 H4 __attribute__((vector_size(8))); \
+        typedef __bf16 B4 __attribute__((vector_size(8))); \
+        typedef float F4 __attribute__((vector_size(16))); \
+        typedef long double L __attribute__((vector_size(16))); \
+        _Static_assert(sizeof(L)==16 && _Alignof(L)==8, \"ARM vector alignment\");";
+    let analysis = check(source, profile).unwrap();
+    let unit = analysis.unit();
+    assert_eq!(
+        evaluate_vector(
+            unit,
+            "__builtin_convertvector((F4){1.00048828125f,0x1p-24f,-0.0f,65504.0f},H4)"
+        )
+        .unwrap()
+        .lanes()
+        .iter()
+        .copied()
+        .map(bits)
+        .collect::<Vec<_>>(),
+        [0x3c00, 1, 0x8000, 0x7bff],
+    );
+    let long_double = evaluate_vector(unit, "(L){1.0L}+(L){0.5L}").unwrap();
+    assert_eq!(long_double.lanes().len(), 2);
+    let ArithmeticConstant::Floating(first) = long_double.lanes()[0] else {
+        panic!("first long-double lane must be floating");
+    };
+    assert_eq!(
+        (first.format(), first.to_bits()),
+        (FloatingFormat::Binary64, 0x3ff8000000000000)
+    );
+    assert!(
+        check(
+            "typedef __int128 V __attribute__((vector_size(16)));",
+            profile
+        )
+        .is_err()
+    );
 }
 
 #[test]

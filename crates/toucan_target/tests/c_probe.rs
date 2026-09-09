@@ -144,10 +144,12 @@ fn fixtures() -> Vec<(&'static str, &'static str, Type, Vec<&'static str>)> {
 
 fn assertions(target: Target) -> String {
     let mut source = String::new();
-    for (name, declaration, ty, fields) in fixtures()
-        .into_iter()
-        .filter(|(name, _, _, _)| target != Target::I686UnknownLinuxGnu || !name.contains("int128"))
-    {
+    for (name, declaration, ty, fields) in fixtures().into_iter().filter(|(name, _, _, _)| {
+        !matches!(
+            target,
+            Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+        ) || !name.contains("int128")
+    }) {
         writeln!(source, "{declaration}").unwrap();
         let layout = target.layout(&ty).unwrap();
         writeln!(

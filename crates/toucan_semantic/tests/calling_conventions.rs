@@ -407,6 +407,7 @@ fn conventions_match_clang_target_ir() {
             let expected = if convention == "ms_abi"
                 && !target.is_windows()
                 && target != Target::I686UnknownLinuxGnu
+                && !target.is_armv7()
             {
                 "win64cc"
             } else if convention == "sysv_abi" && target == Target::X86_64PcWindowsMsvc {

@@ -32,8 +32,9 @@ impl FromStr for Compiler {
     }
 }
 
-/// A validated target, compiler family, and C language mode. GCC is supported on Linux;
-/// Clang is supported on all supported targets, using the Microsoft ABI on Windows.
+/// A validated target, compiler family, and C language mode. GCC is supported on
+/// validated Linux targets; ARMv7 hard-float currently supports Clang only.
+/// Clang uses the Microsoft ABI on Windows.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "ProfileFields")]
 pub struct CompilerProfile {
@@ -58,7 +59,7 @@ impl TryFrom<ProfileFields> for CompilerProfile {
 impl CompilerProfile {
     /// Supported profiles. The original seven entries retain their order; musl
     /// profiles follow them. Fuzz campaign manifests record the selector count.
-    pub const ALL: [Self; 14] = [
+    pub const ALL: [Self; 15] = [
         Self::default_for(Target::X86_64UnknownLinuxGnu),
         Self::default_for(Target::Aarch64UnknownLinuxGnu),
         Self::default_for(Target::X86_64AppleDarwin),
@@ -93,10 +94,13 @@ impl CompilerProfile {
             compiler: Compiler::Clang,
             language_mode: LanguageMode::Gnu11,
         },
+        Self::default_for(Target::Armv7UnknownLinuxGnueabihf),
     ];
     /// Rejects compiler/target pairs whose semantics and ABI have not been validated.
     pub fn new(target: Target, compiler: Compiler) -> Result<Self, LayoutError> {
-        if compiler == Compiler::Gnu && !target.is_linux() {
+        if compiler == Compiler::Gnu
+            && (!target.is_linux() || target == Target::Armv7UnknownLinuxGnueabihf)
+        {
             return Err(LayoutError::UnsupportedCompiler { target, compiler });
         }
         Ok(Self {
@@ -105,12 +109,12 @@ impl CompilerProfile {
             language_mode: LanguageMode::Gnu11,
         })
     }
-    /// Preserves the original target defaults: GCC on Linux, Clang elsewhere.
+    /// GCC is the Linux default where its target semantics are validated.
     pub const fn default_for(target: Target) -> Self {
         Self {
             target,
             language_mode: LanguageMode::Gnu11,
-            compiler: if target.is_linux() {
+            compiler: if target.is_linux() && !target.is_armv7() {
                 Compiler::Gnu
             } else {
                 Compiler::Clang

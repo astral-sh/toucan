@@ -57,13 +57,22 @@ const SOURCE: &str = r#"
  H literal=1.5f16;
 "#;
 
+fn source_for_profile(profile: CompilerProfile) -> String {
+    if profile.target().is_armv7() {
+        SOURCE.replace("_Alignof(BV)==16", "_Alignof(BV)==8")
+    } else {
+        SOURCE.to_owned()
+    }
+}
+
 #[test]
 fn half_types_keep_distinct_storage_and_nominal_arithmetic_types() {
     for profile in CompilerProfile::ALL
         .into_iter()
         .filter(|profile| supports_narrow_types(*profile))
     {
-        let a = check(SOURCE, profile).unwrap_or_else(|e| panic!("{profile:?}: {e}"));
+        let a = check(&source_for_profile(profile), profile)
+            .unwrap_or_else(|e| panic!("{profile:?}: {e}"));
         let u = a.unit();
         assert_eq!(
             u.resolve(&u.typedefs["H"]).unwrap().kind,
@@ -312,10 +321,10 @@ fn i686_f16_literal_suffix_matches_compiler_acceptance() {
 fn declarations_and_constraints_match_compiler_profiles() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("half.c");
-    std::fs::write(&path, SOURCE).unwrap();
     let apple_clang_accepts_i686_narrow = cfg!(target_os = "macos")
         && toucan_test_support::clang_accepts_i686("typedef _Float16 H; typedef __bf16 B;");
     for profile in CompilerProfile::ALL {
+        std::fs::write(&path, source_for_profile(profile)).unwrap();
         let mut command = if profile.compiler() == Compiler::Clang {
             let mut c = std::process::Command::new("clang");
             c.args(["-target", profile.target().triple()]);

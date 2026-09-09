@@ -5,6 +5,9 @@
 //! compiler, loads libclang, or discovers a compiler installation. Supply target
 //! headers with include arguments and a sysroot. Cargo's `TARGET` selects the ABI
 //! unless an explicit `--target` argument overrides it.
+//! ARMv7 hard-float bindings require
+//! `.rust_target(RustTarget::stable(78, 0)?)` or newer so their generated
+//! `target_abi = "eabihf"` guard excludes ARM soft-float Rust targets.
 
 mod arguments;
 pub mod callbacks;
@@ -643,6 +646,12 @@ fn host_target() -> Option<Target> {
             target_arch = "x86",
             target_os = "linux",
             target_env = "gnu"
+        )),
+        Target::Armv7UnknownLinuxGnueabihf => cfg!(all(
+            target_arch = "arm",
+            target_os = "linux",
+            target_env = "gnu",
+            target_abi = "eabihf"
         )),
         Target::Aarch64UnknownLinuxGnu => cfg!(all(
             target_arch = "aarch64",

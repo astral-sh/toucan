@@ -77,7 +77,7 @@ enum Command {
         /// Emit byte string macros as CStr; reject interior NUL bytes.
         #[arg(long)]
         generate_cstr: bool,
-        /// Minimum Rust version for generated declarations (1.64 or newer).
+        /// Minimum Rust version for generated declarations (1.64 or newer; ARMv7 hard-float requires 1.78).
         #[arg(long, default_value_t = RustTarget::default())]
         rust_target: RustTarget,
     },
@@ -200,6 +200,7 @@ impl Input {
             let multiarch = match target.triple() {
                 "x86_64-unknown-linux-gnu" => Some("x86_64-linux-gnu"),
                 "i686-unknown-linux-gnu" => Some("i386-linux-gnu"),
+                "armv7-unknown-linux-gnueabihf" => Some("arm-linux-gnueabihf"),
                 "aarch64-unknown-linux-gnu" => Some("aarch64-linux-gnu"),
                 "x86_64-unknown-linux-musl" => Some("x86_64-linux-musl"),
                 "aarch64-unknown-linux-musl" => Some("aarch64-linux-musl"),
@@ -279,6 +280,12 @@ fn host_target() -> Result<Target> {
                 target_arch = "x86",
                 target_os = "linux",
                 target_env = "gnu"
+            )),
+            "armv7-unknown-linux-gnueabihf" => cfg!(all(
+                target_arch = "arm",
+                target_os = "linux",
+                target_env = "gnu",
+                target_abi = "eabihf"
             )),
             "aarch64-unknown-linux-gnu" => cfg!(all(
                 target_arch = "aarch64",

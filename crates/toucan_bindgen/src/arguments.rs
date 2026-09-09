@@ -199,6 +199,7 @@ fn from_arguments_and_comments(
         let multiarch = match target {
             Target::X86_64UnknownLinuxGnu => Some("x86_64-linux-gnu"),
             Target::I686UnknownLinuxGnu => Some("i386-linux-gnu"),
+            Target::Armv7UnknownLinuxGnueabihf => Some("arm-linux-gnueabihf"),
             Target::Aarch64UnknownLinuxGnu => Some("aarch64-linux-gnu"),
             Target::X86_64UnknownLinuxMusl => Some("x86_64-linux-musl"),
             Target::Aarch64UnknownLinuxMusl => Some("aarch64-linux-musl"),

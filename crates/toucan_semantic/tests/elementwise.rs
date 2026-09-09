@@ -802,7 +802,9 @@ fn target_index(target: Target) -> usize {
         Target::X86_64UnknownLinuxGnu
         | Target::X86_64UnknownLinuxMusl
         | Target::I686UnknownLinuxGnu => 0,
-        Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => 1,
+        Target::Aarch64UnknownLinuxGnu
+        | Target::Aarch64UnknownLinuxMusl
+        | Target::Armv7UnknownLinuxGnueabihf => 1,
         Target::X86_64AppleDarwin => 2,
         Target::Aarch64AppleDarwin => 3,
         Target::X86_64PcWindowsMsvc | Target::Aarch64PcWindowsMsvc => 4,
@@ -826,7 +828,10 @@ fn source_constraints_and_scoped_limits_match_clang18() {
                     result.is_ok(),
                     profile.compiler() == Compiler::Clang
                         && native[target_index(profile.target())]
-                        && !(profile.target() == Target::I686UnknownLinuxGnu && name == "int128"),
+                        && !(matches!(
+                            profile.target(),
+                            Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+                        ) && name == "int128"),
                     "{operation}/{name}/{profile:?}: {result:?}"
                 );
             }
@@ -903,7 +908,10 @@ fn native_saturation_and_integer_ordering() {
     {
         // Semantic analysis receives C after preprocessing; the native caller
         // receives the original guarded fixture for each compiler target.
-        let parsed = if profile.target() == Target::I686UnknownLinuxGnu {
+        let parsed = if matches!(
+            profile.target(),
+            Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+        ) {
             format!("{before}{after}")
         } else {
             format!("{before}{int128}{after}")
@@ -985,7 +993,10 @@ fn native_type_constraints_include_valid_unsupported_forms() {
             assert_eq!(
                 toucan_test_support::compiler_acceptance(&output).unwrap(),
                 native[target_index(profile.target())]
-                    && !(profile.target() == Target::I686UnknownLinuxGnu && name == "int128"),
+                    && !(matches!(
+                        profile.target(),
+                        Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+                    ) && name == "int128"),
                 "{operation}/{name}/{profile:?}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );

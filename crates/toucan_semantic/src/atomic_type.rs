@@ -110,13 +110,19 @@ pub(crate) fn atomic_layout(
         )
     } else if size == 0 {
         (8, inner.alignment_bits)
-    } else if size <= 64 || (target != toucan_target::Target::I686UnknownLinuxGnu && size <= 128) {
+    } else if size <= 64
+        || (!matches!(
+            target,
+            toucan_target::Target::I686UnknownLinuxGnu
+                | toucan_target::Target::Armv7UnknownLinuxGnueabihf
+        ) && size <= 128)
+    {
         let size = size
             .checked_next_power_of_two()
             .ok_or_else(|| Error::new(0, "atomic storage size overflows"))?;
         (size, size)
     } else {
-        // Clang's i386 ABI promotes atomic storage only through eight bytes.
+        // Clang's 32-bit i386 and ARM ABIs promote atomic storage only through eight bytes.
         // Larger values retain their underlying size and field alignment.
         (size, inner.alignment_bits)
     };

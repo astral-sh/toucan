@@ -123,6 +123,7 @@ impl Format {
                 | Target::X86_64AppleDarwin => Self::X87,
                 Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => Self::Binary128,
                 Target::Aarch64AppleDarwin
+                | Target::Armv7UnknownLinuxGnueabihf
                 | Target::X86_64PcWindowsMsvc
                 | Target::Aarch64PcWindowsMsvc => Self::Binary64,
             },

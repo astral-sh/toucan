@@ -69,7 +69,16 @@ fn options() -> Options {
 fn unions_keep_overlapping_storage_and_unsafe_accessors() {
     for target in Target::ALL {
         let unit = analyze(HEADER, target).unwrap();
-        let source = generate(&unit, &options()).unwrap().source;
+        let rust_target = if target.is_armv7() { "1.78" } else { "1.64" };
+        let source = generate(
+            &unit,
+            &Options {
+                rust_target: rust_target.parse().unwrap(),
+                ..options()
+            },
+        )
+        .unwrap()
+        .source;
         assert!(source.contains("pub union Values"));
         assert!(source.contains("MaybeUninit<[::core::primitive::u8; 16]>"));
         assert!(source.contains("pub unsafe fn small(&self)"));
