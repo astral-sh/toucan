@@ -10,4 +10,8 @@ The native reference investigation covers 63 GNU C11 headers with bindgen 0.72.1
 
 Reference behavior includes unsupported or incorrect outputs: a 100-bit integer is truncated to zero, and a long-double literal is assigned to Rust `u128`, which does not compile. These are reference limitations, not values to reproduce. Of the 63 controls, Clang accepts 60 and GCC accepts 59. The 60 generated reference modules include 59 compiling modules on both Rust 1.98.1 and actual Rust 1.64.0; the long-double module fails both compilers.
 
+## String literal facts
+
+`ObjectOccurrence::string_literal` retains direct ordinary/UTF-8 initializer bytes through the literal's final implicit NUL, including embedded NULs and subsequent bytes. Its C array type retains the declared bound independently. Parenthesized or computed expressions and wide encodings have no byte-literal entry. See [string object bindings](string-object-bindings.md) for the separate logical C-string projection, bounded native checks, and unterminated-array diagnostic.
+
 The [combined-source validation](../corpus/evidence/object-values-root-integration-2026-09-09.json.gz) passes the occurrence, destination-conversion, and resource-limit tests plus workspace Clippy. This capture layer does not change Builder output; arithmetic constant emission is a subsequent layer.

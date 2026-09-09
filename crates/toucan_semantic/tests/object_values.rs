@@ -123,3 +123,42 @@ fn optional_capture_preserves_existing_initializer_admission_and_semantics() {
         );
     }
 }
+
+#[test]
+fn string_capture_preserves_literal_bytes_bounds_and_written_expression_shape() {
+    let source = "static const char full[]=\"a\\0bc\"; static const char exact[3]=\"abc\"; static const char *parenthesized=(\"abc\"); static const char braced[]={\"abc\"}; static const unsigned short wide[]=u\"abc\"; static const char *volatile direct=u8\"caf\\u00e9\";";
+    let plain = analyze_with_options(
+        source,
+        Target::X86_64UnknownLinuxGnu,
+        &AnalysisOptions::default(),
+    )
+    .unwrap();
+    let kept = analyze_with_options(
+        source,
+        Target::X86_64UnknownLinuxGnu,
+        &AnalysisOptions {
+            retain_object_values: true,
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(format!("{:?}", plain.unit()), format!("{:?}", kept.unit()));
+    let objects = kept.object_values().unwrap().entries();
+    assert_eq!(objects[0].string_literal(), Some(b"a\0bc\0".as_slice()));
+    assert_eq!(objects[1].string_literal(), Some(b"abc\0".as_slice()));
+    assert!(matches!(
+        objects[1].ty().kind,
+        TypeKind::Array {
+            length: Some(3),
+            ..
+        }
+    ));
+    for object in &objects[2..5] {
+        assert_eq!(object.string_literal(), None);
+    }
+    assert_eq!(
+        objects[5].string_literal(),
+        Some(b"caf\xc3\xa9\0".as_slice())
+    );
+    assert!(kept.checked().is_none());
+}

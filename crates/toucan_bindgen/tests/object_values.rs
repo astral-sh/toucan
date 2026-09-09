@@ -136,3 +136,72 @@ fn object_occurrences_cannot_cross_target_profiles() {
             .contains("different compiler profile")
     );
 }
+
+#[test]
+fn string_objects_project_terminated_prefixes_and_reject_unterminated_arrays() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("strings.h");
+    std::fs::write(&path,"static const char embedded[]=\"a\\0bc\"; static char padded[8]=\"abc\"; static const unsigned char raw[]=\"\\xff\\x80\"; static const char *parenthesized=(\"abc\"); static const char braced[]={\"abc\"}; static const unsigned short wide[]=u\"abc\";").unwrap();
+    let source = builder(&path).generate().unwrap().to_string();
+    for expected in [
+        "pub const embedded: &[::core::primitive::u8; 2] = &[97, 0, ];",
+        "pub const padded: &[::core::primitive::u8; 4] = &[97, 98, 99, 0, ];",
+        "pub const raw: &[::core::primitive::u8; 3] = &[255, 128, 0, ];",
+        "pub static mut parenthesized:",
+        "pub static braced:",
+        "pub static wide:",
+    ] {
+        assert!(source.contains(expected), "missing {expected}: {source}");
+    }
+    std::fs::write(&path, "static const char exact[3]=\"abc\";").unwrap();
+    assert!(
+        builder(&path)
+            .generate()
+            .unwrap_err()
+            .to_string()
+            .contains("no terminating NUL within its 3-byte C array")
+    );
+}
+
+#[test]
+fn string_objects_keep_file_order_and_external_name_callbacks() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("root.h");
+    std::fs::write(
+        dir.path().join("first.h"),
+        "extern const char object[4]; static const char internal[]=\"own\";\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("second.h"),
+        "#line 99 \"logical.h\"\nconst char object[4]=\"abc\";\n",
+    )
+    .unwrap();
+    std::fs::write(&path, "#include \"first.h\"\n#include \"second.h\"\n").unwrap();
+    let all = builder(&path)
+        .parse_callbacks(Box::new(Rename))
+        .generate()
+        .unwrap()
+        .to_string();
+    assert!(all.contains("pub static renamed_object:"));
+    assert!(all.contains("pub const internal:"));
+    let second = builder(&path)
+        .allowlist_file(r".*[/\\]second\.h")
+        .parse_callbacks(Box::new(Rename))
+        .generate()
+        .unwrap()
+        .to_string();
+    assert!(
+        second.contains("pub const renamed_object: &[::core::primitive::u8; 4]"),
+        "{second}"
+    );
+    assert!(!second.contains("pub const internal:"));
+    assert!(
+        !builder(&path)
+            .allowlist_file("logical.h")
+            .generate()
+            .unwrap()
+            .to_string()
+            .contains("pub const object:")
+    );
+}

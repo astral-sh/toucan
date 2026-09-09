@@ -194,3 +194,8 @@ primitive or typedef type. The first declaration in a selected header controls
 constant-versus-extern emission. Internal objects use their original name;
 external objects retain name callback behavior. See [scalar object bindings](../../docs/static-object-bindings.md)
 for conversion, redeclaration, string/const-read boundaries, and native value checks.
+
+Direct narrow string object initializers project their terminated C-string prefix.
+Captured literal bytes and C array bounds remain available independently. Unterminated
+arrays produce a diagnostic. See [string object bindings](../../docs/string-object-bindings.md)
+for embedded NULs, padding, UTF-8, preserved storage bindings, and bounded byte checks.

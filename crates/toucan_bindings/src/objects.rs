@@ -5,6 +5,11 @@ use toucan_semantic::{
     ArithmeticConstant, Declaration, DeclarationKind, FloatKind, Type, TypeKind,
 };
 
+pub(crate) enum ObjectConstant<'a> {
+    Arithmetic(ArithmeticConstant),
+    String(&'a [u8]),
+}
+
 impl Options {
     /// Validate the profile, indices, names, and types of supplied object occurrences.
     pub(crate) fn validate_object_bindings(
@@ -29,6 +34,30 @@ impl Options {
                 return Err(Error(format!(
                     "object occurrence `{name}` does not match its declaration"
                 )));
+            }
+            if let Some(bytes) = object.string_literal() {
+                let element = match &unit.resolve(object.ty())?.kind {
+                    TypeKind::Pointer(element) | TypeKind::Array { element, .. } => element,
+                    _ => {
+                        return Err(Error(format!(
+                            "string object occurrence `{name}` has a different destination type"
+                        )));
+                    }
+                };
+                if bytes.last() != Some(&0)
+                    || !matches!(
+                        unit.resolve(element)?.kind,
+                        TypeKind::Integer(
+                            toucan_semantic::IntegerKind::Char
+                                | toucan_semantic::IntegerKind::SignedChar
+                                | toucan_semantic::IntegerKind::UnsignedChar
+                        )
+                    )
+                {
+                    return Err(Error(format!(
+                        "string object occurrence `{name}` has invalid byte storage"
+                    )));
+                }
             }
             if let Some(value) = object.value() {
                 let destination = unit.atomic_value(object.ty())?.unwrap_or(object.ty());
@@ -81,10 +110,28 @@ impl<'unit> Emitter<'unit> {
     pub(crate) fn object_constant(
         &self,
         declaration: &Declaration,
-    ) -> Result<Option<ArithmeticConstant>, Error> {
+    ) -> Result<Option<ObjectConstant<'unit>>, Error> {
         let Some(object) = self.options.object_bindings.get(&declaration.name) else {
             return Ok(None);
         };
+        if let Some(bytes) = object.string_literal() {
+            let end = bytes
+                .iter()
+                .position(|byte| *byte == 0)
+                .ok_or_else(|| Error("string object literal has no terminating NUL".into()))?;
+            if let TypeKind::Array {
+                length: Some(length),
+                ..
+            } = self.unit.resolve(object.ty())?.kind
+                && end as u64 >= length
+            {
+                return Err(Error(format!(
+                    "string object `{}` has no terminating NUL within its {length}-byte C array",
+                    declaration.name
+                )));
+            }
+            return Ok(Some(ObjectConstant::String(&bytes[..=end])));
+        }
         let Some(value) = object.value() else {
             return Ok(None);
         };
@@ -119,7 +166,7 @@ impl<'unit> Emitter<'unit> {
             }
             _ => {}
         }
-        Ok(Some(value))
+        Ok(Some(ObjectConstant::Arithmetic(value)))
     }
 
     /// Use the selected declaration's type; atomic literals project their contained scalar.
@@ -148,6 +195,30 @@ impl<'unit> Emitter<'unit> {
             return Ok(());
         };
         let name = self.generated_name(&declaration.name)?;
+        let value = match value {
+            ObjectConstant::Arithmetic(value) => value,
+            ObjectConstant::String(bytes) => {
+                if self.options.generate_cstr {
+                    write!(source, "pub const {name}: &::core::ffi::CStr = unsafe {{ ::core::ffi::CStr::from_bytes_with_nul_unchecked(&[").unwrap();
+                } else {
+                    write!(
+                        source,
+                        "pub const {name}: &[::core::primitive::u8; {}] = &[",
+                        bytes.len()
+                    )
+                    .unwrap();
+                }
+                for byte in bytes {
+                    write!(source, "{byte}, ").unwrap();
+                }
+                source.push_str(if self.options.generate_cstr {
+                    "]) };\n"
+                } else {
+                    "];\n"
+                });
+                return Ok(());
+            }
+        };
         let ty = self.ty(self.object_type(declaration)?)?;
         match value {
             ArithmeticConstant::Integer(value) => {
