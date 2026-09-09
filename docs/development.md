@@ -1,5 +1,19 @@
 # Development
 
+## Workspace and checks
+
+See [architecture](architecture.md) for the crate inventory and component
+boundaries. Run the workspace checks from the repository root:
+
+```console
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all --check
+```
+
+C compilers are used by validation tools as an independent reference. See
+[validation](validation.md) for recorded results and their scope.
+
 ## Scope
 
 Build an integrated C frontend for preprocessing, parsing, declaration semantics,
