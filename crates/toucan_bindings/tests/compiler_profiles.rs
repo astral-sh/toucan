@@ -39,6 +39,85 @@ fn armv7_hard_float_bindings_keep_the_exact_rust_target_guard() {
 }
 
 #[test]
+#[ignore = "requires rustc target configuration queries; run with --include-ignored"]
+fn target_guards_reject_incompatible_pointer_width_and_byte_order() {
+    let directory = tempfile::tempdir().unwrap();
+    let mismatches = [
+        (Target::X86_64UnknownLinuxGnu, "x86_64-unknown-linux-gnux32"),
+        (
+            Target::Aarch64UnknownLinuxGnu,
+            "aarch64-unknown-linux-gnu_ilp32",
+        ),
+        (
+            Target::Aarch64UnknownLinuxGnu,
+            "aarch64_be-unknown-linux-gnu",
+        ),
+        (
+            Target::Aarch64UnknownLinuxMusl,
+            "aarch64_be-unknown-linux-musl",
+        ),
+        (
+            Target::Armv7UnknownLinuxGnueabihf,
+            "armv7-unknown-linux-gnueabi",
+        ),
+    ];
+    let cases = Target::ALL
+        .into_iter()
+        .map(|target| (target, target.triple(), true))
+        .chain(
+            mismatches
+                .into_iter()
+                .map(|(target, actual)| (target, actual, false)),
+        );
+    for (target, actual, accepted) in cases {
+        let unit = toucan_semantic::analyze("long roundtrip(long value);", target).unwrap();
+        let source = toucan_bindings::generate(&unit, &Default::default())
+            .unwrap()
+            .source;
+        let guard = source
+            .lines()
+            .skip_while(|line| !line.starts_with("#[cfg("))
+            .take(2)
+            .collect::<Vec<_>>()
+            .join("\n");
+        let config = Command::new("rustc")
+            .args(["--print", "cfg", "--target", actual])
+            .output()
+            .unwrap();
+        assert!(config.status.success(), "{actual}: {config:?}");
+        // Evaluate the emitted predicate with rustc's real target configuration.
+        // Renaming the cfg keys lets the host compile this guard without requiring
+        // standard libraries for every cross target or overriding built-in cfgs.
+        std::fs::write(
+            directory.path().join("guard.rs"),
+            guard.replace("target_", "probe_target_"),
+        )
+        .unwrap();
+        let mut command = Command::new("rustc");
+        command.current_dir(directory.path()).args([
+            "--edition=2024",
+            "--crate-type=lib",
+            "guard.rs",
+        ]);
+        for line in std::str::from_utf8(&config.stdout).unwrap().lines() {
+            if line.starts_with("target_") {
+                command.arg("--cfg").arg(format!("probe_{line}"));
+            }
+        }
+        let output = command.output().unwrap();
+        assert_eq!(
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(accepted),
+            "bindings for {target}, compiled for {actual}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        if !accepted {
+            assert!(String::from_utf8_lossy(&output.stderr).contains("different target"));
+        }
+    }
+}
+
+#[test]
 #[ignore = "requires native Linux GCC/Clang and rustc; supports TOUCAN_TEST_RUST_TOOLCHAIN"]
 fn generated_bitfield_accessors_match_both_linux_compilers() {
     let target = match (std::env::consts::OS, std::env::consts::ARCH) {
