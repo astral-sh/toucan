@@ -72,7 +72,7 @@ impl Expansion<'_> {
             let Some(token) = pending.pop_front() else {
                 break;
             };
-            if token.kind != Kind::Identifier || token.hidden.contains(&token.text) {
+            if token.kind != Kind::Identifier || token.hidden.contains(token.text.as_str()) {
                 let pragma = token.kind == Kind::Pragma;
                 output.push(token);
                 if STOP_ON_PRAGMA && pragma {
@@ -104,7 +104,7 @@ impl Expansion<'_> {
                 self.charge(&payload)?;
                 let mut directive = token;
                 directive.kind = Kind::Pragma;
-                directive.text = crate::token::render(&payload);
+                directive.text = crate::token::render(&payload).into();
                 output.push(directive);
                 self.location = previous_location;
                 if STOP_ON_PRAGMA {
@@ -130,7 +130,7 @@ impl Expansion<'_> {
                 self.charge(&argument)?;
                 let mut directive = token;
                 directive.kind = Kind::Pragma;
-                directive.text = crate::token::render(&argument);
+                directive.text = crate::token::render(&argument).into();
                 output.push(directive);
                 self.location = previous_location;
                 if STOP_ON_PRAGMA {
@@ -208,7 +208,7 @@ impl Expansion<'_> {
                 let value = queries.evaluate(kind, &argument)?;
                 let mut replacement = token;
                 replacement.kind = Kind::Number;
-                replacement.text = queries.spelling(value);
+                replacement.text = queries.spelling(value).into();
                 replacement.expanded = true;
                 replacement.depth += 1;
                 self.charge(std::slice::from_ref(&replacement))?;
@@ -228,7 +228,7 @@ impl Expansion<'_> {
                 }
                 continue;
             }
-            let Some(definition) = self.macros.get(&token.text) else {
+            let Some(definition) = self.macros.get(token.text.as_str()) else {
                 if token.text == "__TIMESTAMP__" {
                     self.location = Some((token.line, token.column));
                     return Err(format!(
@@ -278,7 +278,7 @@ impl Expansion<'_> {
                     )?;
                 }
                 replacement.hidden.extend(hidden.iter().cloned());
-                replacement.hidden.insert(token.text.clone());
+                replacement.hidden.insert(token.text.to_string());
                 replacement.depth = replacement.depth.max(token.depth + 1);
                 replacement.line = token.line;
                 replacement.column = token.column;
@@ -396,7 +396,7 @@ impl Expansion<'_> {
                     .get(position + 1)
                     .is_some_and(|token| token.text == "##")
                 && replacement.get(position + 2).is_some_and(|token| {
-                    Some(&token.text) == definition.variadic_parameter.as_ref()
+                    Some(token.text.as_str()) == definition.variadic_parameter.as_deref()
                 })
             {
                 // GNU's comma-elision extension applies only when the argument is omitted.

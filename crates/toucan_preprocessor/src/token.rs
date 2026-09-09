@@ -1,5 +1,7 @@
 use std::collections::BTreeSet;
 
+use char_str::CharStr;
+
 use crate::LineComments;
 use crate::comments::CommentState;
 
@@ -18,7 +20,8 @@ pub(crate) enum Kind {
 #[derive(Clone, Debug)]
 pub(crate) struct Token {
     pub kind: Kind,
-    pub text: String,
+    /// Short spellings stay inline; cloning long spellings shares their allocation.
+    pub text: CharStr,
     pub space: bool,
     /// First half of a lexically adjacent `::` pair in strict C tokenization.
     pub colon_scope: bool,
@@ -33,7 +36,7 @@ pub(crate) struct Token {
 }
 
 impl Token {
-    pub(crate) fn new(kind: Kind, text: impl Into<String>) -> Self {
+    pub(crate) fn new(kind: Kind, text: impl Into<CharStr>) -> Self {
         Self {
             kind,
             text: text.into(),
@@ -398,4 +401,14 @@ pub(crate) fn render(tokens: &[Token]) -> String {
         .map(|token| token.text.as_str())
         .collect::<Vec<_>>()
         .join(" ")
+}
+
+#[cfg(all(test, target_pointer_width = "64"))]
+mod tests {
+    use super::Token;
+
+    #[test]
+    fn token_size() {
+        assert_eq!(size_of::<Token>(), 96);
+    }
 }
