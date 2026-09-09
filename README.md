@@ -2,9 +2,18 @@
 
 A C frontend and Rust binding generator, written in Rust.
 
+| Project | Toucan | bindgen 0.72.1 | Speedup |
+| --- | ---: | ---: | ---: |
+| zlib 1.3.1 | 22.22 ms | 117.93 ms | 5.30× |
+| SQLite 3.45.1 | 25.36 ms | 154.92 ms | 6.10× |
+| zstd 1.5.7 | 9.12 ms | 101.91 ms | 11.23× |
+| libgit2 1.9.1 | 192.85 ms | 263.19 ms | 1.37× |
+
 [**Documentation**](docs/README.md) | [**Compatibility**](docs/compatibility.md) | [**Benchmarks**](docs/benchmarks.md)
 
-Toucan is experimental and is not yet a production-ready replacement for bindgen.
+**Warning:** This README is human-edited, but all code changes, PR summaries, and additional
+documentation were authored entirely by GPT-6 Astra in [Codex](https://openai.com/codex/).
+Use at your own risk.
 
 ## Highlights
 
@@ -66,12 +75,6 @@ toucan inspect api.h --output api.json
 
 See the [command-line guide](docs/usage.md) for target configuration and header analysis,
 or the [library guide](docs/library.md) to use Toucan from Rust.
-
-## Contributing
-
-See the [development guide](docs/development.md) to get started and the
-[architecture guide](docs/architecture.md) for an overview of the crates.
-[Validation results](docs/validation.md) document the tested configurations and remaining gaps.
 
 ## License
 
