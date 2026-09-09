@@ -81,6 +81,95 @@ def check_features(packages: dict[str, dict]) -> None:
     assert "aws-lc-fips-sys" not in packages
 
 
+def consumer_dependencies(
+    metadata: dict, tree: str, lock: dict, generator: str
+) -> dict:
+    """Preserve the active consumer graph after removing the one generator edge."""
+    active = set()
+    for line in tree.splitlines():
+        package, _ = line.rsplit("|", 1)
+        name, version, *_ = package.split()
+        active.add((name, version.removeprefix("v")))
+    packages = {package["id"]: package for package in metadata["packages"]}
+    nodes = {node["id"]: node for node in metadata["resolve"]["nodes"]}
+    locked = {
+        (package["name"], package["version"], package.get("source")): package
+        for package in lock["package"]
+    }
+    root = metadata["resolve"]["root"]
+    selected, edges, pending, removed = {}, [], [root], []
+
+    def identity(package: dict) -> str:
+        return f"{package['name']}@{package['version']}"
+
+    while pending:
+        package_id = pending.pop()
+        package = packages[package_id]
+        key = identity(package)
+        if key in selected:
+            if selected[key]["id"] != package_id:
+                raise RuntimeError(f"ambiguous active package identity: {key}")
+            continue
+        if (package["name"], package["version"]) not in active:
+            raise RuntimeError(f"consumer dependency is absent from Cargo tree: {key}")
+        entry = locked.get((package["name"], package["version"], package.get("source")))
+        if entry is None:
+            raise RuntimeError(f"consumer dependency is absent from Cargo lock: {key}")
+        copied = package_id == root or package["name"] == "aws-lc-sys"
+        selected[key] = {
+            "id": package_id,
+            # These two sources are independently checked byte-for-byte. Their
+            # local manifest substitutions deliberately change Cargo's source ID.
+            "source": None if copied else package.get("source"),
+            "checksum": None if copied else entry.get("checksum"),
+            "features": sorted(nodes[package_id]["features"]),
+        }
+        for dependency in nodes[package_id]["deps"]:
+            kinds = [
+                kind
+                for kind in dependency["dep_kinds"]
+                if kind["kind"] in (None, "build")
+            ]
+            if not kinds:
+                continue
+            target = packages[dependency["pkg"]]
+            if (target["name"], target["version"]) not in active:
+                continue
+            if package["name"] == "aws-lc-sys" and dependency["name"] == "bindgen":
+                if target["name"] != generator or any(
+                    kind["kind"] != "build" for kind in kinds
+                ):
+                    raise RuntimeError("unexpected AWS-LC binding-generator edge")
+                removed.append(identity(target))
+                continue
+            edges.append(
+                {
+                    "from": key,
+                    "to": identity(target),
+                    "name": dependency["name"],
+                    "kinds": sorted(
+                        kinds, key=lambda kind: json.dumps(kind, sort_keys=True)
+                    ),
+                }
+            )
+            pending.append(dependency["pkg"])
+    if len(removed) != 1:
+        raise RuntimeError("expected one active AWS-LC binding-generator edge")
+    for package in selected.values():
+        del package["id"]
+    return {
+        "packages": dict(sorted(selected.items())),
+        "edges": sorted(edges, key=lambda edge: json.dumps(edge, sort_keys=True)),
+    }
+
+
+def check_consumer_dependencies(expected: dict, actual: dict) -> None:
+    if expected != actual:
+        raise RuntimeError(
+            "non-generator package identities, features, or edges changed"
+        )
+
+
 def verify_registry_source(source: Path) -> dict:
     cargo_home = Path(os.environ.get("CARGO_HOME", Path.home() / ".cargo"))
     archive = (
@@ -294,13 +383,18 @@ def verify(args: argparse.Namespace) -> dict:
                 "upstream-metadata",
             )
         )
-        packages = active_packages(
-            original,
-            run(
-                ["cargo", *tree_args, "--manifest-path", str(FIXTURE / "Cargo.toml")],
-                "upstream-tree",
-            ),
+        original_tree = run(
+            ["cargo", *tree_args, "--manifest-path", str(FIXTURE / "Cargo.toml")],
+            "upstream-tree",
         )
+        packages = active_packages(original, original_tree)
+        original_dependencies = consumer_dependencies(
+            original,
+            original_tree,
+            tomllib.loads((FIXTURE / "Cargo.lock").read_text()),
+            "bindgen",
+        )
+        evidence["non_generator_dependencies"] = original_dependencies
         check_features(packages)
         assert packages["bindgen"]["version"] == "0.72.1"
         sys_source = Path(packages["aws-lc-sys"]["manifest_path"]).parent
@@ -361,20 +455,21 @@ def verify(args: argparse.Namespace) -> dict:
                     f"{case}-metadata",
                 )
             )
-            selected = active_packages(
-                metadata,
-                run(
-                    ["cargo", *tree_args, "--manifest-path", str(manifest)],
-                    f"{case}-tree",
-                ),
+            selected_tree = run(
+                ["cargo", *tree_args, "--manifest-path", str(manifest)],
+                f"{case}-tree",
             )
+            selected = active_packages(metadata, selected_tree)
             check_features(selected)
             assert Path(selected["aws-lc-sys"]["manifest_path"]).parent == sys_copy
             assert Path(selected["aws-lc-rs"]["manifest_path"]).parent == rs_source
-            for name in packages.keys() & selected.keys():
-                assert packages[name]["versions"] == selected[name]["versions"], (
-                    f"changed dependency version: {name}"
-                )
+            dependencies = consumer_dependencies(
+                metadata,
+                selected_tree,
+                tomllib.loads((consumer / "Cargo.lock").read_text()),
+                "toucan_bindgen" if case == "toucan" else "bindgen",
+            )
+            check_consumer_dependencies(original_dependencies, dependencies)
             if case == "toucan":
                 assert "toucan_bindgen" in selected
                 assert not {"bindgen", "clang-sys", "libloading"}.intersection(selected)
@@ -385,6 +480,7 @@ def verify(args: argparse.Namespace) -> dict:
             else:
                 assert selected["bindgen"]["version"] == "0.72.1"
             case_evidence = {
+                "non_generator_dependencies": dependencies,
                 "packages": {
                     name: {
                         key: package[key]
