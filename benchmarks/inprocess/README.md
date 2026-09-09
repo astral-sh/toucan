@@ -154,6 +154,12 @@ Include all valid observations. Shared CPU frequency, memory bandwidth, file
 cache, and other workloads limit small-change claims. Repeat a noisy result
 under controlled conditions before calling it an improvement or regression.
 
+The runner's `paired` object contains those per-process medians, paired ratios,
+ranges, and separate first-call summaries. The top-level project `median_ms` and
+`bindgen_over_toucan` fields retain their historical pooled-call calculation.
+Use the paired object when comparing process pairs; its median ratio can differ
+from the ratio of the two displayed medians.
+
 The old core-route evidence remains a separate comparison. The new file roots,
 Builder policies, comment work, and selected API change the measured workload;
 a percentage change against old core results would conflate those changes.

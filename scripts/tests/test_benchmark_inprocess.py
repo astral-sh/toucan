@@ -1,5 +1,6 @@
 import hashlib
 import json
+import statistics
 import subprocess
 import sys
 import tempfile
@@ -76,6 +77,7 @@ class InprocessBenchmarkTests(unittest.TestCase):
                         {
                             "engine": engine,
                             "samples_ms": [1.0] * 3,
+                            "warmup_ms": 2.0,
                             "configuration": {}
                             if changed_configuration
                             else reference.get("request"),
@@ -148,3 +150,33 @@ class InprocessBenchmarkTests(unittest.TestCase):
 
     def test_builder_configuration_is_required_before_measurement(self):
         self.run_case(builder=True, missing_configuration=True)
+
+    def test_paired_summary_uses_process_medians_and_matching_pairs(self):
+        # Pooling calls yields 3 and 4; process medians yield 2 and 4. The
+        # median paired ratio is 3, distinct from either ratio of medians.
+        samples = {
+            "toucan-builder": [[1, 1, 99], [2, 2, 99], [3, 4, 5]],
+            "bindgen": [[3, 3, 300], [8, 8, 8], [4, 4, 4]],
+        }
+        rows = [
+            {
+                "pair": pair,
+                "engine": engine,
+                "samples_ms": values,
+                "warmup_ms": 10 * statistics.median(values),
+            }
+            for engine, processes in samples.items()
+            for pair, values in enumerate(processes)
+        ]
+        result = benchmark.paired_summary(rows[::-1], tuple(samples), 3)
+        self.assertEqual(result["median_ms"], {"toucan-builder": 2, "bindgen": 4})
+        self.assertEqual(result["bindgen_over_toucan_ratios"], [3, 4, 1])
+        self.assertEqual(result["median_bindgen_over_toucan"], 3)
+        self.assertEqual(result["bindgen_over_toucan_range"], [1, 4])
+        self.assertEqual(
+            result["median_first_call_ms"], {"toucan-builder": 20, "bindgen": 40}
+        )
+        with self.assertRaisesRegex(ValueError, "duplicate"):
+            benchmark.paired_summary([*rows, rows[0]], tuple(samples), 3)
+        with self.assertRaisesRegex(ValueError, "incomplete"):
+            benchmark.paired_summary(rows[1:], tuple(samples), 3)

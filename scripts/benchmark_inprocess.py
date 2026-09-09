@@ -37,6 +37,49 @@ def request_from_reference(reference):
     }
 
 
+def paired_summary(rows, engines, pairs):
+    """Compare process medians within each randomized pair, retaining first calls."""
+    by_pair = {}
+    for row in rows:
+        key = (row["pair"], row["engine"])
+        if key in by_pair:
+            raise ValueError("duplicate benchmark process in a pair")
+        by_pair[key] = row
+    if set(by_pair) != {(pair, engine) for pair in range(pairs) for engine in engines}:
+        raise ValueError("benchmark process pairs are incomplete")
+    medians = {
+        engine: [
+            statistics.median(by_pair[pair, engine]["samples_ms"])
+            for pair in range(pairs)
+        ]
+        for engine in engines
+    }
+    first_calls = {
+        engine: [by_pair[pair, engine]["warmup_ms"] for pair in range(pairs)]
+        for engine in engines
+    }
+    ratios = [
+        medians["bindgen"][pair] / medians[engines[0]][pair] for pair in range(pairs)
+    ]
+    return {
+        "method": "Median of process medians; speedup is the median of within-pair bindgen/Toucan ratios. First calls include initial library loading but exclude process startup.",
+        "process_medians_ms": medians,
+        "median_ms": {
+            engine: statistics.median(values) for engine, values in medians.items()
+        },
+        "process_median_range_ms": {
+            engine: [min(values), max(values)] for engine, values in medians.items()
+        },
+        "bindgen_over_toucan_ratios": ratios,
+        "median_bindgen_over_toucan": statistics.median(ratios),
+        "bindgen_over_toucan_range": [min(ratios), max(ratios)],
+        "first_calls_ms": first_calls,
+        "median_first_call_ms": {
+            engine: statistics.median(values) for engine, values in first_calls.items()
+        },
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("references", nargs="+", type=Path)
@@ -141,6 +184,8 @@ def main():
                     if (
                         row["engine"] != engine
                         or len(row["samples_ms"]) != args.iterations
+                        or not math.isfinite(row["warmup_ms"])
+                        or row["warmup_ms"] <= 0
                         or any(
                             not math.isfinite(value) or value <= 0
                             for value in row["samples_ms"]
@@ -176,8 +221,9 @@ def main():
             result.update(
                 median_ms=medians,
                 bindgen_over_toucan=medians["bindgen"] / medians[args.toucan_engine],
+                paired=paired_summary(rows, engines, args.pairs),
             )
-            print(project, medians, flush=True)
+            print(project, result["paired"]["median_ms"], flush=True)
         if digest(binary) != report["binary_sha256"]:
             raise ValueError("benchmark executable changed during measurement")
         report["status"] = "passed"
