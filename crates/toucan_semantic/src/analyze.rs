@@ -4040,19 +4040,47 @@ impl Analyzer {
             match &declaration.node {
                 ast::StructDeclaration::StaticAssert(assertion) => self.static_assert(assertion)?,
                 ast::StructDeclaration::Field(field) => {
-                    let (base, attributes) =
+                    let (mut base, mut attributes) =
                         self.specifier_qualifiers(&field.node.specifiers, false)?;
                     attributes.require_function_attributes(false)?;
                     attributes.require_no_weak()?;
                     attributes.require_no_transparent_union()?;
                     if field.node.declarators.is_empty() {
-                        // GNU and Clang accept declarations without members,
-                        // including nested tag definitions. Only a directly
-                        // written unnamed record declares an anonymous member.
-                        if !anonymous_record_specifier(&field.node.specifiers)
-                            || !matches!(base.kind, TypeKind::Record(id) if self.unit.records[id].name.is_none())
-                        {
+                        let Some(syntax) =
+                            anonymous_record_specifier(&field.node.specifiers, self.unit.target)
+                        else {
                             continue;
+                        };
+                        match syntax {
+                            AnonymousRecordSpecifier::Direct => {
+                                if !matches!(base.kind, TypeKind::Record(id) if self.unit.records[id].name.is_none())
+                                {
+                                    continue;
+                                }
+                            }
+                            AnonymousRecordSpecifier::MicrosoftTag
+                            | AnonymousRecordSpecifier::MicrosoftTypedef(_) => {
+                                let ty = match syntax {
+                                    AnonymousRecordSpecifier::MicrosoftTypedef(name) => self
+                                        .local_typedef(name)
+                                        .or_else(|| self.unit.typedefs.get(name))
+                                        .ok_or_else(|| {
+                                            Error::new(field.span.start, "unknown member typedef")
+                                        })?,
+                                    // Written qualifiers do not belong to the
+                                    // Microsoft anonymous field's storage type.
+                                    _ => self.unit.atomic_value(&base)?.unwrap_or(&base),
+                                };
+                                let TypeKind::Record(record) = self.unit.resolve(ty)?.kind else {
+                                    continue;
+                                };
+                                // Clang embeds the canonical record, dropping
+                                // typedef qualifiers/alignment and declaration
+                                // attributes. Attributes on the tag itself have
+                                // already been applied to its record identity.
+                                base = Type::new(TypeKind::Record(record));
+                                attributes = Attributes::default();
+                            }
                         }
                         let field_alignment = self.check_declaration_alignment(
                             &base,
@@ -5450,11 +5478,36 @@ fn normalize_attributes(source: &str) -> (String, HashSet<usize>) {
     )
 }
 
-/// Only a directly written unnamed struct or union declares an anonymous member.
-pub(crate) fn anonymous_record_specifier(specifiers: &[Node<ast::SpecifierQualifier>]) -> bool {
-    specifiers.iter().any(|specifier| {
-        matches!(&specifier.node,
-        ast::SpecifierQualifier::TypeSpecifier(ty) if matches!(&ty.node,
-            ast::TypeSpecifier::Struct(record) if record.node.identifier.is_none()))
+#[derive(Clone, Copy)]
+pub(crate) enum AnonymousRecordSpecifier<'a> {
+    Direct,
+    MicrosoftTag,
+    /// The caller must resolve the unqualified written alias to a record.
+    MicrosoftTypedef(&'a str),
+}
+
+/// Classifies source forms that can introduce an anonymous record member.
+/// A Microsoft typedef still requires its original alias to denote a record;
+/// qualifiers written beside the alias do not change that decision.
+pub(crate) fn anonymous_record_specifier(
+    specifiers: &[Node<ast::SpecifierQualifier>],
+    target: Target,
+) -> Option<AnonymousRecordSpecifier<'_>> {
+    specifiers.iter().find_map(|specifier| {
+        let ast::SpecifierQualifier::TypeSpecifier(ty) = &specifier.node else {
+            return None;
+        };
+        match &ty.node {
+            ast::TypeSpecifier::Struct(record) if record.node.identifier.is_none() => {
+                Some(AnonymousRecordSpecifier::Direct)
+            }
+            ast::TypeSpecifier::Struct(_) if target == Target::X86_64PcWindowsMsvc => {
+                Some(AnonymousRecordSpecifier::MicrosoftTag)
+            }
+            ast::TypeSpecifier::TypedefName(name) if target == Target::X86_64PcWindowsMsvc => {
+                Some(AnonymousRecordSpecifier::MicrosoftTypedef(&name.node.name))
+            }
+            _ => None,
+        }
     })
 }
