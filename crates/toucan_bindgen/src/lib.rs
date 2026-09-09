@@ -72,6 +72,42 @@ impl RustTarget {
     }
 }
 
+impl std::str::FromStr for RustTarget {
+    type Err = io::Error;
+
+    /// Parse a stable `1.minor` or `1.minor.patch` target.
+    ///
+    /// Patch releases share language features. Rust versions before 1.64,
+    /// minor versions above 65535, and nightly targets are unsupported.
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        let invalid = |reason: &str| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("\"{input}\" is not a valid Rust target, {reason}"),
+            )
+        };
+        if input == "nightly" {
+            return Err(invalid("nightly Rust targets are not supported by Toucan"));
+        }
+        let (major, tail) = input.split_once('.').ok_or_else(|| {
+            invalid("accepted stable targets are of the form \"1.64\" or \"1.64.0\".")
+        })?;
+        if major != "1" {
+            return Err(invalid(
+                "The largest major version of Rust released is \"1\"",
+            ));
+        }
+        let (minor, patch) = tail.split_once('.').unwrap_or((tail, "0"));
+        let minor = minor
+            .parse::<u64>()
+            .map_err(|_| invalid("the minor version number must be an unsigned 64-bit integer"))?;
+        let patch = patch
+            .parse::<u64>()
+            .map_err(|_| invalid("the patch version number must be an unsigned 64-bit integer"))?;
+        Self::stable(minor, patch).map_err(|error| invalid(&error.to_string()))
+    }
+}
+
 impl Default for RustTarget {
     fn default() -> Self {
         Self(toucan::RustTarget::RUST_1_64)

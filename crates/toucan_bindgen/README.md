@@ -19,6 +19,17 @@ The `runtime` feature accepts the existing manifest's feature selection. Both
 configurations use Toucan's frontend. Building the adapter requires Rust 1.96;
 generated declarations can target Rust 1.64 or later.
 
+`RustTarget` accepts `"1.64".parse()?` and `"1.64.0".parse()?` in existing
+`rust_target` calls. Stable patch releases select the same language features.
+Parsing returns `std::io::Error` with `InvalidInput` for invalid or unsupported
+targets. Targets must be stable Rust 1.64 or newer, with a minor number no greater
+than 65535. Nightly targets are explicitly unsupported. The default remains Rust 1.64.
+
+The [target parsing capture](../../corpus/evidence/rust-target-parse-2026-09-09.json.gz)
+checks 47 strings against bindgen, preserves the existing version-policy
+differences, and verifies identical generated output for parsed and constructed
+stable targets.
+
 ## Supported build scripts
 
 `Builder` supports ordered `header` calls, `clang_arg`/`clang_args`, `use_core`,
