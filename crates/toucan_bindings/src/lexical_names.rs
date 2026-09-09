@@ -158,11 +158,7 @@ impl crate::Emitter<'_> {
                 continue;
             }
             let rust_name = self.names.identifier(name)?;
-            let same_name = match self.unit.resolve(&self.unit.typedefs[name])?.kind {
-                TypeKind::Record(id) => self.record_name(id)? == rust_name,
-                TypeKind::Enum(id) => self.enum_name(id)? == rust_name,
-                _ => false,
-            };
+            let same_name = self.alias_uses_tag_name(&self.unit.typedefs[name], &rust_name)?;
             if !same_name {
                 insert(rust_name)?;
             }

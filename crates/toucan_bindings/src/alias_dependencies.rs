@@ -13,6 +13,37 @@ struct State<'a> {
 }
 
 impl Emitter<'_> {
+    /// Follow typedef identity without crossing a caller-owned Rust replacement.
+    pub(super) fn alias_tag<'a>(&'a self, mut ty: &'a Type) -> Result<Option<TypeKind>, Error> {
+        let mut depth = 0;
+        while let TypeKind::Typedef(name) = &ty.kind {
+            self.work_budget.charge(depth)?;
+            if self.options.blocks_type(name) {
+                return Ok(None);
+            }
+            ty = self
+                .unit
+                .typedefs
+                .get(name)
+                .ok_or_else(|| Error(format!("unknown typedef `{name}`")))?;
+            depth += 1;
+        }
+        Ok(match ty.kind {
+            TypeKind::Record(id) => Some(TypeKind::Record(id)),
+            TypeKind::Enum(id) => Some(TypeKind::Enum(id)),
+            _ => None,
+        })
+    }
+
+    /// A tag definition already supplies any alias using its generated Rust name.
+    pub(super) fn alias_uses_tag_name(&self, ty: &Type, name: &str) -> Result<bool, Error> {
+        Ok(match self.alias_tag(ty)? {
+            Some(TypeKind::Record(id)) => self.record_name(id)? == name,
+            Some(TypeKind::Enum(id)) => self.enum_name(id)? == name,
+            _ => false,
+        })
+    }
+
     /// Named callbacks stop signature expansion, so validate their alias graph separately.
     pub(super) fn validate_alias_dependencies(&self) -> Result<(), Error> {
         if !self.options.nullable_function_typedefs {

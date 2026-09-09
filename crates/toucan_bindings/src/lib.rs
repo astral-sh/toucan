@@ -782,7 +782,7 @@ fn generate_with_work_budget(
         } else {
             emitter.ty(ty)?
         };
-        if rust_name != rust_type {
+        if rust_name != rust_type && !emitter.alias_uses_tag_name(ty, &rust_name)? {
             emitter.declaration_doc(name, &mut source);
             writeln!(source, "pub type {rust_name} = {rust_type};").unwrap();
         }
@@ -1431,9 +1431,9 @@ impl Emitter<'_> {
                 .unit
                 .typedefs
                 .get(name)
-                .map(|ty| self.unit.resolve(ty))
+                .map(|ty| self.alias_tag(ty))
                 .transpose()?
-                .is_some_and(|ty| ty.kind != TypeKind::Record(id));
+                .is_some_and(|tag| tag != Some(TypeKind::Record(id)));
             let repeated = self.unit.records[..id]
                 .iter()
                 .any(|record| record.scope == Scope::File && record.name.as_ref() == Some(name));
@@ -1477,9 +1477,9 @@ impl Emitter<'_> {
                 .unit
                 .typedefs
                 .get(name)
-                .map(|ty| self.unit.resolve(ty))
+                .map(|ty| self.alias_tag(ty))
                 .transpose()?
-                .is_some_and(|ty| ty.kind != TypeKind::Enum(id));
+                .is_some_and(|tag| tag != Some(TypeKind::Enum(id)));
             let repeated = self.unit.enums[..id].iter().any(|enumeration| {
                 enumeration.scope == Scope::File && enumeration.name.as_ref() == Some(name)
             });
