@@ -211,3 +211,19 @@ workspace suites, or measure application performance.
 The [published source mapping](../corpus/evidence/astral-builder-00ec563/published-source.json)
 verifies that this snapshot has exactly the same Git tree as `b371cd0` in PR #293.
 The stack reorder moved the two CI fixes into their originating PRs.
+
+The [callback compatibility refresh](../corpus/evidence/astral-builder-7db2b85/summary.json)
+at `7db2b85` repeats the unchanged zstd build-script route after callback typedef
+projection, generation work limits, Rust target parsing, and schema-3 enum
+comparison. Both ty vendored tests and all 19 uv extraction tests pass with upstream and Toucan
+bindings. Exact ty diagnostics, installed wheel bytes, imports, and the recorded
+truncated-response behavior match.
+
+All 2,389 frozen frontend files retain their exact SHA256 hashes, with no added,
+changed, or deleted files and no inventory exceptions. Cargo artifacts and
+normalized dep-info paths identify all nine frontend crates from that snapshot
+for each binary and test build. The original 557 ty and 750 uv locked packages
+and dependency edges are preserved; only the explicit zstd-sys build-dependency
+substitution is added. Upstream source inventories return to their entry state.
+This refresh covers the recorded native Linux zstd routes. It does not refresh
+AWS-LC/TLS, run full consumer workspace suites, or measure application performance.
