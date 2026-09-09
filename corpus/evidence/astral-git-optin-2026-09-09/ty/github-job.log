@@ -1,0 +1,1264 @@
+﻿2026-09-09T19:24:25.7644386Z Current runner version: '2.337.0'
+2026-09-09T19:24:25.7665637Z ##[group]Runner Image Provisioner
+2026-09-09T19:24:25.7666417Z Hosted Compute Agent
+2026-09-09T19:24:25.7666900Z Version: 20260828.587
+2026-09-09T19:24:25.7667447Z Commit: abac92662cab4cc7352de4f9f9d2e2419aad9c29
+2026-09-09T19:24:25.7668085Z Build Date: 2026-08-28T16:44:25Z
+2026-09-09T19:24:25.7668647Z Worker ID: {c1f5adbe-c907-47a8-af50-8c09add2327f}
+2026-09-09T19:24:25.7669267Z Azure Region: westus
+2026-09-09T19:24:25.7669766Z ##[endgroup]
+2026-09-09T19:24:25.7670958Z ##[group]Operating System
+2026-09-09T19:24:25.7671475Z Ubuntu
+2026-09-09T19:24:25.7671901Z 24.04.4
+2026-09-09T19:24:25.7672364Z LTS
+2026-09-09T19:24:25.7672797Z ##[endgroup]
+2026-09-09T19:24:25.7673255Z ##[group]Runner Image
+2026-09-09T19:24:25.7673931Z Image: ubuntu-24.04
+2026-09-09T19:24:25.7674394Z Version: 20260831.293.1
+2026-09-09T19:24:25.7675455Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20260831.293/images/ubuntu/Ubuntu2404-Readme.md
+2026-09-09T19:24:25.7676681Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20260831.293
+2026-09-09T19:24:25.7677535Z ##[endgroup]
+2026-09-09T19:24:25.7678424Z ##[group]GITHUB_TOKEN Permissions
+2026-09-09T19:24:25.7680154Z Contents: read
+2026-09-09T19:24:25.7680684Z Metadata: read
+2026-09-09T19:24:25.7681522Z ##[endgroup]
+2026-09-09T19:24:25.7683365Z Secret source: Actions
+2026-09-09T19:24:25.7684323Z Cache mode: write
+2026-09-09T19:24:25.7685064Z Prepare workflow directory
+2026-09-09T19:24:25.8017281Z Prepare all required actions
+2026-09-09T19:24:25.8056954Z Getting action download info
+2026-09-09T19:24:26.2696577Z Download action repository 'actions/checkout@11d5960a326750d5838078e36cf38b85af677262' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-09-09T19:24:26.7255720Z Download action repository 'dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0' (SHA:d1031067263f94b142dd6c0ce24c5eb9d02d52a0)
+2026-09-09T19:24:26.9030176Z Download action repository 'actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02' (SHA:ea165f8d65b6e75b540449e92b4886f43607fa02)
+2026-09-09T19:24:27.6662493Z Complete job name: ty without libclang
+2026-09-09T19:24:27.7114623Z ##[group]Checking docker version
+2026-09-09T19:24:27.7125856Z ##[command]/usr/bin/docker version --format '{{.Server.APIVersion}}'
+2026-09-09T19:24:31.1617417Z '1.48'
+2026-09-09T19:24:31.1632822Z Docker daemon API version: '1.48'
+2026-09-09T19:24:31.1633246Z ##[command]/usr/bin/docker version --format '{{.Client.APIVersion}}'
+2026-09-09T19:24:31.1843005Z '1.48'
+2026-09-09T19:24:31.1855227Z Docker client API version: '1.48'
+2026-09-09T19:24:31.1860217Z ##[endgroup]
+2026-09-09T19:24:31.1862225Z ##[group]Clean up resources from previous jobs
+2026-09-09T19:24:31.1867242Z ##[command]/usr/bin/docker ps --all --quiet --no-trunc --filter "label=eb55b1"
+2026-09-09T19:24:31.2046998Z ##[command]/usr/bin/docker network prune --force --filter "label=eb55b1"
+2026-09-09T19:24:31.2218058Z ##[endgroup]
+2026-09-09T19:24:31.2218370Z ##[group]Create local container network
+2026-09-09T19:24:31.2226355Z ##[command]/usr/bin/docker network create --label eb55b1 github_network_ec5b34e4d2a94e849d9163550d8b4c1e
+2026-09-09T19:24:31.4111833Z 86386073789bbd3512f402ca0e3ec4d37459908a16fbfd772581f0ac2d3a5b92
+2026-09-09T19:24:31.4126429Z ##[endgroup]
+2026-09-09T19:24:31.4144968Z ##[group]Starting job container
+2026-09-09T19:24:31.4162608Z ##[command]/usr/bin/docker pull ubuntu:24.04@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254
+2026-09-09T19:24:32.8458444Z docker.io/library/ubuntu@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254: Pulling from library/ubuntu
+2026-09-09T19:24:33.1572129Z e51aee9c82ec: Pulling fs layer
+2026-09-09T19:24:33.4575359Z e51aee9c82ec: Verifying Checksum
+2026-09-09T19:24:33.4575786Z e51aee9c82ec: Download complete
+2026-09-09T19:24:34.6445095Z e51aee9c82ec: Pull complete
+2026-09-09T19:24:34.7361334Z Digest: sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254
+2026-09-09T19:24:34.7538559Z Status: Downloaded newer image for ubuntu@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254
+2026-09-09T19:24:34.7701854Z docker.io/library/ubuntu:24.04@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254
+2026-09-09T19:24:34.7770465Z ##[command]/usr/bin/docker create --name 62b7998f0e9c495fbc1f01930dce9de8_ubuntu2404sha256224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254_b5a2cc --label eb55b1 --workdir /__w/toucan/toucan --network github_network_ec5b34e4d2a94e849d9163550d8b4c1e  -e "HOME=/github/home" -e GITHUB_ACTIONS=true -e CI=true -v "/var/run/docker.sock":"/var/run/docker.sock" -v "/home/runner/work":"/__w" -v "/home/runner/actions-runner/cached/2.337.0/externals":"/__e":ro -v "/home/runner/work/_temp":"/__w/_temp" -v "/home/runner/work/_actions":"/__w/_actions" -v "/opt/hostedtoolcache":"/__t" -v "/home/runner/work/_temp/_github_home":"/github/home" -v "/home/runner/work/_temp/_github_workflow":"/github/workflow" --entrypoint "tail" ubuntu:24.04@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254 "-f" "/dev/null"
+2026-09-09T19:24:36.6819823Z 5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f
+2026-09-09T19:24:36.6841604Z ##[command]/usr/bin/docker start 5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f
+2026-09-09T19:24:37.7992479Z 5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f
+2026-09-09T19:24:37.8011124Z ##[command]/usr/bin/docker ps --all --filter id=5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f --filter status=running --no-trunc --format "{{.ID}} {{.Status}}"
+2026-09-09T19:24:37.8115840Z 5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f Up 1 second
+2026-09-09T19:24:37.8133534Z ##[command]/usr/bin/docker inspect --format "{{range .Config.Env}}{{println .}}{{end}}" 5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f
+2026-09-09T19:24:37.8241678Z HOME=/github/home
+2026-09-09T19:24:37.8242512Z GITHUB_ACTIONS=true
+2026-09-09T19:24:37.8243060Z CI=true
+2026-09-09T19:24:37.8243504Z PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+2026-09-09T19:24:37.8262236Z ##[endgroup]
+2026-09-09T19:24:37.8270721Z ##[group]Waiting for all services to be ready
+2026-09-09T19:24:37.8272203Z ##[endgroup]
+2026-09-09T19:24:37.8433147Z ##[group]Run set -euo pipefail
+2026-09-09T19:24:37.8433482Z [36;1mset -euo pipefail[0m
+2026-09-09T19:24:37.8433740Z [36;1mmkdir -p /tmp/toucan-optin-bootstrap[0m
+2026-09-09T19:24:37.8434376Z [36;1mapt-get -o APT::Update::Error-Mode=any update -qq \[0m
+2026-09-09T19:24:37.8434720Z [36;1m  2>&1 | tee /tmp/toucan-optin-bootstrap/apt-update.log[0m
+2026-09-09T19:24:37.8435100Z [36;1mDEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \[0m
+2026-09-09T19:24:37.8435520Z [36;1m  build-essential ca-certificates cmake curl git libzstd1 nasm \[0m
+2026-09-09T19:24:37.8435863Z [36;1m  perl pkg-config python3 python3-venv \[0m
+2026-09-09T19:24:37.8436153Z [36;1m  2>&1 | tee /tmp/toucan-optin-bootstrap/apt-install.log[0m
+2026-09-09T19:24:37.8436494Z [36;1mdpkg-query -W > /tmp/toucan-optin-bootstrap/packages.txt[0m
+2026-09-09T19:24:37.8440085Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:24:37.8440507Z env:
+2026-09-09T19:24:37.8440736Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:24:37.8440923Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:24:37.8441108Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:24:37.8441310Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:24:37.8441526Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:24:37.8441750Z ##[endgroup]
+2026-09-09T19:24:43.5537969Z Reading package lists...
+2026-09-09T19:24:43.7302076Z Building dependency tree...
+2026-09-09T19:24:43.7302981Z Reading state information...
+2026-09-09T19:24:43.8867914Z libzstd1 is already the newest version (1.5.5+dfsg2-2build1.1).
+2026-09-09T19:24:43.8882862Z The following additional packages will be installed:
+2026-09-09T19:24:43.8889561Z   binutils binutils-common binutils-x86-64-linux-gnu bzip2 cmake-data cpp
+2026-09-09T19:24:43.8897402Z   cpp-13 cpp-13-x86-64-linux-gnu cpp-x86-64-linux-gnu dpkg-dev g++ g++-13
+2026-09-09T19:24:43.8898225Z   g++-13-x86-64-linux-gnu g++-x86-64-linux-gnu gcc gcc-13 gcc-13-base
+2026-09-09T19:24:43.8899538Z   gcc-13-x86-64-linux-gnu gcc-x86-64-linux-gnu git-man libarchive13t64
+2026-09-09T19:24:43.8900385Z   libasan8 libatomic1 libbinutils libbrotli1 libc-dev-bin libc6-dev libcc1-0
+2026-09-09T19:24:43.8901154Z   libcrypt-dev libctf-nobfd0 libctf0 libcurl3t64-gnutls libcurl4t64
+2026-09-09T19:24:43.8902344Z   libdpkg-perl liberror-perl libexpat1 libgcc-13-dev libgdbm-compat4t64
+2026-09-09T19:24:43.8903514Z   libgdbm6t64 libgomp1 libgprofng0 libgssapi-krb5-2 libhwasan0 libicu74
+2026-09-09T19:24:43.8904511Z   libisl23 libitm1 libjansson4 libjsoncpp25 libk5crypto3 libkeyutils1
+2026-09-09T19:24:43.8905343Z   libkrb5-3 libkrb5support0 libldap2 liblsan0 libmpc3 libmpfr6 libnghttp2-14
+2026-09-09T19:24:43.8906096Z   libperl5.38t64 libpkgconf3 libpsl5t64 libpython3-stdlib
+2026-09-09T19:24:43.8906842Z   libpython3.12-minimal libpython3.12-stdlib libquadmath0 libreadline8t64
+2026-09-09T19:24:43.8907666Z   librhash0 librtmp1 libsasl2-2 libsasl2-modules-db libsframe1 libsqlite3-0
+2026-09-09T19:24:43.8974201Z   libssh-4 libstdc++-13-dev libtsan2 libubsan1 libuv1t64 libxml2
+2026-09-09T19:24:43.8975138Z   linux-libc-dev lto-disabled-list make media-types netbase openssl patch
+2026-09-09T19:24:43.8975770Z   perl-modules-5.38 pkgconf pkgconf-bin python3-minimal python3-pip-whl
+2026-09-09T19:24:43.8976357Z   python3-setuptools-whl python3.12 python3.12-minimal python3.12-venv
+2026-09-09T19:24:43.8976864Z   readline-common rpcsvc-proto tzdata xz-utils
+2026-09-09T19:24:43.8977241Z Suggested packages:
+2026-09-09T19:24:43.8977661Z   binutils-doc gprofng-gui bzip2-doc cmake-doc cmake-format elpa-cmake-mode
+2026-09-09T19:24:43.8978325Z   ninja-build cpp-doc gcc-13-locales cpp-13-doc debian-keyring g++-multilib
+2026-09-09T19:24:43.8978950Z   g++-13-multilib gcc-13-doc gcc-multilib manpages-dev autoconf automake
+2026-09-09T19:24:43.8979545Z   libtool flex bison gdb gcc-doc gcc-13-multilib gdb-x86-64-linux-gnu
+2026-09-09T19:24:43.8980180Z   gettext-base git-daemon-run | git-daemon-sysvinit git-doc git-email git-gui
+2026-09-09T19:24:43.8981360Z   gitk gitweb git-cvs git-mediawiki git-svn lrzip glibc-doc gnupg | sq | sqop
+2026-09-09T19:24:43.8982047Z   | pgpainless-cli | sequoia-chameleon-gnupg bzr gdbm-l10n krb5-doc krb5-user
+2026-09-09T19:24:43.8982631Z   libstdc++-13-doc make-doc ed diffutils-doc perl-doc
+2026-09-09T19:24:43.8983178Z   libterm-readline-gnu-perl | libterm-readline-perl-perl
+2026-09-09T19:24:43.8983736Z   libtap-harness-archive-perl python3-doc python3-tk python3.12-doc
+2026-09-09T19:24:43.8984429Z   binfmt-support readline-doc
+2026-09-09T19:24:43.8984761Z Recommended packages:
+2026-09-09T19:24:43.8985302Z   fakeroot gnupg | sq | sqop | pgpainless-cli | sequoia-chameleon-gnupg
+2026-09-09T19:24:43.8985983Z   libalgorithm-merge-perl less ssh-client manpages manpages-dev libc-devtools
+2026-09-09T19:24:43.8986709Z   libfile-fcntllock-perl liblocale-gettext-perl krb5-locales libldap-common
+2026-09-09T19:24:43.8987251Z   publicsuffix libsasl2-modules
+2026-09-09T19:24:44.1700840Z The following NEW packages will be installed:
+2026-09-09T19:24:44.1701981Z   binutils binutils-common binutils-x86-64-linux-gnu build-essential bzip2
+2026-09-09T19:24:44.1703000Z   ca-certificates cmake cmake-data cpp cpp-13 cpp-13-x86-64-linux-gnu
+2026-09-09T19:24:44.1704040Z   cpp-x86-64-linux-gnu curl dpkg-dev g++ g++-13 g++-13-x86-64-linux-gnu
+2026-09-09T19:24:44.1704914Z   g++-x86-64-linux-gnu gcc gcc-13 gcc-13-base gcc-13-x86-64-linux-gnu
+2026-09-09T19:24:44.1716229Z   gcc-x86-64-linux-gnu git git-man libarchive13t64 libasan8 libatomic1
+2026-09-09T19:24:44.1717190Z   libbinutils libbrotli1 libc-dev-bin libc6-dev libcc1-0 libcrypt-dev
+2026-09-09T19:24:44.1718236Z   libctf-nobfd0 libctf0 libcurl3t64-gnutls libcurl4t64 libdpkg-perl
+2026-09-09T19:24:44.1719074Z   liberror-perl libexpat1 libgcc-13-dev libgdbm-compat4t64 libgdbm6t64
+2026-09-09T19:24:44.1720452Z   libgomp1 libgprofng0 libgssapi-krb5-2 libhwasan0 libicu74 libisl23 libitm1
+2026-09-09T19:24:44.1721578Z   libjansson4 libjsoncpp25 libk5crypto3 libkeyutils1 libkrb5-3 libkrb5support0
+2026-09-09T19:24:44.1744581Z   libldap2 liblsan0 libmpc3 libmpfr6 libnghttp2-14 libperl5.38t64 libpkgconf3
+2026-09-09T19:24:44.1749216Z   libpsl5t64 libpython3-stdlib libpython3.12-minimal libpython3.12-stdlib
+2026-09-09T19:24:44.1764333Z   libquadmath0 libreadline8t64 librhash0 librtmp1 libsasl2-2
+2026-09-09T19:24:44.1770820Z   libsasl2-modules-db libsframe1 libsqlite3-0 libssh-4 libstdc++-13-dev
+2026-09-09T19:24:44.1774539Z   libtsan2 libubsan1 libuv1t64 libxml2 linux-libc-dev lto-disabled-list make
+2026-09-09T19:24:44.1794351Z   media-types nasm netbase openssl patch perl perl-modules-5.38 pkg-config
+2026-09-09T19:24:44.1798436Z   pkgconf pkgconf-bin python3 python3-minimal python3-pip-whl
+2026-09-09T19:24:44.1799153Z   python3-setuptools-whl python3-venv python3.12 python3.12-minimal
+2026-09-09T19:24:44.1799844Z   python3.12-venv readline-common rpcsvc-proto tzdata xz-utils
+2026-09-09T19:24:44.4678626Z 0 upgraded, 107 newly installed, 0 to remove and 1 not upgraded.
+2026-09-09T19:24:44.4679107Z Need to get 124 MB of archives.
+2026-09-09T19:24:44.4679515Z After this operation, 460 MB of additional disk space will be used.
+2026-09-09T19:24:44.4680108Z Get:1 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3.12-minimal amd64 3.12.3-1ubuntu0.16 [838 kB]
+2026-09-09T19:24:45.6410774Z Get:2 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libexpat1 amd64 2.6.1-2ubuntu0.4 [88.2 kB]
+2026-09-09T19:24:45.6566035Z Get:3 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3.12-minimal amd64 3.12.3-1ubuntu0.16 [2335 kB]
+2026-09-09T19:24:46.1400945Z Get:4 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3-minimal amd64 3.12.3-0ubuntu2.1 [27.4 kB]
+2026-09-09T19:24:46.1418948Z Get:5 http://archive.ubuntu.com/ubuntu noble/main amd64 media-types all 10.1.0 [27.5 kB]
+2026-09-09T19:24:46.1448258Z Get:6 http://archive.ubuntu.com/ubuntu noble/main amd64 netbase all 6.4 [13.1 kB]
+2026-09-09T19:24:46.1469523Z Get:7 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 tzdata all 2026c-0ubuntu0.24.04.1 [280 kB]
+2026-09-09T19:24:46.2053265Z Get:8 http://archive.ubuntu.com/ubuntu noble/main amd64 readline-common all 8.2-4build1 [56.5 kB]
+2026-09-09T19:24:46.2079435Z Get:9 http://archive.ubuntu.com/ubuntu noble/main amd64 libreadline8t64 amd64 8.2-4build1 [153 kB]
+2026-09-09T19:24:46.2170719Z Get:10 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libsqlite3-0 amd64 3.45.1-1ubuntu2.7 [701 kB]
+2026-09-09T19:24:46.2558903Z Get:11 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3.12-stdlib amd64 3.12.3-1ubuntu0.16 [2070 kB]
+2026-09-09T19:24:46.4148139Z Get:12 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3.12 amd64 3.12.3-1ubuntu0.16 [651 kB]
+2026-09-09T19:24:46.4816889Z Get:13 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libpython3-stdlib amd64 3.12.3-0ubuntu2.1 [10.1 kB]
+2026-09-09T19:24:46.4817913Z Get:14 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 python3 amd64 3.12.3-0ubuntu2.1 [23.0 kB]
+2026-09-09T19:24:46.4819204Z Get:15 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 perl-modules-5.38 all 5.38.2-3.2ubuntu0.4 [3110 kB]
+2026-09-09T19:24:46.6133060Z Get:16 http://archive.ubuntu.com/ubuntu noble/main amd64 libgdbm6t64 amd64 1.23-5.1build1 [34.4 kB]
+2026-09-09T19:24:46.6134146Z Get:17 http://archive.ubuntu.com/ubuntu noble/main amd64 libgdbm-compat4t64 amd64 1.23-5.1build1 [6710 B]
+2026-09-09T19:24:46.6138389Z Get:18 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libperl5.38t64 amd64 5.38.2-3.2ubuntu0.4 [4870 kB]
+2026-09-09T19:24:46.7698136Z Get:19 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 perl amd64 5.38.2-3.2ubuntu0.4 [231 kB]
+2026-09-09T19:24:46.7720149Z Get:20 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 openssl amd64 3.0.13-0ubuntu3.15 [1003 kB]
+2026-09-09T19:24:46.7862423Z Get:21 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 ca-certificates all 20260601~24.04.1 [139 kB]
+2026-09-09T19:24:46.7880217Z Get:22 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libkrb5support0 amd64 1.20.1-6ubuntu2.8 [34.7 kB]
+2026-09-09T19:24:46.7881572Z Get:23 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libk5crypto3 amd64 1.20.1-6ubuntu2.8 [81.9 kB]
+2026-09-09T19:24:46.7891117Z Get:24 http://archive.ubuntu.com/ubuntu noble/main amd64 libkeyutils1 amd64 1.6.3-3build1 [9490 B]
+2026-09-09T19:24:46.8343264Z Get:25 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libkrb5-3 amd64 1.20.1-6ubuntu2.8 [348 kB]
+2026-09-09T19:24:46.8391351Z Get:26 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgssapi-krb5-2 amd64 1.20.1-6ubuntu2.8 [143 kB]
+2026-09-09T19:24:46.8407255Z Get:27 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libicu74 amd64 74.2-1ubuntu3.1 [10.9 MB]
+2026-09-09T19:24:47.0303166Z Get:28 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libxml2 amd64 2.9.14+dfsg-1.3ubuntu3.8 [764 kB]
+2026-09-09T19:24:47.0361867Z Get:29 http://archive.ubuntu.com/ubuntu noble/main amd64 libjansson4 amd64 2.14-2build2 [32.8 kB]
+2026-09-09T19:24:47.0363060Z Get:30 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libnghttp2-14 amd64 1.59.0-1ubuntu0.4 [74.6 kB]
+2026-09-09T19:24:47.0367824Z Get:31 http://archive.ubuntu.com/ubuntu noble/main amd64 libpsl5t64 amd64 0.21.2-1.1build1 [57.1 kB]
+2026-09-09T19:24:47.0377926Z Get:32 http://archive.ubuntu.com/ubuntu noble/main amd64 libuv1t64 amd64 1.48.0-1.1build1 [97.3 kB]
+2026-09-09T19:24:47.0386693Z Get:33 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 xz-utils amd64 5.6.1+really5.4.5-1ubuntu0.3 [267 kB]
+2026-09-09T19:24:47.0395926Z Get:34 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 binutils-common amd64 2.42-4ubuntu2.10 [240 kB]
+2026-09-09T19:24:47.1105380Z Get:35 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libsframe1 amd64 2.42-4ubuntu2.10 [15.7 kB]
+2026-09-09T19:24:47.1110058Z Get:36 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libbinutils amd64 2.42-4ubuntu2.10 [577 kB]
+2026-09-09T19:24:47.2491259Z Get:37 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libctf-nobfd0 amd64 2.42-4ubuntu2.10 [98.0 kB]
+2026-09-09T19:24:47.2555021Z Get:38 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libctf0 amd64 2.42-4ubuntu2.10 [94.5 kB]
+2026-09-09T19:24:47.2556257Z Get:39 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgprofng0 amd64 2.42-4ubuntu2.10 [849 kB]
+2026-09-09T19:24:47.2606751Z Get:40 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 binutils-x86-64-linux-gnu amd64 2.42-4ubuntu2.10 [2463 kB]
+2026-09-09T19:24:47.2745524Z Get:41 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 binutils amd64 2.42-4ubuntu2.10 [18.2 kB]
+2026-09-09T19:24:47.2752731Z Get:42 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libc-dev-bin amd64 2.39-0ubuntu8.8 [20.4 kB]
+2026-09-09T19:24:47.2759938Z Get:43 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 linux-libc-dev amd64 6.8.0-139.139 [1527 kB]
+2026-09-09T19:24:47.2836003Z Get:44 http://archive.ubuntu.com/ubuntu noble/main amd64 libcrypt-dev amd64 1:4.4.36-4build1 [112 kB]
+2026-09-09T19:24:47.3867596Z Get:45 http://archive.ubuntu.com/ubuntu noble/main amd64 rpcsvc-proto amd64 1.4.2-0ubuntu7 [67.4 kB]
+2026-09-09T19:24:47.3882108Z Get:46 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libc6-dev amd64 2.39-0ubuntu8.8 [2125 kB]
+2026-09-09T19:24:47.5248068Z Get:47 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-base amd64 13.3.0-6ubuntu2~24.04.1 [51.6 kB]
+2026-09-09T19:24:47.5255591Z Get:48 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libisl23 amd64 0.26-3build1.1 [680 kB]
+2026-09-09T19:24:47.5294762Z Get:49 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libmpfr6 amd64 4.2.1-1build1.1 [353 kB]
+2026-09-09T19:24:47.5319044Z Get:50 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libmpc3 amd64 1.3.1-1build1.1 [54.6 kB]
+2026-09-09T19:24:47.5326761Z Get:51 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 cpp-13-x86-64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1 [10.7 MB]
+2026-09-09T19:24:48.2107509Z Get:52 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 cpp-13 amd64 13.3.0-6ubuntu2~24.04.1 [1042 B]
+2026-09-09T19:24:48.2108950Z Get:53 http://archive.ubuntu.com/ubuntu noble/main amd64 cpp-x86-64-linux-gnu amd64 4:13.2.0-7ubuntu1 [5326 B]
+2026-09-09T19:24:48.2109999Z Get:54 http://archive.ubuntu.com/ubuntu noble/main amd64 cpp amd64 4:13.2.0-7ubuntu1 [22.4 kB]
+2026-09-09T19:24:48.2110996Z Get:55 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcc1-0 amd64 14.2.0-4ubuntu2~24.04.1 [48.0 kB]
+2026-09-09T19:24:48.2112011Z Get:56 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgomp1 amd64 14.2.0-4ubuntu2~24.04.1 [148 kB]
+2026-09-09T19:24:48.2117618Z Get:57 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libitm1 amd64 14.2.0-4ubuntu2~24.04.1 [29.7 kB]
+2026-09-09T19:24:48.2126187Z Get:58 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libatomic1 amd64 14.2.0-4ubuntu2~24.04.1 [10.5 kB]
+2026-09-09T19:24:48.2131123Z Get:59 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libasan8 amd64 14.2.0-4ubuntu2~24.04.1 [3027 kB]
+2026-09-09T19:24:48.2276340Z Get:60 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 liblsan0 amd64 14.2.0-4ubuntu2~24.04.1 [1322 kB]
+2026-09-09T19:24:48.3507690Z Get:61 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libtsan2 amd64 14.2.0-4ubuntu2~24.04.1 [2772 kB]
+2026-09-09T19:24:48.3649206Z Get:62 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libubsan1 amd64 14.2.0-4ubuntu2~24.04.1 [1184 kB]
+2026-09-09T19:24:48.3716762Z Get:63 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libhwasan0 amd64 14.2.0-4ubuntu2~24.04.1 [1641 kB]
+2026-09-09T19:24:48.3821291Z Get:64 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libquadmath0 amd64 14.2.0-4ubuntu2~24.04.1 [153 kB]
+2026-09-09T19:24:48.3825298Z Get:65 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libgcc-13-dev amd64 13.3.0-6ubuntu2~24.04.1 [2681 kB]
+2026-09-09T19:24:48.4887173Z Get:66 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13-x86-64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1 [21.1 MB]
+2026-09-09T19:24:49.3009924Z Get:67 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 gcc-13 amd64 13.3.0-6ubuntu2~24.04.1 [494 kB]
+2026-09-09T19:24:49.3041158Z Get:68 http://archive.ubuntu.com/ubuntu noble/main amd64 gcc-x86-64-linux-gnu amd64 4:13.2.0-7ubuntu1 [1212 B]
+2026-09-09T19:24:49.3043405Z Get:69 http://archive.ubuntu.com/ubuntu noble/main amd64 gcc amd64 4:13.2.0-7ubuntu1 [5018 B]
+2026-09-09T19:24:49.3044740Z Get:70 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libstdc++-13-dev amd64 13.3.0-6ubuntu2~24.04.1 [2420 kB]
+2026-09-09T19:24:49.3165889Z Get:71 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 g++-13-x86-64-linux-gnu amd64 13.3.0-6ubuntu2~24.04.1 [12.2 MB]
+2026-09-09T19:24:49.8336631Z Get:72 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 g++-13 amd64 13.3.0-6ubuntu2~24.04.1 [16.0 kB]
+2026-09-09T19:24:49.8337619Z Get:73 http://archive.ubuntu.com/ubuntu noble/main amd64 g++-x86-64-linux-gnu amd64 4:13.2.0-7ubuntu1 [964 B]
+2026-09-09T19:24:49.8338461Z Get:74 http://archive.ubuntu.com/ubuntu noble/main amd64 g++ amd64 4:13.2.0-7ubuntu1 [1100 B]
+2026-09-09T19:24:49.8339198Z Get:75 http://archive.ubuntu.com/ubuntu noble/main amd64 make amd64 4.3-4.1build2 [180 kB]
+2026-09-09T19:24:49.8340011Z Get:76 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libdpkg-perl all 1.22.6ubuntu6.6 [268 kB]
+2026-09-09T19:24:49.8345186Z Get:77 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 bzip2 amd64 1.0.8-5.1ubuntu0.1 [34.6 kB]
+2026-09-09T19:24:49.8350499Z Get:78 http://archive.ubuntu.com/ubuntu noble/main amd64 patch amd64 2.7.6-7build3 [104 kB]
+2026-09-09T19:24:49.8361642Z Get:79 http://archive.ubuntu.com/ubuntu noble/main amd64 lto-disabled-list all 47 [12.4 kB]
+2026-09-09T19:24:49.8366957Z Get:80 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 dpkg-dev all 1.22.6ubuntu6.6 [1074 kB]
+2026-09-09T19:24:49.9815158Z Get:81 http://archive.ubuntu.com/ubuntu noble/main amd64 build-essential amd64 12.10ubuntu1 [4928 B]
+2026-09-09T19:24:49.9816348Z Get:82 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libarchive13t64 amd64 3.7.2-2ubuntu0.8 [383 kB]
+2026-09-09T19:24:49.9833998Z Get:83 http://archive.ubuntu.com/ubuntu noble/main amd64 libbrotli1 amd64 1.1.0-2build2 [331 kB]
+2026-09-09T19:24:49.9853478Z Get:84 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libsasl2-modules-db amd64 2.1.28+dfsg1-5ubuntu3.1 [20.4 kB]
+2026-09-09T19:24:49.9859190Z Get:85 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libsasl2-2 amd64 2.1.28+dfsg1-5ubuntu3.1 [53.2 kB]
+2026-09-09T19:24:49.9875868Z Get:86 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libldap2 amd64 2.6.10+dfsg-0ubuntu0.24.04.1 [198 kB]
+2026-09-09T19:24:49.9876982Z Get:87 http://archive.ubuntu.com/ubuntu noble/main amd64 librtmp1 amd64 2.4+20151223.gitfa8646d.1-2build7 [56.3 kB]
+2026-09-09T19:24:49.9884012Z Get:88 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libssh-4 amd64 0.10.6-2ubuntu0.5 [191 kB]
+2026-09-09T19:24:50.1197951Z Get:89 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcurl4t64 amd64 8.5.0-2ubuntu10.13 [343 kB]
+2026-09-09T19:24:50.1209475Z Get:90 http://archive.ubuntu.com/ubuntu noble/main amd64 libjsoncpp25 amd64 1.9.5-6build1 [82.8 kB]
+2026-09-09T19:24:50.2564179Z Get:91 http://archive.ubuntu.com/ubuntu noble/main amd64 librhash0 amd64 1.4.3-3build1 [129 kB]
+2026-09-09T19:24:50.2576233Z Get:92 http://archive.ubuntu.com/ubuntu noble/main amd64 cmake-data all 3.28.3-1build7 [2155 kB]
+2026-09-09T19:24:50.2707130Z Get:93 http://archive.ubuntu.com/ubuntu noble/main amd64 cmake amd64 3.28.3-1build7 [11.2 MB]
+2026-09-09T19:24:50.3357691Z Get:94 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 curl amd64 8.5.0-2ubuntu10.13 [226 kB]
+2026-09-09T19:24:50.3369854Z Get:95 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 libcurl3t64-gnutls amd64 8.5.0-2ubuntu10.13 [335 kB]
+2026-09-09T19:24:50.3390367Z Get:96 http://archive.ubuntu.com/ubuntu noble/main amd64 liberror-perl all 0.17029-2 [25.6 kB]
+2026-09-09T19:24:50.3396631Z Get:97 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 git-man all 1:2.43.0-1ubuntu7.3 [1100 kB]
+2026-09-09T19:24:50.3946848Z Get:98 http://archive.ubuntu.com/ubuntu noble-updates/main amd64 git amd64 1:2.43.0-1ubuntu7.3 [3680 kB]
+2026-09-09T19:24:50.4137876Z Get:99 http://archive.ubuntu.com/ubuntu noble/main amd64 libpkgconf3 amd64 1.8.1-2build1 [30.7 kB]
+2026-09-09T19:24:50.4138721Z Get:100 http://archive.ubuntu.com/ubuntu noble/universe amd64 nasm amd64 2.16.01-1build1 [459 kB]
+2026-09-09T19:24:50.5330761Z Get:101 http://archive.ubuntu.com/ubuntu noble/main amd64 pkgconf-bin amd64 1.8.1-2build1 [20.7 kB]
+2026-09-09T19:24:50.6804877Z Get:102 http://archive.ubuntu.com/ubuntu noble/main amd64 pkgconf amd64 1.8.1-2build1 [16.8 kB]
+2026-09-09T19:24:50.8258843Z Get:103 http://archive.ubuntu.com/ubuntu noble/main amd64 pkg-config amd64 1.8.1-2build1 [7264 B]
+2026-09-09T19:24:50.8350965Z Get:104 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3-pip-whl all 24.0+dfsg-1ubuntu1.3 [1707 kB]
+2026-09-09T19:24:51.4360781Z Get:105 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3-setuptools-whl all 68.1.2-2ubuntu1.2 [716 kB]
+2026-09-09T19:24:51.5081508Z Get:106 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3.12-venv amd64 3.12.3-1ubuntu0.16 [5682 B]
+2026-09-09T19:24:51.5082894Z Get:107 http://archive.ubuntu.com/ubuntu noble-updates/universe amd64 python3-venv amd64 3.12.3-0ubuntu2.1 [1032 B]
+2026-09-09T19:24:51.6517295Z debconf: delaying package configuration, since apt-utils is not installed
+2026-09-09T19:24:51.7315626Z Fetched 124 MB in 7s (16.9 MB/s)
+2026-09-09T19:24:51.7583628Z Selecting previously unselected package libpython3.12-minimal:amd64.
+2026-09-09T19:24:51.7604807Z (Reading database ... 
+2026-09-09T19:24:51.7625545Z (Reading database ... 5%
+2026-09-09T19:24:51.7626279Z (Reading database ... 10%
+2026-09-09T19:24:51.7626815Z (Reading database ... 15%
+2026-09-09T19:24:51.7627308Z (Reading database ... 20%
+2026-09-09T19:24:51.7627770Z (Reading database ... 25%
+2026-09-09T19:24:51.7628224Z (Reading database ... 30%
+2026-09-09T19:24:51.7628653Z (Reading database ... 35%
+2026-09-09T19:24:51.7630670Z (Reading database ... 40%
+2026-09-09T19:24:51.7631258Z (Reading database ... 45%
+2026-09-09T19:24:51.7631702Z (Reading database ... 50%
+2026-09-09T19:24:51.7634331Z (Reading database ... 55%
+2026-09-09T19:24:51.7634979Z (Reading database ... 60%
+2026-09-09T19:24:51.7635455Z (Reading database ... 65%
+2026-09-09T19:24:51.7635895Z (Reading database ... 70%
+2026-09-09T19:24:51.7636352Z (Reading database ... 75%
+2026-09-09T19:24:51.7636767Z (Reading database ... 80%
+2026-09-09T19:24:51.7637184Z (Reading database ... 85%
+2026-09-09T19:24:51.7637620Z (Reading database ... 90%
+2026-09-09T19:24:51.7641370Z (Reading database ... 95%
+2026-09-09T19:24:51.7641981Z (Reading database ... 100%
+2026-09-09T19:24:51.7642559Z (Reading database ... 4381 files and directories currently installed.)
+2026-09-09T19:24:51.7646523Z Preparing to unpack .../libpython3.12-minimal_3.12.3-1ubuntu0.16_amd64.deb ...
+2026-09-09T19:24:51.7659336Z Unpacking libpython3.12-minimal:amd64 (3.12.3-1ubuntu0.16) ...
+2026-09-09T19:24:51.9467317Z Selecting previously unselected package libexpat1:amd64.
+2026-09-09T19:24:51.9473088Z Preparing to unpack .../libexpat1_2.6.1-2ubuntu0.4_amd64.deb ...
+2026-09-09T19:24:51.9499157Z Unpacking libexpat1:amd64 (2.6.1-2ubuntu0.4) ...
+2026-09-09T19:24:51.9672390Z Selecting previously unselected package python3.12-minimal.
+2026-09-09T19:24:51.9673258Z Preparing to unpack .../python3.12-minimal_3.12.3-1ubuntu0.16_amd64.deb ...
+2026-09-09T19:24:51.9708495Z Unpacking python3.12-minimal (3.12.3-1ubuntu0.16) ...
+2026-09-09T19:24:52.5647331Z Setting up libpython3.12-minimal:amd64 (3.12.3-1ubuntu0.16) ...
+2026-09-09T19:24:52.5843087Z Setting up libexpat1:amd64 (2.6.1-2ubuntu0.4) ...
+2026-09-09T19:24:52.5930335Z Setting up python3.12-minimal (3.12.3-1ubuntu0.16) ...
+2026-09-09T19:24:53.2896836Z Selecting previously unselected package python3-minimal.
+2026-09-09T19:24:53.2906130Z (Reading database ... 
+2026-09-09T19:24:53.2907449Z (Reading database ... 5%
+2026-09-09T19:24:53.2908248Z (Reading database ... 10%
+2026-09-09T19:24:53.2908905Z (Reading database ... 15%
+2026-09-09T19:24:53.2909565Z (Reading database ... 20%
+2026-09-09T19:24:53.2910213Z (Reading database ... 25%
+2026-09-09T19:24:53.2910887Z (Reading database ... 30%
+2026-09-09T19:24:53.2911541Z (Reading database ... 35%
+2026-09-09T19:24:53.2912150Z (Reading database ... 40%
+2026-09-09T19:24:53.2912779Z (Reading database ... 45%
+2026-09-09T19:24:53.2913482Z (Reading database ... 50%
+2026-09-09T19:24:53.2914192Z (Reading database ... 55%
+2026-09-09T19:24:53.2914823Z (Reading database ... 60%
+2026-09-09T19:24:53.2920740Z (Reading database ... 65%
+2026-09-09T19:24:53.2925296Z (Reading database ... 70%
+2026-09-09T19:24:53.2932054Z (Reading database ... 75%
+2026-09-09T19:24:53.2940731Z (Reading database ... 80%
+2026-09-09T19:24:53.2946309Z (Reading database ... 85%
+2026-09-09T19:24:53.2949768Z (Reading database ... 90%
+2026-09-09T19:24:53.2957097Z (Reading database ... 95%
+2026-09-09T19:24:53.2958192Z (Reading database ... 100%
+2026-09-09T19:24:53.2958832Z (Reading database ... 4700 files and directories currently installed.)
+2026-09-09T19:24:53.2964845Z Preparing to unpack .../0-python3-minimal_3.12.3-0ubuntu2.1_amd64.deb ...
+2026-09-09T19:24:53.2975916Z Unpacking python3-minimal (3.12.3-0ubuntu2.1) ...
+2026-09-09T19:24:53.3146153Z Selecting previously unselected package media-types.
+2026-09-09T19:24:53.3156505Z Preparing to unpack .../1-media-types_10.1.0_all.deb ...
+2026-09-09T19:24:53.3174044Z Unpacking media-types (10.1.0) ...
+2026-09-09T19:24:53.3328403Z Selecting previously unselected package netbase.
+2026-09-09T19:24:53.3338539Z Preparing to unpack .../2-netbase_6.4_all.deb ...
+2026-09-09T19:24:53.3349252Z Unpacking netbase (6.4) ...
+2026-09-09T19:24:53.3521952Z Selecting previously unselected package tzdata.
+2026-09-09T19:24:53.3532039Z Preparing to unpack .../3-tzdata_2026c-0ubuntu0.24.04.1_all.deb ...
+2026-09-09T19:24:53.4561475Z Unpacking tzdata (2026c-0ubuntu0.24.04.1) ...
+2026-09-09T19:24:53.6617374Z Selecting previously unselected package readline-common.
+2026-09-09T19:24:53.6622048Z Preparing to unpack .../4-readline-common_8.2-4build1_all.deb ...
+2026-09-09T19:24:53.6631882Z Unpacking readline-common (8.2-4build1) ...
+2026-09-09T19:24:53.6851472Z Selecting previously unselected package libreadline8t64:amd64.
+2026-09-09T19:24:53.6862360Z Preparing to unpack .../5-libreadline8t64_8.2-4build1_amd64.deb ...
+2026-09-09T19:24:53.6900720Z Adding 'diversion of /lib/x86_64-linux-gnu/libhistory.so.8 to /lib/x86_64-linux-gnu/libhistory.so.8.usr-is-merged by libreadline8t64'
+2026-09-09T19:24:53.6940628Z Adding 'diversion of /lib/x86_64-linux-gnu/libhistory.so.8.2 to /lib/x86_64-linux-gnu/libhistory.so.8.2.usr-is-merged by libreadline8t64'
+2026-09-09T19:24:53.6973167Z Adding 'diversion of /lib/x86_64-linux-gnu/libreadline.so.8 to /lib/x86_64-linux-gnu/libreadline.so.8.usr-is-merged by libreadline8t64'
+2026-09-09T19:24:53.6996567Z Adding 'diversion of /lib/x86_64-linux-gnu/libreadline.so.8.2 to /lib/x86_64-linux-gnu/libreadline.so.8.2.usr-is-merged by libreadline8t64'
+2026-09-09T19:24:53.7025648Z Unpacking libreadline8t64:amd64 (8.2-4build1) ...
+2026-09-09T19:24:53.8754352Z Selecting previously unselected package libsqlite3-0:amd64.
+2026-09-09T19:24:53.8756117Z Preparing to unpack .../6-libsqlite3-0_3.45.1-1ubuntu2.7_amd64.deb ...
+2026-09-09T19:24:53.8767933Z Unpacking libsqlite3-0:amd64 (3.45.1-1ubuntu2.7) ...
+2026-09-09T19:24:53.8969032Z Selecting previously unselected package libpython3.12-stdlib:amd64.
+2026-09-09T19:24:53.8979230Z Preparing to unpack .../7-libpython3.12-stdlib_3.12.3-1ubuntu0.16_amd64.deb ...
+2026-09-09T19:24:53.8988940Z Unpacking libpython3.12-stdlib:amd64 (3.12.3-1ubuntu0.16) ...
+2026-09-09T19:24:54.1065627Z Selecting previously unselected package python3.12.
+2026-09-09T19:24:54.1066217Z Preparing to unpack .../8-python3.12_3.12.3-1ubuntu0.16_amd64.deb ...
+2026-09-09T19:24:54.1076547Z Unpacking python3.12 (3.12.3-1ubuntu0.16) ...
+2026-09-09T19:24:54.1272708Z Selecting previously unselected package libpython3-stdlib:amd64.
+2026-09-09T19:24:54.1286046Z Preparing to unpack .../9-libpython3-stdlib_3.12.3-0ubuntu2.1_amd64.deb ...
+2026-09-09T19:24:54.1298048Z Unpacking libpython3-stdlib:amd64 (3.12.3-0ubuntu2.1) ...
+2026-09-09T19:24:54.1451032Z Setting up python3-minimal (3.12.3-0ubuntu2.1) ...
+2026-09-09T19:24:54.3620781Z Selecting previously unselected package python3.
+2026-09-09T19:24:54.3635005Z (Reading database ... 
+2026-09-09T19:24:54.3635705Z (Reading database ... 5%
+2026-09-09T19:24:54.3636347Z (Reading database ... 10%
+2026-09-09T19:24:54.3636983Z (Reading database ... 15%
+2026-09-09T19:24:54.3637543Z (Reading database ... 20%
+2026-09-09T19:24:54.3638156Z (Reading database ... 25%
+2026-09-09T19:24:54.3638806Z (Reading database ... 30%
+2026-09-09T19:24:54.3639400Z (Reading database ... 35%
+2026-09-09T19:24:54.3640019Z (Reading database ... 40%
+2026-09-09T19:24:54.3640587Z (Reading database ... 45%
+2026-09-09T19:24:54.3641209Z (Reading database ... 50%
+2026-09-09T19:24:54.3641801Z (Reading database ... 55%
+2026-09-09T19:24:54.3642361Z (Reading database ... 60%
+2026-09-09T19:24:54.3645531Z (Reading database ... 65%
+2026-09-09T19:24:54.3649338Z (Reading database ... 70%
+2026-09-09T19:24:54.3656255Z (Reading database ... 75%
+2026-09-09T19:24:54.3665063Z (Reading database ... 80%
+2026-09-09T19:24:54.3670140Z (Reading database ... 85%
+2026-09-09T19:24:54.3675598Z (Reading database ... 90%
+2026-09-09T19:24:54.3682763Z (Reading database ... 95%
+2026-09-09T19:24:54.3683436Z (Reading database ... 100%
+2026-09-09T19:24:54.3684143Z (Reading database ... 5706 files and directories currently installed.)
+2026-09-09T19:24:54.3689434Z Preparing to unpack .../00-python3_3.12.3-0ubuntu2.1_amd64.deb ...
+2026-09-09T19:24:54.3719233Z Unpacking python3 (3.12.3-0ubuntu2.1) ...
+2026-09-09T19:24:54.3865693Z Selecting previously unselected package perl-modules-5.38.
+2026-09-09T19:24:54.3876356Z Preparing to unpack .../01-perl-modules-5.38_5.38.2-3.2ubuntu0.4_all.deb ...
+2026-09-09T19:24:54.4754990Z Unpacking perl-modules-5.38 (5.38.2-3.2ubuntu0.4) ...
+2026-09-09T19:24:54.8305316Z Selecting previously unselected package libgdbm6t64:amd64.
+2026-09-09T19:24:54.8306259Z Preparing to unpack .../02-libgdbm6t64_1.23-5.1build1_amd64.deb ...
+2026-09-09T19:24:54.8314189Z Unpacking libgdbm6t64:amd64 (1.23-5.1build1) ...
+2026-09-09T19:24:54.8460800Z Selecting previously unselected package libgdbm-compat4t64:amd64.
+2026-09-09T19:24:54.8461512Z Preparing to unpack .../03-libgdbm-compat4t64_1.23-5.1build1_amd64.deb ...
+2026-09-09T19:24:54.8479912Z Unpacking libgdbm-compat4t64:amd64 (1.23-5.1build1) ...
+2026-09-09T19:24:54.9255693Z Selecting previously unselected package libperl5.38t64:amd64.
+2026-09-09T19:24:54.9261461Z Preparing to unpack .../04-libperl5.38t64_5.38.2-3.2ubuntu0.4_amd64.deb ...
+2026-09-09T19:24:54.9270072Z Unpacking libperl5.38t64:amd64 (5.38.2-3.2ubuntu0.4) ...
+2026-09-09T19:24:55.0825690Z Selecting previously unselected package perl.
+2026-09-09T19:24:55.0826246Z Preparing to unpack .../05-perl_5.38.2-3.2ubuntu0.4_amd64.deb ...
+2026-09-09T19:24:55.0869119Z Unpacking perl (5.38.2-3.2ubuntu0.4) ...
+2026-09-09T19:24:55.1129137Z Selecting previously unselected package openssl.
+2026-09-09T19:24:55.1140985Z Preparing to unpack .../06-openssl_3.0.13-0ubuntu3.15_amd64.deb ...
+2026-09-09T19:24:55.1149756Z Unpacking openssl (3.0.13-0ubuntu3.15) ...
+2026-09-09T19:24:55.1462967Z Selecting previously unselected package ca-certificates.
+2026-09-09T19:24:55.1476438Z Preparing to unpack .../07-ca-certificates_20260601~24.04.1_all.deb ...
+2026-09-09T19:24:55.1488213Z Unpacking ca-certificates (20260601~24.04.1) ...
+2026-09-09T19:24:55.1807749Z Selecting previously unselected package libkrb5support0:amd64.
+2026-09-09T19:24:55.1821630Z Preparing to unpack .../08-libkrb5support0_1.20.1-6ubuntu2.8_amd64.deb ...
+2026-09-09T19:24:55.1831059Z Unpacking libkrb5support0:amd64 (1.20.1-6ubuntu2.8) ...
+2026-09-09T19:24:55.2044962Z Selecting previously unselected package libk5crypto3:amd64.
+2026-09-09T19:24:55.2045905Z Preparing to unpack .../09-libk5crypto3_1.20.1-6ubuntu2.8_amd64.deb ...
+2026-09-09T19:24:55.2053135Z Unpacking libk5crypto3:amd64 (1.20.1-6ubuntu2.8) ...
+2026-09-09T19:24:55.2783513Z Selecting previously unselected package libkeyutils1:amd64.
+2026-09-09T19:24:55.2785805Z Preparing to unpack .../10-libkeyutils1_1.6.3-3build1_amd64.deb ...
+2026-09-09T19:24:55.2804250Z Unpacking libkeyutils1:amd64 (1.6.3-3build1) ...
+2026-09-09T19:24:55.2919433Z Selecting previously unselected package libkrb5-3:amd64.
+2026-09-09T19:24:55.2931242Z Preparing to unpack .../11-libkrb5-3_1.20.1-6ubuntu2.8_amd64.deb ...
+2026-09-09T19:24:55.2942307Z Unpacking libkrb5-3:amd64 (1.20.1-6ubuntu2.8) ...
+2026-09-09T19:24:55.3121254Z Selecting previously unselected package libgssapi-krb5-2:amd64.
+2026-09-09T19:24:55.3133573Z Preparing to unpack .../12-libgssapi-krb5-2_1.20.1-6ubuntu2.8_amd64.deb ...
+2026-09-09T19:24:55.3144466Z Unpacking libgssapi-krb5-2:amd64 (1.20.1-6ubuntu2.8) ...
+2026-09-09T19:24:55.3290365Z Selecting previously unselected package libicu74:amd64.
+2026-09-09T19:24:55.3304745Z Preparing to unpack .../13-libicu74_74.2-1ubuntu3.1_amd64.deb ...
+2026-09-09T19:24:55.3312549Z Unpacking libicu74:amd64 (74.2-1ubuntu3.1) ...
+2026-09-09T19:24:55.6483506Z Selecting previously unselected package libxml2:amd64.
+2026-09-09T19:24:55.6484285Z Preparing to unpack .../14-libxml2_2.9.14+dfsg-1.3ubuntu3.8_amd64.deb ...
+2026-09-09T19:24:55.6497032Z Unpacking libxml2:amd64 (2.9.14+dfsg-1.3ubuntu3.8) ...
+2026-09-09T19:24:55.6758212Z Selecting previously unselected package libjansson4:amd64.
+2026-09-09T19:24:55.6771128Z Preparing to unpack .../15-libjansson4_2.14-2build2_amd64.deb ...
+2026-09-09T19:24:55.6784531Z Unpacking libjansson4:amd64 (2.14-2build2) ...
+2026-09-09T19:24:55.6912861Z Selecting previously unselected package libnghttp2-14:amd64.
+2026-09-09T19:24:55.6926143Z Preparing to unpack .../16-libnghttp2-14_1.59.0-1ubuntu0.4_amd64.deb ...
+2026-09-09T19:24:55.6936350Z Unpacking libnghttp2-14:amd64 (1.59.0-1ubuntu0.4) ...
+2026-09-09T19:24:55.7272878Z Selecting previously unselected package libpsl5t64:amd64.
+2026-09-09T19:24:55.7285175Z Preparing to unpack .../17-libpsl5t64_0.21.2-1.1build1_amd64.deb ...
+2026-09-09T19:24:55.7296948Z Unpacking libpsl5t64:amd64 (0.21.2-1.1build1) ...
+2026-09-09T19:24:55.7444798Z Selecting previously unselected package libuv1t64:amd64.
+2026-09-09T19:24:55.7451484Z Preparing to unpack .../18-libuv1t64_1.48.0-1.1build1_amd64.deb ...
+2026-09-09T19:24:55.7482943Z Unpacking libuv1t64:amd64 (1.48.0-1.1build1) ...
+2026-09-09T19:24:55.7617661Z Selecting previously unselected package xz-utils.
+2026-09-09T19:24:55.7633073Z Preparing to unpack .../19-xz-utils_5.6.1+really5.4.5-1ubuntu0.3_amd64.deb ...
+2026-09-09T19:24:55.7645566Z Unpacking xz-utils (5.6.1+really5.4.5-1ubuntu0.3) ...
+2026-09-09T19:24:55.7847387Z Selecting previously unselected package binutils-common:amd64.
+2026-09-09T19:24:55.7851879Z Preparing to unpack .../20-binutils-common_2.42-4ubuntu2.10_amd64.deb ...
+2026-09-09T19:24:55.7860951Z Unpacking binutils-common:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:24:55.8413251Z Selecting previously unselected package libsframe1:amd64.
+2026-09-09T19:24:55.8413997Z Preparing to unpack .../21-libsframe1_2.42-4ubuntu2.10_amd64.deb ...
+2026-09-09T19:24:55.8422738Z Unpacking libsframe1:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:24:55.8545247Z Selecting previously unselected package libbinutils:amd64.
+2026-09-09T19:24:55.8558061Z Preparing to unpack .../22-libbinutils_2.42-4ubuntu2.10_amd64.deb ...
+2026-09-09T19:24:55.8567484Z Unpacking libbinutils:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:24:55.9407440Z Selecting previously unselected package libctf-nobfd0:amd64.
+2026-09-09T19:24:55.9419149Z Preparing to unpack .../23-libctf-nobfd0_2.42-4ubuntu2.10_amd64.deb ...
+2026-09-09T19:24:55.9428183Z Unpacking libctf-nobfd0:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:24:55.9573188Z Selecting previously unselected package libctf0:amd64.
+2026-09-09T19:24:55.9573746Z Preparing to unpack .../24-libctf0_2.42-4ubuntu2.10_amd64.deb ...
+2026-09-09T19:24:56.0197990Z Unpacking libctf0:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:24:56.0348235Z Selecting previously unselected package libgprofng0:amd64.
+2026-09-09T19:24:56.0360960Z Preparing to unpack .../25-libgprofng0_2.42-4ubuntu2.10_amd64.deb ...
+2026-09-09T19:24:56.0371480Z Unpacking libgprofng0:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:24:56.2520893Z Selecting previously unselected package binutils-x86-64-linux-gnu.
+2026-09-09T19:24:56.2521600Z Preparing to unpack .../26-binutils-x86-64-linux-gnu_2.42-4ubuntu2.10_amd64.deb ...
+2026-09-09T19:24:56.2714960Z Unpacking binutils-x86-64-linux-gnu (2.42-4ubuntu2.10) ...
+2026-09-09T19:24:56.7951756Z Selecting previously unselected package binutils.
+2026-09-09T19:24:56.7952321Z Preparing to unpack .../27-binutils_2.42-4ubuntu2.10_amd64.deb ...
+2026-09-09T19:24:56.7960535Z Unpacking binutils (2.42-4ubuntu2.10) ...
+2026-09-09T19:24:56.8118836Z Selecting previously unselected package libc-dev-bin.
+2026-09-09T19:24:56.8131936Z Preparing to unpack .../28-libc-dev-bin_2.39-0ubuntu8.8_amd64.deb ...
+2026-09-09T19:24:56.8142515Z Unpacking libc-dev-bin (2.39-0ubuntu8.8) ...
+2026-09-09T19:24:56.8547503Z Selecting previously unselected package linux-libc-dev:amd64.
+2026-09-09T19:24:56.8548108Z Preparing to unpack .../29-linux-libc-dev_6.8.0-139.139_amd64.deb ...
+2026-09-09T19:24:56.9099057Z Unpacking linux-libc-dev:amd64 (6.8.0-139.139) ...
+2026-09-09T19:24:57.1687780Z Selecting previously unselected package libcrypt-dev:amd64.
+2026-09-09T19:24:57.1697236Z Preparing to unpack .../30-libcrypt-dev_1%3a4.4.36-4build1_amd64.deb ...
+2026-09-09T19:24:57.1749546Z Unpacking libcrypt-dev:amd64 (1:4.4.36-4build1) ...
+2026-09-09T19:24:57.1913540Z Selecting previously unselected package rpcsvc-proto.
+2026-09-09T19:24:57.1914818Z Preparing to unpack .../31-rpcsvc-proto_1.4.2-0ubuntu7_amd64.deb ...
+2026-09-09T19:24:57.1925856Z Unpacking rpcsvc-proto (1.4.2-0ubuntu7) ...
+2026-09-09T19:24:57.2086710Z Selecting previously unselected package libc6-dev:amd64.
+2026-09-09T19:24:57.2095284Z Preparing to unpack .../32-libc6-dev_2.39-0ubuntu8.8_amd64.deb ...
+2026-09-09T19:24:57.2106222Z Unpacking libc6-dev:amd64 (2.39-0ubuntu8.8) ...
+2026-09-09T19:24:57.3244655Z Selecting previously unselected package gcc-13-base:amd64.
+2026-09-09T19:24:57.3245400Z Preparing to unpack .../33-gcc-13-base_13.3.0-6ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:57.3255136Z Unpacking gcc-13-base:amd64 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:24:57.4388252Z Selecting previously unselected package libisl23:amd64.
+2026-09-09T19:24:57.4399446Z Preparing to unpack .../34-libisl23_0.26-3build1.1_amd64.deb ...
+2026-09-09T19:24:57.4415169Z Unpacking libisl23:amd64 (0.26-3build1.1) ...
+2026-09-09T19:24:57.6764266Z Selecting previously unselected package libmpfr6:amd64.
+2026-09-09T19:24:57.6774294Z Preparing to unpack .../35-libmpfr6_4.2.1-1build1.1_amd64.deb ...
+2026-09-09T19:24:57.6981765Z Unpacking libmpfr6:amd64 (4.2.1-1build1.1) ...
+2026-09-09T19:24:57.7154824Z Selecting previously unselected package libmpc3:amd64.
+2026-09-09T19:24:57.7168434Z Preparing to unpack .../36-libmpc3_1.3.1-1build1.1_amd64.deb ...
+2026-09-09T19:24:57.7177311Z Unpacking libmpc3:amd64 (1.3.1-1build1.1) ...
+2026-09-09T19:24:57.9676029Z Selecting previously unselected package cpp-13-x86-64-linux-gnu.
+2026-09-09T19:24:57.9680574Z Preparing to unpack .../37-cpp-13-x86-64-linux-gnu_13.3.0-6ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:58.0806254Z Unpacking cpp-13-x86-64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:24:58.3034434Z Selecting previously unselected package cpp-13.
+2026-09-09T19:24:58.3048843Z Preparing to unpack .../38-cpp-13_13.3.0-6ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:58.3056635Z Unpacking cpp-13 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:24:58.3165529Z Selecting previously unselected package cpp-x86-64-linux-gnu.
+2026-09-09T19:24:58.3179828Z Preparing to unpack .../39-cpp-x86-64-linux-gnu_4%3a13.2.0-7ubuntu1_amd64.deb ...
+2026-09-09T19:24:58.3188483Z Unpacking cpp-x86-64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:24:58.4348074Z Selecting previously unselected package cpp.
+2026-09-09T19:24:58.4359185Z Preparing to unpack .../40-cpp_4%3a13.2.0-7ubuntu1_amd64.deb ...
+2026-09-09T19:24:58.4408814Z Unpacking cpp (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:24:58.5268664Z Selecting previously unselected package libcc1-0:amd64.
+2026-09-09T19:24:58.5271262Z Preparing to unpack .../41-libcc1-0_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:58.5285822Z Unpacking libcc1-0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:24:58.5488862Z Selecting previously unselected package libgomp1:amd64.
+2026-09-09T19:24:58.5503115Z Preparing to unpack .../42-libgomp1_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:58.5511699Z Unpacking libgomp1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:24:58.7462247Z Selecting previously unselected package libitm1:amd64.
+2026-09-09T19:24:58.7462759Z Preparing to unpack .../43-libitm1_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:58.7477272Z Unpacking libitm1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:24:58.7614785Z Selecting previously unselected package libatomic1:amd64.
+2026-09-09T19:24:58.7629128Z Preparing to unpack .../44-libatomic1_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:58.7638509Z Unpacking libatomic1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:24:58.7786970Z Selecting previously unselected package libasan8:amd64.
+2026-09-09T19:24:58.7800554Z Preparing to unpack .../45-libasan8_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:58.7813261Z Unpacking libasan8:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:24:58.9954983Z Selecting previously unselected package liblsan0:amd64.
+2026-09-09T19:24:58.9968919Z Preparing to unpack .../46-liblsan0_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:58.9978447Z Unpacking liblsan0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:24:59.0268374Z Selecting previously unselected package libtsan2:amd64.
+2026-09-09T19:24:59.0282098Z Preparing to unpack .../47-libtsan2_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:59.0293305Z Unpacking libtsan2:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:24:59.3177203Z Selecting previously unselected package libubsan1:amd64.
+2026-09-09T19:24:59.3185486Z Preparing to unpack .../48-libubsan1_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:59.3199108Z Unpacking libubsan1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:24:59.4195066Z Selecting previously unselected package libhwasan0:amd64.
+2026-09-09T19:24:59.4209054Z Preparing to unpack .../49-libhwasan0_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:59.4220669Z Unpacking libhwasan0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:24:59.5269913Z Selecting previously unselected package libquadmath0:amd64.
+2026-09-09T19:24:59.5284860Z Preparing to unpack .../50-libquadmath0_14.2.0-4ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:59.5295752Z Unpacking libquadmath0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:24:59.5420376Z Selecting previously unselected package libgcc-13-dev:amd64.
+2026-09-09T19:24:59.5435916Z Preparing to unpack .../51-libgcc-13-dev_13.3.0-6ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:59.5445939Z Unpacking libgcc-13-dev:amd64 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:24:59.6459186Z Selecting previously unselected package gcc-13-x86-64-linux-gnu.
+2026-09-09T19:24:59.6474038Z Preparing to unpack .../52-gcc-13-x86-64-linux-gnu_13.3.0-6ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:59.6484692Z Unpacking gcc-13-x86-64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:24:59.8865930Z Selecting previously unselected package gcc-13.
+2026-09-09T19:24:59.8881414Z Preparing to unpack .../53-gcc-13_13.3.0-6ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:59.8891829Z Unpacking gcc-13 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:24:59.9065400Z Selecting previously unselected package gcc-x86-64-linux-gnu.
+2026-09-09T19:24:59.9066133Z Preparing to unpack .../54-gcc-x86-64-linux-gnu_4%3a13.2.0-7ubuntu1_amd64.deb ...
+2026-09-09T19:24:59.9072531Z Unpacking gcc-x86-64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:24:59.9257985Z Selecting previously unselected package gcc.
+2026-09-09T19:24:59.9264506Z Preparing to unpack .../55-gcc_4%3a13.2.0-7ubuntu1_amd64.deb ...
+2026-09-09T19:24:59.9275930Z Unpacking gcc (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:24:59.9410344Z Selecting previously unselected package libstdc++-13-dev:amd64.
+2026-09-09T19:24:59.9424574Z Preparing to unpack .../56-libstdc++-13-dev_13.3.0-6ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:24:59.9437331Z Unpacking libstdc++-13-dev:amd64 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:00.2007011Z Selecting previously unselected package g++-13-x86-64-linux-gnu.
+2026-09-09T19:25:00.2024327Z Preparing to unpack .../57-g++-13-x86-64-linux-gnu_13.3.0-6ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:25:00.2032884Z Unpacking g++-13-x86-64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:00.3244870Z Selecting previously unselected package g++-13.
+2026-09-09T19:25:00.3259535Z Preparing to unpack .../58-g++-13_13.3.0-6ubuntu2~24.04.1_amd64.deb ...
+2026-09-09T19:25:00.4057621Z Unpacking g++-13 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:00.4219954Z Selecting previously unselected package g++-x86-64-linux-gnu.
+2026-09-09T19:25:00.4235249Z Preparing to unpack .../59-g++-x86-64-linux-gnu_4%3a13.2.0-7ubuntu1_amd64.deb ...
+2026-09-09T19:25:00.4247237Z Unpacking g++-x86-64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:25:00.4403049Z Selecting previously unselected package g++.
+2026-09-09T19:25:00.4418784Z Preparing to unpack .../60-g++_4%3a13.2.0-7ubuntu1_amd64.deb ...
+2026-09-09T19:25:00.4431649Z Unpacking g++ (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:25:00.4578559Z Selecting previously unselected package make.
+2026-09-09T19:25:00.4596630Z Preparing to unpack .../61-make_4.3-4.1build2_amd64.deb ...
+2026-09-09T19:25:00.4608559Z Unpacking make (4.3-4.1build2) ...
+2026-09-09T19:25:00.4868760Z Selecting previously unselected package libdpkg-perl.
+2026-09-09T19:25:00.4884604Z Preparing to unpack .../62-libdpkg-perl_1.22.6ubuntu6.6_all.deb ...
+2026-09-09T19:25:00.4904516Z Unpacking libdpkg-perl (1.22.6ubuntu6.6) ...
+2026-09-09T19:25:00.5204730Z Selecting previously unselected package bzip2.
+2026-09-09T19:25:00.5221651Z Preparing to unpack .../63-bzip2_1.0.8-5.1ubuntu0.1_amd64.deb ...
+2026-09-09T19:25:00.5245901Z Unpacking bzip2 (1.0.8-5.1ubuntu0.1) ...
+2026-09-09T19:25:00.5536173Z Selecting previously unselected package patch.
+2026-09-09T19:25:00.5544349Z Preparing to unpack .../64-patch_2.7.6-7build3_amd64.deb ...
+2026-09-09T19:25:00.5556218Z Unpacking patch (2.7.6-7build3) ...
+2026-09-09T19:25:00.5686017Z Selecting previously unselected package lto-disabled-list.
+2026-09-09T19:25:00.5686570Z Preparing to unpack .../65-lto-disabled-list_47_all.deb ...
+2026-09-09T19:25:00.5697527Z Unpacking lto-disabled-list (47) ...
+2026-09-09T19:25:00.5971906Z Selecting previously unselected package dpkg-dev.
+2026-09-09T19:25:00.5986256Z Preparing to unpack .../66-dpkg-dev_1.22.6ubuntu6.6_all.deb ...
+2026-09-09T19:25:00.5996818Z Unpacking dpkg-dev (1.22.6ubuntu6.6) ...
+2026-09-09T19:25:00.6575426Z Selecting previously unselected package build-essential.
+2026-09-09T19:25:00.6591949Z Preparing to unpack .../67-build-essential_12.10ubuntu1_amd64.deb ...
+2026-09-09T19:25:00.6600106Z Unpacking build-essential (12.10ubuntu1) ...
+2026-09-09T19:25:00.6723600Z Selecting previously unselected package libarchive13t64:amd64.
+2026-09-09T19:25:00.6739439Z Preparing to unpack .../68-libarchive13t64_3.7.2-2ubuntu0.8_amd64.deb ...
+2026-09-09T19:25:00.6748520Z Unpacking libarchive13t64:amd64 (3.7.2-2ubuntu0.8) ...
+2026-09-09T19:25:00.6924976Z Selecting previously unselected package libbrotli1:amd64.
+2026-09-09T19:25:00.6929220Z Preparing to unpack .../69-libbrotli1_1.1.0-2build2_amd64.deb ...
+2026-09-09T19:25:00.6938980Z Unpacking libbrotli1:amd64 (1.1.0-2build2) ...
+2026-09-09T19:25:00.8195676Z Selecting previously unselected package libsasl2-modules-db:amd64.
+2026-09-09T19:25:00.8200947Z Preparing to unpack .../70-libsasl2-modules-db_2.1.28+dfsg1-5ubuntu3.1_amd64.deb ...
+2026-09-09T19:25:00.8210263Z Unpacking libsasl2-modules-db:amd64 (2.1.28+dfsg1-5ubuntu3.1) ...
+2026-09-09T19:25:00.9114466Z Selecting previously unselected package libsasl2-2:amd64.
+2026-09-09T19:25:00.9115134Z Preparing to unpack .../71-libsasl2-2_2.1.28+dfsg1-5ubuntu3.1_amd64.deb ...
+2026-09-09T19:25:00.9125138Z Unpacking libsasl2-2:amd64 (2.1.28+dfsg1-5ubuntu3.1) ...
+2026-09-09T19:25:00.9265269Z Selecting previously unselected package libldap2:amd64.
+2026-09-09T19:25:00.9280536Z Preparing to unpack .../72-libldap2_2.6.10+dfsg-0ubuntu0.24.04.1_amd64.deb ...
+2026-09-09T19:25:00.9290225Z Unpacking libldap2:amd64 (2.6.10+dfsg-0ubuntu0.24.04.1) ...
+2026-09-09T19:25:00.9455401Z Selecting previously unselected package librtmp1:amd64.
+2026-09-09T19:25:00.9472877Z Preparing to unpack .../73-librtmp1_2.4+20151223.gitfa8646d.1-2build7_amd64.deb ...
+2026-09-09T19:25:01.0137086Z Unpacking librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2build7) ...
+2026-09-09T19:25:01.0286546Z Selecting previously unselected package libssh-4:amd64.
+2026-09-09T19:25:01.0289936Z Preparing to unpack .../74-libssh-4_0.10.6-2ubuntu0.5_amd64.deb ...
+2026-09-09T19:25:01.0300860Z Unpacking libssh-4:amd64 (0.10.6-2ubuntu0.5) ...
+2026-09-09T19:25:01.1235648Z Selecting previously unselected package libcurl4t64:amd64.
+2026-09-09T19:25:01.1236553Z Preparing to unpack .../75-libcurl4t64_8.5.0-2ubuntu10.13_amd64.deb ...
+2026-09-09T19:25:01.1250911Z Unpacking libcurl4t64:amd64 (8.5.0-2ubuntu10.13) ...
+2026-09-09T19:25:01.1451043Z Selecting previously unselected package libjsoncpp25:amd64.
+2026-09-09T19:25:01.1467254Z Preparing to unpack .../76-libjsoncpp25_1.9.5-6build1_amd64.deb ...
+2026-09-09T19:25:01.1475788Z Unpacking libjsoncpp25:amd64 (1.9.5-6build1) ...
+2026-09-09T19:25:01.2495468Z Selecting previously unselected package librhash0:amd64.
+2026-09-09T19:25:01.2498814Z Preparing to unpack .../77-librhash0_1.4.3-3build1_amd64.deb ...
+2026-09-09T19:25:01.2508422Z Unpacking librhash0:amd64 (1.4.3-3build1) ...
+2026-09-09T19:25:01.2686388Z Selecting previously unselected package cmake-data.
+2026-09-09T19:25:01.2702892Z Preparing to unpack .../78-cmake-data_3.28.3-1build7_all.deb ...
+2026-09-09T19:25:01.2754565Z Unpacking cmake-data (3.28.3-1build7) ...
+2026-09-09T19:25:01.7464924Z Selecting previously unselected package cmake.
+2026-09-09T19:25:01.7483009Z Preparing to unpack .../79-cmake_3.28.3-1build7_amd64.deb ...
+2026-09-09T19:25:01.7870903Z Unpacking cmake (3.28.3-1build7) ...
+2026-09-09T19:25:01.9628670Z Selecting previously unselected package curl.
+2026-09-09T19:25:01.9647446Z Preparing to unpack .../80-curl_8.5.0-2ubuntu10.13_amd64.deb ...
+2026-09-09T19:25:01.9656679Z Unpacking curl (8.5.0-2ubuntu10.13) ...
+2026-09-09T19:25:02.0906365Z Selecting previously unselected package libcurl3t64-gnutls:amd64.
+2026-09-09T19:25:02.0921674Z Preparing to unpack .../81-libcurl3t64-gnutls_8.5.0-2ubuntu10.13_amd64.deb ...
+2026-09-09T19:25:02.1608882Z Unpacking libcurl3t64-gnutls:amd64 (8.5.0-2ubuntu10.13) ...
+2026-09-09T19:25:02.2172478Z Selecting previously unselected package liberror-perl.
+2026-09-09T19:25:02.2191426Z Preparing to unpack .../82-liberror-perl_0.17029-2_all.deb ...
+2026-09-09T19:25:02.2200689Z Unpacking liberror-perl (0.17029-2) ...
+2026-09-09T19:25:02.2373126Z Selecting previously unselected package git-man.
+2026-09-09T19:25:02.2392141Z Preparing to unpack .../83-git-man_1%3a2.43.0-1ubuntu7.3_all.deb ...
+2026-09-09T19:25:02.2403465Z Unpacking git-man (1:2.43.0-1ubuntu7.3) ...
+2026-09-09T19:25:02.2754197Z Selecting previously unselected package git.
+2026-09-09T19:25:02.2761542Z Preparing to unpack .../84-git_1%3a2.43.0-1ubuntu7.3_amd64.deb ...
+2026-09-09T19:25:02.2812302Z Unpacking git (1:2.43.0-1ubuntu7.3) ...
+2026-09-09T19:25:02.4265006Z Selecting previously unselected package libpkgconf3:amd64.
+2026-09-09T19:25:02.4283673Z Preparing to unpack .../85-libpkgconf3_1.8.1-2build1_amd64.deb ...
+2026-09-09T19:25:02.4293545Z Unpacking libpkgconf3:amd64 (1.8.1-2build1) ...
+2026-09-09T19:25:02.4419125Z Selecting previously unselected package nasm.
+2026-09-09T19:25:02.4439207Z Preparing to unpack .../86-nasm_2.16.01-1build1_amd64.deb ...
+2026-09-09T19:25:02.4449034Z Unpacking nasm (2.16.01-1build1) ...
+2026-09-09T19:25:02.4664972Z Selecting previously unselected package pkgconf-bin.
+2026-09-09T19:25:02.4682369Z Preparing to unpack .../87-pkgconf-bin_1.8.1-2build1_amd64.deb ...
+2026-09-09T19:25:02.4693561Z Unpacking pkgconf-bin (1.8.1-2build1) ...
+2026-09-09T19:25:02.4825465Z Selecting previously unselected package pkgconf:amd64.
+2026-09-09T19:25:02.4843252Z Preparing to unpack .../88-pkgconf_1.8.1-2build1_amd64.deb ...
+2026-09-09T19:25:02.4862627Z Unpacking pkgconf:amd64 (1.8.1-2build1) ...
+2026-09-09T19:25:02.5795152Z Selecting previously unselected package pkg-config:amd64.
+2026-09-09T19:25:02.5807584Z Preparing to unpack .../89-pkg-config_1.8.1-2build1_amd64.deb ...
+2026-09-09T19:25:02.5830719Z Unpacking pkg-config:amd64 (1.8.1-2build1) ...
+2026-09-09T19:25:02.5962603Z Selecting previously unselected package python3-pip-whl.
+2026-09-09T19:25:02.5982093Z Preparing to unpack .../90-python3-pip-whl_24.0+dfsg-1ubuntu1.3_all.deb ...
+2026-09-09T19:25:02.5990208Z Unpacking python3-pip-whl (24.0+dfsg-1ubuntu1.3) ...
+2026-09-09T19:25:02.6163255Z Selecting previously unselected package python3-setuptools-whl.
+2026-09-09T19:25:02.6173051Z Preparing to unpack .../91-python3-setuptools-whl_68.1.2-2ubuntu1.2_all.deb ...
+2026-09-09T19:25:02.6296468Z Unpacking python3-setuptools-whl (68.1.2-2ubuntu1.2) ...
+2026-09-09T19:25:02.6449445Z Selecting previously unselected package python3.12-venv.
+2026-09-09T19:25:02.6469021Z Preparing to unpack .../92-python3.12-venv_3.12.3-1ubuntu0.16_amd64.deb ...
+2026-09-09T19:25:02.6478329Z Unpacking python3.12-venv (3.12.3-1ubuntu0.16) ...
+2026-09-09T19:25:02.6596383Z Selecting previously unselected package python3-venv.
+2026-09-09T19:25:02.6610151Z Preparing to unpack .../93-python3-venv_3.12.3-0ubuntu2.1_amd64.deb ...
+2026-09-09T19:25:02.6619671Z Unpacking python3-venv (3.12.3-0ubuntu2.1) ...
+2026-09-09T19:25:02.6808806Z Setting up media-types (10.1.0) ...
+2026-09-09T19:25:02.6847140Z Setting up python3-setuptools-whl (68.1.2-2ubuntu1.2) ...
+2026-09-09T19:25:02.6869888Z Setting up libkeyutils1:amd64 (1.6.3-3build1) ...
+2026-09-09T19:25:02.6894074Z Setting up lto-disabled-list (47) ...
+2026-09-09T19:25:02.6918430Z Setting up libgdbm6t64:amd64 (1.23-5.1build1) ...
+2026-09-09T19:25:02.6941332Z Setting up libgdbm-compat4t64:amd64 (1.23-5.1build1) ...
+2026-09-09T19:25:02.6967170Z Setting up libbrotli1:amd64 (1.1.0-2build2) ...
+2026-09-09T19:25:02.6990578Z Setting up libsqlite3-0:amd64 (3.45.1-1ubuntu2.7) ...
+2026-09-09T19:25:02.7017484Z Setting up libuv1t64:amd64 (1.48.0-1.1build1) ...
+2026-09-09T19:25:02.7042353Z Setting up binutils-common:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:25:02.7072740Z Setting up libpsl5t64:amd64 (0.21.2-1.1build1) ...
+2026-09-09T19:25:02.7096683Z Setting up libnghttp2-14:amd64 (1.59.0-1ubuntu0.4) ...
+2026-09-09T19:25:02.7126796Z Setting up linux-libc-dev:amd64 (6.8.0-139.139) ...
+2026-09-09T19:25:02.7156518Z Setting up libctf-nobfd0:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:25:02.7178874Z Setting up libgomp1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:25:02.7200019Z Setting up bzip2 (1.0.8-5.1ubuntu0.1) ...
+2026-09-09T19:25:02.7224103Z Setting up libsframe1:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:25:02.7307570Z Setting up libjansson4:amd64 (2.14-2build2) ...
+2026-09-09T19:25:02.7330337Z Setting up libkrb5support0:amd64 (1.20.1-6ubuntu2.8) ...
+2026-09-09T19:25:02.7353258Z Setting up libsasl2-modules-db:amd64 (2.1.28+dfsg1-5ubuntu3.1) ...
+2026-09-09T19:25:02.7377180Z Setting up tzdata (2026c-0ubuntu0.24.04.1) ...
+2026-09-09T19:25:02.7970997Z 
+2026-09-09T19:25:02.7971746Z Current default time zone: 'Etc/UTC'
+2026-09-09T19:25:02.7984886Z Local time is now:      Wed Sep  9 19:25:02 UTC 2026.
+2026-09-09T19:25:02.7985753Z Universal Time is now:  Wed Sep  9 19:25:02 UTC 2026.
+2026-09-09T19:25:02.7992739Z Run 'dpkg-reconfigure tzdata' if you wish to change it.
+2026-09-09T19:25:02.7993179Z 
+2026-09-09T19:25:02.8612086Z Setting up libpkgconf3:amd64 (1.8.1-2build1) ...
+2026-09-09T19:25:02.8636475Z Setting up rpcsvc-proto (1.4.2-0ubuntu7) ...
+2026-09-09T19:25:02.8661750Z Setting up gcc-13-base:amd64 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:02.8685232Z Setting up make (4.3-4.1build2) ...
+2026-09-09T19:25:02.8719920Z Setting up libmpfr6:amd64 (4.2.1-1build1.1) ...
+2026-09-09T19:25:02.8743135Z Setting up librtmp1:amd64 (2.4+20151223.gitfa8646d.1-2build7) ...
+2026-09-09T19:25:02.8768320Z Setting up xz-utils (5.6.1+really5.4.5-1ubuntu0.3) ...
+2026-09-09T19:25:02.8854810Z update-alternatives: using /usr/bin/xz to provide /usr/bin/lzma (lzma) in auto mode
+2026-09-09T19:25:02.8860230Z update-alternatives: warning: skip creation of /usr/share/man/man1/lzma.1.gz because associated file /usr/share/man/man1/xz.1.gz (of link group lzma) doesn't exist
+2026-09-09T19:25:02.8866301Z update-alternatives: warning: skip creation of /usr/share/man/man1/unlzma.1.gz because associated file /usr/share/man/man1/unxz.1.gz (of link group lzma) doesn't exist
+2026-09-09T19:25:02.8869275Z update-alternatives: warning: skip creation of /usr/share/man/man1/lzcat.1.gz because associated file /usr/share/man/man1/xzcat.1.gz (of link group lzma) doesn't exist
+2026-09-09T19:25:02.8870948Z update-alternatives: warning: skip creation of /usr/share/man/man1/lzmore.1.gz because associated file /usr/share/man/man1/xzmore.1.gz (of link group lzma) doesn't exist
+2026-09-09T19:25:02.8896138Z update-alternatives: warning: skip creation of /usr/share/man/man1/lzless.1.gz because associated file /usr/share/man/man1/xzless.1.gz (of link group lzma) doesn't exist
+2026-09-09T19:25:02.8897738Z update-alternatives: warning: skip creation of /usr/share/man/man1/lzdiff.1.gz because associated file /usr/share/man/man1/xzdiff.1.gz (of link group lzma) doesn't exist
+2026-09-09T19:25:02.8899549Z update-alternatives: warning: skip creation of /usr/share/man/man1/lzcmp.1.gz because associated file /usr/share/man/man1/xzcmp.1.gz (of link group lzma) doesn't exist
+2026-09-09T19:25:02.8900957Z update-alternatives: warning: skip creation of /usr/share/man/man1/lzgrep.1.gz because associated file /usr/share/man/man1/xzgrep.1.gz (of link group lzma) doesn't exist
+2026-09-09T19:25:02.8902441Z update-alternatives: warning: skip creation of /usr/share/man/man1/lzegrep.1.gz because associated file /usr/share/man/man1/xzegrep.1.gz (of link group lzma) doesn't exist
+2026-09-09T19:25:02.8904220Z update-alternatives: warning: skip creation of /usr/share/man/man1/lzfgrep.1.gz because associated file /usr/share/man/man1/xzfgrep.1.gz (of link group lzma) doesn't exist
+2026-09-09T19:25:02.8908873Z Setting up perl-modules-5.38 (5.38.2-3.2ubuntu0.4) ...
+2026-09-09T19:25:02.8935510Z Setting up libquadmath0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:25:02.8960056Z Setting up libmpc3:amd64 (1.3.1-1build1.1) ...
+2026-09-09T19:25:02.8985715Z Setting up libatomic1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:25:02.9009210Z Setting up patch (2.7.6-7build3) ...
+2026-09-09T19:25:02.9038614Z Setting up libjsoncpp25:amd64 (1.9.5-6build1) ...
+2026-09-09T19:25:02.9063922Z Setting up pkgconf-bin (1.8.1-2build1) ...
+2026-09-09T19:25:02.9087036Z Setting up libk5crypto3:amd64 (1.20.1-6ubuntu2.8) ...
+2026-09-09T19:25:02.9112672Z Setting up nasm (2.16.01-1build1) ...
+2026-09-09T19:25:02.9137053Z Setting up libsasl2-2:amd64 (2.1.28+dfsg1-5ubuntu3.1) ...
+2026-09-09T19:25:02.9600200Z Setting up libubsan1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:25:02.9735682Z Setting up libicu74:amd64 (74.2-1ubuntu3.1) ...
+2026-09-09T19:25:02.9762395Z Setting up libhwasan0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:25:02.9785040Z Setting up librhash0:amd64 (1.4.3-3build1) ...
+2026-09-09T19:25:02.9808416Z Setting up libcrypt-dev:amd64 (1:4.4.36-4build1) ...
+2026-09-09T19:25:02.9866969Z Setting up libasan8:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:25:02.9891252Z Setting up git-man (1:2.43.0-1ubuntu7.3) ...
+2026-09-09T19:25:02.9916028Z Setting up netbase (6.4) ...
+2026-09-09T19:25:02.9981593Z Setting up cmake-data (3.28.3-1build7) ...
+2026-09-09T19:25:03.0038217Z Setting up libkrb5-3:amd64 (1.20.1-6ubuntu2.8) ...
+2026-09-09T19:25:03.0063275Z Setting up libperl5.38t64:amd64 (5.38.2-3.2ubuntu0.4) ...
+2026-09-09T19:25:03.0087985Z Setting up libtsan2:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:25:03.0128277Z Setting up libbinutils:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:25:03.0150929Z Setting up libisl23:amd64 (0.26-3build1.1) ...
+2026-09-09T19:25:03.0175399Z Setting up libc-dev-bin (2.39-0ubuntu8.8) ...
+2026-09-09T19:25:03.0198026Z Setting up openssl (3.0.13-0ubuntu3.15) ...
+2026-09-09T19:25:03.0240671Z Setting up readline-common (8.2-4build1) ...
+2026-09-09T19:25:03.0490766Z Setting up libxml2:amd64 (2.9.14+dfsg-1.3ubuntu3.8) ...
+2026-09-09T19:25:03.0517733Z Setting up libcc1-0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:25:03.0542200Z Setting up libldap2:amd64 (2.6.10+dfsg-0ubuntu0.24.04.1) ...
+2026-09-09T19:25:03.0565092Z Setting up liblsan0:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:25:03.0612890Z Setting up libitm1:amd64 (14.2.0-4ubuntu2~24.04.1) ...
+2026-09-09T19:25:03.0637686Z Setting up libctf0:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:25:03.0662629Z Setting up cpp-13-x86-64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:03.0687535Z Setting up pkgconf:amd64 (1.8.1-2build1) ...
+2026-09-09T19:25:03.0710901Z Setting up ca-certificates (20260601~24.04.1) ...
+2026-09-09T19:25:03.3787808Z Updating certificates in /etc/ssl/certs...
+2026-09-09T19:25:03.7570502Z 121 added, 0 removed; done.
+2026-09-09T19:25:03.7770481Z Setting up perl (5.38.2-3.2ubuntu0.4) ...
+2026-09-09T19:25:03.7852389Z Setting up libgprofng0:amd64 (2.42-4ubuntu2.10) ...
+2026-09-09T19:25:03.7889301Z Setting up libgssapi-krb5-2:amd64 (1.20.1-6ubuntu2.8) ...
+2026-09-09T19:25:03.7923425Z Setting up pkg-config:amd64 (1.8.1-2build1) ...
+2026-09-09T19:25:03.7949594Z Setting up libdpkg-perl (1.22.6ubuntu6.6) ...
+2026-09-09T19:25:03.7976146Z Setting up libssh-4:amd64 (0.10.6-2ubuntu0.5) ...
+2026-09-09T19:25:03.8001676Z Setting up libreadline8t64:amd64 (8.2-4build1) ...
+2026-09-09T19:25:03.8028577Z Setting up libgcc-13-dev:amd64 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:03.8056096Z Setting up libc6-dev:amd64 (2.39-0ubuntu8.8) ...
+2026-09-09T19:25:03.8083316Z Setting up libarchive13t64:amd64 (3.7.2-2ubuntu0.8) ...
+2026-09-09T19:25:03.8124588Z Setting up libstdc++-13-dev:amd64 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:03.8152029Z Setting up binutils-x86-64-linux-gnu (2.42-4ubuntu2.10) ...
+2026-09-09T19:25:03.8176971Z Setting up cpp-x86-64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:25:03.8203207Z Setting up libpython3.12-stdlib:amd64 (3.12.3-1ubuntu0.16) ...
+2026-09-09T19:25:03.8226343Z Setting up cpp-13 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:03.8251024Z Setting up libcurl4t64:amd64 (8.5.0-2ubuntu10.13) ...
+2026-09-09T19:25:03.8279351Z Setting up python3-pip-whl (24.0+dfsg-1ubuntu1.3) ...
+2026-09-09T19:25:03.8390059Z Setting up gcc-13-x86-64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:03.8416480Z Setting up python3.12 (3.12.3-1ubuntu0.16) ...
+2026-09-09T19:25:04.5902871Z Setting up libcurl3t64-gnutls:amd64 (8.5.0-2ubuntu10.13) ...
+2026-09-09T19:25:04.5925656Z Setting up binutils (2.42-4ubuntu2.10) ...
+2026-09-09T19:25:04.5947918Z Setting up dpkg-dev (1.22.6ubuntu6.6) ...
+2026-09-09T19:25:04.5986653Z Setting up liberror-perl (0.17029-2) ...
+2026-09-09T19:25:04.6008236Z Setting up gcc-13 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:04.6033289Z Setting up git (1:2.43.0-1ubuntu7.3) ...
+2026-09-09T19:25:04.6099858Z Setting up cpp (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:25:04.6168031Z Setting up cmake (3.28.3-1build7) ...
+2026-09-09T19:25:04.6192545Z Setting up curl (8.5.0-2ubuntu10.13) ...
+2026-09-09T19:25:04.6217886Z Setting up libpython3-stdlib:amd64 (3.12.3-0ubuntu2.1) ...
+2026-09-09T19:25:04.6244820Z Setting up g++-13-x86-64-linux-gnu (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:04.6271659Z Setting up gcc-x86-64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:25:04.6295875Z Setting up python3.12-venv (3.12.3-1ubuntu0.16) ...
+2026-09-09T19:25:04.6650655Z Setting up python3 (3.12.3-0ubuntu2.1) ...
+2026-09-09T19:25:04.8835229Z Setting up gcc (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:25:04.8909604Z Setting up python3-venv (3.12.3-0ubuntu2.1) ...
+2026-09-09T19:25:04.8943599Z Setting up g++-x86-64-linux-gnu (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:25:04.8978101Z Setting up g++-13 (13.3.0-6ubuntu2~24.04.1) ...
+2026-09-09T19:25:04.9000462Z Setting up g++ (4:13.2.0-7ubuntu1) ...
+2026-09-09T19:25:04.9036555Z update-alternatives: using /usr/bin/g++ to provide /usr/bin/c++ (c++) in auto mode
+2026-09-09T19:25:04.9039165Z update-alternatives: warning: skip creation of /usr/share/man/man1/c++.1.gz because associated file /usr/share/man/man1/g++.1.gz (of link group c++) doesn't exist
+2026-09-09T19:25:04.9059525Z Setting up build-essential (12.10ubuntu1) ...
+2026-09-09T19:25:04.9085089Z Processing triggers for libc-bin (2.39-0ubuntu8.8) ...
+2026-09-09T19:25:04.9215167Z Processing triggers for ca-certificates (20260601~24.04.1) ...
+2026-09-09T19:25:04.9340898Z Updating certificates in /etc/ssl/certs...
+2026-09-09T19:25:05.2377957Z 0 added, 0 removed; done.
+2026-09-09T19:25:05.2379833Z Running hooks in /etc/ca-certificates/update.d...
+2026-09-09T19:25:05.2386881Z done.
+2026-09-09T19:25:05.2885287Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-09T19:25:05.2890567Z ##[group]Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+2026-09-09T19:25:05.2890874Z with:
+2026-09-09T19:25:05.2891061Z   persist-credentials: false
+2026-09-09T19:25:05.2891283Z   repository: astral-sh/toucan
+2026-09-09T19:25:05.2894709Z   token: ***
+2026-09-09T19:25:05.2894961Z   ssh-strict: true
+2026-09-09T19:25:05.2895147Z   ssh-user: git
+2026-09-09T19:25:05.2895325Z   clean: true
+2026-09-09T19:25:05.2895510Z   sparse-checkout-cone-mode: true
+2026-09-09T19:25:05.2895730Z   fetch-depth: 1
+2026-09-09T19:25:05.2895906Z   fetch-tags: false
+2026-09-09T19:25:05.2896085Z   show-progress: true
+2026-09-09T19:25:05.2896309Z   lfs: false
+2026-09-09T19:25:05.2896474Z   submodules: false
+2026-09-09T19:25:05.2896651Z   set-safe-directory: true
+2026-09-09T19:25:05.2896862Z   allow-unsafe-pr-checkout: false
+2026-09-09T19:25:05.2897067Z env:
+2026-09-09T19:25:05.2897228Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:05.2897404Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:05.2897588Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:05.2897796Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:05.2898008Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:05.2898203Z ##[endgroup]
+2026-09-09T19:25:05.2935318Z ##[command]/usr/bin/docker exec  5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f sh -c "cat /etc/*release | grep ^ID"
+2026-09-09T19:25:05.4629540Z Syncing repository: astral-sh/toucan
+2026-09-09T19:25:05.4631075Z ##[group]Getting Git version info
+2026-09-09T19:25:05.4631471Z Working directory is '/__w/toucan/toucan'
+2026-09-09T19:25:05.4632086Z [command]/usr/bin/git version
+2026-09-09T19:25:05.4640010Z git version 2.43.0
+2026-09-09T19:25:05.4663695Z ##[endgroup]
+2026-09-09T19:25:05.4680563Z Temporarily overriding HOME='/__w/_temp/f47a309a-7940-4e6d-b46a-4dd443a9cc86' before making global git config changes
+2026-09-09T19:25:05.4681669Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-09T19:25:05.4688029Z [command]/usr/bin/git config --global --add safe.directory /__w/toucan/toucan
+2026-09-09T19:25:05.4733665Z Deleting the contents of '/__w/toucan/toucan'
+2026-09-09T19:25:05.4734851Z ##[group]Initializing the repository
+2026-09-09T19:25:05.4735637Z [command]/usr/bin/git init /__w/toucan/toucan
+2026-09-09T19:25:05.4764348Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-09-09T19:25:05.4765056Z hint: is subject to change. To configure the initial branch name to use in all
+2026-09-09T19:25:05.4765723Z hint: of your new repositories, which will suppress this warning, call:
+2026-09-09T19:25:05.4766245Z hint: 
+2026-09-09T19:25:05.4766641Z hint: 	git config --global init.defaultBranch <name>
+2026-09-09T19:25:05.4767027Z hint: 
+2026-09-09T19:25:05.4767410Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-09-09T19:25:05.4769575Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-09-09T19:25:05.4770039Z hint: 
+2026-09-09T19:25:05.4770364Z hint: 	git branch -m <name>
+2026-09-09T19:25:05.4779310Z Initialized empty Git repository in /__w/toucan/toucan/.git/
+2026-09-09T19:25:05.4791294Z [command]/usr/bin/git remote add origin https://github.com/astral-sh/toucan
+2026-09-09T19:25:05.4821509Z ##[endgroup]
+2026-09-09T19:25:05.4822199Z ##[group]Disabling automatic garbage collection
+2026-09-09T19:25:05.4822777Z [command]/usr/bin/git config --local gc.auto 0
+2026-09-09T19:25:05.4852285Z ##[endgroup]
+2026-09-09T19:25:05.4852734Z ##[group]Setting up auth
+2026-09-09T19:25:05.4857680Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-09T19:25:05.4885751Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-09T19:25:05.5078110Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-09T19:25:05.5104202Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-09T19:25:05.5306633Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-09T19:25:05.5353002Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-09T19:25:05.5543277Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-09-09T19:25:05.5575751Z ##[endgroup]
+2026-09-09T19:25:05.5576676Z ##[group]Fetching the repository
+2026-09-09T19:25:05.5585144Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +d00076d620c34b42c17a474e32e41090288e4483:refs/remotes/origin/charlie/codex-toucan-git-dependency-acceptance
+2026-09-09T19:25:15.1021902Z From https://github.com/astral-sh/toucan
+2026-09-09T19:25:15.1023249Z  * [new ref]         d00076d620c34b42c17a474e32e41090288e4483 -> origin/charlie/codex-toucan-git-dependency-acceptance
+2026-09-09T19:25:15.1038083Z ##[endgroup]
+2026-09-09T19:25:15.1039160Z ##[group]Determining the checkout info
+2026-09-09T19:25:15.1041105Z ##[endgroup]
+2026-09-09T19:25:15.1049234Z [command]/usr/bin/git sparse-checkout disable
+2026-09-09T19:25:15.1305285Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-09-09T19:25:15.1360164Z ##[group]Checking out the ref
+2026-09-09T19:25:15.1365458Z [command]/usr/bin/git checkout --progress --force -B charlie/codex-toucan-git-dependency-acceptance refs/remotes/origin/charlie/codex-toucan-git-dependency-acceptance
+2026-09-09T19:25:15.8803514Z Switched to a new branch 'charlie/codex-toucan-git-dependency-acceptance'
+2026-09-09T19:25:15.8814964Z branch 'charlie/codex-toucan-git-dependency-acceptance' set up to track 'origin/charlie/codex-toucan-git-dependency-acceptance'.
+2026-09-09T19:25:15.8850586Z ##[endgroup]
+2026-09-09T19:25:15.8887834Z [command]/usr/bin/git log -1 --format=%H
+2026-09-09T19:25:15.8910071Z d00076d620c34b42c17a474e32e41090288e4483
+2026-09-09T19:25:15.8922009Z ##[group]Removing auth
+2026-09-09T19:25:15.8925969Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-09T19:25:15.8952605Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-09T19:25:15.9148581Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-09T19:25:15.9169901Z http.https://github.com/.extraheader
+2026-09-09T19:25:15.9191686Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-09-09T19:25:16.1002081Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-09T19:25:16.1207412Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-09T19:25:16.1233166Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-09T19:25:16.1448237Z ##[endgroup]
+2026-09-09T19:25:16.2879555Z ##[group]Run dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+2026-09-09T19:25:16.2880033Z with:
+2026-09-09T19:25:16.2880268Z   toolchain: stable
+2026-09-09T19:25:16.2880523Z env:
+2026-09-09T19:25:16.2880751Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:16.2881016Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:16.2881282Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:16.2881573Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:16.2881873Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:16.2882156Z ##[endgroup]
+2026-09-09T19:25:16.2942194Z ##[start-action display=Parse toolchain version;id=__dtolnay_rust-toolchain.parse]
+2026-09-09T19:25:16.3649072Z ##[group]Run if [[ -z $toolchain ]]; then
+2026-09-09T19:25:16.3649395Z [36;1mif [[ -z $toolchain ]]; then[0m
+2026-09-09T19:25:16.3649831Z [36;1m  # GitHub does not enforce `required: true` inputs itself. https://github.com/actions/runner/issues/1070[0m
+2026-09-09T19:25:16.3650502Z [36;1m  echo "'toolchain' is a required input" >&2[0m
+2026-09-09T19:25:16.3650762Z [36;1m  exit 1[0m
+2026-09-09T19:25:16.3651043Z [36;1melif [[ $toolchain =~ ^stable' '[0-9]+' '(year|month|week|day)s?' 'ago$ ]]; then[0m
+2026-09-09T19:25:16.3651373Z [36;1m  if [[ Linux == macOS ]]; then[0m
+2026-09-09T19:25:16.3651801Z [36;1m    echo "toolchain=1.$((($(date -v-$(sed 's/stable \([0-9]*\) \(.\).*/\1\2/' <<< $toolchain) +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2026-09-09T19:25:16.3652218Z [36;1m  else[0m
+2026-09-09T19:25:16.3652566Z [36;1m    echo "toolchain=1.$((($(date --date "${toolchain#stable }" +%s)/60/60/24-16569)/7/6))" >> $GITHUB_OUTPUT[0m
+2026-09-09T19:25:16.3652939Z [36;1m  fi[0m
+2026-09-09T19:25:16.3653199Z [36;1melif [[ $toolchain =~ ^stable' 'minus' '[0-9]+' 'releases?$ ]]; then[0m
+2026-09-09T19:25:16.3653618Z [36;1m  echo "toolchain=1.$((($(date +%s)/60/60/24-16569)/7/6-${toolchain//[^0-9]/}))" >> $GITHUB_OUTPUT[0m
+2026-09-09T19:25:16.3654121Z [36;1melif [[ $toolchain =~ ^1\.[0-9]+$ ]]; then[0m
+2026-09-09T19:25:16.3654537Z [36;1m  echo "toolchain=1.$((i=${toolchain#1.}, c=($(date +%s)/60/60/24-16569)/7/6, i+9*i*(10*i<=c)+90*i*(100*i<=c)))" >> $GITHUB_OUTPUT[0m
+2026-09-09T19:25:16.3654920Z [36;1melse[0m
+2026-09-09T19:25:16.3655133Z [36;1m  echo "toolchain=$toolchain" >> $GITHUB_OUTPUT[0m
+2026-09-09T19:25:16.3655383Z [36;1mfi[0m
+2026-09-09T19:25:16.3655739Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:16.3655985Z env:
+2026-09-09T19:25:16.3656158Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:16.3656346Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:16.3656538Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:16.3656746Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:16.3656957Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:16.3657161Z   toolchain: stable
+2026-09-09T19:25:16.3657341Z ##[endgroup]
+2026-09-09T19:25:16.4254633Z ##[end-action id=__dtolnay_rust-toolchain.parse;outcome=success;conclusion=success;duration_ms=131]
+2026-09-09T19:25:16.4317633Z ##[start-action display=Construct rustup command line;id=__dtolnay_rust-toolchain.flags]
+2026-09-09T19:25:16.4425239Z ##[group]Run echo "targets=$(for t in ${targets//,/ }; do echo -n ' --target' $t; done)" >> $GITHUB_OUTPUT
+2026-09-09T19:25:16.4425766Z [36;1mecho "targets=$(for t in ${targets//,/ }; do echo -n ' --target' $t; done)" >> $GITHUB_OUTPUT[0m
+2026-09-09T19:25:16.4426239Z [36;1mecho "components=$(for c in ${components//,/ }; do echo -n ' --component' $c; done)" >> $GITHUB_OUTPUT[0m
+2026-09-09T19:25:16.4426610Z [36;1mecho "downgrade=" >> $GITHUB_OUTPUT[0m
+2026-09-09T19:25:16.4426987Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:16.4427225Z env:
+2026-09-09T19:25:16.4427388Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:16.4427568Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:16.4427750Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:16.4427947Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:16.4428147Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:16.4428351Z   targets: 
+2026-09-09T19:25:16.4428514Z   components: 
+2026-09-09T19:25:16.4428840Z ##[endgroup]
+2026-09-09T19:25:16.5207291Z ##[end-action id=__dtolnay_rust-toolchain.flags;outcome=success;conclusion=success;duration_ms=88]
+2026-09-09T19:25:16.5209572Z ##[start-action display=Set $CARGO_HOME;id=__dtolnay_rust-toolchain.__run]
+2026-09-09T19:25:16.7239376Z ##[group]Run echo CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV
+2026-09-09T19:25:16.7240008Z [36;1mecho CARGO_HOME=${CARGO_HOME:-"$HOME/.cargo"} >> $GITHUB_ENV[0m
+2026-09-09T19:25:16.7240646Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:16.7241043Z env:
+2026-09-09T19:25:16.7241295Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:16.7241587Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:16.7241875Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:16.7242184Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:16.7242487Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:16.7242793Z ##[endgroup]
+2026-09-09T19:25:16.9969387Z ##[end-action id=__dtolnay_rust-toolchain.__run;outcome=success;conclusion=success;duration_ms=475]
+2026-09-09T19:25:16.9971648Z ##[start-action display=Install rustup if needed;id=__dtolnay_rust-toolchain.__run_2]
+2026-09-09T19:25:17.1754487Z ##[group]Run if ! command -v rustup &>/dev/null; then
+2026-09-09T19:25:17.1754945Z [36;1mif ! command -v rustup &>/dev/null; then[0m
+2026-09-09T19:25:17.1755817Z [36;1m  curl --proto '=https' --tlsv1.2 --retry 10 --retry-connrefused --location --silent --show-error --fail https://sh.rustup.rs | sh -s -- --default-toolchain none -y[0m
+2026-09-09T19:25:17.1756637Z [36;1m  echo "$CARGO_HOME/bin" >> $GITHUB_PATH[0m
+2026-09-09T19:25:17.1756943Z [36;1mfi[0m
+2026-09-09T19:25:17.1757739Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:17.1758105Z env:
+2026-09-09T19:25:17.1758336Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:17.1758601Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:17.1758867Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:17.1759163Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:17.1759489Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:17.1759776Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:17.1760065Z ##[endgroup]
+2026-09-09T19:25:17.3845651Z info: downloading installer
+2026-09-09T19:25:17.5381533Z error: $HOME differs from euid-obtained home directory: you may be using sudo
+2026-09-09T19:25:17.5382484Z error: $HOME directory: /github/home
+2026-09-09T19:25:17.5383031Z error: euid-obtained home directory: /root
+2026-09-09T19:25:17.8604255Z info: profile set to default
+2026-09-09T19:25:17.8604692Z info: default host tuple is x86_64-unknown-linux-gnu
+2026-09-09T19:25:17.8605065Z info: skipping toolchain installation
+2026-09-09T19:25:17.8605270Z 
+2026-09-09T19:25:17.8606650Z 
+2026-09-09T19:25:17.8606988Z Rust is installed now. Great!
+2026-09-09T19:25:17.8607215Z 
+2026-09-09T19:25:17.8607395Z To get started you may need to restart your current shell.
+2026-09-09T19:25:17.8607791Z This would reload your PATH environment variable to include
+2026-09-09T19:25:17.8608180Z Cargo's bin directory ($HOME/.cargo/bin).
+2026-09-09T19:25:17.8608381Z 
+2026-09-09T19:25:17.8608545Z To configure your current shell, you need to source the
+2026-09-09T19:25:17.8608888Z corresponding env file under $HOME/.cargo.
+2026-09-09T19:25:17.8609083Z 
+2026-09-09T19:25:17.8609287Z Consider running the right command for your shell (note the leading DOT):
+2026-09-09T19:25:17.8609700Z . "$HOME/.cargo/env" # For sh/ash/dash/pdksh
+2026-09-09T19:25:17.8610056Z cargo:rerun-if-env-changed=CC_x86_64-unknown-linux-gnu
+2026-09-09T19:25:17.8610385Z CC_x86_64-unknown-linux-gnu = None
+2026-09-09T19:25:17.8610704Z cargo:rerun-if-env-changed=CC_x86_64_unknown_linux_gnu
+2026-09-09T19:25:17.8611086Z CC_x86_64_unknown_linux_gnu = None
+2026-09-09T19:25:17.8611397Z cargo:rerun-if-env-changed=HOST_CC
+2026-09-09T19:25:17.8611698Z HOST_CC = None
+2026-09-09T19:25:17.8611956Z cargo:rerun-if-env-changed=CC
+2026-09-09T19:25:17.8612251Z CC = None
+2026-09-09T19:25:17.9305047Z cargo:rerun-if-env-changed=CC_ENABLE_DEBUG_OUTPUT
+2026-09-09T19:25:17.9448365Z cargo:rerun-if-env-changed=CRATE_CC_NO_DEFAULTS
+2026-09-09T19:25:17.9449240Z CRATE_CC_NO_DEFAULTS = None
+2026-09-09T19:25:17.9449565Z cargo:rerun-if-env-changed=CFLAGS
+2026-09-09T19:25:17.9449875Z CFLAGS = None
+2026-09-09T19:25:17.9450160Z cargo:rerun-if-env-changed=HOST_CFLAGS
+2026-09-09T19:25:17.9450491Z HOST_CFLAGS = None
+2026-09-09T19:25:17.9450832Z cargo:rerun-if-env-changed=CFLAGS_x86_64_unknown_linux_gnu
+2026-09-09T19:25:17.9451243Z CFLAGS_x86_64_unknown_linux_gnu = None
+2026-09-09T19:25:17.9451636Z cargo:rerun-if-env-changed=CFLAGS_x86_64-unknown-linux-gnu
+2026-09-09T19:25:17.9452039Z CFLAGS_x86_64-unknown-linux-gnu = None
+2026-09-09T19:25:17.9540499Z ##[end-action id=__dtolnay_rust-toolchain.__run_2;outcome=success;conclusion=success;duration_ms=956]
+2026-09-09T19:25:17.9542712Z ##[start-action display=Install rustup if needed on windows;id=__dtolnay_rust-toolchain.__run_3]
+2026-09-09T19:25:17.9549340Z ##[end-action id=__dtolnay_rust-toolchain.__run_3;outcome=skipped;conclusion=skipped;duration_ms=0]
+2026-09-09T19:25:17.9559817Z ##[start-action display=rustup toolchain install stable;id=__dtolnay_rust-toolchain.__run_4]
+2026-09-09T19:25:17.9689319Z ##[group]Run rustup toolchain install stable --profile minimal --no-self-update
+2026-09-09T19:25:17.9689763Z [36;1mrustup toolchain install stable --profile minimal --no-self-update[0m
+2026-09-09T19:25:17.9690359Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:17.9690591Z env:
+2026-09-09T19:25:17.9690757Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:17.9690935Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:17.9691117Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:17.9691314Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:17.9691517Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:17.9691716Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:17.9691927Z   RUSTUP_PERMIT_COPY_RENAME: 1
+2026-09-09T19:25:17.9692121Z ##[endgroup]
+2026-09-09T19:25:18.0214109Z info: syncing channel updates for stable-x86_64-unknown-linux-gnu
+2026-09-09T19:25:18.5315439Z info: latest update on 2026-09-03 for version 1.98.1 (48a229cea 2026-09-01)
+2026-09-09T19:25:18.5316157Z info: downloading 3 components
+2026-09-09T19:25:25.8443741Z 
+2026-09-09T19:25:25.8518903Z   stable-x86_64-unknown-linux-gnu installed - rustc 1.98.1 (48a229cea 2026-09-01)
+2026-09-09T19:25:25.8519399Z 
+2026-09-09T19:25:25.8527565Z info: default toolchain set to stable-x86_64-unknown-linux-gnu
+2026-09-09T19:25:25.8604787Z ##[end-action id=__dtolnay_rust-toolchain.__run_4;outcome=success;conclusion=success;duration_ms=7904]
+2026-09-09T19:25:25.8610520Z ##[start-action display=rustup default stable;id=__dtolnay_rust-toolchain.__run_5]
+2026-09-09T19:25:25.8629688Z ##[group]Run rustup default stable
+2026-09-09T19:25:25.8630077Z [36;1mrustup default stable[0m
+2026-09-09T19:25:25.8630552Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:25.8630940Z env:
+2026-09-09T19:25:25.8631194Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:25.8631479Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:25.8631785Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:25.8632100Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:25.8632426Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:25.8632738Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:25.8633058Z ##[endgroup]
+2026-09-09T19:25:25.9152643Z info: using existing install for stable-x86_64-unknown-linux-gnu
+2026-09-09T19:25:25.9215342Z info: default toolchain set to stable-x86_64-unknown-linux-gnu
+2026-09-09T19:25:25.9215802Z 
+2026-09-09T19:25:25.9277395Z   stable-x86_64-unknown-linux-gnu unchanged - rustc 1.98.1 (48a229cea 2026-09-01)
+2026-09-09T19:25:25.9278153Z 
+2026-09-09T19:25:25.9323691Z ##[end-action id=__dtolnay_rust-toolchain.__run_5;outcome=success;conclusion=success;duration_ms=71]
+2026-09-09T19:25:25.9326970Z ##[start-action display=Create cachekey;id=__dtolnay_rust-toolchain.rustc-version]
+2026-09-09T19:25:25.9347218Z ##[group]Run DATE=$(rustc +stable --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')
+2026-09-09T19:25:25.9348478Z [36;1mDATE=$(rustc +stable --version --verbose | sed -ne 's/^commit-date: \(20[0-9][0-9]\)-\([01][0-9]\)-\([0-3][0-9]\)$/\1\2\3/p')[0m
+2026-09-09T19:25:25.9349371Z [36;1mHASH=$(rustc +stable --version --verbose | sed -ne 's/^commit-hash: //p')[0m
+2026-09-09T19:25:25.9349991Z [36;1mecho "cachekey=$(echo $DATE$HASH | head -c12)" >> $GITHUB_OUTPUT[0m
+2026-09-09T19:25:25.9350602Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:25.9350926Z env:
+2026-09-09T19:25:25.9351156Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:25.9351417Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:25.9351688Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:25.9351991Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:25.9352310Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:25.9352627Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:25.9352936Z ##[endgroup]
+2026-09-09T19:25:26.0078724Z ##[end-action id=__dtolnay_rust-toolchain.rustc-version;outcome=success;conclusion=success;duration_ms=75]
+2026-09-09T19:25:26.0082561Z ##[start-action display=Disable incremental compilation;id=__dtolnay_rust-toolchain.__run_6]
+2026-09-09T19:25:26.0104466Z ##[group]Run if [ -z "${CARGO_INCREMENTAL+set}" ]; then
+2026-09-09T19:25:26.0104946Z [36;1mif [ -z "${CARGO_INCREMENTAL+set}" ]; then[0m
+2026-09-09T19:25:26.0105360Z [36;1m  echo CARGO_INCREMENTAL=0 >> $GITHUB_ENV[0m
+2026-09-09T19:25:26.0105721Z [36;1mfi[0m
+2026-09-09T19:25:26.0106709Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:26.0107086Z env:
+2026-09-09T19:25:26.0107328Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:26.0107607Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:26.0107887Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:26.0108195Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:26.0108521Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:26.0108846Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:26.0109160Z ##[endgroup]
+2026-09-09T19:25:26.0626614Z ##[end-action id=__dtolnay_rust-toolchain.__run_6;outcome=success;conclusion=success;duration_ms=54]
+2026-09-09T19:25:26.0628686Z ##[start-action display=Enable colors in Cargo output;id=__dtolnay_rust-toolchain.__run_7]
+2026-09-09T19:25:26.0641211Z ##[group]Run if [ -z "${CARGO_TERM_COLOR+set}" ]; then
+2026-09-09T19:25:26.0641518Z [36;1mif [ -z "${CARGO_TERM_COLOR+set}" ]; then[0m
+2026-09-09T19:25:26.0641783Z [36;1m  echo CARGO_TERM_COLOR=always >> $GITHUB_ENV[0m
+2026-09-09T19:25:26.0642018Z [36;1mfi[0m
+2026-09-09T19:25:26.0642364Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:26.0642602Z env:
+2026-09-09T19:25:26.0642765Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:26.0642947Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:26.0643129Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:26.0643332Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:26.0643541Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:26.0643744Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:26.0644167Z ##[endgroup]
+2026-09-09T19:25:26.1134682Z ##[end-action id=__dtolnay_rust-toolchain.__run_7;outcome=success;conclusion=success;duration_ms=50]
+2026-09-09T19:25:26.1136765Z ##[start-action display=Enable Cargo sparse registry;id=__dtolnay_rust-toolchain.__run_8]
+2026-09-09T19:25:26.1272802Z ##[group]Run # implemented in 1.66, stabilized in 1.68, made default in 1.70
+2026-09-09T19:25:26.1273212Z [36;1m# implemented in 1.66, stabilized in 1.68, made default in 1.70[0m
+2026-09-09T19:25:26.1273902Z [36;1mif [ -z "${CARGO_REGISTRIES_CRATES_IO_PROTOCOL+set}" -o -f "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol ]; then[0m
+2026-09-09T19:25:26.1274485Z [36;1m  if rustc +stable --version --verbose | grep -q '^release: 1\.6[89]\.'; then[0m
+2026-09-09T19:25:26.1274964Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2026-09-09T19:25:26.1275383Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=sparse >> $GITHUB_ENV[0m
+2026-09-09T19:25:26.1275778Z [36;1m  elif rustc +stable --version --verbose | grep -q '^release: 1\.6[67]\.'; then[0m
+2026-09-09T19:25:26.1276369Z [36;1m    touch "/home/runner/work/_temp"/.implicit_cargo_registries_crates_io_protocol || true[0m
+2026-09-09T19:25:26.1276776Z [36;1m    echo CARGO_REGISTRIES_CRATES_IO_PROTOCOL=git >> $GITHUB_ENV[0m
+2026-09-09T19:25:26.1277054Z [36;1m  fi[0m
+2026-09-09T19:25:26.1277226Z [36;1mfi[0m
+2026-09-09T19:25:26.1277521Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:26.1277761Z env:
+2026-09-09T19:25:26.1277928Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:26.1278110Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:26.1278293Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:26.1278493Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:26.1278698Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:26.1278902Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:26.1279110Z   CARGO_TERM_COLOR: always
+2026-09-09T19:25:26.1279298Z ##[endgroup]
+2026-09-09T19:25:26.2008846Z ##[end-action id=__dtolnay_rust-toolchain.__run_8;outcome=success;conclusion=success;duration_ms=87]
+2026-09-09T19:25:26.2012080Z ##[start-action display=Work around spurious network errors in curl 8.0;id=__dtolnay_rust-toolchain.__run_9]
+2026-09-09T19:25:26.2047368Z ##[group]Run # https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation
+2026-09-09T19:25:26.2048277Z [36;1m# https://rust-lang.zulipchat.com/#narrow/stream/246057-t-cargo/topic/timeout.20investigation[0m
+2026-09-09T19:25:26.2049022Z [36;1mif rustc +stable --version --verbose | grep -q '^release: 1\.7[01]\.'; then[0m
+2026-09-09T19:25:26.2049580Z [36;1m  echo CARGO_HTTP_MULTIPLEXING=false >> $GITHUB_ENV[0m
+2026-09-09T19:25:26.2049923Z [36;1mfi[0m
+2026-09-09T19:25:26.2050335Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:26.2050710Z env:
+2026-09-09T19:25:26.2050966Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:26.2051231Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:26.2051489Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:26.2051767Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:26.2052079Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:26.2052414Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:26.2052739Z   CARGO_TERM_COLOR: always
+2026-09-09T19:25:26.2053054Z ##[endgroup]
+2026-09-09T19:25:26.2650227Z ##[end-action id=__dtolnay_rust-toolchain.__run_9;outcome=success;conclusion=success;duration_ms=63]
+2026-09-09T19:25:26.2655723Z ##[start-action display=rustc +stable --version --verbose;id=__dtolnay_rust-toolchain.__run_10]
+2026-09-09T19:25:26.2675366Z ##[group]Run rustc +stable --version --verbose
+2026-09-09T19:25:26.2675801Z [36;1mrustc +stable --version --verbose[0m
+2026-09-09T19:25:26.2676348Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:26.2676727Z env:
+2026-09-09T19:25:26.2676977Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:26.2677264Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:26.2677544Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:26.2677858Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:26.2678225Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:26.2678555Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:26.2678903Z   CARGO_TERM_COLOR: always
+2026-09-09T19:25:26.2679184Z ##[endgroup]
+2026-09-09T19:25:26.3241213Z rustc 1.98.1 (48a229cea 2026-09-01)
+2026-09-09T19:25:26.3241893Z binary: rustc
+2026-09-09T19:25:26.3242362Z commit-hash: 48a229ceaefd4985c50990b14116b6d856af0985
+2026-09-09T19:25:26.3242755Z commit-date: 2026-09-01
+2026-09-09T19:25:26.3243038Z host: x86_64-unknown-linux-gnu
+2026-09-09T19:25:26.3243328Z release: 1.98.1
+2026-09-09T19:25:26.3243580Z LLVM version: 22.1.8
+2026-09-09T19:25:26.3282694Z ##[end-action id=__dtolnay_rust-toolchain.__run_10;outcome=success;conclusion=success;duration_ms=62]
+2026-09-09T19:25:26.3321954Z ##[group]Run python3 -B corpus/consumers/zstd-optin/git_source.py \
+2026-09-09T19:25:26.3322357Z [36;1mpython3 -B corpus/consumers/zstd-optin/git_source.py \[0m
+2026-09-09T19:25:26.3322658Z [36;1m  --cache /tmp/toucan-optin-git-fetch \[0m
+2026-09-09T19:25:26.3322918Z [36;1m  --output results/optin/git-source.json[0m
+2026-09-09T19:25:26.3323242Z shell: sh -e {0}
+2026-09-09T19:25:26.3323406Z env:
+2026-09-09T19:25:26.3323567Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:26.3323746Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:26.3324156Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:26.3324355Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:26.3324560Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:26.3324759Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:26.3324961Z   CARGO_TERM_COLOR: always
+2026-09-09T19:25:26.3327037Z   TOUCAN_GIT_TOKEN: ***
+2026-09-09T19:25:26.3327243Z ##[endgroup]
+2026-09-09T19:25:33.8493096Z Verified 9 Git packages at 85bf1ad6dcbc5840ade11bf8798785b6da13260a
+2026-09-09T19:25:33.8613727Z ##[group]Run set -euo pipefail
+2026-09-09T19:25:33.8615114Z [36;1mset -euo pipefail[0m
+2026-09-09T19:25:33.8615439Z [36;1mmkdir -p results/optin[0m
+2026-09-09T19:25:33.8615885Z [36;1mcp -R /tmp/toucan-optin-bootstrap results/optin/bootstrap[0m
+2026-09-09T19:25:33.8616448Z [36;1mgit -c "safe.directory=$GITHUB_WORKSPACE" rev-parse HEAD \[0m
+2026-09-09T19:25:33.8617141Z [36;1m  | tee results/optin/commit.txt[0m
+2026-09-09T19:25:33.8617546Z [36;1mpython3 -B scripts/verify_astral_optin.py \[0m
+2026-09-09T19:25:33.8617920Z [36;1m  --project 'ty' \[0m
+2026-09-09T19:25:33.8618229Z [36;1m  --frontend-mode git \[0m
+2026-09-09T19:25:33.8618643Z [36;1m  --git-source-report results/optin/git-source.json \[0m
+2026-09-09T19:25:33.8619072Z [36;1m  --cache /tmp/toucan-optin-cache \[0m
+2026-09-09T19:25:33.8619439Z [36;1m  --output results/optin/acceptance \[0m
+2026-09-09T19:25:33.8619795Z [36;1m  --build-timeout 1800 \[0m
+2026-09-09T19:25:33.8620184Z [36;1m  2>&1 | tee results/optin/acceptance.log[0m
+2026-09-09T19:25:33.8620555Z [36;1mpython3 - <<'PY'[0m
+2026-09-09T19:25:33.8620846Z [36;1mimport json[0m
+2026-09-09T19:25:33.8621130Z [36;1mfrom pathlib import Path[0m
+2026-09-09T19:25:33.8621636Z [36;1mevidence = json.loads(Path("results/optin/acceptance/evidence.json").read_text())[0m
+2026-09-09T19:25:33.8622199Z [36;1massert evidence["status"] == "passed"[0m
+2026-09-09T19:25:33.8622586Z [36;1massert evidence["frontend_mode"] == "git"[0m
+2026-09-09T19:25:33.8623044Z [36;1massert len(evidence["git_source"]["packages"]) == 9[0m
+2026-09-09T19:25:33.8623484Z [36;1massert evidence["frontend_artifacts"][0m
+2026-09-09T19:25:33.8624218Z [36;1massert evidence["libclang_before"]["found"] == [][0m
+2026-09-09T19:25:33.8624686Z [36;1massert evidence["libclang_after"]["found"] == [][0m
+2026-09-09T19:25:33.8625058Z [36;1massert evidence["toucan_bindings"][0m
+2026-09-09T19:25:33.8625461Z [36;1massert evidence["library_tests"]["toucan"][0m
+2026-09-09T19:25:33.8625882Z [36;1massert evidence["runtime"][0m
+2026-09-09T19:25:33.8626189Z [36;1mPY[0m
+2026-09-09T19:25:33.8626609Z shell: bash --noprofile --norc -e -o pipefail {0}
+2026-09-09T19:25:33.8626985Z env:
+2026-09-09T19:25:33.8627226Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:25:33.8627489Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:25:33.8627759Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:25:33.8628060Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:25:33.8628384Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:25:33.8628699Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:25:33.8629027Z   CARGO_TERM_COLOR: always
+2026-09-09T19:25:33.8629304Z ##[endgroup]
+2026-09-09T19:25:33.9140606Z d00076d620c34b42c17a474e32e41090288e4483
+2026-09-09T19:35:12.7362970Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-09T19:35:12.7364705Z ##[group]Run actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+2026-09-09T19:35:12.7365010Z with:
+2026-09-09T19:35:12.7365183Z   name: astral-optin-ty-1
+2026-09-09T19:35:12.7365426Z   path: results/optin/
+/tmp/toucan-optin-bootstrap/
+
+2026-09-09T19:35:12.7365677Z   retention-days: 14
+2026-09-09T19:35:12.7365857Z   if-no-files-found: error
+2026-09-09T19:35:12.7366065Z   compression-level: 6
+2026-09-09T19:35:12.7366243Z   overwrite: false
+2026-09-09T19:35:12.7366424Z   include-hidden-files: false
+2026-09-09T19:35:12.7366618Z env:
+2026-09-09T19:35:12.7366775Z   CARGO_INCREMENTAL: 0
+2026-09-09T19:35:12.7366974Z   CARGO_BUILD_JOBS: 2
+2026-09-09T19:35:12.7367156Z   CARGO_PROFILE_DEV_DEBUG: 0
+2026-09-09T19:35:12.7367354Z   CARGO_PROFILE_TEST_DEBUG: 0
+2026-09-09T19:35:12.7367552Z   PYTHONDONTWRITEBYTECODE: 1
+2026-09-09T19:35:12.7367752Z   CARGO_HOME: /github/home/.cargo
+2026-09-09T19:35:12.7367959Z   CARGO_TERM_COLOR: always
+2026-09-09T19:35:12.7368141Z ##[endgroup]
+2026-09-09T19:35:12.7371360Z ##[command]/usr/bin/docker exec  5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f sh -c "cat /etc/*release | grep ^ID"
+2026-09-09T19:35:13.8761893Z (node:14832) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-09-09T19:35:13.8763020Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-09-09T19:35:13.8998547Z Multiple search paths detected. Calculating the least common ancestor of all paths
+2026-09-09T19:35:13.9000171Z The least common ancestor is /. This will be the root directory of the artifact
+2026-09-09T19:35:13.9013131Z With the provided path, there will be 62 files uploaded
+2026-09-09T19:35:13.9014483Z Artifact name is valid!
+2026-09-09T19:35:13.9014970Z Root directory input is valid!
+2026-09-09T19:35:14.5329557Z Beginning upload of artifact content to blob storage
+2026-09-09T19:35:15.1192839Z (node:14832) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-09-09T19:35:16.0142811Z Uploaded bytes 8388608
+2026-09-09T19:35:16.6504918Z Uploaded bytes 16777216
+2026-09-09T19:35:16.7767392Z Uploaded bytes 25165824
+2026-09-09T19:35:17.3553197Z Uploaded bytes 33554432
+2026-09-09T19:35:17.6134188Z Uploaded bytes 36079520
+2026-09-09T19:35:17.7030831Z Finished uploading artifact content to blob storage!
+2026-09-09T19:35:17.7035315Z SHA256 digest of uploaded artifact zip is 6232122cae40d62487d055461a3b25b3b5b8e821f392943a3a35f28116e37e93
+2026-09-09T19:35:17.7040916Z Finalizing artifact upload
+2026-09-09T19:35:17.9674020Z Artifact astral-optin-ty-1.zip successfully finalized. Artifact ID 10121491657
+2026-09-09T19:35:17.9674905Z Artifact astral-optin-ty-1 has been successfully uploaded! Final size is 36079520 bytes. Artifact ID is 10121491657
+2026-09-09T19:35:17.9687593Z Artifact download URL: https://github.com/astral-sh/toucan/actions/runs/34394853038/artifacts/10121491657
+2026-09-09T19:35:18.0925168Z Node 20 is being deprecated. This workflow is running with Node 24 by default. If you need to temporarily use Node 20, you can set the ACTIONS_ALLOW_USE_UNSECURE_NODE_VERSION=true environment variable. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
+2026-09-09T19:35:18.0926130Z Post job cleanup.
+2026-09-09T19:35:18.0932191Z ##[command]/usr/bin/docker exec  5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f sh -c "cat /etc/*release | grep ^ID"
+2026-09-09T19:35:18.2657371Z [command]/usr/bin/git version
+2026-09-09T19:35:18.2695471Z git version 2.43.0
+2026-09-09T19:35:18.2731484Z Temporarily overriding HOME='/__w/_temp/542384e9-1940-4954-ace3-8b86400bdbb9' before making global git config changes
+2026-09-09T19:35:18.2734162Z Adding repository directory to the temporary git global config as a safe directory
+2026-09-09T19:35:18.2739792Z [command]/usr/bin/git config --global --add safe.directory /__w/toucan/toucan
+2026-09-09T19:35:18.2771210Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-09-09T19:35:18.2807957Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-09-09T19:35:18.3256998Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-09-09T19:35:18.3302079Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-09-09T19:35:18.3512899Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-09-09T19:35:18.3545093Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-09-09T19:35:18.3877319Z Stop and remove container: 62b7998f0e9c495fbc1f01930dce9de8_ubuntu2404sha256224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254_b5a2cc
+2026-09-09T19:35:18.3880985Z ##[command]/usr/bin/docker rm --force 5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f
+2026-09-09T19:35:22.3863084Z 5cee4c5a1ff6fca23f40b32145813cab32eada3fd81bfbe3c9c1337633c3620f
+2026-09-09T19:35:22.3890833Z Remove container network: github_network_ec5b34e4d2a94e849d9163550d8b4c1e
+2026-09-09T19:35:22.3895371Z ##[command]/usr/bin/docker network rm github_network_ec5b34e4d2a94e849d9163550d8b4c1e
+2026-09-09T19:35:22.5468151Z github_network_ec5b34e4d2a94e849d9163550d8b4c1e
+2026-09-09T19:35:22.5528847Z Cleaning up orphan processes
+2026-09-09T19:35:22.6656619Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@11d5960a326750d5838078e36cf38b85af677262, actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

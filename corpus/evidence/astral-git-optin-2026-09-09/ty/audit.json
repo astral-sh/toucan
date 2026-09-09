@@ -1,0 +1,874 @@
+{
+  "status": "passed",
+  "project": "ty",
+  "run_id": 34394853038,
+  "tested_commit": "d00076d620c34b42c17a474e32e41090288e4483",
+  "project_revision": "e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+  "target": "x86_64-unknown-linux-gnu",
+  "rustc_version": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+  "driver_sha256": "a3e11bc98b83e64ee0176840689144b6a6c364d6cffde36f4f72b69135a64aca",
+  "command_count": 17,
+  "libclang_before": {
+    "searched_roots": [
+      "/opt",
+      "/usr/lib",
+      "/usr/local/lib"
+    ],
+    "library_lookup": null,
+    "found": []
+  },
+  "libclang_after": {
+    "searched_roots": [
+      "/opt",
+      "/usr/lib",
+      "/usr/local/lib"
+    ],
+    "library_lookup": null,
+    "found": []
+  },
+  "installed_libclang_packages": [],
+  "verified_frontend_source_files": 630,
+  "frontend_mode": "git",
+  "frontend_git_revision": "85bf1ad6dcbc5840ade11bf8798785b6da13260a",
+  "frontend_git_source": {
+    "root": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad",
+    "head": "85bf1ad6dcbc5840ade11bf8798785b6da13260a",
+    "source": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#85bf1ad6dcbc5840ade11bf8798785b6da13260a",
+    "verified_source_files": 630,
+    "source_inventory_sha256": "9822896060d6c9dc26fcf4994e2af7102fc9aadae47ced73c8a50007a60418f1",
+    "packages": {
+      "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#0.0.1": {
+        "name": "toucan",
+        "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/Cargo.toml",
+        "target_sources": [
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/examples/audit_csmith.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/examples/audit_translation_unit.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/src/lib.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/alignof_expression.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/allocation_builtins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/analysis_api.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/arm64_windows.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/bool_macros.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/c90.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/c99_c17.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/calling_keywords.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/compiler_builtins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/compiler_profiles.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/compiler_queries.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/compiler_versions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/complex_macros.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/declaration_origins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/declspec.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/diagnostics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/dll_composition.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/dll_libraries.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/dll_storage.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/enum_constants.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/feature_catalog.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/float128.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/floating_macros.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/floating_names.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/floatn.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/function_targets.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/half_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/inline_asm.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/introspection.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/language_modes.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/macro_redefinitions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/macro_shadow.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/macro_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/ms_anonymous_members.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/msvc_integers.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/msvc_unaligned.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/musl.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/nodebug.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/non_object_queries.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/noreturn.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/object_alignment.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/object_occurrence_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/omitted_conditional.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/pragma.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/prefetch.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/preprocessor_characters.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/provided_macros.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/rust_target.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/sqlite_options.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/stdatomic_headers.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/string_macros.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/variadic_pack.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/tests/vector_shuffles.rs"
+        ]
+      },
+      "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_bindgen@0.0.1": {
+        "name": "toucan_bindgen",
+        "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/Cargo.toml",
+        "target_sources": [
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/src/lib.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/builder.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/default_debug.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/default_functions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/documentation.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/enum_names.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/file_selection.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/formatting.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/function_typedefs.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/include_roots.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/macro_history.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/macro_values.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/name_selection.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/object_names.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/object_values.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/parameter_dependencies.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/parameter_dependency_operands.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/rust_target.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/tests/tag_discovery.rs"
+        ]
+      },
+      "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_bindings@0.0.1": {
+        "name": "toucan_bindings",
+        "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/Cargo.toml",
+        "target_sources": [
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/src/lib.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/additional_objects.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/aligned_typedefs.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/allocation_builtins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/arm_vectors.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/atomic_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/bitfield_qualifiers.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/bool_macros.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/calling_conventions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/compiler_profiles.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/complex_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/consumer_options.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/derives.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/enum_names.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/external_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/ffi.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/floatn.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/function_typedefs.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/incomplete_record_names.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/inline_facts.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/int128.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/lexical_enums.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/msvc_pointer_width.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/noescape.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/noreturn.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/object_alignment.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/packed_enums.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/prototype_scope.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/renaming.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/returns_twice.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/selection.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/selective_enums.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/tag_discovery.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/thread_local.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/transparent_unions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/type_dependencies.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/union_bitfields.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/va_list.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/variable_arrays.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/vector_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/tests/weak_symbols.rs"
+        ]
+      },
+      "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_layout@0.0.1": {
+        "name": "toucan_layout",
+        "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/Cargo.toml",
+        "target_sources": [
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/build.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/src/lib.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/tests/compiler.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/tests/defaults.rs"
+        ]
+      },
+      "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_parser@0.0.1": {
+        "name": "toucan_parser",
+        "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/Cargo.toml",
+        "target_sources": [
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/src/bin/dump.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/src/bin/meminfo.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/src/lib.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/tests/aligned_members.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/tests/alignof_expression.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/tests/convert_vector.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/tests/msvc.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/tests/omitted_conditional.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/tests/resources.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/tests/typeof.rs"
+        ]
+      },
+      "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_preprocessor@0.0.1": {
+        "name": "toucan_preprocessor",
+        "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/Cargo.toml",
+        "target_sources": [
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/src/lib.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/accessed_paths.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/c90_comments.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/documentation.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/feature_queries.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/file_origins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/include_roots.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/macro_definitions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/macro_redefinitions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/msvc_deprecated.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/msvc_intrinsic.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/msvc_pack.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/msvc_prefast.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/tests/query_pragmas.rs"
+        ]
+      },
+      "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_semantic@0.0.1": {
+        "name": "toucan_semantic",
+        "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/Cargo.toml",
+        "target_sources": [
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/src/lib.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/aligned_ancestry.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/aligned_pointer_conversions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/aligned_typedefs.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/alignof_expression.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/allocation_builtins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/analysis_api.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/anonymous_members.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/arithmetic_conversions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/arithmetic_query.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/arm_vectors.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/array_identity.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/array_qualifiers.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/atomic_builtins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/atomic_copies.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/atomic_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/auto_declarators.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/auto_type.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/bit_count_intrinsics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/bmi_targets.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/byte_swap_intrinsics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/c11_atomic_builtins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/c90.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/c99_c17.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/calling_conventions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/compiler_intrinsics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/compiler_profiles.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/complex_nontemporal.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/complex_projections.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/complex_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/conditional_vla_oracles.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/const_object_reads.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/constant_query.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/convert_vector.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/declaration_constraints.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/declaration_origins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/derived_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/diagnostic_attributes.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/direct_anonymous_qualifiers.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/documentation_origins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/elementwise.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/empty_definitions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/empty_scalar_initializers.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/expressions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/extension_casts.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/external_regressions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/fallthrough.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/feature_queries.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/flexible_initializers.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/float128.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/floating_constants.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/floating_names.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/floatn.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/fortified_intrinsics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/function_targets.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/gnu_pointer_conversions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/gnu_record_casts.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/half_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/i686.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/infinity_intrinsics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/initializers.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/inline_ownership.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/inline_weak.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/int128.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/introspection.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/language_modes.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/large_enums.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/layout_graph.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/lexical_tags.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/literal_evaluation.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/literals.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/memory_intrinsics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/minimum_vector_width.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/ms_anonymous_members.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/msvc_pointer_width.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/nan_intrinsics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/noescape.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/non_object_queries.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/nontemporal.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/noreturn.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/null_base_offset.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/object_alignment.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/object_extents.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/object_occurrence_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/object_size.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/object_values.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/old_style_definitions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/omitted_conditional.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/overflow_builtins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/packed_enums.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/parameter_dependencies.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/parameter_dependency_operands.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/parser_extensions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/parser_limits.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/prefetch.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/prototype_scope.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/qualifier_storage.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/query_evaluation.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/retention_diagnostics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/returns_twice.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/semantics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/shuffle_vector.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/sse_intrinsics.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/statement_expressions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/statements.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/static_addresses.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/storage_and_parameters.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/sync_builtins.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/tag_discovery.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/thread_local.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/transparent_unions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/typeof_typedefs.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/undefined_vector.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/variable_arrays.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/variadic_pack.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/vector_constants.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/vector_shuffle.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/vector_types.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/void_pointer_ordering.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/weak_symbols.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/tests/x86_intrinsics.rs"
+        ]
+      },
+      "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_source@0.0.1": {
+        "name": "toucan_source",
+        "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_source/Cargo.toml",
+        "target_sources": [
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_source/src/lib.rs"
+        ]
+      },
+      "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_target@0.0.1": {
+        "name": "toucan_target",
+        "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/Cargo.toml",
+        "target_sources": [
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/src/lib.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/tests/c_probe.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/tests/compiler_profiles.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/tests/compiler_versions.rs",
+          "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/tests/layout.rs"
+        ]
+      }
+    }
+  },
+  "frontend_rlib_hash_verification": "Recorded CI hashes retained and syntax-checked; library identities and filenames match Cargo rows. Library bytes were not uploaded and cannot be independently rehashed.",
+  "frontend_artifacts": [
+    {
+      "build": "build",
+      "recorded_library_hashes": [
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_layout@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/src/lib.rs",
+          "features": [],
+          "fresh": false,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_layout-a2ace9bc8f6da7d1.rlib": "8ecfa34d61b53518e2487b45a2398aab7d094c6b598444c6b07f8d1d95c6e316",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_layout-a2ace9bc8f6da7d1.rmeta": "68977ba55973b9240fae96336aec631133e77936eda878b85f01c22c4b1f36c3"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_target@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/src/lib.rs",
+          "features": [],
+          "fresh": false,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_target-8c797a5c3893b4b2.rlib": "e83093bfe22193d98ab90365099da79b3b9fd71de472e0c526ba5cf507ed1cfd",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_target-8c797a5c3893b4b2.rmeta": "9867d22ad6afb0e034f0d5d380a4983574a41b6bf3859a1e7bbceae2f0e379ae"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_parser@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/src/lib.rs",
+          "features": [],
+          "fresh": false,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_parser-f5712f14ae133b64.rlib": "5e28a1f13cd9d6b56128a5b80df3e95e6a979791d54ef57a4e9ce7cd801b4762",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_parser-f5712f14ae133b64.rmeta": "613a235e724e7e32542141cb774eda30c537bac2fb987c2d4fd920723046b3cc"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_preprocessor@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/src/lib.rs",
+          "features": [],
+          "fresh": false,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_preprocessor-4aeab0c6989de4d3.rlib": "4f2f44e60bcfa84bf314b1d70eff676e56a3add0df64f8a22874a8918e1012da",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_preprocessor-4aeab0c6989de4d3.rmeta": "62c3e6f7c023de2c0ae84cebebde177a0189ac8e07c1cf26ef122c152358421d"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_source@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_source/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_source/src/lib.rs",
+          "features": [],
+          "fresh": false,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_source-fa1c178831c08757.rlib": "1ddc2db31fb9ab2ac4f5f73e0207157f43877b4c7db2357520e8211dafa0e992",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_source-fa1c178831c08757.rmeta": "6916497adc1719f6a0586877c3c7ca627085308fb17f34070a8f4479da35ef62"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_semantic@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/src/lib.rs",
+          "features": [],
+          "fresh": false,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_semantic-58fd69955de74287.rlib": "b4b744c1a33c18dd593485840f0d9e6d16712e31cdfdcfef388dd174fb74d7c1",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_semantic-58fd69955de74287.rmeta": "729f6d75a9e67ec075810f8346c9d8b940fbf3fbd44038b2ca552e4b582e342d"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_bindings@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/src/lib.rs",
+          "features": [],
+          "fresh": false,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_bindings-a5cff6ae20f31174.rlib": "0ebbb8e2af0ab99c9f50a2227a243ea8adeba4d576fc3bb9b75115873cadb82f",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_bindings-a5cff6ae20f31174.rmeta": "dfff2e955c8a4fe67f7a96aaed6069fdbe8b3b6df671086d3d261dcd0fc3577c"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/src/lib.rs",
+          "features": [],
+          "fresh": false,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan-0534a70ee02a2a5b.rlib": "56dd85481187d5c8d137fdf0966ef029b1bd8d80dcad72f0978c6398891928f5",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan-0534a70ee02a2a5b.rmeta": "5e84b36ee47833a6069d4d404ebd98bf44a26ef058ba8210a3d07695727a162d"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_bindgen@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/src/lib.rs",
+          "features": [],
+          "fresh": false,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_bindgen-bafc27c8a6f6c142.rlib": "301427238777cbfe102a33abd55f443072d1ba8969e135e601fe9562edcf7747",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_bindgen-bafc27c8a6f6c142.rmeta": "4c5c905ff320878a7254604c0d2476ff586cee8e448f014aa4d0adcb7953d229"
+          }
+        }
+      ],
+      "library_bytes_uploaded": false,
+      "packages": [
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_layout@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_target@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_parser@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_preprocessor@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_source@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_source/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_semantic@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_bindings@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_bindgen@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/Cargo.toml",
+          "fresh": false
+        }
+      ]
+    },
+    {
+      "build": "tests-ty_vendored",
+      "recorded_library_hashes": [
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_layout@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/src/lib.rs",
+          "features": [],
+          "fresh": true,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_layout-a2ace9bc8f6da7d1.rlib": "8ecfa34d61b53518e2487b45a2398aab7d094c6b598444c6b07f8d1d95c6e316",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_layout-a2ace9bc8f6da7d1.rmeta": "68977ba55973b9240fae96336aec631133e77936eda878b85f01c22c4b1f36c3"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_target@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/src/lib.rs",
+          "features": [],
+          "fresh": true,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_target-8c797a5c3893b4b2.rlib": "e83093bfe22193d98ab90365099da79b3b9fd71de472e0c526ba5cf507ed1cfd",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_target-8c797a5c3893b4b2.rmeta": "9867d22ad6afb0e034f0d5d380a4983574a41b6bf3859a1e7bbceae2f0e379ae"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_parser@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/src/lib.rs",
+          "features": [],
+          "fresh": true,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_parser-f5712f14ae133b64.rlib": "5e28a1f13cd9d6b56128a5b80df3e95e6a979791d54ef57a4e9ce7cd801b4762",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_parser-f5712f14ae133b64.rmeta": "613a235e724e7e32542141cb774eda30c537bac2fb987c2d4fd920723046b3cc"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_semantic@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/src/lib.rs",
+          "features": [],
+          "fresh": true,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_semantic-58fd69955de74287.rlib": "b4b744c1a33c18dd593485840f0d9e6d16712e31cdfdcfef388dd174fb74d7c1",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_semantic-58fd69955de74287.rmeta": "729f6d75a9e67ec075810f8346c9d8b940fbf3fbd44038b2ca552e4b582e342d"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_bindings@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/src/lib.rs",
+          "features": [],
+          "fresh": true,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_bindings-a5cff6ae20f31174.rlib": "0ebbb8e2af0ab99c9f50a2227a243ea8adeba4d576fc3bb9b75115873cadb82f",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_bindings-a5cff6ae20f31174.rmeta": "dfff2e955c8a4fe67f7a96aaed6069fdbe8b3b6df671086d3d261dcd0fc3577c"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_preprocessor@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/src/lib.rs",
+          "features": [],
+          "fresh": true,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_preprocessor-4aeab0c6989de4d3.rlib": "4f2f44e60bcfa84bf314b1d70eff676e56a3add0df64f8a22874a8918e1012da",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_preprocessor-4aeab0c6989de4d3.rmeta": "62c3e6f7c023de2c0ae84cebebde177a0189ac8e07c1cf26ef122c152358421d"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_source@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_source/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_source/src/lib.rs",
+          "features": [],
+          "fresh": true,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_source-fa1c178831c08757.rlib": "1ddc2db31fb9ab2ac4f5f73e0207157f43877b4c7db2357520e8211dafa0e992",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_source-fa1c178831c08757.rmeta": "6916497adc1719f6a0586877c3c7ca627085308fb17f34070a8f4479da35ef62"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/src/lib.rs",
+          "features": [],
+          "fresh": true,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan-0534a70ee02a2a5b.rlib": "56dd85481187d5c8d137fdf0966ef029b1bd8d80dcad72f0978c6398891928f5",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan-0534a70ee02a2a5b.rmeta": "5e84b36ee47833a6069d4d404ebd98bf44a26ef058ba8210a3d07695727a162d"
+          }
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_bindgen@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/Cargo.toml",
+          "src_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/src/lib.rs",
+          "features": [],
+          "fresh": true,
+          "files": {
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_bindgen-bafc27c8a6f6c142.rlib": "301427238777cbfe102a33abd55f443072d1ba8969e135e601fe9562edcf7747",
+            "/tmp/toucan-optin-cache/ty-target/debug/deps/libtoucan_bindgen-bafc27c8a6f6c142.rmeta": "4c5c905ff320878a7254604c0d2476ff586cee8e448f014aa4d0adcb7953d229"
+          }
+        }
+      ],
+      "library_bytes_uploaded": false,
+      "packages": [
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_layout@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_layout/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_target@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_target/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_parser@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_parser/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_semantic@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_semantic/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_bindings@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindings/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_preprocessor@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_preprocessor/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_source@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_source/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "git+https://github.com/astral-sh/toucan?rev=85bf1ad6dcbc5840ade11bf8798785b6da13260a#toucan_bindgen@0.0.1",
+          "manifest_path": "/github/home/.cargo/git/checkouts/toucan-ea6ca074736c2b10/85bf1ad/crates/toucan_bindgen/Cargo.toml",
+          "fresh": true
+        }
+      ]
+    }
+  ],
+  "original_project_files": 11118,
+  "original_locked_packages": 557,
+  "original_package_versions_and_dependency_edges_preserved": true,
+  "library_tests_per_build": 2,
+  "library_test_results": {
+    "passed": 2,
+    "ignored": 0,
+    "tests": {
+      "tests::typeshed_vfs_consistent_with_vendored_stubs": "ok",
+      "tests::typeshed_zip_created_at_build_time": "ok"
+    }
+  },
+  "binary_sha256": {
+    "upstream": "67a905cffb5c2a2d02e9070612c6b4a7515cca543ec20fd9482e14c0b3ab5fd9",
+    "toucan": "30225e0586b717cbe50cd11f2b2b14bff00a9afdd235a2a3b4c14e612a4447a9"
+  },
+  "binding_inputs": [
+    {
+      "phase": "upstream",
+      "build": "build",
+      "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+      "manifest_path": "/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+      "features": [
+        "std"
+      ],
+      "profile": {
+        "opt_level": "1",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/upstream-deps/zstd_sys-193bd34b7bb9df44.d",
+      "dep_info_sha256": "b9f8c5ae1eb759f35a6ef8978756369a7985730b20ca1899211e0a7c596e8b70",
+      "active_bindings": {
+        "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+      }
+    },
+    {
+      "phase": "upstream",
+      "build": "build",
+      "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+      "manifest_path": "/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+      "features": [
+        "std"
+      ],
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/upstream-deps/zstd_sys-267dcb2d311bf3d3.d",
+      "dep_info_sha256": "bdabe9ba8fff2e53efeca4bfb401e5bec70735616727c62aa2ac6074f66f6fca",
+      "active_bindings": {
+        "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+      }
+    },
+    {
+      "phase": "upstream",
+      "build": "tests-ty_vendored",
+      "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+      "manifest_path": "/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+      "features": [
+        "std"
+      ],
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/upstream-tests-ty_vendored-deps/zstd_sys-267dcb2d311bf3d3.d",
+      "dep_info_sha256": "bdabe9ba8fff2e53efeca4bfb401e5bec70735616727c62aa2ac6074f66f6fca",
+      "active_bindings": {
+        "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+      }
+    },
+    {
+      "phase": "upstream",
+      "build": "tests-ty_vendored",
+      "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+      "manifest_path": "/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+      "features": [
+        "std"
+      ],
+      "profile": {
+        "opt_level": "1",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/upstream-tests-ty_vendored-deps/zstd_sys-193bd34b7bb9df44.d",
+      "dep_info_sha256": "b9f8c5ae1eb759f35a6ef8978756369a7985730b20ca1899211e0a7c596e8b70",
+      "active_bindings": {
+        "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+      }
+    },
+    {
+      "phase": "toucan",
+      "build": "build",
+      "package_id": "path+file:///tmp/toucan-optin-cache/ty-work/zstd-rs/zstd-safe/zstd-sys#2.0.16+zstd.1.5.7",
+      "manifest_path": "/tmp/toucan-optin-cache/ty-work/zstd-rs/zstd-safe/zstd-sys/Cargo.toml",
+      "features": [
+        "std",
+        "toucan"
+      ],
+      "profile": {
+        "opt_level": "1",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/toucan-deps/zstd_sys-6df101d8ff7ff6a1.d",
+      "dep_info_sha256": "2a75f925dd4f350db45d4c782692a42404440bb6a7f4b099bf64a9c3e01dec95",
+      "generated_binding": "/__w/toucan/toucan/results/optin/acceptance/toucan-deps/libzstd_sys-6df101d8ff7ff6a1-bindings.rs",
+      "generated_binding_sha256": "dc8d836aa33b7528a49e6cf2dee6017a4ff0fa35ce5b35c333ffe736d784a29d",
+      "original_out_dir_binding": "/tmp/toucan-optin-cache/ty-target/x86_64-unknown-linux-gnu/debug/build/zstd-sys-2ec2e743dec48c87/out/bindings.rs"
+    },
+    {
+      "phase": "toucan",
+      "build": "build",
+      "package_id": "path+file:///tmp/toucan-optin-cache/ty-work/zstd-rs/zstd-safe/zstd-sys#2.0.16+zstd.1.5.7",
+      "manifest_path": "/tmp/toucan-optin-cache/ty-work/zstd-rs/zstd-safe/zstd-sys/Cargo.toml",
+      "features": [
+        "std",
+        "toucan"
+      ],
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/toucan-deps/zstd_sys-059e4e83d947dd24.d",
+      "dep_info_sha256": "b716d0f0468dd66331934e52b2734fce27c47c4b0a723196eb3ce9443562bfcd",
+      "generated_binding": "/__w/toucan/toucan/results/optin/acceptance/toucan-deps/libzstd_sys-059e4e83d947dd24-bindings.rs",
+      "generated_binding_sha256": "dc8d836aa33b7528a49e6cf2dee6017a4ff0fa35ce5b35c333ffe736d784a29d",
+      "original_out_dir_binding": "/tmp/toucan-optin-cache/ty-target/debug/build/zstd-sys-c752af00c7d29f7a/out/bindings.rs"
+    },
+    {
+      "phase": "toucan",
+      "build": "tests-ty_vendored",
+      "package_id": "path+file:///tmp/toucan-optin-cache/ty-work/zstd-rs/zstd-safe/zstd-sys#2.0.16+zstd.1.5.7",
+      "manifest_path": "/tmp/toucan-optin-cache/ty-work/zstd-rs/zstd-safe/zstd-sys/Cargo.toml",
+      "features": [
+        "std",
+        "toucan"
+      ],
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/toucan-tests-ty_vendored-deps/zstd_sys-059e4e83d947dd24.d",
+      "dep_info_sha256": "b716d0f0468dd66331934e52b2734fce27c47c4b0a723196eb3ce9443562bfcd",
+      "generated_binding": "/__w/toucan/toucan/results/optin/acceptance/toucan-tests-ty_vendored-deps/libzstd_sys-059e4e83d947dd24-bindings.rs",
+      "generated_binding_sha256": "dc8d836aa33b7528a49e6cf2dee6017a4ff0fa35ce5b35c333ffe736d784a29d",
+      "original_out_dir_binding": "/tmp/toucan-optin-cache/ty-target/debug/build/zstd-sys-c752af00c7d29f7a/out/bindings.rs"
+    },
+    {
+      "phase": "toucan",
+      "build": "tests-ty_vendored",
+      "package_id": "path+file:///tmp/toucan-optin-cache/ty-work/zstd-rs/zstd-safe/zstd-sys#2.0.16+zstd.1.5.7",
+      "manifest_path": "/tmp/toucan-optin-cache/ty-work/zstd-rs/zstd-safe/zstd-sys/Cargo.toml",
+      "features": [
+        "std",
+        "toucan"
+      ],
+      "profile": {
+        "opt_level": "1",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/toucan-tests-ty_vendored-deps/zstd_sys-6df101d8ff7ff6a1.d",
+      "dep_info_sha256": "2a75f925dd4f350db45d4c782692a42404440bb6a7f4b099bf64a9c3e01dec95",
+      "generated_binding": "/__w/toucan/toucan/results/optin/acceptance/toucan-tests-ty_vendored-deps/libzstd_sys-6df101d8ff7ff6a1-bindings.rs",
+      "generated_binding_sha256": "dc8d836aa33b7528a49e6cf2dee6017a4ff0fa35ce5b35c333ffe736d784a29d",
+      "original_out_dir_binding": "/tmp/toucan-optin-cache/ty-target/x86_64-unknown-linux-gnu/debug/build/zstd-sys-2ec2e743dec48c87/out/bindings.rs"
+    }
+  ],
+  "runtime": {
+    "valid_invalid_diagnostics_match": true
+  },
+  "limitations": [
+    "Linux x86-64 zstd feature only; AWS-LC generation is separate.",
+    "No performance comparison; dev/test builds have debug information disabled.",
+    "Post-build source stability, actual Git HEAD and binding freshness were checked by the hash-verified CI driver/helper; live CI filesystem was not re-read during artifact audit.",
+    "All nine frontend library identities, manifests, source paths and artifact filenames match retained Cargo rows. Recorded hashes are retained and syntax-checked; their .rlib files were not uploaded, so library hashes were not independently recomputed.",
+    "The pin's 630 Git blobs were independently checked locally. The fetched CI checkout is identified by the retained source report and hash-verified helper, not an uploaded checkout."
+  ]
+}

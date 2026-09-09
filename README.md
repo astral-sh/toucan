@@ -98,10 +98,10 @@ produce errors. See [replacement readiness](docs/replacement-readiness.md) for
 the tested consumer paths and release blockers.
 
 The proposed [uv and ty integration](docs/opt-in-rollout.md) adds a build-time
-`toucan-zstd` Cargo feature. Complete builds of both pinned applications pass
-selected library and runtime checks in fresh Linux x86-64 images without
-libclang. The proposed feature uses a pinned Git dependency for testing; the
-pinned upstream revisions do not expose this selector.
+`toucan-zstd` Cargo feature. [Complete builds of both pinned applications](corpus/evidence/astral-git-optin-2026-09-09/README.md)
+pass selected library and runtime checks in fresh Linux x86-64 images without
+libclang, compiling the frontend from its pinned Git dependency. The pinned
+upstream revisions do not expose this selector.
 
 Installing `toucan_cli` also installs a standalone `bindgen` executable. With
 that executable first on `PATH`, the pinned `aws-lc-sys` build script selects it

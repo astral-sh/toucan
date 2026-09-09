@@ -1,0 +1,68 @@
+{
+  "format": 1,
+  "run_id": 34394853038,
+  "tested_commit": "d00076d620c34b42c17a474e32e41090288e4483",
+  "target": "x86_64-unknown-linux-gnu",
+  "capture_sha256": "7092e577f7b8a2b0f1d935875fabe57e5f35a39c38ed8a582c1e40fd111a783e",
+  "capture_bytes": 1715972,
+  "captured_files": 151,
+  "omitted_executables": [
+    {
+      "project": "uv",
+      "path": "__w/toucan/toucan/results/optin/acceptance/uv-toucan",
+      "bytes": 218421536,
+      "sha256": "a6d5a2d9e3c91394c4e1056dac474daadc46156e1e9db970b32ab81238db70a0"
+    },
+    {
+      "project": "uv",
+      "path": "__w/toucan/toucan/results/optin/acceptance/uv-upstream",
+      "bytes": 218404632,
+      "sha256": "119625686aa672a1cf9947f4982a8b328865a5aef630ef3b675dd7946e5290eb"
+    },
+    {
+      "project": "ty",
+      "path": "__w/toucan/toucan/results/optin/acceptance/ty-toucan",
+      "bytes": 64981888,
+      "sha256": "30225e0586b717cbe50cd11f2b2b14bff00a9afdd235a2a3b4c14e612a4447a9"
+    },
+    {
+      "project": "ty",
+      "path": "__w/toucan/toucan/results/optin/acceptance/ty-upstream",
+      "bytes": 64995576,
+      "sha256": "67a905cffb5c2a2d02e9070612c6b4a7515cca543ec20fd9482e14c0b3ab5fd9"
+    }
+  ],
+  "files": {
+    "README.md": "bf4f0da8330c539ac0e420467f968fcee5a1d2c8c081e03bcdc1ce145c52f199",
+    "capture.json.gz": "7092e577f7b8a2b0f1d935875fabe57e5f35a39c38ed8a582c1e40fd111a783e",
+    "github-driver-commit.json": "8d05c61dfbe0faa40bfb46d124626dd73dcbb2d298482ef5f65f092e58447478",
+    "github-frontend-commit.json": "0e6d9e1a541e5c8741059148df64769041507855b335f323ac358ae583868ec5",
+    "github-run.json": "48ac9bc7e9a92c82894e7195847967944280abaf646b13d50e85634ac70ed9f7",
+    "summary.json": "285095c1eb47e9d49f404b492616ead903e109363d0726fa28772053830083ed",
+    "ty/audit.json": "53d767b735c949bb000655cd6f7479aeba61ba44d65bc204b4ffd9be050c343c",
+    "ty/evidence.json": "b9f4827d1565307d1b72f38e26b6aa6fb9053238655d711b3556bbac8b04f22d",
+    "ty/git-source.json": "eaace1acf6daf09ea9ce1f0ed2a6a2d9dc9a1f0845abeb514279b495784d4754",
+    "ty/github-artifact.json": "7384284d28384a4a692dad6743337314859225bdd0dc7f74cfa035cfd1e0cc2e",
+    "ty/github-job.json": "6357e2e23ed582da5c8caf78158ac82ff42f663edebc1f05ef124fe00924c0d1",
+    "ty/github-job.log": "ce7594569a1fbd15768821271dd26a2d27e9f4b2d7de45cedb3b1ae064202ffd",
+    "ty/github-run.json": "48ac9bc7e9a92c82894e7195847967944280abaf646b13d50e85634ac70ed9f7",
+    "ty/verified-astral-optin.yml": "f447cac1c7c50895e0abb1c736cac7fbb6481b2e0a8cfe3f6d014e8314759715",
+    "ty/verified-driver.py": "a3e11bc98b83e64ee0176840689144b6a6c364d6cffde36f4f72b69135a64aca",
+    "ty/verified-git_source.py": "a8dc09bb96e3189bf39566def20cc2ff79b3bb3be8a4ed0b78e6958cf42de369",
+    "ty/verified-prepare.py": "c2b4bbace71ae37778473361623dbdf79b9f716288cc675580d8acbb9047de70",
+    "ty/verified-source-digests.json": "9822896060d6c9dc26fcf4994e2af7102fc9aadae47ced73c8a50007a60418f1",
+    "uv/audit.json": "dc202421f01bc81f84d96c3e8e914b6ad479a9f6664abb03e621f1e66e657583",
+    "uv/evidence.json": "29be20af6b03596a386b5f29725bbd09f435c56a820dff8477ad3d0e77903b0e",
+    "uv/git-source.json": "eaace1acf6daf09ea9ce1f0ed2a6a2d9dc9a1f0845abeb514279b495784d4754",
+    "uv/github-artifact.json": "8367520abe56afa4e4b5e99852088e9cf718c476289f87f9c84c54bf7e7da613",
+    "uv/github-job.json": "ea8f86fcdd105c58760b980e85fad921c24ed1ab1f480ffb484ee7fc7b969560",
+    "uv/github-job.log": "50498761e4848413e2ba436e56b225149fc32f565b61d64a561e20be9d8935e7",
+    "uv/github-run.json": "48ac9bc7e9a92c82894e7195847967944280abaf646b13d50e85634ac70ed9f7",
+    "uv/verified-astral-optin.yml": "f447cac1c7c50895e0abb1c736cac7fbb6481b2e0a8cfe3f6d014e8314759715",
+    "uv/verified-driver.py": "a3e11bc98b83e64ee0176840689144b6a6c364d6cffde36f4f72b69135a64aca",
+    "uv/verified-git_source.py": "a8dc09bb96e3189bf39566def20cc2ff79b3bb3be8a4ed0b78e6958cf42de369",
+    "uv/verified-prepare.py": "c2b4bbace71ae37778473361623dbdf79b9f716288cc675580d8acbb9047de70",
+    "uv/verified-source-digests.json": "9822896060d6c9dc26fcf4994e2af7102fc9aadae47ced73c8a50007a60418f1",
+    "verify_artifacts.py": "153bc6c8a266bea40f7ee07f98b40977e540410ab01941d16eadf2ae37a384c4"
+  }
+}

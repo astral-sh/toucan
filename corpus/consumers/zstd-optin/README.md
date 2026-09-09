@@ -5,8 +5,9 @@ workspaces. The feature generates zstd bindings with Toucan on native
 `x86_64-unknown-linux-gnu`. Default builds keep their existing bindings.
 
 This directory contains a proposed integration and a reproducible fixture.
-[Clean builds of feature-enabled ty and uv](../../evidence/astral-optin-2026-09-09/README.md)
-pass the selected application checks. The patches are not an upstream zstd release.
+[Clean builds of feature-enabled ty and uv](../../evidence/astral-git-optin-2026-09-09/README.md)
+pass the selected application checks with the pinned Git frontend. The patches
+are not an upstream zstd release.
 
 ## Patches
 
@@ -152,8 +153,9 @@ offline actual application builds in the clean Linux workflow.
 
 The [actual Git-pinned smoke](../../evidence/zstd-optin-git-2026-09-09.json)
 also passes all four cases, with all nine frontend libraries traced to the
-verified checkout. This is a local zstd smoke, not the full Git-mode application
-gate.
+verified checkout. The separate [Git-mode application gate](../../evidence/astral-git-optin-2026-09-09/README.md)
+also passes complete uv and ty builds, selected library tests, and runtime
+comparisons in fresh Linux images without libclang.
 
 The earlier bounded smoke passed all four cases. Both actual workspace graphs resolve
 with Toucan and no active bindgen/clang-sys dependency; their default graphs
@@ -167,11 +169,11 @@ The corrected pin audit requires all nine frontend crates to resolve under one
 fetched checkout, checks its actual Git HEAD, and verifies their source hashes.
 The earlier failed audit is retained alongside the successful one.
 
-The later [application gate](../../evidence/astral-optin-2026-09-09/README.md)
+The earlier [local-source application gate](../../evidence/astral-optin-2026-09-09/README.md)
 builds actual ty and uv binaries in fresh Linux images without libclang. It
 audits consumed bindings in both ty graphs and passes the selected library and
 application comparisons against untouched upstream defaults. This gate uses
 the hash-verified local frontend source; the original smoke used a machine with
 libclang installed. See the [rollout notes](../../../docs/opt-in-rollout.md) for
-the remaining public dependency and upstream integration work. AWS-LC/TLS
+the Git trial and subsequent integrations. AWS-LC/TLS
 generation remains a separate feature and acceptance gate.

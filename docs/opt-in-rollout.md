@@ -44,10 +44,11 @@ prove the selected zstd consumer paths using a manifest substitution. The new
 feature selection, fresh generated binding inputs, matching compression and
 dictionary artifacts, and a build/runtime dependency fixture.
 
-The [clean application run at `131ec7a`](../corpus/evidence/astral-optin-2026-09-09/README.md)
+The [Git-pinned application run](../corpus/evidence/astral-git-optin-2026-09-09/README.md)
 builds both complete pinned applications with the new feature and compares them
-with their untouched upstream defaults. Both jobs passed in fresh Linux images
-without libclang, using stable Rust 1.98.1:
+with their untouched upstream defaults. The driver ran at `d00076d`; both jobs
+compiled the frontend from Git revision `85bf1ad`. They passed in fresh Linux
+images without libclang, using stable Rust 1.98.1:
 
 | Application | Consumed Toucan output | Matching checks |
 | --- | --- | --- |
@@ -100,10 +101,14 @@ which freshly generated `OUT_DIR` bindings the applications consumed. Package
 source IDs alone are insufficient: an earlier pin audit found that Cargo could
 label an escaped local path with the requested Git source.
 
-The passing application run at `131ec7a` used a hash-verified local substitution;
-its evidence remains unchanged. The Git-mode application workflow needs its own
-successful run before claiming the same application acceptance through Git.
-Registry naming, publishing, and public distribution are deferred.
+The [successful Git-mode run](https://github.com/astral-sh/toucan/actions/runs/34394853038)
+passes both application gates with the Git dependency intact. Its independent
+artifact audit checks all 34 command records, source inventories, generated
+inputs, and the four uploaded application executables. Frontend library hashes
+were recorded in CI, but their bytes were not uploaded for independent rehashing.
+The earlier [local-source run at `131ec7a`](../corpus/evidence/astral-optin-2026-09-09/README.md)
+remains separate evidence. Registry naming, publishing, and public distribution
+are deferred.
 
 ## Subsequent integrations
 
