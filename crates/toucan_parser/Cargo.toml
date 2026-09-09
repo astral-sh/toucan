@@ -12,5 +12,8 @@ include = ["/src/**/*.rs", "/scripts/*.py", "/reftests/*.c", "/tests/**/*.rs", "
 [features]
 dev-pegviz = []
 
+[dependencies]
+rustc-hash.workspace = true
+
 [lints.rust]
 unsafe_code = "forbid"
