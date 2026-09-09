@@ -59,10 +59,14 @@ loaded libraries; it does not measure the memory of a full application build.
    if distributing generation on Intel Macs. Windows x86-64 DLL calls have
    bounded [native evidence](../corpus/evidence/windows-dll-native-f57e9fa/summary.json);
    [Windows ARM64 SDK C layouts and DLL calls](../corpus/evidence/windows-arm64-native-4ce552f/README.md)
-   also pass. A later [installed Windows ARM64 SDK run](../corpus/evidence/windows-arm64-sdk-2026-09-09/README.md)
-   passes all seven stages for `basetsd.h`, `winnt.h`, and `windows.h` with SDK
-   `10.0.26100.0`; Windows x64 SDK processing and full Windows consumers remain
-   open. The first [Apple Silicon integration run](https://github.com/astral-sh/toucan/actions/runs/34378956751)
+   also pass. The [installed Windows ARM64 SDK run](../corpus/evidence/windows-arm64-sdk-2026-09-09/README.md)
+   and [Windows x64 SDK run](../corpus/evidence/windows-x64-sdk-2026-09-09/README.md)
+   pass all seven stages for `basetsd.h`, `winnt.h`, and `windows.h` with SDK
+   `10.0.26100.0`, including native Rust layout checks. Each run selects six,
+   four, and seven supported types respectively and reports zero skipped
+   declarations. Full Windows consumers and other SDK versions remain open;
+   selected x64 `__ptr32` bindings receive an explicit unsupported-ABI diagnostic.
+   The first [Apple Silicon integration run](https://github.com/astral-sh/toucan/actions/runs/34378956751)
    failed on test fixture and cross-compiler assumptions, so it does not establish
    current-source macOS acceptance. The [macOS workflow](../.github/workflows/macos.yml)
    keeps Intel opt-in; that integration run allocated only Apple Silicon runners.

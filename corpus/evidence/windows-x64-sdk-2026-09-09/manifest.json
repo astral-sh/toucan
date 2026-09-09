@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "github_run": 34384071509,
+  "github_artifact": 10117088369,
+  "source_sha256": "0ee40819362e2fd9c672af6650b7fa1840f16a2455927b889713e6ec2db15996",
+  "source_bytes": 101226,
+  "status": "passed",
+  "target": "x86_64-pc-windows-msvc",
+  "captured_from": "evidence.json",
+  "source_commit": "678fb3e9b359a2baf5acaca583df02ae4f816c7b",
+  "archive_sha256": "a983f4589dc3d34384a98274184052b6e0aef266b1b4e534ceffa4d8379bab90",
+  "archive_bytes": 10101,
+  "summary_sha256": "7afeea8b7cf10f0eecf834b4c9fb61d155b5070c3a58c0e8a4fa3f587c0dde4c",
+  "binding_reports_archive_sha256": "6da0e9126b607d1d4f8f6664c0e4b8d8cfea3e48cfef39a4b7ed12c8da421a8a",
+  "binding_report_sources": {
+    "basetsd": {
+      "source_sha256": "1ec527a7cad794132e0d1a8855929289739e667ca4d149bf41f5dd41badafbf6",
+      "source_bytes": 1426
+    },
+    "winnt": {
+      "source_sha256": "60efbff3211adce3ac3b4d08279f3381800260657da1d33677e3e27a4f4a5a94",
+      "source_bytes": 4295
+    },
+    "windows": {
+      "source_sha256": "11b33539468aee527655fb9a38f6c1863f87a150fa59082ff8f4e2829551c5fe",
+      "source_bytes": 10251
+    }
+  }
+}

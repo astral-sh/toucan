@@ -376,6 +376,14 @@ macOS; in particular, Clang's AArch64 `ms_abi` changes the convention and cannot
 safely be discarded. Windows ARM64 uses its native C convention for `ms_abi` and
 ignores `sysv_abi`, matching the Clang Windows ARM64 profile.
 
+Microsoft pointer-width qualifiers retain their type identity. Windows x64
+`__ptr32` has four-byte size and alignment; Windows ARM64 keeps its native
+eight-byte layout while preserving that distinction. The frontend checks pointer
+conversions and conditional expressions. Binding generation rejects selected
+x64 `__ptr32` uses, including typedefs, nested records, callbacks, and caller-owned
+types, because native Rust pointers use eight-byte storage. Unselected SDK
+declarations using `__ptr32` can still be checked while generating supported types.
+
 Clang IR probes cover every supported target. Native x86-64 GCC/Clang tests call C from
 Rust and Rust callbacks from C with mixed register/stack arguments and aggregate
 returns. Variadic extern declarations are checked by rustc; these tests do not
@@ -396,7 +404,7 @@ compiler ABI is used; flags such as `-fshort-enums` are not implied.
 | `armv7-unknown-linux-gnueabihf` | Implemented for Clang hard-float; cross-target C layout and macro probes | [QEMU C/Rust gate prepared](../corpus/armv7/README.md); execution remains unverified. Rust output requires 1.78 or newer. |
 | `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
 | `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
-| `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | [Native DLL calls passed](../corpus/evidence/windows-dll-native-f57e9fa/summary.json); Windows SDK headers and full consumers remain unvalidated |
+| `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | [Installed Windows SDK header checks and native Rust layouts passed](../corpus/evidence/windows-x64-sdk-2026-09-09/README.md), with separate [native DLL calls](../corpus/evidence/windows-dll-native-f57e9fa/summary.json); full consumers remain unvalidated |
 | `aarch64-pc-windows-msvc` | Implemented; Clang cross-target layout and ABI probes | [Installed Windows SDK header checks and native Rust layouts passed](../corpus/evidence/windows-arm64-sdk-2026-09-09/README.md), with separate [MSVC DLL calls](../corpus/evidence/windows-arm64-native-4ce552f/summary.json); full consumers remain unvalidated |
 | `x86_64-unknown-linux-musl` | Implemented; GCC and Clang probes | [Native ABI and zstd Builder checks passed](../corpus/evidence/musl-native-019012e/summary.json) |
 | `aarch64-unknown-linux-musl` | Implemented; GCC and Clang probes | [Native ABI and zstd Builder checks passed](../corpus/evidence/musl-native-019012e/summary.json) |
