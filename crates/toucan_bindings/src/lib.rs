@@ -733,7 +733,10 @@ fn generate_with_work_budget(
         "aarch64-unknown-linux-musl" => ("aarch64", "linux", ", target_env = \"musl\""),
         triple => return Err(Error(format!("binding target `{triple}` is unsupported"))),
     };
-    writeln!(source, "#[cfg(not(all(target_arch = {arch:?}, target_os = {os:?}{environment})))]\ncompile_error!(\"these C bindings were generated for a different target\");\n").unwrap();
+    // Architecture names also cover incompatible ILP32 and big-endian targets.
+    // Every supported C target uses little-endian storage.
+    let pointer_width = unit.target.pointer_width();
+    writeln!(source, "#[cfg(not(all(target_arch = {arch:?}, target_os = {os:?}{environment}, target_pointer_width = \"{pointer_width}\", target_endian = \"little\")))]\ncompile_error!(\"these C bindings were generated for a different target\");\n").unwrap();
     emitter.emit_external_assertions(&mut source)?;
     emitter.emit_atomics(&mut source)?;
     for &(bytes, alignment) in &emitter.vectors {

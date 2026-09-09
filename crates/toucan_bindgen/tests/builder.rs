@@ -15,10 +15,15 @@ fn i686_target_generates_32_bit_bindings_with_a_target_guard() {
         .generate()
         .unwrap()
         .to_string();
-    assert!(
-        bindings.contains("target_arch = \"x86\", target_os = \"linux\", target_env = \"gnu\""),
-        "{bindings}"
-    );
+    for requirement in [
+        "target_arch = \"x86\"",
+        "target_os = \"linux\"",
+        "target_env = \"gnu\"",
+        "target_pointer_width = \"32\"",
+        "target_endian = \"little\"",
+    ] {
+        assert!(bindings.contains(requirement), "{bindings}");
+    }
     assert!(bindings.contains("pub fn bytes("), "{bindings}");
     assert!(bindings.contains("pub struct Record"), "{bindings}");
 }
