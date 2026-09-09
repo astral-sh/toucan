@@ -53,6 +53,13 @@ jobs:
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
         with:
           toolchain: stable
+      - name: Fetch the pinned frontend without compiling it
+        env:
+          TOUCAN_GIT_TOKEN: ${{ github.token }}
+        run: |
+          python3 -B corpus/consumers/zstd-optin/git_source.py \
+            --cache /tmp/toucan-optin-git-fetch \
+            --output results/optin/git-source.json
       - name: Compare actual application builds and behavior
         shell: bash
         run: |
@@ -63,6 +70,8 @@ jobs:
             | tee results/optin/commit.txt
           python3 -B scripts/verify_astral_optin.py \
             --project '${{ matrix.project }}' \
+            --frontend-mode git \
+            --git-source-report results/optin/git-source.json \
             --cache /tmp/toucan-optin-cache \
             --output results/optin/acceptance \
             --build-timeout 1800 \
@@ -72,6 +81,9 @@ jobs:
           from pathlib import Path
           evidence = json.loads(Path("results/optin/acceptance/evidence.json").read_text())
           assert evidence["status"] == "passed"
+          assert evidence["frontend_mode"] == "git"
+          assert len(evidence["git_source"]["packages"]) == 9
+          assert evidence["frontend_artifacts"]
           assert evidence["libclang_before"]["found"] == []
           assert evidence["libclang_after"]["found"] == []
           assert evidence["toucan_bindings"]

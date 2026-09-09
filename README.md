@@ -100,8 +100,8 @@ the tested consumer paths and release blockers.
 The proposed [uv and ty integration](docs/opt-in-rollout.md) adds a build-time
 `toucan-zstd` Cargo feature. Complete builds of both pinned applications pass
 selected library and runtime checks in fresh Linux x86-64 images without
-libclang. The feature patches and public dependency release still need to land
-upstream; the pinned upstream revisions do not expose this selector.
+libclang. The proposed feature uses a pinned Git dependency for testing; the
+pinned upstream revisions do not expose this selector.
 
 Installing `toucan_cli` also installs a standalone `bindgen` executable. With
 that executable first on `PATH`, the pinned `aws-lc-sys` build script selects it

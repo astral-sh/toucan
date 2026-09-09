@@ -8,13 +8,13 @@ import ctypes.util
 import importlib.util
 import json
 import os
-from pathlib import Path
 import platform
 import shutil
 import subprocess
 import sys
 import time
 import urllib.request
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts"))
@@ -38,6 +38,8 @@ from verify_astral_consumers import (
 
 TARGET = "x86_64-unknown-linux-gnu"
 INTEGRATION = ROOT / "corpus/consumers/zstd-optin"
+sys.path.insert(0, str(INTEGRATION))
+from git_source import load_report, verify_artifacts, verify_checkout, verify_packages
 
 
 def require(condition: bool, message: str) -> None:
@@ -96,12 +98,24 @@ def main() -> None:
     parser.add_argument("--build-timeout", type=int, default=1800)
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--prepare-only", action="store_true")
+    parser.add_argument("--frontend-mode", choices=["local", "git"], default="local")
+    parser.add_argument("--git-source-report", type=Path)
     args = parser.parse_args()
     require(
         __debug__,
         "run without Python optimization so imported validation checks remain active",
     )
     require(args.build_timeout > 0, "build timeout must be positive")
+    require(
+        (args.frontend_mode == "git") == (args.git_source_report is not None),
+        "Git mode requires --git-source-report; local mode does not use it",
+    )
+    require(
+        not os.environ.get("TOUCAN_GIT_TOKEN"),
+        "run application builds without the Git fetch token",
+    )
+    prefetched = load_report(args.git_source_report) if args.git_source_report else None
+    frontend = None
     args.cache, args.output = args.cache.resolve(), args.output.resolve()
     require(not args.output.exists(), "use a fresh output directory")
     work = args.cache / (args.project + "-work")
@@ -129,6 +143,7 @@ def main() -> None:
     result = {
         "status": "failed",
         "mode": "application-toucan-zstd-feature",
+        "frontend_mode": args.frontend_mode,
         "project": project,
         "target": TARGET,
         "platform": platform.platform(),
@@ -269,6 +284,9 @@ def main() -> None:
                     "execution": execution,
                     "result": parsed,
                     "bindings": bindings,
+                    "frontend_artifacts": verify_artifacts(log, frontend)
+                    if frontend and generated
+                    else None,
                     "executable_sha256": digest(executable),
                 }
             )
@@ -320,8 +338,13 @@ def main() -> None:
             str(work),
             "--crate-cache",
             str(archives),
-            "--toucan-source",
-            str(ROOT),
+            "--frontend-mode",
+            args.frontend_mode,
+            *(
+                ["--git-source-report", str(args.git_source_report.resolve())]
+                if prefetched
+                else ["--toucan-source", str(ROOT)]
+            ),
             "--ruff-archive" if name == "ty" else "--uv-archive",
             str(project_archive),
         ]
@@ -331,7 +354,8 @@ def main() -> None:
         source = Path(preparation["projects"][name]["source"])
         replacement = work / "zstd-rs/zstd-safe/zstd-sys"
         replacement_before = source_inventory(replacement)
-        frontend_before = source_inventory(ROOT / "crates")
+        frontend_root = Path(preparation["toucan_source"])
+        frontend_before = source_inventory(frontend_root / "crates")
         patch_project(source, True, "restore-upstream-manifests")
         verified = check_archive_source(project_archive, source)
         verified.pop("archive_lock")
@@ -346,6 +370,13 @@ def main() -> None:
         result["upstream_tree"] = tree(
             source, ["--locked", *offline], False, "upstream-tree"
         )
+        if prefetched:
+            cargo(
+                ["fetch", "--locked", "--target", TARGET, *offline],
+                source,
+                "fetch-upstream-inputs",
+            )
+        build_offline = ["--offline"] if prefetched or args.offline else []
         common = [
             "build",
             "--locked",
@@ -354,7 +385,7 @@ def main() -> None:
             "-p",
             name,
             "--message-format=json-render-diagnostics",
-            *offline,
+            *build_offline,
         ]
         log = cargo(common, source, "upstream-build")
         upstream_artifact = binary_artifact(log, source, project)
@@ -362,7 +393,7 @@ def main() -> None:
         shutil.copy2(upstream_artifact["executable"], upstream)
         upstream_bindings = binding_artifacts(log, None, args.output / "upstream-deps")
         upstream_tests = libraries(
-            source, offline, False, replacement, "upstream-tests"
+            source, build_offline, False, replacement, "upstream-tests"
         )
         shutil.copyfile(source / "Cargo.lock", args.output / "upstream.lock")
         require(
@@ -392,8 +423,33 @@ def main() -> None:
         result["lock"] = check_lock_versions(
             args.output / "upstream.lock", source / "Cargo.lock"
         )
+        if prefetched:
+            metadata = cargo(
+                [
+                    "metadata",
+                    "--format-version=1",
+                    "--locked",
+                    "--filter-platform",
+                    TARGET,
+                    *config,
+                    *feature,
+                    *offline,
+                ],
+                source,
+                "toucan-metadata",
+            )
+            frontend = verify_packages(
+                json.loads(metadata.read_text()), Path(prefetched["root"])
+            )
+            result["git_source"] = frontend
+            cargo(
+                ["fetch", "--locked", "--target", TARGET, *config, *offline],
+                source,
+                "fetch-toucan-inputs",
+            )
         generated_start = time.time_ns()
         log = cargo(common + config + feature, source, "toucan-build")
+        frontend_artifacts = verify_artifacts(log, frontend) if frontend else None
         generated_artifact = binary_artifact(log, source, project)
         generated = args.output / (name + "-toucan")
         shutil.copy2(generated_artifact["executable"], generated)
@@ -416,7 +472,7 @@ def main() -> None:
                 "binding input was not freshly generated in this target directory",
             )
         generated_tests = libraries(
-            source, config + offline, True, replacement, "toucan-tests"
+            source, config + build_offline, True, replacement, "toucan-tests"
         )
         check_features(upstream_bindings, bindings, generator_feature="toucan")
         for old, new in zip(upstream_tests, generated_tests, strict=True):
@@ -439,10 +495,13 @@ def main() -> None:
             "patched zstd source changed during builds",
         )
         require(
-            source_inventory(ROOT / "crates") == frontend_before,
+            source_inventory(frontend_root / "crates") == frontend_before,
             "frontend source changed during builds",
         )
+        if frontend:
+            verify_checkout(frontend_root)
         result.update(
+            frontend_artifacts=frontend_artifacts,
             upstream_binary=upstream_artifact,
             toucan_binary=generated_artifact,
             upstream_bindings=upstream_bindings,

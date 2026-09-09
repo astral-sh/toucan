@@ -76,22 +76,34 @@ jobs share one request group, so a new explicit request cancels an older one;
 unrelated label events cannot cancel it. Opening or updating a stack PR does
 not allocate an application runner.
 
-## Landing the opt-in
+## Git-pinned trial
 
-The trial pins Toucan through Git. The repository is private, so this requires
-repository access. A public integration needs published Toucan crates or a
-public dependency source before it can land; an optional private Git dependency
-can still prevent Cargo from resolving a default build. The opt-in generator
-requires Rust 1.96 on the build host, which both pinned workspaces already use.
-Compatibility with zstd's older default build toolchains remains a separate gate.
+The trial uses the private Git dependency at
+`85bf1ad6dcbc5840ade11bf8798785b6da13260a`. Repository access is required;
+no crates are published by this workflow. The optional generator requires Rust
+1.96 on the build host, which both pinned workspaces already use. Compatibility
+with zstd's older default build toolchains remains a separate gate.
+Cargo can resolve optional Git dependencies for default builds too, so the
+patched workspaces require that access even without `toucan-zstd` enabled.
 
-The clean application gate substitutes a hash-verified local Toucan source for
-the private Git dependency. The separate Git audit verifies package discovery
-and source identity at the trial pin; it does not establish public installation.
-Before landing upstream, replace that dependency with the intended accessible
-release, validate zstd's default toolchains, and run the corresponding project
-CI with the final manifests and lockfiles. The Linux application gate above has
-passed; dependency distribution and upstream integration remain open.
+The new application workflow keeps that Git dependency intact. A fetch-only
+step uses the same repository's read-only `GITHUB_TOKEN`; it does not compile
+any dependency. Its credential helper answers only the exact Toucan HTTPS
+repository and stores no credentials. The token is absent from subsequent
+steps. The driver fetches remaining public inputs, then builds and tests offline.
+
+Before compilation, the gate verifies the fetched checkout's actual Git HEAD,
+the exact 630-file frontend inventory, and all nine frontend Cargo packages.
+The build's compiler-artifact messages must name those same package IDs,
+manifest paths and source paths. The existing zstd dep-info checks then prove
+which freshly generated `OUT_DIR` bindings the applications consumed. Package
+source IDs alone are insufficient: an earlier pin audit found that Cargo could
+label an escaped local path with the requested Git source.
+
+The passing application run at `131ec7a` used a hash-verified local substitution;
+its evidence remains unchanged. The Git-mode application workflow needs its own
+successful run before claiming the same application acceptance through Git.
+Registry naming, publishing, and public distribution are deferred.
 
 ## Subsequent integrations
 

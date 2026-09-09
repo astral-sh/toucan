@@ -18,8 +18,8 @@ pass the selected application checks. The patches are not an upstream zstd relea
 
 The zstd patch uses an immutable Git dependency at
 `85bf1ad6dcbc5840ade11bf8798785b6da13260a`. The repository is private: fetching the
-trial dependency requires repository access. A public rollout needs an accessible
-Toucan release and a released or explicitly pinned zstd integration.
+trial dependency requires repository access. Testing uses this Git pin and the
+prepared zstd feature patches.
 
 The published packages used to assemble the patch base are zstd 0.13.3,
 zstd-safe 7.2.4, and zstd-sys 2.0.16+zstd.1.5.7. They have different upstream Git
@@ -110,9 +110,52 @@ the selected default Ruff CLI graph contains no zstd, bindgen, or Toucan
 dependency; this integration affects ty within the Ruff workspace. These graph checks
 cannot establish whole-project Rust compilation or runtime acceptance.
 
+## Run with the actual Git dependency
+
+The historical local mode remains the default. To test the reviewed Git
+manifest unchanged, fetch and verify the pin first, then select Git mode:
+
+```sh
+python3 -B corpus/consumers/zstd-optin/git_source.py \
+  --cache "$TOUCAN_OPTIN_GIT_FETCH" \
+  --output "$TOUCAN_OPTIN_GIT_REPORT" \
+  --rust-toolchain ohm --gh-auto
+python3 -B corpus/consumers/zstd-optin/prepare.py \
+  --work-dir "$TOUCAN_OPTIN_WORK" \
+  --crate-cache "$TOUCAN_OPTIN_CRATE_CACHE" \
+  --frontend-mode git --git-source-report "$TOUCAN_OPTIN_GIT_REPORT"
+python3 -B corpus/consumers/zstd-optin/run_smoke.py \
+  --work-dir "$TOUCAN_OPTIN_WORK" \
+  --target-dir "$TOUCAN_OPTIN_TARGET" --rust-toolchain ohm
+```
+
+Use fresh work, fetch and target directories. The devbox `--gh-auto` option
+uses its verified OSS account and an HTTPS helper restricted to this repository;
+it does not change global credentials. CI omits that option and supplies its
+read-only repository token only to the fetch step. Neither route writes the
+token into a URL, a Git configuration file, or the evidence. Fetching runs Cargo
+metadata without compiling dependencies. Normal CI uses the repository's normal
+Rust toolchain, without Ohm's local trust settings.
+
+The verifier requires all nine packages to resolve inside one actual Git
+checkout at the full revision, verifies the complete source inventory, and
+matches all nine compiled library artifacts to the audited Cargo metadata.
+The target directory contains build outputs; source and manifest paths must
+remain inside the fetched checkout. A mixed checkout, incorrect revision,
+extra or modified source file, or unaudited frontend artifact fails the gate.
+The smoke runner uses offline Cargo commands, so its fixture dependencies must
+already be fetched. `verify_astral_optin.py --frontend-mode git
+--git-source-report REPORT` performs the corresponding public-input fetches and
+offline actual application builds in the clean Linux workflow.
+
 ## Recorded results
 
-The bounded smoke passed all four cases. Both actual workspace graphs resolve
+The [actual Git-pinned smoke](../../evidence/zstd-optin-git-2026-09-09.json)
+also passes all four cases, with all nine frontend libraries traced to the
+verified checkout. This is a local zstd smoke, not the full Git-mode application
+gate.
+
+The earlier bounded smoke passed all four cases. Both actual workspace graphs resolve
 with Toucan and no active bindgen/clang-sys dependency; their default graphs
 select neither generator. All 557 Ruff and 750 uv original locked packages and
 dependency edges remain present.

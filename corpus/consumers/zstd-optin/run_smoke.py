@@ -5,15 +5,21 @@ import argparse
 import hashlib
 import json
 import os
-from pathlib import Path
 import subprocess
+import sys
 import time
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from git_source import verify_artifacts, verify_packages
 
 PARSER = argparse.ArgumentParser(description=__doc__)
 PARSER.add_argument("--work-dir", type=Path, required=True)
 PARSER.add_argument("--target-dir", type=Path, required=True)
 PARSER.add_argument("--rust-toolchain")
 ARGS = PARSER.parse_args()
+if os.environ.get("TOUCAN_GIT_TOKEN"):
+    PARSER.error("run smoke builds without the Git fetch token")
 ROOT = ARGS.work_dir.resolve()
 TARGET = "x86_64-unknown-linux-gnu"
 CARGO = ["cargo"] + (["+" + ARGS.rust_toolchain] if ARGS.rust_toolchain else [])
@@ -32,7 +38,7 @@ def invoke(command, directory, label, env):
     stderr = directory / (label + ".stderr")
     with stdout.open("w") as out, stderr.open("w") as err:
         result = subprocess.run(
-            command, cwd=ROOT, env=env, stdout=out, stderr=err, timeout=600
+            command, cwd=ROOT, env=env, stdout=out, stderr=err, timeout=600, check=False
         )
     (directory / (label + ".command.json")).write_text(
         json.dumps(command, indent=2) + "\n"
@@ -76,8 +82,11 @@ def run_case(name, fixture, features, generated, graphs=1):
         visited.add(node)
         todo += [d["pkg"] for d in nodes[node]["deps"]]
     active = sorted({names[n] for n in visited})
+    frontend = None
     if generated:
         source = Path(PREPARATION["toucan_source"])
+        if PREPARATION.get("frontend_mode") == "git":
+            frontend = verify_packages(data, source)
         frontend_packages = [
             p
             for p in data["packages"]
@@ -112,6 +121,7 @@ def run_case(name, fixture, features, generated, graphs=1):
         "build",
         env,
     )
+    frontend_artifacts = verify_artifacts(build, frontend) if frontend else None
     rows = [json.loads(line) for line in build.read_text().splitlines()]
     libs = [
         r
@@ -201,6 +211,8 @@ def run_case(name, fixture, features, generated, graphs=1):
     result = {
         "case": name,
         "active_packages": active,
+        "frontend_source": frontend,
+        "frontend_artifacts": frontend_artifacts,
         "sys_instances": evidence,
         "executable": str(executable),
         "executable_sha256": digest(executable),
@@ -227,6 +239,8 @@ for candidate in results[1:3]:
 report = {
     "status": "passed",
     "toucan_revision": PREPARATION["frontend_source_revision"],
+    "frontend_mode": PREPARATION.get("frontend_mode", "local"),
+    "integration_git_revision": PREPARATION["integration_git_revision"],
     "target": TARGET,
     "cases": results,
     "limits": [

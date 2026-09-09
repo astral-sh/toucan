@@ -4,10 +4,14 @@
 import argparse
 import hashlib
 import json
-from pathlib import Path
 import shutil
 import subprocess
+import sys
 import tarfile
+from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from git_source import load_report
 
 HERE = Path(__file__).resolve().parent
 SOURCE_PIN = "66c87396bbe03b22085339a87b8c350c90be280b"
@@ -74,13 +78,26 @@ def main():
     parser.add_argument(
         "--toucan-source",
         type=Path,
-        required=True,
-        help="Immutable source matching source-digests.json",
+        help="Immutable source matching source-digests.json (local mode)",
     )
+    parser.add_argument("--frontend-mode", choices=["local", "git"], default="local")
+    parser.add_argument("--git-source-report", type=Path)
     parser.add_argument("--ruff-archive", type=Path)
     parser.add_argument("--uv-archive", type=Path)
     args = parser.parse_args()
-    work, source = args.work_dir.resolve(), args.toucan_source.resolve()
+    work = args.work_dir.resolve()
+    git_source = None
+    if args.frontend_mode == "git":
+        if args.git_source_report is None or args.toucan_source is not None:
+            parser.error("Git mode requires --git-source-report and no --toucan-source")
+        git_source = load_report(args.git_source_report)
+        source = Path(git_source["root"])
+    else:
+        if args.toucan_source is None or args.git_source_report is not None:
+            parser.error(
+                "local mode requires --toucan-source and no --git-source-report"
+            )
+        source = args.toucan_source.resolve()
     if work.exists() and any(work.iterdir()):
         parser.error("--work-dir must be empty")
     work.mkdir(parents=True, exist_ok=True)
@@ -110,7 +127,8 @@ def main():
     local = 'version = "=0.0.1"\npath = ' + json.dumps(
         str(source / "crates/toucan_bindgen")
     )
-    manifest.write_text(before.replace(expected_git, local))
+    if args.frontend_mode == "local":
+        manifest.write_text(before.replace(expected_git, local))
     # The local substitution is explicit and recorded, never applied to a registry source.
     shutil.copytree(HERE / "fixtures/consumer", work / "consumer")
     shutil.copytree(HERE / "fixtures/dual-graph", work / "dual-graph")
@@ -135,6 +153,8 @@ def main():
             "original_manifest_sha256": original_manifests,
         }
     provenance = {
+        "frontend_mode": args.frontend_mode,
+        "git_source": git_source,
         "frontend_source_revision": SOURCE_PIN,
         "integration_git_revision": GIT_PIN,
         "toucan_source": str(source),
@@ -148,7 +168,9 @@ def main():
             "reviewed_git": expected_git,
             "smoke_dependency": local,
             "manifest_sha256": digest(manifest),
-        },
+        }
+        if args.frontend_mode == "local"
+        else None,
         "projects": projects,
     }
     (work / "preparation.json").write_text(json.dumps(provenance, indent=2) + "\n")
