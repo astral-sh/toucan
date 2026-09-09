@@ -99,7 +99,17 @@ pub struct ExprUse {
     pub(crate) expression: ExprId,
     pub(crate) effective_type: TypeId,
     pub(crate) context: UseContext,
-    pub(crate) conversions: Vec<ConversionStep>,
+    pub(crate) conversions: thin_vec::ThinVec<ConversionStep>,
+}
+
+/// Account for the header of each nonempty conversion list as well as its elements.
+pub(super) fn conversion_payload_bytes(length: usize) -> usize {
+    if length == 0 {
+        0
+    } else {
+        (2 * std::mem::size_of::<usize>()).max(std::mem::align_of::<ConversionStep>())
+            + length * std::mem::size_of::<ConversionStep>()
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -929,7 +939,7 @@ impl Analyzer {
     ) -> Result<ExprUse, Error> {
         debug_assert_eq!(context == UseContext::ReusedValue, reused.is_some());
         let info = self.code_builder().expression_info(expression_id);
-        let mut conversions = Vec::new();
+        let mut conversions = thin_vec::ThinVec::new();
         let mut ty = if let Some(value) = reused {
             self.code_builder().code.types[value.effective_type.index()].clone()
         } else {
@@ -1014,8 +1024,7 @@ impl Analyzer {
         self.code_builder().budget.charge(
             0,
             2 + conversions.len(),
-            std::mem::size_of::<ExprUse>()
-                + conversions.len() * std::mem::size_of::<ConversionStep>(),
+            std::mem::size_of::<ExprUse>() + conversion_payload_bytes(conversions.len()),
             offset,
         )?;
         Ok(ExprUse {
@@ -1994,7 +2003,8 @@ impl Analyzer {
                     self.code_builder().budget.charge(
                         0,
                         2,
-                        std::mem::size_of::<ConversionStep>(),
+                        conversion_payload_bytes(operand.conversions.len() + 1)
+                            - conversion_payload_bytes(operand.conversions.len()),
                         offset,
                     )?;
                     operand.conversions.push(ConversionStep {

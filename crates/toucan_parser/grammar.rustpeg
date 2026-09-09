@@ -684,7 +684,7 @@ type_specifier_nonunique -> TypeSpecifier =
 struct_or_union_specifier -> StructType =
     t:node<struct_or_union> _ a:declspec_specifier_list _ i:identifier? _ d:struct_or_union_body {
         StructType {
-            extensions: a,
+            extensions: a.into_iter().collect(),
             kind: t,
             identifier: i,
             declarations: d,
@@ -692,7 +692,7 @@ struct_or_union_specifier -> StructType =
     } /
     t:node<struct_or_union> _ a:declspec_specifier_list _ i:identifier {
         StructType {
-            extensions: a,
+            extensions: a.into_iter().collect(),
             kind: t,
             identifier: Some(i),
             declarations: None,
@@ -756,14 +756,14 @@ struct_declarator -> StructDeclarator =
 enum_specifier -> EnumType =
     K<"enum"> _ a:declspec_specifier_list _ i:identifier? _ "{" _ e:cs1<node<enumerator>> _ ","? _ "}" {
         EnumType {
-            extensions: a,
+            extensions: a.into_iter().collect(),
             identifier: i,
             enumerators: e,
         }
     } /
     K<"enum"> _ a:declspec_specifier_list _ i:identifier {
         EnumType {
-            extensions: a,
+            extensions: a.into_iter().collect(),
             identifier: Some(i),
             enumerators: Vec::new(),
         }
@@ -775,7 +775,7 @@ enumerator -> Enumerator =
         Enumerator {
             identifier: i,
             expression: e,
-            extensions: a.unwrap_or_default(),
+            extensions: a.unwrap_or_default().into_iter().collect(),
         }
     }
 
@@ -834,7 +834,7 @@ declarator0 -> Declarator =
         Declarator {
             kind: kind,
             derived: concat(pointer, derived),
-            extensions: attr,
+            extensions: attr.into_iter().collect(),
         }
     }
 
@@ -920,7 +920,7 @@ parameter_declaration0 -> ParameterDeclaration =
         ParameterDeclaration {
             specifiers: s,
             declarator: d,
-            extensions: a.unwrap_or_default()
+            extensions: a.unwrap_or_default().into_iter().collect()
         }
     }
 
@@ -950,27 +950,27 @@ abstract_declarator -> Node<Declarator> = node<abstract_declarator0>
 
 abstract_declarator0 -> Declarator =
     attr:list1<node<calling_convention_keyword>> _ d:abstract_declarator0 {
-        Declarator { extensions: concat(attr, d.extensions), ..d }
+        Declarator { extensions: attr.into_iter().chain(d.extensions).collect(), ..d }
     } /
     p:list0<pointer> _ k:node<direct_abstract_declarator> _ d:list0<derived_abstract_declarator> {
         Declarator {
             kind: k,
             derived: concat(p, d),
-            extensions: Vec::new(),
+            extensions: Default::default(),
         }
     } /
     p:list0<pointer> k:#position _ d:list1<derived_abstract_declarator> {
         Declarator {
             kind: checked_node!(__state.budget, DeclaratorKind::Abstract, Span::span(k, k)),
             derived: concat(p, d),
-            extensions: Vec::new(),
+            extensions: Default::default(),
         }
     } /
     p:list1<pointer> k:#position {
         Declarator {
             kind: checked_node!(__state.budget, DeclaratorKind::Abstract, Span::span(k, k)),
             derived: p,
-            extensions: Vec::new(),
+            extensions: Default::default(),
         }
     }
 

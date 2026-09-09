@@ -13,6 +13,7 @@
 #![allow(ellipsis_inclusive_range_patterns)]
 
 extern crate rustc_hash;
+extern crate thin_vec;
 
 pub mod ast;
 pub mod driver;

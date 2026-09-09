@@ -69,7 +69,7 @@ pub struct ParameterEntry {
     pub(crate) declaration: SiteId,
     pub(crate) incoming: super::TypeUseId,
     /// Value conversion at entry; never an atomic load from the incoming value.
-    pub(crate) conversions: Vec<super::ConversionStep>,
+    pub(crate) conversions: thin_vec::ThinVec<super::ConversionStep>,
 }
 
 #[derive(Debug, Serialize)]
@@ -385,7 +385,7 @@ impl Builder {
             std::mem::size_of::<OldStyleDefinition>()
                 + parameters
                     * (std::mem::size_of::<ParameterEntry>()
-                        + std::mem::size_of::<super::ConversionStep>())
+                        + super::expression::conversion_payload_bytes(1))
                 + declarations * std::mem::size_of::<DeclarationGroupId>(),
             offset,
         )
@@ -550,9 +550,9 @@ impl Analyzer {
                 let use_id = site.type_use;
                 let incoming = builder.retype_use(use_id, incoming, offset)?;
                 let conversions = if builder.code.type_uses[incoming.index()].shape == local {
-                    Vec::new()
+                    thin_vec::ThinVec::new()
                 } else {
-                    vec![super::ConversionStep {
+                    thin_vec::thin_vec![super::ConversionStep {
                         kind: Conversion::Assignment,
                         target_type: local,
                     }]

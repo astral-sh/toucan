@@ -13,6 +13,7 @@ lang-c.workspace = true
 serde.workspace = true
 smallvec.workspace = true
 thiserror.workspace = true
+thin-vec = { workspace = true, features = ["serde"] }
 toucan_target = { version = "0.0.1", path = "../toucan_target" }
 
 [dev-dependencies]

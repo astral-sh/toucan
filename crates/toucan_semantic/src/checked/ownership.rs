@@ -168,7 +168,7 @@ impl Builder {
                     } else {
                         UseContext::Unevaluated
                     },
-                    conversions: Vec::new(),
+                    conversions: thin_vec::ThinVec::new(),
                 })
             }
             ast::TypeOf::Type(name) => TypeOperandInput::TypeName {

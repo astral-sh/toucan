@@ -10292,7 +10292,7 @@ fn __parse_struct_or_union_specifier<'input>(__input: &'input str, __state: &mut
                                                         Matched(__pos, _) => {
                                                             let __seq_res = __parse_struct_or_union_body(__input, __state, __pos, env);
                                                             match __seq_res {
-                                                                Matched(__pos, d) => Matched(__pos, { StructType { extensions: a, kind: t, identifier: i, declarations: d } }),
+                                                                Matched(__pos, d) => Matched(__pos, { StructType { extensions: a.into_iter().collect(), kind: t, identifier: i, declarations: d } }),
                                                                 Failed => Failed,
                                                             }
                                                         }
@@ -10356,7 +10356,7 @@ fn __parse_struct_or_union_specifier<'input>(__input: &'input str, __state: &mut
                                             Matched(__pos, _) => {
                                                 let __seq_res = __parse_identifier(__input, __state, __pos, env);
                                                 match __seq_res {
-                                                    Matched(__pos, i) => Matched(__pos, { StructType { extensions: a, kind: t, identifier: Some(i), declarations: None } }),
+                                                    Matched(__pos, i) => Matched(__pos, { StructType { extensions: a.into_iter().collect(), kind: t, identifier: Some(i), declarations: None } }),
                                                     Failed => Failed,
                                                 }
                                             }
@@ -11925,7 +11925,7 @@ fn __parse_enum_specifier<'input>(__input: &'input str, __state: &mut ParseState
                                                                                                         Matched(__pos, _) => {
                                                                                                             let __seq_res = slice_eq(__input, __state, __pos, "}");
                                                                                                             match __seq_res {
-                                                                                                                Matched(__pos, _) => Matched(__pos, { EnumType { extensions: a, identifier: i, enumerators: e } }),
+                                                                                                                Matched(__pos, _) => Matched(__pos, { EnumType { extensions: a.into_iter().collect(), identifier: i, enumerators: e } }),
                                                                                                                 Failed => Failed,
                                                                                                             }
                                                                                                         }
@@ -12017,7 +12017,7 @@ fn __parse_enum_specifier<'input>(__input: &'input str, __state: &mut ParseState
                                             Matched(__pos, _) => {
                                                 let __seq_res = __parse_identifier(__input, __state, __pos, env);
                                                 match __seq_res {
-                                                    Matched(__pos, i) => Matched(__pos, { EnumType { extensions: a, identifier: Some(i), enumerators: Vec::new() } }),
+                                                    Matched(__pos, i) => Matched(__pos, { EnumType { extensions: a.into_iter().collect(), identifier: Some(i), enumerators: Vec::new() } }),
                                                     Failed => Failed,
                                                 }
                                             }
@@ -12091,7 +12091,7 @@ fn __parse_enumerator<'input>(__input: &'input str, __state: &mut ParseState<'in
                                         match __seq_res {
                                             Matched(__pos, e) => Matched(__pos, {
                                                 env.add_symbol(&i.node.name, Symbol::Identifier);
-                                                Enumerator { identifier: i, expression: e, extensions: a.unwrap_or_default() }
+                                                Enumerator { identifier: i, expression: e, extensions: a.unwrap_or_default().into_iter().collect() }
                                             }),
                                             Failed => Failed,
                                         }
@@ -13492,7 +13492,7 @@ fn __parse_declarator0<'input>(__input: &'input str, __state: &mut ParseState<'i
                                                             }
                                                         };
                                                         match __seq_res {
-                                                            Matched(__pos, derived) => Matched(__pos, { Declarator { kind: kind, derived: concat(pointer, derived), extensions: attr } }),
+                                                            Matched(__pos, derived) => Matched(__pos, { Declarator { kind: kind, derived: concat(pointer, derived), extensions: attr.into_iter().collect() } }),
                                                             Failed => Failed,
                                                         }
                                                     }
@@ -14817,7 +14817,7 @@ fn __parse_parameter_declaration0<'input>(__input: &'input str, __state: &mut Pa
                                             Failed => Matched(__pos, None),
                                         };
                                         match __seq_res {
-                                            Matched(__pos, a) => Matched(__pos, { ParameterDeclaration { specifiers: s, declarator: d, extensions: a.unwrap_or_default() } }),
+                                            Matched(__pos, a) => Matched(__pos, { ParameterDeclaration { specifiers: s, declarator: d, extensions: a.unwrap_or_default().into_iter().collect() } }),
                                             Failed => Failed,
                                         }
                                     }
@@ -15064,7 +15064,7 @@ fn __parse_abstract_declarator0<'input>(__input: &'input str, __state: &mut Pars
                         Matched(__pos, _) => {
                             let __seq_res = __parse_abstract_declarator0(__input, __state, __pos, env);
                             match __seq_res {
-                                Matched(__pos, d) => Matched(__pos, { Declarator { extensions: concat(attr, d.extensions), ..d } }),
+                                Matched(__pos, d) => Matched(__pos, { Declarator { extensions: attr.into_iter().chain(d.extensions).collect(), ..d } }),
                                 Failed => Failed,
                             }
                         }
@@ -15187,7 +15187,7 @@ fn __parse_abstract_declarator0<'input>(__input: &'input str, __state: &mut Pars
                                                         }
                                                     };
                                                     match __seq_res {
-                                                        Matched(__pos, d) => Matched(__pos, { Declarator { kind: k, derived: concat(p, d), extensions: Vec::new() } }),
+                                                        Matched(__pos, d) => Matched(__pos, { Declarator { kind: k, derived: concat(p, d), extensions: Default::default() } }),
                                                         Failed => Failed,
                                                     }
                                                 }
@@ -15293,7 +15293,7 @@ fn __parse_abstract_declarator0<'input>(__input: &'input str, __state: &mut Pars
                                                         }
                                                     };
                                                     match __seq_res {
-                                                        Matched(__pos, d) => Matched(__pos, { Declarator { kind: checked_node!(__state.budget, DeclaratorKind::Abstract, Span::span(k, k)), derived: concat(p, d), extensions: Vec::new() } }),
+                                                        Matched(__pos, d) => Matched(__pos, { Declarator { kind: checked_node!(__state.budget, DeclaratorKind::Abstract, Span::span(k, k)), derived: concat(p, d), extensions: Default::default() } }),
                                                         Failed => Failed,
                                                     }
                                                 }
@@ -15354,7 +15354,7 @@ fn __parse_abstract_declarator0<'input>(__input: &'input str, __state: &mut Pars
                                     Matched(__pos, p) => {
                                         let __seq_res = Matched(__pos, __pos);
                                         match __seq_res {
-                                            Matched(__pos, k) => Matched(__pos, { Declarator { kind: checked_node!(__state.budget, DeclaratorKind::Abstract, Span::span(k, k)), derived: p, extensions: Vec::new() } }),
+                                            Matched(__pos, k) => Matched(__pos, { Declarator { kind: checked_node!(__state.budget, DeclaratorKind::Abstract, Span::span(k, k)), derived: p, extensions: Default::default() } }),
                                             Failed => Failed,
                                         }
                                     }

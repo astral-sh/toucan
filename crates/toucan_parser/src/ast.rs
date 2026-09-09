@@ -21,6 +21,7 @@
 //! - `typeof` type specifiers
 
 use span::Node;
+use thin_vec::ThinVec;
 
 // From 6.4 Lexical elements
 
@@ -749,7 +750,7 @@ pub enum TS18661FloatFormat {
 #[derive(Debug, PartialEq, Clone)]
 pub struct StructType {
     /// Attributes written between the tag keyword and its name or body.
-    pub extensions: Vec<Node<Extension>>,
+    pub extensions: ThinVec<Node<Extension>>,
     pub kind: Node<StructKind>,
     pub identifier: Option<Node<Identifier>>,
     /// List of structure of union members, when present.
@@ -814,7 +815,7 @@ pub struct StructDeclarator {
 #[derive(Debug, PartialEq, Clone)]
 pub struct EnumType {
     /// Attributes written between `enum` and its name or body.
-    pub extensions: Vec<Node<Extension>>,
+    pub extensions: ThinVec<Node<Extension>>,
     pub identifier: Option<Node<Identifier>>,
     pub enumerators: Vec<Node<Enumerator>>,
 }
@@ -826,7 +827,7 @@ pub struct EnumType {
 pub struct Enumerator {
     pub identifier: Node<Identifier>,
     pub expression: Option<Box<Node<Expression>>>,
-    pub extensions: Vec<Node<Extension>>,
+    pub extensions: ThinVec<Node<Extension>>,
 }
 
 // From 6.7.3
@@ -910,7 +911,7 @@ pub struct Declarator {
     /// Contains pointer, array and function declarator elements
     pub derived: Vec<Node<DerivedDeclarator>>,
     /// Vendor-specific extensions
-    pub extensions: Vec<Node<Extension>>,
+    pub extensions: ThinVec<Node<Extension>>,
 }
 
 /// Name of a declarator
@@ -1004,7 +1005,7 @@ pub enum ArraySize {
 pub struct ParameterDeclaration {
     pub specifiers: Vec<Node<DeclarationSpecifier>>,
     pub declarator: Option<Node<Declarator>>,
-    pub extensions: Vec<Node<Extension>>,
+    pub extensions: ThinVec<Node<Extension>>,
 }
 
 /// Whether function signature ends with a `...`

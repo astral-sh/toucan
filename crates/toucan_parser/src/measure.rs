@@ -131,6 +131,28 @@ impl<T: Measure> Measure for Vec<T> {
         Ok(result)
     }
 }
+impl<T: Measure> Measure for ::thin_vec::ThinVec<T> {
+    fn measure(
+        &self,
+        budget: &mut Budget,
+        offset: usize,
+        depth: usize,
+    ) -> Result<Measurement, &'static str> {
+        budget.visit(offset, depth)?;
+        let mut result = Measurement::own::<Self>();
+        if !self.is_empty() {
+            // Nonempty ThinVec allocations store their length and capacity ahead
+            // of the elements, with padding for the element alignment.
+            result.bytes = result.bytes.saturating_add(
+                (2 * ::std::mem::size_of::<usize>()).max(::std::mem::align_of::<T>()) as u64,
+            );
+        }
+        for child in self {
+            result.add(child.measure(budget, offset, depth + 1)?);
+        }
+        Ok(result)
+    }
+}
 impl<T: Measure> Measure for Option<T> {
     fn measure(
         &self,

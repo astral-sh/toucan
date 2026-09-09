@@ -75,7 +75,8 @@ preserves their attributes and source spans.
 Parsing uses a bounded scoped worker stack; `driver::with_parser_stack` reuses one
 worker for a batch of calls. `driver::parse_preprocessed_with_limits` accepts limits
 and returns source-positioned resource diagnostics. `ParseStatistics` records actual
-accounted work. The AST representation is unchanged. See
+accounted work. Declaration extension lists use `ThinVec` to keep empty attribute
+lists to one pointer; structural accounting includes nonempty allocation headers. See
 [parser limits](../../docs/parser-limits.md) for the accounting and tests.
 
 The package name and imports in examples and development binaries are updated. Handwritten code has mechanical fixes for current Rust and Clippy warnings. Two local lint allowances preserve the existing AST representation and `Span::span` API. The generated header enumerates the Clippy style lints produced by the pinned generator. The crate forbids unsafe Rust. No generator is run during ordinary builds.
