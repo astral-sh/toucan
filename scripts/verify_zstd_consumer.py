@@ -9,6 +9,7 @@ import hashlib
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 from pathlib import Path
@@ -22,10 +23,21 @@ PROFILES = {
     "zstdmt": ["zstdmt"],
     "experimental-zstdmt": ["experimental", "zstdmt"],
 }
+I686_TARGET = "i686-unknown-linux-gnu"
 
 
 def digest(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
+
+
+def has_i686_elf_headers(headers: str, objects: int) -> bool:
+    return objects > 0 and all(
+        len(re.findall(pattern, headers, re.MULTILINE)) == objects
+        for pattern in (
+            r"^\s*Class:\s+ELF32\s*$",
+            r"^\s*Machine:\s+Intel 80386\s*$",
+        )
+    )
 
 
 def package_versions(metadata: dict) -> list[tuple[str, str]]:
@@ -56,6 +68,7 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
     features = PROFILES[profile]
     feature_args = ["--features", ",".join(features)] if features else []
     commands: list[dict] = []
+    cross_environment: dict[str, str] = {}
     evidence = {
         "recorded_at": datetime.datetime.now(datetime.timezone.utc).isoformat(),
         "platform": platform.platform(),
@@ -77,12 +90,15 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
         }
         commands.append(entry)
         environment = None
+        overrides = cross_environment.copy()
         if artifact_dir is not None:
             if artifact_dir.exists():
                 shutil.rmtree(artifact_dir)
             artifact_dir.mkdir()
-            entry["environment"] = {"TOUCAN_CONSUMER_OUTPUT": str(artifact_dir)}
-            environment = os.environ | entry["environment"]
+            overrides["TOUCAN_CONSUMER_OUTPUT"] = str(artifact_dir)
+        if overrides:
+            entry["environment"] = overrides
+            environment = os.environ | overrides
         with stdout.open("w") as out, stderr.open("w") as err:
             process = subprocess.run(
                 command,
@@ -97,6 +113,22 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
         if process.returncode:
             raise RuntimeError(f"{name} failed: {stderr.read_text()[-6000:]}")
         return stdout.read_text()
+
+    def require_i686_elf(path: Path, name: str) -> None:
+        header = run(["readelf", "--wide", "--file-header", str(path)], f"elf-{name}")
+        if not has_i686_elf_headers(header, 1):
+            raise RuntimeError(f"{name} is not an ELF32 Intel 80386 binary: {path}")
+        evidence.setdefault("native_i686_elf", {})[name] = digest(path)
+
+    def require_i686_archive(path: Path, name: str) -> None:
+        members = run(["ar", "t", str(path)], f"archive-{name}").splitlines()
+        headers = run(["readelf", "--wide", "--file-header", str(path)], f"archive-elf-{name}")
+        if not has_i686_elf_headers(headers, len(members)):
+            raise RuntimeError(f"{name} has a missing or non-i686 C object: {path}")
+        evidence.setdefault("native_i686_c_archives", {})[name] = {
+            "sha256": digest(path),
+            "objects": len(members),
+        }
 
     try:
         if "ZSTD_SYS_USE_PKG_CONFIG" in os.environ:
@@ -116,7 +148,44 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
         evidence["rust_target"] = "1.64"
         evidence["rustc"] = run([*rustc, "--version", "--verbose"], "rustc").strip()
         evidence["cargo"] = run([*cargo, "--version"], "cargo").strip()
-        if f"host: {args.target}" not in evidence["rustc"].splitlines():
+        if args.native_i686:
+            if (
+                args.target != I686_TARGET
+                or platform.system() != "Linux"
+                or platform.machine() != "x86_64"
+            ):
+                raise RuntimeError(
+                    "native i686 consumer requires an x86_64 Linux host and the i686 GNU target"
+                )
+            if "host: x86_64-unknown-linux-gnu" not in evidence["rustc"].splitlines():
+                raise RuntimeError("native i686 consumer requires an x86_64 GNU Rust toolchain")
+            target_lib = Path(
+                run(
+                    [*rustc, "--print", "target-libdir", "--target", args.target],
+                    "i686-rust-target-libdir",
+                ).strip()
+            )
+            stdlib = list(target_lib.glob("libstd-*.rlib"))
+            if len(stdlib) != 1:
+                raise RuntimeError(f"expected exactly one installed {I686_TARGET} Rust std: {stdlib}")
+            evidence["native_i686_rust_std_sha256"] = digest(stdlib[0])
+            linker = cache / "i686-gcc-linker"
+            linker.write_text('#!/bin/sh\nexec gcc -m32 "$@"\n')
+            linker.chmod(0o755)
+            cross_environment.update(
+                {
+                    "CARGO_TARGET_I686_UNKNOWN_LINUX_GNU_LINKER": str(linker),
+                    "CC_i686_unknown_linux_gnu": "gcc",
+                    "CFLAGS_i686_unknown_linux_gnu": "-m32",
+                    "AR_i686_unknown_linux_gnu": "ar",
+                }
+            )
+            evidence["native_i686_linker_sha256"] = digest(linker)
+            for compiler in ("gcc", "clang"):
+                evidence.setdefault("native_i686_compiler_versions", {})[compiler] = run(
+                    [compiler, "--version"], f"i686-{compiler}-version"
+                ).splitlines()[0]
+        elif f"host: {args.target}" not in evidence["rustc"].splitlines():
             raise RuntimeError(
                 "consumer execution requires --target to match the Rust host"
             )
@@ -150,6 +219,33 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
         assert not {"bindgen", "pkg-config", "seekable"}.intersection(sys_features)
         evidence["resolved_features"] = upstream_features
         sys_source = Path(packages["zstd-sys"]["manifest_path"]).parent
+        if args.native_i686:
+            probe = output / "i686-zstd-layout.c"
+            probe.write_text(
+                (ROOT / "corpus/evidence/i686-target-2026-09-09/zstd-layouts.c").read_text()
+                + "\nint main(void) { return 0; }\n"
+            )
+            evidence["native_i686_layout_source_sha256"] = digest(probe)
+            for compiler, flags in (
+                ("gcc", ["gcc", "-m32"]),
+                ("clang", ["clang", f"--target={I686_TARGET}", "-m32"]),
+            ):
+                binary = output / f"i686-zstd-layout-{compiler}"
+                run(
+                    [
+                        *flags,
+                        "-std=gnu11",
+                        "-Werror",
+                        "-I",
+                        str(sys_source / "zstd/lib"),
+                        str(probe),
+                        "-o",
+                        str(binary),
+                    ],
+                    f"i686-zstd-layout-{compiler}-compile",
+                )
+                require_i686_elf(binary, f"zstd-layout-{compiler}")
+                run([str(binary)], f"i686-zstd-layout-{compiler}-run")
         sys_copy, consumer = cache / "zstd-sys", cache / "consumer"
         # Start from pristine inputs even when reusing a build cache from an
         # earlier harness version or an interrupted run.
@@ -184,6 +280,7 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
             "--offline",
             "--manifest-path",
             str(consumer / "Cargo.toml"),
+            *(["--target", args.target] if args.native_i686 else []),
             *feature_args,
             "-j",
             "4",
@@ -193,6 +290,13 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
             "run-upstream-consumer",
             output / "upstream-artifacts",
         ).strip()
+        if args.native_i686:
+            baseline_target = cache / "baseline-target" / args.target / "release"
+            require_i686_elf(baseline_target / "toucan-zstd-consumer", "upstream-consumer")
+            archives = list((baseline_target / "build").glob("zstd-sys-*/out/libzstd.a"))
+            if len(archives) != 1:
+                raise RuntimeError(f"expected one upstream bundled C zstd archive: {archives}")
+            require_i686_archive(archives[0], "upstream-zstd-c")
         with (consumer / "Cargo.toml").open("a") as manifest:
             manifest.write(
                 f"\n[patch.crates-io]\nzstd-sys = {{ path = {json.dumps(str(sys_copy))} }}\n"
@@ -211,6 +315,7 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
                 str(sys_copy / f"zstd/lib/{header}.h"),
                 "--target",
                 args.target,
+                *(["--compiler", "clang"] if args.native_i686 else []),
                 "--allowlist",
                 f"{header.upper()}*",
                 "--rust-target",
@@ -257,6 +362,7 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
                 "--test",
                 "--crate-name",
                 "bindings_layout",
+                *(["--target", args.target, "-C", f"linker={linker}"] if args.native_i686 else []),
                 "-A",
                 "warnings",
                 "-D",
@@ -268,6 +374,8 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
             ],
             "compile-layout-tests",
         )
+        if args.native_i686:
+            require_i686_elf(layout_tests, "generated-layout-tests")
         evidence["layout_tests"] = run([str(layout_tests)], "run-layout-tests").strip()
         patched = json.loads(
             run(
@@ -305,6 +413,13 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
             "run-consumer",
             output / "toucan-artifacts",
         ).strip()
+        if args.native_i686:
+            generated_target = cache / "target" / args.target / "release"
+            require_i686_elf(generated_target / "toucan-zstd-consumer", "generated-consumer")
+            archives = list((generated_target / "build").glob("zstd-sys-*/out/libzstd.a"))
+            if len(archives) != 1:
+                raise RuntimeError(f"expected one generated bundled C zstd archive: {archives}")
+            require_i686_archive(archives[0], "generated-zstd-c")
         evidence["result"] = result
         assert result == evidence["baseline_result"], (
             "consumer results differ from upstream"
@@ -333,7 +448,12 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
         # rustc dep-info proves the cfg-selected includes were consumed. An
         # experimental build that falls back to checked-in bindings must fail.
         dependencies = []
-        for path in sorted((cache / "target/release/deps").glob("zstd_sys-*.d")):
+        deps_dir = (
+            cache / "target" / args.target / "release/deps"
+            if args.native_i686
+            else cache / "target/release/deps"
+        )
+        for path in sorted(deps_dir.glob("zstd_sys-*.d")):
             content = path.read_text()
             if all(
                 str(sys_copy / name).replace(" ", "\\ ") in content for name in selected
@@ -393,6 +513,11 @@ def main() -> None:
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument(
         "--target", required=True, help="Native Rust host target used for execution"
+    )
+    parser.add_argument(
+        "--native-i686",
+        action="store_true",
+        help="Run ELF32 i686 consumers on an x86_64 Linux host with 32-bit glibc",
     )
     parser.add_argument("--sysroot", type=Path)
     parser.add_argument(

@@ -24,7 +24,39 @@ has no bindgen or libclang requirement.
 JSON evidence records commands, generated bindings, package and source hashes,
 and rustc dependency files proving that both selected generated binding files
 were compiled. Only those two files may differ from the upstream sys crate.
-This is a native execution check: `--target` must match the Rust compiler's host.
+By default, this is a native execution check: `--target` must match the Rust
+compiler's host.
+
+## Native i686 Linux acceptance
+
+The [i686 zstd consumer workflow](../../.github/workflows/i686-zstd-consumer.yml)
+installs the i686 Rust standard library and 32-bit glibc development files on
+an x86-64 Ubuntu runner. It runs the pinned, unchanged `zstd-sys` C build script
+and `zstd`/`zstd-safe` wrappers twice with Cargo's `--target
+i686-unknown-linux-gnu`: once with upstream bindings, then with Toucan output.
+The consumer executes bulk, streaming, and dictionary C APIs and compares the
+Rust results and the compressed outputs byte for byte. Both compiler profiles
+compile and execute C assertions for the pinned zstd buffer layouts; the C
+archives, Rust consumer executables, and generated layout tests must contain
+ELF32 Intel 80386 objects. The dep-info check proves the generated binding
+files were selected by upstream's original crate root.
+
+Run on an x86-64 Linux host with `gcc -m32`, 32-bit glibc, `clang`, `readelf`,
+`ar`, Python 3.12, and an installed `i686-unknown-linux-gnu` Rust standard
+library:
+
+```console
+python3 scripts/verify_zstd_consumer.py \
+  --toucan target/release/toucan \
+  --target i686-unknown-linux-gnu --native-i686 --sysroot / \
+  --profile default --cache corpus/cache/i686-zstd-consumer \
+  --output results/i686-zstd/acceptance
+```
+
+The workflow runs only when pushing the dedicated acceptance branch;
+it does not allocate a macOS runner. It tests the default feature profile
+through native i686 FFI, without claiming arbitrary zstd API coverage or
+nondefault feature profiles on i686.
 
 ## Feature profiles
 
