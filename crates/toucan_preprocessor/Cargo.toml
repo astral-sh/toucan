@@ -7,6 +7,9 @@ license.workspace = true
 repository.workspace = true
 description = "A bounded C preprocessor without compiler subprocesses"
 
+[dependencies]
+char_str.workspace = true
+
 [target.'cfg(windows)'.dependencies]
 winapi-util = "0.1.11"
 
