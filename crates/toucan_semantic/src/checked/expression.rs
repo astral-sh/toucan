@@ -268,6 +268,9 @@ pub enum Builtin {
     CountTrailingZeros,
     CountTrailingZerosLong,
     CountTrailingZerosLongLong,
+    PopulationCount,
+    PopulationCountLong,
+    PopulationCountLongLong,
 }
 impl Builtin {
     /// Whether evaluated uses must be expanded with a concrete inlined caller.
@@ -350,6 +353,9 @@ impl Builtin {
             "__builtin_ctz" => Self::CountTrailingZeros,
             "__builtin_ctzl" => Self::CountTrailingZerosLong,
             "__builtin_ctzll" => Self::CountTrailingZerosLongLong,
+            "__builtin_popcount" => Self::PopulationCount,
+            "__builtin_popcountl" => Self::PopulationCountLong,
+            "__builtin_popcountll" => Self::PopulationCountLongLong,
             name => {
                 if let Some(operation) = crate::elementwise::ElementwiseOperation::from_name(name) {
                     Self::Elementwise(operation)
@@ -2377,6 +2383,21 @@ mod tests {
             (
                 "__builtin_ctzll",
                 Builtin::CountTrailingZerosLongLong,
+                IntegerKind::UnsignedLongLong,
+            ),
+            (
+                "__builtin_popcount",
+                Builtin::PopulationCount,
+                IntegerKind::UnsignedInt,
+            ),
+            (
+                "__builtin_popcountl",
+                Builtin::PopulationCountLong,
+                IntegerKind::UnsignedLong,
+            ),
+            (
+                "__builtin_popcountll",
+                Builtin::PopulationCountLongLong,
                 IntegerKind::UnsignedLongLong,
             ),
         ];

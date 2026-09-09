@@ -1,13 +1,18 @@
-use toucan_semantic::{AnalysisOptions, analyze, analyze_with_options, evaluate_integer};
-use toucan_target::Target;
+use toucan_semantic::{
+    AnalysisOptions, analyze, analyze_with_options, evaluate_integer, has_builtin,
+};
+use toucan_target::{CompilerProfile, Target};
 
-const NAMES: [&str; 6] = [
+const NAMES: [&str; 9] = [
     "__builtin_clz",
     "__builtin_clzl",
     "__builtin_clzll",
     "__builtin_ctz",
     "__builtin_ctzl",
     "__builtin_ctzll",
+    "__builtin_popcount",
+    "__builtin_popcountl",
+    "__builtin_popcountll",
 ];
 
 fn constants(target: Target) -> Vec<(String, u128)> {
@@ -30,6 +35,24 @@ fn constants(target: Target) -> Vec<(String, u128)> {
         ),
         ("__builtin_clzl(0x100000001ULL)".into(), 31),
         ("__builtin_ctzl(0x100000008ULL)".into(), 3),
+        ("__builtin_popcount(0)".into(), 0),
+        ("__builtin_popcountl(0)".into(), 0),
+        ("__builtin_popcountll(0)".into(), 0),
+        ("__builtin_popcount(0.9)".into(), 0),
+        ("__builtin_popcount(8.9)".into(), 1),
+        ("__builtin_popcount(-1)".into(), 32),
+        (
+            "__builtin_popcountl(-1L)".into(),
+            u128::from(target.long_width()),
+        ),
+        ("__builtin_popcountll(-1LL)".into(), 64),
+        ("__builtin_popcount(0x100000001ULL)".into(), 1),
+        (
+            "__builtin_popcountl(0x100000001ULL)".into(),
+            1 + u128::from(target.long_width() == 64),
+        ),
+        ("__builtin_popcountll(0x100000001ULL)".into(), 2),
+        ("__builtin_popcountll(__builtin_popcountll(-1LL))".into(), 1),
     ];
     // Exercise every bit position in each target parameter width.
     for name in NAMES {
@@ -45,6 +68,8 @@ fn constants(target: Target) -> Vec<(String, u128)> {
                 format!("{name}(1ULL << {bit})"),
                 u128::from(if name.starts_with("__builtin_clz") {
                     bits - bit - 1
+                } else if name.starts_with("__builtin_popcount") {
+                    1
                 } else {
                     bit
                 }),
@@ -78,6 +103,19 @@ fn invalid() -> Vec<String> {
     cases.push("void f(int __builtin_clz) { __builtin_clz(1); }".into());
     cases.push("void f(void) { __builtin_ctz(1) = 1; }".into());
     cases
+}
+
+#[test]
+fn population_counts_are_advertised_on_all_profiles() {
+    for profile in CompilerProfile::ALL {
+        for name in [
+            "__builtin_popcount",
+            "__builtin_popcountl",
+            "__builtin_popcountll",
+        ] {
+            assert!(has_builtin(profile, name), "{profile:?}: {name}");
+        }
+    }
 }
 
 #[test]
@@ -130,6 +168,15 @@ fn undefined_and_nonconstant_bit_counts_are_not_folded() {
     for target in Target::ALL {
         let unit = analyze("int runtime(void);", target).unwrap();
         for name in NAMES {
+            if name.starts_with("__builtin_popcount") {
+                for value in ["0", "0.9"] {
+                    let expression = format!("{name}({value})");
+                    assert_eq!(evaluate_integer(&unit, &expression).unwrap().value, 0);
+                    analyze(&format!("enum {{ n = {expression} }};"), target).unwrap();
+                }
+                assert!(evaluate_integer(&unit, &format!("{name}(runtime())")).is_err());
+                continue;
+            }
             for value in ["0", "0.9"] {
                 let expression = format!("{name}({value})");
                 let error = evaluate_integer(&unit, &expression).unwrap_err();
