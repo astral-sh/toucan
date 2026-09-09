@@ -2,6 +2,7 @@ use std::collections::{BTreeMap, HashMap, HashSet};
 use std::num::NonZeroU32;
 
 use serde::{Serialize, Serializer, ser::SerializeStruct};
+use smallvec::SmallVec;
 use toucan_target::{self as target, Target};
 
 use crate::Error;
@@ -738,15 +739,31 @@ impl TranslationUnit {
     /// remain available on the original type.
     pub fn resolve<'a>(&'a self, ty: &'a Type) -> Result<&'a Type, Error> {
         let mut ty = ty;
-        let mut visited = HashSet::new();
+        let mut visited = SmallVec::<[&str; 8]>::new();
+        let mut long_chain = HashSet::new();
         while let TypeKind::Typedef(name) = &ty.kind {
-            if visited.len() >= 128 {
+            if visited.len().max(long_chain.len()) >= 128 {
                 return Err(Error::new(
                     0,
                     "typedef resolution exceeds the 128-level limit",
                 ));
             }
-            if !visited.insert(name) {
+            // Short alias chains need no allocation. Keep hash-based membership
+            // for long chains so the inline fast path does not add quadratic work.
+            let inserted = if visited.len() < visited.inline_size() {
+                if visited.contains(&name.as_str()) {
+                    false
+                } else {
+                    visited.push(name);
+                    true
+                }
+            } else {
+                if long_chain.is_empty() {
+                    long_chain.extend(visited.iter().copied());
+                }
+                long_chain.insert(name.as_str())
+            };
+            if !inserted {
                 return Err(Error::new(0, "cyclic typedef"));
             }
             ty = self

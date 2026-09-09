@@ -470,7 +470,7 @@ pub(crate) struct Builder {
     ambiguous_spans: Vec<Span>,
     entities: HashMap<EntityKey, EntityId>,
     names: HashMap<ScopeId, HashMap<String, EntityId>>,
-    type_hashes: HashMap<u64, Vec<TypeId>>,
+    type_hashes: HashMap<u64, smallvec::SmallVec<[TypeId; 1]>>,
     hasher: RandomState,
     current: ScopeId,
     /// A function's synthetic declaration is the same written definition.
@@ -1517,6 +1517,26 @@ mod tests {
             .iter()
             .filter(|site| code.entities[site.entity.index()].name.as_deref() == Some(name))
             .collect()
+    }
+
+    #[test]
+    fn type_interning_handles_hash_collisions() {
+        let mut builder =
+            Builder::new(&ast::TranslationUnit(Vec::new()), 0, Limits::default()).unwrap();
+        let int = Type::new(TypeKind::Integer(IntegerKind::Int));
+        let long = Type::new(TypeKind::Integer(IntegerKind::Long));
+        let int_id = builder.intern_type(&int, 0).unwrap();
+        let long_hash = builder.hasher.hash_one(&long);
+        builder
+            .type_hashes
+            .entry(long_hash)
+            .or_default()
+            .push(int_id);
+        let long_id = builder.intern_type(&long, 0).unwrap();
+        assert_ne!(int_id, long_id);
+        assert_eq!(builder.intern_type(&int, 0).unwrap(), int_id);
+        assert_eq!(builder.intern_type(&long, 0).unwrap(), long_id);
+        assert_eq!(builder.code.types.len(), 2);
     }
 
     #[test]
