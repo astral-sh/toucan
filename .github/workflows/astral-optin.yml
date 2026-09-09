@@ -56,7 +56,8 @@ jobs:
           set -euo pipefail
           mkdir -p results/optin
           cp -R /tmp/toucan-optin-bootstrap results/optin/bootstrap
-          git rev-parse HEAD | tee results/optin/commit.txt
+          git -c "safe.directory=$GITHUB_WORKSPACE" rev-parse HEAD \
+            | tee results/optin/commit.txt
           python3 -B scripts/verify_astral_optin.py \
             --project '${{ matrix.project }}' \
             --cache /tmp/toucan-optin-cache \
