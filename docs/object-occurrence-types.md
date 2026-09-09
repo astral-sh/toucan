@@ -56,3 +56,11 @@ retains the selected `First` or `Second` alias, and passes eight Rust compilatio
 checks. The integrated Builder regression also exercises each name separately
 and both names together for scalar and qualified-array redeclarations. No timing
 claim is made here.
+
+A [Builder composition replay](../corpus/evidence/qualified-object-composition-2026-09-09.json.gz)
+checks the first name, second name, and both names together on the integrated
+source. All three selections retain their written aliases; twelve Rust
+compilations and four GCC/Clang-linked executions pass, including a check that
+both names address the same C array. Bindgen exposes the const-typedef first
+occurrence as mutable in two selections, while Toucan preserves its const
+qualification. The capture retains this API difference.
