@@ -10,7 +10,8 @@ run on the combined source `7db2b850` and names the remaining gates.
 | Path | Result on the frozen source | Boundary |
 | --- | --- | --- |
 | `ty` and `uv` through `zstd-sys` | [Unchanged build scripts and selected frontend artifacts](../corpus/evidence/astral-builder-7db2b85/summary.json); two ty vendored tests and 19 uv extraction tests pass, with matching CLI and wheel behavior. | Native x86-64 Linux zstd generation. This is not the full workspace suite. |
-| `aws-lc-sys` and `aws-lc-rs` crypto | [Paired reference and Toucan builds](../corpus/evidence/aws-lc-builder-7db2b85/summary.json) pass 41 deterministic runtime comparisons, six C/Rust layouts, and generated layout tests. | Native x86-64 Linux crypto-only generation; SSL, `all-bindings`, and FIPS require separate checks. |
+| `aws-lc-sys` and `aws-lc-rs` crypto | [Paired reference and Toucan builds](../corpus/evidence/aws-lc-builder-7db2b85/summary.json) pass 41 deterministic runtime comparisons, six C/Rust layouts, and generated layout tests. | Native x86-64 Linux crypto-only generation; optional profiles are tracked separately. |
+| `aws-lc-sys` with `all-bindings` | [Paired build and consumption](../corpus/evidence/aws-lc-all-bindings-7db2b85/README.md) pass the 41 crypto artifacts, six C/Rust layouts, a memory-BIO call, and 98 generated layout tests per generator. | Native x86-64 Linux; SSL and FIPS are disabled, and complete API equality is unproven. |
 | `uv` HTTPS through AWS-LC | [Paired binaries](../corpus/evidence/uv-tls-builder-7db2b85/summary.json) install the same payload with TLS 1.2 and 1.3, and both reject an unrelated CA or wrong hostname before making a request. | Native x86-64 Linux, the recorded provider and selected features. |
 | Four untouched public-header projects | [Combined-source preflight](../benchmarks/evidence/builder-preflight-callbacks/README.md) checks zlib, SQLite, zstd, and libgit2 with native C probes, generated Rust, and actual FFI calls. | Zlib and zstd pass structural API equality. SQLite's corrected returned callback, ten extra libgit2 aliases, and three signed sentinels remain recorded differences. |
 
@@ -46,9 +47,9 @@ loaded libraries; it does not measure the memory of a full application build.
    while Windows SDK headers and full consumer builds need their own checks.
    The [macOS workflow](../.github/workflows/macos.yml) keeps Intel opt-in, and
    the latest GitHub audit records zero macOS allocations.
-3. **Optional generator profiles.** The AWS crypto route does not exercise SSL,
-   `all-bindings`, FIPS, or its external `bindgen` executable mode. Test each
-   profile that a release will use with the original build script, consumed
+3. **Optional generator profiles.** The recorded AWS crypto and `all-bindings`
+   routes do not exercise SSL, FIPS, or the external `bindgen` executable mode.
+   Test each profile that a release will use with the original build script, consumed
    generated bindings, independent layouts, and representative calls. External
    mode launches the standalone executable and cannot be replaced solely through
    a Cargo dependency substitution. Cover additional zstd feature/header

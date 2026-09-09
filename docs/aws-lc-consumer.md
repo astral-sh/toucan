@@ -132,3 +132,14 @@ target directories; the capture preserves that runner adaptation. The upstream
 source checks and non-generator dependency graph checks pass. This native Linux
 refresh does not refresh uv TLS, measure performance, or establish complete API
 equality or another target.
+
+## All-bindings profile
+
+The [paired `all-bindings` capture](../corpus/evidence/aws-lc-all-bindings-7db2b85/README.md)
+uses the same frozen `7db2b850` frontend with unchanged upstream build scripts
+and Rust wrappers. Both builds enable the same sys crate features and run 98
+emitted layout tests. The 41 crypto artifacts match each other and the previous
+crypto-only capture; six C/Rust layouts and a C/Rust memory-BIO call agree. The
+build artifact and dep-info audit confirms the freshly generated bindings were
+consumed. This Linux x86-64 run does not enable SSL or FIPS, prove full binding
+API equality, or validate another target.
