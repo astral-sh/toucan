@@ -14,6 +14,9 @@ alignment, aggregate sizes, offsets, packing, and constants using both native
 an aggregate, stack parameters, packed values, and bitfields. The generated
 `bindings.rs` is included by `abi.rs`, which calls those C functions in a
 32-bit Rust process for 1,000 rounds per compiler and optimization level.
+The C object uses `-fno-stack-protector` because Rust's `-nodefaultlibs` link
+does not include GCC's separate i386 stack-guard helper; this option changes
+the test object's instrumentation, not its C calling convention or layout.
 
 `scripts/verify_i686_native.py` checks ELF class **and** i386 machine for each
 C layout executable, C ABI object, and Rust FFI executable before executing

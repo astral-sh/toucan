@@ -143,7 +143,9 @@ def verify(output: Path, toucan: Path, preflight: bool) -> dict:
 
             for opt in (0, 2):
                 obj = directory / f"abi-o{opt}.o"
-                run([*cc, "-std=gnu11", "-Werror", f"-O{opt}", "-c", "abi.c", "-o", obj], f"{compiler}-c-o{opt}", directory)
+                # rustc links with -nodefaultlibs, which does not provide the
+                # i386 GCC stack-protector helper for a separately built C object.
+                run([*cc, "-std=gnu11", "-Werror", "-fno-stack-protector", f"-O{opt}", "-c", "abi.c", "-o", obj], f"{compiler}-c-o{opt}", directory)
                 require_i386(obj, f"{compiler}-c-o{opt}")
                 binary = directory / f"ffi-o{opt}"
                 run(
