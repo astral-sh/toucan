@@ -100,21 +100,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f8dcc9c7d52a811697d2151c701e0d08956f92b0e24136cf4cf27b57a6a0d9bf"
 
 [[package]]
-name = "repc"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fd5497e1d1e81bb330f7a48f4093b01b95da3b5b7ac07e7cd9a17d4f5cfe98e6"
-dependencies = [
- "repc-impl",
-]
-
-[[package]]
-name = "repc-impl"
-version = "0.1.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9e110b7d5a1335c2e801176c42a626a905c23eecdee104d9bdfbd6ea5f0b8368"
-
-[[package]]
 name = "rustc_apfloat"
 version = "0.2.3+llvm-462a31f5a5ab"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -229,6 +214,10 @@ dependencies = [
 ]
 
 [[package]]
+name = "toucan_layout"
+version = "0.0.1"
+
+[[package]]
 name = "toucan_parser"
 version = "0.0.1"
 
@@ -255,9 +244,9 @@ version = "0.0.1"
 name = "toucan_target"
 version = "0.0.1"
 dependencies = [
- "repc",
  "serde",
  "thiserror",
+ "toucan_layout",
 ]
 
 [[package]]

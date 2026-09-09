@@ -254,7 +254,8 @@ impl Builder {
         }
         if matches!(
             kind,
-            ExprKind::AlignOf(_)
+            ExprKind::AlignOf { .. }
+                | ExprKind::TypesCompatible { .. }
                 | ExprKind::BuiltinCall {
                     query_evaluation: Some(super::QueryEvaluation::Unevaluated(_)),
                     ..
@@ -264,21 +265,8 @@ impl Builder {
                 suppress(operand);
             }
         }
-        if let ExprKind::Generic {
-            control,
-            arms,
-            selected,
-        } = kind
-        {
-            let ranges: Vec<_> = std::iter::once(control.expression)
-                .chain(
-                    arms.iter()
-                        .enumerate()
-                        .filter(|(i, _)| i != selected)
-                        .map(|(_, arm)| arm.expression),
-                )
-                .map(|id| self.parsed_spans[self.code.expressions[id.index()].occurrence.index()])
-                .collect();
+        let ranges = self.unevaluated_selection_ranges(kind);
+        if !ranges.is_empty() {
             for operand in &mut self.code.type_operands[start..] {
                 let span = self.parsed_spans[operand.occurrence.index()];
                 if ranges
@@ -292,7 +280,7 @@ impl Builder {
     }
 }
 
-fn suppress(operand: &mut TypeOperand) {
+pub(super) fn suppress(operand: &mut TypeOperand) {
     if matches!(
         operand.evaluation,
         TypeOperandEvaluation::Required | TypeOperandEvaluation::MayBeOmitted

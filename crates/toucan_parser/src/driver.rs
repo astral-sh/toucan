@@ -9,8 +9,9 @@ use std::process::Command;
 
 use ast::TranslationUnit;
 use env::Env;
+use limits::{ParseLimits, ParseStatistics, ResourceKind, ResourceLimit};
 use loc;
-use parser::translation_unit;
+use parser::translation_unit_with_limits;
 
 /// Parser configuration
 #[derive(Clone, Debug)]
@@ -21,6 +22,11 @@ pub struct Config {
     pub cpp_options: Vec<String>,
     /// Language flavor to parse
     pub flavor: Flavor,
+    /// Recognize bare asm/typeof keywords; underscored forms follow the flavor.
+    /// StdC11 always leaves these identifiers available.
+    pub gnu_keywords: bool,
+    /// Recognize Microsoft extension keywords, independently of GNU keywords.
+    pub extensions_msvc: bool,
 }
 
 impl Config {
@@ -30,6 +36,8 @@ impl Config {
             cpp_command: "gcc".into(),
             cpp_options: vec!["-E".into()],
             flavor: Flavor::GnuC11,
+            gnu_keywords: true,
+            extensions_msvc: false,
         }
     }
 
@@ -39,6 +47,8 @@ impl Config {
             cpp_command: "clang".into(),
             cpp_options: vec!["-E".into()],
             flavor: Flavor::ClangC11,
+            gnu_keywords: true,
+            extensions_msvc: false,
         }
     }
 }
@@ -64,6 +74,10 @@ pub enum Flavor {
     GnuC11,
     /// Standard C11 with Clang extensions
     ClangC11,
+    /// GNU builtin names with the Clang extension grammar enabled.
+    ///
+    /// Semantic consumers can validate extension availability after parsing.
+    GnuC11WithClangExtensions,
 }
 
 /// Result of a successful parse
@@ -73,6 +87,8 @@ pub struct Parse {
     pub source: String,
     /// Root of the abstract syntax tree
     pub unit: TranslationUnit,
+    /// Resource counters, including failed alternatives.
+    pub statistics: ParseStatistics,
 }
 
 #[derive(Debug)]
@@ -119,6 +135,10 @@ pub struct SyntaxError {
     pub offset: usize,
     /// Tokens expected at the error location
     pub expected: HashSet<&'static str>,
+    /// Present when a resource limit stopped parsing.
+    pub resource: Option<Box<ResourceLimit>>,
+    /// Counters up to the error.
+    pub statistics: Box<ParseStatistics>,
 }
 
 impl SyntaxError {
@@ -144,6 +164,13 @@ impl SyntaxError {
 impl fmt::Display for SyntaxError {
     fn fmt(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let (loc, inc) = self.get_location();
+        if let Some(resource) = &self.resource {
+            return write!(
+                fmt,
+                "{} at \"{}\" line {} column {}",
+                resource, loc.file, loc.line, self.column
+            );
+        }
         try!(write!(
             fmt,
             "unexpected token at \"{}\" line {} column {}, expected ",
@@ -168,22 +195,123 @@ pub fn parse<P: AsRef<Path>>(config: &Config, source: P) -> Result<Parse, Error>
 }
 
 pub fn parse_preprocessed(config: &Config, source: String) -> Result<Parse, SyntaxError> {
-    let mut env = match config.flavor {
-        Flavor::StdC11 => Env::with_core(),
-        Flavor::GnuC11 => Env::with_gnu(),
-        Flavor::ClangC11 => Env::with_clang(),
-    };
+    parse_preprocessed_with_limits(config, source, ParseLimits::default())
+}
 
-    match translation_unit(&source, &mut env) {
-        Ok(unit) => Ok(Parse { source, unit }),
-        Err(err) => Err(SyntaxError {
+/// Parse with deterministic per-invocation resource limits.
+pub fn parse_preprocessed_with_limits(
+    config: &Config,
+    source: String,
+    limits: ParseLimits,
+) -> Result<Parse, SyntaxError> {
+    let failure = if limits.max_rule_depth > 2048 {
+        Some(ResourceLimit {
+            kind: ResourceKind::RuleDepth,
+            offset: 0,
+            limit: 2048,
+            observed: limits.max_rule_depth as u64,
+        })
+    } else if limits.max_ast_depth > 1024 {
+        Some(ResourceLimit {
+            kind: ResourceKind::AstDepth,
+            offset: 0,
+            limit: 1024,
+            observed: limits.max_ast_depth as u64,
+        })
+    } else if source.len() > limits.max_input_bytes {
+        Some(ResourceLimit {
+            kind: ResourceKind::InputBytes,
+            offset: 0,
+            limit: limits.max_input_bytes as u64,
+            observed: source.len() as u64,
+        })
+    } else {
+        None
+    };
+    if let Some(resource) = failure {
+        return Err(SyntaxError {
+            source,
+            line: 1,
+            column: 1,
+            offset: 0,
+            expected: HashSet::new(),
+            resource: Some(Box::new(resource)),
+            statistics: Box::new(ParseStatistics::default()),
+        });
+    }
+    // Generated rule frames are larger in debug builds. A fixed stack makes the
+    // recursion ceiling independent of the embedding application's caller stack.
+    let parsed = with_parser_stack(|| {
+        let mut env = match config.flavor {
+            Flavor::StdC11 => Env::with_core(),
+            Flavor::GnuC11 => Env::with_gnu(),
+            Flavor::ClangC11 => Env::with_clang(),
+            Flavor::GnuC11WithClangExtensions => Env::with_gnu_and_clang_extensions(),
+        };
+        env.set_gnu_keywords(config.gnu_keywords);
+        env.set_msvc_extensions(config.extensions_msvc);
+        translation_unit_with_limits(&source, &mut env, limits)
+    });
+    match parsed {
+        Ok(Ok((unit, statistics))) => Ok(Parse {
+            source,
+            unit,
+            statistics,
+        }),
+        Ok(Err(err)) => Err(SyntaxError {
             source,
             line: err.line,
             column: err.column,
             offset: err.offset,
             expected: err.expected,
+            resource: err.resource.map(Box::new),
+            statistics: err.statistics,
+        }),
+        Err(_) => Err(SyntaxError {
+            source,
+            line: 1,
+            column: 1,
+            offset: 0,
+            expected: HashSet::new(),
+            resource: Some(Box::new(ResourceLimit {
+                kind: ResourceKind::WorkerThread,
+                offset: 0,
+                limit: 16 * 1024 * 1024,
+                observed: 0,
+            })),
+            statistics: Box::new(ParseStatistics::default()),
         }),
     }
+}
+
+thread_local! {
+    static ON_PARSER_STACK: ::std::cell::Cell<bool> = const { ::std::cell::Cell::new(false) };
+}
+
+/// Runs a group of parser calls on one bounded worker stack.
+///
+/// Nested sessions reuse that stack. Every parse still receives a fresh lexical
+/// environment and independent limits. The worker is joined before returning;
+/// no idle background thread is retained. This only bounds the parser's stack
+/// use, not arbitrary recursion in `operation`. Panics propagate to the caller.
+pub fn with_parser_stack<T: Send>(operation: impl FnOnce() -> T + Send) -> io::Result<T> {
+    if ON_PARSER_STACK.get() {
+        return Ok(operation());
+    }
+    ::std::thread::scope(|scope| {
+        ::std::thread::Builder::new()
+            .name("toucan-parser".into())
+            .stack_size(16 * 1024 * 1024)
+            .spawn_scoped(scope, || {
+                ON_PARSER_STACK.set(true);
+                operation()
+            })
+            .map(|worker| {
+                worker
+                    .join()
+                    .unwrap_or_else(|payload| ::std::panic::resume_unwind(payload))
+            })
+    })
 }
 
 fn preprocess(config: &Config, source: &Path) -> io::Result<String> {

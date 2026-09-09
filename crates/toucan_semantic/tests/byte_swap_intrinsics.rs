@@ -44,7 +44,10 @@ const INVALID: &[&str] = &[
 fn result_types(target: Target) -> String {
     let wide = if matches!(
         target,
-        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+        Target::X86_64UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxMusl
+            | Target::Aarch64UnknownLinuxGnu
+            | Target::Aarch64UnknownLinuxMusl
     ) {
         "unsigned long"
     } else {
@@ -121,8 +124,8 @@ fn byte_swap_values_and_types_match_native_gcc_and_clang_targets() {
                 }
                 let output = command.arg(&input).output().unwrap();
                 assert_eq!(
-                    output.status.success(),
-                    accepted,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(accepted),
                     "{compiler} {target:?}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );

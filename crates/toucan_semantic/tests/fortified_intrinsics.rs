@@ -94,7 +94,10 @@ fn fortified_calls_check_fixed_parameters_and_target_va_list_types() {
         .unwrap();
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         for source in [
             "int f(void *p) {return __builtin___fprintf_chk(p,0,\"x\");}",
@@ -191,7 +194,7 @@ fn fortified_signatures_match_native_compilers_and_clang_targets() {
                 command.arg(if gnu {"-Werror=discarded-qualifiers"} else {"-Werror=incompatible-pointer-types-discards-qualifiers"});
                 if let Some(target)=target {command.args(["-target",target.triple()]);}
                 let output=command.arg(&input).output().unwrap();
-                assert_eq!(output.status.success(),accepted,"{compiler} {target:?}: {source}: {}",String::from_utf8_lossy(&output.stderr));
+                assert_eq!(toucan_test_support::compiler_acceptance(&output),Ok(accepted),"{compiler} {target:?}: {source}: {}",String::from_utf8_lossy(&output.stderr));
             }
         }
     }

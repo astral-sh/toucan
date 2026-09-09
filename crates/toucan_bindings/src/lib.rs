@@ -5,6 +5,12 @@
 //! value, field-level alignment, and long double. Incomplete records and records
 //! containing bitfields are available behind pointers.
 
+mod atomic;
+mod complex;
+mod external;
+
+pub use external::{ExternalType, ExternalTypeKind};
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
@@ -33,6 +39,9 @@ pub struct Options {
     pub macro_type_overrides: BTreeMap<String, MacroType>,
     /// Functions to omit, by exact name or prefix ending in `*`.
     pub blocklist_functions: Vec<String>,
+    /// Types supplied by the caller, by exact C name or prefix ending in `*`.
+    /// Definitions are omitted; uses retain their deterministic Rust names.
+    pub blocklist_types: Vec<String>,
     /// Caller-provided Rust appended verbatim. These lines are not parsed or ABI
     /// checked; callers are responsible for their validity and C compatibility.
     pub raw_lines: Vec<String>,
@@ -42,6 +51,9 @@ pub struct Options {
     /// Minimum Rust version for generated declarations. Defaults to Rust 1.96.
     /// Caller-provided raw lines are outside this contract.
     pub rust_target: RustTarget,
+    /// Omit generated runtime field-offset tests on Rust releases before 1.77.
+    /// Compile-time size, alignment, and supported offset assertions remain enabled.
+    pub no_layout_tests: bool,
 }
 
 /// Minimum supported Rust release for generated declarations.
@@ -96,7 +108,7 @@ impl std::str::FromStr for RustTarget {
 /// Integer macro representation policy; evaluation always retains the C type.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
 pub enum MacroType {
-    /// Preserve the C expression's width and signedness.
+    /// Preserve C Boolean values as Rust `bool`, and other integers by width and signedness.
     #[default]
     C,
     /// Use the smallest unsigned 32-, 64-, or 128-bit type for nonnegative values.
@@ -115,6 +127,12 @@ impl Options {
 
     fn blocks_function(&self, name: &str) -> bool {
         self.blocklist_functions
+            .iter()
+            .any(|pattern| matches_name(pattern, name))
+    }
+
+    fn blocks_type(&self, name: &str) -> bool {
+        self.blocklist_types
             .iter()
             .any(|pattern| matches_name(pattern, name))
     }
@@ -149,6 +167,8 @@ pub struct Bindings {
     pub skipped: Vec<String>,
     /// Functions deliberately omitted by the caller's blocklist.
     pub blocked_functions: Vec<String>,
+    /// Omitted C definitions and their caller-owned Rust replacements.
+    pub blocked_types: Vec<ExternalType>,
     /// Caller-provided Rust, excluded from declaration counts and ABI validation.
     pub raw_lines: Vec<String>,
     /// Enum constants are projected to their enum's compatible integer type.
@@ -237,6 +257,8 @@ pub fn generate_with_macros(
     options: &Options,
     macros: &BTreeMap<String, Option<MacroValue>>,
 ) -> Result<Bindings, Error> {
+    unit.validate_function_options()?;
+    unit.validate_parameter_contracts()?;
     if let Some(namespace) = &options.helper_namespace
         && (namespace.is_empty()
             || !namespace.bytes().enumerate().all(|(index, byte)| {
@@ -300,6 +322,11 @@ pub fn generate_with_macros(
         records: BTreeSet::new(),
         enums: BTreeSet::new(),
         aliases: BTreeSet::new(),
+        transparent_storage: BTreeSet::new(),
+        vectors: BTreeSet::new(),
+        atomics: atomic::Atomics::default(),
+        complex_records: complex::Records::default(),
+        external: external::ExternalTypes::default(),
     };
     let mut selected = Vec::new();
     let mut skipped = Vec::new();
@@ -320,11 +347,25 @@ pub fn generate_with_macros(
             skipped.push(declaration.name.clone());
             continue;
         }
+        if declaration.kind == DeclarationKind::Typedef && options.blocks_type(&declaration.name) {
+            emitter.register_external(
+                &Type::new(TypeKind::Typedef(declaration.name.clone())),
+                false,
+                false,
+            )?;
+            continue;
+        }
         if declaration.kind == DeclarationKind::Function
             && options.blocks_function(&declaration.name)
         {
             blocked_functions.push(declaration.name.clone());
             continue;
+        }
+        if declaration.returns_twice {
+            return Err(Error(format!(
+                "returns_twice function `{}` requires a C wrapper that keeps repeated returns inside C",
+                declaration.name
+            )));
         }
         if declaration.symbol_binding == toucan_semantic::SymbolBinding::Weak {
             return Err(Error(format!(
@@ -338,8 +379,20 @@ pub fn generate_with_macros(
             skipped.push(declaration.name.clone());
             continue;
         }
+        if declaration.is_thread_local {
+            return Err(Error(format!(
+                "thread-local object `{}` requires Rust TLS support; expose C accessor functions for stable Rust bindings",
+                declaration.name
+            )));
+        }
         if declaration.kind == DeclarationKind::Typedef {
-            emitter.collect(&Type::new(TypeKind::Typedef(declaration.name.clone())))?;
+            // A Rust alias does not require an external destination's storage;
+            // later values and generated fields upgrade that requirement.
+            emitter.collect_use_at(
+                &Type::new(TypeKind::Typedef(declaration.name.clone())),
+                0,
+                false,
+            )?;
         } else {
             emitter.collect(&declaration.ty)?;
         }
@@ -352,7 +405,10 @@ pub fn generate_with_macros(
                 .as_ref()
                 .is_some_and(|name| options.includes(name))
         {
-            emitter.collect(&Type::new(TypeKind::Record(id)))?;
+            let ty = Type::new(TypeKind::Record(id));
+            if !emitter.register_external(&ty, false, false)? {
+                emitter.collect(&ty)?;
+            }
         }
     }
     for (id, enumeration) in unit.enums.iter().enumerate() {
@@ -361,33 +417,42 @@ pub fn generate_with_macros(
                 .name
                 .as_ref()
                 .is_some_and(|name| options.includes(name))
+            && !emitter.register_external(&Type::new(TypeKind::Enum(id)), false, false)?
         {
             emitter.enums.insert(id);
         }
     }
+    emitter.prepare_atomic_records()?;
+    emitter.prepare_external_records()?;
     let mut source = format!(
         "// Generated by Toucan for {}.\n// Do not edit.\n\n",
         unit.target.triple()
     );
-    let (arch, os) = match unit.target.triple() {
-        "x86_64-unknown-linux-gnu" => ("x86_64", "linux"),
-        "aarch64-unknown-linux-gnu" => ("aarch64", "linux"),
-        "x86_64-apple-darwin" => ("x86_64", "macos"),
-        "aarch64-apple-darwin" => ("aarch64", "macos"),
-        "x86_64-pc-windows-msvc" => ("x86_64", "windows"),
+    let (arch, os, environment) = match unit.target.triple() {
+        "x86_64-unknown-linux-gnu" => ("x86_64", "linux", ", target_env = \"gnu\""),
+        "aarch64-unknown-linux-gnu" => ("aarch64", "linux", ", target_env = \"gnu\""),
+        "x86_64-apple-darwin" => ("x86_64", "macos", ""),
+        "aarch64-apple-darwin" => ("aarch64", "macos", ""),
+        "x86_64-pc-windows-msvc" => ("x86_64", "windows", ", target_env = \"msvc\""),
+        "x86_64-unknown-linux-musl" => ("x86_64", "linux", ", target_env = \"musl\""),
+        "aarch64-unknown-linux-musl" => ("aarch64", "linux", ", target_env = \"musl\""),
         triple => return Err(Error(format!("binding target `{triple}` is unsupported"))),
     };
-    let environment = match os {
-        "linux" => ", target_env = \"gnu\"",
-        "windows" => ", target_env = \"msvc\"",
-        _ => "",
-    };
     writeln!(source, "#[cfg(not(all(target_arch = {arch:?}, target_os = {os:?}{environment})))]\ncompile_error!(\"these C bindings were generated for a different target\");\n").unwrap();
+    emitter.emit_external_assertions(&mut source)?;
+    emitter.emit_atomics(&mut source)?;
+    for &(bytes, alignment) in &emitter.vectors {
+        let name = emitter.vector_name(bytes, alignment)?;
+        writeln!(source, "#[repr(C, align({alignment}))]\n#[derive(Clone, Copy)]\npub struct {name} {{ pub bytes: [::core::primitive::u8; {bytes}] }}\n").unwrap();
+    }
     for &id in &emitter.records {
         emitter.record(id, &mut source)?;
     }
     for &id in &emitter.enums {
         emitter.enumeration(id, &mut source)?;
+    }
+    for &id in &emitter.transparent_storage {
+        emitter.transparent_storage(id, &mut source)?;
     }
     for name in &emitter.aliases {
         let ty = unit
@@ -418,7 +483,11 @@ pub fn generate_with_macros(
     let mut enum_owners = BTreeMap::new();
     let mut enum_constants = Vec::new();
     for (id, enumeration) in unit.enums.iter().enumerate() {
-        if enumeration.scope != toucan_semantic::Scope::File {
+        if enumeration.scope != toucan_semantic::Scope::File
+            || emitter
+                .external_key(&Type::new(TypeKind::Enum(id)))?
+                .is_some()
+        {
             continue;
         }
         let mut emitted = Vec::new();
@@ -451,6 +520,9 @@ pub fn generate_with_macros(
         }
     }
     for (name, value) in &unit.constants {
+        if emitter.blocked_enumerator(name) {
+            continue;
+        }
         if options.includes(name) && !macros.contains_key(name) {
             let value = if let Some(&id) = enum_owners.get(name.as_str()) {
                 let (bits, signed) = emitter.enum_integer(id)?;
@@ -503,6 +575,14 @@ pub fn generate_with_macros(
                 writeln!(source, "    pub fn {name}{};", emitter.signature(function)?).unwrap();
             }
             DeclarationKind::Variable => {
+                if !declaration.alignment.is_empty()
+                    && unit.declaration_alignment(declaration)? < unit.alignment(&declaration.ty)?
+                {
+                    return Err(Error(format!(
+                        "object `{}` has reduced C alignment that Rust extern storage cannot represent",
+                        declaration.name,
+                    )));
+                }
                 let link_name = declaration.link_name.as_ref().unwrap_or(&declaration.name);
                 if name != *link_name {
                     writeln!(source, "    #[link_name = {link_name:?}]").unwrap();
@@ -549,7 +629,8 @@ pub fn generate_with_macros(
                 )?);
             }
             MacroValue::Integer(value) => {
-                let emitted = normalize_macro(*value, options.macro_policy(c_name))?;
+                let policy = options.macro_policy(c_name);
+                let emitted = normalize_macro(*value, policy)?;
                 if emitted.bits != value.bits || emitted.signed != value.signed {
                     macro_types.push(MacroIntegerType {
                         c_name: c_name.clone(),
@@ -560,7 +641,16 @@ pub fn generate_with_macros(
                         rust_signed: emitted.signed,
                     });
                 }
-                source.push_str(&integer_constant_named(&name, emitted)?);
+                if policy == MacroType::C && value.rank == 0 {
+                    writeln!(
+                        source,
+                        "pub const {name}: ::core::primitive::bool = {};",
+                        value.value != 0
+                    )
+                    .unwrap();
+                } else {
+                    source.push_str(&integer_constant_named(&name, emitted)?);
+                }
             }
             MacroValue::WideString {
                 element_type,
@@ -633,6 +723,7 @@ pub fn generate_with_macros(
         declarations: selected.len(),
         skipped,
         blocked_functions,
+        blocked_types: emitter.external.types.into_values().collect(),
         raw_lines: options.raw_lines.clone(),
         enum_constants,
         renamed_macros,
@@ -648,6 +739,7 @@ fn floating_constant_named(
     let (width, bits) = match value.kind() {
         FloatKind::Float => (32, value.to_bits()),
         FloatKind::Double => (64, value.to_bits()),
+        kind if kind.is_narrow() => return Err(Error(format!("{} macro constants have no Rust representation; use an explicit float or double cast", if kind == FloatKind::BFloat16 {"__bf16"} else {"_Float16"}))),
         _ => return Err(Error("long double macro constants have no Rust representation; use an explicit float or double cast".into())),
     };
     let rust_type = format!("::core::primitive::f{width}");
@@ -672,6 +764,14 @@ fn floating_constant_named(
 }
 
 fn normalize_macro(value: IntegerValue, policy: MacroType) -> Result<IntegerValue, Error> {
+    // Validate the original C representation before an explicit integer policy
+    // changes its width. Enum projection uses a separate integer-only formatter.
+    if value.rank == 0 && (value.bits != 8 || value.signed || value.value > 1) {
+        return Err(Error(
+            "invalid C _Bool macro metadata: expected unsigned 8-bit storage and value 0 or 1"
+                .into(),
+        ));
+    }
     validate_integer(value)?;
     if policy == MacroType::C || (value.signed && value.signed_value() < 0) {
         return Ok(value);
@@ -758,6 +858,11 @@ struct Emitter<'a> {
     records: BTreeSet<usize>,
     enums: BTreeSet<usize>,
     aliases: BTreeSet<String>,
+    transparent_storage: BTreeSet<usize>,
+    vectors: BTreeSet<(u64, u64)>,
+    atomics: atomic::Atomics,
+    complex_records: complex::Records,
+    external: external::ExternalTypes,
 }
 
 struct BitfieldSegment {
@@ -772,14 +877,41 @@ impl Emitter<'_> {
     }
 
     fn collect_at(&mut self, ty: &Type, depth: usize) -> Result<(), Error> {
+        self.collect_use_at(ty, depth, true)
+    }
+
+    fn collect_use_at(
+        &mut self,
+        ty: &Type,
+        depth: usize,
+        layout_required: bool,
+    ) -> Result<(), Error> {
         if depth >= 256 {
             return Err(Error(
                 "type nesting exceeds the binding limit of 256".into(),
             ));
         }
-        if ty.alignment.is_some() {
+        if self.register_external(ty, true, layout_required)? {
+            return Ok(());
+        }
+        let atomic = self.unit.atomic_value(ty)?.is_some();
+        if atomic {
+            self.collect_atomic(ty, depth)?;
+        }
+        let vector = matches!(self.unit.resolve(ty)?.kind, TypeKind::Vector { .. });
+        if vector {
+            let layout = self.unit.layout(ty)?;
+            let (bytes, alignment) = (layout.size_bytes(), layout.alignment_bytes());
+            if !bytes.is_multiple_of(alignment)
+                || layout.field_alignment_bits != layout.alignment_bits
+            {
+                return Err(Error("vector alignment cannot be represented in Rust without changing object size or field alignment".into()));
+            }
+            self.vectors.insert((bytes, alignment));
+        }
+        if ty.alignment.bytes().is_some() && !vector && !atomic {
             let mut underlying = ty.clone();
-            underlying.alignment = None;
+            underlying.alignment = toucan_semantic::TypeAlignment::default();
             let actual = self.unit.layout(ty)?;
             let natural = self.unit.layout(&underlying)?;
             if self.unit.alignment(ty)? != self.unit.alignment(&underlying)?
@@ -795,7 +927,11 @@ impl Emitter<'_> {
         }
         match &ty.kind {
             TypeKind::Typedef(name) => {
-                if self.aliases.insert(name.clone()) {
+                let first = self.aliases.insert(name.clone());
+                let upgrade = !self.options.blocklist_types.is_empty()
+                    && layout_required
+                    && self.external.layout_aliases.insert(name.clone());
+                if first || upgrade {
                     let ty = self
                         .unit
                         .typedefs
@@ -806,7 +942,7 @@ impl Emitter<'_> {
                         // dependencies must not leak into separately generated modules.
                         self.size_t_type(ty)?;
                     } else {
-                        self.collect_at(ty, depth + 1)?;
+                        self.collect_use_at(ty, depth + 1, layout_required)?;
                     }
                 }
             }
@@ -830,14 +966,19 @@ impl Emitter<'_> {
                 }
                 self.enums.insert(*id);
             }
-            TypeKind::Pointer(pointee)
-            | TypeKind::Array {
-                element: pointee, ..
-            } => self.collect_at(pointee, depth + 1)?,
+            TypeKind::Pointer(pointee) => self.collect_use_at(pointee, depth + 1, false)?,
+            TypeKind::Array { element, .. } => {
+                self.collect_use_at(element, depth + 1, layout_required)?
+            }
             TypeKind::Function(function) => {
-                self.collect_at(&function.return_type, depth + 1)?;
+                self.collect_call_value(&function.return_type, depth + 1)?;
                 for parameter in &function.parameters {
-                    self.collect_at(&parameter.ty, depth + 1)?;
+                    if let Some(id) = self.unit.transparent_union(&parameter.ty)?
+                        && self.transparent_needs_storage(id)?
+                    {
+                        self.transparent_storage.insert(id);
+                    }
+                    self.collect_call_value(&parameter.ty, depth + 1)?;
                 }
             }
             _ => {}
@@ -1017,6 +1158,13 @@ impl Emitter<'_> {
         }
     }
 
+    fn vector_name(&self, bytes: u64, alignment: u64) -> Result<String, Error> {
+        self.synthetic_name(&format!(
+            "{}_align_{alignment}",
+            self.helper_name("vector", bytes as usize)
+        ))
+    }
+
     fn synthetic_name(&self, stem: &str) -> Result<String, Error> {
         let mut candidate = stem.to_owned();
         while self.names.original.contains(&candidate) {
@@ -1037,12 +1185,17 @@ impl Emitter<'_> {
     }
 
     fn enum_integer(&self, id: usize) -> Result<(u8, bool), Error> {
-        let layout = self.unit.layout(&Type::new(TypeKind::Enum(id)))?;
-        let signed = self.unit.target.triple().contains("msvc")
-            || self.unit.enums[id]
-                .variants
-                .iter()
-                .any(|v| v.value.signed && v.value.signed_value() < 0);
+        let kind = self.unit.enum_integer_kind(id)?;
+        let layout = self.unit.layout(&Type::new(TypeKind::Integer(kind)))?;
+        let signed = matches!(
+            kind,
+            IntegerKind::SignedChar
+                | IntegerKind::Short
+                | IntegerKind::Int
+                | IntegerKind::Long
+                | IntegerKind::LongLong
+                | IntegerKind::Int128
+        );
         let bits = u8::try_from(layout.size_bits)
             .ok()
             .filter(|bits| [8, 16, 32, 64, 128].contains(bits))
@@ -1109,7 +1262,30 @@ impl Emitter<'_> {
 
     fn ty_at(&self, ty: &Type, depth: usize) -> Result<String, Error> {
         check_depth(depth)?;
+        if let Some(name) = self.external_name(ty)? {
+            return Ok(name);
+        }
+        if self.unit.atomic_value(ty)?.is_some() {
+            return self.atomic_storage_type(ty);
+        }
+        // An aligned vector alias needs its own storage helper; Rust aliases
+        // cannot themselves change alignment.
+        if ty.alignment.bytes().is_some()
+            && matches!(self.unit.resolve(ty)?.kind, TypeKind::Vector { .. })
+        {
+            let layout = self.unit.layout(ty)?;
+            return self.vector_name(layout.size_bytes(), layout.alignment_bytes());
+        }
         Ok(match &ty.kind {
+            TypeKind::Atomic(_) => unreachable!("atomic storage handled above"),
+            TypeKind::Vector { .. } => {
+                let layout = self.unit.layout(ty)?;
+                self.vector_name(layout.size_bytes(), layout.alignment_bytes())?
+            }
+            TypeKind::Sve(_) => return Err(Error(
+                "sizeless SVE types have no stable Rust representation, including behind pointers"
+                    .into(),
+            )),
             TypeKind::Void => "::core::ffi::c_void".into(),
             TypeKind::Bool => "::core::primitive::bool".into(),
             TypeKind::Integer(kind @ (IntegerKind::Int128 | IntegerKind::UnsignedInt128)) => {
@@ -1139,9 +1315,20 @@ impl Emitter<'_> {
                         unreachable!("handled above"),
                 }
             ),
+            TypeKind::Complex(_) => return Err(complex::storage_error()),
             TypeKind::Float(FloatKind::Float) => "::core::primitive::f32".into(),
             TypeKind::Float(FloatKind::Double) => "::core::primitive::f64".into(),
-            TypeKind::Float(FloatKind::Extended { .. }) => {
+            TypeKind::Float(kind) if kind.is_narrow() => {
+                return Err(Error(format!(
+                    "{} has no supported Rust scalar ABI representation",
+                    if *kind == FloatKind::BFloat16 {
+                        "__bf16"
+                    } else {
+                        "_Float16"
+                    }
+                )));
+            }
+            TypeKind::Float(FloatKind::BFloat16 | FloatKind::Extended { .. }) => {
                 return Err(Error(
                     "extended floating-point types have no supported Rust ABI representation"
                         .into(),
@@ -1208,16 +1395,89 @@ impl Emitter<'_> {
         })
     }
 
+    /// A fixed transparent parameter uses the first member's machine carrier.
+    /// Boolean and enum carriers must accept every initialized union bit pattern.
+    fn parameter_ty_at(&self, ty: &Type, depth: usize) -> Result<String, Error> {
+        check_depth(depth)?;
+        let Some(id) = self.unit.transparent_union(ty)? else {
+            return self.call_value_type(ty, depth);
+        };
+        let carrier = self.unit.parameter_abi_type(ty)?;
+        if self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc {
+            return self.ty_at(carrier, depth);
+        }
+        if self.transparent_needs_storage(id)? {
+            return self.synthetic_name(&self.helper_name("transparent", id));
+        }
+        self.transparent_scalar(carrier, depth)
+    }
+
+    fn transparent_scalar(&self, ty: &Type, depth: usize) -> Result<String, Error> {
+        match self.unit.resolve(ty)?.kind {
+            TypeKind::Bool => Ok("::core::primitive::u8".into()),
+            TypeKind::Enum(id) => self.enum_type(id),
+            _ => self.ty_at(ty, depth),
+        }
+    }
+
+    /// GNU permits a smaller alternative that leaves upper carrier bytes unset.
+    /// Preserve those bytes as union storage instead of imposing scalar validity.
+    fn transparent_needs_storage(&self, id: usize) -> Result<bool, Error> {
+        let fields = self
+            .unit
+            .records
+            .get(id)
+            .and_then(|record| record.fields.as_ref())
+            .filter(|fields| !fields.is_empty())
+            .ok_or_else(|| Error("transparent_union requires complete storage".into()))?;
+        let width = self.unit.layout(&fields[0].ty)?.size_bits;
+        for field in fields {
+            if self.unit.layout(&field.ty)?.size_bits < width {
+                return Ok(true);
+            }
+        }
+        Ok(false)
+    }
+
+    fn transparent_storage(&self, id: usize, source: &mut String) -> Result<(), Error> {
+        let parameter = Type::new(TypeKind::Record(id));
+        let first = self.unit.parameter_abi_type(&parameter)?;
+        let scalar = self.transparent_scalar(first, 0)?;
+        let layout = self.unit.layout(first)?;
+        let size = layout.size_bytes();
+        let alignment = layout.alignment_bytes();
+        let name = self.synthetic_name(&self.helper_name("transparent", id))?;
+        writeln!(source,"/// ABI carrier for a transparent union with potentially uninitialized upper bytes.\n#[repr(C)]\n#[derive(Copy, Clone)]\npub union {name} {{\n    /// Read only when every carrier byte is initialized.\n    pub value: {scalar},\n    /// Preserves bytes left uninitialized by a narrower C member.\n    pub bytes: [::core::mem::MaybeUninit<::core::primitive::u8>; {size}],\n}}\nconst _: [(); {size}] = [(); ::core::mem::size_of::<{name}>()];\nconst _: [(); {alignment}] = [(); ::core::mem::align_of::<{name}>()];\n").unwrap();
+        Ok(())
+    }
+
     fn signature(&self, function: &FunctionType) -> Result<String, Error> {
         self.signature_at(function, 0)
     }
 
     fn signature_at(&self, function: &FunctionType, depth: usize) -> Result<String, Error> {
         check_depth(depth)?;
+        let no_escape = function
+            .parameter_contracts
+            .map(|id| {
+                self.unit
+                    .parameter_contracts(id)
+                    .map(|set| set.no_escape.as_slice())
+            })
+            .transpose()?
+            .unwrap_or(&[]);
         let mut args = Vec::new();
         for (i, parameter) in function.parameters.iter().enumerate() {
             // Position-based names avoid duplicate or Rust-reserved C parameter names.
-            args.push(format!("arg{i}: {}", self.ty_at(&parameter.ty, depth + 1)?));
+            let contract = if no_escape.binary_search(&(i as u32)).is_ok() {
+                "/* C noescape: implementers must not retain derived references after returning. */ "
+            } else {
+                ""
+            };
+            args.push(format!(
+                "{contract}arg{i}: {}",
+                self.parameter_ty_at(&parameter.ty, depth + 1)?
+            ));
         }
         if function.variadic {
             args.push("...".into());
@@ -1228,9 +1488,17 @@ impl Emitter<'_> {
         ) {
             String::new()
         } else {
-            format!(" -> {}", self.ty_at(&function.return_type, depth + 1)?)
+            format!(
+                " -> {}",
+                self.call_value_type(&function.return_type, depth + 1)?
+            )
         };
-        Ok(format!("({}){result}", args.join(", ")))
+        let promise = if function.noreturn {
+            " /* C noreturn: implementers must not return. */"
+        } else {
+            ""
+        };
+        Ok(format!("({}){result}{promise}", args.join(", ")))
     }
 
     fn abi(&self, function: &FunctionType) -> Result<&'static str, Error> {
@@ -1239,6 +1507,7 @@ impl Emitter<'_> {
                 CallingConvention::C => "C",
                 CallingConvention::SysV64 => "sysv64",
                 CallingConvention::Win64 => "win64",
+                CallingConvention::Aarch64Vector | CallingConvention::Aarch64Sve => return Err(Error("AArch64 vector procedure-call conventions have no stable Rust extern ABI; use C wrapper functions".into())),
             },
         )
     }
@@ -1253,16 +1522,21 @@ impl Emitter<'_> {
         if !function.prototype {
             return Err(Error("C function declaration without a prototype cannot be represented by a Rust function signature".into()));
         }
-        self.check_value(&function.return_type, &mut BTreeSet::new(), depth + 1)?;
+        self.check_call_value(&function.return_type, depth + 1)?;
         for parameter in &function.parameters {
-            if self.unit.transparent_union(&parameter.ty)?.is_some() {
-                return Err(Error(
-                    "transparent_union parameters require first-member ABI projection".into(),
-                ));
-            }
-            self.check_value(&parameter.ty, &mut BTreeSet::new(), depth + 1)?;
+            self.check_call_value(self.unit.parameter_abi_type(&parameter.ty)?, depth + 1)?;
         }
         Ok(())
+    }
+
+    fn check_call_value(&self, ty: &Type, depth: usize) -> Result<(), Error> {
+        let value = if let Some(value) = self.unit.atomic_value(ty)? {
+            self.call_value_type(ty, depth)?;
+            value
+        } else {
+            ty
+        };
+        self.check_value(value, &mut BTreeSet::new(), depth)
     }
 
     fn check_value(
@@ -1273,19 +1547,24 @@ impl Emitter<'_> {
     ) -> Result<(), Error> {
         check_depth(depth)?;
         match &self.unit.resolve(ty)?.kind {
+            TypeKind::Atomic(_) => return Err(Error("records containing atomic storage cannot cross an FFI call by value; expose C pointer accessors".into())),
             TypeKind::Record(id) => {
+                if self.contains_atomic_storage(ty, depth)? {
+                    return Err(Error("records containing atomic storage cannot cross an FFI call by value; expose C pointer accessors".into()));
+                }
+
                 if !active.insert(*id) {
                     return Err(Error("recursive record by value".into()));
                 }
-                let fields = self
-                    .unit
-                    .records
-                    .get(*id)
-                    .ok_or_else(|| Error("invalid record identity".into()))?
-                    .fields
-                    .as_ref()
-                    .ok_or_else(|| Error("incomplete record passed by value".into()))?;
+                let record = self.unit.records.get(*id).ok_or_else(|| Error("invalid record identity".into()))?;
+                if (record.packed || record.pack.is_some()) && record.alignment.is_some() {
+                    return Err(Error("records combining packing and explicit alignment need a separate call-ABI proof".into()));
+                }
+                let fields = record.fields.as_ref().ok_or_else(|| Error("incomplete record passed by value".into()))?;
                 for field in fields {
+                    if field.alignment.is_some() || field.packed {
+                        return Err(Error("records with field-level alignment or packing need a separate call-ABI proof".into()));
+                    }
                     if field.bit_width.is_some() {
                         return Err(Error(
                             "records containing bitfields cannot yet cross an FFI call by value"
@@ -1297,9 +1576,24 @@ impl Emitter<'_> {
                 active.remove(id);
             }
             TypeKind::Array { element, .. } => self.check_value(element, active, depth + 1)?,
+            TypeKind::Vector { .. } => {
+                return Err(Error("vectors and records containing vectors cannot cross an FFI call by value; stable Rust cannot express their target call ABI".into()));
+            }
+            TypeKind::Integer(IntegerKind::Int128 | IntegerKind::UnsignedInt128) => {
+                self.check_128_bit_abi()?;
+            }
+            TypeKind::Enum(id)
+                if self.options.rust_target.minor < 78 && self.enum_integer(*id)?.0 == 128 =>
+            {
+                self.check_128_bit_abi()?;
+            }
             TypeKind::Float(FloatKind::LongDouble) => {
                 return Err(Error("long double by value is unsupported".into()));
             }
+            TypeKind::Float(kind) if !matches!(kind, FloatKind::Float | FloatKind::Double) => {
+                self.ty_at(&Type::new(TypeKind::Float(*kind)), depth + 1)?;
+            }
+            TypeKind::Complex(_) => return Err(complex::call_abi_error()),
             _ => {}
         }
         Ok(())
@@ -1313,6 +1607,10 @@ impl Emitter<'_> {
     ) -> Result<(), Error> {
         check_depth(depth)?;
         match &self.unit.resolve(ty)?.kind {
+            TypeKind::Atomic(_) => return Err(Error("packed atomic storage has no supported aligned Rust access representation across the requested Rust versions".into())),
+            TypeKind::Vector { .. } => {
+                return Err(Error("packed records containing vectors require a Rust representation without nested repr(align), which is unsupported".into()));
+            }
             TypeKind::Record(id) => {
                 if !visited.insert(*id) {
                     return Ok(());
@@ -1379,9 +1677,16 @@ impl Emitter<'_> {
             RecordKind::Struct => "struct",
             RecordKind::Union => "union",
         };
+        let derives = if self.contains_atomic_storage(&Type::new(TypeKind::Record(id)), 0)?
+            || self.contains_external_storage(&Type::new(TypeKind::Record(id)), 0)?
+        {
+            ""
+        } else {
+            "#[derive(Clone, Copy)]\n"
+        };
         writeln!(
             source,
-            "#[repr({})]\n#[derive(Clone, Copy)]\npub {kind} {name} {{",
+            "#[repr({})]\n{derives}pub {kind} {name} {{",
             repr.join(", ")
         )
         .unwrap();
@@ -1578,7 +1883,16 @@ impl Emitter<'_> {
                 }
                 byte_offset = offset + self.unit.layout(&field.ty)?.size_bytes();
             }
-            writeln!(source, "    pub {field_name}: {},", self.ty(&field.ty)?).unwrap();
+            let field_type = self.ty(&field.ty)?;
+            let field_type = if record.kind == RecordKind::Union
+                && (self.contains_atomic_storage(&field.ty, 0)?
+                    || self.contains_external_storage(&field.ty, 0)?)
+            {
+                format!("::core::mem::ManuallyDrop<{field_type}>")
+            } else {
+                field_type
+            };
+            writeln!(source, "    pub {field_name}: {field_type},").unwrap();
             index += 1;
         }
         if has_bitfields && !union_bits && byte_offset < layout.size_bytes() {
@@ -1605,6 +1919,10 @@ impl Emitter<'_> {
         }
         writeln!(source, "const _: () = {{\n    assert!(::core::mem::size_of::<{name}>() == {});\n    assert!(::core::mem::align_of::<{name}>() == {});", layout.size_bits / 8, layout.alignment_bits / 8).unwrap();
         let runtime_offsets = self.options.rust_target.minor < 77;
+        if runtime_offsets && self.options.no_layout_tests {
+            source.push_str("};\n\n");
+            return Ok(());
+        }
         if runtime_offsets {
             let mut test_name = self.helper_name("layout", id);
             while self.names.original.contains(&test_name) {
@@ -1651,6 +1969,9 @@ impl Emitter<'_> {
     ) -> Result<(), Error> {
         if !(1..=128).contains(&width) {
             return Err(Error("unsupported bitfield width".into()));
+        }
+        if self.contains_external_storage(ty, 0)? {
+            return Err(Error("bitfield accessors require a generated integer type; caller-owned external bitfield types need C accessors".into()));
         }
         let rust_type = self.ty(ty)?;
         let kind = &self.unit.resolve(ty)?.kind;
@@ -1808,6 +2129,28 @@ mod tests {
     use toucan_target::Target;
 
     #[test]
+    fn enum_projection_does_not_turn_boolean_initializers_into_bool() {
+        // Caller-provided values can retain the initializer's rank. Exercise
+        // both ordinary and packed-width projections without claiming that the
+        // frontend already accepts packed enum attributes.
+        for bits in [8, 32] {
+            for value in [0, 1] {
+                let source = IntegerValue {
+                    value,
+                    bits: 8,
+                    signed: false,
+                    rank: 0,
+                };
+                let emitted = convert_enum_constant(source, bits, false).unwrap();
+                assert_eq!(
+                    integer_constant("ENUM", emitted).unwrap(),
+                    format!("pub const ENUM: ::core::primitive::u{bits} = {value};\n")
+                );
+            }
+        }
+    }
+
+    #[test]
     fn emits_transitive_types_callbacks_const_and_variadics() {
         let unit = analyze("typedef struct node { const char *name; struct node *next; } node; typedef int (*visit)(const node *, void *); int walk(node *, visit); int log_message(const char *, ...);", Target::parse("x86_64-unknown-linux-gnu").unwrap()).unwrap();
         let bindings = generate(
@@ -1956,6 +2299,8 @@ mod tests {
         unit.typedefs.insert(
             "recursive".into(),
             Type::new(TypeKind::Function(Box::new(FunctionType {
+                noreturn: false,
+                parameter_contracts: None,
                 return_type: Type::new(TypeKind::Typedef("recursive".into())).pointer(),
                 parameters: Vec::new(),
                 variadic: false,

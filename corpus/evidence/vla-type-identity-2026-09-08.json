@@ -1,0 +1,1813 @@
+{
+  "schema_version": 1,
+  "scope": "Owner-local VLA type identity, independent from runtime BoundId; prerequisite for exact Clang __auto_type group deduction. General C compatibility remains unchanged.",
+  "native_compilers": {
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+  },
+  "primary_source": {
+    "url": "https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/lib/Sema/SemaDecl.cpp#L14965",
+    "sha256": "7560c350a99347b5a57c602b80f9cac04a05f625f93c044063a4fe5ac8972a66"
+  },
+  "native_probes": {
+    "composite_left": {
+      "source": "void f(int c,int n){int a[n],b[n];__auto_type p=c?&a:&b,q=&a;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "composite_left.c"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    "composite_right": {
+      "source": "void f(int c,int n){int a[n],b[n];__auto_type p=c?&a:&b,q=&b;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "composite_right.c"
+      ],
+      "exit": 1,
+      "stderr": "composite_right.c:1:35: error: '__auto_type' deduced as 'int (*)[n]' in declaration of 'p' and deduced as 'int (*)[n]' in declaration of 'q'\n    1 | void f(int c,int n){int a[n],b[n];__auto_type p=c?&a:&b,q=&b;}\n      |                                   ^             ~~~~~~~   ~~\n1 error generated.\n"
+    },
+    "composite_same_typedef": {
+      "source": "void f(int c,int n){typedef int A[n];A a,b;__auto_type p=c?&a:&b,q=&b;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "composite_same_typedef.c"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    "function_vla_definitions": {
+      "source": "void f(int n,int a[][n]){} void g(int n,int a[][n]){} void h(void){__auto_type p=f,q=g;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "function_vla_definitions.c"
+      ],
+      "exit": 1,
+      "stderr": "function_vla_definitions.c:1:68: error: '__auto_type' deduced as 'void (*)(int, int (*)[n])' in declaration of 'p' and deduced as 'void (*)(int, int (*)[n])' in declaration of 'q'\n    1 | void f(int n,int a[][n]){} void g(int n,int a[][n]){} void h(void){__auto_type p=f,q=g;}\n      |                                                                    ^             ~   ~\n1 error generated.\n"
+    },
+    "function_vla_prototypes": {
+      "source": "void f(int n,int a[][n]); void g(int n,int a[][n]); void h(void){__auto_type p=f,q=g;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "function_vla_prototypes.c"
+      ],
+      "exit": 1,
+      "stderr": "function_vla_prototypes.c:1:66: error: '__auto_type' deduced as 'void (*)(int, int (*)[n])' in declaration of 'p' and deduced as 'void (*)(int, int (*)[n])' in declaration of 'q'\n    1 | void f(int n,int a[][n]); void g(int n,int a[][n]); void h(void){__auto_type p=f,q=g;}\n      |                                                                  ^             ~   ~\n1 error generated.\n"
+    },
+    "function_vla_constant": {
+      "source": "void f(int n,int a[][n]); void g(int n,int a[][3]); void h(void){__auto_type p=f,q=g;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "function_vla_constant.c"
+      ],
+      "exit": 1,
+      "stderr": "function_vla_constant.c:1:66: error: '__auto_type' deduced as 'void (*)(int, int (*)[n])' in declaration of 'p' and deduced as 'void (*)(int, int (*)[3])' in declaration of 'q'\n    1 | void f(int n,int a[][n]); void g(int n,int a[][3]); void h(void){__auto_type p=f,q=g;}\n      |                                                                  ^             ~   ~\n1 error generated.\n"
+    },
+    "vla_multi_declarator_shared_bound": {
+      "source": "void f(int n){int a[n],*b[n];__auto_type p=&a,q=b;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "vla_multi_declarator_shared_bound.c"
+      ],
+      "exit": 1,
+      "stderr": "vla_multi_declarator_shared_bound.c:1:30: error: '__auto_type' deduced as 'int (*)[n]' in declaration of 'p' and deduced as 'int **' in declaration of 'q'\n    1 | void f(int n){int a[n],*b[n];__auto_type p=&a,q=b;}\n      |                              ^             ~~   ~\n1 error generated.\n"
+    },
+    "prototype_star": {
+      "source": "void f(int a[][*]);void g(int a[][*]);void h(void){__auto_type p=f,q=g;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "prototype_star.c"
+      ],
+      "exit": 1,
+      "stderr": "prototype_star.c:1:52: error: '__auto_type' deduced as 'void (*)(int (*)[*])' in declaration of 'p' and deduced as 'void (*)(int (*)[*])' in declaration of 'q'\n    1 | void f(int a[][*]);void g(int a[][*]);void h(void){__auto_type p=f,q=g;}\n      |                                                    ^             ~   ~\n1 error generated.\n"
+    },
+    "prototype_star_typedef": {
+      "source": "typedef void F(int a[][*]);F f,g;void h(void){__auto_type p=f,q=g;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "prototype_star_typedef.c"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    "prototype_decl_reuse": {
+      "source": "void f(int n,int a[][n]);void h(void){__auto_type p=f,q=f;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "prototype_decl_reuse.c"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    "parameter_star_types": {
+      "source": "void h(int n,int (*p)[*],int(*q)[*]);",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "parameter_star_types.c"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    "prototype_same_return": {
+      "source": "void f(int a[][*]);void g(int a[][*]);_Static_assert(__builtin_types_compatible_p(typeof(f),typeof(g)),\"compatible\");",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "prototype_same_return.c"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    "group_vla_same_expr": {
+      "source": "void f(int n){int a[n],b[n];__auto_type p=&a,q=&b;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-Werror=incompatible-pointer-types",
+        "-fsyntax-only",
+        "group_vla_same_expr.c"
+      ],
+      "exit": 1,
+      "stderr": "group_vla_same_expr.c:1:29: error: '__auto_type' deduced as 'int (*)[n]' in declaration of 'p' and deduced as 'int (*)[n]' in declaration of 'q'\n    1 | void f(int n){int a[n],b[n];__auto_type p=&a,q=&b;}\n      |                             ^             ~~   ~~\n1 error generated.\n"
+    },
+    "group_vla_diff_expr": {
+      "source": "void f(int n,int m){int a[n],b[m];__auto_type p=&a,q=&b;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-Werror=incompatible-pointer-types",
+        "-fsyntax-only",
+        "group_vla_diff_expr.c"
+      ],
+      "exit": 1,
+      "stderr": "group_vla_diff_expr.c:1:35: error: '__auto_type' deduced as 'int (*)[n]' in declaration of 'p' and deduced as 'int (*)[m]' in declaration of 'q'\n    1 | void f(int n,int m){int a[n],b[m];__auto_type p=&a,q=&b;}\n      |                                   ^             ~~   ~~\n1 error generated.\n"
+    },
+    "group_vla_same_typedef": {
+      "source": "void f(int n){typedef int A[n];A a,b;__auto_type p=&a,q=&b;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-Werror=incompatible-pointer-types",
+        "-fsyntax-only",
+        "group_vla_same_typedef.c"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    "group_vla_same_object": {
+      "source": "void f(int n){int a[n];__auto_type p=&a,q=&a;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-Werror=incompatible-pointer-types",
+        "-fsyntax-only",
+        "group_vla_same_object.c"
+      ],
+      "exit": 0,
+      "stderr": ""
+    },
+    "group_derived_vla_same": {
+      "source": "void f(int n){int a[n],b[n];__auto_type *p=&a,*q=&b;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-Werror=incompatible-pointer-types",
+        "-fsyntax-only",
+        "group_derived_vla_same.c"
+      ],
+      "exit": 1,
+      "stderr": "group_derived_vla_same.c:1:29: error: '__auto_type' deduced as 'int[n]' in declaration of 'p' and deduced as 'int[n]' in declaration of 'q'\n    1 | void f(int n){int a[n],b[n];__auto_type *p=&a,*q=&b;}\n      |                             ^              ~~    ~~\n1 error generated.\n"
+    },
+    "group_vla_constant": {
+      "source": "void f(int n){int a[n],b[3];__auto_type p=&a,q=&b;}",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-Werror=incompatible-pointer-types",
+        "-fsyntax-only",
+        "group_vla_constant.c"
+      ],
+      "exit": 1,
+      "stderr": "group_vla_constant.c:1:29: error: '__auto_type' deduced as 'int (*)[n]' in declaration of 'p' and deduced as 'int (*)[3]' in declaration of 'q'\n    1 | void f(int n){int a[n],b[3];__auto_type p=&a,q=&b;}\n      |                             ^             ~~   ~~\n1 error generated.\n"
+    }
+  },
+  "validation": {
+    "workspace_all_features": "passed",
+    "workspace_clippy_all_targets_all_features": "passed with -D warnings",
+    "rustdoc": "passed with -D warnings",
+    "checked_fuzz_clippy": "passed with -D warnings",
+    "focused_identity_tests": "3 registry unit tests, 2 five-target API tests, 1 native Clang probe test, 2 CLI inspection tests passed",
+    "checked_seed_replay": {
+      "accepted": 189,
+      "matching_rejections": 66,
+      "target_profiles": 5,
+      "full_graph_invariants": true
+    },
+    "parser_regeneration": "not needed: no AST or grammar change"
+  },
+  "limits": {
+    "registry_steps": 4000000,
+    "candidate_occurrences": 262144,
+    "inherited_type_depth": 128,
+    "synthetic_or_ambiguous_occurrence": "explicit error"
+  },
+  "performance": {
+    "baseline_commit": "f722e545effdc8fd734e1117b4160c10e99055bd",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "build": {
+      "arguments": [
+        "cargo",
+        "build",
+        "--release",
+        "-p",
+        "toucan_cli"
+      ],
+      "allocator": "system",
+      "dependency_artifacts": "Both semantic probes linked against their corresponding CLI release builds (matching dependency feature unification)."
+    },
+    "semantic_scope": "Longer batches after builds complete; CPU 2, release system allocator, allocation instrumentation. Five alternating observations after per-process warmup; includes parser/analyzer/drop, excludes I/O and serialization. Shared host; these are regression samples, not independent workload throughput claims.",
+    "semantic": {
+      "zlib": {
+        "input_sha256": "81ac79ff0940ce15f3c97722dc88253df4558e53955ad3b36f34c9c8a9c8910b",
+        "iterations": 100,
+        "profiles": {
+          "normal": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.00624971018,
+                  "allocation_calls": 17300,
+                  "allocated_bytes": 4395923,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.00624567809,
+                  "allocation_calls": 17300,
+                  "allocated_bytes": 4395923,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.0063309453500000005,
+                  "allocation_calls": 17300,
+                  "allocated_bytes": 4395923,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.006233492980000001,
+                  "allocation_calls": 17300,
+                  "allocated_bytes": 4395923,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.00629648479,
+                  "allocation_calls": 17300,
+                  "allocated_bytes": 4395923,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                }
+              ],
+              "median_seconds": 0.00624971018
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.0065850928,
+                  "allocation_calls": 17301,
+                  "allocated_bytes": 4395987,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.0064551656700000005,
+                  "allocation_calls": 17301,
+                  "allocated_bytes": 4395987,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.0063678615000000004,
+                  "allocation_calls": 17301,
+                  "allocated_bytes": 4395987,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.0064211306999999995,
+                  "allocation_calls": 17301,
+                  "allocated_bytes": 4395987,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.00638511543,
+                  "allocation_calls": 17301,
+                  "allocated_bytes": 4395987,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                }
+              ],
+              "median_seconds": 0.0064211306999999995
+            },
+            "changed_over_baseline": 1.027428555095014
+          },
+          "retained": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.00965434085,
+                  "allocation_calls": 25606,
+                  "allocated_bytes": 8181775,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.00978705734,
+                  "allocation_calls": 25606,
+                  "allocated_bytes": 8181758,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.00965363612,
+                  "allocation_calls": 25606,
+                  "allocated_bytes": 8181750,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.00979992591,
+                  "allocation_calls": 25606,
+                  "allocated_bytes": 8181758,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.009624522949999999,
+                  "allocation_calls": 25606,
+                  "allocated_bytes": 8181699,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                }
+              ],
+              "median_seconds": 0.00965434085
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.00996639268,
+                  "allocation_calls": 25607,
+                  "allocated_bytes": 8181865,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.00992736879,
+                  "allocation_calls": 25607,
+                  "allocated_bytes": 8181814,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.010001295720000001,
+                  "allocation_calls": 25607,
+                  "allocated_bytes": 8181856,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.00983324249,
+                  "allocation_calls": 25607,
+                  "allocated_bytes": 8181788,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                },
+                {
+                  "seconds": 0.0098737802,
+                  "allocation_calls": 25607,
+                  "allocated_bytes": 8181805,
+                  "declarations": 364,
+                  "unit_sha256": "28d5e8ee7702654d950313eb4d753101b8fbe11d36f4d2d670d61713f2a3ca6d"
+                }
+              ],
+              "median_seconds": 0.00992736879
+            },
+            "changed_over_baseline": 1.0282803294644398
+          }
+        }
+      },
+      "sqlite": {
+        "input_sha256": "526da49a61ba15629741fdeff0c6dc712060131df23aa9e4a73b264812724b7e",
+        "iterations": 100,
+        "profiles": {
+          "normal": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.00907969575,
+                  "allocation_calls": 24745,
+                  "allocated_bytes": 7419002,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.00911623809,
+                  "allocation_calls": 24745,
+                  "allocated_bytes": 7419002,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.00918615789,
+                  "allocation_calls": 24745,
+                  "allocated_bytes": 7419002,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.00940489459,
+                  "allocation_calls": 24745,
+                  "allocated_bytes": 7419002,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.00915099275,
+                  "allocation_calls": 24745,
+                  "allocated_bytes": 7419002,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                }
+              ],
+              "median_seconds": 0.00915099275
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.00959970891,
+                  "allocation_calls": 24745,
+                  "allocated_bytes": 7419002,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.00978475282,
+                  "allocation_calls": 24745,
+                  "allocated_bytes": 7419002,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.00921070093,
+                  "allocation_calls": 24745,
+                  "allocated_bytes": 7419002,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.00928860865,
+                  "allocation_calls": 24745,
+                  "allocated_bytes": 7419002,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.00920369244,
+                  "allocation_calls": 24745,
+                  "allocated_bytes": 7419002,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                }
+              ],
+              "median_seconds": 0.00928860865
+            },
+            "changed_over_baseline": 1.0150383574503434
+          },
+          "retained": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.01540854639,
+                  "allocation_calls": 37785,
+                  "allocated_bytes": 12180410,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.014802012529999999,
+                  "allocation_calls": 37785,
+                  "allocated_bytes": 12180452,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.01473906887,
+                  "allocation_calls": 37785,
+                  "allocated_bytes": 12180427,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.01486560351,
+                  "allocation_calls": 37785,
+                  "allocated_bytes": 12180427,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.01474608908,
+                  "allocation_calls": 37785,
+                  "allocated_bytes": 12180427,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                }
+              ],
+              "median_seconds": 0.014802012529999999
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.01596363315,
+                  "allocation_calls": 37785,
+                  "allocated_bytes": 12180444,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.01490354065,
+                  "allocation_calls": 37785,
+                  "allocated_bytes": 12180427,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.015041381710000001,
+                  "allocation_calls": 37785,
+                  "allocated_bytes": 12180427,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.01494845706,
+                  "allocation_calls": 37785,
+                  "allocated_bytes": 12180410,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                },
+                {
+                  "seconds": 0.015212104389999998,
+                  "allocation_calls": 37785,
+                  "allocated_bytes": 12180418,
+                  "declarations": 339,
+                  "unit_sha256": "707e74d4b74f58e258269e8615192d136ce15e539e3270c6047227d8f06a6ab8"
+                }
+              ],
+              "median_seconds": 0.015041381710000001
+            },
+            "changed_over_baseline": 1.016171394228647
+          }
+        }
+      },
+      "zstd": {
+        "input_sha256": "9d2e2df505b5bb5c85748d3fc10c9625a857de8869885352d84b9504d67de1c8",
+        "iterations": 100,
+        "profiles": {
+          "normal": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.00213421188,
+                  "allocation_calls": 6150,
+                  "allocated_bytes": 1235067,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.00214638452,
+                  "allocation_calls": 6150,
+                  "allocated_bytes": 1235067,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.00214009538,
+                  "allocation_calls": 6150,
+                  "allocated_bytes": 1235067,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.0023904302399999997,
+                  "allocation_calls": 6150,
+                  "allocated_bytes": 1235067,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.0024967954,
+                  "allocation_calls": 6150,
+                  "allocated_bytes": 1235067,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                }
+              ],
+              "median_seconds": 0.00214638452
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.0021505123300000002,
+                  "allocation_calls": 6150,
+                  "allocated_bytes": 1235067,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.00217291166,
+                  "allocation_calls": 6150,
+                  "allocated_bytes": 1235067,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.00216649187,
+                  "allocation_calls": 6150,
+                  "allocated_bytes": 1235067,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.0021713908200000002,
+                  "allocation_calls": 6150,
+                  "allocated_bytes": 1235067,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.00221371067,
+                  "allocation_calls": 6150,
+                  "allocated_bytes": 1235067,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                }
+              ],
+              "median_seconds": 0.0021713908200000002
+            },
+            "changed_over_baseline": 1.011650428787103
+          },
+          "retained": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.00337125277,
+                  "allocation_calls": 8959,
+                  "allocated_bytes": 2466645,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.0033621462200000003,
+                  "allocation_calls": 8959,
+                  "allocated_bytes": 2466645,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.0033587957099999997,
+                  "allocation_calls": 8959,
+                  "allocated_bytes": 2466645,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.00333658904,
+                  "allocation_calls": 8959,
+                  "allocated_bytes": 2466645,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.00336225257,
+                  "allocation_calls": 8959,
+                  "allocated_bytes": 2466645,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                }
+              ],
+              "median_seconds": 0.0033621462200000003
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.00339559104,
+                  "allocation_calls": 8959,
+                  "allocated_bytes": 2466645,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.00339250106,
+                  "allocation_calls": 8959,
+                  "allocated_bytes": 2466645,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.004007820919999999,
+                  "allocation_calls": 8959,
+                  "allocated_bytes": 2466645,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.00345676458,
+                  "allocation_calls": 8959,
+                  "allocated_bytes": 2466645,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                },
+                {
+                  "seconds": 0.00340511682,
+                  "allocation_calls": 8959,
+                  "allocated_bytes": 2466645,
+                  "declarations": 89,
+                  "unit_sha256": "07bc0db456382aa829962ab264bffb762405617d29d836c7e3fe879af1b2f369"
+                }
+              ],
+              "median_seconds": 0.00340511682
+            },
+            "changed_over_baseline": 1.0127807052960354
+          }
+        }
+      },
+      "libgit2": {
+        "input_sha256": "51382e2e99dd4f5ce50098603de9203e31b11329e7b4da730383a5a19cbaf800",
+        "iterations": 30,
+        "profiles": {
+          "normal": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.039737221866666665,
+                  "allocation_calls": 97859,
+                  "allocated_bytes": 21564675,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.03783398326666666,
+                  "allocation_calls": 97859,
+                  "allocated_bytes": 21564675,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.03784928886666667,
+                  "allocation_calls": 97859,
+                  "allocated_bytes": 21564675,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.040268082733333335,
+                  "allocation_calls": 97859,
+                  "allocated_bytes": 21564675,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.038452905600000004,
+                  "allocation_calls": 97859,
+                  "allocated_bytes": 21564675,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                }
+              ],
+              "median_seconds": 0.038452905600000004
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.03951243623333333,
+                  "allocation_calls": 97860,
+                  "allocated_bytes": 21564739,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.04121638823333333,
+                  "allocation_calls": 97860,
+                  "allocated_bytes": 21564739,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.0385238738,
+                  "allocation_calls": 97860,
+                  "allocated_bytes": 21564739,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.039081185766666665,
+                  "allocation_calls": 97860,
+                  "allocated_bytes": 21564739,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.04263416416666666,
+                  "allocation_calls": 97860,
+                  "allocated_bytes": 21564739,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                }
+              ],
+              "median_seconds": 0.03951243623333333
+            },
+            "changed_over_baseline": 1.0275539810789571
+          },
+          "retained": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.0691542632,
+                  "allocation_calls": 142813,
+                  "allocated_bytes": 41467837,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.06768127333333333,
+                  "allocation_calls": 142813,
+                  "allocated_bytes": 41467781,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.0686009691,
+                  "allocation_calls": 142813,
+                  "allocated_bytes": 41467809,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.06807179726666666,
+                  "allocation_calls": 142813,
+                  "allocated_bytes": 41467866,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.0678765928,
+                  "allocation_calls": 142813,
+                  "allocated_bytes": 41467781,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                }
+              ],
+              "median_seconds": 0.06807179726666666
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.07621587623333334,
+                  "allocation_calls": 142814,
+                  "allocated_bytes": 41467901,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.06900013733333334,
+                  "allocation_calls": 142814,
+                  "allocated_bytes": 41467845,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.07430402316666668,
+                  "allocation_calls": 142814,
+                  "allocated_bytes": 41467788,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.06962539183333334,
+                  "allocation_calls": 142814,
+                  "allocated_bytes": 41467873,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                },
+                {
+                  "seconds": 0.0690834593,
+                  "allocation_calls": 142814,
+                  "allocated_bytes": 41467817,
+                  "declarations": 1465,
+                  "unit_sha256": "8dca27245187b8045618a9fdda3b91fd161473c8d0896af23b67788161e7d3dd"
+                }
+              ],
+              "median_seconds": 0.06962539183333334
+            },
+            "changed_over_baseline": 1.0228228815610756
+          }
+        }
+      },
+      "vla": {
+        "input_sha256": "42123920bdac54b7b8676cf075e36434abe49418fc773eb410072c2321261354",
+        "iterations": 500,
+        "profiles": {
+          "normal": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.000217931082,
+                  "allocation_calls": 235,
+                  "allocated_bytes": 43202,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.00021706388400000002,
+                  "allocation_calls": 235,
+                  "allocated_bytes": 43202,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000219741144,
+                  "allocation_calls": 235,
+                  "allocated_bytes": 43202,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000218281976,
+                  "allocation_calls": 235,
+                  "allocated_bytes": 43202,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.00021903843,
+                  "allocation_calls": 235,
+                  "allocated_bytes": 43202,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                }
+              ],
+              "median_seconds": 0.000218281976
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.000227935006,
+                  "allocation_calls": 236,
+                  "allocated_bytes": 43266,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000225380276,
+                  "allocation_calls": 236,
+                  "allocated_bytes": 43266,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.00022965958799999999,
+                  "allocation_calls": 236,
+                  "allocated_bytes": 43266,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.00022661962999999998,
+                  "allocation_calls": 236,
+                  "allocated_bytes": 43266,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000229802156,
+                  "allocation_calls": 236,
+                  "allocated_bytes": 43266,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                }
+              ],
+              "median_seconds": 0.000227935006
+            },
+            "changed_over_baseline": 1.0442227534168922
+          },
+          "retained": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.00028103787000000003,
+                  "allocation_calls": 412,
+                  "allocated_bytes": 74622,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000284325812,
+                  "allocation_calls": 412,
+                  "allocated_bytes": 74622,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.00028369726,
+                  "allocation_calls": 412,
+                  "allocated_bytes": 74622,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000280286166,
+                  "allocation_calls": 412,
+                  "allocated_bytes": 74622,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000280821286,
+                  "allocation_calls": 412,
+                  "allocated_bytes": 74622,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                }
+              ],
+              "median_seconds": 0.00028103787000000003
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.000286762882,
+                  "allocation_calls": 413,
+                  "allocated_bytes": 74686,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000283850744,
+                  "allocation_calls": 413,
+                  "allocated_bytes": 74686,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000286394074,
+                  "allocation_calls": 413,
+                  "allocated_bytes": 74686,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000287910746,
+                  "allocation_calls": 413,
+                  "allocated_bytes": 74686,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                },
+                {
+                  "seconds": 0.000293592558,
+                  "allocation_calls": 413,
+                  "allocated_bytes": 74686,
+                  "declarations": 1,
+                  "unit_sha256": "9391dcc9f6a95c1e18b0f3deea1a79df4392c190d103af823a1a932995ea8929"
+                }
+              ],
+              "median_seconds": 0.000286762882
+            },
+            "changed_over_baseline": 1.0203709628172173
+          }
+        }
+      },
+      "vla-many": {
+        "input_sha256": "39bba73b93bc8b32156d47b2a1fb4158a4b60ebf572a1cfa67419a3db311c45a",
+        "iterations": 30,
+        "profiles": {
+          "normal": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.005274976666666667,
+                  "allocation_calls": 18774,
+                  "allocated_bytes": 3025926,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.005300888066666666,
+                  "allocation_calls": 18774,
+                  "allocated_bytes": 3025926,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.005303245333333333,
+                  "allocation_calls": 18774,
+                  "allocated_bytes": 3025926,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.0053003394,
+                  "allocation_calls": 18774,
+                  "allocated_bytes": 3025926,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.0052943191333333335,
+                  "allocation_calls": 18774,
+                  "allocated_bytes": 3025926,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                }
+              ],
+              "median_seconds": 0.0053003394
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.0053490898,
+                  "allocation_calls": 18780,
+                  "allocated_bytes": 3029958,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.005324008933333333,
+                  "allocation_calls": 18780,
+                  "allocated_bytes": 3029958,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.0053331744,
+                  "allocation_calls": 18780,
+                  "allocated_bytes": 3029958,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.0053246461,
+                  "allocation_calls": 18780,
+                  "allocated_bytes": 3029958,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.005371940466666667,
+                  "allocation_calls": 18780,
+                  "allocated_bytes": 3029958,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                }
+              ],
+              "median_seconds": 0.0053331744
+            },
+            "changed_over_baseline": 1.0061948863123744
+          },
+          "retained": {
+            "baseline": {
+              "observations": [
+                {
+                  "seconds": 0.0087908495,
+                  "allocation_calls": 28385,
+                  "allocated_bytes": 6286881,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.008726203066666667,
+                  "allocation_calls": 28385,
+                  "allocated_bytes": 6286881,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.008744897966666667,
+                  "allocation_calls": 28385,
+                  "allocated_bytes": 6286881,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.0088970953,
+                  "allocation_calls": 28385,
+                  "allocated_bytes": 6286881,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.008762184633333333,
+                  "allocation_calls": 28385,
+                  "allocated_bytes": 6286881,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                }
+              ],
+              "median_seconds": 0.008762184633333333
+            },
+            "changed": {
+              "observations": [
+                {
+                  "seconds": 0.008955277933333334,
+                  "allocation_calls": 28896,
+                  "allocated_bytes": 6342249,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.009109896233333333,
+                  "allocation_calls": 28896,
+                  "allocated_bytes": 6342249,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.008910766799999999,
+                  "allocation_calls": 28896,
+                  "allocated_bytes": 6342249,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.0089049085,
+                  "allocation_calls": 28896,
+                  "allocated_bytes": 6342249,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                },
+                {
+                  "seconds": 0.008997030233333333,
+                  "allocation_calls": 28896,
+                  "allocated_bytes": 6342249,
+                  "declarations": 100,
+                  "unit_sha256": "9db941020b9cc7767a51c72570941409c935d47bbb4120eeb5be7ba56d7405c9"
+                }
+              ],
+              "median_seconds": 0.008955277933333334
+            },
+            "changed_over_baseline": 1.022037118376327
+          }
+        }
+      }
+    },
+    "binding_scope": "Seven alternating subprocess observations on CPU 2, including process startup/output capture; SOURCE_DATE_EPOCH=0. Shared host, no C compiler comparison.",
+    "bindings": {
+      "zlib": {
+        "arguments": [
+          "bindgen",
+          "$TOUCAN_CACHE/corpus/sources/zlib-1.3.1/zlib.h",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "-I",
+          "$TOUCAN_CACHE/corpus/build/zlib",
+          "-I",
+          "$TOUCAN_CACHE/corpus/sources/zlib-1.3.1",
+          "-I",
+          "/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "--sysroot",
+          "/",
+          "--allowlist",
+          "z*",
+          "--allowlist",
+          "Z*",
+          "--allowlist",
+          "deflate*",
+          "--allowlist",
+          "inflate*",
+          "--allowlist",
+          "compress*",
+          "--allowlist",
+          "uncompress*",
+          "--allowlist",
+          "adler32*",
+          "--allowlist",
+          "crc32*",
+          "--allowlist",
+          "get_crc_table",
+          "--allowlist",
+          "gz*",
+          "--allowlist",
+          "Byte*",
+          "--allowlist",
+          "uInt*",
+          "--allowlist",
+          "uLong*",
+          "--allowlist",
+          "voidp*",
+          "--allowlist",
+          "alloc_func",
+          "--allowlist",
+          "free_func",
+          "--allowlist",
+          "in_func",
+          "--allowlist",
+          "out_func"
+        ],
+        "profiles": {
+          "baseline": {
+            "observations": [
+              {
+                "seconds": 0.04699830100435065,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.047351620996778365,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.04713242199795786,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.05107837299874518,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.049349371998687275,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.05010204800055362,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.0492590840003686,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              }
+            ],
+            "median_seconds": 0.0492590840003686
+          },
+          "changed": {
+            "observations": [
+              {
+                "seconds": 0.0468241560010938,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.05015209099656204,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.047629650005546864,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.049166370001330506,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.051511589997971896,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.06747032800194575,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              },
+              {
+                "seconds": 0.05217091299709864,
+                "output_sha256": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+                "output_bytes": 14774
+              }
+            ],
+            "median_seconds": 0.05015209099656204
+          }
+        },
+        "changed_over_baseline": 1.0181287779567065
+      },
+      "sqlite": {
+        "arguments": [
+          "bindgen",
+          "$TOUCAN_CACHE/corpus/build/sqlite/sqlite3.h",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "-I",
+          "$TOUCAN_CACHE/corpus/build/sqlite",
+          "-I",
+          "/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "--sysroot",
+          "/",
+          "--allowlist",
+          "sqlite3*",
+          "--allowlist",
+          "SQLITE*"
+        ],
+        "profiles": {
+          "baseline": {
+            "observations": [
+              {
+                "seconds": 0.19123363700055052,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.17237116600153968,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.17412941200018395,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.17120613099541515,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.17169744899729267,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.16970157100149663,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.17440065700066043,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              }
+            ],
+            "median_seconds": 0.17237116600153968
+          },
+          "changed": {
+            "observations": [
+              {
+                "seconds": 0.1755794090058771,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.1728622139999061,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.1722788849947392,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.17209502100013196,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.1713095049999538,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.1713936910018674,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              },
+              {
+                "seconds": 0.17416608500207076,
+                "output_sha256": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+                "output_bytes": 103325
+              }
+            ],
+            "median_seconds": 0.1722788849947392
+          }
+        },
+        "changed_over_baseline": 0.9994646377991104
+      },
+      "zstd": {
+        "arguments": [
+          "bindgen",
+          "$TOUCAN_CACHE/corpus/sources/zstd-1.5.7/lib/zstd.h",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "-I",
+          "$TOUCAN_CACHE/corpus/sources/zstd-1.5.7/lib",
+          "-I",
+          "/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "--sysroot",
+          "/",
+          "--allowlist",
+          "ZSTD*"
+        ],
+        "profiles": {
+          "baseline": {
+            "observations": [
+              {
+                "seconds": 0.01666655900044134,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.015583716005494352,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.01534151299711084,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.016019522001442965,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.016050748999987263,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.01571266799874138,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.015057914999488275,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              }
+            ],
+            "median_seconds": 0.01571266799874138
+          },
+          "changed": {
+            "observations": [
+              {
+                "seconds": 0.015508665994275361,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.01634588999877451,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.01617052200163016,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.015976540998963173,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.021193248001509346,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.016209385001275223,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              },
+              {
+                "seconds": 0.01584381100110477,
+                "output_sha256": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+                "output_bytes": 16799
+              }
+            ],
+            "median_seconds": 0.01617052200163016
+          }
+        },
+        "changed_over_baseline": 1.0291391635669676
+      },
+      "libgit2": {
+        "arguments": [
+          "bindgen",
+          "$TOUCAN_CACHE/corpus/sources/libgit2-1.9.1/include/git2.h",
+          "--target",
+          "x86_64-unknown-linux-gnu",
+          "-I",
+          "$TOUCAN_CACHE/corpus/sources/libgit2-1.9.1/include",
+          "-I",
+          "$TOUCAN_CACHE/corpus/build/libgit2/include",
+          "-I",
+          "/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "--sysroot",
+          "/",
+          "--allowlist",
+          "git_*",
+          "--allowlist",
+          "GIT_*"
+        ],
+        "profiles": {
+          "baseline": {
+            "observations": [
+              {
+                "seconds": 0.38970408100431086,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.37554694899881724,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.3607296940026572,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.36868591899838066,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.3658989159957855,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.3706468180025695,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.37070329199923435,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              }
+            ],
+            "median_seconds": 0.3706468180025695
+          },
+          "changed": {
+            "observations": [
+              {
+                "seconds": 0.38290653599688085,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.36277093299577245,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.3880347040030756,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.3639202539998223,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.36990118499670643,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.3766565019977861,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              },
+              {
+                "seconds": 0.37226312900020275,
+                "output_sha256": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+                "output_bytes": 250206
+              }
+            ],
+            "median_seconds": 0.37226312900020275
+          }
+        },
+        "changed_over_baseline": 1.0043607847663272
+      }
+    },
+    "binary_sha256": {
+      "identity-measure-baseline": "aef63ead726ceb3da76f198f5256c1650bd11a70db057d3cb614a89c724720fb",
+      "allocations-baseline": "cf7728be7a49482b969b080b83efc7c19841b168825078ed6858a451290c27b9",
+      "sizes-baseline": "2bb8cf274f234d1b4e79744078188f8a23b8a01888f243b0a1f90804485d5dad",
+      "toucan-baseline": "6f93cad5636bbb076663e56e79667b1563d8cd0477cbb352b47eae39f0b38d26",
+      "identity-measure-changed": "6bd87ad7a580bd8bd64af23d53f7a44ecce874c38fbfbb85d706fe38038aca43",
+      "allocations-changed": "b7fcc65d092f48a5b1ad44a6ce8fbf5afb7795a451cb6df77db5f9cc37c91c18",
+      "sizes-changed": "2bb8cf274f234d1b4e79744078188f8a23b8a01888f243b0a1f90804485d5dad",
+      "toucan-changed": "971c576ee5639585e9e6098e64087aabc28eb213e0a49aa304ac21d628821f11"
+    },
+    "allocation_fixtures": {
+      "baseline": "0: 95 allocations, 26109 bytes; 2 declarations\n1: 291 allocations, 58480 bytes; 1 declarations\n2: 13473 allocations, 2472562 bytes; 100 declarations\n3: 215 allocations, 40170 bytes; 3 declarations\n",
+      "changed": "0: 95 allocations, 26109 bytes; 2 declarations\n1: 292 allocations, 58544 bytes; 1 declarations\n2: 13473 allocations, 2472562 bytes; 100 declarations\n3: 215 allocations, 40170 bytes; 3 declarations\n"
+    },
+    "source_sha256": {
+      "crates/toucan_semantic/src/vector.rs": "5b8b234f783f220540804dc6b7e7e1f620fca44fc684cd5d2384c1b7b2d0e9aa",
+      "crates/toucan_semantic/src/object_extent.rs": "ed42bab69cbf13454c5ec6993928bf5bc89da93f12208d47836191bb211a80a9",
+      "crates/toucan_semantic/src/atomic_type.rs": "2109e328bb2990feab10f213fd8f6a25249541bcf0c4548e5be6014d9b5b347f",
+      "crates/toucan_semantic/src/statement.rs": "3b5b9a11aedcf1b3e107c131375653d126d50c4d2c12d9a4851936a35e7a87a5",
+      "crates/toucan_semantic/src/returns_twice.rs": "74625e4a9ec40b69428c9655e72fc641dbca8452c1dcf00da2d9fe83bbc029ae",
+      "crates/toucan_semantic/src/introspection.rs": "6e47e041ef3d59f1365ac854364edcb1da980f9c53fd74de0f0fe40c20ae6fce",
+      "crates/toucan_semantic/src/parser_extensions.rs": "2e2edd79482c0e712bf3c521a113d05cf8d3587d49d3c9436b0371d961d0f4da",
+      "crates/toucan_semantic/src/lib.rs": "c03eb78a1484e6912365d3f2e279c13960780ffffdcee7314498423467f81ac1",
+      "crates/toucan_semantic/src/floating_tests.rs": "858241d29e75a105a28433cd1afeca31996923488c0ed36c68e803c2bf9c4958",
+      "crates/toucan_semantic/src/builtins.rs": "c7c9de795376fc96ed8eca6a7306bbb74048117507907741b8eec86057f7ca50",
+      "crates/toucan_semantic/src/transparent_union.rs": "82c44bb3713d44373e863c2c5d322f844e5abc6916180b60600b5788bb16e9af",
+      "crates/toucan_semantic/src/array_identity.rs": "2ba9dbba758c550b93d2266883c4ce8d4786cb39fb6ca79d0298257c2c3ca943",
+      "crates/toucan_semantic/src/atomic.rs": "eff408843e2e80534e8d6d2f8ab3d6cf141f4a5046f47990f2c6330e33cdd738",
+      "crates/toucan_semantic/src/object_size.rs": "2f7640410c0092ce0c58d95ae396de392ae0897e82b4479f058224a783746eb8",
+      "crates/toucan_semantic/src/literals.rs": "578657d1c11d5aef3c487dc9f3a58f1dd42b1bdaa9c92e8353d568683ead8fcb",
+      "crates/toucan_semantic/src/c11_atomic.rs": "9e7b0288bff9de6815ea8ea78ea71d1905b850efdccb05371bc1230b467f3509",
+      "crates/toucan_semantic/src/integer.rs": "dbaa0cc77eaa03619c04e4ab2cce1bc365195d035b2866ea5d29a276ebee3426",
+      "crates/toucan_semantic/src/floating.rs": "469783b7caaf96fe99a1899da2e00a81bc34202803e873aae3a52543d674f268",
+      "crates/toucan_semantic/src/initializer.rs": "129483c01649eb94b233c247e3e0da71a7b6f40cbfcd72b9184a3e3160deb39f",
+      "crates/toucan_semantic/src/analyze.rs": "8dfa2942d143c09fb7734118c61e65ddad0777e4e82768e94c993df1b7cf2e4b",
+      "crates/toucan_semantic/src/constant_query.rs": "743bcc92a8a58ec272cdb4e8d81244e621fd8f094f49338c5194250e83b67de1",
+      "crates/toucan_semantic/src/expression.rs": "7f84709e4c333dcf6ac7a96fcb8f643284b705dfc9bbee2f127cceae0dfb2fd4",
+      "crates/toucan_semantic/src/sync.rs": "b834b7de9f2a9a573228568003f91687691620b19c100b131da09dd26b6d7ac8",
+      "crates/toucan_semantic/src/fortified.rs": "1fc0ac4fcabe0dba5714a308918f22ef50f2eb0855a4782770e7e96290c9cdc9",
+      "crates/toucan_semantic/src/x86.rs": "0be409483cf24051c50768d1551079655f2f0d9df4eea5dfe8ee4169c5a06a83",
+      "crates/toucan_semantic/src/asm.rs": "92b625b8e53f5d04bac58728803448e3ced7e17d1961452110d9a11d00c3c6ce",
+      "crates/toucan_semantic/src/ir.rs": "8bbc3b72654c9a92cd35fa62e4309f178316e8d268b0ff924307b454b45da334",
+      "crates/toucan_semantic/src/checked.rs": "742376d9dd18203965bb43cf2388ee2836403d4e951ebe13feb8231bd11d2a6f",
+      "crates/toucan_semantic/src/weak.rs": "cc03240f3f6eabc888515d77750c9b1cac7ca7b12600ec6200d852e0c986091f",
+      "crates/toucan_semantic/src/overflow.rs": "d00e5772d033e5350ca5c8431077d1f76b50df7295c680ee22e505941174aeb0",
+      "crates/toucan_semantic/src/arm.rs": "e235d9a25099ca01a69a6c48c64d08a11efe80221159782e0756c3ad198db7f4",
+      "crates/toucan_semantic/src/auto_type.rs": "e6a24d17ba51d661b26ff10aaf4a0c1ce02e4e5155da7254945e8d95ba52e4f3",
+      "crates/toucan_semantic/src/variadic_pack.rs": "12453b3d9d0402017127f9bb27e1e3c43fa73ba9ca8547da6a5f953fea3336be",
+      "crates/toucan_semantic/src/checked/statement.rs": "298d45ba09aa3029ce680426b57ab08121ece4afe349c25b31267df0a53a6a7f",
+      "crates/toucan_semantic/src/checked/references.rs": "16d7798669dcbf74858b550f91d26502f9e696a6f9f234515a2f12aa729c6cd3",
+      "crates/toucan_semantic/src/checked/query.rs": "c8d4f6c28c653cbf6125bc1571c5c188ad46c9ecaa2fd37ca895e4cced9d1f82",
+      "crates/toucan_semantic/src/checked/access.rs": "95aad73d4c5f02844d9cc3d489d08f00b18bfc4eb04e157a139524f5f6e32d7f",
+      "crates/toucan_semantic/src/checked/initializer.rs": "b7e349e02a78bab2df9367c9add3ab0c93913e6b457014cd777ededa92c326c1",
+      "crates/toucan_semantic/src/checked/inference.rs": "b226756d7e02cac83e54fea0a7519602987541cd2363d67744416ecda7a85b50",
+      "crates/toucan_semantic/src/checked/expression.rs": "287bc007a7cfba95d13a1c8d7ca690d9356d2b97997a51db9f1ad7522908c11c",
+      "crates/toucan_semantic/src/checked/ownership.rs": "3e3cfb191227f6e9b35536552e06447fd8e3cf85466c1b1682846f27b3f22c6e",
+      "crates/toucan_semantic/src/checked/attributes.rs": "879851957cada1bffb55c2b3c80cc5f78e62f4bfe7dd8e789901a146a78b4276",
+      "crates/toucan_semantic/src/checked/bounds.rs": "bcefc69a0c689bea15707fffc0ccab2b491f5055301c14f5154f1909880d5261"
+    },
+    "measurement_source": "use std::alloc::{GlobalAlloc, Layout, System};\nuse std::sync::atomic::{AtomicUsize, Ordering};\nstatic CALLS: AtomicUsize = AtomicUsize::new(0);\nstatic BYTES: AtomicUsize = AtomicUsize::new(0);\nstruct Counter;\nunsafe impl GlobalAlloc for Counter {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        CALLS.fetch_add(1, Ordering::Relaxed);\n        BYTES.fetch_add(layout.size(), Ordering::Relaxed);\n        unsafe { System.alloc(layout) }\n    }\n    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {\n        CALLS.fetch_add(1, Ordering::Relaxed);\n        BYTES.fetch_add(layout.size(), Ordering::Relaxed);\n        unsafe { System.alloc_zeroed(layout) }\n    }\n    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, size: usize) -> *mut u8 {\n        CALLS.fetch_add(1, Ordering::Relaxed);\n        BYTES.fetch_add(size, Ordering::Relaxed);\n        unsafe { System.realloc(ptr, layout, size) }\n    }\n    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) { unsafe { System.dealloc(ptr, layout) } }\n}\n#[global_allocator]\nstatic ALLOCATOR: Counter = Counter;\nfn main() {\n    let args=std::env::args().collect::<Vec<_>>();\n    let source=std::fs::read_to_string(&args[1]).unwrap();\n    let retained=args[2]==\"retained\";\n    let iterations:usize=args[3].parse().unwrap();\n    let options=toucan_semantic::AnalysisOptions { retain_code: retained, ..Default::default() };\n    let target=toucan_target::Target::X86_64UnknownLinuxGnu;\n    drop(toucan_semantic::analyze_with_options(&source,target,&options).unwrap());\n    CALLS.store(0,Ordering::Relaxed); BYTES.store(0,Ordering::Relaxed);\n    let start=std::time::Instant::now();\n    let mut analysis=None;\n    for _ in 0..iterations { analysis=Some(toucan_semantic::analyze_with_options(&source,target,&options).unwrap()); }\n    let elapsed=start.elapsed().as_secs_f64();\n    let calls=CALLS.load(Ordering::Relaxed);let bytes=BYTES.load(Ordering::Relaxed);\n    println!(\"{} {} {} {}\",elapsed,calls,bytes,analysis.as_ref().unwrap().unit().declarations.len());\n    std::fs::write(&args[4],format!(\"{:?}\",analysis.unwrap().unit())).unwrap();\n}\n",
+    "fixtures": {
+      "vla.c": "int f(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\n",
+      "vla-many.c": "int f0(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f1(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f2(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f3(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f4(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f5(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f6(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f7(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f8(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f9(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f10(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f11(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f12(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f13(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f14(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f15(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f16(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f17(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f18(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f19(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f20(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f21(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f22(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f23(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f24(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f25(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f26(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f27(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f28(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f29(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f30(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f31(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f32(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f33(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f34(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f35(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f36(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f37(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f38(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f39(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f40(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f41(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f42(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f43(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f44(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f45(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f46(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f47(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f48(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f49(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f50(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f51(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f52(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f53(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f54(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f55(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f56(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f57(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f58(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f59(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f60(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f61(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f62(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f63(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f64(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f65(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f66(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f67(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f68(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f69(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f70(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f71(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f72(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f73(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f74(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f75(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f76(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f77(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f78(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f79(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f80(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f81(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f82(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f83(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f84(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f85(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f86(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f87(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f88(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f89(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f90(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f91(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f92(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f93(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f94(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f95(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f96(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f97(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f98(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\nint f99(int n) { typedef int A[n]; A a; __auto_type p=&a; return sizeof *p; }\n"
+    },
+    "type_sizes": {
+      "baseline": "TypeKind=32 Type=40 FunctionType=72\n",
+      "changed": "TypeKind=32 Type=40 FunctionType=72\n"
+    },
+    "allocation_fixture_source": "use std::alloc::{GlobalAlloc, Layout, System};\nuse std::sync::atomic::{AtomicUsize, Ordering};\nstatic CALLS: AtomicUsize = AtomicUsize::new(0);\nstatic BYTES: AtomicUsize = AtomicUsize::new(0);\nstruct Counter;\nunsafe impl GlobalAlloc for Counter {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        CALLS.fetch_add(1, Ordering::Relaxed);\n        BYTES.fetch_add(layout.size(), Ordering::Relaxed);\n        unsafe { System.alloc(layout) }\n    }\n    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {\n        CALLS.fetch_add(1, Ordering::Relaxed);\n        BYTES.fetch_add(layout.size(), Ordering::Relaxed);\n        unsafe { System.alloc_zeroed(layout) }\n    }\n    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, size: usize) -> *mut u8 {\n        CALLS.fetch_add(1, Ordering::Relaxed);\n        BYTES.fetch_add(size, Ordering::Relaxed);\n        unsafe { System.realloc(ptr, layout, size) }\n    }\n    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) { unsafe { System.dealloc(ptr, layout) } }\n}\n#[global_allocator]\nstatic ALLOCATOR: Counter = Counter;\nfn main() {\n    let target = toucan_target::Target::X86_64UnknownLinuxGnu;\n    let mut sources = vec![String::from(\"typedef int T; struct S {int x;}; extern int f(T);\"), String::from(\"int f(int n) { typedef int A[n]; A a; { long n; n=2; } for(int i=0;i<3;i++){ int x=i; } return sizeof a; }\")];\n    sources.push((0..100).map(|i| format!(\"int f{i}(int n) {{ int x = n+1; {{ int x=2; }} return x; }}\\n\")).collect());\n    sources.push(String::from(\"typedef int T; int accept(T); int f(T value) { return accept(value); }\"));\n    for (index, source) in sources.iter().enumerate() {\n        drop(toucan_semantic::analyze(source, target).unwrap());\n        CALLS.store(0, Ordering::Relaxed); BYTES.store(0, Ordering::Relaxed);\n        let unit = toucan_semantic::analyze(source, target).unwrap();\n        let calls = CALLS.load(Ordering::Relaxed); let bytes = BYTES.load(Ordering::Relaxed);\n        println!(\"{index}: {calls} allocations, {bytes} bytes; {} declarations\", unit.declarations.len());\n    }\n}\n"
+  },
+  "integration": {
+    "baseline_commit": "ece4c50cb67f26a55f721b38aebee0566f7f8226",
+    "profiles": 7,
+    "identity_query_replay_and_adapted_source_tests": "passed across all profiles",
+    "compiler_and_vla_inspection_metadata": "passed in schema versions 3 and 4",
+    "workspace_all_features": "passed",
+    "clippy_workspace_all_targets_all_features": "passed with -D warnings",
+    "rustdoc": "passed with -D warnings",
+    "checked_fuzz_clippy": "passed with -D warnings",
+    "fixed_seed_replay": {
+      "accepted": 260,
+      "matching_rejections": 97,
+      "full_graph_invariants": true
+    },
+    "performance": "Original f722e545 measurements retained above; no new timing claim for this integration."
+  }
+}

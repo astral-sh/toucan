@@ -81,9 +81,19 @@ The report retains original C macro types when a representation option changes
 them. The [zstd consumer test](tools/zstd_consumer) exercises these options through
 the unmodified `zstd` and `zstd-safe` Rust APIs.
 
+### Existing binding build scripts
+
+The experimental [toucan_bindgen adapter](crates/toucan_bindgen) supports the
+builder calls used by the pinned zstd-sys build script. It selects Cargo's target
+and generates bindings during the build without libclang. The adapter documents
+its supported arguments and API subset; unsupported options produce errors.
+
 ## Analyze headers
 
-Each command accepts `--target`, `--sysroot`, `-I`, `-D`, and `-U`:
+Each command accepts `--target`, `--compiler`, `--std`, `--sysroot`, `-I`, `-D`, and `-U`.
+Use `--compiler clang` for Clang on Linux; omitted selection preserves the target
+default. [Language modes](docs/language-modes.md) select C11 or GNU11 (the default).
+See [compiler profiles](docs/compiler-profiles.md) for supported pairs.
 
 ```console
 toucan preprocess api.h --output api.i
@@ -108,7 +118,9 @@ uses `"Jan  1 1970"` and `"00:00:00"`. `TZ` and locale do not change these macro
 Toucan uses the selected target's data model and predefined macros, independently
 of the host. Supply headers for that target through `--sysroot` and ordered `-I`
 arguments. `--sysroot` adds `usr/include` and, on Linux, the target's multiarch
-include directory; it does not discover a compiler installation or SDK.
+include directory; it does not discover a compiler installation or SDK. The
+[x86-64 and AArch64 musl targets](docs/musl.md) require musl headers and preserve
+the libc environment in generated Rust target guards.
 
 For native Linux headers, `--sysroot /` selects the installed system headers. Add
 compiler resource directories with `-I` when needed. On macOS, use the installed SDK:
@@ -183,7 +195,7 @@ the target, that covered 109–111 records and 628–638 ordinary field offsets.
 comparison gate passed with no unexplained differences; exact API equivalence
 remains false, with each accepted difference recorded and justified.
 
-The [recorded evidence](corpus/evidence/native-equivalence-2026-09-08.json) identifies
+The [recorded evidence](corpus/evidence/native-06cefbe/summary.json) identifies
 the tested commits and configurations. See [compatibility](docs/compatibility.md)
 for coverage and gaps. [Benchmarks](docs/benchmarks.md) and [fuzzing](fuzz/README.md)
 record separate performance and malformed-input checks.
@@ -286,13 +298,17 @@ Apple's byte-order header is covered by the macOS corpus jobs.
 
 ## Parser resource limits
 
-Parsing rejects excessive nesting before entering the recursive C parser. Within
-one outer brace region, at most 1,024 control-flow introducers (`if`, `else`,
-`for`, `while`, `do`, `switch`) and pending colons are allowed together. A
-terminating semicolon clears the current label chain; labels in enclosing braces
-and across `for` headers remain counted. Each separate function body receives a
-fresh budget. Comments and literals do not consume it.
+The parser bounds work, backtracking steps, recursive rule depth, owned AST depth,
+memoized clone cost, and construction metadata. Parsing and semantic traversal use
+a bounded worker stack; binding generation shares one scoped session across its
+macro evaluations. Large flat function bodies are accepted, and genuinely excessive
+inputs return source-positioned resource diagnostics. See [parser limits](docs/parser-limits.md)
+for defaults, embedding APIs, C11 nesting coverage, and validation.
 
-This conservative limit also rejects very large flat control-flow bodies with a
-diagnostic. It prevents deeply chained labels and unbraced statements from
-overflowing the parser stack before semantic nesting checks can run.
+### GNU vector types
+
+Fixed-size `vector_size` types through 16 bytes retain their lane types and target
+layout. Toucan checks lane operations and emits Rust storage and pointer bindings;
+by-value vector calls and wider vectors need additional ABI support. See the
+[vector compatibility notes](docs/compatibility.md#fixed-size-gnu-vectors) for the
+compiler differences and native C/Rust validation.

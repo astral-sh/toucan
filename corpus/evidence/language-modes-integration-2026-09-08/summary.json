@@ -1,0 +1,133 @@
+{
+  "schema_version": 1,
+  "base_commit": "2e740b262787e1f5b50b735a57c2efd89b797529",
+  "frozen_patch_sha256": "5c34a24aa09c4d328cb5e9ccf66c78442e64d309e7a7b3dd53538fc376aeb66f",
+  "source_files_sha256": {
+    "README.md": "885b5be71aecfb66d34e87a626151232ee743d24a32aec9c644f462696415186",
+    "corpus/translation-units.md": "1bea294348a8c17ecf29bb931facac3451d72a9b3d60c96896923243e7ca2df8",
+    "crates/toucan/examples/audit_translation_unit.rs": "f60ba1594e599cd2d3e359bbf863bc52241828a5f8df7201a6110ab0cf8978e5",
+    "crates/toucan/src/lib.rs": "526e7485913e84e00f52ade1cd832c019c6af15db10334b45540246c7a334cf6",
+    "crates/toucan/tests/language_modes.rs": "cd36f52904a301a976651386a26ab7a8bdaeb816ebf22063f01efd82ed928193",
+    "crates/toucan_bindgen/README.md": "8e202f784dad01052546c47b6e9d36ac8426f39403f2b77ac68cb88cb47caf93",
+    "crates/toucan_bindgen/src/arguments.rs": "f697ba2ee36c713d0555643dd020b2b5468d411f1de6fd6ba308b297976ef1da",
+    "crates/toucan_bindgen/src/lib.rs": "aa474a003018933e89a3ae3d3c1ab119e64c04bb4f9d191c69e9469633b290d1",
+    "crates/toucan_cli/src/main.rs": "2db68d970a2c6f2449feecda1900b8105a27b73bf97e7ba90a8a8b0d28d013e9",
+    "crates/toucan_cli/tests/language_modes.rs": "108ba8129c6eb42bddf3f4a4ea62013d5ba7698007f84d1e91da34ca546be967",
+    "crates/toucan_parser/README.md": "d1fe52d32be47092b72fb47ee5e1d787f6fcf296159781711d2187ee3063c473",
+    "crates/toucan_parser/grammar.rustpeg": "8849553360a48fc2cb67ff75c4ca17b5a512bcf7edae8eb4945ab9446b6a2c70",
+    "crates/toucan_parser/scripts/instrument.py": "57803a220dff5d50b4f2930e162475df6e3fd02082bc818c585ed5427236851e",
+    "crates/toucan_parser/src/driver.rs": "0058ec00c5f9bb81ec785ceb71d297ffaae085c50ef9bc3db9c6792ce49847a6",
+    "crates/toucan_parser/src/env.rs": "b6f89ec631aca53ce021a055665d5510457ab67957eee2458690690a5c2a349d",
+    "crates/toucan_parser/src/parser.rs": "9555afed5eb59eed900f518999ea783fda00852d5cbcd3b6eff491dc636bc0bb",
+    "crates/toucan_parser/src/strings.rs": "5c6a0e160f3b9d0269e368761edae5408a33f85ea7577630a8e578773d436cf3",
+    "crates/toucan_preprocessor/src/definitions.rs": "66afcc2a4a11a1ef03166684e1fb4dca0833fa5133c3460c7691489d8cd01cd3",
+    "crates/toucan_preprocessor/src/lib.rs": "e01314efa20d7c334f7f3cc64a6f8f937e3609eb2af59f9e24da4d59c7dbe265",
+    "crates/toucan_preprocessor/src/token.rs": "70cc2023e44ae371adb4097a2dbb97fe1c950a724d17fa10030f4b1e39d00f29",
+    "crates/toucan_semantic/src/analyze.rs": "59439a0d379c0a99c09be61a3173d021f7a92ffa355f75b09b70a2e93f07cc5d",
+    "crates/toucan_semantic/src/ir.rs": "1e9bb1a0039beada55f954d06f465a2018c87bc8b03144723b9f33d1fa81a1f9",
+    "crates/toucan_semantic/tests/language_modes.rs": "8b46cd1a0dcf73831919863a856a0f709162081d4c8a8a91e86c8445115851f5",
+    "crates/toucan_target/src/language.rs": "cf6dcd22d1b09ce8be822ab8122f96149926694997065b634fb5d1e47ed31293",
+    "crates/toucan_target/src/lib.rs": "f4186e138cbcbf04ea517f7eeabf30b4872b72efd400b9ef4496e141102813c6",
+    "crates/toucan_target/src/macros.rs": "791eac9b5b782f7a1e336d4fd0a72bfdc452d53473145567ea4058678b1cd53f",
+    "crates/toucan_target/src/profile.rs": "17fba0a7bf1f42f18039c4a813991350aa3fb8e4efb9eca56e572e4030bc77ac",
+    "docs/compatibility.md": "80644461a49c150090813d9b4675cd8a5b7677d95e7fda9c874a0ad3e597d62b",
+    "docs/compiler-profiles.md": "037378a8b100a11142a391e8f7506358c47ecdff2345330e0918e827de2b4ad5",
+    "docs/complex-projections.md": "5704115f5692db4cbe74d564118bf5dbc9a3b83e0f45481785ce88b67b8b5428",
+    "docs/inspection.md": "6bf7c878c74ca39389a920781c8a0ef51187d5d143bdcec2b72b12b9b64e3157",
+    "docs/language-modes.md": "2d19b122b9edaab6eb0c8a6edf0293ae7ebb1dbc14fd06ad8d90085952616425",
+    "fuzz/README.md": "46f2df31761a56047728fcf1ed6e49d286c0a5986aa4ce382320b418ac19fe41",
+    "fuzz/fuzz_targets/bindings.rs": "16a99042b528118a8f900296aa2550138fefd2db61b802f753767c016293787a",
+    "fuzz/fuzz_targets/checked.rs": "e6f54ec4dd6ddd1ccccc46fb42bbe9b2a74dab4f9818e8d3bd9a32f4f06bd931",
+    "fuzz/fuzz_targets/preprocess.rs": "ffcfdfc5071c0dcbc32984dcf6d1dcb0d19d723d6847a93235918563a18f3df9",
+    "fuzz/fuzz_targets/semantic.rs": "07fe39360a314e298164570b88974b3e0ff9a223f236cf149add2805c1258c5f",
+    "fuzz/seeds/bindings/c11-keyword-identifiers.h": "87a5671aa29d0c6c97a5424c23ca80d868aa975f0ecf88c7dea6180f8dc900f8",
+    "fuzz/seeds/bindings/gnu-keywords.h": "fea4835d0eb2eeddd1e81591f429c4068ae1d15acd07604db9143aa365833a9a",
+    "fuzz/seeds/checked/c11-keyword-identifiers.h": "87a5671aa29d0c6c97a5424c23ca80d868aa975f0ecf88c7dea6180f8dc900f8",
+    "fuzz/seeds/checked/gnu-keywords.h": "fea4835d0eb2eeddd1e81591f429c4068ae1d15acd07604db9143aa365833a9a",
+    "fuzz/seeds/semantic/c11-keyword-identifiers.h": "87a5671aa29d0c6c97a5424c23ca80d868aa975f0ecf88c7dea6180f8dc900f8",
+    "fuzz/seeds/semantic/gnu-keywords.h": "fea4835d0eb2eeddd1e81591f429c4068ae1d15acd07604db9143aa365833a9a",
+    "scripts/audit_translation_units.py": "dfa16cd8dd7f4f4aaf0c68bea8b0de570558091377fcb1157f4d62a55ba43925",
+    "scripts/run_fuzz_campaign.py": "8f6316f08cd4e914c68803cc2468e8909fb18b3eb2f03442d82a156403271a24",
+    "scripts/tests/test_fuzz_campaign.py": "706d6cf16c9d667ec90ee759147fd70bec1a3fe0f2f7af3b217159ce880597d4",
+    "scripts/tests/test_translation_unit_audit.py": "9c4563920c13b1bbbc4329134ec3f4d686899963a4110d8089887e621b269bf8"
+  },
+  "integration": [
+    "Regenerated the merged grammar with peg 0.5.4; optimized-Python regeneration was byte-identical: 504 guards, 233 rules, 79 loops.",
+    "Preserved binary128, convertvector, elementwise, non-temporal access and BMI target options.",
+    "Archived seed files use the .h suffix consumed by CI. Campaign seeding now covers all seven profiles in both language modes, and both preprocessing trigraph settings without replacing source bytes."
+  ],
+  "checks": {
+    "foundations": "target, preprocessor and bindgen tests passed",
+    "semantic": "language_modes, bmi_targets and float128 including native oracles passed",
+    "cli": "all CLI tests passed",
+    "parser": "parser and doc tests passed",
+    "generated_rust": "all six facade mode tests passed, including actual Rust 1.64",
+    "python": "25 tests passed",
+    "workspace_clippy": "all targets and features passed with warnings denied",
+    "fuzz_clippy": "passed with warnings denied",
+    "python_style": "Ruff check and format passed",
+    "workflows": "actionlint passed",
+    "retention_replay": {
+      "profiles": 7,
+      "modes": 2,
+      "seeds": 75,
+      "pairs": 1050,
+      "accepted": 747,
+      "matching_diagnostics": 303,
+      "sanitizer": false
+    }
+  },
+  "logs": {
+    "foundations": {
+      "path": "foundations.log.gz",
+      "sha256": "2bb8e7ce7a6ce13b88b7b0a8a6986dc709fbda905c4eaf5e97a3dbe29315cabc"
+    },
+    "semantic": {
+      "path": "semantic.log.gz",
+      "sha256": "d32a097378b598af84c541138a5cdf436f3c584ee25ae2cb81cc5c6f48901813"
+    },
+    "cli": {
+      "path": "cli.log.gz",
+      "sha256": "afaffd02199b3bc37bc7764e7941e1d6e75ced18eef0f918460cb0b18b064f60"
+    },
+    "python": {
+      "path": "python.log.gz",
+      "sha256": "fd120b35c7996d0dde24f9759c54a84f80913da16d0c90a3419955a3b705750b"
+    },
+    "parser-reproduction": {
+      "path": "parser-reproduction.log.gz",
+      "sha256": "e502ea2c8817849e68954eef3f2d2e6109af0ed1c33ec187e10dc1d520e6a82b"
+    },
+    "parser-tests": {
+      "path": "parser-tests.log.gz",
+      "sha256": "5b45b56c0fcd0849dfe466c223e1e520ce23b03b83393da518e60526ee1a3a39"
+    },
+    "rust164": {
+      "path": "rust164.log.gz",
+      "sha256": "76e2a1edcf0d651f6cd48cedf13c13d77681c4c4ff49a15d17874c59d492d665"
+    },
+    "clippy": {
+      "path": "clippy.log.gz",
+      "sha256": "5850c9febe44e210b9c974154429cb13272d21e0491ffa4a5c41924d64ed9f9e"
+    },
+    "replay": {
+      "path": "replay.log.gz",
+      "sha256": "8b870babdd803324cbe6f71bbdb9dc5f35947affbdd95cfcb7b712c475d7c7cd"
+    },
+    "fuzz-clippy": {
+      "path": "fuzz-clippy.log.gz",
+      "sha256": "5d0fd986264626b1a4d4a612e55f800ac712db90d0294fe441dee31edf796be9"
+    },
+    "all-ruff": {
+      "path": "all-ruff.log.gz",
+      "sha256": "163347d5c4af094ed2cab2921fb46538276aa020d2f1dcd72dd069bc0b947f07"
+    },
+    "actionlint": {
+      "path": "actionlint.log.gz",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  },
+  "limitations": [
+    "Performance and ASan measurements in the separate frozen-layer evidence identify its recorded baseline and sources. This integration replay uses the ordinary debug build."
+  ]
+}

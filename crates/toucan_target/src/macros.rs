@@ -1,27 +1,48 @@
 use std::collections::BTreeMap;
 
-use crate::Target;
+use crate::{Compiler, CompilerProfile, LanguageMode, Target};
 
 impl Target {
+    /// Deterministic C11 macros for the target's default compiler profile.
+    pub fn predefined_macros(self) -> BTreeMap<String, String> {
+        CompilerProfile::default_for(self).predefined_macros()
+    }
+}
+
+impl CompilerProfile {
     /// Returns deterministic predefined macros for this target's C11 header profile.
     ///
-    /// GNU compatibility is reported as 4.2.1. Apple targets additionally report a Clang
-    /// profile; Windows reports the Visual C++ 2022 ABI family. These select header syntax,
+    /// GNU compatibility is reported as 4.2.1. Clang profiles additionally report Clang
+    /// 4.0; Windows reports the Visual C++ 2022 ABI family. These select header syntax,
     /// not an installed compiler. Compiler feature queries such as `__has_builtin` must be
     /// answered by the preprocessor using the frontend's supported feature set.
     ///
     /// This is a supported subset of compiler predefined macros. It deliberately omits
     /// time, path, build-host, optimization, and optional instruction-set definitions.
     pub fn predefined_macros(self) -> BTreeMap<String, String> {
+        let target = self.target();
+        let compiler = self.compiler();
+        let standard = self.language_mode() == LanguageMode::C11;
         let mut macros = BTreeMap::new();
         let mut define = |name: &str, value: &str| {
             macros.insert(name.to_owned(), value.to_owned());
         };
+        if standard && target != Target::X86_64PcWindowsMsvc {
+            define("__STRICT_ANSI__", "1");
+        }
         for (name, value) in [
             ("__STDC__", "1"),
             ("__STDC_HOSTED__", "1"),
             ("__STDC_VERSION__", "201112L"),
             ("__CHAR_BIT__", "8"),
+            ("__CHAR16_TYPE__", "unsigned short"),
+            ("__CHAR32_TYPE__", "unsigned int"),
+            ("__ATOMIC_RELAXED", "0"),
+            ("__ATOMIC_CONSUME", "1"),
+            ("__ATOMIC_ACQUIRE", "2"),
+            ("__ATOMIC_RELEASE", "3"),
+            ("__ATOMIC_ACQ_REL", "4"),
+            ("__ATOMIC_SEQ_CST", "5"),
             ("__SCHAR_MAX__", "127"),
             ("__SHRT_MAX__", "32767"),
             ("__INT_MAX__", "2147483647"),
@@ -58,12 +79,12 @@ impl Target {
             define(name, value);
         }
 
-        let windows = matches!(self, Self::X86_64PcWindowsMsvc);
-        let apple = matches!(self, Self::X86_64AppleDarwin | Self::Aarch64AppleDarwin);
-        let aarch64 = matches!(
-            self,
-            Self::Aarch64UnknownLinuxGnu | Self::Aarch64AppleDarwin
+        let windows = matches!(target, Target::X86_64PcWindowsMsvc);
+        let apple = matches!(
+            target,
+            Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin
         );
+        let aarch64 = target.is_aarch64();
         if windows {
             for (name, value) in [
                 ("_WIN32", "1"),
@@ -116,12 +137,26 @@ impl Target {
                 "unix",
                 "__ELF__",
             ] {
-                define(name, "1");
+                if !standard || name.starts_with('_') {
+                    define(name, "1");
+                }
             }
             define("__WINT_TYPE__", "unsigned int");
         } else {
             define("__WINT_TYPE__", "unsigned short");
             define("__SIZEOF_WINT_T__", "2");
+        }
+        // Darwin already inserts these alongside its platform markers above.
+        // clang-cl also defines them, independently of the Microsoft ABI macros.
+        if compiler == Compiler::Clang && !apple {
+            for (name, value) in [
+                ("__clang__", "1"),
+                ("__clang_major__", "4"),
+                ("__clang_minor__", "0"),
+                ("__clang_patchlevel__", "0"),
+            ] {
+                define(name, value);
+            }
         }
         if aarch64 {
             for name in ["__aarch64__", "__AARCH64EL__", "__ARM_64BIT_STATE"] {
@@ -138,19 +173,21 @@ impl Target {
                 define(name, "1");
             }
         }
-        if !self.char_is_signed() {
+        if !target.char_is_signed() {
             define("__CHAR_UNSIGNED__", "1");
         }
-        let (wchar_ty, wchar_width, wchar_size, wchar_max) = match self {
-            Self::X86_64PcWindowsMsvc => ("unsigned short", "16", "2", "65535"),
-            Self::Aarch64UnknownLinuxGnu => ("unsigned int", "32", "4", "4294967295U"),
+        let (wchar_ty, wchar_width, wchar_size, wchar_max) = match target {
+            Target::X86_64PcWindowsMsvc => ("unsigned short", "16", "2", "65535"),
+            Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
+                ("unsigned int", "32", "4", "4294967295U")
+            }
             _ => ("int", "32", "4", "2147483647"),
         };
         define("__WCHAR_TYPE__", wchar_ty);
         define("__WCHAR_WIDTH__", wchar_width);
         define("__SIZEOF_WCHAR_T__", wchar_size);
         define("__WCHAR_MAX__", wchar_max);
-        if !self.wchar_is_signed() {
+        if !target.wchar_is_signed() {
             define("__WCHAR_UNSIGNED__", "1");
         }
 
@@ -207,22 +244,53 @@ impl Target {
             (64, signed64, unsigned64, max64, umax64),
         ] {
             for modifier in ["", "_LEAST", "_FAST"] {
+                // GNU LP64 chooses long for fast16/32; Clang uses the narrow
+                // integer types even on LP64. These are compiler-profile facts.
+                let (signed, unsigned, maximum, unsigned_maximum, actual_width) =
+                    if modifier == "_FAST" && compiler == Compiler::Gnu && matches!(width, 16 | 32)
+                    {
+                        (signed_ptr, unsigned_ptr, signed_max, unsigned_max, 64)
+                    } else {
+                        (signed, unsigned, maximum, unsigned_maximum, width)
+                    };
                 define(&format!("__INT{modifier}{width}_TYPE__"), signed);
                 define(&format!("__UINT{modifier}{width}_TYPE__"), unsigned);
                 define(&format!("__INT{modifier}{width}_MAX__"), maximum);
                 define(&format!("__UINT{modifier}{width}_MAX__"), unsigned_maximum);
                 define(
                     &format!("__INT{modifier}{width}_WIDTH__"),
-                    &width.to_string(),
+                    &actual_width.to_string(),
                 );
             }
         }
 
-        let (long_double_size, mantissa, max_exponent, biggest_alignment) = match self {
-            Self::Aarch64AppleDarwin => ("8", "53", "1024", "8"),
-            Self::X86_64PcWindowsMsvc => ("8", "53", "1024", "16"),
-            Self::Aarch64UnknownLinuxGnu => ("16", "113", "16384", "16"),
-            Self::X86_64UnknownLinuxGnu | Self::X86_64AppleDarwin => ("16", "64", "16384", "16"),
+        // Every supported default target guarantees lock-free scalar atomics
+        // through eight bytes. This makes no claim about 16-byte atomics or
+        // misaligned objects, and does not advertise optional ISA features.
+        for scalar in [
+            "BOOL", "CHAR", "CHAR16_T", "CHAR32_T", "WCHAR_T", "SHORT", "INT", "LONG", "LLONG",
+            "POINTER",
+        ] {
+            if !windows {
+                define(&format!("__GCC_ATOMIC_{scalar}_LOCK_FREE"), "2");
+            }
+            if compiler == Compiler::Clang {
+                define(&format!("__CLANG_ATOMIC_{scalar}_LOCK_FREE"), "2");
+            }
+        }
+        if !windows {
+            define("__GCC_ATOMIC_TEST_AND_SET_TRUEVAL", "1");
+        }
+
+        let (long_double_size, mantissa, max_exponent, biggest_alignment) = match target {
+            Target::Aarch64AppleDarwin => ("8", "53", "1024", "8"),
+            Target::X86_64PcWindowsMsvc => ("8", "53", "1024", "16"),
+            Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
+                ("16", "113", "16384", "16")
+            }
+            Target::X86_64UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxMusl
+            | Target::X86_64AppleDarwin => ("16", "64", "16384", "16"),
         };
         define("__SIZEOF_LONG_DOUBLE__", long_double_size);
         define("__LDBL_MANT_DIG__", mantissa);

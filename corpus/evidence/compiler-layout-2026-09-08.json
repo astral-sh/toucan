@@ -1,0 +1,319 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-09-08T09:13:39.076527+00:00",
+  "base_revision": "2609d2100ebc3f03ad3a4de7a04f272321c14394",
+  "scope": "Explicit compiler selection inside the layout engine. Frontend compiler-profile selection is a separate layer.",
+  "changed_source_sha256": {
+    "Cargo.lock": "594033bb582c0b360972ddf8433037bb42e288dc6204a65c51632845ee4ddc7e",
+    "Cargo.toml": "fd951542ebcc65c584e78e35d26749d3559399117b8e9a86d5df1b1b527a5d17",
+    "crates/toucan_layout/Cargo.toml": "e4741aabf789841b0aa9eb7184422f2973da9ce6ebbaa94935183ced976c3427",
+    "crates/toucan_layout/LICENSE-APACHE": "c71d239df91726fc519c6eb72d318ec65820627232b2f796219e87dcf35d0ab4",
+    "crates/toucan_layout/LICENSE-MIT": "002c2696d92b5c8cf956c11072baa58eaf9f6ade995c031ea635c6a1ee342ad1",
+    "crates/toucan_layout/README.md": "52ead3db522d576dc4dfa5cfa39e4c28c9c7b36d171db8bcad6baf55d5892bb9",
+    "crates/toucan_layout/UPSTREAM.md": "09fd1cf68f52a07eb5ec9be7a911ba71e77b32d313a5899a3700929f97de4fbb",
+    "crates/toucan_layout/build.rs": "abb803fb2d181c8871da3c8f19ab04ce743b6f0c8e9cb1a889063460c3dce329",
+    "crates/toucan_layout/src/builder/common.rs": "c1fa587f74a2c61ed99175bb6b327f0e2da6b1f0e2bb968ba669909b2435e987",
+    "crates/toucan_layout/src/builder/mod.rs": "e2609344f112fd01860ad2fc65834473dc7c028d846a9b641846fa7830ebb125",
+    "crates/toucan_layout/src/builder/msvc.rs": "271454534df329737fd69c6b5a787125a9e42a992afc1989ca88413030264739",
+    "crates/toucan_layout/src/builder/sysv_like/mingw.rs": "135b06f6384152e66d753b5091c820c6519a30eab283b4b8a7eebf751015c2d6",
+    "crates/toucan_layout/src/builder/sysv_like/mod.rs": "ec2f10ec5cb75dba9521fc6e71858f9df74da3acc483395c3e707e9d9840364c",
+    "crates/toucan_layout/src/builder/sysv_like/sysv.rs": "bfd7238eb3820cce9951e197afc3fe663e88f7a1a70f99fc90fc85d62eb081f2",
+    "crates/toucan_layout/src/layout.rs": "83a366fd4e5786afec932ee18b5f74bfdee52c470355f2fc98d5c824d848d078",
+    "crates/toucan_layout/src/lib.rs": "4685082a5c6d4055f29312a212a5722b3af5fbd4faca0b128402ac20f35e94f7",
+    "crates/toucan_layout/src/result.rs": "53b5fd6340cdbf394609f978f20c09b5e3755b2fa196ba6ff1cf9e3a63ec8a3f",
+    "crates/toucan_layout/src/target.rs": "1dc4b6b6ccc0f24766aa6e1d78b9e686645560c78c2387b2d1b793711dce335c",
+    "crates/toucan_layout/src/tests.rs": "be404ef95c037c8101579245fe8d0f53c707f5874e23f6bb72c9f6a17b09ce77",
+    "crates/toucan_layout/src/util.rs": "12476b43e943ba8eb1bd2976bbde40c07fa16ec7b4ce4d95bdf9ac00dffe2b5a",
+    "crates/toucan_layout/src/visitor.rs": "c3288eb855aad2084e13081479f6078f32c3032645a16c75e5a1d73e3c8e5000",
+    "crates/toucan_layout/tests/compiler.rs": "fc528cafa5751a42436d711eba5b6347d31d03324edf3eb1292a533a30e73408",
+    "crates/toucan_layout/tests/defaults.rs": "45db05def62851631a0232be355bee323feaa5a9ae70599c463d9937e6b705b8",
+    "crates/toucan_layout/tests/fixtures/inputs.rs": "27078347af14172e11679d19f01283f69f4bb8363b61b5fd628a24b1cb25a8ac",
+    "fuzz/Cargo.lock": "78d7698cdd6a9e36dee409775d8ecd7e3ee1b5f6414798b342e326d18682bd7f"
+  },
+  "upstream": {
+    "url": "https://codeload.github.com/mahkoh/repr-c/tar.gz/0c218ac5a6f82034e649fe749e7a902d7a43e8e0",
+    "revision": "0c218ac5a6f82034e649fe749e7a902d7a43e8e0",
+    "sha256": "8b9065c569206a9646c8cf6c6327fb29dbb2a0a89708958e0db964ffb256bb11"
+  },
+  "imported_source_hashes": {
+    "build.rs": "a286168275a17c106d769ae1978a2ddf8d8372abc6d9d27caed5daadafd3cacd",
+    "src/builder/common.rs": "5266d5a6bbee75a69226873cc4a06355a299290d5fe4b0cc64d82a8bd096d6c5",
+    "src/builder/mod.rs": "0d7efa7b8d51c2873c93e9ff60f6041b84c702b5eecd8fb5e11680ce3a632e5d",
+    "src/builder/msvc.rs": "271454534df329737fd69c6b5a787125a9e42a992afc1989ca88413030264739",
+    "src/builder/sysv_like/mingw.rs": "d0fd65b5aa55beefc12bb3256ba12da220dd450fbbdc3264c1127e5253f13603",
+    "src/builder/sysv_like/mod.rs": "d874e328cc70f826d7ea6ab570f1d877cff72d27d49be0cd47fb5560fe0161b6",
+    "src/builder/sysv_like/sysv.rs": "89f5f2cf083bed88c5c2897e2a6f1bdde19c06bd4ad1d92c8bf5111ed5bf76c8",
+    "src/layout.rs": "19b66bd5ebeb689c56c8c1cbc0e25a852dffa0a40c078278e329d38ec2a1e1cb",
+    "src/lib.rs": "7a180ef570c78a0f4ab46a7db49b9bf88058a1564bbb6f13397d6ade5437b72d",
+    "src/result.rs": "430f31a71ac0edd100fed1fa0aee2d411cb12a80462fc3edfcd5ac0925d33c53",
+    "src/target.rs": "a5f513ada0b7f0df4989ab50f75c8ca1840f6ecfb34914fde95eff71336d118a",
+    "src/tests.rs": "be404ef95c037c8101579245fe8d0f53c707f5874e23f6bb72c9f6a17b09ce77",
+    "src/util.rs": "12476b43e943ba8eb1bd2976bbde40c07fa16ec7b4ce4d95bdf9ac00dffe2b5a",
+    "src/visitor.rs": "5b683de909ff6c26b6ed081c4d50a2cd339039d2093610946fd839e1e8017d11",
+    "repc/src/lib.rs": "665a8d79a6d65c95eff3a74e8a4f40cd7ac7bd7e916808ae686e05a3c3b46f10"
+  },
+  "compiler_support": "Every upstream target default is retained. Explicit Clang overrides are accepted only for x86_64-unknown-linux-gnu and aarch64-unknown-linux-gnu. Other overrides return UnsupportedCompiler.",
+  "compiler_identities": {
+    "gcc": {
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-13",
+      "sha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26",
+      "version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    "clang": {
+      "path": "/usr/lib/llvm-18/bin/clang",
+      "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+      "version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    },
+    "gcc_aarch64": {
+      "path": "/home/dev-user/.cache/toucan/aarch64-gcc-13/usr/bin/aarch64-linux-gnu-gcc-13",
+      "sha256": "cd90adc7801f4595267f61a5d25bd3a0c6beb2f9f1f107ab919a97a12972dc9a",
+      "version": "aarch64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    }
+  },
+  "default_equivalence": {
+    "targets": 124,
+    "type_trees_per_target": 35,
+    "comparisons": 4340,
+    "reference": "registry repc =0.1.1",
+    "output": "Every full recursive Type<TypeLayout> result matches the upstream Debug representation. Explicit default-compiler calls match too.",
+    "allocations": "Exact allocator call counts and requested bytes match on all 4,340 target/type pairs.",
+    "allocation_runner_sha256": "ca4c8b0e80b0a63351b075b9ddd3d3a6367e7886d267dc43d397c5a164903ee6",
+    "allocation_binary_sha256": "cb1a40ccc9f6b4ab057ef561e6ded6c9f66349c0b5074b152405d0e5df9ed10b",
+    "allocation_output": "4340 target/type pairs: exact default allocation counts and bytes\n"
+  },
+  "native_discriminators": [
+    {
+      "name": "enum",
+      "source": "enum __attribute__((aligned(16))) E{X};struct S{char a;enum E b;char c;};\n#include <stdio.h>\n#include <stddef.h>\nint main(void){printf(\"%zu %zu %zu\\n\",sizeof(struct S),_Alignof(struct S),offsetof(struct S,c));}\n",
+      "compiler": "gcc",
+      "status": 0,
+      "diagnostics": "",
+      "result": "12 4 8\n"
+    },
+    {
+      "name": "enum",
+      "source": "enum __attribute__((aligned(16))) E{X};struct S{char a;enum E b;char c;};\n#include <stdio.h>\n#include <stddef.h>\nint main(void){printf(\"%zu %zu %zu\\n\",sizeof(struct S),_Alignof(struct S),offsetof(struct S,c));}\n",
+      "compiler": "clang",
+      "status": 0,
+      "diagnostics": "",
+      "result": "32 16 20\n"
+    },
+    {
+      "name": "bitfield",
+      "source": "typedef char C __attribute__((aligned(8)));struct S{char a:1;C b:1;char c;};\n#include <stdio.h>\n#include <stddef.h>\nint main(void){printf(\"%zu %zu %zu\\n\",sizeof(struct S),_Alignof(struct S),offsetof(struct S,c));}\n",
+      "compiler": "gcc",
+      "status": 0,
+      "diagnostics": "",
+      "result": "16 8 9\n"
+    },
+    {
+      "name": "bitfield",
+      "source": "typedef char C __attribute__((aligned(8)));struct S{char a:1;C b:1;char c;};\n#include <stdio.h>\n#include <stddef.h>\nint main(void){printf(\"%zu %zu %zu\\n\",sizeof(struct S),_Alignof(struct S),offsetof(struct S,c));}\n",
+      "compiler": "clang",
+      "status": 0,
+      "diagnostics": "",
+      "result": "8 8 1\n"
+    },
+    {
+      "name": "packed",
+      "source": "#pragma pack(push,2)\nstruct S{char a:1;int b:1 __attribute__((aligned(4)));char c;};\n#pragma pack(pop)\n#include <stdio.h>\n#include <stddef.h>\nint main(void){printf(\"%zu %zu %zu\\n\",sizeof(struct S),_Alignof(struct S),offsetof(struct S,c));}\n",
+      "compiler": "gcc",
+      "status": 0,
+      "diagnostics": "",
+      "result": "4 2 3\n"
+    },
+    {
+      "name": "packed",
+      "source": "#pragma pack(push,2)\nstruct S{char a:1;int b:1 __attribute__((aligned(4)));char c;};\n#pragma pack(pop)\n#include <stdio.h>\n#include <stddef.h>\nint main(void){printf(\"%zu %zu %zu\\n\",sizeof(struct S),_Alignof(struct S),offsetof(struct S,c));}\n",
+      "compiler": "clang",
+      "status": 0,
+      "diagnostics": "",
+      "result": "2 2 1\n"
+    }
+  ],
+  "aarch64_gcc": [
+    {
+      "name": "enum",
+      "command": [
+        "/home/dev-user/.cache/toucan/aarch64-gcc-13/usr/bin/aarch64-linux-gnu-gcc-13",
+        "-B/home/dev-user/.cache/toucan/aarch64-gcc-13/usr/lib/gcc-cross/aarch64-linux-gnu/13",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "-x",
+        "c",
+        "-"
+      ],
+      "source": "enum __attribute__((aligned(16))) E{X};struct S{char a;enum E b;char c;};\n_Static_assert(sizeof(struct S)==12,\"size\");_Static_assert(_Alignof(struct S)==4,\"align\");_Static_assert(__builtin_offsetof(struct S,c)==8,\"offset\");\n",
+      "status": 0,
+      "diagnostics": ""
+    },
+    {
+      "name": "bitfield",
+      "command": [
+        "/home/dev-user/.cache/toucan/aarch64-gcc-13/usr/bin/aarch64-linux-gnu-gcc-13",
+        "-B/home/dev-user/.cache/toucan/aarch64-gcc-13/usr/lib/gcc-cross/aarch64-linux-gnu/13",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "-x",
+        "c",
+        "-"
+      ],
+      "source": "typedef char C __attribute__((aligned(8)));struct S{char a:1;C b:1;char c;};\n_Static_assert(sizeof(struct S)==16,\"size\");_Static_assert(_Alignof(struct S)==8,\"align\");_Static_assert(__builtin_offsetof(struct S,c)==9,\"offset\");\n",
+      "status": 0,
+      "diagnostics": ""
+    },
+    {
+      "name": "packed",
+      "command": [
+        "/home/dev-user/.cache/toucan/aarch64-gcc-13/usr/bin/aarch64-linux-gnu-gcc-13",
+        "-B/home/dev-user/.cache/toucan/aarch64-gcc-13/usr/lib/gcc-cross/aarch64-linux-gnu/13",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "-x",
+        "c",
+        "-"
+      ],
+      "source": "#pragma pack(push,2)\nstruct S{char a:1;int b:1 __attribute__((aligned(4)));char c;};\n#pragma pack(pop)\n_Static_assert(sizeof(struct S)==4,\"size\");_Static_assert(_Alignof(struct S)==2,\"align\");_Static_assert(__builtin_offsetof(struct S,c)==3,\"offset\");\n",
+      "status": 0,
+      "diagnostics": ""
+    }
+  ],
+  "checks": [
+    {
+      "name": "native",
+      "command": [
+        "taskset",
+        "-c",
+        "20-23",
+        "cargo",
+        "test",
+        "-p",
+        "toucan_layout",
+        "--",
+        "--include-ignored"
+      ],
+      "status": 0
+    },
+    {
+      "name": "workspace",
+      "command": [
+        "taskset",
+        "-c",
+        "20-23",
+        "cargo",
+        "test",
+        "--workspace",
+        "--all-features"
+      ],
+      "status": 0
+    },
+    {
+      "name": "clippy",
+      "command": [
+        "taskset",
+        "-c",
+        "20-23",
+        "cargo",
+        "clippy",
+        "--workspace",
+        "--all-targets",
+        "--all-features",
+        "--",
+        "-D",
+        "warnings"
+      ],
+      "status": 0
+    },
+    {
+      "name": "rustdoc",
+      "command": [
+        "taskset",
+        "-c",
+        "20-23",
+        "cargo",
+        "doc",
+        "--workspace",
+        "--all-features",
+        "--no-deps"
+      ],
+      "status": 0
+    },
+    {
+      "name": "package",
+      "command": [
+        "taskset",
+        "-c",
+        "20-23",
+        "cargo",
+        "package",
+        "-p",
+        "toucan_layout",
+        "--allow-dirty"
+      ],
+      "status": 0
+    }
+  ],
+  "workspace": {
+    "passed": 447,
+    "failed": 0,
+    "ignored": 123
+  },
+  "focused": {
+    "upstream_unit_tests": 18,
+    "doctests": 4,
+    "compiler_tests": 3,
+    "default_equivalence_tests": 1,
+    "native_execution": "4 cases each with GCC13.3 and Clang18.1 on x86_64 Linux; bitfield probes zero the object representation then compare bytes against computed bit positions.",
+    "cross_target": "Clang18.1 checks enum/bitfield/nested layouts on both Linux architectures; GCC13.3 cross frontend checks AArch64 discriminator size/alignment/offset assertions."
+  },
+  "fuzz": {
+    "command": "cargo check --manifest-path fuzz/Cargo.toml --bins",
+    "status": 0,
+    "route": "Existing semantic and checked-code fuzz targets still call toucan_target default layout; their resolved dependency is now toucan_layout.",
+    "registry_repc_in_production_fuzz_graph": false
+  },
+  "package": {
+    "sha256": "2b6c5ce1432aec561fbc62190c1bc5b477dc20816c5db9642c99d0720b5dc8eb",
+    "files": [
+      "toucan_layout-0.0.1/.cargo_vcs_info.json",
+      "toucan_layout-0.0.1/Cargo.lock",
+      "toucan_layout-0.0.1/Cargo.toml",
+      "toucan_layout-0.0.1/Cargo.toml.orig",
+      "toucan_layout-0.0.1/LICENSE-APACHE",
+      "toucan_layout-0.0.1/LICENSE-MIT",
+      "toucan_layout-0.0.1/README.md",
+      "toucan_layout-0.0.1/UPSTREAM.md",
+      "toucan_layout-0.0.1/build.rs",
+      "toucan_layout-0.0.1/src/builder/common.rs",
+      "toucan_layout-0.0.1/src/builder/mod.rs",
+      "toucan_layout-0.0.1/src/builder/msvc.rs",
+      "toucan_layout-0.0.1/src/builder/sysv_like/mingw.rs",
+      "toucan_layout-0.0.1/src/builder/sysv_like/mod.rs",
+      "toucan_layout-0.0.1/src/builder/sysv_like/sysv.rs",
+      "toucan_layout-0.0.1/src/layout.rs",
+      "toucan_layout-0.0.1/src/lib.rs",
+      "toucan_layout-0.0.1/src/result.rs",
+      "toucan_layout-0.0.1/src/target.rs",
+      "toucan_layout-0.0.1/src/tests.rs",
+      "toucan_layout-0.0.1/src/util.rs",
+      "toucan_layout-0.0.1/src/visitor.rs",
+      "toucan_layout-0.0.1/tests/compiler.rs",
+      "toucan_layout-0.0.1/tests/defaults.rs",
+      "toucan_layout-0.0.1/tests/fixtures/inputs.rs"
+    ],
+    "normalized_manifest": "# THIS FILE IS AUTOMATICALLY GENERATED BY CARGO\n#\n# When uploading crates to the registry Cargo will automatically\n# \"normalize\" Cargo.toml files for maximal compatibility\n# with all versions of Cargo and also rewrite `path` dependencies\n# to registry (e.g., crates.io) dependencies.\n#\n# If you are reading this file be aware that the original Cargo.toml\n# will likely look very different (and much more reasonable).\n# See Cargo.toml.orig for the original contents.\n\n[package]\nedition = \"2018\"\nrust-version = \"1.96\"\nname = \"toucan_layout\"\nversion = \"0.0.1\"\nauthors = [\"Julian Orth <ju.orth@gmail.com>\"]\nbuild = \"build.rs\"\ninclude = [\n    \"/src/**/*.rs\",\n    \"/tests/**/*.rs\",\n    \"/build.rs\",\n    \"/Cargo.toml\",\n    \"/LICENSE*\",\n    \"/README.md\",\n    \"/UPSTREAM.md\",\n]\nautolib = false\nautobins = false\nautoexamples = false\nautotests = false\nautobenches = false\ndescription = \"C type layout engine used by Toucan, derived from repc\"\nreadme = \"README.md\"\nlicense = \"MIT OR Apache-2.0\"\nrepository = \"https://github.com/astral-sh/toucan\"\nresolver = \"2\"\n\n[lib]\nname = \"toucan_layout\"\npath = \"src/lib.rs\"\n\n[[test]]\nname = \"compiler\"\npath = \"tests/compiler.rs\"\n\n[[test]]\nname = \"defaults\"\npath = \"tests/defaults.rs\"\n\n[dev-dependencies.tempfile]\nversion = \"3.23\"\n\n[dev-dependencies.upstream_repc]\nversion = \"=0.1.1\"\npackage = \"repc\"\n\n[lints.rust]\nunsafe_code = \"forbid\"\n"
+  },
+  "extracted_package_test": {
+    "command": "cargo test --manifest-path <extracted>/toucan_layout-0.0.1/Cargo.toml --locked --offline -- --include-ignored",
+    "status": 0,
+    "tests": 26,
+    "workspace_overrides": false
+  },
+  "production_dependencies": "toucan_target v0.0.1 (/home/dev-user/.codex/worktrees/toucan-compiler-layout/crates/toucan_target)\nserde v1.0.229\nserde_core v1.0.229\nserde_derive v1.0.229 (proc-macro)\nproc-macro2 v1.0.107\nunicode-ident v1.0.24\nquote v1.0.47\nproc-macro2 v1.0.107 (*)\nsyn v3.0.4\nproc-macro2 v1.0.107 (*)\nquote v1.0.47 (*)\nunicode-ident v1.0.24\nthiserror v2.0.20\nthiserror-impl v2.0.20 (proc-macro)\nproc-macro2 v1.0.107 (*)\nquote v1.0.47 (*)\nsyn v3.0.4 (*)\ntoucan_layout v0.0.1 (/home/dev-user/.codex/worktrees/toucan-compiler-layout/crates/toucan_layout)\n",
+  "limits": [
+    "This slice changes only explicit compiler selection; the original engine rules and supported default targets are preserved.",
+    "Tests cover 35 representative recursive type trees per upstream target; this is not exhaustive C ABI conformance.",
+    "No new CPU features, compiler flags, MSVC overrides, or GNU-on-Darwin layout support are implied.",
+    "No cly, GPL reference generator, or copied reference corpus is included."
+  ]
+}

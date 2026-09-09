@@ -149,6 +149,26 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
         });
         visit_member_operator(&mut self.block(), n, span);
     }
+    fn visit_types_compatible_expression(
+        &mut self,
+        n: &'ast TypesCompatibleExpression,
+        span: &'ast Span,
+    ) {
+        self.name("TypesCompatibleExpression");
+        visit_types_compatible_expression(&mut self.block(), n, span);
+    }
+    fn visit_convert_vector_expression(
+        &mut self,
+        n: &'ast ConvertVectorExpression,
+        span: &'ast Span,
+    ) {
+        self.name("ConvertVectorExpression");
+        visit_convert_vector_expression(&mut self.block(), n, span);
+    }
+    fn visit_choose_expression(&mut self, n: &'ast ChooseExpression, span: &'ast Span) {
+        self.name("ChooseExpression");
+        visit_choose_expression(&mut self.block(), n, span);
+    }
     fn visit_generic_selection(&mut self, n: &'ast GenericSelection, span: &'ast Span) {
         self.name("GenericSelection");
         visit_generic_selection(&mut self.block(), n, span);
@@ -202,6 +222,8 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             UnaryOperator::Minus => "Minus",
             UnaryOperator::Complement => "Complement",
             UnaryOperator::Negate => "Negate",
+            UnaryOperator::Real => "Real",
+            UnaryOperator::Imaginary => "Imaginary",
         });
         visit_unary_operator(&mut self.block(), n, span);
     }
@@ -301,6 +323,7 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             StorageClassSpecifier::Extern => "Extern",
             StorageClassSpecifier::Static => "Static",
             StorageClassSpecifier::ThreadLocal => "ThreadLocal",
+            StorageClassSpecifier::GnuThreadLocal => "GnuThreadLocal",
             StorageClassSpecifier::Auto => "Auto",
             StorageClassSpecifier::Register => "Register",
         });
@@ -550,6 +573,7 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
 
 fn print_float_format(p: &mut Printer, n: &FloatFormat) {
     match *n {
+        FloatFormat::Float128 => p.w.write_str(" Float128").unwrap(),
         FloatFormat::Float => p.w.write_str(" Float").unwrap(),
         FloatFormat::Double => p.w.write_str(" Double").unwrap(),
         FloatFormat::LongDouble => p.w.write_str(" LongDouble").unwrap(),
@@ -607,6 +631,9 @@ fn print_for_initializer(p: &mut Printer, n: &ForInitializer) {
 }
 fn print_type_specifier(p: &mut Printer, n: &TypeSpecifier) {
     match *n {
+        TypeSpecifier::AutoType => p.w.write_str(" AutoType").unwrap(),
+        TypeSpecifier::BFloat16 => p.w.write_str(" BFloat16").unwrap(),
+        TypeSpecifier::Float128 => p.w.write_str(" Float128").unwrap(),
         TypeSpecifier::Void => p.w.write_str(" Void").unwrap(),
         TypeSpecifier::Char => p.w.write_str(" Char").unwrap(),
         TypeSpecifier::Short => p.w.write_str(" Short").unwrap(),

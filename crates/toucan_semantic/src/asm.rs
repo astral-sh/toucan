@@ -72,8 +72,12 @@ impl Analyzer {
     ) -> Result<(), Error> {
         let offset = statement.span.start;
         let architecture = match self.unit.target.triple() {
-            "x86_64-unknown-linux-gnu" | "x86_64-apple-darwin" => Architecture::X86,
-            "aarch64-unknown-linux-gnu" | "aarch64-apple-darwin" => Architecture::Arm,
+            "x86_64-unknown-linux-gnu" | "x86_64-unknown-linux-musl" | "x86_64-apple-darwin" => {
+                Architecture::X86
+            }
+            "aarch64-unknown-linux-gnu" | "aarch64-unknown-linux-musl" | "aarch64-apple-darwin" => {
+                Architecture::Arm
+            }
             _ => {
                 return Err(Error::new(
                     offset,

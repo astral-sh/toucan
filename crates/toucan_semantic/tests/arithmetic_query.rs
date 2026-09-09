@@ -80,10 +80,10 @@ fn query_retains_type_bits_and_integer_expression_boundary() {
         let value = floating("1.0L", target);
         assert_eq!(value.kind(), FloatKind::LongDouble);
         let (format, bits) = match target {
-            Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin => {
-                (FloatingFormat::X87, 0x3fff8000000000000000)
-            }
-            Target::Aarch64UnknownLinuxGnu => (
+            Target::X86_64UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxMusl
+            | Target::X86_64AppleDarwin => (FloatingFormat::X87, 0x3fff8000000000000000),
+            Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => (
                 FloatingFormat::Binary128,
                 0x3fff0000000000000000000000000000,
             ),

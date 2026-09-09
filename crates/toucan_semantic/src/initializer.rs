@@ -54,6 +54,7 @@ impl Analyzer {
         index: usize,
         original: &Type,
         initializer: &Node<ast::Initializer>,
+        prechecked: Option<(Type, Option<FlexibleArrayStorage>)>,
     ) -> Result<(), Error> {
         if self.unit.declarations[index].kind != DeclarationKind::Variable {
             return Err(Error::new(
@@ -61,7 +62,10 @@ impl Analyzer {
                 "only an object can have an initializer",
             ));
         }
-        let (completed, storage) = self.check_object_initializer(original, initializer, true)?;
+        let (completed, storage) = match prechecked {
+            Some(result) => result,
+            None => self.check_object_initializer(original, initializer, true)?,
+        };
         self.unit.declarations[index].flexible_array_storage = storage;
         let previous = &self.unit.declarations[index].ty;
         if !self.compatible(previous, &completed)? {
@@ -70,7 +74,7 @@ impl Analyzer {
                 "initializer array bound conflicts with the previous declaration",
             ));
         }
-        let ty = self.composite_type(previous, &completed, 0)?;
+        let ty = crate::noescape::composite_type!(self, previous, &completed, 0)?;
         self.unit.declarations[index].ty = ty;
         self.unit.declarations[index].is_definition = true;
         Ok(())
@@ -83,10 +87,10 @@ impl Analyzer {
         &mut self,
         ty: &Type,
         initializer: &Node<ast::Initializer>,
-        static_storage: bool,
+        requires_constant: bool,
     ) -> Result<Type, Error> {
         self.enter_expression(initializer.span.start)?;
-        let result = self.initializer_inner(ty, initializer.into(), static_storage, None);
+        let result = self.initializer_inner(ty, initializer.into(), requires_constant, None);
         self.leave_expression();
         result
     }
@@ -99,7 +103,7 @@ impl Analyzer {
         items: &[Node<ast::InitializerListItem>],
         owner: &Node<ast::Expression>,
         span: Span,
-        static_storage: bool,
+        requires_constant: bool,
     ) -> Result<Type, Error> {
         self.enter_expression(span.start)?;
         let result = self.initializer_inner(
@@ -109,7 +113,7 @@ impl Analyzer {
                 node: InitializerView::List(items),
                 span,
             },
-            static_storage,
+            requires_constant,
             None,
         );
         self.leave_expression();
@@ -122,21 +126,21 @@ impl Analyzer {
         &mut self,
         ty: &Type,
         initializer: &Node<ast::Initializer>,
-        static_storage: bool,
+        requires_constant: bool,
     ) -> Result<(Type, Option<FlexibleArrayStorage>), Error> {
         let TypeKind::Record(id) = self.unit.resolve(ty)?.kind else {
             return self
-                .check_initializer(ty, initializer, static_storage)
+                .check_initializer(ty, initializer, requires_constant)
                 .map(|ty| (ty, None));
         };
         let Some(fields) = self.unit.records[id].fields.as_ref() else {
             return self
-                .check_initializer(ty, initializer, static_storage)
+                .check_initializer(ty, initializer, requires_constant)
                 .map(|ty| (ty, None));
         };
         let Some((member_index, field)) = fields.iter().enumerate().next_back() else {
             return self
-                .check_initializer(ty, initializer, static_storage)
+                .check_initializer(ty, initializer, requires_constant)
                 .map(|ty| (ty, None));
         };
         let TypeKind::Array {
@@ -145,18 +149,22 @@ impl Analyzer {
         } = &self.unit.resolve(&field.ty)?.kind
         else {
             return self
-                .check_initializer(ty, initializer, static_storage)
+                .check_initializer(ty, initializer, requires_constant)
                 .map(|ty| (ty, None));
         };
         let element = (**element).clone();
         let mut flexible = FlexibleState {
             member_index,
             elements: None,
-            permitted: static_storage,
+            permitted: requires_constant,
         };
         self.enter_expression(initializer.span.start)?;
-        let result =
-            self.initializer_inner(ty, initializer.into(), static_storage, Some(&mut flexible));
+        let result = self.initializer_inner(
+            ty,
+            initializer.into(),
+            requires_constant,
+            Some(&mut flexible),
+        );
         self.leave_expression();
         let ty = result?;
         let storage = flexible
@@ -200,11 +208,7 @@ impl Analyzer {
     }
 
     fn gnu_flexible_arrays(&self) -> bool {
-        matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        )
+        self.unit.compiler == toucan_target::Compiler::Gnu
     }
 
     fn empty_initializer(&self, initializer: &Node<ast::Initializer>) -> bool {
@@ -239,17 +243,40 @@ impl Analyzer {
         &mut self,
         ty: &Type,
         initializer: InitializerRef<'_>,
-        static_storage: bool,
+        requires_constant: bool,
         flexible: Option<&mut FlexibleState>,
     ) -> Result<Type, Error> {
         let retained = self
             .checked
             .as_deref_mut()
-            .map(|checked| checked.begin_initializer(initializer.origin, ty, static_storage))
+            .map(|checked| checked.begin_initializer(initializer.origin, ty, requires_constant))
             .transpose()?
             .flatten();
-        let result =
-            self.initializer_inner_impl(ty, initializer, static_storage, flexible, retained)?;
+        let result = if let Some(value) = self.unit.atomic_value(ty)?.cloned() {
+            if !self.gnu_sync_profile()
+                && matches!(
+                    self.unit.resolve(&value)?.kind,
+                    TypeKind::Record(_) | TypeKind::Vector { .. }
+                )
+                && matches!(initializer.node, InitializerView::List(_))
+            {
+                return Err(Error::new(
+                    initializer.span.start,
+                    "this Clang profile requires an atomic aggregate initializer to be a compatible value expression",
+                ));
+            }
+            self.initializer_inner_impl(
+                &value,
+                ty,
+                initializer,
+                requires_constant,
+                flexible,
+                retained,
+            )?;
+            ty.clone()
+        } else {
+            self.initializer_inner_impl(ty, ty, initializer, requires_constant, flexible, retained)?
+        };
         if let Some(id) = retained {
             self.code_builder().finish_initializer(id, &result)?;
         }
@@ -259,8 +286,9 @@ impl Analyzer {
     fn initializer_inner_impl(
         &mut self,
         ty: &Type,
+        destination: &Type,
         initializer: InitializerRef<'_>,
-        static_storage: bool,
+        requires_constant: bool,
         mut flexible: Option<&mut FlexibleState>,
         retained: Option<InitializerId>,
     ) -> Result<Type, Error> {
@@ -273,11 +301,17 @@ impl Analyzer {
             ));
         }
         if !matches!(resolved.kind, TypeKind::Array { length: None, .. })
-            && !self.is_complete_object(ty, 0)?
+            && !self.is_definite_object(ty, 0)?
         {
             return Err(Error::new(
                 offset,
                 "initializer requires a complete object type",
+            ));
+        }
+        if requires_constant && self.unit.is_sizeless(ty)? {
+            return Err(Error::new(
+                offset,
+                "objects with static or thread storage cannot have sizeless SVE type",
             ));
         }
         match initializer.node {
@@ -289,31 +323,38 @@ impl Analyzer {
                     }
                     return Ok(completed);
                 }
-                self.check_assignment(ty, expression)?;
-                if static_storage {
-                    let kind = self.static_initializer(expression)?;
-                    if kind == ConstantKind::Arithmetic
-                        && matches!(
-                            resolved.kind,
-                            TypeKind::Integer(_)
-                                | TypeKind::Bool
-                                | TypeKind::Enum(_)
-                                | TypeKind::Float(_)
-                        )
-                    {
-                        let value = self.eval_arithmetic(expression)?;
-                        self.convert_arithmetic(value, ty, offset)?;
+                self.check_assignment(destination, expression)?;
+                if requires_constant {
+                    if matches!(resolved.kind, TypeKind::Vector { .. }) {
+                        self.eval_vector(expression, true)?;
+                    } else {
+                        let kind = self.static_initializer(expression)?;
+                        if kind == ConstantKind::Arithmetic
+                            && matches!(
+                                resolved.kind,
+                                TypeKind::Integer(_)
+                                    | TypeKind::Bool
+                                    | TypeKind::Enum(_)
+                                    | TypeKind::Float(_)
+                                    | TypeKind::Complex(_)
+                            )
+                        {
+                            let value = self.eval_arithmetic(expression)?;
+                            self.convert_arithmetic(value, ty, offset)?;
+                        }
                     }
                 }
                 if let Some(id) = retained {
-                    self.retained_initializer_expression(id, ty, expression)?;
+                    self.retained_initializer_expression(id, destination, expression)?;
                 }
                 Ok(ty.clone())
             }
             InitializerView::List(items) => {
                 if let Some(id) = retained {
-                    let aggregate =
-                        matches!(resolved.kind, TypeKind::Array { .. } | TypeKind::Record(_));
+                    let aggregate = matches!(
+                        resolved.kind,
+                        TypeKind::Array { .. } | TypeKind::Vector { .. } | TypeKind::Record(_)
+                    );
                     let union_member = match resolved.kind {
                         TypeKind::Record(record)
                             if self.unit.records[record].kind == RecordKind::Union =>
@@ -343,7 +384,7 @@ impl Analyzer {
                         let child = self.code_builder().begin_initializer(
                             Origin::Written(&item.node.initializer),
                             ty,
-                            static_storage,
+                            requires_constant,
                         )?;
                         if let Some(child) = child {
                             self.retained_initializer_string(child, &completed, expression)?;
@@ -354,7 +395,10 @@ impl Analyzer {
                     }
                     return Ok(completed);
                 }
-                if !matches!(resolved.kind, TypeKind::Array { .. } | TypeKind::Record(_)) {
+                if !matches!(
+                    resolved.kind,
+                    TypeKind::Array { .. } | TypeKind::Vector { .. } | TypeKind::Record(_)
+                ) {
                     let [item] = items else {
                         return Err(Error::new(offset, "scalar initializer requires one value"));
                     };
@@ -365,7 +409,7 @@ impl Analyzer {
                         ));
                     }
                     let completed =
-                        self.check_initializer(ty, &item.node.initializer, static_storage)?;
+                        self.check_initializer(ty, &item.node.initializer, requires_constant)?;
                     if let Some(id) = retained {
                         self.code_builder()
                             .initializer_entry(id, item, RetainedPath::default())?;
@@ -375,6 +419,20 @@ impl Analyzer {
                 let mut cursor = self.first_subobject(ty)?.map(|index| vec![index]);
                 let mut bound = 0;
                 for item in items {
+                    if matches!(resolved.kind, TypeKind::Vector { .. }) {
+                        if !item.node.designation.is_empty() {
+                            return Err(Error::new(
+                                item.span.start,
+                                "vector initializers cannot have designators",
+                            ));
+                        }
+                        if matches!(item.node.initializer.node, ast::Initializer::List(_)) {
+                            return Err(Error::new(
+                                item.span.start,
+                                "nested braces in vector lane initializers are unsupported",
+                            ));
+                        }
+                    }
                     let mut retained_path = retained.map(|_| RetainedPath::default());
                     let mut path = if item.node.designation.is_empty() {
                         cursor.take().ok_or_else(|| {
@@ -410,13 +468,13 @@ impl Analyzer {
                             let empty = depth == path.len()
                                 && self.empty_initializer(&item.node.initializer);
                             if !permitted
-                                && (!empty || (!static_storage && self.gnu_flexible_arrays()))
+                                && (!empty || (!requires_constant && self.gnu_flexible_arrays()))
                             {
-                                let message = if !static_storage {
+                                let message = if !requires_constant {
                                     "flexible array initialization requires static storage on this target"
                                 } else if depth == 1
                                     && flexible.is_none()
-                                    && static_storage
+                                    && requires_constant
                                     && self.gnu_flexible_arrays()
                                 {
                                     "flexible-array allocation in a compound literal or nested object is unsupported"
@@ -437,7 +495,7 @@ impl Analyzer {
                         }
                         let aggregate = matches!(
                             self.unit.resolve(&target)?.kind,
-                            TypeKind::Array { .. } | TypeKind::Record(_)
+                            TypeKind::Array { .. } | TypeKind::Vector { .. } | TypeKind::Record(_)
                         );
                         let whole = match &item.node.initializer.node {
                             ast::Initializer::List(_) => true,
@@ -459,7 +517,7 @@ impl Analyzer {
                             let completed = self.check_initializer(
                                 &target,
                                 &item.node.initializer,
-                                static_storage,
+                                requires_constant,
                             )?;
                             if member_depth == Some(1)
                                 && path.len() == 1
@@ -528,7 +586,7 @@ impl Analyzer {
                             length: Some(bound),
                         },
                         qualifiers: self.unit.qualifiers(ty)?,
-                        alignment: self.unit.typedef_alignment(ty)?,
+                        alignment: self.unit.typedef_alignment_metadata(ty)?,
                     })
                 } else {
                     Ok(ty.clone())
@@ -624,7 +682,10 @@ impl Analyzer {
         {
             return Ok(true);
         }
-        if matches!(self.unit.resolve(ty)?.kind, TypeKind::Record(_)) {
+        if matches!(
+            self.unit.resolve(ty)?.kind,
+            TypeKind::Record(_) | TypeKind::Vector { .. }
+        ) {
             let source = self.expression_type(expression)?;
             let source = self.value_type(&source)?;
             let mut destination = self.unit.resolve(ty)?.clone();
@@ -639,7 +700,7 @@ impl Analyzer {
             TypeKind::Array {
                 length: Some(0), ..
             } => None,
-            TypeKind::Array { .. } => Some(0),
+            TypeKind::Array { .. } | TypeKind::Vector { .. } => Some(0),
             TypeKind::Record(id) => self
                 .unit
                 .records
@@ -669,6 +730,7 @@ impl Analyzer {
                 {
                     (**element).clone()
                 }
+                TypeKind::Vector { element, lanes, .. } if *index < *lanes => (**element).clone(),
                 TypeKind::Record(id) => self
                     .unit
                     .records
@@ -702,6 +764,9 @@ impl Analyzer {
         while let Some(index) = next.pop() {
             let parent = self.subobject(root, &next, offset)?;
             let sibling = match &self.unit.resolve(&parent)?.kind {
+                TypeKind::Vector { lanes, .. } => {
+                    index.checked_add(1).filter(|index| *index < *lanes)
+                }
                 TypeKind::Array { length, .. } => index
                     .checked_add(1)
                     .filter(|index| length.is_none_or(|length| *index < length)),
@@ -860,6 +925,21 @@ impl Analyzer {
         Ok(None)
     }
 
+    /// Validates a scalar operand of a static vector expression before folding it.
+    pub(crate) fn check_static_arithmetic(
+        &mut self,
+        expression: &Node<ast::Expression>,
+    ) -> Result<(), Error> {
+        if self.static_initializer(expression)? == ConstantKind::Arithmetic {
+            Ok(())
+        } else {
+            Err(Error::new(
+                expression.span.start,
+                "static vector lane requires an arithmetic constant",
+            ))
+        }
+    }
+
     fn static_initializer(
         &mut self,
         expression: &Node<ast::Expression>,
@@ -888,6 +968,16 @@ impl Analyzer {
             )),
             ast::Expression::Constant(_) => Ok(ConstantKind::Arithmetic),
             ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(|name| self.object_size_signature(name))
+                    .is_some() =>
+            {
+                self.eval_object_size(call)?;
+                Ok(ConstantKind::Arithmetic)
+            }
+
+            ast::Expression::Call(call)
                 if self.builtin_name(call) == Some("__builtin_constant_p") =>
             {
                 // A required constant-expression site never executes Clang's
@@ -903,7 +993,11 @@ impl Analyzer {
                     || self
                         .builtin_name(call)
                         .and_then(|name| self.nan_builtin(name))
-                        .is_some() =>
+                        .is_some()
+                    || self.builtin_name(call) == Some("__builtin_complex")
+                    || self
+                        .builtin_name(call)
+                        .is_some_and(|name| self.complex_unary_builtin(name).is_some()) =>
             {
                 self.eval_arithmetic(expression)?;
                 Ok(ConstantKind::Arithmetic)
@@ -936,6 +1030,7 @@ impl Analyzer {
                 )
             }
             ast::Expression::StringLiteral(_) => Ok(ConstantKind::Address),
+            ast::Expression::Member(_) => self.static_designator(expression),
             ast::Expression::Identifier(identifier) => {
                 if self.unit.constants.contains_key(&identifier.node.name) {
                     return Ok(ConstantKind::Arithmetic);
@@ -956,10 +1051,13 @@ impl Analyzer {
                     self.static_lvalue(&unary.node.operand)?;
                     Ok(ConstantKind::Address)
                 }
+                ast::UnaryOperator::Indirection => self.static_designator(expression),
                 ast::UnaryOperator::Plus
                 | ast::UnaryOperator::Minus
                 | ast::UnaryOperator::Complement
-                | ast::UnaryOperator::Negate => {
+                | ast::UnaryOperator::Negate
+                | ast::UnaryOperator::Real
+                | ast::UnaryOperator::Imaginary => {
                     if self.static_initializer(&unary.node.operand)? == ConstantKind::Arithmetic {
                         Ok(ConstantKind::Arithmetic)
                     } else {
@@ -984,6 +1082,9 @@ impl Analyzer {
             }
             ast::Expression::BinaryOperator(binary) => {
                 use ast::BinaryOperator as Op;
+                if binary.node.operator.node == Op::Index {
+                    return self.static_designator(expression);
+                }
                 if !matches!(
                     binary.node.operator.node,
                     Op::Multiply
@@ -1042,11 +1143,40 @@ impl Analyzer {
                     &conditional.node.else_expression
                 })
             }
+            ast::Expression::TypesCompatible(query) => {
+                self.eval_types_compatible(query)?;
+                Ok(ConstantKind::Arithmetic)
+            }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.static_initializer(selected)
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 self.static_initializer(selected)
             }
             _ => Err(invalid()),
+        }
+    }
+
+    /// Array and function designators form addresses without reading their objects.
+    /// Scalar subobjects still require a load and cannot initialize static storage.
+    fn static_designator(
+        &mut self,
+        expression: &Node<ast::Expression>,
+    ) -> Result<ConstantKind, Error> {
+        let ty = self.expression_type(expression)?;
+        if matches!(
+            self.unit.resolve(&ty)?.kind,
+            TypeKind::Array { .. } | TypeKind::Function(_)
+        ) {
+            self.static_lvalue(expression)?;
+            Ok(ConstantKind::Address)
+        } else {
+            Err(Error::new(
+                expression.span.start,
+                "static storage initializer is not a constant expression",
+            ))
         }
     }
 
@@ -1066,6 +1196,15 @@ impl Analyzer {
             )
         };
         match &expression.node {
+            ast::Expression::GenericSelection(selection) => {
+                let selected = self.generic_expression(selection)?;
+                self.static_lvalue(selected)
+            }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.static_lvalue(selected)
+            }
+
             ast::Expression::Identifier(identifier) => {
                 if self.object_has_static_storage(&identifier.node.name) {
                     Ok(())
@@ -1092,6 +1231,23 @@ impl Analyzer {
                 }
             }
             ast::Expression::UnaryOperator(unary)
+                if matches!(
+                    unary.node.operator.node,
+                    ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary
+                ) =>
+            {
+                let ty = self.expression_type(&unary.node.operand)?;
+                if self.gnu_sync_profile()
+                    && matches!(self.unit.resolve(&ty)?.kind, TypeKind::Complex(_))
+                {
+                    return Err(Error::new(
+                        offset,
+                        "GNU complex component addresses are not static initializer constants",
+                    ));
+                }
+                self.static_lvalue(&unary.node.operand)
+            }
+            ast::Expression::UnaryOperator(unary)
                 if unary.node.operator.node == ast::UnaryOperator::Indirection =>
             {
                 if self.static_initializer(&unary.node.operand)? == ConstantKind::Address {
@@ -1103,6 +1259,12 @@ impl Analyzer {
             ast::Expression::BinaryOperator(binary)
                 if binary.node.operator.node == ast::BinaryOperator::Index =>
             {
+                let base = self.expression_type(&binary.node.lhs)?;
+                if matches!(self.unit.resolve(&base)?.kind, TypeKind::Vector { .. }) {
+                    self.static_lvalue(&binary.node.lhs)?;
+                    self.eval(&binary.node.rhs)?;
+                    return Ok(());
+                }
                 let left = self.static_initializer(&binary.node.lhs)?;
                 let right = self.static_initializer(&binary.node.rhs)?;
                 if left == ConstantKind::Address && right == ConstantKind::Arithmetic {

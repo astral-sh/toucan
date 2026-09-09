@@ -34,7 +34,7 @@ project and names any missing builds.
 
 ## Recorded native results
 
-The [native run on 2026-09-08](https://github.com/astral-sh/toucan/actions/runs/34176518153)
+The [native run on 2026-09-08](https://github.com/astral-sh/toucan/actions/runs/34216957161)
 passed C/FFI probes, bindgen API comparison, and independent record-layout probes on x86_64
 and AArch64 Linux and macOS. Each target built all four pinned libraries and generated 1,648
 declarations, with no selected declarations skipped.
@@ -69,15 +69,28 @@ Linux used GCC 13.3.0; macOS used Apple Clang 17.0.0. Both used Rust 1.96.0 and 
 macros, function-like macros, aggregate initializers, and SQLite's destructor sentinels.
 Linux additionally defines the empty `Z_LFS64` feature macro. Windows was not run.
 
-The [compact evidence](evidence/native-equivalence-2026-09-08.json) preserves each scope's
-counts, accepted differences, executable and generated-source hashes, artifact metadata,
-and tested checkout SHA separately from the PR head SHA. Workflow artifacts retain complete
-reports, probe sources, commands, and logs for 14 days.
+The [compact evidence](evidence/native-06cefbe/summary.json) records `06cefbe` and its
+CI merge commit, whose Git tree is identical. It preserves each scope's counts,
+accepted differences, executable and generated-source hashes, and artifact metadata.
+Compressed original reports are checked in beside the summary. Workflow artifacts
+retain probe sources and command logs for 14 days.
+
+The same four-target run passed all four zstd feature profiles with Rust 1.96 and
+1.64, the SQLite Rust consumer, and Rust 1.64 record-layout checks. Runtime output
+artifacts were byte-identical to the upstream zstd wrapper's output. The Linux
+source audit accepted all seven translation units through Toucan preprocessing;
+x86-64 also accepted all seven compiler-preprocessed inputs, while AArch64 retained
+two compiler-preprocessed rejections. The summary keeps these scope differences.
+
+This source predates packed enums and derived `__auto_type` declarators. Its
+separate native workspace jobs failed on the recorded Apple atomic-pointer cast
+crash; the passing corpus does not imply those jobs passed. See
+[compiler oracle discrepancies](../docs/compiler-oracle-discrepancies.md).
 
 A [separate native test run](https://github.com/astral-sh/toucan/actions/runs/34177031459)
 passed optimized C/Rust `va_list` calls on all four targets, along with the workspace tests,
 lint, and Rust 1.96 checks. Its commit and checkout provenance are recorded separately in
-the same summary. The [CI fuzz smoke run](https://github.com/astral-sh/toucan/actions/runs/34177031461)
+the [earlier summary](evidence/native-equivalence-2026-09-08.json). The [CI fuzz smoke run](https://github.com/astral-sh/toucan/actions/runs/34177031461)
 passed with the default sanitizer configuration; [local fuzz runs](../fuzz/README.md) have
 separate scope and sanitizer settings.
 
@@ -133,3 +146,11 @@ The verification report records the frontend executable checksum, target, host, 
 versions, source archive checksums, header checksums, binding checksums, selected declaration
 counts, skipped macros, probe coverage, timings, and every command. Timings describe individual
 verification runs; they are not a comparative benchmark.
+
+## Complete C sources
+
+The [translation-unit audit](translation-units.md) checks seven pinned, untouched
+C sources with their actual build flags. It compares normal and retained analysis
+through Toucan preprocessing and unchanged compiler-preprocessed input. Linux CI
+requires all seven Toucan-route inputs to pass; compiler-route gaps remain explicit
+in the report.

@@ -10,7 +10,20 @@ use crate::Error;
 #[derive(Clone, Debug, Serialize)]
 pub struct TranslationUnit {
     pub target: Target,
+    /// Compiler behavior retained independently from the physical target.
+    pub compiler: target::Compiler,
+    /// Source language mode retained for all later expression parsing.
+    pub language_mode: target::LanguageMode,
     pub declarations: Vec<Declaration>,
+    /// Sparse per-function compilation properties, keyed by declaration index.
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub function_options: BTreeMap<usize, crate::FunctionOptions>,
+    /// Owner-local sparse parameter contracts used by function types.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub parameter_contracts: Vec<crate::ParameterContracts>,
+    /// Sparse type ancestry used by Clang's common-type alignment rules.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub alignment_origins: Vec<crate::AlignmentOrigin>,
     pub records: Vec<Record>,
     /// Nominal GNU typedef variants mapped directly to their source record.
     /// Field declaration identities belong to the source record.
@@ -24,10 +37,10 @@ pub struct TranslationUnit {
 /// A qualified C type. Typedefs and tags retain their declaration identities.
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
 pub struct Type {
-    /// GNU typedef alignment in bytes. This does not change C type compatibility
-    /// or the canonical layout of a referenced record tag.
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub alignment: Option<NonZeroU32>,
+    /// Typedef alignment and its owner-local ancestry. This does not change C
+    /// type compatibility or the canonical layout of a referenced record tag.
+    #[serde(flatten)]
+    pub alignment: crate::TypeAlignment,
     pub kind: TypeKind,
     pub qualifiers: Qualifiers,
 }
@@ -36,7 +49,7 @@ impl Type {
     /// Constructs an unqualified type.
     pub fn new(kind: TypeKind) -> Self {
         Self {
-            alignment: None,
+            alignment: crate::TypeAlignment::default(),
             kind,
             qualifiers: Qualifiers::default(),
         }
@@ -61,7 +74,23 @@ pub enum TypeKind {
     Bool,
     Integer(IntegerKind),
     Float(FloatKind),
+    /// A C complex scalar, with two components of the corresponding real type.
+    Complex(FloatKind),
     Pointer(Box<Type>),
+    /// C11 atomic object type. Storage layout and observable accesses differ
+    /// from the contained non-atomic value; outer qualifiers remain independent.
+    Atomic(Box<Type>),
+    /// GNU fixed-size vector. Elements are unqualified integer or floating types;
+    /// the vector retains its own qualifiers and does not decay to a pointer.
+    Vector {
+        element: Box<Type>,
+        lanes: u64,
+        /// Native NEON types have distinct C identity despite equal lane storage.
+        #[serde(skip_serializing_if = "VectorKind::is_gnu")]
+        kind: VectorKind,
+    },
+    /// An opaque AArch64 SVE vector or predicate, with no fixed size or alignment.
+    Sve(SveKind),
     Array {
         element: Box<Type>,
         length: Option<u64>,
@@ -70,11 +99,36 @@ pub enum TypeKind {
     /// incomplete array, its extent cannot be completed by a later declaration.
     VariableArray {
         element: Box<Type>,
+        /// Exact array-type identity; ordinary C compatibility ignores it.
+        identity: crate::VariableArrayId,
     },
     Function(Box<FunctionType>),
     Record(usize),
     Enum(usize),
     Typedef(String),
+}
+
+/// C identity of a fixed vector, independent of its element and lane layout.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Hash)]
+pub enum VectorKind {
+    #[default]
+    Gnu,
+    /// GCC's predefined AArch64 Advanced SIMD types.
+    Neon,
+}
+impl VectorKind {
+    fn is_gnu(&self) -> bool {
+        *self == Self::Gnu
+    }
+}
+
+/// Sizeless SVE types available without a target vector-length assumption.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
+pub enum SveKind {
+    Float32,
+    Float64,
+    /// One predicate bit per vector byte, not a vector of C Boolean objects.
+    Predicate,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
@@ -96,6 +150,8 @@ pub enum IntegerKind {
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
 pub enum FloatKind {
+    /// The distinct GNU/Clang bfloat16 type, with eight significant bits.
+    BFloat16,
     Float,
     Double,
     LongDouble,
@@ -105,9 +161,13 @@ pub enum FloatKind {
     },
 }
 
-/// The target encoding of a finite floating constant, without object padding.
+/// The target encoding of a floating constant, without object padding.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum FloatingFormat {
+    /// IEEE binary16: five exponent bits and eleven significant bits.
+    Binary16,
+    /// Bfloat16: eight exponent bits and eight significant bits.
+    BFloat16,
     Binary32,
     Binary64,
     /// The 80 meaningful bits of the x87 extended format, including its explicit integer bit.
@@ -141,12 +201,54 @@ impl FloatingValue {
     }
 }
 
+/// An owned complex constant with corresponding-real target encodings.
+/// The real component precedes the imaginary component in C object storage;
+/// these encodings exclude padding within either component.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+pub struct ComplexValue {
+    pub(crate) kind: FloatKind,
+    pub(crate) format: FloatingFormat,
+    pub(crate) real_bits: u128,
+    pub(crate) imaginary_bits: u128,
+}
+
+impl ComplexValue {
+    /// Return the common C type of the two real components.
+    pub const fn kind(self) -> FloatKind {
+        self.kind
+    }
+
+    /// Return the target encoding of either component, excluding object padding.
+    pub const fn format(self) -> FloatingFormat {
+        self.format
+    }
+
+    /// Return the real component without changing its target representation.
+    pub const fn real(self) -> FloatingValue {
+        FloatingValue {
+            kind: self.kind,
+            format: self.format,
+            bits: self.real_bits,
+        }
+    }
+
+    /// Return the imaginary component without changing its target representation.
+    pub const fn imaginary(self) -> FloatingValue {
+        FloatingValue {
+            kind: self.kind,
+            format: self.format,
+            bits: self.imaginary_bits,
+        }
+    }
+}
+
 /// The result of arithmetic constant evaluation. This query admits floating
 /// operands; an integer result does not imply a C integer constant expression.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 pub enum ArithmeticConstant {
     Integer(IntegerValue),
     Floating(FloatingValue),
+    Complex(ComplexValue),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize, Hash)]
@@ -159,6 +261,14 @@ pub enum ExtendedFloatFormat {
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
 pub struct FunctionType {
+    /// Clang function-type promise from GNU `noreturn`, separate from C11 `_Noreturn`.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub noreturn: bool,
+    /// Effective Clang parameter promises; absence means no such promises.
+    /// Retained body signatures also use this for identifier-list entry parameters,
+    /// without making their callable declarations into prototypes.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub parameter_contracts: Option<crate::ParameterContractsId>,
     pub return_type: Type,
     pub parameters: Vec<Parameter>,
     pub variadic: bool,
@@ -175,6 +285,10 @@ pub enum CallingConvention {
     SysV64,
     /// An explicitly requested Microsoft x64 convention.
     Win64,
+    /// Preserves the additional AArch64 Advanced SIMD registers.
+    Aarch64Vector,
+    /// Clang's explicit SVE register-preservation convention.
+    Aarch64Sve,
 }
 
 impl CallingConvention {
@@ -183,13 +297,29 @@ impl CallingConvention {
     pub fn for_target(self, target: Target) -> Result<Self, Error> {
         match (self, target) {
             (Self::C, _) => Ok(Self::C),
-            (Self::SysV64, Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin)
+            (
+                Self::Aarch64Vector | Self::Aarch64Sve,
+                Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
+                | Target::Aarch64AppleDarwin,
+            ) => Ok(self),
+            (
+                Self::SysV64,
+                Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::X86_64AppleDarwin,
+            )
             | (Self::Win64, Target::X86_64PcWindowsMsvc) => Ok(Self::C),
             (Self::SysV64, Target::X86_64PcWindowsMsvc)
-            | (Self::Win64, Target::X86_64UnknownLinuxGnu | Target::X86_64AppleDarwin) => Ok(self),
+            | (
+                Self::Win64,
+                Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::X86_64AppleDarwin,
+            ) => Ok(self),
             _ => Err(Error::new(
                 0,
-                "explicit x86-64 calling conventions are unsupported on this target",
+                "explicit calling convention is unsupported on this target",
             )),
         }
     }
@@ -244,6 +374,9 @@ pub struct Field {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Enum {
+    /// Canonical tag packing. The MSVC ABI retains int representation.
+    #[serde(skip_serializing_if = "is_false")]
+    pub packed: bool,
     pub name: Option<String>,
     pub scope: Scope,
     /// Whether the closing brace of the definition has been reached.
@@ -274,6 +407,17 @@ impl SymbolBinding {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Declaration {
+    /// Explicit object/function alignment, independent of the declared C type.
+    #[serde(skip_serializing_if = "crate::DeclarationAlignment::is_empty")]
+    pub alignment: crate::DeclarationAlignment,
+    /// Whether a compatible declaration says this function may return more than once.
+    /// This is not a function-pointer type qualifier or a retroactive call-site verdict.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub returns_twice: bool,
+    /// Promise visible in the final file declaration. Earlier declarations and
+    /// calls keep their own facts in checked code; this does not change its type.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub noreturn: bool,
     /// Symbol binding; applies to externally linked functions and objects.
     #[serde(skip_serializing_if = "SymbolBinding::is_strong")]
     pub symbol_binding: SymbolBinding,
@@ -281,7 +425,11 @@ pub struct Declaration {
     pub ty: Type,
     pub kind: DeclarationKind,
     pub link_name: Option<String>,
+    /// Whether this declaration has internal linkage.
     pub is_static: bool,
+    /// Whether each thread owns a distinct object; independent of its linkage.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub is_thread_local: bool,
     pub is_definition: bool,
     /// Storage allocated by GNU initialization of this object's flexible member.
     /// This does not change its declared type, record layout, or `sizeof` result.
@@ -383,6 +531,12 @@ impl IntegerValue {
 }
 
 impl TranslationUnit {
+    /// Validates compiler identity when callers construct or modify public IR.
+    pub fn profile(&self) -> Result<target::CompilerProfile, Error> {
+        target::CompilerProfile::new(self.target, self.compiler)
+            .map_err(|e| Error::new(0, e.to_string()))
+    }
+
     /// Whether this array's size depends on a runtime bound. Pointers to such
     /// arrays still have a constant pointer size.
     pub fn is_variable_length_array(&self, ty: &Type) -> Result<bool, Error> {
@@ -407,7 +561,9 @@ impl TranslationUnit {
         for _ in 0..128 {
             match &self.resolve(ty)?.kind {
                 TypeKind::VariableArray { .. } => return Ok(true),
-                TypeKind::Array { element, .. } | TypeKind::Pointer(element) => ty = element,
+                TypeKind::Array { element, .. }
+                | TypeKind::Pointer(element)
+                | TypeKind::Atomic(element) => ty = element,
                 TypeKind::Function(function) => ty = &function.return_type,
                 _ => return Ok(false),
             }
@@ -417,13 +573,17 @@ impl TranslationUnit {
 
     /// Computes alignment even when a complete array has a runtime extent.
     pub fn alignment(&self, ty: &Type) -> Result<u64, Error> {
+        self.profile()?;
+        if self.is_sizeless(ty)? {
+            return Err(Error::new(0, "sizeless SVE types have no object alignment"));
+        }
         let mut ty = ty;
         for _ in 0..128 {
             if let Some(alignment) = self.typedef_alignment(ty)? {
                 return Ok(u64::from(alignment.get()));
             }
             match &self.resolve(ty)?.kind {
-                TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+                TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                     ty = element
                 }
                 _ => return Ok(self.layout(ty)?.alignment_bytes()),
@@ -438,19 +598,29 @@ impl TranslationUnit {
     /// Returns the outermost GNU typedef alignment override, without applying
     /// it to the pointee or mutating a referenced record.
     pub fn typedef_alignment(&self, ty: &Type) -> Result<Option<NonZeroU32>, Error> {
+        Ok(self.typedef_alignment_metadata(ty)?.bytes())
+    }
+
+    /// Returns the outermost alignment snapshot, including its optional ancestry.
+    pub fn typedef_alignment_metadata(&self, ty: &Type) -> Result<crate::TypeAlignment, Error> {
         let mut ty = ty;
         for _ in 0..128 {
-            if let Some(alignment) = ty.alignment {
-                if !alignment.get().is_power_of_two() || alignment.get() > (1 << 28) {
+            if ty.alignment.has_metadata() {
+                let alignment = ty.alignment;
+                self.validate_alignment_snapshot(alignment)?;
+                if alignment
+                    .bytes()
+                    .is_some_and(|bytes| !bytes.get().is_power_of_two() || bytes.get() > (1 << 28))
+                {
                     return Err(Error::new(
                         0,
                         "typedef alignment must be a supported power of two",
                     ));
                 }
-                return Ok(Some(alignment));
+                return Ok(alignment);
             }
             let TypeKind::Typedef(name) = &ty.kind else {
-                return Ok(None);
+                return Ok(crate::TypeAlignment::default());
             };
             ty = self
                 .typedefs
@@ -510,9 +680,10 @@ impl TranslationUnit {
 
     /// Computes target layout, rejecting incomplete or recursively embedded types.
     pub fn layout(&self, ty: &Type) -> Result<target::Layout, Error> {
+        self.profile()?;
         let lowered = self.layout_type(ty, &mut HashSet::new(), &mut HashMap::new(), 0, true)?;
         let mut layout = self
-            .target
+            .profile()?
             .layout(&lowered)
             .map_err(|e| Error::new(0, e.to_string()))?;
         // clang-cl honors a GNU typedef's decreased pointer alignment even though
@@ -534,6 +705,68 @@ impl TranslationUnit {
         Ok(layout)
     }
 
+    /// Returns a non-bitfield member's alignment under its containing record's
+    /// packing rules. Alignment on the containing object or record does not raise
+    /// the member's declared alignment.
+    pub fn record_field_alignment(&self, record: usize, field: usize) -> Result<u64, Error> {
+        let record = self
+            .records
+            .get(record)
+            .ok_or_else(|| Error::new(0, "invalid record identity"))?;
+        let field = record
+            .fields
+            .as_ref()
+            .and_then(|fields| fields.get(field))
+            .ok_or_else(|| Error::new(0, "invalid or incomplete record field"))?;
+        if field.bit_width.is_some() {
+            return Err(Error::new(0, "bitfields have no queryable alignment"));
+        }
+        let mut annotations = Vec::new();
+        if record.packed {
+            annotations.push(target::Annotation::Packed);
+        }
+        if let Some(pack) = record.pack {
+            annotations.push(target::Annotation::PragmaPack(
+                pack.checked_mul(8)
+                    .ok_or_else(|| Error::new(0, "pack alignment overflows"))?,
+            ));
+        }
+        let mut field_annotations = Vec::new();
+        if field.packed {
+            field_annotations.push(target::Annotation::Packed);
+        }
+        if let Some(alignment) = field.alignment {
+            field_annotations.push(target::Annotation::Align(Some(
+                alignment
+                    .checked_mul(8)
+                    .ok_or_else(|| Error::new(0, "alignment overflows"))?,
+            )));
+        }
+        let ty = self.layout_type(
+            &field.ty,
+            &mut HashSet::new(),
+            &mut HashMap::new(),
+            0,
+            false,
+        )?;
+        let layout = self
+            .profile()?
+            .layout(&target::Type {
+                annotations,
+                variant: target::TypeVariant::Record(target::Record {
+                    kind: target::RecordKind::Struct,
+                    fields: vec![target::Field {
+                        ty,
+                        annotations: field_annotations,
+                        named: true,
+                        bit_width: None,
+                    }],
+                }),
+            })
+            .map_err(|error| Error::new(0, error.to_string()))?;
+        Ok(layout.field_alignment_bits / 8)
+    }
+
     fn layout_type(
         &self,
         ty: &Type,
@@ -548,14 +781,26 @@ impl TranslationUnit {
                 "record layout nesting exceeds the 128-level limit",
             ));
         }
+        if matches!(ty.kind, TypeKind::Sve(_)) {
+            return Err(Error::new(
+                0,
+                "sizeless SVE types have no fixed object layout",
+            ));
+        }
         if let TypeKind::Typedef(name) = &ty.kind {
+            if ty.alignment.origin().is_some() {
+                self.validate_alignment_snapshot(ty.alignment)?;
+                let mut effective = self.resolve(ty)?.clone();
+                effective.alignment = ty.alignment;
+                return self.layout_type(&effective, active, cache, depth + 1, expand_record);
+            }
             let inner = self
                 .typedefs
                 .get(name)
                 .ok_or_else(|| Error::new(0, format!("unknown typedef `{name}`")))?;
             return Ok(aligned_layout_type(
                 self.layout_type(inner, active, cache, depth + 1, expand_record)?,
-                ty.alignment,
+                ty.alignment.bytes(),
             ));
         }
         let resolved = ty;
@@ -566,14 +811,88 @@ impl TranslationUnit {
                 let lowered =
                     self.layout_type(&Type::new(TypeKind::Record(id)), active, cache, depth, true)?;
                 let layout = self
-                    .target
+                    .profile()?
                     .layout(&lowered)
                     .map_err(|error| Error::new(0, error.to_string()))?;
                 cache.insert(id, layout);
             }
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&cache[&id]),
-                ty.alignment,
+                ty.alignment.bytes(),
+            ));
+        }
+        if let TypeKind::Atomic(value) = &resolved.kind {
+            if self.qualifiers(value)? != Qualifiers::default()
+                || matches!(
+                    self.resolve(value)?.kind,
+                    TypeKind::Atomic(_)
+                        | TypeKind::Array { .. }
+                        | TypeKind::VariableArray { .. }
+                        | TypeKind::Function(_)
+                        | TypeKind::Void
+                )
+            {
+                return Err(Error::new(
+                    0,
+                    "atomic layout requires an unqualified non-atomic object value",
+                ));
+            }
+            let inner = self.layout_type(value, active, cache, depth + 1, false)?;
+            let inner = self
+                .profile()?
+                .layout(&inner)
+                .map_err(|e| Error::new(0, e.to_string()))?;
+            let layout = crate::atomic_type::atomic_layout(self.compiler, inner)?;
+            return Ok(aligned_layout_type(
+                target::Type::opaque_layout(&layout),
+                ty.alignment.bytes(),
+            ));
+        }
+        if let TypeKind::Vector { element, lanes, .. } = &resolved.kind {
+            let element = self.resolve(element)?;
+            if !matches!(element.kind, TypeKind::Integer(_) | TypeKind::Float(_))
+                || !lanes.is_power_of_two()
+            {
+                return Err(Error::new(0, "invalid vector element type or lane count"));
+            }
+            let element = self.layout_type(element, active, cache, depth + 1, false)?;
+            let size = self
+                .target
+                .layout(&element)
+                .map_err(|error| Error::new(0, error.to_string()))?
+                .size_bits
+                .checked_mul(*lanes)
+                .ok_or_else(|| Error::new(0, "vector size overflows"))?;
+            if size == 0 || size > 128 || !size.is_power_of_two() {
+                return Err(Error::new(
+                    0,
+                    "vectors larger than 16 bytes require unsupported target-feature configuration",
+                ));
+            }
+            return Ok(aligned_layout_type(
+                target::Type::opaque_layout(&target::Layout {
+                    size_bits: size,
+                    alignment_bits: size,
+                    field_alignment_bits: size,
+                    required_alignment_bits: 8,
+                    fields: Vec::new(),
+                }),
+                ty.alignment.bytes(),
+            ));
+        }
+        if let TypeKind::Float(kind) = resolved.kind
+            && (kind.is_narrow() || kind == FloatKind::FLOAT128)
+        {
+            let bits = if kind == FloatKind::FLOAT128 { 128 } else { 16 };
+            return Ok(aligned_layout_type(
+                target::Type::opaque_layout(&target::Layout {
+                    size_bits: bits,
+                    alignment_bits: bits,
+                    field_alignment_bits: bits,
+                    required_alignment_bits: 8,
+                    fields: Vec::new(),
+                }),
+                ty.alignment.bytes(),
             ));
         }
         let builtin = match &resolved.kind {
@@ -598,7 +917,7 @@ impl TranslationUnit {
                 FloatKind::Float => target::BuiltinType::Float,
                 FloatKind::Double => target::BuiltinType::Double,
                 FloatKind::LongDouble => target::BuiltinType::LongDouble,
-                FloatKind::Extended { .. } => {
+                FloatKind::BFloat16 | FloatKind::Extended { .. } => {
                     return Err(Error::new(
                         0,
                         "extended floating-point layout is unsupported",
@@ -611,7 +930,7 @@ impl TranslationUnit {
         if let Some(builtin) = builtin {
             return Ok(aligned_layout_type(
                 target::Type::builtin(builtin),
-                ty.alignment,
+                ty.alignment.bytes(),
             ));
         }
         let mut annotations = Vec::new();
@@ -675,6 +994,27 @@ impl TranslationUnit {
                     fields,
                 })
             }
+            TypeKind::Complex(kind) => {
+                if !matches!(
+                    *kind,
+                    FloatKind::Float
+                        | FloatKind::Double
+                        | FloatKind::LongDouble
+                        | FloatKind::FLOAT128
+                ) {
+                    return Err(Error::new(0, "extended complex types are unsupported"));
+                }
+                target::TypeVariant::Array {
+                    element: Box::new(self.layout_type(
+                        &Type::new(TypeKind::Float(*kind)),
+                        active,
+                        cache,
+                        depth + 1,
+                        false,
+                    )?),
+                    length: Some(2),
+                }
+            }
             TypeKind::Array { element, length } => target::TypeVariant::Array {
                 element: Box::new(self.layout_type(element, active, cache, depth + 1, false)?),
                 length: *length,
@@ -692,6 +1032,9 @@ impl TranslationUnit {
                     .ok_or_else(|| Error::new(0, "invalid enum identity"))?;
                 if !enumeration.complete {
                     return Err(Error::new(0, "incomplete enum has no object layout"));
+                }
+                if enumeration.packed {
+                    annotations.push(target::Annotation::Packed);
                 }
                 target::TypeVariant::Enum(
                     enumeration
@@ -717,7 +1060,7 @@ impl TranslationUnit {
                 annotations,
                 variant,
             },
-            ty.alignment,
+            ty.alignment.bytes(),
         ))
     }
 }

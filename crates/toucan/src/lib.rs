@@ -4,38 +4,70 @@
 //! the target's sysroot. Declarations, initializers, and function bodies are checked
 //! within the supported C feature set. Unsupported bindings produce diagnostics.
 
+mod features;
+
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions, RustTarget};
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
-pub use toucan_preprocessor::{ForcedInclude, OriginKind, SourceLocation, SourceMapping};
+pub use toucan_preprocessor::{
+    FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude, LineComments, OriginKind,
+    PredefinedMacroMode, QueryDialect, SourceLocation, SourceMapping,
+};
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};
 pub use toucan_semantic::{self as semantic, Analysis, AnalysisOptions, TranslationUnit};
 pub use toucan_source as source;
-pub use toucan_target::{self as target, Target};
+pub use toucan_target::{self as target, Compiler, CompilerProfile, LanguageMode, Target};
 
 #[derive(Debug, Clone)]
 pub struct Config {
-    pub target: Target,
+    profile: CompilerProfile,
     pub preprocessor: PreprocessorConfig,
     /// Optional owned semantic graph retention; disabled by default.
     pub analysis: AnalysisOptions,
 }
 
 impl Config {
+    /// Physical ABI and platform selected for preprocessing and analysis.
+    pub fn target(&self) -> Target {
+        self.profile.target()
+    }
+    /// Compiler behavior used by this configuration.
+    pub fn compiler(&self) -> Compiler {
+        self.profile.compiler()
+    }
+    /// The validated target/compiler pair.
+    pub fn profile(&self) -> CompilerProfile {
+        self.profile
+    }
+    /// C keywords and preprocessing defaults selected with the compiler profile.
+    pub fn language_mode(&self) -> LanguageMode {
+        self.profile.language_mode()
+    }
+    /// Uses GCC on Linux and Clang on Darwin and Windows.
     pub fn new(target: Target) -> Self {
+        Self::with_profile(CompilerProfile::default_for(target))
+    }
+
+    /// Builds matching preprocessing and semantic configuration before caller overrides.
+    pub fn with_profile(profile: CompilerProfile) -> Self {
+        let target = profile.target();
         let mut preprocessor = PreprocessorConfig {
+            feature_queries: Some(features::queries(profile)),
+            trigraphs: profile.default_trigraphs(),
+            predefined_macro_mode: match profile.compiler() {
+                Compiler::Gnu => PredefinedMacroMode::GnuCommandLine,
+                Compiler::Clang => PredefinedMacroMode::ClangCommandLine,
+            },
             char_unsigned: !target.char_is_signed(),
-            defines: target.predefined_macros(),
+            defines: profile.predefined_macros(),
             ..PreprocessorConfig::default()
         };
         // These predicates advertise only implemented syntax/semantics. They are
         // independent of the GNU version used for header compatibility.
         for name in [
-            "__has_builtin(x)",
-            "__has_attribute(x)",
             "__has_feature(x)",
             "__has_extension(x)",
             "__has_c_attribute(x)",
@@ -69,7 +101,7 @@ impl Config {
             ),
         ]);
         Self {
-            target,
+            profile,
             preprocessor,
             analysis: AnalysisOptions::default(),
         }
@@ -163,7 +195,7 @@ fn finish(
 ) -> Result<Compilation, Error> {
     let start = Instant::now();
     let analysis =
-        semantic::analyze_with_options(&preprocessed.source, config.target, &config.analysis)
+        semantic::analyze_with_profile(&preprocessed.source, config.profile, &config.analysis)
             .map_err(|error| SemanticError {
                 origin: preprocessed.resolve_location(error.offset).cloned(),
                 error,
@@ -181,6 +213,8 @@ fn finish(
 #[derive(Debug, serde::Serialize)]
 pub struct Report {
     pub target: String,
+    pub compiler: Compiler,
+    pub language_mode: LanguageMode,
     /// Minimum Rust version for generated declarations, excluding caller-provided lines.
     pub rust_target: String,
     pub dependencies: Vec<PathBuf>,
@@ -191,6 +225,9 @@ pub struct Report {
     pub skipped_declarations: Vec<String>,
     /// Selected functions deliberately omitted by the caller's blocklist.
     pub blocked_functions: Vec<String>,
+    /// Caller-owned external types; their Rust definitions are not frontend-verified.
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub blocked_types: Vec<toucan_bindings::ExternalType>,
     /// Caller-provided Rust, excluded from declaration counts and ABI validation.
     pub raw_lines: Vec<String>,
     pub skipped_macros: Vec<SkippedMacro>,
@@ -262,6 +299,18 @@ impl Compilation {
     /// report identifies selected macros that were not emitted. With no allowlist,
     /// reserved `__` macros are omitted unless they shadow a declaration.
     pub fn bindings(&self, options: &BindingOptions) -> Result<(String, Report), Error> {
+        semantic::with_parser_stack(|| self.bindings_on_parser_stack(options)).map_err(|error| {
+            SemanticError {
+                error,
+                origin: None,
+            }
+        })?
+    }
+
+    fn bindings_on_parser_stack(
+        &self,
+        options: &BindingOptions,
+    ) -> Result<(String, Report), Error> {
         let declared_names: BTreeSet<_> = self
             .unit()
             .declarations
@@ -362,10 +411,23 @@ impl Compilation {
                         } else {
                             skipped_macros.push(SkippedMacro {
                                 name: name.clone(),
-                                reason: "long double macro constants have no Rust representation; use an explicit float or double cast".into(),
+                                reason: if value.kind().is_narrow() {
+                                    format!("{} macro constants have no Rust representation; use an explicit float or double cast", if value.kind() == semantic::FloatKind::BFloat16 {"__bf16"} else {"_Float16"})
+                                } else if value.kind() == semantic::FloatKind::FLOAT128 {
+                                    "binary128 macro constants have no verified Rust representation; use an explicit float or double cast".into()
+                                } else {
+                                    "long double macro constants have no Rust representation; use an explicit float or double cast".into()
+                                },
                             });
                         }
                     }
+                    Ok(semantic::ArithmeticConstant::Complex(_)) => skipped_macros
+                        .push(SkippedMacro {
+                        name: name.clone(),
+                        reason:
+                            "complex macro constants have no verified Rust storage representation"
+                                .into(),
+                    }),
                     Err(error) => skipped_macros.push(SkippedMacro {
                         name: name.clone(),
                         reason: error.to_string(),
@@ -377,6 +439,8 @@ impl Compilation {
         let source = bindings.source;
         let report = Report {
             target: self.unit().target.triple().into(),
+            compiler: self.unit().compiler,
+            language_mode: self.unit().language_mode,
             rust_target: options.rust_target.to_string(),
             dependencies: self.preprocessed.dependencies.clone(),
             declarations: bindings.declarations,
@@ -385,6 +449,7 @@ impl Compilation {
             string_macros,
             skipped_declarations: bindings.skipped,
             blocked_functions: bindings.blocked_functions,
+            blocked_types: bindings.blocked_types,
             raw_lines: bindings.raw_lines,
             skipped_macros,
             enum_constants: bindings.enum_constants,

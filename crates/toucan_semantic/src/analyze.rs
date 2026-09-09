@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 
 use lang_c::{ast, driver, span::Node};
-use toucan_target::Target;
+use toucan_target::{Compiler, CompilerProfile, Target};
 
 use crate::checked::{
     Builder as CodeBuilder, CheckedCode, EntityKind, Limits as CodeLimits, LocalDeclaration,
@@ -34,11 +34,23 @@ pub fn analyze_with_options(
     target: Target,
     options: &crate::AnalysisOptions,
 ) -> Result<crate::Analysis, Error> {
-    let (unit, checked) = analyze_inner(
-        source,
-        target,
-        options.retain_code.then_some(options.limits),
-    )?;
+    analyze_with_profile(source, CompilerProfile::default_for(target), options)
+}
+
+/// Checks C under an explicitly validated compiler and physical target, retaining
+/// code when requested. Constant queries later reuse this choice from the unit.
+pub fn analyze_with_profile(
+    source: &str,
+    profile: CompilerProfile,
+    options: &crate::AnalysisOptions,
+) -> Result<crate::Analysis, Error> {
+    let (unit, checked) = crate::with_parser_stack(|| {
+        analyze_on_parser_stack(
+            source,
+            profile,
+            options.retain_code.then_some(options.limits),
+        )
+    })??;
     Ok(crate::Analysis { unit, checked })
 }
 
@@ -47,22 +59,41 @@ pub(crate) fn analyze_inner(
     target: Target,
     retention: Option<CodeLimits>,
 ) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
+    crate::with_parser_stack(|| {
+        analyze_on_parser_stack(source, CompilerProfile::default_for(target), retention)
+    })?
+}
+
+fn analyze_on_parser_stack(
+    source: &str,
+    profile: CompilerProfile,
+    retention: Option<CodeLimits>,
+) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
     let (source, packs) = prepare_source(source)?;
-    let parsed = parse(&source, 0)?;
+    let parsed = parse(
+        &source,
+        0,
+        profile.target(),
+        profile.compiler(),
+        profile.language_mode(),
+    )?;
     let packs = packs
         .into_iter()
         .map(|(offset, pack)| (parsed.offsets.pragma_offset(offset), pack))
         .collect();
-    let mut analyzer = Analyzer::new(target, packs);
+    let mut analyzer = Analyzer::new(profile, packs);
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
     analyzer.int128_specifiers = parsed.int128_specifiers;
     let result = (|| {
+        analyzer.prepare_typedef_alignments(&parsed.unit, &source)?;
+        analyzer.prepare_array_identities(&parsed.unit, &source)?;
+        analyzer.prepare_late_function_targets(&parsed.unit, &source)?;
         if let Some(limits) = retention {
             analyzer.checked = Some(Box::new(CodeBuilder::new(
                 &parsed.unit,
@@ -83,9 +114,12 @@ pub(crate) fn analyze_inner(
                 }
             }
         }
+        analyzer.validate_sve_features()?;
         analyzer.finish_tentative_definitions()?;
         analyzer.validate_block_externs()?;
         analyzer.validate_weak_symbol_aliases()?;
+        analyzer.validate_returns_twice_aliases()?;
+        analyzer.finish_inline_targets()?;
         let checked = analyzer
             .checked
             .take()
@@ -99,8 +133,10 @@ pub(crate) fn analyze_inner(
     })
 }
 
-/// Evaluates an integer constant expression in the translation unit's type and
+/// Evaluates a supported integer fold in the translation unit's type and
 /// enumerator environment, using the target's C integer conversion rules.
+/// A successful query may use known code-generation facts such as an object
+/// extent; it does not certify C integer-constant-expression admissibility.
 pub fn evaluate_integer(unit: &TranslationUnit, expression: &str) -> Result<IntegerValue, Error> {
     evaluate_expression(unit, expression, |analyzer, expression| {
         analyzer.eval(expression)
@@ -121,11 +157,37 @@ pub fn evaluate_arithmetic(
     })
 }
 
-fn evaluate_expression<Value>(
+/// Folds a supported fixed-vector expression in the unit's type and enumerator
+/// environment. Numeric conversions round each lane in its target format.
+/// This value query does not certify static-initializer or integer-constant-
+/// expression admissibility; for example, Clang 18 rejects a static initializer
+/// using `__builtin_convertvector` even when its lanes can be folded.
+pub fn evaluate_vector(
+    unit: &TranslationUnit,
+    expression: &str,
+) -> Result<crate::VectorConstant, Error> {
+    evaluate_expression(unit, expression, |analyzer, expression| {
+        analyzer
+            .eval_vector(expression, false)?
+            .into_constant(&analyzer.unit, expression.span.start)
+    })
+}
+
+fn evaluate_expression<Value: Send>(
+    unit: &TranslationUnit,
+    expression: &str,
+    evaluate: impl FnOnce(&mut Analyzer, &Node<ast::Expression>) -> Result<Value, Error> + Send,
+) -> Result<Value, Error> {
+    crate::with_parser_stack(|| evaluate_on_parser_stack(unit, expression, evaluate))?
+}
+
+fn evaluate_on_parser_stack<Value>(
     unit: &TranslationUnit,
     expression: &str,
     evaluate: impl FnOnce(&mut Analyzer, &Node<ast::Expression>) -> Result<Value, Error>,
 ) -> Result<Value, Error> {
+    unit.profile()?;
+    unit.validate_function_options()?;
     let identifiers = validate_expression_source(expression)?;
     for value in unit.constants.values() {
         value.validate()?;
@@ -163,7 +225,14 @@ fn evaluate_expression<Value>(
     source.push_str("int __toucan_expression = (");
     source.push_str(expression);
     source.push_str(");\n");
-    let parsed = parse(&source, expression_offset).map_err(|mut error| {
+    let parsed = parse(
+        &source,
+        expression_offset,
+        unit.target,
+        unit.compiler,
+        unit.language_mode,
+    )
+    .map_err(|mut error| {
         error.offset = error.offset.saturating_sub(expression_offset);
         error
     })?;
@@ -193,19 +262,30 @@ fn evaluate_expression<Value>(
     else {
         return Err(Error::new(0, "expected integer expression"));
     };
+    unit.validate_parameter_contracts()?;
     let mut analyzer = Analyzer::from_unit(unit.clone());
+    analyzer.allow_late_object_size_folds = true;
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
     analyzer.int128_specifiers = parsed.int128_specifiers;
-    evaluate(&mut analyzer, expression).map_err(|mut error| {
-        error.offset = parsed
-            .offsets
-            .original_offset(error.offset)
-            .saturating_sub(expression_offset);
-        error
-    })
+    analyzer
+        .prepare_array_identities(&parsed.unit, &source)
+        .and_then(|()| analyzer.prepare_typedef_alignments(&parsed.unit, &source))
+        .and_then(|()| analyzer.prepare_late_function_targets(&parsed.unit, &source))
+        .and_then(|()| evaluate(&mut analyzer, expression))
+        .and_then(|value| {
+            analyzer.validate_sve_features()?;
+            Ok(value)
+        })
+        .map_err(|mut error| {
+            error.offset = parsed
+                .offsets
+                .original_offset(error.offset)
+                .saturating_sub(expression_offset);
+            error
+        })
 }
 
 struct Parsed {
@@ -218,19 +298,29 @@ struct Parsed {
     int128_specifiers: HashSet<usize>,
 }
 
-fn parse(source: &str, diagnostic_offset: usize) -> Result<Parsed, Error> {
+fn parse(
+    source: &str,
+    diagnostic_offset: usize,
+    target: Target,
+    compiler: Compiler,
+    language_mode: toucan_target::LanguageMode,
+) -> Result<Parsed, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
     let original = source;
     let source = strip_comments(source)?;
-    check_parse_limits(&source)?;
     let adapted = crate::parser_extensions::adapt(&source)?;
     let source = adapted.source;
     let config = driver::Config {
         cpp_command: String::new(),
         cpp_options: Vec::new(),
-        flavor: driver::Flavor::ClangC11,
+        gnu_keywords: language_mode == toucan_target::LanguageMode::Gnu11,
+        extensions_msvc: target == Target::X86_64PcWindowsMsvc,
+        flavor: match compiler {
+            Compiler::Gnu => driver::Flavor::GnuC11WithClangExtensions,
+            Compiler::Clang => driver::Flavor::ClangC11,
+        },
     };
     let (source, record_attributes) = normalize_attributes(&source);
     let (source, literal_spellings) = crate::literals::normalize_literal_escapes(source);
@@ -426,15 +516,28 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Attributes {
+    pub(crate) target_attributes: Vec<crate::target_features::ParsedTarget>,
+    pub(crate) minimum_vector_width: Vec<crate::target_features::ParsedMinimumVectorWidth>,
+    pub(crate) always_inline: Option<(lang_c::span::Span, bool)>,
+    pub(crate) no_inline: Option<(lang_c::span::Span, bool)>,
+    pub(crate) noescape: Vec<(lang_c::span::Span, bool)>,
+    pub(crate) type_noreturn: bool,
+    target_type_name: bool,
+    nodebug_arguments: Option<usize>,
     pub(crate) transparent_union: Option<lang_c::span::Span>,
     pub(crate) weak: Option<lang_c::span::Span>,
+    pub(crate) returns_twice: Option<lang_c::span::Span>,
+    pub(crate) noreturn: Option<lang_c::span::Span>,
+    pub(crate) c11_noreturn: Option<lang_c::span::Span>,
     pub(crate) diagnostic_attributes: Vec<crate::checked::attributes::ParsedDiagnosticAttribute>,
     pub(crate) type_use: Option<crate::checked::bounds::TypeUseId>,
     type_name_use: bool,
     packed: bool,
-    alignment: Option<u64>,
+    pub(crate) alignment: Option<u64>,
+    pub(crate) c11_alignment: Option<u64>,
     pub(crate) link_name: Option<String>,
     mode: Option<String>,
+    vector_size: Option<u64>,
     calling_convention: Option<CallingConvention>,
     alias_base: bool,
     pub(crate) typedef_base: bool,
@@ -442,6 +545,14 @@ pub(crate) struct Attributes {
 }
 
 impl Attributes {
+    /// Clang checks arity only after recognizing a supported declaration subject.
+    pub(crate) fn check_nodebug_subject(&self) -> Result<(), Error> {
+        if let Some(offset) = self.nodebug_arguments {
+            return Err(Error::new(offset, "nodebug takes no arguments"));
+        }
+        Ok(())
+    }
+
     pub(crate) fn require_no_transparent_union(&self) -> Result<(), Error> {
         if let Some(span) = self.transparent_union {
             return Err(Error::new(
@@ -460,7 +571,37 @@ impl Attributes {
         }
         Ok(())
     }
-    pub(crate) fn require_function_diagnostics(&self, function: bool) -> Result<(), Error> {
+    pub(crate) fn require_function_attributes(&self, function: bool) -> Result<(), Error> {
+        if !function && let Some(attribute) = self.minimum_vector_width.first() {
+            return Err(Error::new(
+                attribute.span.start,
+                "min_vector_width requires a function declaration",
+            ));
+        }
+        if !function
+            && !self.target_type_name
+            && let Some(attribute) = self
+                .target_attributes
+                .iter()
+                .find(|attribute| attribute.clang)
+        {
+            return Err(Error::new(
+                attribute.span.start,
+                "target attribute requires a function declaration",
+            ));
+        }
+        if !function && let Some(span) = self.c11_noreturn {
+            return Err(Error::new(
+                span.start,
+                "_Noreturn requires a function declaration",
+            ));
+        }
+        if !function && let Some(span) = self.returns_twice {
+            return Err(Error::new(
+                span.start,
+                "returns_twice requires a function declaration",
+            ));
+        }
         if !function && let Some(attribute) = self.diagnostic_attributes.first() {
             return Err(Error::new(
                 attribute.span.start,
@@ -483,9 +624,21 @@ pub(crate) struct TagBinding {
     pub(crate) depth: usize,
 }
 
+/// A linked block declaration, also checked against later file declarations.
+pub(crate) struct BlockExtern {
+    pub(crate) noreturn: bool,
+    pub(crate) alignment: crate::DeclarationAlignment,
+    pub(crate) ty: Type,
+    pub(crate) thread_local: bool,
+    pub(crate) is_static: bool,
+}
+
 /// Scope frames retain only new bindings; file-scope maps remain shared.
 #[derive(Default)]
 pub(crate) struct LexicalScope {
+    // Most scopes have no alignment annotations; keep their inline state one pointer.
+    #[allow(clippy::box_collection)]
+    pub(crate) alignments: Option<Box<HashMap<String, crate::DeclarationAlignment>>>,
     pub(crate) is_block: bool,
     pub(crate) is_definition_parameters: bool,
     pub(crate) variably_modified: Option<usize>,
@@ -504,22 +657,27 @@ pub(crate) struct LexicalScope {
 }
 
 #[derive(Default)]
-struct StorageSpecifiers {
-    class: Option<ast::StorageClassSpecifier>,
-    thread_local: bool,
+pub(crate) struct StorageSpecifiers {
+    pub(crate) class: Option<ast::StorageClassSpecifier>,
+    pub(crate) thread_local: bool,
 }
 
 /// C11 permits one storage class, with `_Thread_local` additionally allowed
 /// beside `static` or `extern`.
-fn storage_specifiers(
+pub(crate) fn storage_specifiers(
     specifiers: &[Node<ast::DeclarationSpecifier>],
+    compiler: Compiler,
 ) -> Result<StorageSpecifiers, Error> {
     let mut storage = StorageSpecifiers::default();
+    let mut gnu_thread_local = false;
     for specifier in specifiers {
         let ast::DeclarationSpecifier::StorageClass(class) = &specifier.node else {
             continue;
         };
-        if class.node == ast::StorageClassSpecifier::ThreadLocal {
+        if matches!(
+            class.node,
+            ast::StorageClassSpecifier::ThreadLocal | ast::StorageClassSpecifier::GnuThreadLocal
+        ) {
             if storage.thread_local {
                 return Err(Error::new(
                     class.span.start,
@@ -527,6 +685,18 @@ fn storage_specifiers(
                 ));
             }
             storage.thread_local = true;
+            gnu_thread_local = class.node == ast::StorageClassSpecifier::GnuThreadLocal;
+        } else if gnu_thread_local
+            && compiler == Compiler::Gnu
+            && matches!(
+                class.node,
+                ast::StorageClassSpecifier::Static | ast::StorageClassSpecifier::Extern
+            )
+        {
+            return Err(Error::new(
+                class.span.start,
+                "GNU __thread must follow static or extern",
+            ));
         } else if storage.class.replace(class.node.clone()).is_some() {
             return Err(Error::new(
                 class.span.start,
@@ -549,7 +719,7 @@ fn storage_specifiers(
 }
 
 /// Finds the derivation applied last, including parenthesized declarators.
-fn outermost_derived(
+pub(crate) fn outermost_derived(
     mut declarator: &Node<ast::Declarator>,
 ) -> Option<&Node<ast::DerivedDeclarator>> {
     let mut outermost = None;
@@ -569,11 +739,48 @@ fn outermost_derived(
     }
 }
 
+#[derive(Clone)]
+pub(crate) struct PreparedSpecifiers {
+    types: Vec<Node<ast::TypeSpecifier>>,
+    qualifiers: Qualifiers,
+    atomic: bool,
+    attributes: Attributes,
+    record_attributes: Attributes,
+}
+
+#[derive(Clone, Copy)]
+struct DeclaratorContext<'a> {
+    parameter_array: Option<usize>,
+    alias_base: bool,
+    base_use: Option<crate::checked::TypeUseId>,
+    type_name: bool,
+    definition: Option<&'a Node<ast::FunctionDefinition>>,
+}
+
 pub(crate) struct Analyzer {
+    pub(crate) noreturn_registry: Option<Box<crate::noreturn::Registry>>,
+    pub(crate) alignment_registry: Option<Box<crate::type_alignment::Registry>>,
+    pub(crate) has_type_noreturn: bool,
+    pub(crate) parameter_contract_index: Option<Box<crate::noescape::ContractIndex>>,
+    pub(crate) shuffle_vectors: BTreeMap<(usize, usize), crate::vector::ShuffleVectorSignature>,
+    pub(crate) old_style_definitions: crate::old_style::Definitions,
+    pub(crate) lexical_function_options: BTreeMap<usize, BTreeMap<String, crate::FunctionOptions>>,
+    pub(crate) definition_options: Option<(crate::FunctionOptions, Option<usize>)>,
+    pub(crate) function_options: BTreeMap<String, crate::FunctionOptions>,
+    pub(crate) late_target_names: std::collections::BTreeSet<String>,
+    pub(crate) array_identities: crate::array_identity::Registry,
+    // Completed query checks prevent nested constant folding from replaying operand typing.
+    pub(crate) checked_overflow_predicates: HashMap<(usize, usize), (u8, bool)>,
+    pub(crate) checked_atomic_queries: HashSet<(usize, usize)>,
+    pub(crate) allow_late_object_size_folds: bool,
     pub(crate) transparent_variant_bytes: usize,
     pub(crate) has_variadic_packs: bool,
     pub(crate) generic_selections: HashMap<(usize, usize), usize>,
+    pub(crate) pending_auto_types: Vec<(String, usize)>,
+    pub(crate) choose_selections: HashMap<(usize, usize), bool>,
+    pub(crate) type_compatibility_results: HashMap<(usize, usize), bool>,
     pub(crate) weak_symbols: BTreeMap<String, lang_c::span::Span>,
+    pub(crate) function_effects: BTreeMap<String, crate::returns_twice::FunctionEffects>,
     pub(crate) diagnostic_kinds: HashMap<String, u8>,
     pub(crate) checked: Option<Box<CodeBuilder>>,
     pub(crate) unit: TranslationUnit,
@@ -582,7 +789,7 @@ pub(crate) struct Analyzer {
     defining_enums: HashSet<usize>,
     tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
-    record_attributes: HashSet<usize>,
+    pub(crate) record_attributes: HashSet<usize>,
     pub(crate) character_literals: HashMap<usize, String>,
     pub(crate) string_literals: HashMap<usize, Vec<String>>,
     pub(crate) empty_initializers: HashSet<usize>,
@@ -593,7 +800,11 @@ pub(crate) struct Analyzer {
     pub(crate) variably_modified_parents: Vec<Option<usize>>,
     pub(crate) function_scope: Option<crate::statement::FunctionScope>,
     pub(crate) current_function: Option<crate::statement::FunctionContext>,
-    pub(crate) block_externs: HashMap<String, Type>,
+    pub(crate) sve_feature_uses: Vec<crate::target_features::FeatureUse>,
+    pub(crate) suppress_sve_features: bool,
+    pub(crate) sve_feature_labels: usize,
+    pub(crate) block_externs: HashMap<String, BlockExtern>,
+    pub(crate) alignment_queries: crate::alignof::AlignmentQueries,
     type_names: HashMap<(usize, usize), Type>,
 }
 
@@ -610,10 +821,15 @@ impl Analyzer {
         self.nesting -= 1;
     }
 
-    fn new(target: Target, packs: PackEvents) -> Self {
+    fn new(profile: CompilerProfile, packs: PackEvents) -> Self {
         let mut analyzer = Self::from_unit(TranslationUnit {
-            target,
+            target: profile.target(),
+            compiler: profile.compiler(),
+            language_mode: profile.language_mode(),
             declarations: Vec::new(),
+            function_options: BTreeMap::new(),
+            parameter_contracts: Vec::new(),
+            alignment_origins: Vec::new(),
             records: Vec::new(),
             record_origins: BTreeMap::new(),
             enums: Vec::new(),
@@ -642,6 +858,18 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            noreturn_registry: None,
+            alignment_registry: None,
+            has_type_noreturn: crate::noescape::has_type_noreturn(&unit),
+            parameter_contract_index: None,
+            shuffle_vectors: BTreeMap::new(),
+            old_style_definitions: crate::old_style::Definitions::default(),
+            lexical_function_options: BTreeMap::new(),
+            definition_options: None,
+            function_options: Self::inherited_function_options(&unit),
+            late_target_names: std::collections::BTreeSet::new(),
+            array_identities: crate::array_identity::Registry::default(),
+            allow_late_object_size_folds: false,
             diagnostic_kinds: HashMap::new(),
             checked: None,
             unit,
@@ -661,11 +889,21 @@ impl Analyzer {
             variably_modified_parents: Vec::new(),
             function_scope: None,
             current_function: None,
+            sve_feature_uses: Vec::new(),
+            suppress_sve_features: false,
+            sve_feature_labels: 0,
             block_externs: HashMap::new(),
             weak_symbols: BTreeMap::new(),
+            function_effects: BTreeMap::new(),
             transparent_variant_bytes: 0,
             has_variadic_packs: false,
             generic_selections: HashMap::new(),
+            choose_selections: HashMap::new(),
+            pending_auto_types: Vec::new(),
+            type_compatibility_results: HashMap::new(),
+            checked_atomic_queries: HashSet::new(),
+            checked_overflow_predicates: HashMap::new(),
+            alignment_queries: crate::alignof::AlignmentQueries::default(),
             type_names: HashMap::new(),
         }
     }
@@ -705,6 +943,9 @@ impl Analyzer {
     }
 
     pub(crate) fn leave_prototype(&mut self) -> Vec<Parameter> {
+        self.leave_noreturn_scope();
+        self.lexical_function_options
+            .remove(&self.lexical_scopes.len());
         let scope = self
             .lexical_scopes
             .pop()
@@ -736,6 +977,8 @@ impl Analyzer {
                     .collect(),
                 parameters: scope.parameters.clone(),
                 register: scope.register.clone(),
+                alignments: scope.alignments.clone(),
+                old_style: None,
             });
         }
         for (name, previous) in scope.tags.into_iter().rev() {
@@ -758,7 +1001,7 @@ impl Analyzer {
     fn install_builtin_va_list(&mut self) {
         let pointer = Type::new(TypeKind::Void).pointer();
         let (fields, array) = match self.unit.target.triple() {
-            "x86_64-unknown-linux-gnu" | "x86_64-apple-darwin" => (
+            "x86_64-unknown-linux-gnu" | "x86_64-unknown-linux-musl" | "x86_64-apple-darwin" => (
                 vec![
                     (
                         "gp_offset",
@@ -773,7 +1016,7 @@ impl Analyzer {
                 ],
                 true,
             ),
-            "aarch64-unknown-linux-gnu" => (
+            "aarch64-unknown-linux-gnu" | "aarch64-unknown-linux-musl" => (
                 vec![
                     ("__stack", pointer.clone()),
                     ("__gr_top", pointer.clone()),
@@ -830,7 +1073,16 @@ impl Analyzer {
         declaration: &Node<ast::Declaration>,
         definition: bool,
     ) -> Result<(), Error> {
-        let storage = storage_specifiers(&declaration.node.specifiers)?;
+        self.declaration_with_definition(declaration, definition, None)
+    }
+
+    pub(crate) fn declaration_with_definition(
+        &mut self,
+        declaration: &Node<ast::Declaration>,
+        definition: bool,
+        syntax: Option<&Node<ast::FunctionDefinition>>,
+    ) -> Result<(), Error> {
+        let storage = storage_specifiers(&declaration.node.specifiers, self.unit.compiler)?;
         if matches!(
             storage.class,
             Some(ast::StorageClassSpecifier::Auto | ast::StorageClassSpecifier::Register)
@@ -860,10 +1112,15 @@ impl Analyzer {
             let (ty, attributes) = self.specifiers(
                 &declaration.node.specifiers[..declaration.node.specifiers.len() - 1],
             )?;
-            attributes.require_function_diagnostics(false)?;
+            attributes.check_nodebug_subject()?;
+            attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
-            if attributes.packed || attributes.alignment.is_some() || attributes.mode.is_some() {
+            if attributes.packed
+                || attributes.alignment.is_some()
+                || attributes.c11_alignment.is_some()
+                || attributes.mode.is_some()
+            {
                 return Err(Error::new(
                     declaration.span.start,
                     "attributes on extended float compatibility typedefs are unsupported",
@@ -881,12 +1138,16 @@ impl Analyzer {
                 ));
             }
             self.unit.declarations.push(Declaration {
+                alignment: crate::DeclarationAlignment::default(),
                 name,
                 ty,
                 kind: DeclarationKind::Typedef,
+                returns_twice: false,
+                noreturn: false,
                 symbol_binding: crate::SymbolBinding::Strong,
                 link_name: None,
                 is_static: false,
+                is_thread_local: false,
                 is_definition: false,
                 flexible_array_storage: None,
             });
@@ -907,23 +1168,59 @@ impl Analyzer {
             }
             return Ok(());
         }
-        let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
-        if declaration.node.declarators.is_empty() {
-            attributes.require_function_diagnostics(false)?;
+        let mut auto = self.auto_declaration(declaration)?;
+        let explicit = if auto.is_none() {
+            Some(self.specifiers(&declaration.node.specifiers)?)
+        } else {
+            None
+        };
+        if declaration.node.declarators.is_empty()
+            && let Some((_, attributes)) = &explicit
+        {
+            attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
         }
         for item in &declaration.node.declarators {
+            let inferred = auto
+                .as_mut()
+                .map(|group| self.auto_item(declaration, item, group))
+                .transpose()?;
+            let (base, attributes) = match &inferred {
+                Some((base, attributes, _)) => (base, attributes),
+                None => {
+                    let (base, attributes) =
+                        explicit.as_ref().expect("explicit declaration specifiers");
+                    (base, attributes)
+                }
+            };
+            let inference = inferred.as_ref().map(|(_, _, inference)| inference);
+            let mut prechecked_initializer = None;
             let mut is_static = storage.class == Some(ast::StorageClassSpecifier::Static);
             let previous_parameters = self.definition_parameters;
             if definition {
                 self.definition_parameters = outermost_derived(&item.node.declarator)
-                    .filter(|derived| matches!(derived.node, ast::DerivedDeclarator::Function(_)))
+                    .filter(|derived| {
+                        matches!(
+                            derived.node,
+                            ast::DerivedDeclarator::Function(_)
+                                | ast::DerivedDeclarator::KRFunction(_)
+                        )
+                    })
                     .map(|derived| derived.span.start);
             }
-            let declarator = self.declarator(base.clone(), &item.node.declarator, &attributes);
+            let declarator = self.declarator_with_definition(
+                base.clone(),
+                &item.node.declarator,
+                attributes,
+                syntax,
+            );
             self.definition_parameters = previous_parameters;
             let (name, mut ty, mut declarator_attributes) = declarator?;
+            declarator_attributes.check_nodebug_subject()?;
+            if let Some(inference) = inference {
+                self.check_auto_declarator(inference, &item.node.declarator, &ty)?;
+            }
             if self.unit.is_variably_modified(&ty)? {
                 return Err(Error::new(
                     item.span.start,
@@ -932,6 +1229,24 @@ impl Analyzer {
             }
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "declaration has no name"))?;
+            if let Some(builtin) =
+                crate::arm::builtin_type(&name, self.unit.target, self.unit.compiler)
+            {
+                if !is_typedef {
+                    return Err(Error::new(
+                        item.span.start,
+                        format!("declaration conflicts with predefined Arm typedef `{name}`"),
+                    ));
+                }
+                if !self.same_type(&builtin, &ty, 0)? {
+                    let message = if self.gnu_vector_profile() {
+                        "replacing a predefined Arm vector typedef is unsupported"
+                    } else {
+                        "conflicting predefined Arm vector typedef"
+                    };
+                    return Err(Error::new(item.span.start, message));
+                }
+            }
             if self.unit.constants.contains_key(&name) {
                 return Err(Error::new(
                     item.span.start,
@@ -951,11 +1266,12 @@ impl Analyzer {
                 self.align_typedef(
                     &mut ty,
                     &declaration.node.specifiers,
-                    &attributes,
+                    attributes,
                     &declarator_attributes,
                     item.span.start,
+                    &name,
                 )?;
-                self.apply_transparent_typedef(&mut ty, &attributes, &declarator_attributes)?;
+                self.apply_transparent_typedef(&mut ty, attributes, &declarator_attributes)?;
                 if let Some(previous) = self.unit.typedefs.get(&name) {
                     if !self.same_type(previous, &ty, 0)? {
                         return Err(Error::new(
@@ -963,11 +1279,8 @@ impl Analyzer {
                             format!("conflicting typedef `{name}`"),
                         ));
                     }
-                    let alignment = self
-                        .unit
-                        .typedef_alignment(previous)?
-                        .max(self.unit.typedef_alignment(&ty)?);
-                    ty = self.composite_type(previous, &ty, 0)?;
+                    let alignment = ty.alignment;
+                    ty = crate::noescape::composite_type!(self, previous, &ty, 0)?;
                     ty.alignment = alignment;
                     self.unit.typedefs.insert(name.clone(), ty.clone());
                 } else {
@@ -981,20 +1294,57 @@ impl Analyzer {
             } else {
                 DeclarationKind::Variable
             };
+            if kind == DeclarationKind::Variable && self.unit.is_sizeless(&ty)? {
+                return Err(Error::new(
+                    item.span.start,
+                    "objects with static or thread storage cannot have sizeless SVE type",
+                ));
+            }
             if kind != DeclarationKind::Typedef {
                 declarator_attributes.require_no_transparent_union()?;
             }
-            declarator_attributes
-                .require_function_diagnostics(kind == DeclarationKind::Function)?;
+            declarator_attributes.require_function_attributes(kind == DeclarationKind::Function)?;
             self.check_diagnostic_attributes(&name, &declarator_attributes.diagnostic_attributes)?;
-            if storage.thread_local {
+            let previous_index = if definition {
+                self.definition_options.as_ref().map(|(_, index)| *index)
+            } else {
+                None
+            }
+            .unwrap_or_else(|| {
+                self.unit
+                    .declarations
+                    .iter()
+                    .position(|previous| previous.name == name)
+            });
+            let function_options = if kind == DeclarationKind::Function {
+                Some(self.check_function_options(&name, &declarator_attributes, previous_index)?)
+            } else {
+                None
+            };
+            let noreturn = kind == DeclarationKind::Function
+                && self.declaration_noreturn(
+                    &name,
+                    &ty,
+                    declarator_attributes.noreturn.is_some(),
+                    previous_index,
+                )?;
+            let returns_twice = if kind == DeclarationKind::Function {
+                self.check_returns_twice(&name, &declarator_attributes)?
+            } else {
+                false
+            };
+            if returns_twice
+                && matches!(&self.unit.resolve(&ty)?.kind, TypeKind::Function(f) if f.noreturn)
+            {
                 return Err(Error::new(
                     item.span.start,
-                    if kind == DeclarationKind::Variable {
-                        "thread-local objects require unsupported Rust TLS bindings"
-                    } else {
-                        "thread-local storage requires an object declaration"
-                    },
+                    "combining returns_twice and noreturn is unsupported",
+                ));
+            }
+            if storage.thread_local && kind != DeclarationKind::Variable {
+                return Err(Error::new(
+                    item.span.start,
+                    "thread-local storage requires an object declaration",
                 ));
             }
             if item.node.initializer.is_some() && kind != DeclarationKind::Variable {
@@ -1016,15 +1366,93 @@ impl Analyzer {
                 ));
             }
             let is_definition = definition || item.node.initializer.is_some();
-            let declaration_index = if let Some(previous_index) = self
-                .unit
-                .declarations
-                .iter()
-                .position(|previous| previous.name == name)
+            if kind == DeclarationKind::Function {
+                if definition {
+                    self.prepare_old_style_definition(
+                        &name,
+                        &mut ty,
+                        previous_index,
+                        item.span.start,
+                    )?;
+                }
+                if let Some(index) = previous_index {
+                    self.check_old_style_redeclaration(index, &ty, item.span.start)?;
+                }
+            }
+            let written_alignment = if is_typedef {
+                crate::DeclarationAlignment::default()
+            } else {
+                self.check_declaration_alignment(
+                    &ty,
+                    attributes,
+                    &declarator_attributes,
+                    if kind == DeclarationKind::Function {
+                        crate::object_alignment::AlignmentSubject::Function
+                    } else {
+                        crate::object_alignment::AlignmentSubject::Object { register: false }
+                    },
+                    item.span.start,
+                )?
+            };
+            let alignment_definition = is_definition
+                || (kind == DeclarationKind::Variable
+                    && storage.class != Some(ast::StorageClassSpecifier::Extern));
+            let mut alignment = written_alignment;
+            if !is_typedef
+                && (self.unit.compiler == Compiler::Gnu || previous_index.is_none())
+                && let Some(previous) = self.block_externs.get(&name)
             {
+                alignment = self.merge_declaration_alignment(
+                    &ty,
+                    previous.alignment,
+                    alignment,
+                    false,
+                    alignment_definition,
+                    item.span.start,
+                )?;
+            }
+            let declaration_index = if let Some(previous_index) = previous_index {
                 let previous = &self.unit.declarations[previous_index];
+                alignment = alignment.combined(self.merge_declaration_alignment(
+                    &ty,
+                    previous.alignment,
+                    written_alignment,
+                    previous.is_definition,
+                    alignment_definition,
+                    item.span.start,
+                )?);
                 if kind == DeclarationKind::Function {
                     ty = self.inherit_calling_convention(ty, &previous.ty)?;
+                    if let (TypeKind::Function(prior), TypeKind::Function(current)) = (
+                        &self.unit.resolve(&previous.ty)?.kind,
+                        &self.unit.resolve(&ty)?.kind,
+                    ) && ((definition
+                        && self
+                            .function_scope
+                            .as_ref()
+                            .is_none_or(|scope| scope.old_style.is_none())
+                        && !current.prototype
+                        && !prior.parameters.is_empty())
+                        || (previous.is_definition
+                            && !self.has_old_style_definition(previous_index)
+                            && !prior.prototype
+                            && !current.parameters.is_empty()))
+                    {
+                        // An empty list in a definition means zero parameters;
+                        // an empty list in a declaration leaves them unspecified.
+                        return Err(Error::new(
+                            item.span.start,
+                            format!(
+                                "empty parameter definition of `{name}` conflicts with its prototype"
+                            ),
+                        ));
+                    }
+                }
+                if previous.is_thread_local != storage.thread_local {
+                    return Err(Error::new(
+                        item.span.start,
+                        format!("conflicting thread-local storage for `{name}`"),
+                    ));
                 }
                 if previous.kind != kind || !self.compatible(&previous.ty, &ty)? {
                     return Err(Error::new(
@@ -1062,13 +1490,19 @@ impl Analyzer {
                 )?;
                 // A composite type retains all available bounds and prototypes,
                 // including those nested inside pointers and function parameters.
-                ty = if definition {
+                let mut composite = if definition {
                     // Definition parameter names belong to its body; names in an
                     // earlier prototype have no bearing on those declarations.
-                    self.composite_type(&ty, &previous.ty, 0)?
+                    crate::noescape::composite_type!(self, &ty, &previous.ty, 0)?
                 } else {
-                    self.composite_type(&previous.ty, &ty, 0)?
+                    crate::noescape::composite_type!(self, &previous.ty, &ty, 0)?
                 };
+                if kind != DeclarationKind::Function {
+                    self.object_alignment_sugar(&mut composite, &ty)?;
+                } else if definition {
+                    self.object_alignment_sugar(&mut composite, &previous.ty)?;
+                }
+                ty = composite;
                 let previous_definition = previous.is_definition;
                 let symbol_binding = self.check_symbol_binding(
                     &name,
@@ -1076,7 +1510,16 @@ impl Analyzer {
                     kind != DeclarationKind::Typedef && !is_static,
                     previous_definition,
                 )?;
+                if inference.is_some()
+                    && let Some(initializer) = &item.node.initializer
+                {
+                    prechecked_initializer =
+                        Some(self.check_object_initializer(&ty, initializer, true)?);
+                }
                 let previous = &mut self.unit.declarations[previous_index];
+                previous.alignment = alignment;
+                previous.returns_twice = returns_twice;
+                previous.noreturn = noreturn;
                 previous.symbol_binding = symbol_binding;
                 previous.ty = ty;
                 previous.is_definition |= is_definition;
@@ -1091,19 +1534,43 @@ impl Analyzer {
                     kind != DeclarationKind::Typedef && !is_static,
                     false,
                 )?;
+                if inference.is_some()
+                    && let Some(initializer) = &item.node.initializer
+                {
+                    prechecked_initializer =
+                        Some(self.check_object_initializer(&ty, initializer, true)?);
+                }
                 let index = self.unit.declarations.len();
                 self.unit.declarations.push(Declaration {
+                    alignment,
+                    returns_twice,
+                    noreturn,
                     symbol_binding,
                     name,
                     ty,
                     kind,
                     link_name: declarator_attributes.link_name,
                     is_static,
+                    is_thread_local: storage.thread_local,
                     is_definition,
                     flexible_array_storage: None,
                 });
                 index
             };
+            if noreturn {
+                let name = self.unit.declarations[declaration_index].name.clone();
+                self.record_noreturn(&name, true, true, item.span.start)?;
+            }
+            if definition {
+                self.save_old_style_definition(declaration_index, item.span.start)?;
+            }
+            if let Some(options) = &function_options
+                && !options.is_default()
+            {
+                self.unit
+                    .function_options
+                    .insert(declaration_index, options.clone());
+            }
             let checked_site = if let Some(checked) = &mut self.checked {
                 checked.file_declaration(
                     item,
@@ -1128,13 +1595,39 @@ impl Analyzer {
                 // Earlier declarations contribute bounds to the object being
                 // initialized, including when this declarator omits its bound.
                 let initializer_type = self.unit.declarations[declaration_index].ty.clone();
-                self.initialize_declaration(declaration_index, &initializer_type, initializer)?;
+                self.initialize_declaration(
+                    declaration_index,
+                    &initializer_type,
+                    initializer,
+                    prechecked_initializer,
+                )?;
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
+                if let Some(inference) = &inference {
+                    checked.retain_type_inference(site, inference)?;
+                }
+                checked.attach_alignment(site, written_alignment, alignment)?;
+                checked.attach_function_options(
+                    site,
+                    function_options.as_ref(),
+                    (
+                        &declarator_attributes.target_attributes,
+                        &declarator_attributes.minimum_vector_width,
+                    ),
+                    declarator_attributes.always_inline,
+                    declarator_attributes.no_inline,
+                    true,
+                )?;
                 checked.attach_diagnostic_attributes(
                     site,
                     &declarator_attributes.diagnostic_attributes,
                 )?;
+                checked.attach_returns_twice(
+                    site,
+                    returns_twice,
+                    declarator_attributes.returns_twice,
+                )?;
+                checked.attach_noreturn(site, noreturn, declarator_attributes.noreturn)?;
                 checked.attach_symbol_binding(
                     site,
                     self.unit.declarations[declaration_index].symbol_binding,
@@ -1173,7 +1666,7 @@ impl Analyzer {
                         length: Some(1),
                     },
                     qualifiers: self.unit.qualifiers(&ty)?,
-                    alignment: self.unit.typedef_alignment(&ty)?,
+                    alignment: self.unit.typedef_alignment_metadata(&ty)?,
                 };
             }
             if !self.is_complete_object(&ty, 0)? {
@@ -1199,19 +1692,40 @@ impl Analyzer {
     /// incomplete/complete pair. Parameter names and equivalent ABI spellings
     /// do not create distinct function types.
     pub(crate) fn same_type(&self, left: &Type, right: &Type, depth: usize) -> Result<bool, Error> {
+        self.same_type_at::<false, false>(left, right, depth)
+    }
+
+    pub(crate) fn same_deduced_type(&self, left: &Type, right: &Type) -> Result<bool, Error> {
+        self.same_type_at::<true, false>(left, right, 0)
+    }
+
+    /// Exact deduction also compares VLA identity and treats an array's element
+    /// qualifiers as its own. Ordinary C compatibility retains its existing rules.
+    fn same_type_at<const EXACT: bool, const ARRAY_ELEMENT: bool>(
+        &self,
+        left: &Type,
+        right: &Type,
+        depth: usize,
+    ) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
                 0,
                 "type identity nesting exceeds the 128-level limit",
             ));
         }
-        if self.unit.qualifiers(left)? != self.unit.qualifiers(right)? {
+        if !ARRAY_ELEMENT
+            && self.identity_qualifiers::<EXACT>(left, depth)?
+                != self.identity_qualifiers::<EXACT>(right, depth)?
+        {
             return Ok(false);
         }
         let left = self.unit.resolve(left)?;
         let right = self.unit.resolve(right)?;
         Ok(match (&left.kind, &right.kind) {
-            (TypeKind::Pointer(a), TypeKind::Pointer(b)) => self.same_type(a, b, depth + 1)?,
+            (TypeKind::Pointer(a), TypeKind::Pointer(b))
+            | (TypeKind::Atomic(a), TypeKind::Atomic(b)) => {
+                self.same_type_at::<EXACT, false>(a, b, depth + 1)?
+            }
             (
                 TypeKind::Array {
                     element: a,
@@ -1221,17 +1735,32 @@ impl Analyzer {
                     element: b,
                     length: bl,
                 },
-            ) => al == bl && self.same_type(a, b, depth + 1)?,
-            (TypeKind::VariableArray { element: a }, TypeKind::VariableArray { element: b }) => {
-                self.same_type(a, b, depth + 1)?
-            }
+            ) => al == bl && self.same_type_at::<EXACT, EXACT>(a, b, depth + 1)?,
+            (
+                TypeKind::VariableArray {
+                    element: a,
+                    identity: ai,
+                },
+                TypeKind::VariableArray {
+                    element: b,
+                    identity: bi,
+                },
+            ) => (!EXACT || ai == bi) && self.same_type_at::<EXACT, EXACT>(a, b, depth + 1)?,
             (TypeKind::Function(a), TypeKind::Function(b)) => {
-                if a.prototype != b.prototype
+                if a.noreturn != b.noreturn
+                    || a.prototype != b.prototype
+                    || !self
+                        .unit
+                        .same_parameter_contracts(a.parameter_contracts, b.parameter_contracts)?
                     || a.variadic != b.variadic
                     || a.parameters.len() != b.parameters.len()
                     || a.calling_convention.for_target(self.unit.target)?
                         != b.calling_convention.for_target(self.unit.target)?
-                    || !self.same_type(&a.return_type, &b.return_type, depth + 1)?
+                    || !self.same_type_at::<EXACT, false>(
+                        &a.return_type,
+                        &b.return_type,
+                        depth + 1,
+                    )?
                 {
                     return Ok(false);
                 }
@@ -1240,7 +1769,7 @@ impl Analyzer {
                     let mut b = self.unit.resolve(&b.ty)?.clone();
                     a.qualifiers = Qualifiers::default();
                     b.qualifiers = Qualifiers::default();
-                    if !self.same_type(&a, &b, depth + 1)? {
+                    if !self.same_type_at::<EXACT, false>(&a, &b, depth + 1)? {
                         return Ok(false);
                     }
                 }
@@ -1248,6 +1777,34 @@ impl Analyzer {
             }
             _ => left.kind == right.kind,
         })
+    }
+
+    fn identity_qualifiers<'a, const EXACT: bool>(
+        &'a self,
+        mut ty: &'a Type,
+        depth: usize,
+    ) -> Result<Qualifiers, Error> {
+        let mut result = self.unit.qualifiers(ty)?;
+        if EXACT {
+            let mut levels = depth;
+            while let TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } =
+                &self.unit.resolve(ty)?.kind
+            {
+                levels += 1;
+                if levels >= 128 {
+                    return Err(Error::new(
+                        0,
+                        "type identity nesting exceeds the 128-level limit",
+                    ));
+                }
+                ty = element;
+                let inner = self.unit.qualifiers(ty)?;
+                result.is_const |= inner.is_const;
+                result.is_volatile |= inner.is_volatile;
+                result.is_restrict |= inner.is_restrict;
+            }
+        }
+        Ok(result)
     }
 
     pub(crate) fn compatible_at(
@@ -1275,7 +1832,8 @@ impl Analyzer {
                 // Distinct enum tags remain distinct types.
                 Ok(self.integer_type(left, 0)? == self.integer_type(right, 0)?)
             }
-            (TypeKind::Pointer(left), TypeKind::Pointer(right)) => {
+            (TypeKind::Pointer(left), TypeKind::Pointer(right))
+            | (TypeKind::Atomic(left), TypeKind::Atomic(right)) => {
                 self.compatible_at(left, right, depth + 1)
             }
             (
@@ -1290,20 +1848,24 @@ impl Analyzer {
             ) => Ok((a == b || a.is_none() || b.is_none())
                 && self.compatible_at(left, right, depth + 1)?),
             (
-                TypeKind::VariableArray { element: left },
-                TypeKind::VariableArray { element: right },
+                TypeKind::VariableArray { element: left, .. },
+                TypeKind::VariableArray { element: right, .. },
             )
-            | (TypeKind::VariableArray { element: left }, TypeKind::Array { element: right, .. })
-            | (TypeKind::Array { element: left, .. }, TypeKind::VariableArray { element: right }) => {
-                self.compatible_at(left, right, depth + 1)
-            }
+            | (
+                TypeKind::VariableArray { element: left, .. },
+                TypeKind::Array { element: right, .. },
+            )
+            | (
+                TypeKind::Array { element: left, .. },
+                TypeKind::VariableArray { element: right, .. },
+            ) => self.compatible_at(left, right, depth + 1),
             (TypeKind::Function(left), TypeKind::Function(right)) => {
                 if left.calling_convention.for_target(self.unit.target)?
                     != right.calling_convention.for_target(self.unit.target)?
                 {
                     return Ok(false);
                 }
-                if !self.compatible_at(&left.return_type, &right.return_type, depth + 1)? {
+                if !self.compatible_return_type(&left.return_type, &right.return_type, depth + 1)? {
                     return Ok(false);
                 }
                 if !left.prototype || !right.prototype {
@@ -1312,18 +1874,22 @@ impl Analyzer {
                         return Ok(false);
                     }
                     for parameter in &prototype.parameters {
-                        if matches!(
-                            self.unit.resolve(&parameter.ty)?.kind,
-                            TypeKind::Bool
-                                | TypeKind::Integer(
-                                    IntegerKind::Char
-                                        | IntegerKind::SignedChar
-                                        | IntegerKind::UnsignedChar
-                                        | IntegerKind::Short
-                                        | IntegerKind::UnsignedShort
-                                )
-                                | TypeKind::Float(FloatKind::Float)
-                        ) {
+                        let parameter_type = self.unit.resolve(&parameter.ty)?;
+                        if (matches!(parameter_type.kind, TypeKind::Enum(_))
+                            && self.integer_type(parameter_type, 0)?.rank < 3)
+                            || matches!(
+                                parameter_type.kind,
+                                TypeKind::Bool
+                                    | TypeKind::Integer(
+                                        IntegerKind::Char
+                                            | IntegerKind::SignedChar
+                                            | IntegerKind::UnsignedChar
+                                            | IntegerKind::Short
+                                            | IntegerKind::UnsignedShort
+                                    )
+                                    | TypeKind::Float(FloatKind::Float)
+                            )
+                        {
                             return Ok(false);
                         }
                     }
@@ -1351,121 +1917,14 @@ impl Analyzer {
         }
     }
 
-    /// Combines compatible declarations without losing nested type information.
-    pub(crate) fn composite_type(
-        &self,
-        left: &Type,
-        right: &Type,
-        depth: usize,
-    ) -> Result<Type, Error> {
-        if depth >= 128 {
-            return Err(Error::new(
-                0,
-                "composite type nesting exceeds the 128-level limit",
-            ));
-        }
-        if left == right {
-            return Ok(left.clone());
-        }
-        let resolved_left = self.unit.resolve(left)?;
-        let resolved_right = self.unit.resolve(right)?;
-        let kind = match (&resolved_left.kind, &resolved_right.kind) {
-            (TypeKind::Pointer(a), TypeKind::Pointer(b)) => {
-                TypeKind::Pointer(Box::new(self.composite_type(a, b, depth + 1)?))
-            }
-            (
-                TypeKind::Array {
-                    element: a,
-                    length: a_len,
-                },
-                TypeKind::Array {
-                    element: b,
-                    length: b_len,
-                },
-            ) => TypeKind::Array {
-                element: Box::new(self.composite_type(a, b, depth + 1)?),
-                length: a_len.or(*b_len),
-            },
-            (
-                TypeKind::Array {
-                    element: a,
-                    length: Some(length),
-                },
-                TypeKind::VariableArray { element: b },
-            )
-            | (
-                TypeKind::VariableArray { element: a },
-                TypeKind::Array {
-                    element: b,
-                    length: Some(length),
-                },
-            ) => TypeKind::Array {
-                element: Box::new(self.composite_type(a, b, depth + 1)?),
-                length: Some(*length),
-            },
-            (TypeKind::VariableArray { element: a }, TypeKind::VariableArray { element: b })
-            | (
-                TypeKind::VariableArray { element: a },
-                TypeKind::Array {
-                    element: b,
-                    length: None,
-                },
-            )
-            | (
-                TypeKind::Array {
-                    element: a,
-                    length: None,
-                },
-                TypeKind::VariableArray { element: b },
-            ) => TypeKind::VariableArray {
-                element: Box::new(self.composite_type(a, b, depth + 1)?),
-            },
-            (TypeKind::Function(a), TypeKind::Function(b)) => {
-                let mut function = if a.prototype {
-                    (**a).clone()
-                } else {
-                    (**b).clone()
-                };
-                if function.calling_convention == CallingConvention::C {
-                    function.calling_convention = if a.calling_convention != CallingConvention::C {
-                        a.calling_convention
-                    } else {
-                        b.calling_convention
-                    };
-                }
-                function.return_type =
-                    self.composite_type(&a.return_type, &b.return_type, depth + 1)?;
-                if a.prototype && b.prototype {
-                    for ((parameter, a), b) in function
-                        .parameters
-                        .iter_mut()
-                        .zip(&a.parameters)
-                        .zip(&b.parameters)
-                    {
-                        parameter.ty = self.composite_parameter_type(&a.ty, &b.ty, depth + 1)?;
-                    }
-                }
-                TypeKind::Function(Box::new(function))
-            }
-            _ => return Ok(left.clone()),
-        };
-        if kind == resolved_left.kind {
-            return Ok(left.clone());
-        }
-        Ok(Type {
-            kind,
-            qualifiers: self.unit.qualifiers(left)?,
-            alignment: self.unit.typedef_alignment(left)?,
-        })
-    }
-
     pub(crate) fn align_typedef(
-        &self,
+        &mut self,
         ty: &mut Type,
         specifiers: &[Node<ast::DeclarationSpecifier>],
         attributes: &Attributes,
         extra: &Attributes,
         offset: usize,
+        name: &str,
     ) -> Result<(), Error> {
         if specifiers
             .iter()
@@ -1476,7 +1935,16 @@ impl Analyzer {
                 "an alignment specifier is not permitted on a typedef",
             ));
         }
-        if let Some(alignment) = attributes.alignment.max(extra.alignment) {
+        let inherited = self.unit.typedef_alignment_metadata(ty)?;
+        let previous = match self.lexical_scopes.last() {
+            Some(scope) => scope.typedefs.get(name),
+            None => self.unit.typedefs.get(name),
+        }
+        .map(|ty| self.unit.typedef_alignment_metadata(ty))
+        .transpose()?;
+        let explicit = attributes.alignment.max(extra.alignment);
+        ty.alignment = inherited;
+        if let Some(alignment) = explicit {
             if matches!(
                 self.unit.resolve(ty)?.kind,
                 TypeKind::Void | TypeKind::Function(_)
@@ -1486,20 +1954,45 @@ impl Analyzer {
                     "aligned typedefs require an object type",
                 ));
             }
-            ty.alignment = std::num::NonZeroU32::new(u32::try_from(alignment).map_err(|_| {
+            ty.alignment = crate::TypeAlignment::new(u32::try_from(alignment).map_err(|_| {
                 Error::new(offset, "typedef alignment exceeds the supported range")
-            })?);
+            })?)
+            .ok_or_else(|| Error::new(offset, "typedef alignment exceeds the supported range"))?;
         }
-        Ok(())
+        if let Some(previous) = previous {
+            ty.alignment =
+                crate::TypeAlignment::from_bytes(previous.bytes().max(ty.alignment.bytes()))?;
+        }
+        self.retain_typedef_alignment(name, ty, previous, inherited, explicit.is_some(), offset)
     }
 
     pub(crate) fn specifiers(
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
     ) -> Result<(Type, Attributes), Error> {
+        let prepared = self.prepare_specifiers(specifiers)?;
+        self.complete_specifiers(specifiers, prepared, None)
+    }
+
+    pub(crate) fn prepare_specifiers(
+        &mut self,
+        specifiers: &[Node<ast::DeclarationSpecifier>],
+    ) -> Result<PreparedSpecifiers, Error> {
+        self.prepare_specifiers_context(specifiers, false)
+    }
+
+    fn prepare_specifiers_context(
+        &mut self,
+        specifiers: &[Node<ast::DeclarationSpecifier>],
+        type_name: bool,
+    ) -> Result<PreparedSpecifiers, Error> {
         let mut types = Vec::new();
         let mut qualifiers = Qualifiers::default();
-        let mut attributes = Attributes::default();
+        let mut atomic = false;
+        let mut attributes = Attributes {
+            target_type_name: type_name,
+            ..Attributes::default()
+        };
         let mut record_attributes = Attributes::default();
         let mut after_tag_definition = false;
         for specifier in specifiers {
@@ -1510,7 +2003,7 @@ impl Analyzer {
                     types.push(ty.clone());
                 }
                 ast::DeclarationSpecifier::TypeQualifier(qualifier) => {
-                    add_qualifier(&mut qualifiers, qualifier)?
+                    add_qualifier(&mut qualifiers, &mut atomic, qualifier)?
                 }
                 ast::DeclarationSpecifier::Extension(extensions) => {
                     if self.record_attributes.contains(&specifier.span.start)
@@ -1521,17 +2014,26 @@ impl Analyzer {
                         self.attributes(extensions, &mut attributes)?;
                     }
                 }
+                ast::DeclarationSpecifier::Function(specifier)
+                    if specifier.node == ast::FunctionSpecifier::Noreturn =>
+                {
+                    attributes.noreturn = Some(specifier.span);
+                    attributes.c11_noreturn = Some(specifier.span);
+                }
                 ast::DeclarationSpecifier::Alignment(alignment) => {
-                    let value = match &alignment.node {
+                    let value = self.alignment_operand(|analyzer| match &alignment.node {
                         ast::AlignmentSpecifier::Type(ty) => {
-                            let ty = self.type_name(&ty.node)?;
-                            self.unit.alignment(&ty)?
+                            let ty = analyzer.type_name(&ty.node)?;
+                            analyzer.unit.alignment(&ty)
                         }
                         ast::AlignmentSpecifier::Constant(expression) => {
-                            self.eval(expression)?.as_u64()?
+                            analyzer.eval(expression)?.as_u64()
                         }
-                    };
-                    set_alignment(&mut attributes, value, alignment.span.start)?;
+                    })?;
+                    let mut checked_alignment = Attributes::default();
+                    set_alignment(&mut checked_alignment, value, alignment.span.start)?;
+                    attributes.c11_alignment =
+                        Some(attributes.c11_alignment.unwrap_or(0).max(value));
                 }
                 _ => {}
             }
@@ -1539,9 +2041,40 @@ impl Analyzer {
         if let Some(checked) = &mut self.checked {
             checked.begin_specifier_operands(&types)?;
         }
-        record_attributes.require_function_diagnostics(false)?;
+        Ok(PreparedSpecifiers {
+            types,
+            qualifiers,
+            atomic,
+            attributes,
+            record_attributes,
+        })
+    }
+
+    pub(crate) fn complete_specifiers(
+        &mut self,
+        specifiers: &[Node<ast::DeclarationSpecifier>],
+        prepared: PreparedSpecifiers,
+        inference: Option<&crate::auto_type::AutoInference<'_>>,
+    ) -> Result<(Type, Attributes), Error> {
+        let PreparedSpecifiers {
+            types,
+            qualifiers,
+            atomic,
+            mut attributes,
+            record_attributes,
+        } = prepared;
+        record_attributes.require_function_attributes(false)?;
         record_attributes.require_no_weak()?;
-        let mut ty = self.base_type(&types)?;
+        if record_attributes.vector_size.is_some() {
+            return Err(Error::new(
+                types.first().map_or(0, |ty| ty.span.start),
+                "vector_size attached to a record or enum tag is unsupported",
+            ));
+        }
+        let mut ty = match inference {
+            Some(inference) => inference.ty.clone(),
+            None => self.base_type(&types)?,
+        };
         if let Some(checked) = &mut self.checked {
             for specifier in &types {
                 if let ast::TypeSpecifier::TypedefName(name) = &specifier.node {
@@ -1569,14 +2102,23 @@ impl Analyzer {
             matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
                 || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty())
         });
-        let clang_forward = matches!(
-            self.unit.target,
-            Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin
-        ) && matches!(self.unit.resolve(&ty)?.kind, TypeKind::Record(id) if self.unit.records[id].fields.is_none());
+        let clang_forward = self.unit.compiler == Compiler::Clang
+            && (record_attributes.packed
+                || record_attributes.alignment.is_some()
+                || record_attributes.transparent_union.is_some())
+            && match self.unit.resolve(&ty)?.kind {
+                TypeKind::Record(id) => self.unit.records[id].fields.is_none(),
+                TypeKind::Enum(id) => !self.unit.enums[id].complete,
+                _ => false,
+            };
         // GCC ignores layout attributes on forward tags; Clang retains them.
         // Both ignore a new attribute applied after the tag is already defined.
         if defines_tag || clang_forward {
-            self.apply_record_attributes(&ty, &record_attributes)?;
+            self.apply_tag_attributes(&ty, &record_attributes)?;
+        }
+        let atomic_wrapper = atomic && self.unit.atomic_value(&ty)?.is_none();
+        if atomic {
+            ty = self.atomic_type(ty, false, specifiers.first().map_or(0, |s| s.span.start))?;
         }
         ty.qualifiers.is_const |= qualifiers.is_const;
         ty.qualifiers.is_volatile |= qualifiers.is_volatile;
@@ -1584,21 +2126,43 @@ impl Analyzer {
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, types.first().map_or(0, |ty| ty.span.start))?;
         }
+        if let Some(bytes) = attributes.vector_size {
+            ty = self.vector_type(ty, bytes, types.first().map_or(0, |ty| ty.span.start))?;
+        }
         let offset = specifiers.first().map_or(0, |item| item.span.start);
-        self.check_restrict(&ty, offset)?;
+        // Clang applies written qualifiers after deduction, including restrict
+        // on a non-pointer inferred type. Ordinary C declarations still reject it.
+        if inference.is_none() || self.gnu_sync_profile() {
+            self.check_restrict(&ty, offset)?;
+        }
         if let Some(checked) = &mut self.checked {
             let variably_modified = self.unit.is_variably_modified(&ty)?;
             let definition_parameter = self
                 .lexical_scopes
                 .last()
                 .is_some_and(|scope| scope.is_definition_parameters);
-            attributes.type_use = Some(checked.base_type_use(
-                &types,
-                &ty,
-                offset,
-                variably_modified,
-                definition_parameter,
-            )?);
+            attributes.type_use = Some(if let Some(id) = inference.and_then(|i| i.type_use) {
+                if atomic_wrapper {
+                    checked.wrap_type_use(
+                        id,
+                        &ty,
+                        crate::checked::TypeStep::AtomicValue,
+                        None,
+                        offset,
+                    )?
+                } else {
+                    checked.retype_use(id, &ty, offset)?
+                }
+            } else {
+                checked.base_type_use(
+                    &types,
+                    &ty,
+                    offset,
+                    variably_modified,
+                    definition_parameter,
+                    atomic_wrapper,
+                )?
+            });
         }
         Ok((ty, attributes))
     }
@@ -1606,6 +2170,7 @@ impl Analyzer {
     fn specifier_qualifiers(
         &mut self,
         specifiers: &[Node<ast::SpecifierQualifier>],
+        type_name: bool,
     ) -> Result<(Type, Attributes), Error> {
         let specifiers = specifiers
             .iter()
@@ -1618,6 +2183,9 @@ impl Analyzer {
                         ast::SpecifierQualifier::TypeQualifier(qualifier) => {
                             ast::DeclarationSpecifier::TypeQualifier(qualifier.clone())
                         }
+                        ast::SpecifierQualifier::Alignment(alignment) => {
+                            ast::DeclarationSpecifier::Alignment(alignment.clone())
+                        }
                         ast::SpecifierQualifier::Extension(extensions) => {
                             ast::DeclarationSpecifier::Extension(extensions.clone())
                         }
@@ -1626,10 +2194,27 @@ impl Analyzer {
                 )
             })
             .collect::<Vec<_>>();
-        self.specifiers(&specifiers)
+        let mut prepared = self.prepare_specifiers_context(&specifiers, type_name)?;
+        // Clang ignores declaration mode attributes in a type name. GNU applies
+        // them to the completed abstract declarator.
+        if type_name && self.unit.compiler == Compiler::Clang {
+            prepared.attributes.mode = None;
+        }
+        self.complete_specifiers(&specifiers, prepared, None)
     }
 
     fn base_type(&mut self, types: &[Node<ast::TypeSpecifier>]) -> Result<Type, Error> {
+        for ty in types {
+            if let ast::TypeSpecifier::TypedefName(name) = &ty.node {
+                self.check_auto_reference(&name.node.name, name.span.start)?;
+            }
+            if matches!(ty.node, ast::TypeSpecifier::AutoType) {
+                return Err(Error::new(
+                    ty.span.start,
+                    "__auto_type is only permitted in an initialized object declaration",
+                ));
+            }
+        }
         if let [
             Node {
                 node: ast::TypeSpecifier::TypedefName(name),
@@ -1648,9 +2233,14 @@ impl Analyzer {
         let mut char_ = false;
         let mut float = false;
         let mut double = false;
+        let mut complex = false;
         let mut int = false;
         let mut int128 = false;
         let mut special = None;
+        let mut direct_complex_base = false;
+        let msvc_short = types
+            .iter()
+            .any(|ty| matches!(ty.node, ast::TypeSpecifier::MsvcInteger(16)));
         for ty in types {
             if self.int128_specifiers.contains(&ty.span.start) {
                 if std::mem::replace(&mut int128, true) {
@@ -1662,19 +2252,53 @@ impl Analyzer {
                 continue;
             }
             match &ty.node {
-                ast::TypeSpecifier::Long => long += 1,
-                ast::TypeSpecifier::Short if !short => short = true,
+                ast::TypeSpecifier::MsvcInteger(8) if !char_ => char_ = true,
+                ast::TypeSpecifier::MsvcInteger(16) => short = true,
+                ast::TypeSpecifier::MsvcInteger(32) if !int => int = true,
+                ast::TypeSpecifier::MsvcInteger(64) => long = 2,
+                ast::TypeSpecifier::Long => {
+                    if long >= 2 {
+                        return Err(Error::new(ty.span.start, "too many long type specifiers"));
+                    }
+                    long += 1;
+                }
+                ast::TypeSpecifier::Short if !short || msvc_short => short = true,
                 ast::TypeSpecifier::Signed if !signed => signed = true,
                 ast::TypeSpecifier::Unsigned if !unsigned => unsigned = true,
                 ast::TypeSpecifier::Char if !char_ => char_ = true,
                 ast::TypeSpecifier::Float if !float => float = true,
                 ast::TypeSpecifier::Double if !double => double = true,
                 ast::TypeSpecifier::Int if !int => int = true,
+                ast::TypeSpecifier::Complex if !complex => complex = true,
                 value => {
                     let kind = match value {
                         ast::TypeSpecifier::Void => TypeKind::Void,
                         ast::TypeSpecifier::Bool => TypeKind::Bool,
                         ast::TypeSpecifier::TypedefName(name) => {
+                            if !self.unit.typedefs.contains_key(&name.node.name)
+                                && let Some(kind) = crate::wide_float::predefined_type(
+                                    &name.node.name,
+                                    self.unit.target,
+                                    self.unit.compiler,
+                                )
+                            {
+                                if types.len() != 1 {
+                                    return Err(Error::new(
+                                        ty.span.start,
+                                        "invalid modifiers on typedef type",
+                                    ));
+                                }
+                                return Ok(Type::new(TypeKind::Float(kind)));
+                            }
+                            if !self.unit.typedefs.contains_key(&name.node.name)
+                                && let Some(builtin) = crate::arm::builtin_type(
+                                    &name.node.name,
+                                    self.unit.target,
+                                    self.unit.compiler,
+                                )
+                            {
+                                self.unit.typedefs.insert(name.node.name.clone(), builtin);
+                            }
                             if !self.unit.typedefs.contains_key(&name.node.name) {
                                 return Err(Error::new(
                                     ty.span.start,
@@ -1688,28 +2312,60 @@ impl Analyzer {
                         }
                         ast::TypeSpecifier::Enum(value) => TypeKind::Enum(self.enum_type(value)?),
                         ast::TypeSpecifier::TypeOf(value) => match &value.node {
-                            ast::TypeOf::Type(ty) => return self.type_name(&ty.node),
+                            ast::TypeOf::Type(ty) => {
+                                let checkpoint = self.sve_feature_checkpoint();
+                                let mut ty = self.type_name(&ty.node)?;
+                                if !self.unit.is_variably_modified(&ty)? {
+                                    self.discard_sve_feature_uses(checkpoint);
+                                }
+                                self.retain_typeof_alignment(&mut ty, false, value.span.start)?;
+                                return Ok(ty);
+                            }
                             ast::TypeOf::Expression(expression) => {
-                                return self.expression_type(expression);
+                                let checkpoint = self.sve_feature_checkpoint();
+                                let mut ty = self.expression_type(expression)?;
+                                if !self.unit.is_variably_modified(&ty)? {
+                                    self.discard_sve_feature_uses(checkpoint);
+                                }
+                                self.retain_typeof_alignment(&mut ty, true, value.span.start)?;
+                                return Ok(ty);
                             }
                         },
-                        ast::TypeSpecifier::Atomic(_) => {
-                            return Err(Error::new(
-                                ty.span.start,
-                                "atomic type ABI is unsupported",
-                            ));
+                        ast::TypeSpecifier::Atomic(name) => {
+                            let inner = self.type_name(&name.node)?;
+                            self.atomic_type(inner, true, ty.span.start)?.kind
                         }
-                        ast::TypeSpecifier::Complex => {
-                            return Err(Error::new(
-                                ty.span.start,
-                                "complex type ABI is unsupported",
-                            ));
+                        ast::TypeSpecifier::BFloat16 => TypeKind::Float(FloatKind::BFloat16),
+                        ast::TypeSpecifier::Float128 => {
+                            if !matches!(
+                                self.unit.target,
+                                toucan_target::Target::X86_64UnknownLinuxGnu
+                                    | toucan_target::Target::X86_64UnknownLinuxMusl
+                            ) {
+                                return Err(Error::new(
+                                    ty.span.start,
+                                    "__float128 spelling is unavailable in this Clang target profile",
+                                ));
+                            }
+                            direct_complex_base = true;
+                            TypeKind::Float(FloatKind::FLOAT128)
                         }
                         ast::TypeSpecifier::TS18661Float(float) => {
                             let name = extended_float_name(float);
                             if self.unit.typedefs.contains_key(&name) {
                                 TypeKind::Typedef(name)
                             } else {
+                                if float.format == ast::TS18661FloatFormat::BinaryInterchange
+                                    && float.width == 128
+                                {
+                                    if self.unit.compiler != toucan_target::Compiler::Gnu {
+                                        return Err(Error::new(
+                                            ty.span.start,
+                                            "the Clang profile rejects the _Float128 type spelling",
+                                        ));
+                                    }
+                                    direct_complex_base = true;
+                                }
                                 TypeKind::Float(FloatKind::Extended {
                                     format: match float.format {
                                         ast::TS18661FloatFormat::BinaryInterchange => {
@@ -1743,11 +2399,41 @@ impl Analyzer {
             }
         }
         if let Some(special) = special {
-            if long > 0 || short || signed || unsigned || char_ || float || double || int || int128
+            if complex
+                && direct_complex_base
+                && !float
+                && !double
+                && !char_
+                && !signed
+                && !unsigned
+                && !short
+                && long == 0
+                && !int
+                && !int128
+            {
+                let TypeKind::Float(kind) = special else {
+                    unreachable!()
+                };
+                return Ok(Type::new(TypeKind::Complex(kind)));
+            }
+            if long > 0
+                || short
+                || signed
+                || unsigned
+                || char_
+                || float
+                || double
+                || int
+                || int128
+                || complex
             {
                 return Err(Error::new(offset, "invalid modifiers on type"));
             }
-            return Ok(Type::new(special));
+            let mut ty = Type::new(special);
+            if !self.unit.alignment_origins.is_empty() && matches!(ty.kind, TypeKind::Typedef(_)) {
+                ty.alignment = self.unit.typedef_alignment_metadata(&ty)?;
+            }
+            return Ok(ty);
         }
         if types.is_empty()
             || long > 2
@@ -1759,6 +2445,21 @@ impl Analyzer {
             || (double && (long > 1 || short || signed || unsigned || int))
         {
             return Err(Error::new(offset, "invalid C type specifier combination"));
+        }
+        if complex {
+            if !float && !double {
+                return Err(Error::new(
+                    offset,
+                    "complex types require float, double, or long double; GNU integer and implicit complex types are unsupported",
+                ));
+            }
+            return Ok(Type::new(TypeKind::Complex(if float {
+                FloatKind::Float
+            } else if long == 1 {
+                FloatKind::LongDouble
+            } else {
+                FloatKind::Double
+            })));
         }
         Ok(Type::new(if float {
             TypeKind::Float(FloatKind::Float)
@@ -1812,6 +2513,13 @@ impl Analyzer {
     /// Resolves each written type name once, so typing an unevaluated operand and
     /// subsequently evaluating it cannot redeclare tags defined inside that type.
     pub(crate) fn type_name(&mut self, name: &ast::TypeName) -> Result<Type, Error> {
+        let late = std::mem::replace(&mut self.allow_late_object_size_folds, false);
+        let result = self.type_name_inner(name);
+        self.allow_late_object_size_folds = late;
+        result
+    }
+
+    fn type_name_inner(&mut self, name: &ast::TypeName) -> Result<Type, Error> {
         let start = name.specifiers.first().map_or(0, |node| node.span.start);
         let end = name.declarator.as_ref().map_or_else(
             || name.specifiers.last().map_or(start, |node| node.span.end),
@@ -1821,14 +2529,21 @@ impl Analyzer {
         if let Some(ty) = self.type_names.get(&key) {
             return Ok(ty.clone());
         }
-        let (ty, mut attributes) = self.specifier_qualifiers(&name.specifiers)?;
-        attributes.require_function_diagnostics(false)?;
+        let (ty, mut attributes) = self.specifier_qualifiers(&name.specifiers, true)?;
+        attributes.target_type_name = true;
+        attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
         attributes.require_no_transparent_union()?;
+        if attributes.c11_alignment.is_some() {
+            return Err(Error::new(
+                start,
+                "_Alignas is not permitted in a type name",
+            ));
+        }
         attributes.type_name_use = true;
         let (ty, type_use) = if let Some(declarator) = &name.declarator {
             let (_, ty, extra) = self.declarator(ty, declarator, &attributes)?;
-            extra.require_function_diagnostics(false)?;
+            extra.require_function_attributes(false)?;
             extra.require_no_weak()?;
             extra.require_no_transparent_union()?;
             (ty, extra.type_use)
@@ -1851,23 +2566,58 @@ impl Analyzer {
         declaration: &Node<ast::Declarator>,
         attributes: &Attributes,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
+        self.declarator_with_definition(ty, declaration, attributes, None)
+    }
+
+    fn declarator_with_definition(
+        &mut self,
+        ty: Type,
+        declaration: &Node<ast::Declarator>,
+        attributes: &Attributes,
+        definition: Option<&Node<ast::FunctionDefinition>>,
+    ) -> Result<(Option<String>, Type, Attributes), Error> {
         let alias_base = attributes.alias_base && !has_function_derivation(declaration);
         let (name, ty, mut extra) = self.declarator_at(
             ty,
             declaration,
-            None,
-            alias_base,
-            attributes.type_use,
-            attributes.type_name_use,
+            DeclaratorContext {
+                parameter_array: None,
+                alias_base,
+                base_use: attributes.type_use,
+                type_name: attributes.type_name_use,
+                definition,
+            },
         )?;
+        if let Some(mode) = &attributes.mode {
+            self.floating_machine_mode(&ty, mode, declaration.span.start)?;
+        }
+        extra.target_type_name |= attributes.target_type_name;
+        extra
+            .target_attributes
+            .extend(attributes.target_attributes.iter().cloned());
+        extra
+            .minimum_vector_width
+            .extend_from_slice(&attributes.minimum_vector_width);
+        extra.always_inline =
+            crate::target_features::merge_inline(extra.always_inline, attributes.always_inline);
+        extra.no_inline =
+            crate::target_features::merge_inline(extra.no_inline, attributes.no_inline);
+        extra.nodebug_arguments = extra.nodebug_arguments.or(attributes.nodebug_arguments);
+        if name.is_some() {
+            self.check_nodebug_function_like(&ty, &extra)?;
+        }
         extra.weak = extra.weak.or(attributes.weak);
+        extra.returns_twice = extra.returns_twice.or(attributes.returns_twice);
+        extra.noreturn = extra.noreturn.or(attributes.noreturn);
+        extra.c11_noreturn = extra.c11_noreturn.or(attributes.c11_noreturn);
+        extra.type_noreturn |= attributes.type_noreturn;
         extra.transparent_union = extra.transparent_union.or(attributes.transparent_union);
         if !attributes.diagnostic_attributes.is_empty() {
             let mut diagnostic_attributes = attributes.diagnostic_attributes.clone();
             diagnostic_attributes.append(&mut extra.diagnostic_attributes);
             extra.diagnostic_attributes = diagnostic_attributes;
         }
-        if attributes.calling_convention.is_none() {
+        if attributes.calling_convention.is_none() && !attributes.type_noreturn {
             return Ok((name, ty, extra));
         }
         let mut attributes = attributes.clone();
@@ -1886,16 +2636,222 @@ impl Analyzer {
         Ok((name, ty, extra))
     }
 
+    pub(crate) fn check_parameter(
+        &mut self,
+        parameter: crate::parameters::ParameterSyntax<'_>,
+        prepared: Option<&(Type, Attributes)>,
+    ) -> Result<(Option<crate::checked::SiteId>, bool), Error> {
+        let mut site = None;
+        let storage = storage_specifiers(parameter.specifiers(), self.unit.compiler)?;
+        if storage.thread_local
+            || !matches!(
+                storage.class,
+                None | Some(ast::StorageClassSpecifier::Register)
+            )
+        {
+            return Err(Error::new(
+                parameter.span().start,
+                "only register storage is permitted for a parameter",
+            ));
+        }
+        if parameter
+            .specifiers()
+            .iter()
+            .any(|specifier| matches!(specifier.node, ast::DeclarationSpecifier::Alignment(_)))
+        {
+            return Err(Error::new(
+                parameter.span().start,
+                "alignment is not permitted on a parameter",
+            ));
+        }
+        let (base, mut attributes) = match prepared {
+            Some(prepared) => prepared.clone(),
+            None => self.specifiers(parameter.specifiers())?,
+        };
+        attributes.require_function_attributes(false)?;
+        attributes.require_no_weak()?;
+        attributes.require_no_transparent_union()?;
+        attributes.alias_base =
+            attributes.alias_base && !parameter.declarator().is_some_and(has_function_derivation);
+        let mut array_qualifiers = Qualifiers::default();
+        let mut array_atomic = false;
+        let (name, mut parameter_type, mut declared_type_use) =
+            if let Some(declarator) = parameter.declarator() {
+                let array = outermost_derived(declarator).and_then(|derived| {
+                    if let ast::DerivedDeclarator::Array(array) = &derived.node {
+                        Some((derived.span.start, array))
+                    } else {
+                        None
+                    }
+                });
+                if let Some((_, array)) = array {
+                    for qualifier in &array.node.qualifiers {
+                        add_qualifier(&mut array_qualifiers, &mut array_atomic, qualifier)?;
+                    }
+                }
+                let (name, ty, extra) = self.declarator_at(
+                    base,
+                    declarator,
+                    DeclaratorContext {
+                        parameter_array: array.map(|(offset, _)| offset),
+                        alias_base: attributes.alias_base,
+                        base_use: attributes.type_use,
+                        type_name: attributes.type_name_use,
+                        definition: None,
+                    },
+                )?;
+                self.check_nodebug_function_like(&ty, &extra)?;
+                extra.require_function_attributes(false)?;
+                extra.require_no_weak()?;
+                extra.require_no_transparent_union()?;
+                attributes.alignment = attributes.alignment.max(extra.alignment);
+                attributes.noescape.extend(extra.noescape);
+                (name, ty, extra.type_use)
+            } else {
+                (None, base, attributes.type_use)
+            };
+        if let Some(mode) = &attributes.mode {
+            self.floating_machine_mode(&parameter_type, mode, parameter.span().start)?;
+        }
+        parameter_type =
+            self.apply_calling_convention(parameter_type, &attributes, parameter.span().start)?;
+        let mut extra = Attributes::default();
+        self.attributes(parameter.extensions(), &mut extra)?;
+        self.check_nodebug_function_like(&parameter_type, &attributes)?;
+        self.check_nodebug_function_like(&parameter_type, &extra)?;
+        extra.require_function_attributes(false)?;
+        extra.require_no_weak()?;
+        extra.require_no_transparent_union()?;
+        if let Some(mode) = &extra.mode {
+            parameter_type = self.machine_mode(parameter_type, mode, parameter.span().start)?;
+            if let (Some(checked), Some(id)) = (&mut self.checked, declared_type_use) {
+                declared_type_use =
+                    Some(checked.retype_use(id, &parameter_type, parameter.span().start)?);
+            }
+        }
+        if let Some(bytes) = extra.vector_size {
+            parameter_type = self.vector_type(parameter_type, bytes, parameter.span().start)?;
+        }
+        parameter_type =
+            self.apply_calling_convention(parameter_type, &extra, parameter.span().start)?;
+        let parameter_alignment = self.check_declaration_alignment(
+            &parameter_type,
+            &attributes,
+            &extra,
+            crate::object_alignment::AlignmentSubject::Parameter,
+            parameter.span().start,
+        )?;
+        let qualifiers = self.unit.qualifiers(&parameter_type)?;
+        if matches!(self.unit.resolve(&parameter_type)?.kind, TypeKind::Void)
+            && (qualifiers != Qualifiers::default()
+                || (storage.class.is_some() && self.unit.compiler == toucan_target::Compiler::Gnu))
+        {
+            return Err(Error::new(
+                parameter.span().start,
+                "void parameter must be unqualified",
+            ));
+        }
+        if let (Some(checked), Some(id)) = (&mut self.checked, declared_type_use) {
+            parameter.retain_written_type(
+                checked,
+                id,
+                &self.unit.resolve(&parameter_type)?.kind,
+            )?;
+        }
+        parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
+                // Qualifying an array typedef qualifies its elements.
+                // Parameter adjustment removes only the array layer.
+                let mut element = (**element).clone();
+                element.qualifiers.is_const |= qualifiers.is_const;
+                element.qualifiers.is_volatile |= qualifiers.is_volatile;
+                element.qualifiers.is_restrict |= qualifiers.is_restrict;
+                let mut pointer = element.pointer();
+                pointer.qualifiers = array_qualifiers;
+                if array_atomic && self.gnu_sync_profile() {
+                    self.atomic_type(pointer, false, parameter.span().start)?
+                } else {
+                    pointer
+                }
+            }
+            TypeKind::Function(_) => parameter_type.pointer(),
+            _ => parameter_type,
+        };
+        let noescape =
+            self.check_noescape_parameter(&parameter_type, &attributes.noescape, &extra.noescape)?;
+        if let Some(checked) = &mut self.checked
+            && (name.is_some()
+                || !matches!(self.unit.resolve(&parameter_type)?.kind, TypeKind::Void))
+        {
+            site = parameter.retain_declaration(
+                checked,
+                LocalDeclaration {
+                    name: name.as_deref(),
+                    name_span: parameter.declarator().and_then(declarator_name_span),
+                    ty: &parameter_type,
+                    kind: EntityKind::Parameter,
+                    storage: Storage::Automatic,
+                    linked: false,
+                    register: storage.class == Some(ast::StorageClassSpecifier::Register),
+                    definition: false,
+                    allocation: None,
+                },
+            )?;
+            if let Some(site) = site {
+                checked.attach_alignment(site, parameter_alignment, parameter_alignment)?;
+                checked.attach_noescape_parameter(
+                    site,
+                    &attributes.noescape,
+                    &extra.noescape,
+                    noescape,
+                )?;
+            }
+        }
+        if let Some(name) = &name {
+            self.retain_local_alignment(name, parameter_alignment);
+        }
+        let scope = self
+            .lexical_scopes
+            .last_mut()
+            .expect("prototype scope is active");
+        if let Some(name) = &name {
+            if parameter.specifiers().iter().any(|specifier| matches!(&specifier.node, ast::DeclarationSpecifier::StorageClass(storage) if storage.node == ast::StorageClassSpecifier::Register)) {
+                scope.register.insert(name.clone());
+            }
+            if scope
+                .names
+                .insert(name.clone(), Some(scope.parameters.len()))
+                .is_some()
+            {
+                return Err(Error::new(
+                    parameter.span().start,
+                    format!("duplicate parameter `{name}`"),
+                ));
+            }
+            let previous = self.unit.constants.remove(name);
+            scope.constants.push((name.clone(), previous));
+        }
+        scope.parameters.push(Parameter {
+            name,
+            ty: parameter_type,
+        });
+        Ok((site, noescape))
+    }
+
     /// `parameter_array` identifies the outermost array adjusted to a pointer.
     fn declarator_at(
         &mut self,
         mut ty: Type,
         declaration: &Node<ast::Declarator>,
-        parameter_array: Option<usize>,
-        alias_base: bool,
-        base_use: Option<crate::checked::bounds::TypeUseId>,
-        type_name: bool,
+        context: DeclaratorContext<'_>,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
+        let DeclaratorContext {
+            parameter_array,
+            alias_base,
+            base_use,
+            type_name,
+            definition,
+        } = context;
         if self.nesting >= 128 {
             return Err(Error::new(
                 declaration.span.start,
@@ -1903,6 +2859,33 @@ impl Analyzer {
             ));
         }
         self.nesting += 1;
+        // In a parenthesized declarator, its incoming type may already be a
+        // function. Leading conventions annotate that function before a new
+        // pointer or an outer function is constructed around it.
+        let mut leading_convention_applied = false;
+        if self.unit.compiler == Compiler::Clang
+            && declaration
+                .node
+                .extensions
+                .iter()
+                .any(|extension| is_calling_extension(&extension.node))
+            && self.has_function_boundary(&ty)?
+        {
+            let extensions = declaration
+                .node
+                .extensions
+                .iter()
+                .filter(|extension| is_calling_extension(&extension.node))
+                .cloned()
+                .collect::<Vec<_>>();
+            let mut attributes = Attributes {
+                alias_base,
+                ..Attributes::default()
+            };
+            self.attributes(&extensions, &mut attributes)?;
+            ty = self.apply_calling_convention(ty, &attributes, declaration.span.start)?;
+            leading_convention_applied = true;
+        }
         let mut type_use = if let Some(checked) = &mut self.checked {
             Some(match base_use {
                 Some(id) => id,
@@ -1912,6 +2895,14 @@ impl Analyzer {
             None
         };
         let mut alias_convention = None;
+        let mut pending_pointer_convention = None;
+        let mut nodebug_arguments = None;
+        let mut target_attributes = Vec::new();
+        let mut minimum_vector_width = Vec::new();
+        let mut always_inline = None;
+        let mut no_inline = None;
+        let mut noescape = Vec::new();
+        let mut type_noreturn = false;
         let split = declaration
             .node
             .derived
@@ -1928,17 +2919,35 @@ impl Analyzer {
             ty = match &derived.node {
                 ast::DerivedDeclarator::Pointer(qualifiers) => {
                     let mut pointer = ty.pointer();
+                    let mut atomic = false;
                     for qualifier in qualifiers {
                         match &qualifier.node {
                             ast::PointerQualifier::TypeQualifier(qualifier) => {
-                                add_qualifier(&mut pointer.qualifiers, qualifier)?
+                                add_qualifier(&mut pointer.qualifiers, &mut atomic, qualifier)?
                             }
                             ast::PointerQualifier::Extension(extensions) => {
                                 let mut attributes = Attributes {
                                     alias_base,
+                                    target_type_name: type_name,
                                     ..Attributes::default()
                                 };
                                 self.attributes(extensions, &mut attributes)?;
+                                noescape.extend_from_slice(&attributes.noescape);
+                                type_noreturn |= attributes.type_noreturn;
+                                nodebug_arguments =
+                                    nodebug_arguments.or(attributes.nodebug_arguments);
+                                target_attributes
+                                    .extend(attributes.target_attributes.iter().cloned());
+                                minimum_vector_width
+                                    .extend_from_slice(&attributes.minimum_vector_width);
+                                always_inline = crate::target_features::merge_inline(
+                                    always_inline,
+                                    attributes.always_inline,
+                                );
+                                no_inline = crate::target_features::merge_inline(
+                                    no_inline,
+                                    attributes.no_inline,
+                                );
                                 if alias_base {
                                     merge_convention(
                                         &mut alias_convention,
@@ -1946,17 +2955,34 @@ impl Analyzer {
                                         qualifier.span.start,
                                     )?;
                                 }
+                                if self.unit.compiler == Compiler::Clang
+                                    && attributes.calling_convention.is_some()
+                                {
+                                    attributes.alias_base = true;
+                                    if !self.has_function_boundary(&pointer)? {
+                                        merge_convention(
+                                            &mut pending_pointer_convention,
+                                            attributes.calling_convention.take(),
+                                            qualifier.span.start,
+                                        )?;
+                                    }
+                                }
                                 pointer = self.apply_calling_convention(
                                     pointer,
                                     &attributes,
                                     qualifier.span.start,
                                 )?;
+                                if let Some(bytes) = attributes.vector_size {
+                                    pointer =
+                                        self.vector_type(pointer, bytes, qualifier.span.start)?;
+                                }
                                 if attributes.packed
                                     || attributes.alignment.is_some()
                                     || attributes.mode.is_some()
                                     || attributes.link_name.is_some()
                                     || !attributes.diagnostic_attributes.is_empty()
                                     || attributes.weak.is_some()
+                                    || attributes.returns_twice.is_some()
                                     || attributes.transparent_union.is_some()
                                 {
                                     return Err(Error::new(
@@ -1966,6 +2992,9 @@ impl Analyzer {
                                 }
                             }
                         }
+                    }
+                    if atomic {
+                        pointer = self.atomic_type(pointer, false, derived.span.start)?;
                     }
                     self.check_restrict(&pointer, derived.span.start)?;
                     pointer
@@ -2067,6 +3096,7 @@ impl Analyzer {
                                 }
                                 TypeKind::VariableArray {
                                     element: Box::new(ty),
+                                    identity: self.array_identity(array.span)?,
                                 }
                             }
                         }
@@ -2095,6 +3125,7 @@ impl Analyzer {
                             }
                             TypeKind::VariableArray {
                                 element: Box::new(ty),
+                                identity: self.array_identity(array.span)?,
                             }
                         }
                     };
@@ -2122,177 +3153,30 @@ impl Analyzer {
                         parameters: Vec::with_capacity(function.node.parameters.len()),
                         ..LexicalScope::default()
                     });
+                    let sve_checkpoint = self.sve_feature_checkpoint();
+                    let definition_parameters = self
+                        .lexical_scopes
+                        .last()
+                        .expect("prototype scope")
+                        .is_definition_parameters;
                     let prototype = !function.node.parameters.is_empty();
-                    for parameter in &function.node.parameters {
-                        let storage = storage_specifiers(&parameter.node.specifiers)?;
-                        if storage.thread_local
-                            || !matches!(
-                                storage.class,
-                                None | Some(ast::StorageClassSpecifier::Register)
-                            )
-                        {
-                            return Err(Error::new(
-                                parameter.span.start,
-                                "only register storage is permitted for a parameter",
-                            ));
-                        }
-                        if parameter.node.specifiers.iter().any(|specifier| {
-                            matches!(specifier.node, ast::DeclarationSpecifier::Alignment(_))
-                        }) {
-                            return Err(Error::new(
-                                parameter.span.start,
-                                "alignment is not permitted on a parameter",
-                            ));
-                        }
-                        let (base, mut attributes) = self.specifiers(&parameter.node.specifiers)?;
-                        attributes.require_function_diagnostics(false)?;
-                        attributes.require_no_weak()?;
-                        attributes.require_no_transparent_union()?;
-                        attributes.alias_base = attributes.alias_base
-                            && !parameter
-                                .node
-                                .declarator
-                                .as_ref()
-                                .is_some_and(has_function_derivation);
-                        let mut array_qualifiers = Qualifiers::default();
-                        let (name, mut parameter_type, declared_type_use) =
-                            if let Some(declarator) = &parameter.node.declarator {
-                                let array = outermost_derived(declarator).and_then(|derived| {
-                                    if let ast::DerivedDeclarator::Array(array) = &derived.node {
-                                        Some((derived.span.start, array))
-                                    } else {
-                                        None
-                                    }
-                                });
-                                if let Some((_, array)) = array {
-                                    for qualifier in &array.node.qualifiers {
-                                        add_qualifier(&mut array_qualifiers, qualifier)?;
-                                    }
-                                }
-                                let (name, ty, extra) = self.declarator_at(
-                                    base,
-                                    declarator,
-                                    array.map(|(offset, _)| offset),
-                                    attributes.alias_base,
-                                    attributes.type_use,
-                                    attributes.type_name_use,
-                                )?;
-                                extra.require_function_diagnostics(false)?;
-                                extra.require_no_weak()?;
-                                extra.require_no_transparent_union()?;
-                                (name, ty, extra.type_use)
-                            } else {
-                                (None, base, attributes.type_use)
-                            };
-                        parameter_type = self.apply_calling_convention(
-                            parameter_type,
-                            &attributes,
-                            parameter.span.start,
+                    let mut no_escape = Vec::new();
+                    for (index, parameter) in function.node.parameters.iter().enumerate() {
+                        let (site, noescape) = self.check_parameter(
+                            crate::parameters::ParameterSyntax::Prototype(parameter),
+                            None,
                         )?;
-                        let mut extra = Attributes::default();
-                        self.attributes(&parameter.node.extensions, &mut extra)?;
-                        extra.require_function_diagnostics(false)?;
-                        extra.require_no_weak()?;
-                        extra.require_no_transparent_union()?;
-                        parameter_type = self.apply_calling_convention(
-                            parameter_type,
-                            &extra,
-                            parameter.span.start,
-                        )?;
-                        let qualifiers = self.unit.qualifiers(&parameter_type)?;
-                        if matches!(self.unit.resolve(&parameter_type)?.kind, TypeKind::Void)
-                            && (qualifiers != Qualifiers::default()
-                                || (storage.class.is_some()
-                                    && matches!(
-                                        self.unit.target,
-                                        Target::X86_64UnknownLinuxGnu
-                                            | Target::Aarch64UnknownLinuxGnu
-                                    )))
+                        if noescape {
+                            no_escape.push(index as u32);
+                        }
+                        if let (Some(checked), Some(uses), Some(site)) =
+                            (&self.checked, &mut parameter_uses, site)
                         {
-                            return Err(Error::new(
-                                parameter.span.start,
-                                "void parameter must be unqualified",
-                            ));
+                            uses.push(checked.site_type_use(site));
                         }
-                        if let (Some(checked), Some(id)) = (&mut self.checked, declared_type_use) {
-                            checked.parameter_type_use(
-                                parameter,
-                                id,
-                                &self.unit.resolve(&parameter_type)?.kind,
-                            )?;
-                        }
-                        parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
-                            TypeKind::Array { element, .. }
-                            | TypeKind::VariableArray { element } => {
-                                // Qualifying an array typedef qualifies its elements.
-                                // Parameter adjustment removes only the array layer.
-                                let mut element = (**element).clone();
-                                element.qualifiers.is_const |= qualifiers.is_const;
-                                element.qualifiers.is_volatile |= qualifiers.is_volatile;
-                                element.qualifiers.is_restrict |= qualifiers.is_restrict;
-                                let mut pointer = element.pointer();
-                                pointer.qualifiers = array_qualifiers;
-                                pointer
-                            }
-                            TypeKind::Function(_) => parameter_type.pointer(),
-                            _ => parameter_type,
-                        };
-                        if let Some(checked) = &mut self.checked
-                            && (name.is_some()
-                                || !matches!(
-                                    self.unit.resolve(&parameter_type)?.kind,
-                                    TypeKind::Void
-                                ))
-                        {
-                            let site = checked.local_declaration(
-                                parameter,
-                                OccurrenceKind::Parameter,
-                                LocalDeclaration {
-                                    name: name.as_deref(),
-                                    name_span: parameter
-                                        .node
-                                        .declarator
-                                        .as_ref()
-                                        .and_then(declarator_name_span),
-                                    ty: &parameter_type,
-                                    kind: EntityKind::Parameter,
-                                    storage: Storage::Automatic,
-                                    linked: false,
-                                    register: storage.class
-                                        == Some(ast::StorageClassSpecifier::Register),
-                                    definition: false,
-                                    allocation: None,
-                                },
-                            )?;
-                            if let (Some(uses), Some(site)) = (&mut parameter_uses, site) {
-                                uses.push(checked.site_type_use(site));
-                            }
-                        }
-                        let scope = self
-                            .lexical_scopes
-                            .last_mut()
-                            .expect("prototype scope is active");
-                        if let Some(name) = &name {
-                            if parameter.node.specifiers.iter().any(|specifier| matches!(&specifier.node, ast::DeclarationSpecifier::StorageClass(storage) if storage.node == ast::StorageClassSpecifier::Register)) {
-                                scope.register.insert(name.clone());
-                            }
-                            if scope
-                                .names
-                                .insert(name.clone(), Some(scope.parameters.len()))
-                                .is_some()
-                            {
-                                return Err(Error::new(
-                                    parameter.span.start,
-                                    format!("duplicate parameter `{name}`"),
-                                ));
-                            }
-                            let previous = self.unit.constants.remove(name);
-                            scope.constants.push((name.clone(), previous));
-                        }
-                        scope.parameters.push(Parameter {
-                            name,
-                            ty: parameter_type,
-                        });
+                    }
+                    if !definition_parameters {
+                        self.discard_sve_feature_uses(sve_checkpoint);
                     }
                     let mut parameters = self.leave_prototype();
                     if parameters.len() == 1
@@ -2318,7 +3202,11 @@ impl Analyzer {
                             "C11 variadic functions require a fixed parameter",
                         ));
                     }
+                    let parameter_contracts =
+                        self.intern_parameter_contracts(&no_escape, derived.span.start)?;
                     Type::new(TypeKind::Function(Box::new(FunctionType {
+                        noreturn: false,
+                        parameter_contracts,
                         return_type: ty,
                         parameters,
                         variadic,
@@ -2326,8 +3214,40 @@ impl Analyzer {
                         calling_convention: CallingConvention::C,
                     })))
                 }
+                ast::DerivedDeclarator::KRFunction(parameters)
+                    if definition.is_some()
+                        && self.definition_parameters == Some(derived.span.start) =>
+                {
+                    if matches!(
+                        self.unit.resolve(&ty)?.kind,
+                        TypeKind::Array { .. }
+                            | TypeKind::VariableArray { .. }
+                            | TypeKind::Function(_)
+                    ) {
+                        return Err(Error::new(
+                            derived.span.start,
+                            "a function cannot return an array or function",
+                        ));
+                    }
+                    prototype_scope = self.check_old_style_parameters(
+                        definition.expect("definition context"),
+                        parameters,
+                        derived.span,
+                    )?;
+                    Type::new(TypeKind::Function(Box::new(FunctionType {
+                        noreturn: false,
+                        parameter_contracts: None,
+                        return_type: ty,
+                        parameters: Vec::new(),
+                        variadic: false,
+                        prototype: false,
+                        calling_convention: CallingConvention::C,
+                    })))
+                }
                 ast::DerivedDeclarator::KRFunction(parameters) if parameters.is_empty() => {
                     Type::new(TypeKind::Function(Box::new(FunctionType {
+                        noreturn: false,
+                        parameter_contracts: None,
                         return_type: ty,
                         parameters: Vec::new(),
                         variadic: false,
@@ -2348,16 +3268,41 @@ impl Analyzer {
                     ));
                 }
             };
+            // A flat parser declarator creates a nested semantic type. Validate
+            // each new layer before a later modifier or retained node clones it.
+            self.unit.is_variably_modified(&ty).map_err(|mut error| {
+                error.offset = derived.span.start;
+                error
+            })?;
             if let (Some(checked), Some(current)) = (&mut self.checked, type_use) {
                 use crate::checked::bounds::TypeStep;
                 type_use = Some(match &derived.node {
-                    ast::DerivedDeclarator::Pointer(_) => checked.wrap_type_use(
-                        current,
-                        &ty,
-                        TypeStep::Pointer,
-                        None,
-                        derived.span.start,
-                    )?,
+                    ast::DerivedDeclarator::Pointer(_) => {
+                        if let TypeKind::Atomic(value) = &ty.kind {
+                            let pointer = checked.wrap_type_use(
+                                current,
+                                value,
+                                TypeStep::Pointer,
+                                None,
+                                derived.span.start,
+                            )?;
+                            checked.wrap_type_use(
+                                pointer,
+                                &ty,
+                                TypeStep::AtomicValue,
+                                None,
+                                derived.span.start,
+                            )?
+                        } else {
+                            checked.wrap_type_use(
+                                current,
+                                &ty,
+                                TypeStep::Pointer,
+                                None,
+                                derived.span.start,
+                            )?
+                        }
+                    }
                     ast::DerivedDeclarator::Array(_) => checked.wrap_type_use(
                         current,
                         &ty,
@@ -2370,6 +3315,15 @@ impl Analyzer {
                             current,
                             parameter_uses.as_deref().unwrap_or_default(),
                             prototype_scope,
+                            if matches!(derived.node, ast::DerivedDeclarator::KRFunction(_)) {
+                                self.function_scope
+                                    .as_ref()
+                                    .and_then(|scope| scope.old_style.as_ref())
+                                    .and_then(|signature| signature.retained.as_ref())
+                                    .map(|retained| retained.parameters.as_slice())
+                            } else {
+                                None
+                            },
                             &ty,
                             derived.span.start,
                         )?
@@ -2378,12 +3332,35 @@ impl Analyzer {
                 });
             }
         }
-        let mut attributes = Attributes::default();
+        let mut attributes = Attributes {
+            target_type_name: type_name,
+            ..Attributes::default()
+        };
         self.attributes(&declaration.node.extensions, &mut attributes)?;
+        attributes.noescape.extend(noescape);
+        attributes.type_noreturn |= type_noreturn;
+        attributes.nodebug_arguments = attributes.nodebug_arguments.or(nodebug_arguments);
+        attributes.target_attributes.extend(target_attributes);
+        attributes.minimum_vector_width.extend(minimum_vector_width);
+        attributes.always_inline =
+            crate::target_features::merge_inline(attributes.always_inline, always_inline);
+        attributes.no_inline =
+            crate::target_features::merge_inline(attributes.no_inline, no_inline);
+        attributes.target_type_name = type_name;
+        if type_name && self.unit.compiler == Compiler::Clang {
+            attributes.mode = None;
+        }
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, declaration.span.start)?;
         }
-        let calling_convention = attributes.calling_convention;
+        if let Some(bytes) = attributes.vector_size {
+            ty = self.vector_type(ty, bytes, declaration.span.start)?;
+        }
+        let calling_convention = if leading_convention_applied {
+            None
+        } else {
+            attributes.calling_convention
+        };
         let (name, ty, mut attributes) = match &declaration.node.kind.node {
             ast::DeclaratorKind::Identifier(identifier) => {
                 (Some(identifier.node.name.clone()), ty, attributes)
@@ -2393,12 +3370,14 @@ impl Analyzer {
                 let (name, ty, inner_attributes) = self.declarator_at(
                     ty,
                     inner,
-                    parameter_array,
-                    alias_base,
-                    type_use,
-                    type_name,
+                    DeclaratorContext {
+                        base_use: type_use,
+                        ..context
+                    },
                 )?;
                 type_use = inner_attributes.type_use;
+                attributes.noescape.extend(inner_attributes.noescape);
+                attributes.type_noreturn |= inner_attributes.type_noreturn;
                 if alias_base {
                     merge_convention(
                         &mut alias_convention,
@@ -2415,7 +3394,28 @@ impl Analyzer {
                 if inner_attributes.link_name.is_some() {
                     attributes.link_name = inner_attributes.link_name;
                 }
+                attributes.nodebug_arguments = attributes
+                    .nodebug_arguments
+                    .or(inner_attributes.nodebug_arguments);
+                attributes
+                    .target_attributes
+                    .extend(inner_attributes.target_attributes);
+                attributes
+                    .minimum_vector_width
+                    .extend(inner_attributes.minimum_vector_width);
+                attributes.always_inline = crate::target_features::merge_inline(
+                    attributes.always_inline,
+                    inner_attributes.always_inline,
+                );
+                attributes.no_inline = crate::target_features::merge_inline(
+                    attributes.no_inline,
+                    inner_attributes.no_inline,
+                );
                 attributes.weak = attributes.weak.or(inner_attributes.weak);
+                attributes.returns_twice =
+                    attributes.returns_twice.or(inner_attributes.returns_twice);
+                attributes.noreturn = attributes.noreturn.or(inner_attributes.noreturn);
+                attributes.c11_noreturn = attributes.c11_noreturn.or(inner_attributes.c11_noreturn);
                 attributes.transparent_union = attributes
                     .transparent_union
                     .or(inner_attributes.transparent_union);
@@ -2430,6 +3430,18 @@ impl Analyzer {
             &Attributes {
                 calling_convention,
                 alias_base,
+                type_noreturn: attributes.type_noreturn,
+                ..Attributes::default()
+            },
+            declaration.span.start,
+        )?;
+        // A convention after `*` can precede its function prototype, as in
+        // `int *__cdecl f(int)`, when no incoming callback type consumed it.
+        let ty = self.apply_calling_convention(
+            ty,
+            &Attributes {
+                calling_convention: pending_pointer_convention,
+                alias_base: true,
                 ..Attributes::default()
             },
             declaration.span.start,
@@ -2534,8 +3546,8 @@ impl Analyzer {
                     }
                     ast::StructDeclaration::Field(field) => {
                         let (base, attributes) =
-                            self.specifier_qualifiers(&field.node.specifiers)?;
-                        attributes.require_function_diagnostics(false)?;
+                            self.specifier_qualifiers(&field.node.specifiers, false)?;
+                        attributes.require_function_attributes(false)?;
                         attributes.require_no_weak()?;
                         attributes.require_no_transparent_union()?;
                         if field.node.declarators.is_empty() {
@@ -2546,15 +3558,26 @@ impl Analyzer {
                             {
                                 continue;
                             }
+                            let field_alignment = self.check_declaration_alignment(
+                                &base,
+                                &attributes,
+                                &Attributes::default(),
+                                crate::object_alignment::AlignmentSubject::Field {
+                                    bitfield: false,
+                                },
+                                field.span.start,
+                            )?;
                             let member = Field {
                                 name: None,
                                 ty: base,
                                 bit_width: None,
-                                alignment: attributes.alignment,
+                                alignment: field_alignment
+                                    .explicit()
+                                    .map(|value| u64::from(value.get())),
                                 packed: attributes.packed,
                             };
                             if let Some(checked) = &mut self.checked {
-                                checked.member_declaration(
+                                let site = checked.member_declaration(
                                     field,
                                     crate::checked::OccurrenceKind::Field,
                                     id,
@@ -2562,6 +3585,13 @@ impl Analyzer {
                                     &member,
                                     None,
                                 )?;
+                                if let Some(site) = site {
+                                    checked.attach_alignment(
+                                        site,
+                                        field_alignment,
+                                        field_alignment,
+                                    )?;
+                                }
                             }
                             fields.push(member);
                         } else {
@@ -2572,7 +3602,7 @@ impl Analyzer {
                                     } else {
                                         (None, base.clone(), Attributes::default())
                                     };
-                                extra.require_function_diagnostics(false)?;
+                                extra.require_function_attributes(false)?;
                                 extra.require_no_weak()?;
                                 extra.require_no_transparent_union()?;
                                 if name.as_ref().is_some_and(|name| {
@@ -2612,15 +3642,26 @@ impl Analyzer {
                                         ));
                                     }
                                 }
+                                let field_alignment = self.check_declaration_alignment(
+                                    &ty,
+                                    &attributes,
+                                    &extra,
+                                    crate::object_alignment::AlignmentSubject::Field {
+                                        bitfield: bit_width.is_some(),
+                                    },
+                                    declarator.span.start,
+                                )?;
                                 let member = Field {
                                     name,
                                     ty,
                                     bit_width,
-                                    alignment: extra.alignment.or(attributes.alignment),
+                                    alignment: field_alignment
+                                        .explicit()
+                                        .map(|value| u64::from(value.get())),
                                     packed: extra.packed || attributes.packed,
                                 };
                                 if let Some(checked) = &mut self.checked {
-                                    checked.member_declaration(
+                                    let site = checked.member_declaration(
                                         declarator,
                                         crate::checked::OccurrenceKind::StructDeclarator,
                                         id,
@@ -2628,6 +3669,13 @@ impl Analyzer {
                                         &member,
                                         crate::checked::references::member_name_span(declarator),
                                     )?;
+                                    if let Some(site) = site {
+                                        checked.attach_alignment(
+                                            site,
+                                            field_alignment,
+                                            field_alignment,
+                                        )?;
+                                    }
                                 }
                                 fields.push(member);
                             }
@@ -2668,10 +3716,8 @@ impl Analyzer {
                 )?;
                 // GCC also counts anonymous records containing only unnamed bitfields.
                 has_named_member |= !member_names.is_empty()
-                    || (matches!(
-                        self.unit.target,
-                        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-                    ) && field.name.is_none()
+                    || (self.unit.compiler == toucan_target::Compiler::Gnu
+                        && field.name.is_none()
                         && field.bit_width.is_none());
             }
             self.unit.records[id].pack = self
@@ -2729,7 +3775,7 @@ impl Analyzer {
             ));
         }
         Ok(match &self.unit.resolve(ty)?.kind {
-            TypeKind::Void | TypeKind::Function(_) => false,
+            TypeKind::Void | TypeKind::Function(_) | TypeKind::Sve(_) => false,
             TypeKind::Record(id) => self
                 .unit
                 .records
@@ -2747,7 +3793,9 @@ impl Analyzer {
             TypeKind::Array { element, length } => {
                 length.is_some() && self.is_complete_object(element, depth + 1)?
             }
-            TypeKind::VariableArray { element } => self.is_complete_object(element, depth + 1)?,
+            TypeKind::VariableArray { element, .. } | TypeKind::Atomic(element) => {
+                self.is_complete_object(element, depth + 1)?
+            }
             _ => true,
         })
     }
@@ -2758,13 +3806,15 @@ impl Analyzer {
             return Ok(());
         }
         let mut resolved = self.unit.resolve(ty)?;
+        if self.gnu_sync_profile()
+            && let TypeKind::Atomic(value) = &resolved.kind
+        {
+            resolved = self.unit.resolve(value)?;
+        }
         // GNU C propagates qualifiers on array typedefs to their element type.
-        if matches!(
-            self.unit.target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
-        ) {
+        if self.unit.compiler == toucan_target::Compiler::Gnu {
             for _ in 0..128 {
-                let (TypeKind::Array { element, .. } | TypeKind::VariableArray { element }) =
+                let (TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. }) =
                     &resolved.kind
                 else {
                     break;
@@ -2807,6 +3857,7 @@ impl Analyzer {
         } else {
             let id = self.unit.enums.len();
             self.unit.enums.push(Enum {
+                packed: false,
                 name: name.clone(),
                 scope: self.scope(),
                 complete: false,
@@ -2842,7 +3893,7 @@ impl Analyzer {
         for enumerator in &declaration.node.enumerators {
             let mut attributes = Attributes::default();
             self.attributes(&enumerator.node.extensions, &mut attributes)?;
-            attributes.require_function_diagnostics(false)?;
+            attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
             let value = if let Some(expression) = &enumerator.node.expression {
@@ -2908,10 +3959,7 @@ impl Analyzer {
         ty: Type,
         previous: &Type,
     ) -> Result<Type, Error> {
-        if !matches!(
-            self.unit.target,
-            Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc
-        ) {
+        if self.unit.compiler != Compiler::Clang {
             return Ok(ty);
         }
         let TypeKind::Function(function) = &self.unit.resolve(&ty)?.kind else {
@@ -2942,10 +3990,33 @@ impl Analyzer {
         attributes: &Attributes,
         offset: usize,
     ) -> Result<Type, Error> {
+        let ty = if attributes.type_noreturn {
+            self.apply_type_noreturn(ty, 0)?
+        } else {
+            ty
+        };
         let Some(convention) = attributes.calling_convention else {
             return Ok(ty);
         };
         self.apply_convention_at(ty, convention, offset, 0, attributes.alias_base)
+    }
+
+    /// Finds a function through declarator pointers and arrays, without walking
+    /// through the function's return type or record members.
+    fn has_function_boundary<'a>(&'a self, mut ty: &'a Type) -> Result<bool, Error> {
+        for _ in 0..128 {
+            match &self.unit.resolve(ty)?.kind {
+                TypeKind::Function(_) => return Ok(true),
+                TypeKind::Pointer(element)
+                | TypeKind::Array { element, .. }
+                | TypeKind::VariableArray { element, .. } => ty = element,
+                _ => return Ok(false),
+            }
+        }
+        Err(Error::new(
+            0,
+            "calling convention type nesting exceeds the 128-level limit",
+        ))
     }
 
     fn apply_convention_at(
@@ -2964,11 +4035,8 @@ impl Analyzer {
         }
         let qualifiers = self.unit.qualifiers(&ty)?;
         let mut resolved = self.unit.resolve(&ty)?.clone();
-        resolved.alignment = self.unit.typedef_alignment(&ty)?;
-        let clang = matches!(
-            self.unit.target,
-            Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc
-        );
+        resolved.alignment = self.unit.typedef_alignment_metadata(&ty)?;
+        let clang = self.unit.compiler == Compiler::Clang;
         let alias_base = alias_base
             || (matches!(ty.kind, TypeKind::Typedef(_))
                 && matches!(resolved.kind, TypeKind::Pointer(_) | TypeKind::Array { .. }));
@@ -2990,6 +4058,19 @@ impl Analyzer {
                         "conflicting calling convention attributes",
                     ));
                 }
+                if convention == CallingConvention::Aarch64Vector
+                    && matches!(
+                        self.unit.target,
+                        Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                    )
+                    && self.unit.compiler == Compiler::Gnu
+                    && function.aarch64_pcs(&self.unit)? == Some(crate::Aarch64Pcs::Sve)
+                {
+                    return Err(Error::new(
+                        offset,
+                        "aarch64_vector_pcs cannot apply to an SVE function type on the GNU profile",
+                    ));
+                }
                 function.calling_convention = convention;
             }
             TypeKind::Pointer(element) => {
@@ -3004,7 +4085,7 @@ impl Analyzer {
                     alias_base,
                 )?;
             }
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                 if !clang {
                     return Ok(ty);
                 }
@@ -3021,8 +4102,8 @@ impl Analyzer {
         Ok(resolved)
     }
 
-    fn apply_record_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
-        attributes.require_function_diagnostics(false)?;
+    fn apply_tag_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
+        attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
         if let Some(span) = attributes.transparent_union {
             self.apply_transparent_record(ty, span.start)?;
@@ -3036,11 +4117,33 @@ impl Analyzer {
             if attributes.alignment.is_some() {
                 record.alignment = attributes.alignment;
             }
+        } else if let TypeKind::Enum(id) = self.unit.resolve(ty)?.kind {
+            if attributes.alignment.is_some() {
+                return Err(Error::new(
+                    0,
+                    "alignment attributes on enum tags are unsupported",
+                ));
+            }
+            self.unit.enums[id].packed |= attributes.packed;
         } else if attributes.packed || attributes.alignment.is_some() {
             return Err(Error::new(
                 0,
                 "layout attributes on a non-record type are unsupported",
             ));
+        }
+        Ok(())
+    }
+
+    /// Function-pointer fields and parameters are valid Clang nodebug subjects.
+    fn check_nodebug_function_like(&self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
+        if attributes.nodebug_arguments.is_none() {
+            return Ok(());
+        }
+        let kind = &self.unit.resolve(ty)?.kind;
+        if matches!(kind, TypeKind::Function(_))
+            || matches!(kind, TypeKind::Pointer(element) if matches!(self.unit.resolve(element)?.kind, TypeKind::Function(_)))
+        {
+            attributes.check_nodebug_subject()?;
         }
         Ok(())
     }
@@ -3059,10 +4162,108 @@ impl Analyzer {
                     )?);
                 }
                 ast::Extension::AvailabilityAttribute(_) => {}
-                ast::Extension::Attribute(attribute) => {
+                ast::Extension::Attribute(attribute)
+                | ast::Extension::CallingConvention(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
-                    match name {
-                        "transparent_union" => {
+                    if matches!(extension.node, ast::Extension::CallingConvention(_)) {
+                        match name {
+                            "pascal" => continue,
+                            "vectorcall" | "regcall" if self.unit.target.is_aarch64() => continue,
+                            "vectorcall" | "regcall" => {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    format!(
+                                        "unsupported calling-convention keyword `{}` on this target",
+                                        attribute.name.node
+                                    ),
+                                ));
+                            }
+                            _ => {}
+                        }
+                    }
+                    match crate::attributes::Attribute::from_name(name) {
+                        Some(crate::attributes::Attribute::MinimumVectorWidth) => {
+                            if self.unit.compiler == Compiler::Gnu || result.target_type_name {
+                                // Ignoring an attribute does not skip parsing its expressions.
+                                // GNU additionally permits bare identifier arguments without lookup.
+                                let checkpoint = self.sve_feature_checkpoint();
+                                for argument in &attribute.arguments {
+                                    if self.unit.compiler != Compiler::Gnu
+                                        || !matches!(argument.node, ast::Expression::Identifier(_))
+                                    {
+                                        self.expression_info(argument)?;
+                                    }
+                                }
+                                self.discard_sve_feature_uses(checkpoint);
+                            } else {
+                                if result.minimum_vector_width.len() >= 256 {
+                                    return Err(Error::new(
+                                        extension.span.start,
+                                        "minimum vector width attribute count exceeds the 256-entry limit",
+                                    ));
+                                }
+                                result.minimum_vector_width.push(
+                                    self.parse_minimum_vector_width(attribute, extension.span)?,
+                                );
+                            }
+                        }
+                        Some(crate::attributes::Attribute::Target) => {
+                            if result.target_attributes.len() >= 256 {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "target attribute count exceeds the 256-entry limit",
+                                ));
+                            }
+                            result
+                                .target_attributes
+                                .push(self.parse_target_attribute(attribute, extension.span)?);
+                        }
+                        Some(crate::attributes::Attribute::AlwaysInline) => {
+                            result.always_inline = crate::target_features::merge_inline(
+                                result.always_inline,
+                                Some((extension.span, !attribute.arguments.is_empty())),
+                            )
+                        }
+                        Some(crate::attributes::Attribute::NoInline) => {
+                            result.no_inline = crate::target_features::merge_inline(
+                                result.no_inline,
+                                Some((extension.span, !attribute.arguments.is_empty())),
+                            )
+                        }
+                        Some(crate::attributes::Attribute::NoEscape) => {
+                            if self.unit.compiler == Compiler::Clang {
+                                if result.noescape.len() >= 256 {
+                                    return Err(Error::new(
+                                        extension.span.start,
+                                        "noescape attribute count exceeds the 256 limit",
+                                    ));
+                                }
+                                // Attribute operands undergo ordinary lookup even when the
+                                // declaration subject makes the attribute ineffective.
+                                let checkpoint = self.sve_feature_checkpoint();
+                                let checked = (|| {
+                                    for argument in &attribute.arguments {
+                                        self.expression_info(argument)?;
+                                    }
+                                    Ok::<_, Error>(())
+                                })();
+                                self.discard_sve_feature_uses(checkpoint);
+                                checked?;
+                                result
+                                    .noescape
+                                    .push((extension.span, !attribute.arguments.is_empty()));
+                            }
+                        }
+                        Some(crate::attributes::Attribute::NoDebug) => {
+                            // Debug information is outside the retained semantic graph.
+                            // GCC ignores this unknown attribute, including its arguments.
+                            if self.unit.compiler == Compiler::Clang
+                                && !attribute.arguments.is_empty()
+                            {
+                                result.nodebug_arguments = Some(extension.span.start);
+                            }
+                        }
+                        Some(crate::attributes::Attribute::TransparentUnion) => {
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -3071,7 +4272,23 @@ impl Analyzer {
                             }
                             result.transparent_union = Some(extension.span);
                         }
-                        "weak" => {
+                        Some(crate::attributes::Attribute::ReturnsTwice)
+                        | Some(crate::attributes::Attribute::NoReturn) => {
+                            if !attribute.arguments.is_empty() {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    format!("{name} takes no arguments"),
+                                ));
+                            }
+                            if name == "returns_twice" {
+                                result.returns_twice = Some(extension.span);
+                            } else {
+                                result.noreturn = Some(extension.span);
+                                result.type_noreturn = self.unit.compiler == Compiler::Clang;
+                                self.has_type_noreturn |= result.type_noreturn;
+                            }
+                        }
+                        Some(crate::attributes::Attribute::Weak) => {
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -3080,7 +4297,8 @@ impl Analyzer {
                             }
                             result.weak = Some(extension.span);
                         }
-                        "warning" | "error" => {
+                        Some(crate::attributes::Attribute::Warning)
+                        | Some(crate::attributes::Attribute::Error) => {
                             let kind = if name == "warning" {
                                 crate::checked::DiagnosticAttributeKind::Warning
                             } else {
@@ -3092,13 +4310,14 @@ impl Analyzer {
                                 kind,
                             )?);
                         }
-                        "diagnose_if" | "enable_if" => {
+                        Some(crate::attributes::Attribute::DiagnoseIf)
+                        | Some(crate::attributes::Attribute::EnableIf) => {
                             return Err(Error::new(
                                 extension.span.start,
                                 format!("call-constraint attribute `{name}` is unsupported"),
                             ));
                         }
-                        "mode" => {
+                        Some(crate::attributes::Attribute::Mode) => {
                             let [argument] = attribute.arguments.as_slice() else {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -3113,11 +4332,36 @@ impl Analyzer {
                             };
                             result.mode = Some(identifier.node.name.trim_matches('_').to_owned());
                         }
-                        "packed" => result.packed = true,
-                        "aligned" => {
+                        Some(crate::attributes::Attribute::VectorSize) => {
+                            let [value] = attribute.arguments.as_slice() else {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "vector_size requires one byte count",
+                                ));
+                            };
+                            let bytes = self.eval(value)?.as_u64()?;
+                            if result.vector_size.is_some_and(|old| old != bytes) {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "conflicting vector_size attributes",
+                                ));
+                            }
+                            result.vector_size = Some(bytes);
+                        }
+                        Some(crate::attributes::Attribute::Packed) => {
+                            if !attribute.arguments.is_empty() {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "packed takes no arguments",
+                                ));
+                            }
+                            result.packed = true;
+                        }
+                        Some(crate::attributes::Attribute::Aligned) => {
                             let value = match attribute.arguments.as_slice() {
                                 [] => u64::from(self.unit.target.default_maximum_alignment()),
-                                [value] => self.eval(value)?.as_u64()?,
+                                [value] => self
+                                    .alignment_operand(|analyzer| analyzer.eval(value)?.as_u64())?,
                                 _ => {
                                     return Err(Error::new(
                                         extension.span.start,
@@ -3127,7 +4371,53 @@ impl Analyzer {
                             };
                             set_alignment(result, value, extension.span.start)?;
                         }
-                        "cdecl" | "stdcall" | "fastcall" | "thiscall" | "ms_abi" | "sysv_abi" => {
+                        Some(crate::attributes::Attribute::Aarch64VectorPcs)
+                        | Some(crate::attributes::Attribute::Aarch64SvePcs) => {
+                            if name == "aarch64_sve_pcs"
+                                && matches!(
+                                    self.unit.target,
+                                    Target::Aarch64UnknownLinuxGnu
+                                        | Target::Aarch64UnknownLinuxMusl
+                                )
+                                && self.unit.compiler == Compiler::Gnu
+                            {
+                                // GCC 13 does not implement this Clang attribute.
+                                continue;
+                            }
+                            if !attribute.arguments.is_empty() {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "AArch64 calling convention attributes take no arguments",
+                                ));
+                            }
+                            let convention = if name == "aarch64_vector_pcs" {
+                                CallingConvention::Aarch64Vector
+                            } else {
+                                CallingConvention::Aarch64Sve
+                            };
+                            convention
+                                .for_target(self.unit.target)
+                                .map_err(|mut error| {
+                                    error.offset = extension.span.start;
+                                    error
+                                })?;
+                            if result
+                                .calling_convention
+                                .is_some_and(|old| old != convention)
+                            {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "conflicting calling convention attributes",
+                                ));
+                            }
+                            result.calling_convention = Some(convention);
+                        }
+                        Some(crate::attributes::Attribute::Cdecl)
+                        | Some(crate::attributes::Attribute::Stdcall)
+                        | Some(crate::attributes::Attribute::Fastcall)
+                        | Some(crate::attributes::Attribute::Thiscall)
+                        | Some(crate::attributes::Attribute::MsAbi)
+                        | Some(crate::attributes::Attribute::SysvAbi) => {
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -3140,7 +4430,13 @@ impl Analyzer {
                                 // GNU ignores these x86-32 conventions on its
                                 // 64-bit targets. Clang retains explicit cdecl.
                                 "cdecl"
-                                    if matches!(self.unit.target, Target::X86_64AppleDarwin) =>
+                                    if self.unit.compiler == Compiler::Clang
+                                        && matches!(
+                                            self.unit.target,
+                                            Target::X86_64UnknownLinuxGnu
+                                                | Target::X86_64UnknownLinuxMusl
+                                                | Target::X86_64AppleDarwin
+                                        ) =>
                                 {
                                     Some(CallingConvention::SysV64)
                                 }
@@ -3164,43 +4460,7 @@ impl Analyzer {
                                 result.calling_convention = Some(convention);
                             }
                         }
-                        // These attributes do not alter C representation or calling convention.
-                        "nothrow"
-                        | "leaf"
-                        | "nonnull"
-                        | "format"
-                        | "format_arg"
-                        | "warn_unused_result"
-                        | "malloc"
-                        | "alloc_size"
-                        | "alloc_align"
-                        | "access"
-                        | "deprecated"
-                        | "pure"
-                        | "const"
-                        | "visibility"
-                        | "sentinel"
-                        | "always_inline"
-                        | "gnu_inline"
-                        | "noinline"
-                        | "unused"
-                        | "used"
-                        | "artificial"
-                        | "returns_nonnull"
-                        | "cold"
-                        | "hot"
-                        | "noreturn"
-                        | "may_alias"
-                        | "noclone"
-                        | "no_sanitize"
-                        | "no_sanitize_address"
-                        | "no_sanitize_thread"
-                        | "no_sanitize_undefined"
-                        | "fallthrough"
-                        | "warn_unused"
-                        | "externally_visible"
-                        | "nonnull_all"
-                        | "warn_if_not_aligned" => {}
+                        Some(crate::attributes::Attribute::Ignored) => {}
                         _ => {
                             return Err(Error::new(
                                 extension.span.start,
@@ -3246,6 +4506,9 @@ impl Analyzer {
     }
 
     fn machine_mode(&self, mut ty: Type, mode: &str, offset: usize) -> Result<Type, Error> {
+        if let Some(result) = self.floating_machine_mode(&ty, mode, offset)? {
+            return Ok(result);
+        }
         let resolved = self.unit.resolve(&ty)?;
         if !matches!(resolved.kind, TypeKind::Integer(_)) {
             return Err(Error::new(
@@ -3287,6 +4550,25 @@ impl Analyzer {
             .layout(&ty)
             .map_err(|error| Error::new(offset, error.message))?;
         Ok(ty)
+    }
+}
+
+/// Type attributes that attach to the next function boundary of a declarator.
+fn is_calling_extension(extension: &ast::Extension) -> bool {
+    match extension {
+        ast::Extension::CallingConvention(_) => true,
+        ast::Extension::Attribute(attribute) => matches!(
+            attribute.name.node.trim_matches('_'),
+            "cdecl"
+                | "stdcall"
+                | "fastcall"
+                | "thiscall"
+                | "ms_abi"
+                | "sysv_abi"
+                | "aarch64_vector_pcs"
+                | "aarch64_sve_pcs"
+        ),
+        _ => false,
     }
 }
 
@@ -3345,18 +4627,14 @@ fn extended_float_name(float: &ast::TS18661FloatType) -> String {
 
 fn add_qualifier(
     result: &mut Qualifiers,
+    atomic: &mut bool,
     qualifier: &Node<ast::TypeQualifier>,
 ) -> Result<(), Error> {
     match qualifier.node {
         ast::TypeQualifier::Const => result.is_const = true,
         ast::TypeQualifier::Volatile => result.is_volatile = true,
         ast::TypeQualifier::Restrict => result.is_restrict = true,
-        ast::TypeQualifier::Atomic => {
-            return Err(Error::new(
-                qualifier.span.start,
-                "atomic qualifiers require unsupported ABI handling",
-            ));
-        }
+        ast::TypeQualifier::Atomic => *atomic = true,
         ast::TypeQualifier::Nonnull
         | ast::TypeQualifier::NullUnspecified
         | ast::TypeQualifier::Nullable => {}
@@ -3503,188 +4781,6 @@ fn prepare_source(source: &str) -> Result<(String, PackEvents), Error> {
 
 /// Bounds recursive parser work before constructing the external parser's AST.
 /// This scanner treats quoted strings and comments as indivisible tokens.
-fn check_parse_limits(source: &str) -> Result<(), Error> {
-    if source.len() > 16 * 1024 * 1024 {
-        return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
-    }
-    let bytes = source.as_bytes();
-    let mut index = 0;
-    let mut nesting = 0usize;
-    let mut grouping = 0usize;
-    let mut pending_colons = vec![0usize];
-    let mut active_colons = 0usize;
-    // lang-c recursively parses labels and unbraced control flow before our
-    // semantic depth checks run. Count introducers across a whole outer brace
-    // region, including siblings: semicolons do not end dangling-else chains.
-    let mut control_tokens = 0usize;
-    #[derive(Default)]
-    struct ExpressionDepth {
-        operators: usize,
-        child: usize,
-        sibling: usize,
-    }
-    impl ExpressionDepth {
-        fn depth(&self) -> usize {
-            self.sibling.max(self.operators + self.child)
-        }
-        fn next_expression(&mut self) {
-            self.sibling = self.depth();
-            self.operators = 0;
-            self.child = 0;
-        }
-    }
-    let mut expressions = vec![ExpressionDepth::default()];
-    let mut prefix_run = 0usize;
-    while index < bytes.len() {
-        if matches!(bytes[index], b'+' | b'-' | b'!' | b'~' | b'*' | b'&') {
-            prefix_run += 1;
-            if prefix_run > 16 {
-                return Err(Error::new(
-                    index,
-                    "consecutive prefix operators exceed the 16-operator limit",
-                ));
-            }
-        } else if !(bytes[index].is_ascii_whitespace()
-            || bytes[index].is_ascii_alphabetic()
-            || bytes[index] == b'_'
-            || (bytes[index] == b'/' && matches!(bytes.get(index + 1), Some(b'/' | b'*'))))
-        {
-            prefix_run = 0;
-        }
-        match bytes[index] {
-            b'\'' | b'"' => {
-                let quote = bytes[index];
-                index += 1;
-                while index < bytes.len() && bytes[index] != quote {
-                    if bytes[index] == b'\\' {
-                        index += 1;
-                    }
-                    index += 1;
-                }
-            }
-            b'/' if bytes.get(index + 1) == Some(&b'/') => {
-                while index < bytes.len() && bytes[index] != b'\n' {
-                    index += 1;
-                }
-            }
-            b'/' if bytes.get(index + 1) == Some(&b'*') => {
-                index += 2;
-                while index + 1 < bytes.len() && !(bytes[index] == b'*' && bytes[index + 1] == b'/')
-                {
-                    index += 1;
-                }
-                index += 1;
-            }
-            b'(' | b'[' | b'{' => {
-                if bytes[index] == b'{' {
-                    pending_colons.push(0);
-                } else {
-                    grouping += 1;
-                }
-                expressions.push(ExpressionDepth::default());
-                nesting += 1;
-                if nesting > 128 {
-                    return Err(Error::new(
-                        index,
-                        "syntactic nesting exceeds the 128-level limit",
-                    ));
-                }
-            }
-            b')' | b']' | b'}' => {
-                if bytes[index] == b'}' {
-                    if pending_colons.len() > 1 {
-                        active_colons -= pending_colons.pop().expect("brace region");
-                    }
-                    if pending_colons.len() == 1 {
-                        control_tokens = 0;
-                    }
-                } else {
-                    grouping = grouping.saturating_sub(1);
-                }
-                nesting = nesting.saturating_sub(1);
-                if expressions.len() > 1 {
-                    let depth = expressions.pop().expect("nested expression").depth();
-                    let parent = expressions.last_mut().expect("root expression");
-                    parent.child = parent.child.max(depth);
-                }
-            }
-            b':' => {
-                *pending_colons.last_mut().expect("root region") += 1;
-                active_colons += 1;
-            }
-            byte if byte.is_ascii_alphabetic() || byte == b'_' => {
-                let start = index;
-                while bytes
-                    .get(index + 1)
-                    .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
-                {
-                    index += 1;
-                }
-                if matches!(
-                    &source[start..=index],
-                    "if" | "else" | "for" | "while" | "do" | "switch"
-                ) {
-                    control_tokens += 1;
-                }
-                if matches!(
-                    &source[start..=index],
-                    "sizeof" | "_Alignof" | "__alignof" | "__alignof__" | "__extension__"
-                ) {
-                    prefix_run += 1;
-                    if prefix_run > 16 {
-                        return Err(Error::new(
-                            start,
-                            "consecutive prefix operators exceed the 16-operator limit",
-                        ));
-                    }
-                } else {
-                    prefix_run = 0;
-                }
-            }
-            b';' | b',' => {
-                if bytes[index] == b';' && grouping == 0 {
-                    // A completed statement ends its label chain. Keep labels
-                    // in parent braces and across for-header semicolons active.
-                    let current = pending_colons.last_mut().expect("root region");
-                    active_colons -= *current;
-                    *current = 0;
-                }
-                expressions
-                    .last_mut()
-                    .expect("expression frame")
-                    .next_expression();
-            }
-            b'*' | b'!' | b'~' | b'+' | b'-' | b'/' | b'%' | b'&' | b'|' | b'^' | b'?' | b'<'
-            | b'>' | b'=' => {
-                expressions.last_mut().expect("expression frame").operators += 1;
-                let current = expressions.last().expect("expression frame");
-                let ancestors: usize = expressions[..expressions.len() - 1]
-                    .iter()
-                    .map(|frame| frame.operators)
-                    .sum();
-                if ancestors + current.depth() > 256 {
-                    return Err(Error::new(
-                        index,
-                        "expression or declarator exceeds the operator limit",
-                    ));
-                }
-            }
-            _ => {}
-        }
-        if control_tokens + active_colons > 1024 {
-            return Err(Error::new(
-                index,
-                "control-flow introducers and pending colons exceed the 1024-token limit within an outer brace region",
-            ));
-        }
-        index += 1;
-    }
-    Ok(())
-}
-
-/// Adapts legal GNU attribute spelling to lang-c's grammar. It requires adjacent
-/// double parentheses and attributes before the `struct` keyword. Replacements
-/// preserve total byte length, so diagnostics outside an attribute remain stable.
 fn normalize_attributes(source: &str) -> (String, HashSet<usize>) {
     let mut record_attributes = HashSet::new();
     let mut bytes = source.as_bytes().to_vec();

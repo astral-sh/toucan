@@ -43,7 +43,10 @@ fn pack_signatures_and_positions_follow_the_gnu_profile() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         for body in VALID.iter().chain(INVALID) {
             let source = source(body);
@@ -167,8 +170,8 @@ fn pack_positions_match_native_compiler_constraints() {
                 .output()
                 .unwrap();
             assert_eq!(
-                output.status.success(),
-                VALID.contains(body),
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(VALID.contains(body)),
                 "{body}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
@@ -182,7 +185,11 @@ fn pack_positions_match_native_compiler_constraints() {
             .arg(&path)
             .output()
             .unwrap();
-        assert!(!output.status.success(), "Clang accepted GNU pack: {body}");
+        assert_eq!(
+            toucan_test_support::compiler_acceptance(&output),
+            Ok(false),
+            "Clang accepted GNU pack: {body}"
+        );
     }
 }
 

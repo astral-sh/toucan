@@ -60,6 +60,8 @@ pub const RESERVED_C11: &[&str] = &[
 ];
 
 pub const RESERVED_GNU: &[&str] = &[
+    "asm",
+    "typeof",
     "__FUNCTION__",
     "__PRETTY_FUNCTION__",
     "__alignof",
@@ -68,6 +70,11 @@ pub const RESERVED_GNU: &[&str] = &[
     "__asm__",
     "__attribute",
     "__attribute__",
+    "__auto_type",
+    "__bf16",
+    "__builtin_choose_expr",
+    "__builtin_convertvector",
+    "__builtin_types_compatible_p",
     "__builtin_offsetof",
     "__builtin_va_arg",
     "__complex",
@@ -94,18 +101,39 @@ pub const RESERVED_GNU: &[&str] = &[
 ];
 
 // Ref: https://clang.llvm.org/docs/AttributeReference.html
+pub const RESERVED_MSVC: &[&str] = &[
+    "_int8",
+    "__int8",
+    "_int16",
+    "__int16",
+    "_int32",
+    "__int32",
+    "_int64",
+    "__int64",
+    "_cdecl",
+    "_stdcall",
+    "_fastcall",
+    "_thiscall",
+    "_vectorcall",
+];
+
+pub const RESERVED_CLANG_CALLING_CONVENTIONS: &[&str] = &[
+    "__cdecl",
+    "__stdcall",
+    "__fastcall",
+    "__thiscall",
+    "__vectorcall",
+    "__regcall",
+    "__pascal",
+];
+
 pub const RESERVED_CLANG: &[&str] = &[
+    "__float128",
     // Only enabled with -fms-extensions and only affect *-*-win32 targets
     "__single_inheritance",
     "__multiple_inheritance",
     "__virtual_inheritance",
     "__unspecified_inheritance",
-    // Calling conventions
-    "__fastcall",
-    "__regcall",
-    "__stdcall",
-    "__thiscall",
-    "__vectorcall",
     // Nullability attributes
     "_Nonnull",
     "_Null_unspecified",

@@ -1,0 +1,35 @@
+{
+  "schema_version": 1,
+  "integration_base": "531dc00",
+  "frozen_patch_sha256": "a069702a884fa7bda7f0376d1e5458f039160eb38e93e669e06c1c1c0dacda7c",
+  "integration": "Preserve the old-style-definition analyzer state while adding the sparse shuffle cache. Charge retained shuffle payload before allocating its owned mask vector.",
+  "validation": {
+    "focused_and_native_tests": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    "checked_seed_replay": {
+      "profiles": 7,
+      "accepted": 331,
+      "matching_diagnostics": 110,
+      "normal_retained_unit_equality": true,
+      "graph_invariants": true
+    },
+    "clippy": "workspace, all targets and all features, warnings denied",
+    "logs": {
+      "tests": {
+        "path": "/tmp/toucan-shuffle-integrated-tests.log",
+        "sha256": "f94355094c5520d855d1271aa134981aefeae890b93c287c72152985ff66c56a"
+      },
+      "clippy": {
+        "path": "/tmp/toucan-shuffle-integrated-clippy.log",
+        "sha256": "3597bd8ff810cdeaffd4c5f913d3de66539cfefdaf6c7e71078dddcfc3e97a09"
+      },
+      "checked_seed_replay": {
+        "path": "/tmp/toucan-shuffle-replay.log",
+        "sha256": "b31aa83c5bbd0b1ebec31c715c9a46cebaf0c79c65b1af291b190ea49e7fb261"
+      }
+    }
+  }
+}

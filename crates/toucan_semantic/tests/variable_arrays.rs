@@ -233,8 +233,8 @@ fn variable_array_constraints_match_c_compilers() {
             writeln!(child.stdin.take().unwrap(), "{source}").unwrap();
             let output = child.wait_with_output().unwrap();
             assert_eq!(
-                output.status.success(),
-                accepted,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted),
                 "{compiler}: {source}\n{}",
                 String::from_utf8_lossy(&output.stderr)
             );
@@ -252,8 +252,7 @@ fn many_vm_declarations_and_labels_use_compact_scope_snapshots() {
     use std::fmt::Write;
     let mut source = String::from("void f(int n) {");
     for index in 0..5000 {
-        // Exercise 5,000 VM snapshots and jumps without spending the separate
-        // per-body control-flow introducer budget on 5,000 `if` statements.
+        // Exercise 5,000 VM snapshots and jumps with distinct labels.
         write!(source, "int a{index}[n]; L{index}:; goto L{index};").unwrap();
     }
     source.push('}');

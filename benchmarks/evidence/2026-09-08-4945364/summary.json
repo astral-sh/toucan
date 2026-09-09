@@ -1,0 +1,485 @@
+{
+  "schema_version": 1,
+  "source_commit": "494536458133e4b7a8e80bee4a8880b80ec5f82d",
+  "binary_sha256": {
+    "toucan": "2783e2141b00ccfaffb06341f336158184bed6647f3147a7de58f8e09f38629a",
+    "bindgen": "076fc0b776f69a8390305da44b57853aa104609f8df6a29512c345396b97c293"
+  },
+  "source_files_sha256": {
+    "Cargo.lock": "fc027c44d342c3682e58bc503e66b3453f95131661374f3fc82086f3b9ee9075",
+    "Cargo.toml": "8f9d629d0c9fc2a2efc273b76d382c9898ada098d5017d220360cf6c205d0dd3",
+    "crates/toucan/Cargo.toml": "402d149f1f171ec8e4cb84416ea91981099b9fd10f8933e0e1ce9236795a43b1",
+    "crates/toucan/src/lib.rs": "dee7cdbee8b4c2b93232f87ce0cb1c0aebecccef4f845050357de98566cd4f15",
+    "crates/toucan_bindings/Cargo.toml": "1d23e833f728f59625fdf57c4bdc6e22d6a3f2a6aa0f344b12d9cb12ebda125c",
+    "crates/toucan_bindings/src/lib.rs": "9b556e2e696dbcb8cea9dd0cd747a23d9fe93e554001e26fdb60507c1f2f6b06",
+    "crates/toucan_cli/Cargo.toml": "7c07eaf664af1d126771d67f9f0b74e33992528095782979d46cda2c109cda2d",
+    "crates/toucan_cli/src/main.rs": "095f4714f27f75817662ea3b363ee65323d7442ada6710de4becfc2b55f6d9e9",
+    "crates/toucan_parser/Cargo.toml": "31c0321d4edbdfcc9ac886e6d37c4fde6f7d6a4609525decab4ee569cef8ef18",
+    "crates/toucan_parser/src/ast.rs": "ba0f0dd6bc1631b48d792a094db7e995b6e40f16edcbc72fd373a1dc5009fab4",
+    "crates/toucan_parser/src/astutil.rs": "76b3ea93154ccf1be356a5b8e4dbf1deb6a4e826d995436b33fb3fdb86f66f9b",
+    "crates/toucan_parser/src/bin/dump.rs": "d291595ddb23b6da5b7caaae46634d7e04f05495b19258d1aeecca8616af998c",
+    "crates/toucan_parser/src/bin/meminfo.rs": "28614fb48cc4a3870ed8f847f13e9b6dd3568f599689cbcb9d36331eae8b0571",
+    "crates/toucan_parser/src/driver.rs": "69b1e465292aac63b4af9ea32119df757e732c6b247d21d7a9d1d71582efbf11",
+    "crates/toucan_parser/src/env.rs": "d44c5d1bfca6dc27de1bdec4941818b3e1a746685a6570e459e0398305b2dc08",
+    "crates/toucan_parser/src/lib.rs": "931a9a9d4cd3b9793dafefaf5e72dbbe23a2ad248ed7d10cb74c35d574c13969",
+    "crates/toucan_parser/src/limits.rs": "11463bf3ae7c7714b4c9ad19f7f2ddf836b91880e621a40464c376dd14c06aa2",
+    "crates/toucan_parser/src/loc.rs": "2e6629ee87f17c940ca857d17d1f1b8368c1869323ff5991e6d3482bbe7d598e",
+    "crates/toucan_parser/src/measure.rs": "5250275f7686468700f4a5e88f3f8f657a4093d7d6299590a918c10b5abf8bfc",
+    "crates/toucan_parser/src/parser.rs": "ed5cd327b8cd47dd0a2e08bf30e33cdfcc5a9bf1a90e7c4f0461fbadf6eaf245",
+    "crates/toucan_parser/src/print.rs": "98d8f3939814d69922fbba6ab6dc1f705f9d4ea98cc996fa602a0dbf307b9090",
+    "crates/toucan_parser/src/span.rs": "55709b3ec6a74577ed4b333f635779daf78471ec4861f30857a1a53955e02052",
+    "crates/toucan_parser/src/strings.rs": "d8a326e82fad9a48ed1318adf7e3fd081790a96d9272fe29b3f7cb5d0e8b8f51",
+    "crates/toucan_parser/src/tests.rs": "8af70ea9dfb6b4cf2723f868088acfed93fc76b40f9707900d2603a36cc576ab",
+    "crates/toucan_parser/src/visit.rs": "e2a0baff89b628fe45ad20bc50bdf41165350b7819360f74170b4b3a8e25c4d2",
+    "crates/toucan_preprocessor/Cargo.toml": "c6a1cd9f72f26cbfe79ca6742acc7d55f576719de1d5f74d3b9a0f1d56cd315c",
+    "crates/toucan_preprocessor/src/expand.rs": "9e059ee0ed804c72bad40b66a2d83552b441060d42bbb9249273a7d5b65ed85f",
+    "crates/toucan_preprocessor/src/expression.rs": "ad9a4b57e41017f11337b403acb224224261c4c068b26da10d269fc3c141d1b3",
+    "crates/toucan_preprocessor/src/lib.rs": "a04cede422cb80332f4904b567e35cf15db06ccbeccf91d236199c3c48112900",
+    "crates/toucan_preprocessor/src/provenance.rs": "b924ad4df444cd1127fc6334654d8921f784710088fa0843ef72de35a3de10a6",
+    "crates/toucan_preprocessor/src/tests.rs": "4d8268f417e5200aa95ba0cd47e93681a1d1499bb0afe59cc37112fc8b31addf",
+    "crates/toucan_preprocessor/src/timestamp.rs": "5e52c2b812d3fd88263dd35d51c13a9c8d9b35192d5d985e1b9d2a2536d769fe",
+    "crates/toucan_preprocessor/src/token.rs": "05643f0dc6f7d45ece3e04c45bc4743542adef83d7f6c50310739afc00090b8f",
+    "crates/toucan_semantic/Cargo.toml": "2b3dadae603732769df9019546d3c67c3db2d97ae573930cb0831cf89dca1789",
+    "crates/toucan_semantic/src/analyze.rs": "6bd54b22529ed4e743552bb440e958bfecaeadadf1887dab3be7c5a83488132e",
+    "crates/toucan_semantic/src/asm.rs": "92b625b8e53f5d04bac58728803448e3ced7e17d1961452110d9a11d00c3c6ce",
+    "crates/toucan_semantic/src/atomic.rs": "439f8e8299a957195c6c2d96f100b78ffed36adbf3f0eb7ad7ddd5b4bc8bb85c",
+    "crates/toucan_semantic/src/builtins.rs": "7a2de3808f3b8051ef2350508ce00cdd34c2d49c3140dd857adbad2a58d9e847",
+    "crates/toucan_semantic/src/checked.rs": "db4cfc4fb6c7f42d0364d3ea982f8e42757917736a5b6794a94a5c03091e70ca",
+    "crates/toucan_semantic/src/checked/access.rs": "996b65c5d6321ba24e9dcbe85c3088646faa181ede1c98be0d4a5a718c5ba83e",
+    "crates/toucan_semantic/src/checked/attributes.rs": "879851957cada1bffb55c2b3c80cc5f78e62f4bfe7dd8e789901a146a78b4276",
+    "crates/toucan_semantic/src/checked/bounds.rs": "a052f962f13ec968b1b51c58ddbf7d66becc5780186631ab6aee8a99598e2b98",
+    "crates/toucan_semantic/src/checked/expression.rs": "f7e430fb297e2bccbad330d48c1126ef2b16f9c46022eae69dcfcaebe97347b9",
+    "crates/toucan_semantic/src/checked/initializer.rs": "e8d2e56d4b1743d7c3ce5af6e4c3cdf66fd8b83241af18e0db88d4cff975d868",
+    "crates/toucan_semantic/src/checked/ownership.rs": "c380f3197c1b7713a4127f1c7d7c2e3680805aa05d34da5a2749e089e4950665",
+    "crates/toucan_semantic/src/checked/query.rs": "3860ea70c2b686ae13f94ce8f3ae4d3fd831360be6f5bded33a0d652ad90b250",
+    "crates/toucan_semantic/src/checked/references.rs": "16d7798669dcbf74858b550f91d26502f9e696a6f9f234515a2f12aa729c6cd3",
+    "crates/toucan_semantic/src/checked/statement.rs": "298d45ba09aa3029ce680426b57ab08121ece4afe349c25b31267df0a53a6a7f",
+    "crates/toucan_semantic/src/constant_query.rs": "496098bd48adc778f3450906e240307041cd39dcf6d2117e40ac500ac1fe4749",
+    "crates/toucan_semantic/src/expression.rs": "212e4cabf69ba7b4b0c177f6906fd7c469b72c472d4812671fa88d4584953f3f",
+    "crates/toucan_semantic/src/floating.rs": "0d11147fb80109f559c2f917846e63bc78bb99206ee8978f596a77e126d65e75",
+    "crates/toucan_semantic/src/floating_tests.rs": "858241d29e75a105a28433cd1afeca31996923488c0ed36c68e803c2bf9c4958",
+    "crates/toucan_semantic/src/fortified.rs": "1fc0ac4fcabe0dba5714a308918f22ef50f2eb0855a4782770e7e96290c9cdc9",
+    "crates/toucan_semantic/src/initializer.rs": "c1f852180bb84079599179fe1a1d589a2f10fb167ce440cf237888eace7f5b35",
+    "crates/toucan_semantic/src/integer.rs": "260052c9d48b5232562aed5c4bf1bd78c53fd896d44a600b22906a86e9b1468e",
+    "crates/toucan_semantic/src/ir.rs": "b1ae88b6f0678d271c86ec257f708f2c0dd2dca51447170bf1605ca9c5be6859",
+    "crates/toucan_semantic/src/lib.rs": "7e8df5d1a1940008144f7203d0fcb25fc0d5967d9c36929792d270f376490835",
+    "crates/toucan_semantic/src/literals.rs": "578657d1c11d5aef3c487dc9f3a58f1dd42b1bdaa9c92e8353d568683ead8fcb",
+    "crates/toucan_semantic/src/object_extent.rs": "47ece05b3b9a1c0d502b4fcee6fa63b500fe608a62272a1d4e5587f39559fc6b",
+    "crates/toucan_semantic/src/object_size.rs": "2f7640410c0092ce0c58d95ae396de392ae0897e82b4479f058224a783746eb8",
+    "crates/toucan_semantic/src/overflow.rs": "5c11191dd7e65883a1cc8841931d01929ed50fcefa53a9de74b183f60409c155",
+    "crates/toucan_semantic/src/parser_extensions.rs": "2e2edd79482c0e712bf3c521a113d05cf8d3587d49d3c9436b0371d961d0f4da",
+    "crates/toucan_semantic/src/returns_twice.rs": "74625e4a9ec40b69428c9655e72fc641dbca8452c1dcf00da2d9fe83bbc029ae",
+    "crates/toucan_semantic/src/statement.rs": "f82888bff450cc6b3ed936b70001b24b00db0f8f26b81ff5db04938f66c2914a",
+    "crates/toucan_semantic/src/sync.rs": "00d3083221c93b5cfaeaec7b7a211c14667f9424af603fc71eb17eb7b5c774eb",
+    "crates/toucan_semantic/src/transparent_union.rs": "e4ba08a47bbcdf912ec0503ef8b6c9faa17303d998f6bdbbe9867a34b946dc6e",
+    "crates/toucan_semantic/src/variadic_pack.rs": "581d094dab39ca2e7ff49a5a7c7c96ea7168d5633c9a3b0dda3a4fde84501523",
+    "crates/toucan_semantic/src/vector.rs": "31a2144a7a0a37589e159342265430170a08d4f81b995264518b9e8e3d6fa21f",
+    "crates/toucan_semantic/src/weak.rs": "cc03240f3f6eabc888515d77750c9b1cac7ca7b12600ec6200d852e0c986091f",
+    "crates/toucan_semantic/src/x86.rs": "de1fe8734845c2fb19f764fe96ec770adecc95b8e576535efb9d425ae2d35f13",
+    "crates/toucan_source/Cargo.toml": "dcd01a2a28a398180cf90e41f5d3c4d2dea68e52579ea033e49767fa7a44d906",
+    "crates/toucan_source/src/lib.rs": "d51303a95804152678ea0199f6a6d2662528e92a2a815e5bfd52bc45d4518b29",
+    "crates/toucan_target/Cargo.toml": "b92b8ad8bcdb2cac700773adbeac775fee5ec4b13326325d215f6cb461c71005",
+    "crates/toucan_target/src/lib.rs": "6ecd27e54c4b398803df1e04fd7e513a9dcbb5fa0328cdaa502947d40247124c",
+    "crates/toucan_target/src/macros.rs": "9c824596221f424f7da3c495b207e68a176e0ff528a0f3fd5edeb61a27b8072c",
+    "scripts/benchmark.py": "7e7c238a0f1f6b34d5c1c8a57c91646d30abbb853e8a16b4f1b267e2a1cda7f3"
+  },
+  "environment": {
+    "platform": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
+    "cpu_model": "AMD EPYC-Milan Processor",
+    "allowed_cpus": [
+      0
+    ],
+    "target": "x86_64-unknown-linux-gnu",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "toucan": "toucan 0.0.1",
+    "bindgen": "bindgen 0.72.1"
+  },
+  "configuration": {
+    "allocator": "system",
+    "build": "release",
+    "warmups": 1,
+    "iterations": 15,
+    "order_seed": 20260907,
+    "cache": "warm",
+    "scope": "Subprocess startup and public-header binding generation with full corpus allowlists; report and correctness invocations are not timed."
+  },
+  "correctness": {
+    "native": {
+      "path": "native.json",
+      "sha256": "a46471b9ff7f593155b2723b88ee057e86d0d10b3e2192c3524819d8aba9d4fb"
+    },
+    "equivalence": {
+      "path": "equivalence.json",
+      "sha256": "dd08947a045be0e67f2279a21c31c47a8be5b873a625d33b53399cb91548737d"
+    },
+    "layouts": {
+      "path": "layouts.json",
+      "sha256": "1d72b412ade22824377594b1ff984cba0953658ef193467a5b84ee2927cb1bb9"
+    }
+  },
+  "projects": [
+    {
+      "name": "libgit2",
+      "version": "1.9.1",
+      "raw": "libgit2.json",
+      "raw_sha256": "2d2b6f66004f1c473efd87013318f40130fb32b788df3dff40b383a0b2c541c9",
+      "summary": {
+        "toucan": {
+          "wall_ms": {
+            "median": 394.640552,
+            "minimum": 381.653666,
+            "maximum": 435.593492
+          },
+          "output_bytes": {
+            "median": 250206,
+            "minimum": 250206,
+            "maximum": 250206
+          },
+          "peak_rss_kib": {
+            "median": 18176,
+            "minimum": 18176,
+            "maximum": 18176
+          }
+        },
+        "bindgen": {
+          "wall_ms": {
+            "median": 464.329153,
+            "minimum": 453.096443,
+            "maximum": 476.14116
+          },
+          "output_bytes": {
+            "median": 240046,
+            "minimum": 240046,
+            "maximum": 240046
+          },
+          "peak_rss_kib": {
+            "median": 103072,
+            "minimum": 103068,
+            "maximum": 103332
+          }
+        }
+      },
+      "speedup": 1.1765875317344479,
+      "correctness_output_sha256": {
+        "toucan": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+        "bindgen": "8e8f818e14459442a615f359fd7b24f9001f89c6c4fd980c1459c11d9f133e94"
+      },
+      "outputs_match_correctness": true,
+      "source_commit": "0060d9cf5666f015b1067129bd874c6cc4c9c7ac",
+      "archive_sha256": "4a7944d8439cccac187ef0ff4085556f198d85225eef55686b3dfb3413e0d0f1",
+      "c_rust_comparisons": 3342,
+      "api_counts": {
+        "functions": {
+          "common": 844,
+          "equal": 844
+        },
+        "globals": {
+          "common": 0,
+          "equal": 0
+        },
+        "constants": {
+          "common": 666,
+          "equal": 661
+        },
+        "aliases": {
+          "common": 158,
+          "equal": 158
+        },
+        "record_shapes": {
+          "common": 141,
+          "equal": 141
+        },
+        "native_records": {
+          "common": 85,
+          "equal": 85
+        },
+        "native_fields": {
+          "common": 432,
+          "equal": 432
+        },
+        "native_constants": {
+          "common": 666,
+          "equal": 665
+        }
+      },
+      "accepted_differences": 247,
+      "unexpected_differences": 0,
+      "complete_records": 85,
+      "ordinary_field_offsets": 432
+    },
+    {
+      "name": "sqlite",
+      "version": "3.45.1",
+      "raw": "sqlite.json",
+      "raw_sha256": "8976df887c91ed9c35a056a39b924a1a0d44d83faba1dab04adf52cc5d839213",
+      "summary": {
+        "toucan": {
+          "wall_ms": {
+            "median": 173.748284,
+            "minimum": 170.606541,
+            "maximum": 188.950102
+          },
+          "output_bytes": {
+            "median": 103325,
+            "minimum": 103325,
+            "maximum": 103325
+          },
+          "peak_rss_kib": {
+            "median": 9148,
+            "minimum": 9144,
+            "maximum": 9148
+          }
+        },
+        "bindgen": {
+          "wall_ms": {
+            "median": 330.768876,
+            "minimum": 320.703666,
+            "maximum": 381.679273
+          },
+          "output_bytes": {
+            "median": 99027,
+            "minimum": 99027,
+            "maximum": 99027
+          },
+          "peak_rss_kib": {
+            "median": 85192,
+            "minimum": 84940,
+            "maximum": 85196
+          }
+        }
+      },
+      "speedup": 1.9037245628279122,
+      "correctness_output_sha256": {
+        "toucan": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+        "bindgen": "b1256b05045b851fddd96870c77d47a532c04d009420eca3a7b47a11c56e6532"
+      },
+      "outputs_match_correctness": true,
+      "source_commit": "189e44dfecdc7868bb860dfb5d98eab371318c37",
+      "archive_sha256": "c05d9dc99e90c35f021ebf0b6b0a36d44714088ba77f84022eb22784d6123c7e",
+      "c_rust_comparisons": 1419,
+      "api_counts": {
+        "functions": {
+          "common": 291,
+          "equal": 291
+        },
+        "globals": {
+          "common": 3,
+          "equal": 3
+        },
+        "constants": {
+          "common": 463,
+          "equal": 463
+        },
+        "aliases": {
+          "common": 9,
+          "equal": 9
+        },
+        "record_shapes": {
+          "common": 29,
+          "equal": 28
+        },
+        "native_records": {
+          "common": 19,
+          "equal": 19
+        },
+        "native_fields": {
+          "common": 161,
+          "equal": 161
+        },
+        "native_constants": {
+          "common": 463,
+          "equal": 463
+        }
+      },
+      "accepted_differences": 4,
+      "unexpected_differences": 0,
+      "complete_records": 19,
+      "ordinary_field_offsets": 161
+    },
+    {
+      "name": "zlib",
+      "version": "1.3.1",
+      "raw": "zlib.json",
+      "raw_sha256": "52b6a4c1f7df4d47ad606c7ee6b15c3114cefc06c883c68a65408a78249ce3d9",
+      "summary": {
+        "toucan": {
+          "wall_ms": {
+            "median": 48.700781,
+            "minimum": 47.594275,
+            "maximum": 63.54742
+          },
+          "output_bytes": {
+            "median": 14774,
+            "minimum": 14774,
+            "maximum": 14774
+          },
+          "peak_rss_kib": {
+            "median": 8192,
+            "minimum": 7936,
+            "maximum": 8192
+          }
+        },
+        "bindgen": {
+          "wall_ms": {
+            "median": 295.859223,
+            "minimum": 286.627149,
+            "maximum": 306.087336
+          },
+          "output_bytes": {
+            "median": 14966,
+            "minimum": 14966,
+            "maximum": 14966
+          },
+          "peak_rss_kib": {
+            "median": 81664,
+            "minimum": 81408,
+            "maximum": 81768
+          }
+        }
+      },
+      "speedup": 6.075040624091839,
+      "correctness_output_sha256": {
+        "toucan": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+        "bindgen": "034eca198db1f6376cf6ab7d01fe2d84d553ebfb6d244214089dce8806b5f89a"
+      },
+      "outputs_match_correctness": true,
+      "source_commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+      "archive_sha256": "2c547ae1e001c09db5d0a9d0e157f75dc55151757923cc611a08630391af81bc",
+      "c_rust_comparisons": 140,
+      "api_counts": {
+        "functions": {
+          "common": 81,
+          "equal": 81
+        },
+        "globals": {
+          "common": 0,
+          "equal": 0
+        },
+        "constants": {
+          "common": 37,
+          "equal": 37
+        },
+        "aliases": {
+          "common": 22,
+          "equal": 22
+        },
+        "record_shapes": {
+          "common": 5,
+          "equal": 5
+        },
+        "native_records": {
+          "common": 4,
+          "equal": 4
+        },
+        "native_fields": {
+          "common": 34,
+          "equal": 34
+        },
+        "native_constants": {
+          "common": 37,
+          "equal": 37
+        }
+      },
+      "accepted_differences": 4,
+      "unexpected_differences": 0,
+      "complete_records": 4,
+      "ordinary_field_offsets": 34
+    },
+    {
+      "name": "zstd",
+      "version": "1.5.7",
+      "raw": "zstd.json",
+      "raw_sha256": "8feb9b802cfed206af251c94b5ef041f0581af2682b3db02ac53985b6f6f7a0b",
+      "summary": {
+        "toucan": {
+          "wall_ms": {
+            "median": 16.903151,
+            "minimum": 15.934832,
+            "maximum": 26.059623
+          },
+          "output_bytes": {
+            "median": 16799,
+            "minimum": 16799,
+            "maximum": 16799
+          },
+          "peak_rss_kib": {
+            "median": 6088,
+            "minimum": 5828,
+            "maximum": 6088
+          }
+        },
+        "bindgen": {
+          "wall_ms": {
+            "median": 279.004271,
+            "minimum": 274.419118,
+            "maximum": 287.321917
+          },
+          "output_bytes": {
+            "median": 16719,
+            "minimum": 16719,
+            "maximum": 16719
+          },
+          "peak_rss_kib": {
+            "median": 79780,
+            "minimum": 79520,
+            "maximum": 79784
+          }
+        }
+      },
+      "speedup": 16.50605091322914,
+      "correctness_output_sha256": {
+        "toucan": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+        "bindgen": "559220a3dc71b2a7d96fa61f1fb032f3c5e305414077c805c6c322b28ef80459"
+      },
+      "outputs_match_correctness": true,
+      "source_commit": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+      "archive_sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+      "c_rust_comparisons": 543,
+      "api_counts": {
+        "functions": {
+          "common": 68,
+          "equal": 68
+        },
+        "globals": {
+          "common": 0,
+          "equal": 0
+        },
+        "constants": {
+          "common": 110,
+          "equal": 105
+        },
+        "aliases": {
+          "common": 14,
+          "equal": 14
+        },
+        "record_shapes": {
+          "common": 7,
+          "equal": 7
+        },
+        "native_records": {
+          "common": 3,
+          "equal": 3
+        },
+        "native_fields": {
+          "common": 9,
+          "equal": 9
+        },
+        "native_constants": {
+          "common": 110,
+          "equal": 108
+        }
+      },
+      "accepted_differences": 19,
+      "unexpected_differences": 0,
+      "complete_records": 3,
+      "ordinary_field_offsets": 9
+    }
+  ],
+  "limitations": [
+    "These results identify commit4945364 and do not measure subsequent implementation layers.",
+    "Four header workloads on one shared Linux host; no claim about complete source analysis, cold caches, in-process reuse or other platforms.",
+    "Affinity was CPU0; other compilation/validation tasks used other cores but the host was not isolated. All samples and outliers are retained.",
+    "No allocation counts are measured. RSS is the median of subprocess maxima.",
+    "The accepted API differences are independently C-validated, but exact Rust API equality remains false."
+  ]
+}

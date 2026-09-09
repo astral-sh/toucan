@@ -90,7 +90,7 @@ fn const_bitfield_api_matches_c_assignment_constraints() {
                 .args(["--edition=2021", "invalid.rs"])
                 .output()
                 .unwrap();
-            assert!(!output.status.success());
+            assert_eq!(toucan_test_support::compiler_acceptance(&output), Ok(false));
             assert!(String::from_utf8_lossy(&output.stderr).contains("E0599"));
             std::fs::write(
                 directory.path().join("invalid.c"),
@@ -115,8 +115,8 @@ fn const_bitfield_api_matches_c_assignment_constraints() {
                         .output()
                         .unwrap();
                     assert_eq!(
-                        output.status.success(),
-                        accepted,
+                        toucan_test_support::compiler_acceptance(&output),
+                        Ok(accepted),
                         "{compiler:?}: {kind} {member}: {}",
                         String::from_utf8_lossy(&output.stderr)
                     );

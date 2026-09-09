@@ -128,6 +128,7 @@ def build(project: dict, args: argparse.Namespace) -> dict:
         "-B",
         str(build_dir),
         "-DCMAKE_BUILD_TYPE=Release",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
         f"-DCMAKE_C_COMPILER={args.cc}",
     ]
     if name == "zlib":
@@ -153,6 +154,20 @@ def build(project: dict, args: argparse.Namespace) -> dict:
                 "-C",
                 str(source / "lib"),
                 f"-j{args.jobs}",
+                "libzstd.a",
+                f"CC={args.cc}",
+            ]
+        )
+        # Force a dry run after building: an up-to-date make prints no compile commands.
+        # This uses the same compiler/target variables as the completed static build.
+        execute(
+            [
+                "make",
+                "-C",
+                str(source / "lib"),
+                "-B",
+                "-n",
+                "V=1",
                 "libzstd.a",
                 f"CC={args.cc}",
             ]

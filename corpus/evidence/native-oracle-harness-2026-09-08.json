@@ -1,0 +1,72 @@
+{
+  "schema_version": 1,
+  "base_commit": "019012e",
+  "purpose": "Correct native oracle selection and calibrate a test-only attribute revision fixture; no production catalog changes.",
+  "reported_ci": {
+    "host": "macOS AArch64",
+    "log_sha256": "bf3a12ebe05f4a8a186346ab1e844fc331049d3e518234e2efc2d5540c3ef300",
+    "findings": [
+      "Two language-mode tests constructed unsupported GNU/Darwin profiles.",
+      "The mock GNU fallthrough catalog returned201910 while the selected native GCC returned202311."
+    ]
+  },
+  "changes": [
+    "Only native GNU Linux cases use the GNU compiler profile; Clang covers every supported target.",
+    "Native feature-query tests honor TOUCAN_GCC and calibrate only their mock fallthrough value once per compiler.",
+    "Deterministic unit cases preserve1,201910,202311 under both query dialects.",
+    "Malformed arguments, acceptance, output comparisons and compiler-crash detection remain enforced."
+  ],
+  "native_macos_rerun": false,
+  "oracles": [
+    {
+      "command": [
+        "/usr/bin/x86_64-linux-gnu-gcc-13",
+        "-std=gnu11",
+        "-E",
+        "-P",
+        "-x",
+        "c",
+        "-"
+      ],
+      "source": "__has_attribute(fallthrough)\n",
+      "executable_sha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26",
+      "version": "x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "exit_code": 0,
+      "stdout": "201910\n",
+      "stderr": ""
+    },
+    {
+      "command": [
+        "/usr/lib/llvm-18/bin/clang",
+        "-std=gnu11",
+        "-E",
+        "-P",
+        "-x",
+        "c",
+        "-"
+      ],
+      "source": "__has_attribute(fallthrough)\n",
+      "executable_sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+      "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-18/bin\n",
+      "exit_code": 0,
+      "stdout": "                           1\n",
+      "stderr": ""
+    }
+  ],
+  "checks": [
+    {
+      "command": "TOUCAN_GCC=/usr/bin/x86_64-linux-gnu-gcc-13 cargo test -p toucan -p toucan_semantic --test language_modes -- --include-ignored",
+      "passed": 9,
+      "failed": 0,
+      "ignored": 0,
+      "log_sha256": "c3f4f12495616770f5bd3a52d085bd7deadb29b7acbc77685afc7680858b9654"
+    },
+    {
+      "command": "TOUCAN_GCC=/usr/bin/x86_64-linux-gnu-gcc-13 cargo test -p toucan_preprocessor --test feature_queries -- --include-ignored",
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0,
+      "log_sha256": "373ae04f48eb8a1dd58562e486e3ad6113fe70824d0811b3ea7a392919247e8b"
+    }
+  ]
+}

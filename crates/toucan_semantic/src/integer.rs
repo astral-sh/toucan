@@ -28,7 +28,7 @@ impl Analyzer {
                 matches!(
                     self.unit.resolve(&ty)?.kind,
                     TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
-                ) && (matches!(&cast.node.expression.node, ast::Expression::Constant(constant) if matches!(constant.node, ast::Constant::Float(_)))
+                ) && (matches!(&cast.node.expression.node, ast::Expression::Constant(constant) if matches!(&constant.node, ast::Constant::Float(literal) if !literal.suffix.imaginary))
                     || self.is_integer_constant_expression(&cast.node.expression, depth + 1)?)
             }
             ast::Expression::UnaryOperator(unary) => {
@@ -38,6 +38,8 @@ impl Analyzer {
                         | ast::UnaryOperator::Minus
                         | ast::UnaryOperator::Complement
                         | ast::UnaryOperator::Negate
+                        | ast::UnaryOperator::Real
+                        | ast::UnaryOperator::Imaginary
                 ) && self.is_integer_constant_expression(&unary.node.operand, depth + 1)?
             }
             ast::Expression::BinaryOperator(binary) => {
@@ -77,11 +79,19 @@ impl Analyzer {
                     )?
             }
             ast::Expression::SizeOfTy(size) => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.type_name(&size.node.0.node)?;
+                if !self.unit.is_variable_length_array(&ty)? {
+                    self.discard_sve_feature_uses(checkpoint);
+                }
                 !self.unit.is_variable_length_array(&ty)?
             }
             ast::Expression::SizeOfVal(size) => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.expression_type(&size.node.0)?;
+                if !self.unit.is_variable_length_array(&ty)? {
+                    self.discard_sve_feature_uses(checkpoint);
+                }
                 !self.unit.is_variable_length_array(&ty)?
             }
             ast::Expression::AlignOf(_) => true,
@@ -95,12 +105,56 @@ impl Analyzer {
                 }
                 true
             }
+            ast::Expression::TypesCompatible(query) => {
+                self.eval_types_compatible(query)?;
+                true
+            }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.is_integer_constant_expression(selected, depth + 1)?
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 self.is_integer_constant_expression(selected, depth + 1)?
             }
+            ast::Expression::Call(call)
+                if self.builtin_name(call) == Some("__c11_atomic_is_lock_free") =>
+            {
+                self.eval_c11_atomic_lock_free(call).is_ok()
+            }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(crate::atomic::AtomicOperation::from_name)
+                    .is_some_and(crate::atomic::AtomicOperation::is_lock_free_query) =>
+            {
+                self.eval_atomic_lock_free(call).is_ok()
+            }
+            ast::Expression::Call(call)
+                if self.builtin_name(call).is_some_and(|name| {
+                    self.byte_swap_type(name).is_some() || self.bit_count_type(name).is_some()
+                }) =>
+            {
+                self.eval(expression).is_ok()
+            }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(crate::overflow::OverflowIntrinsic::from_name)
+                    .is_some_and(crate::overflow::OverflowIntrinsic::is_predicate) =>
+            {
+                self.eval_overflow_predicate(call).is_ok()
+            }
             ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
                 self.eval_expect(call).is_ok()
+            }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(|name| self.object_size_signature(name))
+                    .is_some() =>
+            {
+                self.infer_object_size(call)?.frontend_fold()
             }
             ast::Expression::Call(call)
                 if self.builtin_name(call) == Some("__builtin_constant_p") =>
@@ -140,13 +194,15 @@ impl Analyzer {
         match &expression.node {
             ast::Expression::Constant(constant) => match &constant.node {
                 ast::Constant::Integer(integer) => self.literal(integer, offset),
-                ast::Constant::Character(character) => crate::decode_character_literal(
-                    self.character_literals
-                        .get(&constant.span.start)
-                        .map_or(character.as_str(), String::as_str),
-                    self.unit.target,
-                    offset,
-                ),
+                ast::Constant::Character(character) => {
+                    crate::decode_character_literal_with_profile(
+                        self.character_literals
+                            .get(&constant.span.start)
+                            .map_or(character.as_str(), String::as_str),
+                        self.unit.profile()?,
+                        offset,
+                    )
+                }
                 ast::Constant::Float(_) => Err(Error::new(
                     offset,
                     "floating-point expression is not an integer constant expression",
@@ -163,9 +219,35 @@ impl Analyzer {
                         format!("`{}` is not an integer constant", identifier.node.name),
                     )
                 }),
+            ast::Expression::TypesCompatible(query) => self.eval_types_compatible(query),
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                self.eval(selected)
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 self.eval(selected)
+            }
+            ast::Expression::Call(call)
+                if self.builtin_name(call) == Some("__c11_atomic_is_lock_free") =>
+            {
+                self.eval_c11_atomic_lock_free(call)
+            }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(crate::atomic::AtomicOperation::from_name)
+                    .is_some_and(crate::atomic::AtomicOperation::is_lock_free_query) =>
+            {
+                self.eval_atomic_lock_free(call)
+            }
+            ast::Expression::Call(call)
+                if self
+                    .builtin_name(call)
+                    .and_then(crate::overflow::OverflowIntrinsic::from_name)
+                    .is_some_and(crate::overflow::OverflowIntrinsic::is_predicate) =>
+            {
+                self.eval_overflow_predicate(call)
             }
             ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
                 self.eval_expect(call)
@@ -181,11 +263,7 @@ impl Analyzer {
                     .and_then(|name| self.object_size_signature(name))
                     .is_some() =>
             {
-                self.builtin_call_type(call)?;
-                Err(Error::new(
-                    offset,
-                    "object-size constant evaluation is unsupported; the extent remains unknown",
-                ))
+                self.eval_object_size(call)
             }
             ast::Expression::Call(call)
                 if self
@@ -210,6 +288,7 @@ impl Analyzer {
                 // of a cast to integer type in an integer constant expression.
                 if let ast::Expression::Constant(constant) = &cast.node.expression.node
                     && let ast::Constant::Float(literal) = &constant.node
+                    && !literal.suffix.imaginary
                 {
                     let value = self.floating_literal(literal, offset)?;
                     return self.convert_arithmetic(value, &ty, offset)?.integer(offset);
@@ -222,7 +301,14 @@ impl Analyzer {
                 })
             }
             ast::Expression::UnaryOperator(unary) => {
-                let value = promote(self.eval(&unary.node.operand)?);
+                let value = self.eval(&unary.node.operand)?;
+                if unary.node.operator.node == ast::UnaryOperator::Real {
+                    return Ok(value);
+                }
+                if unary.node.operator.node == ast::UnaryOperator::Imaginary {
+                    return Ok(IntegerValue::new(0, value.bits, value.signed, value.rank));
+                }
+                let value = promote(value);
                 match unary.node.operator.node {
                     ast::UnaryOperator::Plus => Ok(value),
                     ast::UnaryOperator::Minus => {
@@ -284,19 +370,17 @@ impl Analyzer {
                 Ok(convert(self.eval(selected)?, destination))
             }
             ast::Expression::SizeOfTy(size) => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.type_name(&size.node.0.node)?;
+                if !self.unit.is_variable_length_array(&ty)? {
+                    self.discard_sve_feature_uses(checkpoint);
+                }
                 self.size_of(&ty, offset)
             }
             ast::Expression::SizeOfVal(size) => self.sizeof_expression(&size.node.0),
             ast::Expression::AlignOf(alignment) => {
-                let ty = self.type_name(&alignment.node.0.node)?;
-                if !self.is_complete_object(&ty, 0)? {
-                    return Err(Error::new(
-                        offset,
-                        "alignment requires a complete object type",
-                    ));
-                }
-                Ok(self.size_value(self.unit.alignment(&ty)?))
+                let value = self.alignment_query(alignment)?;
+                Ok(self.size_value(value.bytes))
             }
             ast::Expression::OffsetOf(expression) => {
                 let mut ty = self.type_name(&expression.node.type_name.node)?;
@@ -379,7 +463,12 @@ impl Analyzer {
         )
     }
 
-    fn field_offset(&self, ty: &Type, name: &str, offset: usize) -> Result<(u64, Type), Error> {
+    pub(crate) fn field_offset(
+        &self,
+        ty: &Type,
+        name: &str,
+        offset: usize,
+    ) -> Result<(u64, Type), Error> {
         let TypeKind::Record(id) = self.unit.resolve(ty)?.kind else {
             return Err(Error::new(offset, "member access requires a record"));
         };
@@ -439,27 +528,9 @@ impl Analyzer {
                 IntegerKind::Int128 => (128, true, 6),
                 IntegerKind::UnsignedInt128 => (128, false, 6),
             },
-            TypeKind::Enum(_) => {
-                let layout = self.unit.layout(ty)?;
-                let TypeKind::Enum(id) = ty.kind else {
-                    unreachable!()
-                };
-                let signed = self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
-                    || self.unit.enums[id]
-                        .variants
-                        .iter()
-                        .any(|variant| variant.value.signed && variant.value.signed_value() < 0);
-                let bits = layout.size_bits as u8;
-                let rank = if bits <= 32 {
-                    3
-                } else if u64::from(bits) <= self.unit.target.long_width() {
-                    4
-                } else if bits <= 64 {
-                    5
-                } else {
-                    6
-                };
-                (bits, signed, rank)
+            TypeKind::Enum(id) => {
+                let kind = self.unit.enum_integer_kind(id)?;
+                return self.integer_type(&Type::new(TypeKind::Integer(kind)), offset);
             }
             _ => return Err(Error::new(offset, "expected an integer type")),
         };
@@ -527,11 +598,7 @@ impl Analyzer {
     /// been evaluated with the types visible inside the definition.
     pub(crate) fn finish_enum(&mut self, id: usize, offset: usize) -> Result<(), Error> {
         let destination = self.integer_type(&Type::new(TypeKind::Enum(id)), offset)?;
-        let gnu = matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        );
+        let gnu = self.unit.compiler == toucan_target::Compiler::Gnu;
         if !gnu && destination.bits > 64 {
             return Err(Error::new(
                 offset,
@@ -578,11 +645,7 @@ impl Analyzer {
     ) -> Result<IntegerValue, Error> {
         let maximum = IntegerValue::mask(value.bits) >> u32::from(value.signed);
         if value.value == maximum {
-            let gnu = matches!(
-                self.unit.target,
-                toucan_target::Target::X86_64UnknownLinuxGnu
-                    | toucan_target::Target::Aarch64UnknownLinuxGnu
-            );
+            let gnu = self.unit.compiler == toucan_target::Compiler::Gnu;
             let wider = [(self.unit.target.long_width() as u8, 4), (64, 5), (128, 6)]
                 .into_iter()
                 .find(|(bits, _)| *bits > value.bits && (*bits <= 64 || gnu))

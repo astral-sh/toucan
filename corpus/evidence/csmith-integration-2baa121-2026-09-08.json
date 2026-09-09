@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "semantic_commit": "2baa1213fb097b38502bf513d6efb222ccee8402",
+  "gate": {
+    "eligible": 4,
+    "excluded": [],
+    "accepted_profiles": 8,
+    "frontend_failures": [],
+    "pipeline_failures": [],
+    "parity_failures": [],
+    "tool_failures": [],
+    "runtime_failures": [],
+    "native_executions": 6,
+    "changed_tools": [],
+    "changed_inputs": [],
+    "required_fixture_exclusions": [],
+    "generation_failures": []
+  },
+  "report_archive": "csmith-gate-2baa121-2026-09-08.json.gz",
+  "report_sha256": "9b0523d5593341983b634eb69be6e3c8d7c8b97b847c699a3a09ce0d81b4d33c",
+  "archive_sha256": "4ebe674bfce0e0a0cffa93fe8a34a28aab586b97bab2b10aa0b0f76c90468f7e",
+  "independent_artifact_verification": {
+    "sources": 101,
+    "preprocessed_inputs": 116,
+    "declaration_outputs": 432,
+    "runtime_executions": 96,
+    "unchanged_accepted_profiles": 100,
+    "fixed_profiles": 16
+  },
+  "driver_checks": {
+    "passed": 7,
+    "scope": "Compiler failures in either output stream, source exclusions, full-output parity, fixture pins, partial results, and process timeout."
+  },
+  "validation": [
+    "Native Linux pinned-fixture gate with current debug CLI and public-API example",
+    "Ruff formatting and lint",
+    "Clippy with warnings denied for audit_csmith example",
+    "actionlint for the CI workflow"
+  ],
+  "scope": "Four fixtures establish this CI gate on x86-64 Linux. The larger baseline and fixed replay remain attached to their original commits; native runtime checks are executions by GCC/Clang, not Toucan."
+}

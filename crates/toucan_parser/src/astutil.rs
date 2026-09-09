@@ -1,4 +1,5 @@
 use ast::*;
+use limits::Budget;
 use span::{Node, Span};
 
 #[cfg_attr(test, derive(Debug, PartialEq, Clone))]
@@ -9,71 +10,67 @@ pub enum Operation {
     Call(Vec<Node<Expression>>),
 }
 
-fn apply_op(a: Node<Expression>, op: Node<Operation>) -> Node<Expression> {
+// Fallible grammar actions must return PEG Failed immediately on exhaustion.
+macro_rules! checked_node {
+    ($budget:expr, $node:expr, $span:expr) => {{
+        let value = $node;
+        match $budget.node(value, $span) {
+            Ok(value) => value,
+            Err(_) => return Failed,
+        }
+    }};
+}
+macro_rules! checked_with_ext {
+    ($budget:expr, $node:expr, $extensions:expr) => {{
+        let value = with_ext($node, $extensions);
+        checked_node!($budget, value.node, value.span)
+    }};
+}
+
+fn apply_op(
+    a: Node<Expression>,
+    op: Node<Operation>,
+    budget: &mut Budget,
+) -> Result<Node<Expression>, &'static str> {
     let span = Span::span(a.span.start, op.span.end);
     let expr = match op.node {
-        Operation::Member(op, id) => Expression::Member(Box::new(Node::new(
+        Operation::Member(op, id) => Expression::Member(Box::new(budget.node(
             MemberExpression {
                 operator: op,
                 expression: Box::new(a),
                 identifier: id,
             },
             span,
-        ))),
-        Operation::Unary(op) => Expression::UnaryOperator(Box::new(Node::new(
+        )?)),
+        Operation::Unary(op) => Expression::UnaryOperator(Box::new(budget.node(
             UnaryOperatorExpression {
                 operator: op,
                 operand: Box::new(a),
             },
             span,
-        ))),
-        Operation::Binary(op, b) => Expression::BinaryOperator(Box::new(Node::new(
+        )?)),
+        Operation::Binary(op, b) => Expression::BinaryOperator(Box::new(budget.node(
             BinaryOperatorExpression {
                 operator: op,
                 lhs: Box::new(a),
                 rhs: Box::new(b),
             },
             span,
-        ))),
-        Operation::Call(args) => Expression::Call(Box::new(Node::new(
+        )?)),
+        Operation::Call(args) => Expression::Call(Box::new(budget.node(
             CallExpression {
                 callee: Box::new(a),
                 arguments: args,
             },
             span,
-        ))),
+        )?)),
     };
-
-    Node::new(expr, span)
-}
-
-pub fn apply_ops(ops: Vec<Node<Operation>>, expr: Node<Expression>) -> Node<Expression> {
-    ops.into_iter().fold(expr, apply_op)
+    budget.node(expr, span)
 }
 
 pub fn concat<T>(mut a: Vec<T>, b: Vec<T>) -> Vec<T> {
     a.extend(b);
     a
-}
-
-pub fn infix(
-    node: Node<()>,
-    op: BinaryOperator,
-    lhs: Node<Expression>,
-    rhs: Node<Expression>,
-) -> Node<Expression> {
-    let span = Span::span(lhs.span.start, rhs.span.end);
-    Node::new(
-        Expression::BinaryOperator(Box::new(Node::new(
-            BinaryOperatorExpression {
-                operator: Node::new(op, node.span),
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            span,
-        ))),
-        span,
-    )
 }
 
 pub fn with_ext(mut d: Node<Declarator>, e: Option<Vec<Node<Extension>>>) -> Node<Declarator> {
@@ -128,4 +125,36 @@ pub fn int_suffix(mut s: &str) -> Result<IntegerSuffix, &'static str> {
         unsigned: u,
         imaginary: i,
     })
+}
+
+/// Validates every fold result before it can become the next fold's child.
+pub(crate) fn checked_apply_ops(
+    ops: Vec<Node<Operation>>,
+    mut expr: Node<Expression>,
+    budget: &mut Budget,
+) -> Result<Node<Expression>, &'static str> {
+    for op in ops {
+        expr = apply_op(expr, op, budget)?;
+    }
+    Ok(expr)
+}
+
+pub(crate) fn checked_infix(
+    node: Node<()>,
+    op: BinaryOperator,
+    lhs: Node<Expression>,
+    rhs: Node<Expression>,
+    budget: &mut Budget,
+) -> Result<Node<Expression>, &'static str> {
+    let span = Span::span(lhs.span.start, rhs.span.end);
+    let operator = budget.node(op, node.span)?;
+    let binary = budget.node(
+        BinaryOperatorExpression {
+            operator,
+            lhs: Box::new(lhs),
+            rhs: Box::new(rhs),
+        },
+        span,
+    )?;
+    budget.node(Expression::BinaryOperator(Box::new(binary)), span)
 }

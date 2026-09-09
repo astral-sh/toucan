@@ -1,0 +1,19 @@
+{
+  "status": "passed",
+  "reported_test_counts": {
+    "passed": 877,
+    "failed": 0,
+    "ignored": 0
+  },
+  "checked_pairs": 1672,
+  "checked_accepted": 1191,
+  "matching_diagnostics": 481,
+  "unchanged_musl_abi_binding_artifacts": 4,
+  "unchanged_original_header_artifacts": 4,
+  "python_tests": 25,
+  "workspace_and_fuzz_clippy": "passed",
+  "actionlint": "passed",
+  "rust_1_64_language_mode_tests": 6,
+  "source_sha256": "3c368e50dd4fd2febe4b712a770c3979e2ec96c4fddc468a7eb240c8e703c18d",
+  "scope": "Integration after feature queries and function contracts. Native workspace tests run on x86-64 GNU Linux; musl execution evidence is in the preceding layer. Four ABI binding artifacts match those executed with native x64 and QEMU ARM. The C11 native Rust test now uses the configured compiler host instead of a fixed x64 target; it passes locally with actual Rust1.64. Native ARM/macOS reruns remain CI gates."
+}

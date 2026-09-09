@@ -17,28 +17,8 @@ impl Analyzer {
         offset: usize,
     ) -> Result<Option<FortifiedSignature>, Error> {
         use Parameter::{Buffer, Bytes, ConstBuffer, ConstBytes, Int, Size, Stream, VaList};
-        let (result, parameters, variadic): (Parameter, &[Parameter], bool) = match name {
-            "__builtin___memcpy_chk" | "__builtin___memmove_chk" | "__builtin___mempcpy_chk" => {
-                (Bytes, &[Bytes, ConstBytes, Size, Size], false)
-            }
-            "__builtin___memset_chk" => (Bytes, &[Bytes, Int, Size, Size], false),
-            "__builtin___strcpy_chk" | "__builtin___stpcpy_chk" | "__builtin___strcat_chk" => {
-                (Buffer, &[Buffer, ConstBuffer, Size], false)
-            }
-            "__builtin___strncpy_chk" | "__builtin___stpncpy_chk" | "__builtin___strncat_chk" => {
-                (Buffer, &[Buffer, ConstBuffer, Size, Size], false)
-            }
-            "__builtin___sprintf_chk" => (Int, &[Buffer, Int, Size, ConstBuffer], true),
-            "__builtin___snprintf_chk" => (Int, &[Buffer, Size, Int, Size, ConstBuffer], true),
-            "__builtin___vsprintf_chk" => (Int, &[Buffer, Int, Size, ConstBuffer, VaList], false),
-            "__builtin___vsnprintf_chk" => {
-                (Int, &[Buffer, Size, Int, Size, ConstBuffer, VaList], false)
-            }
-            "__builtin___printf_chk" => (Int, &[Int, ConstBuffer], true),
-            "__builtin___vprintf_chk" => (Int, &[Int, ConstBuffer, VaList], false),
-            "__builtin___fprintf_chk" => (Int, &[Stream, Int, ConstBuffer], true),
-            "__builtin___vfprintf_chk" => (Int, &[Stream, Int, ConstBuffer, VaList], false),
-            _ => return Ok(None),
+        let Some((result, parameters, variadic)) = prototype(name) else {
+            return Ok(None);
         };
         let convert = |parameter| -> Result<Type, Error> {
             let mut ty = match parameter {
@@ -54,11 +34,7 @@ impl Analyzer {
                     return self.value_type(ty);
                 }
                 Stream => {
-                    if matches!(
-                        self.unit.target,
-                        toucan_target::Target::X86_64UnknownLinuxGnu
-                            | toucan_target::Target::Aarch64UnknownLinuxGnu
-                    ) {
+                    if self.unit.compiler == toucan_target::Compiler::Gnu {
                         return Ok(Type::new(TypeKind::Void).pointer());
                     }
                     let ty = self.unit.typedefs.get("FILE").ok_or_else(|| {
@@ -95,4 +71,35 @@ enum Parameter {
     Size,
     Stream,
     VaList,
+}
+
+pub(crate) fn is_fortified_builtin(name: &str) -> bool {
+    prototype(name).is_some()
+}
+fn prototype(name: &str) -> Option<(Parameter, &'static [Parameter], bool)> {
+    use Parameter::{Buffer, Bytes, ConstBuffer, ConstBytes, Int, Size, Stream, VaList};
+    let signature: (Parameter, &[Parameter], bool) = match name {
+        "__builtin___memcpy_chk" | "__builtin___memmove_chk" | "__builtin___mempcpy_chk" => {
+            (Bytes, &[Bytes, ConstBytes, Size, Size], false)
+        }
+        "__builtin___memset_chk" => (Bytes, &[Bytes, Int, Size, Size], false),
+        "__builtin___strcpy_chk" | "__builtin___stpcpy_chk" | "__builtin___strcat_chk" => {
+            (Buffer, &[Buffer, ConstBuffer, Size], false)
+        }
+        "__builtin___strncpy_chk" | "__builtin___stpncpy_chk" | "__builtin___strncat_chk" => {
+            (Buffer, &[Buffer, ConstBuffer, Size, Size], false)
+        }
+        "__builtin___sprintf_chk" => (Int, &[Buffer, Int, Size, ConstBuffer], true),
+        "__builtin___snprintf_chk" => (Int, &[Buffer, Size, Int, Size, ConstBuffer], true),
+        "__builtin___vsprintf_chk" => (Int, &[Buffer, Int, Size, ConstBuffer, VaList], false),
+        "__builtin___vsnprintf_chk" => {
+            (Int, &[Buffer, Size, Int, Size, ConstBuffer, VaList], false)
+        }
+        "__builtin___printf_chk" => (Int, &[Int, ConstBuffer], true),
+        "__builtin___vprintf_chk" => (Int, &[Int, ConstBuffer, VaList], false),
+        "__builtin___fprintf_chk" => (Int, &[Stream, Int, ConstBuffer], true),
+        "__builtin___vfprintf_chk" => (Int, &[Stream, Int, ConstBuffer, VaList], false),
+        _ => return None,
+    };
+    Some(signature)
 }

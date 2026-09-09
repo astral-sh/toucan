@@ -1,0 +1,69 @@
+{
+  "archive_sha256": "c0de373a78d4d1593c734225220243dedf052604cf46f2e7b0701185cf4e6b58",
+  "bindings": {
+    "actual_rust_versions": [
+      "1.64.0",
+      "1.98.1"
+    ],
+    "canonical_C_output": "byte-identical",
+    "compiled_consumer_metadata": true,
+    "rust_output_minimum": "1.64",
+    "target": "x86_64-pc-windows-msvc"
+  },
+  "checked_seed": {
+    "accepted_pairs": 2,
+    "graph_invariants": "passed",
+    "matching_rejection_pairs": 12,
+    "modes": 2,
+    "profiles": 7
+  },
+  "date": "2026-09-08",
+  "differential": {
+    "acceptance_comparisons": 370,
+    "cases": 37,
+    "clang_targets": 5,
+    "differences": 0,
+    "keyword_forms": 2,
+    "type_identity_and_layout_units": 1
+  },
+  "limits": [
+    "No Windows executable ran.",
+    "This slice adds integer keywords only; Windows SDK coverage and other Microsoft syntax remain separate gates.",
+    "No performance benchmark was run."
+  ],
+  "logs": {
+    "clippy": {
+      "bytes": 1620,
+      "sha256": "3e78319d5ee4b2539bdbd8f677ced208693c2bb3720384534fae11fc7e10a6cd"
+    },
+    "differential": {
+      "bytes": 2178,
+      "sha256": "964d859c2c2debb7e06dbc601fbfae3be5523b41466ea13a49cabd374c67dbb5"
+    },
+    "parser": {
+      "bytes": 467,
+      "sha256": "def76f3b3d21bd055d8e8250b9b1fba40dbfb8d2358d7de79be7db4f2fb6a1cf"
+    },
+    "parser-clippy": {
+      "bytes": 180,
+      "sha256": "3df0ead10c31b6b87eaf9fc1d65ed62cdf185796eb86dab36a513e81fbece484"
+    },
+    "regeneration": {
+      "bytes": 381,
+      "sha256": "d3771574aae055394b9244bb97fe05ec7f47af2674b4c2006dfbcbe8f0077c6c"
+    },
+    "workspace": {
+      "bytes": 117725,
+      "sha256": "5c24177fd1829f56d71e6780b0c6e5a99a8e05eb73e5232a95c68181fb6e84ab"
+    }
+  },
+  "ordinary_retained_pairs": 518,
+  "parser_span_and_budget_test": "passed after full workspace invocation; production source unchanged",
+  "source_manifest_sha256": "c660e206b32ab9c72dc5abf026d8c1f372cc6fb2f2ad37883d9c40ad7e3d47db",
+  "workspace_count_note": "Reported execution counts can include child harness output; this is not a unique test count. Ignored oracles are excluded except the explicit differential invocation below.",
+  "workspace_reported_executions": {
+    "failed": 0,
+    "ignored": 183,
+    "passed": 681
+  }
+}

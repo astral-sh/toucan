@@ -11,7 +11,7 @@ use super::{Binary, Builder, Builtin, Conversion, ExprKind, ExprUse, Unary};
 pub enum QuerySideEffects {
     /// No ordinary side effects were found. Runtime type operands can still act.
     Absent,
-    /// An assignment, increment, volatile read, or known effectful builtin exists.
+    /// An assignment, increment, volatile/atomic read, or known effectful builtin exists.
     Present,
     /// The graph does not resolve this test for ordinary calls (whose `pure` or
     /// `const` annotations are not retained), statement expressions, or compound
@@ -37,6 +37,10 @@ pub enum QuerySuppression {
     NonNumericConstantQuery,
     MinimumSubobjectSize,
     OrdinarySideEffects,
+    /// Clang or GCC completed this object-size query before scalar code generation.
+    ObjectSizeFrontendFold,
+    /// The supported Clang complex query was proven constant before its scalar fallback.
+    ConstantQueryFrontendFold,
 }
 
 /// Evaluation policy for argument zero of a constant or object-size query.
@@ -80,13 +84,27 @@ pub(super) struct QuerySummary {
 }
 
 impl Builder {
+    pub(crate) fn retain_object_size_proof(
+        &mut self,
+        proof: super::ObjectSizeProof,
+        offset: usize,
+    ) -> Result<Option<Box<super::ObjectSizeProof>>, crate::Error> {
+        self.budget
+            .charge(1, 1, std::mem::size_of::<super::ObjectSizeProof>(), offset)?;
+        Ok(Some(Box::new(proof)))
+    }
+
     pub(super) fn query_use_effects(&self, value: &ExprUse) -> QuerySideEffects {
         let summary = self.expression_builder.query_summaries[value.expression.index()];
-        if summary.volatile_lvalue
-            && value
-                .conversions
-                .iter()
-                .any(|c| c.kind == Conversion::Lvalue)
+        if value
+            .conversions
+            .iter()
+            .any(|c| c.kind == Conversion::AtomicLoad)
+            || summary.volatile_lvalue
+                && value
+                    .conversions
+                    .iter()
+                    .any(|c| c.kind == Conversion::Lvalue)
         {
             QuerySideEffects::Present
         } else {
@@ -102,13 +120,15 @@ impl Builder {
             })
         };
         match kind {
-            ExprKind::Integer(_)
+            ExprKind::TypesCompatible { .. }
+            | ExprKind::Integer(_)
             | ExprKind::Float { .. }
+            | ExprKind::ImaginaryFloat { .. }
             | ExprKind::String(_)
             | ExprKind::Name(_)
             | ExprKind::SizeOfType(_)
             | ExprKind::SizeOfValue { .. }
-            | ExprKind::AlignOf(_)
+            | ExprKind::AlignOf { .. }
             | ExprKind::OffsetOf { .. } => Absent,
             ExprKind::Unary {
                 operator, operand, ..
@@ -153,7 +173,9 @@ impl Builder {
                         .combine(self.query_use_effects(right))
                 }
             }
-            ExprKind::Cast { value, .. } => self.query_use_effects(value),
+            ExprKind::Cast { value, .. } | ExprKind::ConvertVector { value, .. } => {
+                self.query_use_effects(value)
+            }
             ExprKind::Conditional {
                 condition,
                 then_value,
@@ -168,16 +190,50 @@ impl Builder {
             } => Unresolved
                 .combine(self.query_use_effects(callee))
                 .combine(operands(arguments)),
+            ExprKind::ShuffleVector {
+                operands: values,
+                mask,
+                ..
+            } => {
+                let effects = operands(values);
+                if let super::ShuffleMask::Constant(indices) = mask {
+                    // Clang's syntactic side-effect gate visits all children,
+                    // even though index expressions do not execute at runtime.
+                    indices.iter().fold(effects, |effects, index| {
+                        effects.combine(self.query_use_effects(&index.operand))
+                    })
+                } else {
+                    effects
+                }
+            }
             ExprKind::BuiltinCall {
                 builtin, arguments, ..
             } => match builtin {
+                Builtin::X86(intrinsic) => {
+                    if intrinsic.has_side_effects() {
+                        Present
+                    } else {
+                        operands(arguments)
+                    }
+                }
                 Builtin::Infinity
                 | Builtin::InfinityFloat
                 | Builtin::InfinityLongDouble
                 | Builtin::HugeValue
                 | Builtin::HugeValueFloat
                 | Builtin::HugeValueLongDouble => Absent,
-                Builtin::ConstantQuery
+                Builtin::Elementwise(_)
+                | Builtin::ConstantQuery
+                | Builtin::Complex
+                | Builtin::ComplexReal
+                | Builtin::ComplexRealFloat
+                | Builtin::ComplexRealLongDouble
+                | Builtin::ComplexImaginary
+                | Builtin::ComplexImaginaryFloat
+                | Builtin::ComplexImaginaryLongDouble
+                | Builtin::ComplexConjugate
+                | Builtin::ComplexConjugateFloat
+                | Builtin::ComplexConjugateLongDouble
                 | Builtin::Expect
                 | Builtin::Nan
                 | Builtin::NanFloat
@@ -194,8 +250,19 @@ impl Builder {
                 | Builtin::CountTrailingZeros
                 | Builtin::CountTrailingZerosLong
                 | Builtin::CountTrailingZerosLongLong => operands(arguments),
+                Builtin::Overflow(intrinsic) if intrinsic.is_predicate() => operands(arguments),
+                Builtin::Overflow(_) => Present,
+                Builtin::Atomic(crate::atomic::AtomicOperation::AlwaysLockFree) => Absent,
+                Builtin::Atomic(crate::atomic::AtomicOperation::IsLockFree)
+                | Builtin::C11Atomic(crate::c11_atomic::C11AtomicOperation::IsLockFree) => {
+                    operands(arguments)
+                }
                 // Clang's object-size builtins do not carry the const attribute.
-                Builtin::ObjectSize
+                Builtin::Nontemporal(_)
+                | Builtin::C11Atomic(_)
+                | Builtin::Atomic(_)
+                | Builtin::Sync(_)
+                | Builtin::ObjectSize
                 | Builtin::DynamicObjectSize
                 | Builtin::VaStart
                 | Builtin::VaEnd
@@ -225,9 +292,24 @@ impl Builder {
                 | Builtin::VfprintfChecked => Present,
                 Builtin::Memcmp => Unresolved.combine(operands(arguments)),
                 // These intrinsics are rejected on Clang profiles.
-                Builtin::VaArgPack | Builtin::VaArgPackLength => Unresolved,
+                Builtin::VaArgPack | Builtin::VaArgPackLength | Builtin::VectorShuffle => {
+                    Unresolved
+                }
             },
             ExprKind::VaArg { .. } => Present,
+            ExprKind::Choose {
+                then_expression,
+                else_expression,
+                then_selected,
+                ..
+            } => {
+                self.expression_builder.query_summaries[if *then_selected {
+                    then_expression.index()
+                } else {
+                    else_expression.index()
+                }]
+                .effects
+            }
             ExprKind::Generic { arms, selected, .. } => {
                 self.expression_builder.query_summaries[arms[*selected].expression.index()].effects
             }
@@ -253,15 +335,16 @@ impl crate::analyze::Analyzer {
         ) {
             return Ok(None);
         }
-        if matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        ) {
+        if self.unit.compiler == toucan_target::Compiler::Gnu {
             return Ok(Some(QueryEvaluation::Unevaluated(GnuProfile)));
         }
         if builtin == Builtin::ConstantQuery {
             let ty = self.code_builder().code.types[arguments[0].effective_type.index()].clone();
+            if matches!(self.unit.resolve(&ty)?.kind, crate::TypeKind::Complex(_)) {
+                return Ok(Some(QueryEvaluation::Unevaluated(
+                    QuerySuppression::ConstantQueryFrontendFold,
+                )));
+            }
             if !matches!(
                 self.unit.resolve(&ty)?.kind,
                 crate::TypeKind::Integer(_)

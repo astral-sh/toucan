@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "integration_base": "be4cabb",
+  "frozen_patch_sha256": "8b77f52ceca51fd3e00569caf4ec2963efc9c1049f58e742c3b93d32117b2c66",
+  "integration": "Add complex accesses with existing assignment conversions. Additional merged tests preserve binary128 real/complex load identity and compare source acceptance with Clang on all five targets without invoking known defective complex lowering.",
+  "validation": {
+    "semantic_native_tests": 18,
+    "checked_seed_replay": {
+      "profiles": 7,
+      "accepted": 372,
+      "matching_diagnostics": 118,
+      "normal_retained_unit_equality": true,
+      "graph_invariants": true
+    },
+    "clippy": "workspace all targets/all features, warnings denied",
+    "logs": {
+      "tests": {
+        "path": "/tmp/toucan-complex-nontemporal-integrated-tests.log",
+        "sha256": "50900fc1a383c99de09ac916b57aa1befd5b04ebedff1ddb9a43f6f271f770e7"
+      },
+      "clippy": {
+        "path": "/tmp/toucan-complex-nontemporal-integrated-clippy.log",
+        "sha256": "554c5f3d4417d47d18229808018f72da8e08e3836a2fa5dbfbc32edc769b42e0"
+      },
+      "replay": {
+        "path": "/tmp/toucan-complex-nontemporal-integrated-replay.log",
+        "sha256": "9d4f87dfd1b2711411593ac3d903bdd02ed68d2a5dc4c4f8f0078cf2b0c4ef9a"
+      }
+    }
+  }
+}

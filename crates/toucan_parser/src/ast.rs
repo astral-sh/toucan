@@ -131,6 +131,8 @@ pub struct FloatSuffix {
 /// (C11 6.4.4.2)
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub enum FloatFormat {
+    /// GNU q/Q literal suffix. Its type is target-specific.
+    Float128,
     /// `f` suffix
     Float,
     /// no suffix
@@ -182,6 +184,15 @@ pub enum Expression {
     ///
     /// (C11 6.5.1.1)
     GenericSelection(Box<Node<GenericSelection>>),
+
+    /// GNU compatibility query with two unevaluated type-name operands.
+    TypesCompatible(Box<Node<TypesCompatibleExpression>>),
+
+    /// GNU compile-time selection without the usual conditional conversions.
+    Choose(Box<Node<ChooseExpression>>),
+
+    /// Numeric conversion of corresponding vector lanes.
+    ConvertVector(Box<Node<ConvertVectorExpression>>),
 
     /// Structure and union members
     ///
@@ -276,9 +287,29 @@ pub enum MemberOperator {
     Indirect,
 }
 
-/// Generic selection expression
-///
-/// (C11 6.5.1.1)
+/// GNU query comparing two unevaluated type names.
+#[derive(Debug, PartialEq, Clone)]
+pub struct TypesCompatibleExpression {
+    pub left: Node<TypeName>,
+    pub right: Node<TypeName>,
+}
+
+/// GNU compile-time expression selection.
+#[derive(Debug, PartialEq, Clone)]
+pub struct ChooseExpression {
+    pub condition: Box<Node<Expression>>,
+    pub then_expression: Box<Node<Expression>>,
+    pub else_expression: Box<Node<Expression>>,
+}
+
+/// GNU and Clang vector conversion with a type-name destination.
+#[derive(Debug, PartialEq, Clone)]
+pub struct ConvertVectorExpression {
+    pub expression: Box<Node<Expression>>,
+    pub type_name: Node<TypeName>,
+}
+
+/// C11 generic selection.
 #[derive(Debug, PartialEq, Clone)]
 pub struct GenericSelection {
     pub expression: Box<Node<Expression>>,
@@ -349,7 +380,23 @@ pub struct SizeOfVal(pub Box<Node<Expression>>);
 ///
 /// (C11 6.5.3)
 #[derive(Debug, PartialEq, Clone)]
-pub struct AlignOf(pub Box<Node<TypeName>>);
+pub struct AlignOf {
+    pub kind: AlignOfKind,
+    pub operand: AlignOfOperand,
+}
+
+/// The spelling selects required or GNU preferred alignment rules.
+#[derive(Debug, PartialEq, Clone, Copy)]
+pub enum AlignOfKind {
+    C11,
+    Gnu,
+}
+
+#[derive(Debug, PartialEq, Clone)]
+pub enum AlignOfOperand {
+    TypeName(Box<Node<TypeName>>),
+    Expression(Box<Node<Expression>>),
+}
 
 /// All operators with one operand
 ///
@@ -376,6 +423,10 @@ pub enum UnaryOperator {
     Complement,
     /// `!operand`
     Negate,
+    /// GNU `__real__ operand` (also `__real`).
+    Real,
+    /// GNU `__imag__ operand` (also `__imag`).
+    Imaginary,
 }
 
 /// Unary operator expression
@@ -582,6 +633,8 @@ pub enum StorageClassSpecifier {
     Static,
     /// `_Thread_local`
     ThreadLocal,
+    /// GNU `__thread`; unlike `_Thread_local`, follows `static` or `extern`.
+    GnuThreadLocal,
     /// `auto`
     Auto,
     /// `register`
@@ -595,6 +648,12 @@ pub enum StorageClassSpecifier {
 /// (C11 6.7.2)
 #[derive(Debug, PartialEq, Clone)]
 pub enum TypeSpecifier {
+    /// GNU declaration type inferred from its initializer.
+    AutoType,
+    /// GNU and Clang bfloat16 arithmetic type.
+    BFloat16,
+    /// Clang reserved __float128 spelling (GNU uses a predefined typedef).
+    Float128,
     /// `void`
     Void,
     /// `char`
@@ -603,6 +662,9 @@ pub enum TypeSpecifier {
     Short,
     /// `int`
     Int,
+    /// Microsoft `_int8` / `__int8`, `_int16` / `__int16`, `_int32` / `__int32`,
+    /// or `_int64` / `__int64` keyword, retaining the written width.
+    MsvcInteger(u8),
     /// `long`
     Long,
     /// `float`
@@ -716,6 +778,8 @@ pub struct StructField {
 /// (C11 6.7.2.1)
 #[derive(Debug, PartialEq, Clone)]
 pub enum SpecifierQualifier {
+    /// Alignment spelling is parsed here; semantic constraints determine its subject.
+    Alignment(Node<AlignmentSpecifier>),
     TypeSpecifier(Node<TypeSpecifier>),
     TypeQualifier(Node<TypeQualifier>),
     Extension(Vec<Node<Extension>>),
@@ -1192,6 +1256,8 @@ pub enum Extension {
     ///
     /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Attribute-Syntax.html)
     Attribute(Attribute),
+    /// A calling-convention keyword such as `__cdecl`, preserving its spelling.
+    CallingConvention(Attribute),
     /// Assembler name for an object
     ///
     /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Asm-Labels.html)

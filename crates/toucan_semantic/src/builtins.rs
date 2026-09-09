@@ -14,25 +14,12 @@ pub(crate) struct MemorySignature {
 impl Analyzer {
     /// Infinity and huge-value intrinsics share the target's three C float types.
     pub(crate) fn infinity_builtin_kind(&self, name: &str) -> Option<FloatKind> {
-        Some(match name {
-            "__builtin_inff" | "__builtin_huge_valf" => FloatKind::Float,
-            "__builtin_inf" | "__builtin_huge_val" => FloatKind::Double,
-            "__builtin_infl" | "__builtin_huge_vall" => FloatKind::LongDouble,
-            _ => return None,
-        })
+        infinity_kind(name)
     }
 
     /// NaN constructors take a string payload and return the selected C format.
     pub(crate) fn nan_builtin(&self, name: &str) -> Option<(FloatKind, bool)> {
-        Some(match name {
-            "__builtin_nanf" => (FloatKind::Float, false),
-            "__builtin_nan" => (FloatKind::Double, false),
-            "__builtin_nanl" => (FloatKind::LongDouble, false),
-            "__builtin_nansf" => (FloatKind::Float, true),
-            "__builtin_nans" => (FloatKind::Double, true),
-            "__builtin_nansl" => (FloatKind::LongDouble, true),
-            _ => return None,
-        })
+        nan_kind(name)
     }
 
     /// Keep the payload conversion shared by type checking and retained uses.
@@ -42,41 +29,60 @@ impl Analyzer {
         character.pointer()
     }
 
+    /// Standard complex projection/conjugation builtins use ordinary fixed prototypes.
+    pub(crate) fn complex_unary_builtin(
+        &self,
+        name: &str,
+    ) -> Option<(FloatKind, ast::UnaryOperator)> {
+        complex_unary(name)
+    }
+
+    /// GNU/Clang's component constructor preserves each operand's real value.
+    pub(crate) fn complex_constructor_type(
+        &mut self,
+        call: &Node<ast::CallExpression>,
+    ) -> Result<Type, Error> {
+        let [real, imaginary] = call.node.arguments.as_slice() else {
+            return Err(Error::new(
+                call.span.start,
+                "__builtin_complex requires two real floating arguments",
+            ));
+        };
+        let real = self.value_expression_type(real)?;
+        let imaginary = self.value_expression_type(imaginary)?;
+        let (TypeKind::Float(real), TypeKind::Float(imaginary)) = (&real.kind, &imaginary.kind)
+        else {
+            return Err(Error::new(
+                call.span.start,
+                "__builtin_complex requires matching real floating argument types",
+            ));
+        };
+        if real != imaginary {
+            return Err(Error::new(
+                call.span.start,
+                "__builtin_complex requires matching real floating argument types",
+            ));
+        }
+        self.require_complex_kind(*real, call.span.start)?;
+        Ok(Type::new(TypeKind::Complex(*real)))
+    }
+
     /// Byte-swap prototypes use the compiler target's exact-width unsigned types.
     pub(crate) fn byte_swap_type(&self, name: &str) -> Option<Type> {
-        let kind = match name {
-            "__builtin_bswap16" => IntegerKind::UnsignedShort,
-            "__builtin_bswap32" => IntegerKind::UnsignedInt,
-            "__builtin_bswap64" => match self.unit.target {
-                toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu => IntegerKind::UnsignedLong,
-                _ => IntegerKind::UnsignedLongLong,
-            },
-            _ => return None,
-        };
-        Some(Type::new(TypeKind::Integer(kind)))
+        byte_swap_kind(name, self.unit.target).map(|kind| Type::new(TypeKind::Integer(kind)))
     }
 
     /// Fixed-width bit-count builtins convert to their declared unsigned C parameter.
     /// The canonical long type supplies the target-dependent width in both checking
     /// and retained argument conversions.
     pub(crate) fn bit_count_type(&self, name: &str) -> Option<Type> {
-        let kind = match name {
-            "__builtin_clz" | "__builtin_ctz" => IntegerKind::UnsignedInt,
-            "__builtin_clzl" | "__builtin_ctzl" => IntegerKind::UnsignedLong,
-            "__builtin_clzll" | "__builtin_ctzll" => IntegerKind::UnsignedLongLong,
-            _ => return None,
-        };
-        Some(Type::new(TypeKind::Integer(kind)))
+        bit_count_kind(name).map(|kind| Type::new(TypeKind::Integer(kind)))
     }
 
     /// Library builtins use the target's ordinary C parameter conversions.
     /// Keep this signature shared with retained argument-use construction.
     pub(crate) fn memory_builtin_signature(&self, name: &str) -> Option<MemorySignature> {
-        if !matches!(
-            name,
-            "__builtin_memset" | "__builtin_memcpy" | "__builtin_memmove" | "__builtin_memcmp"
-        ) {
+        if !is_memory_builtin(name) {
             return None;
         }
         let pointer = Type::new(TypeKind::Void).pointer();
@@ -136,6 +142,64 @@ impl Analyzer {
         let Some(name) = self.builtin_name(call) else {
             return Ok(None);
         };
+        if let Some((kind, operation)) = self.complex_unary_builtin(name) {
+            let [operand] = call.node.arguments.as_slice() else {
+                return Err(Error::new(
+                    call.span.start,
+                    "complex projection/conjugation builtin requires one argument",
+                ));
+            };
+            self.check_assignment(&Type::new(TypeKind::Complex(kind)), operand)?;
+            return Ok(Some(Type::new(
+                if operation == ast::UnaryOperator::Complement {
+                    TypeKind::Complex(kind)
+                } else {
+                    TypeKind::Float(kind)
+                },
+            )));
+        }
+        if let Some(operation) = crate::elementwise::ElementwiseOperation::from_name(name) {
+            return self.elementwise_type(operation, call).map(Some);
+        }
+        if name == "__builtin_complex" {
+            return self.complex_constructor_type(call).map(Some);
+        }
+        if name == "__builtin_shufflevector" {
+            return self
+                .shuffle_vector_signature(call)
+                .map(|signature| Some(signature.result.clone()));
+        }
+        if name == "__builtin_shuffle" {
+            return self.shuffle_call_type(call).map(Some);
+        }
+        if let Some(operation) = crate::nontemporal::NontemporalOperation::from_name(name) {
+            return self.nontemporal_call_type(operation, call).map(Some);
+        }
+        if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
+            return self.x86_call_type(intrinsic, call).map(Some);
+        }
+        if let Some(intrinsic) = crate::overflow::OverflowIntrinsic::from_name(name) {
+            return self.overflow_call_type(intrinsic, call).map(Some);
+        }
+        if let Some(operation) = crate::c11_atomic::C11AtomicOperation::from_name(name) {
+            return self.c11_atomic_call_type(operation, call).map(Some);
+        }
+        if let Some(operation) = crate::atomic::AtomicOperation::from_name(name) {
+            return self.atomic_call_type(operation, call).map(Some);
+        }
+        if let Some(operation) = crate::sync::SyncOperation::from_name(name) {
+            return self.sync_call_type(operation, call).map(Some);
+        }
+        if name.rsplit_once('_').is_some_and(|(base, suffix)| {
+            crate::sync::SyncOperation::from_name(base).is_some()
+                && !suffix.is_empty()
+                && suffix.bytes().all(|byte| byte.is_ascii_digit())
+        }) {
+            return Err(Error::new(
+                call.span.start,
+                "size-suffixed __sync intrinsic aliases are unsupported",
+            ));
+        }
         if let Some(signature) = self.fortified_signature(name, call.span.start)? {
             let arguments = &call.node.arguments;
             if arguments.len() < signature.parameters.len()
@@ -164,11 +228,7 @@ impl Analyzer {
             return Ok(Some(signature.result));
         }
         if matches!(name, "__builtin_va_arg_pack" | "__builtin_va_arg_pack_len") {
-            if !matches!(
-                self.unit.target,
-                toucan_target::Target::X86_64UnknownLinuxGnu
-                    | toucan_target::Target::Aarch64UnknownLinuxGnu
-            ) {
+            if self.unit.compiler != toucan_target::Compiler::Gnu {
                 return Err(Error::new(
                     call.span.start,
                     "variadic argument packs require a GNU target profile",
@@ -189,10 +249,8 @@ impl Analyzer {
         let nan = self.nan_builtin(name);
         let bit_count = self.bit_count_type(name);
         let object_size = self.object_size_signature(name);
-        let arity = match name {
-            "__builtin_va_start" | "__builtin_va_copy" | "__builtin_expect" => 2,
-            "__builtin_va_end" | "__builtin_constant_p" => 1,
-            "__builtin_unreachable" | "__builtin_trap" => 0,
+        let arity = match simple_builtin_arity(name) {
+            Some(arity) => arity,
             _ if memory.is_some() => 3,
             _ if byte_swap.is_some() || bit_count.is_some() => 1,
             _ if object_size.is_some() => 2,
@@ -230,21 +288,39 @@ impl Analyzer {
             return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));
         }
         if let Some(signature) = object_size {
+            let checkpoint = self.sve_feature_checkpoint();
             for (argument, parameter) in arguments.iter().zip(&signature.parameters) {
                 self.check_assignment(parameter, argument)?;
             }
             self.check_object_size_mode(&arguments[1], &signature.parameters[1])?;
+            if self.gnu_vector_profile() {
+                self.discard_sve_feature_uses(checkpoint);
+            }
             return Ok(Some(signature.result));
         }
         match name {
             "__builtin_constant_p" => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.value_expression_type(&arguments[0])?;
-                if matches!(
-                    self.unit.target,
-                    toucan_target::Target::X86_64UnknownLinuxGnu
-                        | toucan_target::Target::Aarch64UnknownLinuxGnu
-                ) {
-                    self.require_complete_object(&ty, arguments[0].span.start)?;
+                if self.unit.compiler == toucan_target::Compiler::Clang
+                    && matches!(ty.kind, TypeKind::Complex(_))
+                {
+                    if !self.known_constant_operand(&arguments[0])? {
+                        return Err(Error::new(
+                            offset,
+                            "Clang complex constant-query fallback evaluation is unsupported",
+                        ));
+                    }
+                    self.discard_sve_feature_uses(checkpoint);
+                }
+                // Clang can evaluate fresh VLA bounds in numeric queries. A
+                // nonnumeric operand cannot reach that fallback; GNU suppresses
+                // all query operands. Retain uncertain Clang obligations.
+                if self.gnu_vector_profile() || !self.is_arithmetic(&ty)? {
+                    self.discard_sve_feature_uses(checkpoint);
+                }
+                if self.unit.compiler == toucan_target::Compiler::Gnu {
+                    self.require_definite_object(&ty, arguments[0].span.start)?;
                 }
                 return Ok(Some(Type::new(TypeKind::Integer(IntegerKind::Int))));
             }
@@ -424,4 +500,83 @@ impl Analyzer {
             value.rank,
         ))
     }
+}
+
+pub(crate) fn infinity_kind(name: &str) -> Option<FloatKind> {
+    Some(match name {
+        "__builtin_inff" | "__builtin_huge_valf" => FloatKind::Float,
+        "__builtin_inf" | "__builtin_huge_val" => FloatKind::Double,
+        "__builtin_infl" | "__builtin_huge_vall" => FloatKind::LongDouble,
+        _ => return None,
+    })
+}
+
+pub(crate) fn nan_kind(name: &str) -> Option<(FloatKind, bool)> {
+    Some(match name {
+        "__builtin_nanf" => (FloatKind::Float, false),
+        "__builtin_nan" => (FloatKind::Double, false),
+        "__builtin_nanl" => (FloatKind::LongDouble, false),
+        "__builtin_nansf" => (FloatKind::Float, true),
+        "__builtin_nans" => (FloatKind::Double, true),
+        "__builtin_nansl" => (FloatKind::LongDouble, true),
+        _ => return None,
+    })
+}
+
+pub(crate) fn complex_unary(name: &str) -> Option<(FloatKind, ast::UnaryOperator)> {
+    use ast::UnaryOperator::{Complement, Imaginary, Real};
+    Some(match name {
+        "__builtin_crealf" => (FloatKind::Float, Real),
+        "__builtin_creal" => (FloatKind::Double, Real),
+        "__builtin_creall" => (FloatKind::LongDouble, Real),
+        "__builtin_cimagf" => (FloatKind::Float, Imaginary),
+        "__builtin_cimag" => (FloatKind::Double, Imaginary),
+        "__builtin_cimagl" => (FloatKind::LongDouble, Imaginary),
+        "__builtin_conjf" => (FloatKind::Float, Complement),
+        "__builtin_conj" => (FloatKind::Double, Complement),
+        "__builtin_conjl" => (FloatKind::LongDouble, Complement),
+        _ => return None,
+    })
+}
+
+pub(crate) fn bit_count_kind(name: &str) -> Option<IntegerKind> {
+    let kind = match name {
+        "__builtin_clz" | "__builtin_ctz" => IntegerKind::UnsignedInt,
+        "__builtin_clzl" | "__builtin_ctzl" => IntegerKind::UnsignedLong,
+        "__builtin_clzll" | "__builtin_ctzll" => IntegerKind::UnsignedLongLong,
+        _ => return None,
+    };
+    Some(kind)
+}
+
+pub(crate) fn byte_swap_kind(name: &str, target: toucan_target::Target) -> Option<IntegerKind> {
+    let kind = match name {
+        "__builtin_bswap16" => IntegerKind::UnsignedShort,
+        "__builtin_bswap32" => IntegerKind::UnsignedInt,
+        "__builtin_bswap64" => match target {
+            toucan_target::Target::X86_64UnknownLinuxGnu
+            | toucan_target::Target::X86_64UnknownLinuxMusl
+            | toucan_target::Target::Aarch64UnknownLinuxGnu
+            | toucan_target::Target::Aarch64UnknownLinuxMusl => IntegerKind::UnsignedLong,
+            _ => IntegerKind::UnsignedLongLong,
+        },
+        _ => return None,
+    };
+    Some(kind)
+}
+
+pub(crate) fn is_memory_builtin(name: &str) -> bool {
+    matches!(
+        name,
+        "__builtin_memset" | "__builtin_memcpy" | "__builtin_memmove" | "__builtin_memcmp"
+    )
+}
+
+pub(crate) fn simple_builtin_arity(name: &str) -> Option<usize> {
+    Some(match name {
+        "__builtin_va_start" | "__builtin_va_copy" | "__builtin_expect" => 2,
+        "__builtin_va_end" | "__builtin_constant_p" => 1,
+        "__builtin_unreachable" | "__builtin_trap" => 0,
+        _ => return None,
+    })
 }

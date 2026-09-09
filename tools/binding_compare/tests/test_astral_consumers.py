@@ -1,4 +1,5 @@
 import importlib.util
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -28,6 +29,48 @@ dependencies = ["cc", "pkg-config"]
 
 
 class LockedConsumerTests(unittest.TestCase):
+    def test_library_test_selection_uses_the_current_cargo_artifact(self):
+        artifact = {
+            "reason": "compiler-artifact",
+            "target": {"name": "uv_extract", "kind": ["lib"]},
+            "profile": {"test": True},
+            "executable": "/tmp/current-uv-extract-tests",
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            log = Path(directory) / "cargo.jsonl"
+            log.write_text(json.dumps(artifact) + "\n")
+            self.assertEqual(
+                CONSUMERS.library_test_executable(log, "uv-extract"),
+                Path(artifact["executable"]),
+            )
+            for rows in [
+                [],
+                [artifact, artifact],
+                [artifact | {"profile": {"test": False}}],
+            ]:
+                log.write_text("".join(json.dumps(row) + "\n" for row in rows))
+                with self.assertRaisesRegex(RuntimeError, "expected one"):
+                    CONSUMERS.library_test_executable(log, "uv-extract")
+
+    def test_library_test_success_requires_named_unfiltered_execution(self):
+        stdout = (
+            "running 1 test\ntest compression::roundtrip ... ok\n\n"
+            "test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s\n"
+        )
+        self.assertEqual(
+            CONSUMERS.library_test_results(stdout),
+            {"passed": 1, "ignored": 0, "tests": {"compression::roundtrip": "ok"}},
+        )
+        for invalid in [
+            stdout.replace("1 passed", "0 passed"),
+            stdout.replace("0 filtered out", "1 filtered out"),
+            stdout.replace("test compression::roundtrip ... ok\n", ""),
+            stdout.replace("test result: ok.", "test result: FAILED."),
+            stdout + stdout,
+        ]:
+            with self.subTest(invalid=invalid), self.assertRaises(RuntimeError):
+                CONSUMERS.library_test_results(invalid)
+
     def test_path_substitution_preserves_the_entire_dependency_graph(self):
         with tempfile.TemporaryDirectory() as directory:
             upstream = Path(directory) / "upstream.lock"

@@ -35,18 +35,28 @@ pub enum ValueCategory {
 #[non_exhaustive]
 pub enum Conversion {
     Lvalue,
+    /// Sequentially-consistent C atomic lvalue conversion. In a ReadModifyWrite
+    /// use, this belongs to the enclosing single atomic update, not a separate load.
+    AtomicLoad,
     ArrayDecay,
     FunctionDecay,
     IntegerPromotion,
     Arithmetic,
     Pointer,
     Assignment,
+    /// A compiler intrinsic's argument conversion, including GCC pointer/integer
+    /// bridges and qualifier erasure that ordinary assignment does not permit.
+    IntrinsicArgument,
+    /// Reinterprets equal-sized vector bits without converting their numeric lanes.
+    VectorReinterpret,
     /// Constructs a transparent-union argument through the selected field.
     TransparentUnion {
         field: super::EntityId,
     },
     DefaultArgument,
     ExplicitCast,
+    /// Convert a scalar to the lane type and repeat it in every vector lane.
+    VectorSplat,
     Conditional,
 }
 
@@ -62,6 +72,10 @@ pub enum UseContext {
     ReadModifyWrite,
     Unevaluated,
     UnevaluatedValue,
+    /// GNU overflow predicates discard this operand's value, while volatile
+    /// reads and other effects still follow its expression plan. No integer
+    /// promotion is applied; the original expression retains bitfield precision.
+    DiscardedValue,
     /// Conditional scalar evaluation governed by the enclosing builtin's
     /// [`super::QueryEvaluation`]. Ordinary value conversions are preserved.
     CompilerQuery,
@@ -84,6 +98,9 @@ pub struct ExprUse {
 
 #[derive(Debug, Serialize)]
 pub struct Expression {
+    /// Store/update performed by this operator; atomic loads are use conversions.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) atomic_access: Option<crate::atomic_type::AtomicAccess>,
     /// Written type-name owner, independent of its reusable canonical/type-use shape.
     pub(crate) type_name: Option<OccurrenceId>,
     pub(crate) type_name_use: Option<super::bounds::TypeUseId>,
@@ -94,6 +111,8 @@ pub struct Expression {
     pub(crate) category: ValueCategory,
     pub(crate) bitfield: Option<u64>,
     pub(crate) register: bool,
+    pub(crate) vector_element: bool,
+    pub(crate) volatile_place: bool,
     pub(crate) kind: ExprKind,
 }
 
@@ -121,7 +140,9 @@ operators!(
     Plus,
     Minus,
     Complement,
-    Negate
+    Negate,
+    Real,
+    Imaginary
 );
 operators!(
     Binary,
@@ -161,6 +182,28 @@ operators!(
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub enum Builtin {
+    /// GNU one- or two-vector shuffle. The last argument is an integer mask;
+    /// each mask lane selects modulo the concatenated input lane count. All
+    /// operands are evaluated once in ordinary unspecified argument order.
+    VectorShuffle,
+    /// Constructs a complex value from two matching real floating components.
+    Complex,
+    ComplexReal,
+    ComplexRealFloat,
+    ComplexRealLongDouble,
+    ComplexImaginary,
+    ComplexImaginaryFloat,
+    ComplexImaginaryLongDouble,
+    ComplexConjugate,
+    ComplexConjugateFloat,
+    ComplexConjugateLongDouble,
+    X86(crate::x86::X86Intrinsic),
+    Nontemporal(crate::nontemporal::NontemporalOperation),
+    Elementwise(crate::elementwise::ElementwiseOperation),
+    Sync(crate::sync::SyncOperation),
+    Atomic(crate::atomic::AtomicOperation),
+    C11Atomic(crate::c11_atomic::C11AtomicOperation),
+    Overflow(crate::overflow::OverflowIntrinsic),
     VaStart,
     VaEnd,
     VaCopy,
@@ -225,6 +268,17 @@ impl Builtin {
 
     fn from_name(name: &str) -> Option<Self> {
         Some(match name {
+            "__builtin_shuffle" => Self::VectorShuffle,
+            "__builtin_complex" => Self::Complex,
+            "__builtin_creal" => Self::ComplexReal,
+            "__builtin_crealf" => Self::ComplexRealFloat,
+            "__builtin_creall" => Self::ComplexRealLongDouble,
+            "__builtin_cimag" => Self::ComplexImaginary,
+            "__builtin_cimagf" => Self::ComplexImaginaryFloat,
+            "__builtin_cimagl" => Self::ComplexImaginaryLongDouble,
+            "__builtin_conj" => Self::ComplexConjugate,
+            "__builtin_conjf" => Self::ComplexConjugateFloat,
+            "__builtin_conjl" => Self::ComplexConjugateLongDouble,
             "__builtin_va_start" => Self::VaStart,
             "__builtin_va_end" => Self::VaEnd,
             "__builtin_va_copy" => Self::VaCopy,
@@ -280,9 +334,39 @@ impl Builtin {
             "__builtin_ctz" => Self::CountTrailingZeros,
             "__builtin_ctzl" => Self::CountTrailingZerosLong,
             "__builtin_ctzll" => Self::CountTrailingZerosLongLong,
-            _ => return None,
+            name => {
+                if let Some(operation) = crate::elementwise::ElementwiseOperation::from_name(name) {
+                    Self::Elementwise(operation)
+                } else if let Some(operation) =
+                    crate::nontemporal::NontemporalOperation::from_name(name)
+                {
+                    Self::Nontemporal(operation)
+                } else if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
+                    Self::X86(intrinsic)
+                } else if let Some(intrinsic) = crate::overflow::OverflowIntrinsic::from_name(name)
+                {
+                    Self::Overflow(intrinsic)
+                } else if let Some(operation) =
+                    crate::c11_atomic::C11AtomicOperation::from_name(name)
+                {
+                    Self::C11Atomic(operation)
+                } else if let Some(operation) = crate::atomic::AtomicOperation::from_name(name) {
+                    Self::Atomic(operation)
+                } else {
+                    Self::Sync(crate::sync::SyncOperation::from_name(name)?)
+                }
+            }
         })
     }
+}
+
+/// A checked written type, including its source occurrence and runtime bounds.
+#[derive(Debug, Serialize)]
+pub struct TypeNameOperand {
+    /// The written type-name source site.
+    pub occurrence: OccurrenceId,
+    /// The checked shape and identities of any runtime bounds.
+    pub type_use: super::TypeUseId,
 }
 
 #[derive(Debug, Serialize)]
@@ -296,6 +380,11 @@ pub struct GenericArm {
 pub enum ExprKind {
     Integer(IntegerValue),
     Float {
+        digits: String,
+        hexadecimal: bool,
+    },
+    /// GNU imaginary floating literal, with positive zero real component.
+    ImaginaryFloat {
         digits: String,
         hexadecimal: bool,
     },
@@ -336,14 +425,26 @@ pub enum ExprKind {
     Call {
         callee: ExprUse,
         direct_callee: Option<EntityId>,
+        /// Non-return promise visible through this call's function type or known
+        /// callee declaration. False does not prove that the call can return.
+        #[serde(skip_serializing_if = "std::ops::Not::not")]
+        noreturn: bool,
         arguments: Vec<ExprUse>,
     },
     BuiltinCall {
         builtin: Builtin,
         /// Present only for constant and object-size query intrinsics.
         query_evaluation: Option<super::QueryEvaluation>,
+        /// Structural extent and compiler-result facts for object-size queries.
+        object_size: Option<Box<super::ObjectSizeProof>>,
         callee_occurrence: OccurrenceId,
         arguments: Vec<ExprUse>,
+    },
+    /// Vector operands are each evaluated once, with no imposed relative order.
+    ShuffleVector {
+        callee_occurrence: OccurrenceId,
+        operands: [ExprUse; 2],
+        mask: super::ShuffleMask,
     },
     VaArg {
         list: ExprUse,
@@ -354,10 +455,35 @@ pub enum ExprKind {
         operand: ExprUse,
         variable: bool,
     },
-    AlignOf(TypeId),
+    AlignOf {
+        kind: super::AlignmentKind,
+        operand: super::AlignmentOperand,
+        alignment_bytes: u64,
+    },
     OffsetOf {
         record: TypeId,
         members: Vec<OffsetMember>,
+    },
+    /// Numerically converts each source lane to the corresponding destination
+    /// lane. The input is evaluated once; this does not reinterpret its bits.
+    ConvertVector {
+        value: ExprUse,
+        destination: TypeNameOperand,
+    },
+    /// Both written types are checked, but their bounds and typeof operands are
+    /// unevaluated. The int result is an integer constant expression.
+    TypesCompatible {
+        left: TypeNameOperand,
+        right: TypeNameOperand,
+        compatible: bool,
+    },
+    /// The condition is an unevaluated integer constant expression. Only the
+    /// selected arm executes; its original type and value category are preserved.
+    Choose {
+        condition: ExprUse,
+        then_expression: ExprId,
+        else_expression: ExprId,
+        then_selected: bool,
     },
     Generic {
         control: ExprUse,
@@ -414,14 +540,18 @@ enum State {
 struct ExpressionProperties {
     function: bool,
     volatile_lvalue: bool,
+    atomic_access: Option<crate::atomic_type::AtomicAccess>,
 }
 
 #[derive(Default)]
 pub(super) struct ExpressionBuilder {
+    // Capture lexical promises before later operands introduce declarations.
+    noreturn_names: std::collections::HashSet<OccurrenceId>,
     pub(super) query_summaries: Vec<super::query::QuerySummary>,
     states: HashMap<OccurrenceId, State>,
     assignments: HashMap<(ExprId, TypeId), AssignmentId>,
     statement_results: HashMap<OccurrenceId, Option<ExprId>>,
+    alignment_origins: HashMap<ExprId, crate::alignof::OriginId>,
 }
 
 impl Builder {
@@ -431,6 +561,9 @@ impl Builder {
             let id = ExprId(index as u32);
             let extra = match expression.kind {
                 ExprKind::BuiltinCall {
+                    callee_occurrence, ..
+                }
+                | ExprKind::ShuffleVector {
                     callee_occurrence, ..
                 } => Some((callee_occurrence, Coverage::BuiltinCallee(id))),
                 ExprKind::AddressIndirection { indirection, .. } => {
@@ -529,6 +662,9 @@ impl Builder {
             lvalue: expression.category == ValueCategory::ObjectLvalue,
             bitfield: expression.bitfield,
             register: expression.register,
+            vector_element: expression.vector_element,
+            volatile_place: expression.volatile_place,
+            alignment_origin: self.expression_builder.alignment_origins.get(&id).copied(),
         }
     }
 
@@ -575,6 +711,49 @@ impl Builder {
         Ok(())
     }
 
+    pub(super) fn unevaluated_selection_ranges(&self, kind: &ExprKind) -> Vec<lang_c::span::Span> {
+        let range =
+            |id: ExprId| self.parsed_spans[self.code.expressions[id.index()].occurrence.index()];
+        match kind {
+            ExprKind::ShuffleVector {
+                mask: super::ShuffleMask::Constant(indices),
+                ..
+            } => indices
+                .iter()
+                .map(|index| range(index.operand.expression))
+                .collect(),
+            ExprKind::Generic {
+                control,
+                arms,
+                selected,
+            } => std::iter::once(control.expression)
+                .chain(
+                    arms.iter()
+                        .enumerate()
+                        .filter(|(index, _)| index != selected)
+                        .map(|(_, arm)| arm.expression),
+                )
+                .map(range)
+                .collect(),
+            ExprKind::Choose {
+                condition,
+                then_expression,
+                else_expression,
+                then_selected,
+            } => {
+                vec![
+                    range(condition.expression),
+                    range(if *then_selected {
+                        *else_expression
+                    } else {
+                        *then_expression
+                    }),
+                ]
+            }
+            _ => Vec::new(),
+        }
+    }
+
     pub(super) fn entity_for_name(&self, name: &str) -> Option<EntityId> {
         let mut scope = Some(self.current);
         while let Some(id) = scope {
@@ -615,7 +794,23 @@ impl Builder {
                 effects: self.query_effects(&kind),
                 volatile_lvalue: properties.volatile_lvalue,
             });
+        if let Some(origin) = info.alignment_origin {
+            if self.expression_builder.alignment_origins.len() >= 65_536 {
+                return Err(Error::new(
+                    offset,
+                    "retained alignment origin count exceeds the 65536-entry limit",
+                ));
+            }
+            self.budget.charge(
+                0,
+                0,
+                std::mem::size_of::<(ExprId, crate::alignof::OriginId)>(),
+                offset,
+            )?;
+            self.expression_builder.alignment_origins.insert(id, origin);
+        }
         self.code.expressions.push(Expression {
+            atomic_access: properties.atomic_access,
             type_use,
             type_name_use,
             type_name,
@@ -631,6 +826,8 @@ impl Builder {
             },
             bitfield: info.bitfield,
             register: info.register,
+            vector_element: info.vector_element,
+            volatile_place: properties.volatile_lvalue,
             kind,
         });
         self.expression_builder
@@ -685,6 +882,7 @@ impl Analyzer {
             context,
             UseContext::Value
                 | UseContext::UnevaluatedValue
+                | UseContext::DiscardedValue
                 | UseContext::ReadModifyWrite
                 | UseContext::CompilerQuery
         ) {
@@ -693,6 +891,7 @@ impl Analyzer {
                     Some(Conversion::ArrayDecay)
                 }
                 TypeKind::Function(_) => Some(Conversion::FunctionDecay),
+                TypeKind::Atomic(_) if info.lvalue => Some(Conversion::AtomicLoad),
                 _ if info.lvalue => Some(Conversion::Lvalue),
                 _ => None,
             };
@@ -713,17 +912,28 @@ impl Analyzer {
                     TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
                 )
                 && matches!(
-                    self.unit.resolve(&info.ty)?.kind,
+                    ty.kind,
                     TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
                 )
             {
                 let promoted = integer_to_type(self.promoted_integer(&info, offset)?);
-                if ty != promoted {
+                if self.unit.resolve(&ty)?.kind != promoted.kind {
                     conversions.push(ConversionStep {
                         kind: Conversion::IntegerPromotion,
                         target_type: self.retained_type(&promoted, offset)?,
                     });
                     ty = promoted;
+                }
+            }
+            if kind == Conversion::VectorSplat {
+                let TypeKind::Vector { element, .. } = &destination.kind else {
+                    unreachable!()
+                };
+                if ty != **element {
+                    conversions.push(ConversionStep {
+                        kind: Conversion::Arithmetic,
+                        target_type: self.retained_type(element, offset)?,
+                    });
                 }
             }
             if ty != destination {
@@ -762,6 +972,24 @@ impl Analyzer {
         self.retained_use(expression, UseContext::Value, None)
     }
 
+    fn retained_type_name_operand(
+        &mut self,
+        name: &Node<ast::TypeName>,
+    ) -> Result<TypeNameOperand, Error> {
+        let builder = self.code_builder();
+        builder.budget.charge(0, 2, 0, name.span.start)?;
+        let occurrence = builder.type_name_occurrence(&name.node).ok_or_else(|| {
+            Error::new(name.span.start, "type operand has no retained occurrence")
+        })?;
+        let type_use = builder
+            .type_name_use(&name.node)
+            .ok_or_else(|| Error::new(name.span.start, "type operand has no retained type use"))?;
+        Ok(TypeNameOperand {
+            occurrence,
+            type_use,
+        })
+    }
+
     fn retained_field_path(
         &self,
         ty: &Type,
@@ -773,15 +1001,22 @@ impl Analyzer {
             .ok_or_else(|| Error::new(offset, "checked member has no retained field path"))
     }
 
-    fn retained_direct_callee(&mut self, expression: ExprId) -> Option<EntityId> {
-        let code = &self.code_builder().code;
+    fn retained_direct_callee(&mut self, expression: ExprId) -> Option<(EntityId, bool)> {
+        let builder = self.code_builder();
+        let code = &builder.code;
         let mut id = expression;
         for _ in 0..128 {
             match &code.expressions[id.index()].kind {
                 ExprKind::Name(entity)
                     if code.entities[entity.index()].kind == EntityKind::Function =>
                 {
-                    return Some(*entity);
+                    return Some((
+                        *entity,
+                        builder
+                            .expression_builder
+                            .noreturn_names
+                            .contains(&code.expressions[id.index()].occurrence),
+                    ));
                 }
                 ExprKind::Unary {
                     operator: Unary::Address | Unary::Indirection,
@@ -789,6 +1024,19 @@ impl Analyzer {
                     ..
                 } => id = operand.expression,
                 ExprKind::Cast { value, .. } => id = value.expression,
+                ExprKind::Choose {
+                    then_expression,
+                    else_expression,
+                    then_selected,
+                    ..
+                } => {
+                    id = if *then_selected {
+                        *then_expression
+                    } else {
+                        *else_expression
+                    };
+                }
+                ExprKind::Generic { arms, selected, .. } => id = arms[*selected].expression,
                 _ => return None,
             }
         }
@@ -843,11 +1091,11 @@ impl Analyzer {
                     ExprKind::Integer(self.literal(integer, offset)?)
                 }
                 ast::Constant::Character(character) => {
-                    ExprKind::Integer(crate::decode_character_literal(
+                    ExprKind::Integer(crate::decode_character_literal_with_profile(
                         self.character_literals
                             .get(&constant.span.start)
                             .map_or(character.as_str(), String::as_str),
-                        self.unit.target,
+                        self.unit.profile()?,
                         offset,
                     )?)
                 }
@@ -855,9 +1103,18 @@ impl Analyzer {
                     self.code_builder()
                         .budget
                         .charge(0, 0, float.number.len(), offset)?;
-                    ExprKind::Float {
-                        digits: float.number.to_string(),
-                        hexadecimal: float.base == ast::FloatBase::Hexadecimal,
+                    let digits = float.number.to_string();
+                    let hexadecimal = float.base == ast::FloatBase::Hexadecimal;
+                    if float.suffix.imaginary {
+                        ExprKind::ImaginaryFloat {
+                            digits,
+                            hexadecimal,
+                        }
+                    } else {
+                        ExprKind::Float {
+                            digits,
+                            hexadecimal,
+                        }
                     }
                 }
             },
@@ -884,6 +1141,15 @@ impl Analyzer {
                             ),
                         )
                     })?;
+                if matches!(self.unit.resolve(&info.ty)?.kind, TypeKind::Function(_))
+                    && self.visible_noreturn(&identifier.node.name)
+                {
+                    let builder = self.code_builder();
+                    builder
+                        .budget
+                        .charge(0, 1, std::mem::size_of::<OccurrenceId>(), offset)?;
+                    builder.expression_builder.noreturn_names.insert(occurrence);
+                }
                 ExprKind::Name(entity)
             }
             ast::Expression::UnaryOperator(unary) => {
@@ -912,7 +1178,13 @@ impl Analyzer {
                             | Unary::PostDecrement
                     );
                     let integer = matches!(
-                        self.unit.resolve(&operand_info.ty)?.kind,
+                        self.unit
+                            .resolve(
+                                self.unit
+                                    .atomic_value(&operand_info.ty)?
+                                    .unwrap_or(&operand_info.ty)
+                            )?
+                            .kind,
                         TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
                     );
                     let (context, destination) = if update {
@@ -925,7 +1197,9 @@ impl Analyzer {
                             None
                         };
                         (UseContext::ReadModifyWrite, destination)
-                    } else if operator == Unary::Address {
+                    } else if operator == Unary::Address
+                        || matches!(operator, Unary::Real | Unary::Imaginary) && info.lvalue
+                    {
                         (UseContext::Place, None)
                     } else if matches!(operator, Unary::Plus | Unary::Minus | Unary::Complement)
                         && integer
@@ -947,7 +1221,14 @@ impl Analyzer {
                         None
                     };
                     let write_back = if update {
-                        Some(self.retained_type(&info.ty, offset)?)
+                        Some(self.retained_type(
+                            if self.unit.atomic_value(&operand_info.ty)?.is_some() {
+                                &operand_info.ty
+                            } else {
+                                &info.ty
+                            },
+                            offset,
+                        )?)
                     } else {
                         None
                     };
@@ -967,7 +1248,20 @@ impl Analyzer {
                 type_name = self
                     .code_builder()
                     .type_name_occurrence(&cast.node.type_name.node);
-                let destination = self.unqualified(&destination)?;
+                let destination =
+                    if self.gnu_sync_profile() && self.unit.atomic_value(&destination)?.is_some() {
+                        if let Some(id) = explicit_type_use {
+                            explicit_type_use = Some(self.code_builder().project_type_use(
+                                id,
+                                &info.ty,
+                                super::bounds::TypeStep::AtomicValue,
+                                offset,
+                            )?);
+                        }
+                        self.atomic_value_type(&destination)?
+                    } else {
+                        self.unqualified(&destination)?
+                    };
                 ExprKind::Cast {
                     destination: self.retained_type(&destination, offset)?,
                     value: self.retained_use(
@@ -1066,14 +1360,62 @@ impl Analyzer {
                 }
             }
             ast::Expression::AlignOf(alignment) => {
-                let ty = self.type_name(&alignment.node.0.node)?;
-                type_name_use = self.code_builder().type_name_use(&alignment.node.0.node);
-                type_name = self
-                    .code_builder()
-                    .type_name_occurrence(&alignment.node.0.node);
-                ExprKind::AlignOf(self.retained_type(&ty, offset)?)
+                let result = self.alignment_query(alignment)?;
+                let operand = match &alignment.node.operand {
+                    ast::AlignOfOperand::TypeName(name) => {
+                        type_name_use = self.code_builder().type_name_use(&name.node);
+                        type_name = self.code_builder().type_name_occurrence(&name.node);
+                        super::AlignmentOperand::Type(self.retained_type_name_operand(name)?)
+                    }
+                    ast::AlignOfOperand::Expression(expression) => {
+                        super::AlignmentOperand::Expression(self.retained_use(
+                            expression,
+                            UseContext::Unevaluated,
+                            None,
+                        )?)
+                    }
+                };
+                ExprKind::AlignOf {
+                    kind: alignment.node.kind.into(),
+                    operand,
+                    alignment_bytes: result.bytes,
+                }
             }
             ast::Expression::OffsetOf(offset_of) => self.retain_offset_of(offset_of)?,
+            ast::Expression::ConvertVector(conversion) => {
+                self.code_builder().budget.charge(0, 1, 0, offset)?;
+                ExprKind::ConvertVector {
+                    value: self.retained_value(&conversion.node.expression)?,
+                    destination: self.retained_type_name_operand(&conversion.node.type_name)?,
+                }
+            }
+            ast::Expression::TypesCompatible(query) => {
+                let compatible = self.eval_types_compatible(query)?.truth();
+                ExprKind::TypesCompatible {
+                    left: self.retained_type_name_operand(&query.node.left)?,
+                    right: self.retained_type_name_operand(&query.node.right)?,
+                    compatible,
+                }
+            }
+            ast::Expression::Choose(selection) => {
+                let then_selected = *self
+                    .choose_selections
+                    .get(&(selection.span.start, selection.span.end))
+                    .ok_or_else(|| Error::new(offset, "compile-time selection was not checked"))?;
+                self.code_builder().budget.charge(0, 3, 0, offset)?;
+                ExprKind::Choose {
+                    condition: self.retained_use(
+                        &selection.node.condition,
+                        UseContext::UnevaluatedValue,
+                        None,
+                    )?,
+                    then_expression: self
+                        .retained_expression_id(&selection.node.then_expression)?,
+                    else_expression: self
+                        .retained_expression_id(&selection.node.else_expression)?,
+                    then_selected,
+                }
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)? as *const Node<ast::Expression>;
                 let mut arms = Vec::new();
@@ -1172,25 +1514,90 @@ impl Analyzer {
             }
         };
         let function = matches!(self.unit.resolve(&info.ty)?.kind, TypeKind::Function(_));
-        let volatile_lvalue = info.lvalue && self.unit.qualifiers(&info.ty)?.is_volatile;
+        let volatile_lvalue =
+            info.lvalue && (info.volatile_place || self.unit.qualifiers(&info.ty)?.is_volatile);
+        let atomic_access = match &kind {
+            ExprKind::Unary {
+                operand,
+                write_back: Some(_),
+                ..
+            } => {
+                let place = self.code_builder().expression_info(operand.expression);
+                self.unit
+                    .atomic_value(&place.ty)?
+                    .is_some()
+                    .then_some(crate::atomic_type::AtomicAccess::ReadModifyWrite)
+            }
+            ExprKind::Binary {
+                operator,
+                left,
+                write_back: Some(_),
+                ..
+            } => {
+                let place = self.code_builder().expression_info(left.expression);
+                self.unit.atomic_value(&place.ty)?.is_some().then_some(
+                    if *operator == Binary::Assign {
+                        crate::atomic_type::AtomicAccess::Store
+                    } else {
+                        crate::atomic_type::AtomicAccess::ReadModifyWrite
+                    },
+                )
+            }
+            _ => None,
+        };
         self.code_builder().finish_expression(
             occurrence,
             info,
             ExpressionProperties {
                 function,
                 volatile_lvalue,
+                atomic_access,
             },
             kind,
             explicit_type_use,
             (type_name_use, type_name),
-        )
+        )?;
+        self.retain_inline_target(expression)
     }
 
     fn retain_call(&mut self, call: &Node<ast::CallExpression>) -> Result<ExprKind, Error> {
         let offset = call.span.start;
+        if self.builtin_name(call) == Some("__builtin_shufflevector") {
+            return self.retain_shuffle_vector(call);
+        }
         if let Some(name) = self.builtin_name(call)
             && let Some(builtin) = Builtin::from_name(name)
         {
+            let x86 = if let Builtin::X86(intrinsic) = builtin {
+                intrinsic.signature_with_profile(self.unit.profile()?)
+            } else {
+                None
+            };
+            let overflow = if let Builtin::Overflow(intrinsic) = builtin {
+                Some((intrinsic, self.overflow_signature(intrinsic, call)?))
+            } else {
+                None
+            };
+            let atomic = match builtin {
+                Builtin::Atomic(operation) => Some(self.atomic_signature(operation, call)?),
+                Builtin::C11Atomic(operation) => Some(self.c11_atomic_signature(operation, call)?),
+                _ => None,
+            };
+            let sync = if let Builtin::Sync(operation) = builtin {
+                Some((operation, self.sync_signature(operation, call)?))
+            } else {
+                None
+            };
+            let nontemporal = if let Builtin::Nontemporal(operation) = builtin {
+                Some((operation, self.nontemporal_value_type(operation, call)?))
+            } else {
+                None
+            };
+            let elementwise = if let Builtin::Elementwise(operation) = builtin {
+                Some(self.elementwise_type(operation, call)?)
+            } else {
+                None
+            };
             let memory = self.memory_builtin_signature(name);
             let nan = self.nan_builtin(name);
             let object_size = self.object_size_signature(name);
@@ -1218,7 +1625,93 @@ impl Analyzer {
                     arguments.push(self.retained_use(argument, UseContext::VariadicPack, None)?);
                     continue;
                 }
-                let (context, destination) = if let Some(signature) = &fortified {
+                let (context, destination) = if let Some(destination) = &elementwise {
+                    let info = self.expression_info(argument)?;
+                    let destination =
+                        self.integer_arithmetic_operand_type(&info, destination, offset)?;
+                    (
+                        UseContext::Value,
+                        Some((destination, Conversion::Arithmetic)),
+                    )
+                } else if let Some(signature) = &x86 {
+                    let destination = signature.parameters()[index].clone();
+                    let conversion = if !self.gnu_vector_profile()
+                        && matches!(destination.kind, TypeKind::Vector { .. })
+                    {
+                        Conversion::IntrinsicArgument
+                    } else {
+                        Conversion::Assignment
+                    };
+                    (UseContext::Value, Some((destination, conversion)))
+                } else if let Some((operation, value)) = &nontemporal {
+                    (
+                        UseContext::Value,
+                        if index == operation.address_argument() {
+                            None
+                        } else {
+                            Some((
+                                value.clone(),
+                                if matches!(value.kind, TypeKind::Vector { .. }) {
+                                    Conversion::VectorReinterpret
+                                } else {
+                                    Conversion::Assignment
+                                },
+                            ))
+                        },
+                    )
+                } else if let Some((intrinsic, signature)) = &overflow {
+                    (
+                        if intrinsic.is_predicate() && index == 2 {
+                            UseContext::DiscardedValue
+                        } else {
+                            UseContext::Value
+                        },
+                        signature.parameters[index]
+                            .as_ref()
+                            .map(|ty| (ty.clone(), signature.conversions[index])),
+                    )
+                } else if let Some(signature) = &atomic {
+                    (
+                        signature.context,
+                        Some((
+                            signature.parameters[index]
+                                .as_ref()
+                                .expect("atomic argument")
+                                .clone(),
+                            signature.conversions[index],
+                        )),
+                    )
+                } else if let Some((operation, signature)) = &sync {
+                    if index >= operation.required() {
+                        (
+                            if self.gnu_sync_profile() {
+                                UseContext::UnevaluatedValue
+                            } else {
+                                UseContext::Unevaluated
+                            },
+                            None,
+                        )
+                    } else {
+                        let destination = if index == 0 {
+                            signature.address.as_ref()
+                        } else {
+                            signature.value.as_ref()
+                        }
+                        .expect("required sync argument")
+                        .clone();
+                        (
+                            UseContext::Value,
+                            Some((
+                                destination,
+                                if self.gnu_sync_profile() {
+                                    Conversion::IntrinsicArgument
+                                } else {
+                                    Conversion::Assignment
+                                },
+                            )),
+                        )
+                    }
+                } else if let Some(signature) = &fortified {
                     let destination = if let Some(parameter) = signature.parameters.get(index) {
                         (parameter.clone(), Conversion::Assignment)
                     } else {
@@ -1243,6 +1736,11 @@ impl Analyzer {
                         UseContext::Value,
                         Some((ty.clone(), Conversion::Assignment)),
                     )
+                } else if let Some((kind, _)) = self.complex_unary_builtin(name) {
+                    (
+                        UseContext::Value,
+                        Some((Type::new(TypeKind::Complex(kind)), Conversion::Assignment)),
+                    )
                 } else if nan.is_some() {
                     (
                         UseContext::Value,
@@ -1256,6 +1754,8 @@ impl Analyzer {
                             Conversion::Assignment,
                         )),
                     )
+                } else if matches!(builtin, Builtin::VectorShuffle | Builtin::Complex) {
+                    (UseContext::Value, None)
                 } else if builtin == Builtin::ConstantQuery {
                     (UseContext::UnevaluatedValue, None)
                 } else if builtin == Builtin::VaStart && index == 1 {
@@ -1267,19 +1767,36 @@ impl Analyzer {
                 };
                 arguments.push(self.retained_use(argument, context, destination)?);
             }
-            let query_evaluation = self.retained_query_evaluation(builtin, call, &arguments)?;
+            let object_size = if object_size.is_some() {
+                let proof = self.infer_object_size(call)?;
+                self.code_builder()
+                    .retain_object_size_proof(proof, offset)?
+            } else {
+                None
+            };
+            let mut query_evaluation = self.retained_query_evaluation(builtin, call, &arguments)?;
+            if object_size
+                .as_ref()
+                .is_some_and(|proof| proof.frontend_fold())
+            {
+                query_evaluation = Some(super::QueryEvaluation::Unevaluated(
+                    super::QuerySuppression::ObjectSizeFrontendFold,
+                ));
+            }
             if query_evaluation.is_some_and(super::QueryEvaluation::may_evaluate) {
                 arguments[0].context = UseContext::CompilerQuery;
             }
             return Ok(ExprKind::BuiltinCall {
                 builtin,
                 query_evaluation,
+                object_size,
                 callee_occurrence,
                 arguments,
             });
         }
         let callee = self.retained_value(&call.node.callee)?;
-        let direct_callee = self.retained_direct_callee(callee.expression);
+        let known_callee = self.retained_direct_callee(callee.expression);
+        let direct_callee = known_callee.map(|(entity, _)| entity);
         let ty = self.code_builder().code.types[callee.effective_type.index()].clone();
         let TypeKind::Pointer(pointee) = ty.kind else {
             return Err(Error::new(offset, "retained callee has no pointer type"));
@@ -1348,9 +1865,11 @@ impl Analyzer {
                 Some((destination, conversion)),
             )?);
         }
+        let noreturn = function.noreturn || known_callee.is_some_and(|(_, promise)| promise);
         Ok(ExprKind::Call {
             callee,
             direct_callee,
+            noreturn,
             arguments,
         })
     }
@@ -1362,7 +1881,11 @@ impl Analyzer {
         Ok(match ty.kind {
             TypeKind::Float(FloatKind::Float) => Type::new(TypeKind::Float(FloatKind::Double)),
             TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_) => {
-                integer_to_type(self.promoted_integer(&info, offset)?)
+                if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.promoted_integer_type(&info, offset)?
+                } else {
+                    integer_to_type(self.promoted_integer(&info, offset)?)
+                }
             }
             _ => ty,
         })
@@ -1399,21 +1922,58 @@ impl Analyzer {
         let mut computation = None;
         match binary.node.operator.node {
             Op::Assign => {
-                right_destination = Some((self.unqualified(&left.ty)?, Conversion::Assignment))
+                right_destination =
+                    Some((self.atomic_value_type(&left.ty)?, Conversion::Assignment))
             }
             Op::LogicalAnd | Op::LogicalOr | Op::Index => {}
+            _ if matches!(left_value.kind, TypeKind::Vector { .. })
+                || matches!(right_value.kind, TypeKind::Vector { .. }) =>
+            {
+                let shift = matches!(
+                    binary.node.operator.node,
+                    Op::ShiftLeft | Op::ShiftRight | Op::AssignShiftLeft | Op::AssignShiftRight
+                );
+                let common = self.vector_operands(
+                    &left_value,
+                    &right_value,
+                    &binary.node.lhs,
+                    &binary.node.rhs,
+                    shift,
+                )?;
+                computation = Some(common.clone());
+                if !matches!(left_value.kind, TypeKind::Vector { .. }) {
+                    left_destination = Some((common.clone(), Conversion::VectorSplat));
+                }
+                if !shift {
+                    if !matches!(right_value.kind, TypeKind::Vector { .. }) {
+                        right_destination = Some((common, Conversion::VectorSplat));
+                    } else if !self.compatible(&right_value, &common)? {
+                        // Native NEON and GNU vectors have distinct C identities
+                        // but convert lane values to the left operand's type.
+                        right_destination = Some((common, Conversion::Arithmetic));
+                    }
+                }
+            }
             Op::ShiftLeft | Op::ShiftRight | Op::AssignShiftLeft | Op::AssignShiftRight => {
-                let left = integer_to_type(self.promoted_integer(&left, offset)?);
-                let right = integer_to_type(self.promoted_integer(&right, offset)?);
+                let left = if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.promoted_integer_type(&left, offset)?
+                } else {
+                    integer_to_type(self.promoted_integer(&left, offset)?)
+                };
+                let right = if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.promoted_integer_type(&right, offset)?
+                } else {
+                    integer_to_type(self.promoted_integer(&right, offset)?)
+                };
                 computation = Some(left.clone());
                 left_destination = Some((left, Conversion::IntegerPromotion));
                 right_destination = Some((right, Conversion::IntegerPromotion));
             }
             _ if self.is_arithmetic(&left_value)? && self.is_arithmetic(&right_value)? => {
-                let common = self.arithmetic_type(&left, &right, offset)?;
-                computation = Some(common.clone());
-                left_destination = Some((common.clone(), Conversion::Arithmetic));
-                right_destination = Some((common, Conversion::Arithmetic));
+                let (left, right, result) = self.arithmetic_operand_types(&left, &right, offset)?;
+                computation = Some(result);
+                left_destination = Some((left, Conversion::Arithmetic));
+                right_destination = Some((right, Conversion::Arithmetic));
             }
             Op::Equals
             | Op::NotEquals
@@ -1446,7 +2006,14 @@ impl Analyzer {
             .map(|ty| self.retained_type(ty, offset))
             .transpose()?;
         let write_back = if assignment {
-            Some(self.retained_type(&result.ty, offset)?)
+            Some(self.retained_type(
+                if self.unit.atomic_value(&left.ty)?.is_some() {
+                    &left.ty
+                } else {
+                    &result.ty
+                },
+                offset,
+            )?)
         } else {
             None
         };
@@ -1606,7 +2173,10 @@ mod tests {
                     Builtin::ByteSwap64
                         if matches!(
                             target,
-                            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                            Target::X86_64UnknownLinuxGnu
+                                | Target::X86_64UnknownLinuxMusl
+                                | Target::Aarch64UnknownLinuxGnu
+                                | Target::Aarch64UnknownLinuxMusl
                         ) =>
                     {
                         IntegerKind::UnsignedLong
@@ -1828,6 +2398,7 @@ mod tests {
                         callee,
                         direct_callee,
                         arguments,
+                        ..
                     } => Some((callee, direct_callee, arguments)),
                     _ => None,
                 })
@@ -2219,7 +2790,10 @@ mod tests {
         for target in Target::ALL {
             let gnu = matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
+                    | Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
             );
             let code = checked(
                 "int f(int x) { int a[1]; ({ x; }); ({ x; _Static_assert(1, \"ok\"); }); ({ a; }); return ({ int x = 2; x; }); }",

@@ -1,0 +1,53 @@
+{
+  "schema_version": 1,
+  "integration_base": "56b04eb",
+  "frozen_patch_sha256": "172456611a32c5a047bd3256540214e53ad26576a351d5c983785766aeb13f9f",
+  "changes_after_freeze": [
+    "Reject -std=c11 until strict keyword and predefined-macro mode rules are implemented; -std=gnu11 remains supported.",
+    "Find generated dependency files using Cargo metadata target_directory; filter shared targets by copied zstd-sys source."
+  ],
+  "runs": {
+    "four_profiles": {
+      "evidence": "integrated-four_profiles.json.gz",
+      "raw_sha256": "cc091d4cf6232a0270a8755889114cbf87869e1ef86f20901f66b233b08658a9",
+      "profiles": [
+        "default",
+        "experimental",
+        "zstdmt",
+        "experimental-zstdmt"
+      ],
+      "runtime_artifact_pairs": 25,
+      "generated_files_consumed": 4,
+      "changed_upstream_files": [
+        "Cargo.toml"
+      ],
+      "generated_sha256": [
+        "a3e761d2e1a922c1a4ab36f0895735665187c94c1fbffe3d9a165fcc6d415875",
+        "a3e761d2e1a922c1a4ab36f0895735665187c94c1fbffe3d9a165fcc6d415875",
+        "fdacbfb3545ac79354559ce19e3a8932b276266b36f9bc9a0de52b5b676f3b52",
+        "fdacbfb3545ac79354559ce19e3a8932b276266b36f9bc9a0de52b5b676f3b52"
+      ]
+    },
+    "shared_target": {
+      "evidence": "integrated-shared_target.json.gz",
+      "raw_sha256": "680e0f9425d1c851e866350b5e6d301b5aee235fa07a5bb6e4a957ab6233b7b9",
+      "profiles": [
+        "default"
+      ],
+      "runtime_artifact_pairs": 4,
+      "generated_files_consumed": 1,
+      "changed_upstream_files": [
+        "Cargo.toml"
+      ],
+      "generated_sha256": [
+        "a3e761d2e1a922c1a4ab36f0895735665187c94c1fbffe3d9a165fcc6d415875"
+      ]
+    }
+  },
+  "validation": {
+    "builder_tests": 5,
+    "clippy": "workspace all targets/all features, warnings denied",
+    "actionlint": "passed",
+    "ruff": "check and format passed"
+  }
+}

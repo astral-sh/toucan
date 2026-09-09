@@ -1278,7 +1278,10 @@ fn pragma_conditions_follow_the_compiler_profile() {
         .write_all(source.as_bytes())
         .unwrap();
     let expected = child.wait_with_output().unwrap();
-    assert_eq!(actual.is_ok(), expected.status.success());
+    assert_eq!(
+        Ok(actual.is_ok()),
+        toucan_test_support::compiler_acceptance(&expected)
+    );
     if let Ok(actual) = actual {
         assert_eq!(
             crate::token::render(&crate::token::lex(&actual.source).unwrap()),

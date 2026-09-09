@@ -14,22 +14,43 @@ mod access;
 pub(crate) mod attributes;
 pub(crate) mod bounds;
 pub(crate) mod expression;
+mod inference;
 pub(crate) mod initializer;
 mod ownership;
 mod query;
 pub(crate) mod references;
+mod shuffle;
 pub(crate) mod statement;
+pub(crate) mod target;
 
-pub use attributes::{DiagnosticAttribute, DiagnosticAttributeKind};
+pub use crate::alignof::{AlignmentKind, AlignmentOperand};
+pub use crate::atomic::AtomicOperation;
+pub use crate::atomic_type::AtomicAccess;
+pub use crate::c11_atomic::C11AtomicOperation;
+pub use crate::elementwise::ElementwiseOperation;
+pub use crate::nontemporal::NontemporalOperation;
+pub use crate::object_extent::{
+    ObjectSizeFoldStage, ObjectSizeProof, ObjectSizeResult, ObjectSizeUnknown,
+};
+pub use crate::overflow::{OverflowForm, OverflowIntrinsic, OverflowOperation};
+pub use crate::sync::SyncOperation;
+pub use crate::x86::{
+    ConditionalImmediateConstraint, ImmediateConstraint, ImmediateStage, X86Feature, X86Intrinsic,
+    X86Signature,
+};
+pub use attributes::{
+    DiagnosticAttribute, DiagnosticAttributeKind, NoEscapeAttribute, NoEscapeParameter,
+};
 pub use bounds::{
     Bound, BoundEvaluation, BoundId, BoundInput, BoundSite, BoundValue, Extent, FunctionUse,
     TypeStep, TypeUse, TypeUseId,
 };
 pub use expression::{
     Binary, Builtin, Conversion, ConversionStep, Coverage as ExpressionStatus, ExprId, ExprKind,
-    ExprUse, Expression, ExpressionCoverage, GenericArm, OffsetMember, Unary, UseContext,
-    ValueCategory,
+    ExprUse, Expression, ExpressionCoverage, GenericArm, OffsetMember, TypeNameOperand, Unary,
+    UseContext, ValueCategory,
 };
+pub use inference::TypeInference;
 pub use initializer::{
     Coverage as InitializerStatus, Entry as InitializerEntry, Initializer, InitializerCoverage,
     InitializerKind, Subobject,
@@ -37,13 +58,19 @@ pub use initializer::{
 pub use ownership::{TypeOperand, TypeOperandEvaluation, TypeOperandId, TypeOperandInput};
 pub use query::{QueryEvaluation, QuerySideEffects, QuerySuppression};
 pub use references::{Reference, ReferenceKind};
+pub use shuffle::{ShuffleIndex, ShuffleLane, ShuffleMask};
 pub use statement::{
     Assembly, AssemblyLocation, AssemblyOperand, AssemblyText, Assertion, AssertionId, BlockItem,
     BodyId, Coverage as StatementStatus, DeclarationGroup, DeclarationGroupId, ForInitializer,
-    FunctionBody, Label, Statement, StatementCoverage, StatementId, StatementKind,
+    FunctionBody, Label, OldStyleDefinition, ParameterEntry, ParameterEvaluationOrder, Statement,
+    StatementCoverage, StatementId, StatementKind,
+};
+pub use target::{
+    FunctionOptionSite, InlineTargetRequirement, InlineTargetStage, MinimumVectorWidthAttribute,
+    TargetAttribute,
 };
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::hash::{BuildHasher, RandomState};
 use std::ops::Range;
 
@@ -157,6 +184,7 @@ pub enum OccurrenceKind {
     InitDeclarator,
     Declarator,
     Parameter,
+    OldStyleParameter,
     Field,
     StructDeclarator,
     Record,
@@ -240,6 +268,12 @@ impl From<DeclarationKind> for EntityKind {
 
 #[derive(Debug, Serialize)]
 pub struct Entity {
+    #[serde(skip_serializing_if = "crate::DeclarationAlignment::is_empty")]
+    pub(crate) alignment: crate::DeclarationAlignment,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) returns_twice: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) noreturn: bool,
     #[serde(skip_serializing_if = "crate::SymbolBinding::is_strong")]
     pub(crate) symbol_binding: crate::SymbolBinding,
     pub(crate) body: Option<statement::BodyId>,
@@ -248,14 +282,20 @@ pub struct Entity {
     /// Canonical file declaration, when one exists. Block externs may precede it.
     pub(crate) declaration: Option<usize>,
     pub(crate) linkage: Linkage,
+    pub(crate) storage: Storage,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[non_exhaustive]
 pub enum Storage {
+    /// Functions, types, and other entities without object storage.
     None,
+    /// An object whose lifetime belongs to a block execution.
     Automatic,
+    /// One object for the entire program execution.
     Static,
+    /// A distinct object for each thread, lasting for that thread's execution.
+    Thread,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
@@ -268,10 +308,22 @@ pub enum Linkage {
 
 #[derive(Debug, Serialize)]
 pub struct DeclarationSite {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) alignment: Option<Box<SiteAlignment>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) type_inference: Option<Box<TypeInference>>,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) returns_twice: bool,
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub(crate) noreturn: bool,
     #[serde(skip_serializing_if = "crate::SymbolBinding::is_strong")]
     pub(crate) symbol_binding: crate::SymbolBinding,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) weak_attribute: Option<SourceSpan>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) returns_twice_attribute: Option<SourceSpan>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) noreturn_source: Option<Box<SourceSpan>>,
     pub(crate) body: Option<statement::BodyId>,
     pub(crate) initializer: Option<InitializerId>,
     pub(crate) type_use: bounds::TypeUseId,
@@ -286,6 +338,12 @@ pub struct DeclarationSite {
     pub(crate) register: bool,
     pub(crate) definition: bool,
     pub(crate) flexible_array_storage: Option<FlexibleArrayStorage>,
+}
+
+#[derive(Debug, Serialize)]
+pub(crate) struct SiteAlignment {
+    pub(crate) written: crate::DeclarationAlignment,
+    pub(crate) effective: crate::DeclarationAlignment,
 }
 
 struct SiteProperties {
@@ -320,8 +378,15 @@ pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> O
 
 #[derive(Debug, Serialize)]
 pub struct CheckedCode {
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) function_options: BTreeMap<usize, target::FunctionOptionSite>,
+    #[serde(skip)]
+    pub(crate) function_option_entities: BTreeMap<usize, usize>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) inline_targets: BTreeMap<usize, target::InlineTargetRequirement>,
     #[serde(skip_serializing_if = "Vec::is_empty")]
     pub(crate) diagnostic_attributes: Vec<attributes::DiagnosticAttribute>,
+    pub(crate) noescape_attributes: Vec<attributes::NoEscapeAttribute>,
     pub(crate) type_operands: Vec<ownership::TypeOperand>,
     pub(crate) statements: Vec<statement::Statement>,
     pub(crate) statement_coverage: Vec<statement::StatementCoverage>,
@@ -386,6 +451,7 @@ pub(crate) struct Builder {
     parsed_spans: Vec<Span>,
     scope_spans: Vec<Span>,
     name_spans: Vec<Option<Span>>,
+    inferred_type_spans: Vec<(SiteId, Span)>,
     ambiguous_spans: Vec<Span>,
     entities: HashMap<EntityKey, EntityId>,
     names: HashMap<ScopeId, HashMap<String, EntityId>>,
@@ -413,7 +479,11 @@ impl Builder {
             expression_builder: expression::ExpressionBuilder::default(),
             statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
+                function_options: BTreeMap::new(),
+                function_option_entities: BTreeMap::new(),
+                inline_targets: BTreeMap::new(),
                 diagnostic_attributes: Vec::new(),
+                noescape_attributes: Vec::new(),
                 type_operands: Vec::new(),
                 statements: Vec::new(),
                 statement_coverage: Vec::new(),
@@ -446,6 +516,7 @@ impl Builder {
             parsed_spans: Vec::new(),
             scope_spans: Vec::new(),
             name_spans: Vec::new(),
+            inferred_type_spans: Vec::new(),
             ambiguous_spans: Vec::new(),
             entities: HashMap::new(),
             names: HashMap::new(),
@@ -462,6 +533,10 @@ impl Builder {
         if let Some(error) = builder.error.take() {
             return Err(error);
         }
+        builder
+            .code
+            .noescape_attributes
+            .sort_unstable_by_key(|a| a.source().range().start);
         Ok(builder)
     }
 
@@ -611,12 +686,16 @@ impl Builder {
         )?;
         let id = EntityId(self.code.entities.len() as u32);
         self.code.entities.push(Entity {
+            alignment: crate::DeclarationAlignment::default(),
+            returns_twice: false,
+            noreturn: false,
             symbol_binding: crate::SymbolBinding::Strong,
             body: None,
             name: name.map(str::to_owned),
             kind,
             declaration: None,
             linkage: Linkage::None,
+            storage: Storage::None,
         });
         self.entities.insert(key, id);
         Ok(id)
@@ -636,7 +715,14 @@ impl Builder {
         let ty = self.intern_type(ty, offset)?;
         self.budget.charge(1, 6, 0, offset)?;
         let id = SiteId(self.code.declarations.len() as u32);
+        self.code.entities[entity.index()].storage = properties.storage;
         self.code.declarations.push(DeclarationSite {
+            type_inference: None,
+            alignment: None,
+            returns_twice: self.code.entities[entity.index()].returns_twice,
+            returns_twice_attribute: None,
+            noreturn: false,
+            noreturn_source: None,
             symbol_binding: self.code.entities[entity.index()].symbol_binding,
             weak_attribute: None,
             body: None,
@@ -703,7 +789,55 @@ impl Builder {
             EntityKind::Variable,
             offset,
         )?;
+        self.code.entities[entity.index()].storage = Storage::Static;
         self.bind_name(entity, offset)
+    }
+
+    pub(crate) fn finish_alignment_operand(&mut self, checkpoint: EvaluationCheckpoint) {
+        for bound in &mut self.code.bounds[checkpoint.bounds..] {
+            if matches!(
+                bound.evaluation,
+                bounds::BoundEvaluation::Required | bounds::BoundEvaluation::MayBeOmitted
+            ) {
+                bound.evaluation = bounds::BoundEvaluation::Unevaluated;
+            }
+        }
+        for operand in &mut self.code.type_operands[checkpoint.type_operands..] {
+            ownership::suppress(operand);
+        }
+    }
+
+    pub(crate) fn attach_alignment(
+        &mut self,
+        site: SiteId,
+        written: crate::DeclarationAlignment,
+        effective: crate::DeclarationAlignment,
+    ) -> Result<(), Error> {
+        let declaration = &mut self.code.declarations[site.index()];
+        if written.is_empty() && effective.is_empty() {
+            declaration.alignment = None;
+        } else if let Some(alignment) = &mut declaration.alignment {
+            **alignment = SiteAlignment { written, effective };
+        } else {
+            self.budget.charge(
+                0,
+                0,
+                std::mem::size_of::<SiteAlignment>(),
+                self.parsed_spans[declaration.occurrence.index()].start,
+            )?;
+            declaration.alignment = Some(Box::new(SiteAlignment { written, effective }));
+        }
+        self.code.entities[declaration.entity.index()].alignment = effective;
+        Ok(())
+    }
+
+    pub(crate) fn attach_entity_alignment(
+        &mut self,
+        site: SiteId,
+        alignment: crate::DeclarationAlignment,
+    ) {
+        let entity = self.code.declarations[site.index()].entity;
+        self.code.entities[entity.index()].alignment = alignment;
     }
 
     pub(crate) fn file_declaration<T>(
@@ -731,7 +865,9 @@ impl Builder {
         };
         let entity = self.entity(key, Some(&declaration.name), entity_kind, item.span.start)?;
         self.code.entities[entity.index()].declaration = Some(index);
-        let storage = if declaration.kind == DeclarationKind::Variable {
+        let storage = if declaration.is_thread_local {
+            Storage::Thread
+        } else if declaration.kind == DeclarationKind::Variable {
             Storage::Static
         } else {
             Storage::None
@@ -744,6 +880,8 @@ impl Builder {
             Linkage::External
         };
         self.code.entities[entity.index()].linkage = linkage;
+        self.code.entities[entity.index()].returns_twice = declaration.returns_twice;
+        self.code.entities[entity.index()].noreturn |= declaration.noreturn;
         self.code.entities[entity.index()].symbol_binding = declaration.symbol_binding;
         let site = self.site(
             entity,
@@ -897,9 +1035,12 @@ impl Builder {
         self.finish_statements()?;
         self.finish_references(offsets)?;
         self.finish_diagnostic_attributes(offsets)?;
+        self.finish_noescape_attributes(offsets)?;
+        self.finish_function_option_spans(offsets)?;
         self.finish_initializer_coverage()?;
         self.finish_bounds(offsets)?;
         self.finish_type_ownership()?;
+        self.finish_type_inferences(offsets)?;
         for (occurrence, missing, kind) in self
             .code
             .expression_coverage
@@ -949,6 +1090,20 @@ impl Builder {
             });
         }
         for (site, span) in self.code.declarations.iter_mut().zip(self.name_spans) {
+            if let Some(source) = &mut site.noreturn_source {
+                **source = map_span(
+                    offsets,
+                    Span::span(source.range.start, source.range.end),
+                    &mut self.budget,
+                )?;
+            }
+            if let Some(attribute) = &site.returns_twice_attribute {
+                site.returns_twice_attribute = Some(map_span(
+                    offsets,
+                    Span::span(attribute.range.start, attribute.range.end),
+                    &mut self.budget,
+                )?);
+            }
             if let Some(attribute) = &site.weak_attribute {
                 site.weak_attribute = Some(map_span(
                     offsets,
@@ -1029,11 +1184,18 @@ fn charge_type(budget: &mut Budget, ty: &Type, offset: usize, depth: usize) -> R
     if depth >= 128 {
         return Err(Error::new(offset, "retained type nesting limit exceeded"));
     }
-    budget.charge(1, 0, std::mem::size_of::<Type>(), offset)?;
+    budget.charge(
+        1,
+        usize::from(ty.alignment.origin().is_some()),
+        std::mem::size_of::<Type>(),
+        offset,
+    )?;
     match &ty.kind {
         TypeKind::Pointer(inner)
+        | TypeKind::Atomic(inner)
         | TypeKind::Array { element: inner, .. }
-        | TypeKind::VariableArray { element: inner } => {
+        | TypeKind::Vector { element: inner, .. }
+        | TypeKind::VariableArray { element: inner, .. } => {
             budget.charge(0, 1, 0, offset)?;
             charge_type(budget, inner, offset, depth + 1)?;
         }
@@ -1095,6 +1257,12 @@ impl<'ast> Visit<'ast> for Builder {
         if self.error.is_some() {
             return;
         }
+        if node.name.node.trim_matches('_') == "noescape"
+            && let Err(error) = self.catalog_noescape_attribute(*span)
+        {
+            self.error = Some(error);
+            return;
+        }
         self.attribute_depth += 1;
         visit::visit_attribute(self, node, span);
         self.attribute_depth -= 1;
@@ -1135,6 +1303,28 @@ impl<'ast> Visit<'ast> for Builder {
         ast::StructDeclarator,
         StructDeclarator
     );
+    fn visit_derived_declarator(
+        &mut self,
+        derived: &ast::DerivedDeclarator,
+        span: &lang_c::span::Span,
+    ) {
+        if self.error.is_some() {
+            return;
+        }
+        if let ast::DerivedDeclarator::KRFunction(identifiers) = derived {
+            for identifier in identifiers {
+                if let Err(error) = self.occurrence(
+                    OccurrenceKind::OldStyleParameter,
+                    &identifier.node,
+                    identifier.span,
+                ) {
+                    self.error = Some(error);
+                    return;
+                }
+            }
+        }
+        lang_c::visit::visit_derived_declarator(self, derived, span);
+    }
     visit_occurrence!(visit_init_declarator, ast::InitDeclarator, InitDeclarator);
     visit_occurrence!(visit_declarator, ast::Declarator, Declarator);
     visit_occurrence!(
@@ -1184,6 +1374,50 @@ impl Builder {
             fragments: Vec::new(),
             synthetic: false,
         });
+    }
+}
+
+impl Builder {
+    /// Records the effective declaration state and its optional written attribute.
+    pub(crate) fn attach_returns_twice(
+        &mut self,
+        id: SiteId,
+        returns_twice: bool,
+        attribute: Option<Span>,
+    ) -> Result<(), Error> {
+        if let Some(span) = attribute {
+            self.budget.charge(0, 1, 0, span.start)?;
+        }
+        let site = &mut self.code.declarations[id.index()];
+        site.returns_twice = returns_twice;
+        self.code.entities[site.entity.index()].returns_twice = returns_twice;
+        site.returns_twice_attribute = attribute.map(crate::checked::unmapped_span);
+        Ok(())
+    }
+}
+
+impl Builder {
+    /// Preserve the written promise and the state visible at this declaration.
+    pub(crate) fn attach_noreturn(
+        &mut self,
+        id: SiteId,
+        noreturn: bool,
+        source: Option<Span>,
+    ) -> Result<(), Error> {
+        if let Some(span) = source {
+            self.budget
+                .charge(0, 1, std::mem::size_of::<SourceSpan>(), span.start)?;
+        }
+        let site = &mut self.code.declarations[id.index()];
+        site.noreturn = noreturn;
+        self.code.entities[site.entity.index()].noreturn |= noreturn;
+        site.noreturn_source = source.map(|span| Box::new(unmapped_span(span)));
+        Ok(())
+    }
+
+    pub(crate) fn charge_alignment_origin(&mut self, offset: usize) -> Result<(), Error> {
+        self.budget
+            .charge(1, 3, std::mem::size_of::<crate::AlignmentOrigin>(), offset)
     }
 }
 
@@ -1456,6 +1690,45 @@ mod tests {
         let error = builder.finish(&SourceMap::default()).unwrap_err();
         assert!(error.message.contains("ambiguous source occurrence"));
         assert_eq!(error.offset, original.span.start);
+    }
+
+    #[test]
+    fn optional_alignment_payload_is_charged_once_before_allocation() {
+        let source = "int value;";
+        let (_, code) = retained(source);
+        let parsed =
+            lang_c::driver::parse_preprocessed(&lang_c::driver::Config::default(), source.into())
+                .unwrap();
+        let mut builder = Builder::new(&parsed.unit, source.len(), Limits::default()).unwrap();
+        builder.code = code;
+        let site = SiteId(0);
+        let offset = builder.parsed_spans[builder.code.declarations[0].occurrence.index()].start;
+        let bytes = std::mem::size_of::<SiteAlignment>();
+        let used = builder.budget.payload_bytes;
+        builder.budget.limits.payload_bytes = used + bytes - 1;
+        let aligned = crate::DeclarationAlignment::new(Some(16), None).unwrap();
+        let error = builder
+            .attach_alignment(site, aligned, aligned)
+            .unwrap_err();
+        assert_eq!(error.offset, offset);
+        assert!(error.message.contains("payload byte limit"));
+        assert!(builder.code.declarations[0].alignment.is_none());
+        builder.budget.limits.payload_bytes += 1;
+        builder.attach_alignment(site, aligned, aligned).unwrap();
+        assert_eq!(builder.budget.payload_bytes, used + bytes);
+        let replacement = crate::DeclarationAlignment::new(Some(32), None).unwrap();
+        builder
+            .attach_alignment(site, replacement, replacement)
+            .unwrap();
+        assert_eq!(builder.budget.payload_bytes, used + bytes);
+        assert_eq!(
+            builder.code.declarations[0]
+                .alignment
+                .as_ref()
+                .unwrap()
+                .effective,
+            replacement
+        );
     }
 
     #[test]

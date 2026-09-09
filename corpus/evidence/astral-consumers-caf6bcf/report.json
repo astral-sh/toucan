@@ -1,0 +1,639 @@
+{
+  "recorded_at": "2026-09-08T07:59:09.672750+00:00",
+  "platform": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
+  "status": "passed",
+  "mode": "build-and-runtime",
+  "projects": {
+    "ty": {
+      "project": {
+        "repository": "astral-sh/ruff",
+        "revision": "e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+        "archive_sha256": "babff09f8302fb18bc0ba465983801acccb2035777f8ff43b1da1f25a9c23e5b",
+        "license": "MIT",
+        "package": "ty",
+        "binary": "ty"
+      },
+      "source": {
+        "source_files": 11118,
+        "archive_link_normalizations": {},
+        "source_sha256_without_lock": "d86b909d45e9b96ad8a5f8faaa3363b3db025f420bcb6cfd2403d943a1ccbc7a",
+        "changed_files": [
+          "Cargo.lock"
+        ]
+      },
+      "lock": {
+        "upstream_sha256": "fea1c04b2bce37f54c14449e8402528e652f4e5b9fcd366c118c360d439924c8",
+        "generated_sha256": "3ff9134c7c9a481d7e0596604215f2912fd54e58c72a876728b4aea97971b4af",
+        "removed_registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+        "removed_registry_checksum": "91e19ebc2adc8f83e43039e79776e3fda8ca919132d68a1fed6a5faca2683748",
+        "other_changes": []
+      },
+      "commands": [
+        {
+          "command": [
+            "cargo",
+            "build",
+            "--locked",
+            "-p",
+            "ty",
+            "--message-format=json-render-diagnostics",
+            "--offline"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/ruff-target",
+            "RUSTUP_TOOLCHAIN": "stable"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/upstream.jsonl",
+          "stderr": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/upstream.stderr"
+        },
+        {
+          "command": [
+            "cargo",
+            "build",
+            "--locked",
+            "-p",
+            "ty",
+            "--message-format=json-render-diagnostics",
+            "--offline",
+            "--config",
+            "patch.crates-io.zstd-sys.path=\"/home/dev-user/.cache/toucan/zstd-caf6bcf/zstd-sys\""
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/ruff-target",
+            "RUSTUP_TOOLCHAIN": "stable"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/generated.jsonl",
+          "stderr": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/generated.stderr"
+        }
+      ],
+      "upstream_bindings": [
+        {
+          "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+          "features": [
+            "std"
+          ],
+          "profile": {
+            "opt_level": "1",
+            "debuginfo": "line-tables-only",
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/upstream-dep-info/zstd_sys-21d71e1ce1a75a44.d",
+          "dep_info_sha256": "d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2",
+          "active_bindings": {
+            "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+          }
+        },
+        {
+          "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+          "features": [
+            "std"
+          ],
+          "profile": {
+            "opt_level": "0",
+            "debuginfo": 0,
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/upstream-dep-info/zstd_sys-fff0f1aed6e3ed9b.d",
+          "dep_info_sha256": "47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c",
+          "active_bindings": {
+            "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+          }
+        }
+      ],
+      "generated_bindings": [
+        {
+          "package_id": "path+file:///home/dev-user/.cache/toucan/zstd-caf6bcf/zstd-sys#2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/zstd-caf6bcf/zstd-sys/Cargo.toml",
+          "features": [
+            "std"
+          ],
+          "profile": {
+            "opt_level": "0",
+            "debuginfo": 0,
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/generated-dep-info/zstd_sys-2ba759bb85585083.d",
+          "dep_info_sha256": "f3e367de781ede70576f974546229d9ee4dce15ba4b072265072f404828b428e",
+          "active_bindings": {
+            "src/bindings_zstd.rs": "9dc657e687a4c1e02ab8976fb57713aed5a7e04e197556635cabcdf1101b557d"
+          }
+        },
+        {
+          "package_id": "path+file:///home/dev-user/.cache/toucan/zstd-caf6bcf/zstd-sys#2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/zstd-caf6bcf/zstd-sys/Cargo.toml",
+          "features": [
+            "std"
+          ],
+          "profile": {
+            "opt_level": "1",
+            "debuginfo": "line-tables-only",
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/generated-dep-info/zstd_sys-3cfa074e74226105.d",
+          "dep_info_sha256": "2893f55d70e5f208f02447dd5dd40685c6fd54a7bf7e8afec98bde76fd7658e6",
+          "active_bindings": {
+            "src/bindings_zstd.rs": "9dc657e687a4c1e02ab8976fb57713aed5a7e04e197556635cabcdf1101b557d"
+          }
+        }
+      ],
+      "upstream_binary": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/bin/ty-upstream",
+      "generated_binary": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/bin/ty-generated",
+      "runtime": {
+        "upstream": {
+          "binary_sha256": "3a337173f06fabc2cb1e76eea6ff155e38ca07fad6e81e4b653a64e710e45f55",
+          "cases": {
+            "valid": {
+              "command": [
+                "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/bin/ty-upstream",
+                "check",
+                "--no-progress",
+                "--color",
+                "never",
+                "--output-format",
+                "concise",
+                "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/ty-cases/valid.py"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/ty-cases",
+              "exit_code": 0,
+              "stdout": "All checks passed!\n",
+              "stderr": "",
+              "source_sha256": "9fa386bf70381a944afa58912649e6501c0779c9702028453cbca26420ba2b65"
+            },
+            "invalid": {
+              "command": [
+                "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/bin/ty-upstream",
+                "check",
+                "--no-progress",
+                "--color",
+                "never",
+                "--output-format",
+                "concise",
+                "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/ty-cases/invalid.py"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/ty-cases",
+              "exit_code": 1,
+              "stdout": "invalid.py:4:13: error[invalid-assignment] Object of type `str` is not assignable to `int`\ninvalid.py:5:14: error[invalid-assignment] Object of type `datetime` is not assignable to `str`\nFound 2 diagnostics\n",
+              "stderr": "",
+              "source_sha256": "541d4469238063257083462482cd351eaf70ab6e90b470dde14856c9b401b126"
+            }
+          }
+        },
+        "generated": {
+          "binary_sha256": "6152185995c9a86953d7a782f51144892e409521b3cb1b2baad5bfc7c5e09dc5",
+          "cases": {
+            "valid": {
+              "command": [
+                "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/bin/ty-generated",
+                "check",
+                "--no-progress",
+                "--color",
+                "never",
+                "--output-format",
+                "concise",
+                "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/ty-cases/valid.py"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/ty-cases",
+              "exit_code": 0,
+              "stdout": "All checks passed!\n",
+              "stderr": "",
+              "source_sha256": "9fa386bf70381a944afa58912649e6501c0779c9702028453cbca26420ba2b65"
+            },
+            "invalid": {
+              "command": [
+                "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/bin/ty-generated",
+                "check",
+                "--no-progress",
+                "--color",
+                "never",
+                "--output-format",
+                "concise",
+                "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/ty-cases/invalid.py"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/ty/ty-cases",
+              "exit_code": 1,
+              "stdout": "invalid.py:4:13: error[invalid-assignment] Object of type `str` is not assignable to `int`\ninvalid.py:5:14: error[invalid-assignment] Object of type `datetime` is not assignable to `str`\nFound 2 diagnostics\n",
+              "stderr": "",
+              "source_sha256": "541d4469238063257083462482cd351eaf70ab6e90b470dde14856c9b401b126"
+            }
+          }
+        }
+      }
+    },
+    "uv": {
+      "project": {
+        "repository": "astral-sh/uv",
+        "revision": "d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+        "archive_sha256": "9ef2613de29543b8e1975837ed1483d245db4fefaaa9f79507fc87a0dfc63af0",
+        "license": "MIT OR Apache-2.0",
+        "package": "uv",
+        "binary": "uv"
+      },
+      "source": {
+        "source_files": 1738,
+        "archive_link_normalizations": {
+          "test/packages/fake-uv/src": {
+            "archive": "../../../python/",
+            "extracted": "../../../python"
+          }
+        },
+        "source_sha256_without_lock": "f739a26fabdcc7eb1a83095d423d8bb40828f03127bf825a019bd861c267a78e",
+        "changed_files": [
+          "Cargo.lock"
+        ]
+      },
+      "lock": {
+        "upstream_sha256": "18692de922c66b146425eb9157aa0c83667b541338cb089299882ac611a3c056",
+        "generated_sha256": "4aded2b24fec47f12aa101ec32f8fea6d18a10a9165e581fb09c700a537ee6be",
+        "removed_registry_source": "registry+https://github.com/rust-lang/crates.io-index",
+        "removed_registry_checksum": "91e19ebc2adc8f83e43039e79776e3fda8ca919132d68a1fed6a5faca2683748",
+        "other_changes": []
+      },
+      "commands": [
+        {
+          "command": [
+            "cargo",
+            "build",
+            "--locked",
+            "-p",
+            "uv",
+            "--message-format=json-render-diagnostics",
+            "--offline"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/uv-target",
+            "RUSTUP_TOOLCHAIN": "stable"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/upstream.jsonl",
+          "stderr": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/upstream.stderr"
+        },
+        {
+          "command": [
+            "cargo",
+            "build",
+            "--locked",
+            "-p",
+            "uv",
+            "--message-format=json-render-diagnostics",
+            "--offline",
+            "--config",
+            "patch.crates-io.zstd-sys.path=\"/home/dev-user/.cache/toucan/zstd-caf6bcf/zstd-sys\""
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/uv-target",
+            "RUSTUP_TOOLCHAIN": "stable"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/generated.jsonl",
+          "stderr": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/generated.stderr"
+        }
+      ],
+      "upstream_bindings": [
+        {
+          "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+          "features": [
+            "std"
+          ],
+          "profile": {
+            "opt_level": "0",
+            "debuginfo": 2,
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/upstream-dep-info/zstd_sys-4e75c4015752c8db.d",
+          "dep_info_sha256": "9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135",
+          "active_bindings": {
+            "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+          }
+        }
+      ],
+      "generated_bindings": [
+        {
+          "package_id": "path+file:///home/dev-user/.cache/toucan/zstd-caf6bcf/zstd-sys#2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/zstd-caf6bcf/zstd-sys/Cargo.toml",
+          "features": [
+            "std"
+          ],
+          "profile": {
+            "opt_level": "0",
+            "debuginfo": 2,
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/generated-dep-info/zstd_sys-4de384c0882ebff4.d",
+          "dep_info_sha256": "7ace7832a8c31c091474fbc01a7078eeafa303fe685c9a9e57fb5a942b3580f4",
+          "active_bindings": {
+            "src/bindings_zstd.rs": "9dc657e687a4c1e02ab8976fb57713aed5a7e04e197556635cabcdf1101b557d"
+          }
+        }
+      ],
+      "upstream_binary": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/bin/uv-upstream",
+      "generated_binary": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/bin/uv-generated",
+      "runtime": {
+        "encoder": {
+          "library": "libzstd.so.1",
+          "version": "1.5.5"
+        },
+        "wheel_sha256": "23814de6e20b910903ad084f034b7dfaca670c2586ab7b3f0b05be0d18a52c7e",
+        "encoded_wheel_sha256": "ba7a5d12ba5068ac326d80bd0a8860130114bf85cf1f6e162fe27f48291c5161",
+        "upstream": {
+          "command": [
+            "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/bin/uv-upstream",
+            "--no-progress",
+            "--color",
+            "never",
+            "pip",
+            "install",
+            "--no-deps",
+            "--no-index",
+            "--link-mode",
+            "copy",
+            "--python",
+            "/home/dev-user/.virtualenvs/openai/bin/python3",
+            "--target",
+            "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-upstream/installed",
+            "http://127.0.0.1:41619/toucan_consumer_probe-1.0.0-py3-none-any.whl"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-upstream",
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": "Using CPython 3.12.13 interpreter at: /home/dev-user/.virtualenvs/openai/bin/python3\nResolved 1 package in 21ms\nDownloading toucan-consumer-probe\n Downloaded toucan-consumer-probe\nPrepared 1 package in 17ms\nInstalled 1 package in 19ms\n + toucan-consumer-probe==1.0.0 (from http://127.0.0.1:41619/toucan_consumer_probe-1.0.0-py3-none-any.whl)\n",
+          "binary_sha256": "40239c411ee81b737df51aa849440dcf95348c5f39972204d2be3f5dc7f02f29",
+          "installed_fixture_sha256": {
+            "toucan_consumer_probe/__init__.py": "94b882363df5755799f970a566e95be6d3cb0e34673efca79c142922c5489972",
+            "toucan_consumer_probe/data.bin": "120c518a83325c66464701a6ee080302f332bc768ea3f60473b209f1bfb091df",
+            "toucan_consumer_probe-1.0.0.dist-info/METADATA": "4d7c66b0c7158a524f1eef397daf5daaaf6bae8aaa255dd0e60a3ee0db42a41b",
+            "toucan_consumer_probe-1.0.0.dist-info/WHEEL": "8f347e3b5103e1b6cf9df83d9f6f9dfcec9a97e078ab3e7216e4eddff75e5a24"
+          },
+          "import": {
+            "command": [
+              "/home/dev-user/.virtualenvs/openai/bin/python3",
+              "-I",
+              "-c",
+              "import sys; sys.path.insert(0, sys.argv[1]); import toucan_consumer_probe as p; print(p.VALUE)",
+              "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-upstream/installed"
+            ],
+            "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-upstream",
+            "exit_code": 0,
+            "stdout": "toucan-zstd-workspace-probe\n",
+            "stderr": ""
+          },
+          "requests": [
+            {
+              "method": "HEAD",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:41619"
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:41619"
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:41619"
+              }
+            }
+          ]
+        },
+        "generated": {
+          "command": [
+            "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/bin/uv-generated",
+            "--no-progress",
+            "--color",
+            "never",
+            "pip",
+            "install",
+            "--no-deps",
+            "--no-index",
+            "--link-mode",
+            "copy",
+            "--python",
+            "/home/dev-user/.virtualenvs/openai/bin/python3",
+            "--target",
+            "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-generated/installed",
+            "http://127.0.0.1:41619/toucan_consumer_probe-1.0.0-py3-none-any.whl"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-generated",
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": "Using CPython 3.12.13 interpreter at: /home/dev-user/.virtualenvs/openai/bin/python3\nResolved 1 package in 12ms\nDownloading toucan-consumer-probe\n Downloaded toucan-consumer-probe\nPrepared 1 package in 12ms\nInstalled 1 package in 17ms\n + toucan-consumer-probe==1.0.0 (from http://127.0.0.1:41619/toucan_consumer_probe-1.0.0-py3-none-any.whl)\n",
+          "binary_sha256": "032c915cca478ded153ba3d78c450cc370f473229a22a299f78631fda0847eaa",
+          "installed_fixture_sha256": {
+            "toucan_consumer_probe/__init__.py": "94b882363df5755799f970a566e95be6d3cb0e34673efca79c142922c5489972",
+            "toucan_consumer_probe/data.bin": "120c518a83325c66464701a6ee080302f332bc768ea3f60473b209f1bfb091df",
+            "toucan_consumer_probe-1.0.0.dist-info/METADATA": "4d7c66b0c7158a524f1eef397daf5daaaf6bae8aaa255dd0e60a3ee0db42a41b",
+            "toucan_consumer_probe-1.0.0.dist-info/WHEEL": "8f347e3b5103e1b6cf9df83d9f6f9dfcec9a97e078ab3e7216e4eddff75e5a24"
+          },
+          "import": {
+            "command": [
+              "/home/dev-user/.virtualenvs/openai/bin/python3",
+              "-I",
+              "-c",
+              "import sys; sys.path.insert(0, sys.argv[1]); import toucan_consumer_probe as p; print(p.VALUE)",
+              "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-generated/installed"
+            ],
+            "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-generated",
+            "exit_code": 0,
+            "stdout": "toucan-zstd-workspace-probe\n",
+            "stderr": ""
+          },
+          "requests": [
+            {
+              "method": "HEAD",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:41619"
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:41619"
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:41619"
+              }
+            }
+          ]
+        },
+        "truncated_frame": {
+          "sha256": "5093952323b89dd99582c3d7919dd5f70a6928d9b417b10a0a3e08d5f53ed9f5",
+          "upstream": {
+            "command": [
+              "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/bin/uv-upstream",
+              "--no-progress",
+              "--color",
+              "never",
+              "pip",
+              "install",
+              "--no-deps",
+              "--no-index",
+              "--link-mode",
+              "copy",
+              "--python",
+              "/home/dev-user/.virtualenvs/openai/bin/python3",
+              "--target",
+              "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-truncated-upstream/installed",
+              "http://127.0.0.1:39561/toucan_consumer_probe-1.0.0-py3-none-any.whl"
+            ],
+            "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-truncated-upstream",
+            "exit_code": 1,
+            "stdout": "",
+            "stderr": "Using CPython 3.12.13 interpreter at: /home/dev-user/.virtualenvs/openai/bin/python3\n  \u00d7 No solution found when resolving dependencies:\n  \u2570\u2500\u25b6 Because toucan-consumer-probe has an invalid package format and you\n      require toucan-consumer-probe, we can conclude that your requirements\n      are unsatisfiable.\n\nhint: The structure of `toucan-consumer-probe` was invalid\n  Caused by: Failed to read from zip file\n  Caused by: an upstream reader returned an error: unexpected end of file\n  Caused by: unexpected end of file\n\n",
+            "binary_sha256": "40239c411ee81b737df51aa849440dcf95348c5f39972204d2be3f5dc7f02f29",
+            "fixture_installed": false,
+            "requests": [
+              {
+                "method": "HEAD",
+                "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+                "headers": {
+                  "Accept-Encoding": "identity",
+                  "Accept": "*/*",
+                  "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                  "Host": "127.0.0.1:39561"
+                }
+              },
+              {
+                "method": "GET",
+                "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+                "headers": {
+                  "Accept-Encoding": "identity",
+                  "Accept": "*/*",
+                  "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                  "Host": "127.0.0.1:39561"
+                }
+              }
+            ]
+          },
+          "generated": {
+            "command": [
+              "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/bin/uv-generated",
+              "--no-progress",
+              "--color",
+              "never",
+              "pip",
+              "install",
+              "--no-deps",
+              "--no-index",
+              "--link-mode",
+              "copy",
+              "--python",
+              "/home/dev-user/.virtualenvs/openai/bin/python3",
+              "--target",
+              "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-truncated-generated/installed",
+              "http://127.0.0.1:39561/toucan_consumer_probe-1.0.0-py3-none-any.whl"
+            ],
+            "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf/uv/uv-truncated-generated",
+            "exit_code": 1,
+            "stdout": "",
+            "stderr": "Using CPython 3.12.13 interpreter at: /home/dev-user/.virtualenvs/openai/bin/python3\n  \u00d7 No solution found when resolving dependencies:\n  \u2570\u2500\u25b6 Because toucan-consumer-probe has an invalid package format and you\n      require toucan-consumer-probe, we can conclude that your requirements\n      are unsatisfiable.\n\nhint: The structure of `toucan-consumer-probe` was invalid\n  Caused by: Failed to read from zip file\n  Caused by: an upstream reader returned an error: unexpected end of file\n  Caused by: unexpected end of file\n\n",
+            "binary_sha256": "032c915cca478ded153ba3d78c450cc370f473229a22a299f78631fda0847eaa",
+            "fixture_installed": false,
+            "requests": [
+              {
+                "method": "HEAD",
+                "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+                "headers": {
+                  "Accept-Encoding": "identity",
+                  "Accept": "*/*",
+                  "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                  "Host": "127.0.0.1:39561"
+                }
+              },
+              {
+                "method": "GET",
+                "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+                "headers": {
+                  "Accept-Encoding": "identity",
+                  "Accept": "*/*",
+                  "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                  "Host": "127.0.0.1:39561"
+                }
+              }
+            ]
+          }
+        }
+      }
+    }
+  },
+  "zstd_source": {
+    "report": "/home/dev-user/.cache/toucan/zstd-caf6bcf-results/evidence.json",
+    "report_sha256": "5e7749128335eadb08ff8f11149bad5b190e530305f1893d6505731214ad17b1",
+    "toucan_sha256": "adade54583f8b4f281650fe3378f6387f825e295aee0b94b79e8288f6f224a31",
+    "target": "x86_64-unknown-linux-gnu",
+    "changed_upstream_files": [
+      "src/bindings_zdict.rs",
+      "src/bindings_zstd.rs"
+    ],
+    "generated_bindings": {
+      "src/bindings_zstd.rs": {
+        "sha256": "9dc657e687a4c1e02ab8976fb57713aed5a7e04e197556635cabcdf1101b557d",
+        "report_sha256": "28b61566cfa8f6a43bc2d421c05287e7b94b805915a83b02a44e3382161b8cab"
+      },
+      "src/bindings_zdict.rs": {
+        "sha256": "90d301f2f1ca4df69f612cb73b00056065f453ff12e81d130146a9505ffbd260",
+        "report_sha256": "5a367b4a7ead57357f96b33939c9bdf3e307535e989c5a01f453c1efc41882cd"
+      }
+    }
+  },
+  "rustc": {
+    "command": [
+      "rustc",
+      "--version",
+      "--verbose"
+    ],
+    "cwd": "/home/dev-user/.cache/toucan/astral-consumers-caf6bcf",
+    "exit_code": 0,
+    "stdout": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+    "stderr": ""
+  }
+}

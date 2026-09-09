@@ -111,11 +111,8 @@ fn storage_linkage_and_parameter_constraints() {
             target == Target::X86_64AppleDarwin
         );
         for source in TLS_CASES {
-            let error = analyze(source, target).unwrap_err();
-            assert!(
-                error.message.contains("unsupported Rust TLS"),
-                "{source}: {error}"
-            );
+            let unit = analyze(source, target).unwrap();
+            assert!(unit.declarations[0].is_thread_local);
         }
     }
 }
@@ -221,9 +218,8 @@ fn storage_and_parameter_constraints_match_c_compilers() {
             .iter()
             .copied()
             .chain([("int f(register void);", compiler == "clang")])
-            .map(|(source, accepted)| (source, accepted, false))
-            .chain(TLS_CASES.iter().map(|source| (*source, true, true)));
-        for (source, accepted, unsupported) in cases {
+            .chain(TLS_CASES.iter().map(|source| (*source, true)));
+        for (source, accepted) in cases {
             let mut child = Command::new(compiler)
                 // Clang diagnoses repeated storage classes as a warning by default.
                 .args([
@@ -247,21 +243,17 @@ fn storage_and_parameter_constraints_match_c_compilers() {
                 .unwrap();
             let output = child.wait_with_output().unwrap();
             assert_eq!(
-                output.status.success(),
-                accepted,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted),
                 "{compiler}: {source}\n{}",
                 String::from_utf8_lossy(&output.stderr)
             );
             let result = analyze(source, target);
-            if unsupported {
-                assert!(result.unwrap_err().message.contains("unsupported Rust TLS"));
-            } else {
-                assert_eq!(
-                    result.is_ok(),
-                    output.status.success(),
-                    "{compiler}: {source}"
-                );
-            }
+            assert_eq!(
+                result.is_ok(),
+                output.status.success(),
+                "{compiler}: {source}"
+            );
         }
     }
 }

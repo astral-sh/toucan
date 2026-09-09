@@ -1,0 +1,882 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-08",
+  "base_commit": "144a3659e9cc1e619e37108b9aeaed2203bc2777",
+  "preceding_patch_sha256": "cef3e59461f547bdf1aca75be430dc8c15f61076fad72a2c13fdf52b044f7928",
+  "scope": {
+    "sizes_bytes": [
+      1,
+      2,
+      4,
+      8,
+      16
+    ],
+    "lane_types": [
+      "integer except _Bool and enum",
+      "float",
+      "double",
+      "long double"
+    ],
+    "compiler_profiles": "GCC on GNU Linux; Clang on Darwin and Windows",
+    "ffi": "Aligned byte storage and pointer calls; by-value vectors or containing records are rejected"
+  },
+  "toolchains": {
+    "gcc": {
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-13",
+      "version": "x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "sha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26"
+    },
+    "clang": {
+      "path": "/usr/lib/llvm-18/bin/clang",
+      "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-18/bin\n",
+      "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45"
+    },
+    "rustc": {
+      "path": "/home/dev-user/.rustup/toolchains/stable-x86_64-unknown-linux-gnu/bin/rustc",
+      "version": "rustc 1.98.1 (48a229cea 2026-09-01)\n",
+      "sha256": "859254978c0a0402c32f949f6de0d99aee73be8d15f45aac00ae1448aac51e74"
+    },
+    "rustc_1_64": {
+      "path": "/home/dev-user/.cache/toucan/msrv-rustup/toolchains/1.64.0-x86_64-unknown-linux-gnu/bin/rustc",
+      "version": "rustc 1.64.0 (a55dd71d5 2022-09-19)\n",
+      "sha256": "b800bcf02a1ee8679fc182c7e7c55f7bb3d95b9eff89e8328e179094e120fc39"
+    }
+  },
+  "checks": {
+    "compiler_type_layout_and_negative_oracles": 60,
+    "clang_targets": 5,
+    "native_c_compilers": [
+      "gcc",
+      "clang"
+    ],
+    "native_rust_pointer_callback_programs": 2,
+    "actual_rust_1_64_pointer_callback_programs": 2,
+    "retained_graph_fixture_runs": 10,
+    "workspace_tests_passed": 334,
+    "workspace_ignored_tests": 91,
+    "clippy": "workspace all targets all features passed"
+  },
+  "implementation_sources": {
+    "crates/toucan_bindings/src/lib.rs": "b7fdd188e3a86758e15009368a96a8e946f9fa7cbf2a5e00391028f2899f153c",
+    "crates/toucan_bindings/tests/vector_types.rs": "19e2a2d195e52e11f83d41efa4552aab67c3ea7c9f420ece11fc01addc734d2e",
+    "crates/toucan_semantic/src/analyze.rs": "307157f218d316de96bd5bf919e4c51c79a6e159a3f313bd2ee9f933ec41bbbe",
+    "crates/toucan_semantic/src/checked/access.rs": "10a6a222a4f05be3e12f0ac166af6ca2ebb33e9da5ff9aa4c14912a456669205",
+    "crates/toucan_semantic/src/checked/bounds.rs": "77f472a7232c22cb28e549aaa1217dc73001ad69dde0011b46ade84aad3d1ce3",
+    "crates/toucan_semantic/src/checked/expression.rs": "b6fca299b13ef9a5da5dff934c74851b3d3196ae1dfe50c38ac53166787bb09d",
+    "crates/toucan_semantic/src/checked/initializer.rs": "65e0a5f2c6ae04a926ea2565e4b931be2ecf9fb49da321292819a1658bfd60d4",
+    "crates/toucan_semantic/src/checked.rs": "3ebf1fbcf8603271c7f7f4c0f9832e1ed29482b81b7ebb10b2f8333719d45734",
+    "crates/toucan_semantic/src/expression.rs": "12289dcecfd8f091e40f711edd7c9f6a8f14a0ab8bf600ee612251e9562ce878",
+    "crates/toucan_semantic/src/initializer.rs": "6d93e24846c412dbb250b2ce3352eeffaf3d39b1abc0d192220562e40c0def8f",
+    "crates/toucan_semantic/src/ir.rs": "263f5a0a7e9aa9ef73fcac29fea457bd95d6c2b831074cf053e3e147d0e6a661",
+    "crates/toucan_semantic/src/lib.rs": "0c52038681ca6e058b02515496c38e4b415f5c68e1458688fceda83aae1d5231",
+    "crates/toucan_semantic/src/vector.rs": "a1b25cceb02c5cc1b0b19c820860d0ab65e38f4b1c8a832fda8246e291948518",
+    "crates/toucan_semantic/tests/parser_extensions.rs": "1512d544fda870e4dec3103a92ac6e4ea59c521f00517d419ecc77b6deac3d3d",
+    "crates/toucan_semantic/tests/semantics.rs": "30edf751a48b4bc211dde5855b7590abe511d67fa207bb0f4026c89697e67019",
+    "crates/toucan_semantic/tests/vector_types.rs": "6bf6fb8b0ff204d49e0f30933a43251917c6e3f7c2b1dbdb4fc12cd3e07da1c4",
+    "fuzz/fuzz_targets/checked_invariants.rs": "d9fd2809518769f0f0793dd3233e1d25e089e6238b5fe8c10e85185407e6c6fe"
+  },
+  "logs": {
+    "semantic-oracles": {
+      "path": "/tmp/toucan-vector-semantic-oracles.log",
+      "sha256": "236ef8053703e030086f0ae208b11cde09f83cdf3a71873d6ede5701a31add9a"
+    },
+    "bindings": {
+      "path": "/tmp/toucan-vector-bindings.log",
+      "sha256": "157bbe9edb5f6494890c8c5be4ef76a2aca534070e21e3c470eb8d860f36432a"
+    },
+    "workspace": {
+      "path": "/tmp/toucan-vector-workspace.log",
+      "sha256": "2ef67159ca2f21ab8979ce4e01a1f13d030dc7b56c5dcbae64d8638ffb6c0b2d"
+    },
+    "clippy": {
+      "path": "/tmp/toucan-vector-clippy.log",
+      "sha256": "b252c5bc2a5ef74cc7a188f13d88e47ed4e0fbabad9d39a2a42b029d194961f5"
+    },
+    "fuzz-check": {
+      "path": "/tmp/toucan-vector-fuzz-check.log",
+      "sha256": "076c5521306fa3b0688524f62b00f9b20edf95e8350875750fefb2641e755545"
+    },
+    "fuzz-build": {
+      "path": "/tmp/toucan-vector-fuzz-build.log",
+      "sha256": "9c6655911c5cda90b363a2248235969f8b6d9663c2abe0ba139e00ad8d847bd5"
+    },
+    "msrv": {
+      "path": "/tmp/toucan-vector-msrv.log",
+      "sha256": "7dcfd981356767b4e6216269eb7ba5b8b3803e9a1383ee84939725490892fc2c"
+    }
+  },
+  "wide_vector_layout_probe": {
+    "source": "typedef char V1 __attribute__((vector_size(1)));\nunsigned size1(void){return sizeof(V1);}\nunsigned align1(void){return _Alignof(V1);}\nstruct S1{char a;V1 b;char c;};\nunsigned field1(void){return __builtin_offsetof(struct S1,b);}\nunsigned record1(void){return sizeof(struct S1);}\ntypedef char V2 __attribute__((vector_size(2)));\nunsigned size2(void){return sizeof(V2);}\nunsigned align2(void){return _Alignof(V2);}\nstruct S2{char a;V2 b;char c;};\nunsigned field2(void){return __builtin_offsetof(struct S2,b);}\nunsigned record2(void){return sizeof(struct S2);}\ntypedef char V4 __attribute__((vector_size(4)));\nunsigned size4(void){return sizeof(V4);}\nunsigned align4(void){return _Alignof(V4);}\nstruct S4{char a;V4 b;char c;};\nunsigned field4(void){return __builtin_offsetof(struct S4,b);}\nunsigned record4(void){return sizeof(struct S4);}\ntypedef char V8 __attribute__((vector_size(8)));\nunsigned size8(void){return sizeof(V8);}\nunsigned align8(void){return _Alignof(V8);}\nstruct S8{char a;V8 b;char c;};\nunsigned field8(void){return __builtin_offsetof(struct S8,b);}\nunsigned record8(void){return sizeof(struct S8);}\ntypedef char V16 __attribute__((vector_size(16)));\nunsigned size16(void){return sizeof(V16);}\nunsigned align16(void){return _Alignof(V16);}\nstruct S16{char a;V16 b;char c;};\nunsigned field16(void){return __builtin_offsetof(struct S16,b);}\nunsigned record16(void){return sizeof(struct S16);}\ntypedef char V32 __attribute__((vector_size(32)));\nunsigned size32(void){return sizeof(V32);}\nunsigned align32(void){return _Alignof(V32);}\nstruct S32{char a;V32 b;char c;};\nunsigned field32(void){return __builtin_offsetof(struct S32,b);}\nunsigned record32(void){return sizeof(struct S32);}\ntypedef char V64 __attribute__((vector_size(64)));\nunsigned size64(void){return sizeof(V64);}\nunsigned align64(void){return _Alignof(V64);}\nstruct S64{char a;V64 b;char c;};\nunsigned field64(void){return __builtin_offsetof(struct S64,b);}\nunsigned record64(void){return sizeof(struct S64);}\ntypedef char V128 __attribute__((vector_size(128)));\nunsigned size128(void){return sizeof(V128);}\nunsigned align128(void){return _Alignof(V128);}\nstruct S128{char a;V128 b;char c;};\nunsigned field128(void){return __builtin_offsetof(struct S128,b);}\nunsigned record128(void){return sizeof(struct S128);}\n",
+    "results": [
+      {
+        "compiler": "clang",
+        "target": "x86_64-unknown-linux-gnu",
+        "command": [
+          "clang",
+          "-target",
+          "x86_64-unknown-linux-gnu",
+          "-std=gnu11",
+          "-O2",
+          "-S",
+          "-emit-llvm",
+          "-x",
+          "c",
+          "-",
+          "-o",
+          "-"
+        ],
+        "code": 0,
+        "diagnostics": "",
+        "values": [
+          {
+            "vector_bytes": 1,
+            "size": 1,
+            "align": 1,
+            "field": 1,
+            "record": 3
+          },
+          {
+            "vector_bytes": 2,
+            "size": 2,
+            "align": 2,
+            "field": 2,
+            "record": 6
+          },
+          {
+            "vector_bytes": 4,
+            "size": 4,
+            "align": 4,
+            "field": 4,
+            "record": 12
+          },
+          {
+            "vector_bytes": 8,
+            "size": 8,
+            "align": 8,
+            "field": 8,
+            "record": 24
+          },
+          {
+            "vector_bytes": 16,
+            "size": 16,
+            "align": 16,
+            "field": 16,
+            "record": 48
+          },
+          {
+            "vector_bytes": 32,
+            "size": 32,
+            "align": 32,
+            "field": 32,
+            "record": 96
+          },
+          {
+            "vector_bytes": 64,
+            "size": 64,
+            "align": 64,
+            "field": 64,
+            "record": 192
+          },
+          {
+            "vector_bytes": 128,
+            "size": 128,
+            "align": 128,
+            "field": 128,
+            "record": 384
+          }
+        ]
+      },
+      {
+        "compiler": "clang",
+        "target": "aarch64-unknown-linux-gnu",
+        "command": [
+          "clang",
+          "-target",
+          "aarch64-unknown-linux-gnu",
+          "-std=gnu11",
+          "-O2",
+          "-S",
+          "-emit-llvm",
+          "-x",
+          "c",
+          "-",
+          "-o",
+          "-"
+        ],
+        "code": 0,
+        "diagnostics": "",
+        "values": [
+          {
+            "vector_bytes": 1,
+            "size": 1,
+            "align": 1,
+            "field": 1,
+            "record": 3
+          },
+          {
+            "vector_bytes": 2,
+            "size": 2,
+            "align": 2,
+            "field": 2,
+            "record": 6
+          },
+          {
+            "vector_bytes": 4,
+            "size": 4,
+            "align": 4,
+            "field": 4,
+            "record": 12
+          },
+          {
+            "vector_bytes": 8,
+            "size": 8,
+            "align": 8,
+            "field": 8,
+            "record": 24
+          },
+          {
+            "vector_bytes": 16,
+            "size": 16,
+            "align": 16,
+            "field": 16,
+            "record": 48
+          },
+          {
+            "vector_bytes": 32,
+            "size": 32,
+            "align": 16,
+            "field": 16,
+            "record": 64
+          },
+          {
+            "vector_bytes": 64,
+            "size": 64,
+            "align": 16,
+            "field": 16,
+            "record": 96
+          },
+          {
+            "vector_bytes": 128,
+            "size": 128,
+            "align": 16,
+            "field": 16,
+            "record": 160
+          }
+        ]
+      },
+      {
+        "compiler": "clang",
+        "target": "x86_64-apple-darwin",
+        "command": [
+          "clang",
+          "-target",
+          "x86_64-apple-darwin",
+          "-std=gnu11",
+          "-O2",
+          "-S",
+          "-emit-llvm",
+          "-x",
+          "c",
+          "-",
+          "-o",
+          "-"
+        ],
+        "code": 0,
+        "diagnostics": "",
+        "values": [
+          {
+            "vector_bytes": 1,
+            "size": 1,
+            "align": 1,
+            "field": 1,
+            "record": 3
+          },
+          {
+            "vector_bytes": 2,
+            "size": 2,
+            "align": 2,
+            "field": 2,
+            "record": 6
+          },
+          {
+            "vector_bytes": 4,
+            "size": 4,
+            "align": 4,
+            "field": 4,
+            "record": 12
+          },
+          {
+            "vector_bytes": 8,
+            "size": 8,
+            "align": 8,
+            "field": 8,
+            "record": 24
+          },
+          {
+            "vector_bytes": 16,
+            "size": 16,
+            "align": 16,
+            "field": 16,
+            "record": 48
+          },
+          {
+            "vector_bytes": 32,
+            "size": 32,
+            "align": 16,
+            "field": 16,
+            "record": 64
+          },
+          {
+            "vector_bytes": 64,
+            "size": 64,
+            "align": 16,
+            "field": 16,
+            "record": 96
+          },
+          {
+            "vector_bytes": 128,
+            "size": 128,
+            "align": 16,
+            "field": 16,
+            "record": 160
+          }
+        ]
+      },
+      {
+        "compiler": "clang",
+        "target": "aarch64-apple-darwin",
+        "command": [
+          "clang",
+          "-target",
+          "aarch64-apple-darwin",
+          "-std=gnu11",
+          "-O2",
+          "-S",
+          "-emit-llvm",
+          "-x",
+          "c",
+          "-",
+          "-o",
+          "-"
+        ],
+        "code": 0,
+        "diagnostics": "",
+        "values": [
+          {
+            "vector_bytes": 1,
+            "size": 1,
+            "align": 1,
+            "field": 1,
+            "record": 3
+          },
+          {
+            "vector_bytes": 2,
+            "size": 2,
+            "align": 2,
+            "field": 2,
+            "record": 6
+          },
+          {
+            "vector_bytes": 4,
+            "size": 4,
+            "align": 4,
+            "field": 4,
+            "record": 12
+          },
+          {
+            "vector_bytes": 8,
+            "size": 8,
+            "align": 8,
+            "field": 8,
+            "record": 24
+          },
+          {
+            "vector_bytes": 16,
+            "size": 16,
+            "align": 16,
+            "field": 16,
+            "record": 48
+          },
+          {
+            "vector_bytes": 32,
+            "size": 32,
+            "align": 16,
+            "field": 16,
+            "record": 64
+          },
+          {
+            "vector_bytes": 64,
+            "size": 64,
+            "align": 16,
+            "field": 16,
+            "record": 96
+          },
+          {
+            "vector_bytes": 128,
+            "size": 128,
+            "align": 16,
+            "field": 16,
+            "record": 160
+          }
+        ]
+      },
+      {
+        "compiler": "clang",
+        "target": "x86_64-pc-windows-msvc",
+        "command": [
+          "clang",
+          "-target",
+          "x86_64-pc-windows-msvc",
+          "-std=gnu11",
+          "-O2",
+          "-S",
+          "-emit-llvm",
+          "-x",
+          "c",
+          "-",
+          "-o",
+          "-"
+        ],
+        "code": 0,
+        "diagnostics": "",
+        "values": [
+          {
+            "vector_bytes": 1,
+            "size": 1,
+            "align": 1,
+            "field": 1,
+            "record": 3
+          },
+          {
+            "vector_bytes": 2,
+            "size": 2,
+            "align": 2,
+            "field": 2,
+            "record": 6
+          },
+          {
+            "vector_bytes": 4,
+            "size": 4,
+            "align": 4,
+            "field": 4,
+            "record": 12
+          },
+          {
+            "vector_bytes": 8,
+            "size": 8,
+            "align": 8,
+            "field": 8,
+            "record": 24
+          },
+          {
+            "vector_bytes": 16,
+            "size": 16,
+            "align": 16,
+            "field": 16,
+            "record": 48
+          },
+          {
+            "vector_bytes": 32,
+            "size": 32,
+            "align": 32,
+            "field": 32,
+            "record": 96
+          },
+          {
+            "vector_bytes": 64,
+            "size": 64,
+            "align": 64,
+            "field": 64,
+            "record": 192
+          },
+          {
+            "vector_bytes": 128,
+            "size": 128,
+            "align": 128,
+            "field": 128,
+            "record": 384
+          }
+        ]
+      },
+      {
+        "compiler": "gcc",
+        "flags": [],
+        "command": [
+          "gcc",
+          "-std=gnu11",
+          "-O2",
+          "-S",
+          "-x",
+          "c",
+          "-",
+          "-o",
+          "-"
+        ],
+        "code": 0,
+        "diagnostics": "",
+        "values": [
+          {
+            "vector_bytes": 1,
+            "size": 1,
+            "align": 1,
+            "field": 1,
+            "record": 3
+          },
+          {
+            "vector_bytes": 2,
+            "size": 2,
+            "align": 2,
+            "field": 2,
+            "record": 6
+          },
+          {
+            "vector_bytes": 4,
+            "size": 4,
+            "align": 4,
+            "field": 4,
+            "record": 12
+          },
+          {
+            "vector_bytes": 8,
+            "size": 8,
+            "align": 8,
+            "field": 8,
+            "record": 24
+          },
+          {
+            "vector_bytes": 16,
+            "size": 16,
+            "align": 16,
+            "field": 16,
+            "record": 48
+          },
+          {
+            "vector_bytes": 32,
+            "size": 32,
+            "align": 16,
+            "field": 32,
+            "record": 96
+          },
+          {
+            "vector_bytes": 64,
+            "size": 64,
+            "align": 16,
+            "field": 64,
+            "record": 192
+          },
+          {
+            "vector_bytes": 128,
+            "size": 128,
+            "align": 16,
+            "field": 128,
+            "record": 384
+          }
+        ]
+      },
+      {
+        "compiler": "gcc",
+        "flags": [
+          "-mavx"
+        ],
+        "command": [
+          "gcc",
+          "-std=gnu11",
+          "-O2",
+          "-mavx",
+          "-S",
+          "-x",
+          "c",
+          "-",
+          "-o",
+          "-"
+        ],
+        "code": 0,
+        "diagnostics": "",
+        "values": [
+          {
+            "vector_bytes": 1,
+            "size": 1,
+            "align": 1,
+            "field": 1,
+            "record": 3
+          },
+          {
+            "vector_bytes": 2,
+            "size": 2,
+            "align": 2,
+            "field": 2,
+            "record": 6
+          },
+          {
+            "vector_bytes": 4,
+            "size": 4,
+            "align": 4,
+            "field": 4,
+            "record": 12
+          },
+          {
+            "vector_bytes": 8,
+            "size": 8,
+            "align": 8,
+            "field": 8,
+            "record": 24
+          },
+          {
+            "vector_bytes": 16,
+            "size": 16,
+            "align": 16,
+            "field": 16,
+            "record": 48
+          },
+          {
+            "vector_bytes": 32,
+            "size": 32,
+            "align": 32,
+            "field": 32,
+            "record": 96
+          },
+          {
+            "vector_bytes": 64,
+            "size": 64,
+            "align": 32,
+            "field": 64,
+            "record": 192
+          },
+          {
+            "vector_bytes": 128,
+            "size": 128,
+            "align": 32,
+            "field": 128,
+            "record": 384
+          }
+        ]
+      },
+      {
+        "compiler": "gcc",
+        "flags": [
+          "-mavx512f"
+        ],
+        "command": [
+          "gcc",
+          "-std=gnu11",
+          "-O2",
+          "-mavx512f",
+          "-S",
+          "-x",
+          "c",
+          "-",
+          "-o",
+          "-"
+        ],
+        "code": 0,
+        "diagnostics": "",
+        "values": [
+          {
+            "vector_bytes": 1,
+            "size": 1,
+            "align": 1,
+            "field": 1,
+            "record": 3
+          },
+          {
+            "vector_bytes": 2,
+            "size": 2,
+            "align": 2,
+            "field": 2,
+            "record": 6
+          },
+          {
+            "vector_bytes": 4,
+            "size": 4,
+            "align": 4,
+            "field": 4,
+            "record": 12
+          },
+          {
+            "vector_bytes": 8,
+            "size": 8,
+            "align": 8,
+            "field": 8,
+            "record": 24
+          },
+          {
+            "vector_bytes": 16,
+            "size": 16,
+            "align": 16,
+            "field": 16,
+            "record": 48
+          },
+          {
+            "vector_bytes": 32,
+            "size": 32,
+            "align": 32,
+            "field": 32,
+            "record": 96
+          },
+          {
+            "vector_bytes": 64,
+            "size": 64,
+            "align": 64,
+            "field": 64,
+            "record": 192
+          },
+          {
+            "vector_bytes": 128,
+            "size": 128,
+            "align": 64,
+            "field": 128,
+            "record": 384
+          }
+        ]
+      }
+    ]
+  },
+  "retained_replay": {
+    "binary_sha256": "b0e577420a9794a604d80d32267630e41aaa468403bebf8b9bcd224f7e2088b4",
+    "checks": [
+      {
+        "name": "fixture-0.h",
+        "target_selector": 0,
+        "source_sha256": "132e5f6c7c54b9c52336f1060eb68ab049a2bf3ce0b96f335c75ff49f0e1d1d8",
+        "exit": 0,
+        "stdout": "",
+        "stderr": "WARNING: Failed to find function \"__sanitizer_acquire_crash_state\".\nWARNING: Failed to find function \"__sanitizer_print_stack_trace\".\nWARNING: Failed to find function \"__sanitizer_set_death_callback\".\nINFO: Running with entropic power schedule (0xFF, 100).\nINFO: Seed: 2007367950\n/home/dev-user/.cache/toucan/vector-types-target/debug/checked: Running 1 inputs 1 time(s) each.\nRunning: /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/fixture-0.h\nExecuted /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/fixture-0.h in 17 ms\n***\n*** NOTE: fuzzing was not performed, you have only\n***       executed the target code on a fixed set of inputs.\n***\n"
+      },
+      {
+        "name": "fixture-1.h",
+        "target_selector": 1,
+        "source_sha256": "b937c5cf49aff275181bd9f11baa4b452a358f609e2d92a2a289ab0a2762ace4",
+        "exit": 0,
+        "stdout": "",
+        "stderr": "WARNING: Failed to find function \"__sanitizer_acquire_crash_state\".\nWARNING: Failed to find function \"__sanitizer_print_stack_trace\".\nWARNING: Failed to find function \"__sanitizer_set_death_callback\".\nINFO: Running with entropic power schedule (0xFF, 100).\nINFO: Seed: 2055925325\n/home/dev-user/.cache/toucan/vector-types-target/debug/checked: Running 1 inputs 1 time(s) each.\nRunning: /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/fixture-1.h\nExecuted /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/fixture-1.h in 17 ms\n***\n*** NOTE: fuzzing was not performed, you have only\n***       executed the target code on a fixed set of inputs.\n***\n"
+      },
+      {
+        "name": "fixture-2.h",
+        "target_selector": 2,
+        "source_sha256": "4db80b73663b1626d3265774f1e334f002ba8f680d2684c45b45dca0d11c6bd5",
+        "exit": 0,
+        "stdout": "",
+        "stderr": "WARNING: Failed to find function \"__sanitizer_acquire_crash_state\".\nWARNING: Failed to find function \"__sanitizer_print_stack_trace\".\nWARNING: Failed to find function \"__sanitizer_set_death_callback\".\nINFO: Running with entropic power schedule (0xFF, 100).\nINFO: Seed: 2101547839\n/home/dev-user/.cache/toucan/vector-types-target/debug/checked: Running 1 inputs 1 time(s) each.\nRunning: /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/fixture-2.h\nExecuted /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/fixture-2.h in 17 ms\n***\n*** NOTE: fuzzing was not performed, you have only\n***       executed the target code on a fixed set of inputs.\n***\n"
+      },
+      {
+        "name": "fixture-3.h",
+        "target_selector": 3,
+        "source_sha256": "8f317137ca40cec1295a589eeafa66b985419e8a0778991bb92a346f88c2f51d",
+        "exit": 0,
+        "stdout": "",
+        "stderr": "WARNING: Failed to find function \"__sanitizer_acquire_crash_state\".\nWARNING: Failed to find function \"__sanitizer_print_stack_trace\".\nWARNING: Failed to find function \"__sanitizer_set_death_callback\".\nINFO: Running with entropic power schedule (0xFF, 100).\nINFO: Seed: 2147008770\n/home/dev-user/.cache/toucan/vector-types-target/debug/checked: Running 1 inputs 1 time(s) each.\nRunning: /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/fixture-3.h\nExecuted /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/fixture-3.h in 17 ms\n***\n*** NOTE: fuzzing was not performed, you have only\n***       executed the target code on a fixed set of inputs.\n***\n"
+      },
+      {
+        "name": "fixture-4.h",
+        "target_selector": 4,
+        "source_sha256": "ccfa6ce2d83781cfe3872a68ec43f1397cae0eaa5b1c8324029b8e2111d08b81",
+        "exit": 0,
+        "stdout": "",
+        "stderr": "WARNING: Failed to find function \"__sanitizer_acquire_crash_state\".\nWARNING: Failed to find function \"__sanitizer_print_stack_trace\".\nWARNING: Failed to find function \"__sanitizer_set_death_callback\".\nINFO: Running with entropic power schedule (0xFF, 100).\nINFO: Seed: 2192954578\n/home/dev-user/.cache/toucan/vector-types-target/debug/checked: Running 1 inputs 1 time(s) each.\nRunning: /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/fixture-4.h\nExecuted /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/fixture-4.h in 17 ms\n***\n*** NOTE: fuzzing was not performed, you have only\n***       executed the target code on a fixed set of inputs.\n***\n"
+      },
+      {
+        "name": "seed-0.h",
+        "target_selector": 0,
+        "source_sha256": "fd9073752d4ff56fa349ed8a545adf103c0ca327df40f19752a8834e15052cf6",
+        "exit": 0,
+        "stdout": "",
+        "stderr": "WARNING: Failed to find function \"__sanitizer_acquire_crash_state\".\nWARNING: Failed to find function \"__sanitizer_print_stack_trace\".\nWARNING: Failed to find function \"__sanitizer_set_death_callback\".\nINFO: Running with entropic power schedule (0xFF, 100).\nINFO: Seed: 2238406774\n/home/dev-user/.cache/toucan/vector-types-target/debug/checked: Running 1 inputs 1 time(s) each.\nRunning: /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/seed-0.h\nExecuted /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/seed-0.h in 5 ms\n***\n*** NOTE: fuzzing was not performed, you have only\n***       executed the target code on a fixed set of inputs.\n***\n"
+      },
+      {
+        "name": "seed-1.h",
+        "target_selector": 1,
+        "source_sha256": "caabecf90916eeca64e61f9809b42e0d062513bb575a9c47543fd3df5c5aa7c6",
+        "exit": 0,
+        "stdout": "",
+        "stderr": "WARNING: Failed to find function \"__sanitizer_acquire_crash_state\".\nWARNING: Failed to find function \"__sanitizer_print_stack_trace\".\nWARNING: Failed to find function \"__sanitizer_set_death_callback\".\nINFO: Running with entropic power schedule (0xFF, 100).\nINFO: Seed: 2271950166\n/home/dev-user/.cache/toucan/vector-types-target/debug/checked: Running 1 inputs 1 time(s) each.\nRunning: /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/seed-1.h\nExecuted /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/seed-1.h in 5 ms\n***\n*** NOTE: fuzzing was not performed, you have only\n***       executed the target code on a fixed set of inputs.\n***\n"
+      },
+      {
+        "name": "seed-2.h",
+        "target_selector": 2,
+        "source_sha256": "5f22e71cd225f41ad184f9c45135b496277dc178171f1a9a4679f9df5ac5fc70",
+        "exit": 0,
+        "stdout": "",
+        "stderr": "WARNING: Failed to find function \"__sanitizer_acquire_crash_state\".\nWARNING: Failed to find function \"__sanitizer_print_stack_trace\".\nWARNING: Failed to find function \"__sanitizer_set_death_callback\".\nINFO: Running with entropic power schedule (0xFF, 100).\nINFO: Seed: 2306486043\n/home/dev-user/.cache/toucan/vector-types-target/debug/checked: Running 1 inputs 1 time(s) each.\nRunning: /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/seed-2.h\nExecuted /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/seed-2.h in 5 ms\n***\n*** NOTE: fuzzing was not performed, you have only\n***       executed the target code on a fixed set of inputs.\n***\n"
+      },
+      {
+        "name": "seed-3.h",
+        "target_selector": 3,
+        "source_sha256": "f96505bf0ee96441cc82c8b47aab56f16db2b8ce8aa0bc12d84068dc302dee34",
+        "exit": 0,
+        "stdout": "",
+        "stderr": "WARNING: Failed to find function \"__sanitizer_acquire_crash_state\".\nWARNING: Failed to find function \"__sanitizer_print_stack_trace\".\nWARNING: Failed to find function \"__sanitizer_set_death_callback\".\nINFO: Running with entropic power schedule (0xFF, 100).\nINFO: Seed: 2340362117\n/home/dev-user/.cache/toucan/vector-types-target/debug/checked: Running 1 inputs 1 time(s) each.\nRunning: /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/seed-3.h\nExecuted /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/seed-3.h in 5 ms\n***\n*** NOTE: fuzzing was not performed, you have only\n***       executed the target code on a fixed set of inputs.\n***\n"
+      },
+      {
+        "name": "seed-4.h",
+        "target_selector": 4,
+        "source_sha256": "c4445cec6bfbbb9b6002f741cb2888ff37af8015a4ad2dbadb7ab75d1e3db61d",
+        "exit": 0,
+        "stdout": "",
+        "stderr": "WARNING: Failed to find function \"__sanitizer_acquire_crash_state\".\nWARNING: Failed to find function \"__sanitizer_print_stack_trace\".\nWARNING: Failed to find function \"__sanitizer_set_death_callback\".\nINFO: Running with entropic power schedule (0xFF, 100).\nINFO: Seed: 2373762623\n/home/dev-user/.cache/toucan/vector-types-target/debug/checked: Running 1 inputs 1 time(s) each.\nRunning: /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/seed-4.h\nExecuted /home/dev-user/.cache/toucan/vector-types-probes/retained-seeds/seed-4.h in 5 ms\n***\n*** NOTE: fuzzing was not performed, you have only\n***       executed the target code on a fixed set of inputs.\n***\n"
+      }
+    ]
+  },
+  "real_header_progress": [
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/vector-types-target/debug/toucan",
+        "check",
+        "/home/dev-user/.cache/toucan/vector-types-probes/mmintrin-typedefs.i"
+      ],
+      "exit": 0,
+      "stdout": "",
+      "stderr": "Analyzed 13 declarations for x86_64-unknown-linux-gnu\n",
+      "source_sha256": "6d9fa4a74b691955168c7df6af656573b52367b85d4f737c935e6ae7ed4e74f0"
+    },
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/vector-types-target/debug/toucan",
+        "check",
+        "/home/dev-user/.cache/toucan/vector-types-probes/mmintrin.i"
+      ],
+      "exit": 1,
+      "stdout": "",
+      "stderr": "error: /home/dev-user/.cache/toucan/vector-types-probes/mmintrin.i:15:3: unknown identifier `__builtin_ia32_emms` (preprocessed byte 1130)\n",
+      "source_sha256": "5c58edbb49eb7c700ceee65ecc1491afb37a8743f8d187334c593b6b0f73ee37"
+    }
+  ],
+  "primary_sources": [
+    "https://gcc.gnu.org/onlinedocs/gcc-14.4.0/gcc/Vector-Extensions.html",
+    "https://releases.llvm.org/18.1.8/tools/clang/docs/LanguageExtensions.html"
+  ],
+  "limitations": [
+    "Vector arithmetic is type-checked; no machine code is generated by Toucan.",
+    "Native execution proves the pointer FFI representation and C/Rust callbacks, not execution of the retained expression graph.",
+    "The fixed-input retained replay had no sanitizer instrumentation and is not a sustained fuzz campaign.",
+    "Vectors larger than16 bytes need explicit compiler/CPU-feature configuration.",
+    "Static vector expressions other than vector compound literals require an unsupported lane constant evaluator.",
+    "Mixed vector element-type conversions, enum vectors, ext_vector_type/swizzles, and architecture intrinsics remain unsupported.",
+    "Windows aligned(1) vector typedefs keep natural field alignment; bindings reject this mismatch."
+  ],
+  "probe_artifacts": {
+    "alignment-operations.json": {
+      "bytes": 2076,
+      "sha256": "f41a7a648341cf99371d70ff481e2bbb8f552d65e10bfc39308760839c386e49"
+    },
+    "initializers.json": {
+      "bytes": 5534,
+      "sha256": "bb3ba0961a74b6c12a70687e4bef85f113ad4fc455e9ab06a80569b61798a687"
+    },
+    "layout.json": {
+      "bytes": 56781,
+      "sha256": "a00353cfbc7e7abb6367d2e342022878cbe5e08171f4e349365bee802811b647"
+    },
+    "masks-packing.json": {
+      "bytes": 67308,
+      "sha256": "ce0cc6d8bb59f3e0e93c5fefe003a09589adb0a7fdc37bc518baef6f7d0130ab"
+    },
+    "operations.json": {
+      "bytes": 78071,
+      "sha256": "eff256272f67a420ec51c28ab1ecf2ed2360021d4cd824d58e1ccc5d00c4e1ea"
+    },
+    "semantics.json": {
+      "bytes": 46884,
+      "sha256": "f686a619b5d8500c78fcf5688c6f3166444cf9381fa394f4aef6770e1eb1c17e"
+    }
+  }
+}

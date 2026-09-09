@@ -73,8 +73,8 @@ fn gnu_pointer_conversions_match_compilers() {
                 writeln!(child.stdin.take().unwrap(), "{source}").unwrap();
                 let output = child.wait_with_output().unwrap();
                 assert_eq!(
-                    output.status.success(),
-                    accepted,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(accepted),
                     "{compiler}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );
@@ -88,7 +88,10 @@ fn conditional_pointer_qualifiers_follow_the_compiler_profile() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         let source = format!(
             "void f(int c, const void *p, int (*function)(int)) {{ _Static_assert(_Generic(c ? function : p, const void *: 1, void *: 0) == {}, \"qualifiers\"); }}",

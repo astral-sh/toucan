@@ -53,6 +53,21 @@ impl Scope {
 }
 
 impl Entity {
+    /// Whether any retained declaration promises that this function does not return.
+    /// Earlier sites and calls preserve the promise visible at their source position.
+    pub fn noreturn(&self) -> bool {
+        self.noreturn
+    }
+    /// Merged explicit alignment of the object or function.
+    pub fn alignment(&self) -> crate::DeclarationAlignment {
+        self.alignment
+    }
+
+    /// Whether any compatible declaration carries `returns_twice`. Later annotations
+    /// do not retroactively describe the compiler effects of earlier call sites.
+    pub fn returns_twice(&self) -> bool {
+        self.returns_twice
+    }
     /// Final symbol binding after all compatible declarations, including block externs.
     pub fn symbol_binding(&self) -> crate::SymbolBinding {
         self.symbol_binding
@@ -73,6 +88,10 @@ impl Entity {
     pub fn declaration(&self) -> Option<usize> {
         self.declaration
     }
+    /// Object lifetime, independent of internal or external linkage.
+    pub fn storage(&self) -> Storage {
+        self.storage
+    }
     /// Whether declarations of this entity share identity across scopes or files.
     pub fn linkage(&self) -> Linkage {
         self.linkage
@@ -80,6 +99,37 @@ impl Entity {
 }
 
 impl DeclarationSite {
+    /// Non-return promise visible at this declaration, independently of its C type.
+    pub fn noreturn(&self) -> bool {
+        self.noreturn
+    }
+    /// Written `_Noreturn` specifier or noreturn attribute, absent when inherited.
+    pub fn noreturn_source(&self) -> Option<&SourceSpan> {
+        self.noreturn_source.as_deref()
+    }
+    /// Alignment written on this declaration, before inheriting visible requirements.
+    pub fn alignment(&self) -> crate::DeclarationAlignment {
+        self.alignment
+            .as_ref()
+            .map_or_else(Default::default, |alignment| alignment.written)
+    }
+    /// Effective alignment at this declaration's scope and source position.
+    /// A later declaration may have different inherited requirements.
+    pub fn effective_alignment(&self) -> crate::DeclarationAlignment {
+        self.alignment
+            .as_ref()
+            .map_or_else(Default::default, |alignment| alignment.effective)
+    }
+
+    /// The returns-twice property merged when this function was declared.
+    /// This is a declaration fact, not the result of compiler call lowering.
+    pub fn returns_twice(&self) -> bool {
+        self.returns_twice
+    }
+    /// The explicit attribute, when written on this declaration.
+    pub fn returns_twice_attribute(&self) -> Option<&SourceSpan> {
+        self.returns_twice_attribute.as_ref()
+    }
     /// Effective symbol binding at this declaration. Later declarations may change the entity.
     pub fn symbol_binding(&self) -> crate::SymbolBinding {
         self.symbol_binding
@@ -168,6 +218,24 @@ impl ExprUse {
 }
 
 impl Expression {
+    /// Whether accessing this lvalue reads/writes volatile storage. GNU complex
+    /// projections can have this property even with an unqualified result type.
+    /// The operand use determines whether an access occurs (a place/address use
+    /// alone does not read it).
+    pub fn is_volatile_place(&self) -> bool {
+        self.volatile_place
+    }
+
+    /// Atomic store/update performed by this expression, with C's sequentially
+    /// consistent ordering. Loads appear as AtomicLoad operand conversions.
+    pub fn atomic_access(&self) -> Option<super::AtomicAccess> {
+        self.atomic_access
+    }
+    /// Whether this expression designates a vector lane, whose address is unavailable in Clang profiles.
+    pub fn is_vector_element(&self) -> bool {
+        self.vector_element
+    }
+
     /// The written expression occurrence.
     pub fn occurrence(&self) -> OccurrenceId {
         self.occurrence
@@ -233,9 +301,9 @@ impl Initializer {
     pub fn ty(&self) -> TypeId {
         self.ty
     }
-    /// Whether C static-storage constant-expression rules apply.
-    pub fn static_storage(&self) -> bool {
-        self.static_storage
+    /// Whether static or thread storage requires constant-expression initialization.
+    pub fn requires_constant(&self) -> bool {
+        self.requires_constant
     }
     /// Extra storage allocated for a supported flexible-array initializer.
     pub fn flexible_array_storage(&self) -> Option<&FlexibleArrayStorage> {
@@ -294,13 +362,52 @@ impl FunctionBody {
     pub fn scope(&self) -> ScopeId {
         self.scope
     }
-    /// The checked function type, including its calling convention.
+    /// The body's adjusted local parameter types and calling convention.
+    /// For identifier-list definitions, use `old_style()` for incoming argument
+    /// types and the declaration site's type for the canonical calling interface.
     pub fn signature(&self) -> TypeId {
         self.signature
     }
     /// Named parameter declaration sites in signature order.
     pub fn parameters(&self) -> &[SiteId] {
         &self.parameters
+    }
+    /// Entry types and source declarations for an identifier-list definition.
+    pub fn old_style(&self) -> Option<&OldStyleDefinition> {
+        self.old_style.as_deref()
+    }
+}
+
+impl OldStyleDefinition {
+    /// Parameter declaration groups in written source order.
+    pub fn declarations(&self) -> &[DeclarationGroupId] {
+        &self.declarations
+    }
+    /// Incoming parameters in identifier-list argument order.
+    pub fn parameters(&self) -> &[ParameterEntry] {
+        &self.parameters
+    }
+    /// Ordering promised between different parameters' entry evaluations.
+    pub fn evaluation_order(&self) -> ParameterEvaluationOrder {
+        self.evaluation_order
+    }
+}
+impl ParameterEntry {
+    /// Identifier occurrence in the definition's parenthesized identifier list.
+    pub fn identifier(&self) -> OccurrenceId {
+        self.identifier
+    }
+    /// The original typed parameter declaration site.
+    pub fn declaration(&self) -> SiteId {
+        self.declaration
+    }
+    /// Incoming C type after promotions or adoption of an earlier prototype.
+    pub fn incoming(&self) -> TypeUseId {
+        self.incoming
+    }
+    /// Conversion into the local parameter; no atomic load is implied.
+    pub fn conversions(&self) -> &[ConversionStep] {
+        &self.conversions
     }
 }
 

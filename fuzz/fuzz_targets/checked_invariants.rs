@@ -7,10 +7,63 @@ use toucan::semantic::{Analysis, TranslationUnit, Type, TypeKind};
 pub(super) fn check(analysis: &Analysis, source: &str) {
     let unit = analysis.unit();
     let code = analysis.checked().expect("retention requested");
+    unit.validate_function_options().unwrap();
+    unit.validate_parameter_contracts().unwrap();
+    unit.validate_alignment_origins().unwrap();
+    for attribute in code.noescape_attributes() {
+        source_span(source, attribute.source());
+        assert!(code.occurrence(attribute.owner()).is_some());
+        for parameter in attribute.parameters() {
+            let site = code.declaration(parameter.declaration()).unwrap();
+            assert_eq!(code.entity(site.entity()).unwrap().kind(), EntityKind::Parameter);
+        }
+    }
+    for site in code.function_option_sites() {
+        let declaration = code.declaration(site.declaration()).unwrap();
+        assert_eq!(declaration.entity(), site.entity());
+        assert_eq!(
+            code.entity(site.entity()).unwrap().kind(),
+            EntityKind::Function
+        );
+        assert_eq!(
+            code.function_options(site.declaration()).unwrap().entity(),
+            site.entity()
+        );
+        for attribute in site.attributes() {
+            source_span(source, attribute.source());
+        }
+        for attribute in site.minimum_vector_width() {
+            source_span(source, attribute.source());
+        }
+        for span in [site.always_inline(), site.no_inline()]
+            .into_iter()
+            .flatten()
+        {
+            source_span(source, span);
+        }
+    }
+    for requirement in code.inline_target_requirements() {
+        assert_eq!(
+            code.entity(requirement.callee()).unwrap().kind(),
+            EntityKind::Function
+        );
+        let expression = code.expression(requirement.expression()).unwrap();
+        assert!(
+            matches!(expression.kind(), ExprKind::Call {direct_callee: Some(callee), ..} if *callee == requirement.callee())
+        );
+        assert!(requirement.callee_options().always_inline());
+        assert!(
+            code.inline_target_requirement(requirement.expression())
+                .is_some()
+        );
+    }
     for &record in unit.record_origins.keys() {
         let origin = unit.record_origin(record).unwrap();
         assert!(unit.records[record].transparent_union);
-        assert_eq!(unit.records[record].fields.as_ref().unwrap().len(), unit.records[origin].fields.as_ref().unwrap().len());
+        assert_eq!(
+            unit.records[record].fields.as_ref().unwrap().len(),
+            unit.records[origin].fields.as_ref().unwrap().len()
+        );
     }
     let mut coverage = vec![0u8; code.occurrences().len()];
     let mut scope_membership = vec![0u8; code.declarations().len()];
@@ -80,8 +133,13 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         }
     }
     for (id, entity) in code.entities() {
+        if entity.noreturn() { assert_eq!(entity.kind(), EntityKind::Function); }
         if let Some(declaration) = entity.declaration() {
-            assert!(unit.declarations.get(declaration).is_some());
+            let declaration = &unit.declarations[declaration];
+            assert_eq!(
+                declaration.is_thread_local,
+                entity.storage() == Storage::Thread
+            );
         }
         if let Some(body) = entity.body() {
             assert_eq!(code.body(body).unwrap().entity(), id);
@@ -111,7 +169,8 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     }
     for (id, declaration) in code.declarations() {
         assert_eq!(scope_membership[id.index()], 1);
-        assert!(code.entity(declaration.entity()).is_some());
+        let entity = code.entity(declaration.entity()).unwrap();
+        assert_eq!(declaration.storage(), entity.storage());
         assert!(code.scope(declaration.scope()).is_some());
         assert!(code.occurrence(declaration.occurrence()).is_some());
         assert!(code.ty(declaration.ty()).is_some());
@@ -122,8 +181,30 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         if let Some(ty) = declaration.declared_type_use() {
             assert!(code.type_use(ty).is_some());
         }
+        if let Some(inference) = declaration.type_inference() {
+            source_span(source, inference.keyword());
+            assert!(code.expression(inference.expression()).is_some());
+            assert!(code.type_use(inference.type_use()).is_some());
+            assert!(declaration.initializer().is_some());
+        }
         if let Some(span) = declaration.weak_attribute() {
             source_span(source, span);
+        }
+        if let Some(span) = declaration.noreturn_source() {
+            source_span(source, span);
+        }
+        if declaration.noreturn() {
+            assert_eq!(entity.kind(), EntityKind::Function);
+            assert!(entity.noreturn());
+        }
+        if let Some(span) = declaration.returns_twice_attribute() {
+            source_span(source, span);
+            assert!(declaration.returns_twice());
+        }
+        if declaration.returns_twice() {
+            let entity = code.entity(declaration.entity()).unwrap();
+            assert_eq!(entity.kind(), EntityKind::Function);
+            assert!(entity.returns_twice());
         }
         if let Some(span) = declaration.name_source() {
             source_span(source, span);
@@ -132,6 +213,10 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             assert_eq!(code.body(body).unwrap().declaration(), id);
         }
         if let Some(initializer) = declaration.initializer() {
+            assert_eq!(
+                code.initializer(initializer).unwrap().requires_constant(),
+                matches!(declaration.storage(), Storage::Static | Storage::Thread)
+            );
             assert_eq!(
                 code.initializer(initializer).unwrap().ty(),
                 declaration.ty()
@@ -240,16 +325,25 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         }
         match expression.kind() {
             ExprKind::Integer(_) | ExprKind::Float { .. } | ExprKind::String(_) => {}
+            ExprKind::ImaginaryFloat { digits, .. } => {
+                assert!(!digits.is_empty());
+                let ty = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
+                assert!(matches!(ty.kind, TypeKind::Complex(_)));
+            }
             ExprKind::Name(entity) => {
                 assert!(code.entity(*entity).is_some());
             }
             ExprKind::Unary {
+                operator,
                 operand,
                 computation_type,
                 write_back,
                 ..
             } => {
                 expression_use(code, operand);
+                if matches!(operator, Unary::Real | Unary::Imaginary) {
+                    assert_eq!(operand.context(),if expression.category()==ValueCategory::ObjectLvalue {UseContext::Place}else{UseContext::Value});
+                }
                 for ty in [computation_type, write_back].into_iter().flatten() {
                     assert!(code.ty(*ty).is_some());
                 }
@@ -306,8 +400,16 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 callee,
                 direct_callee,
                 arguments,
+                noreturn,
+                ..
             } => {
                 expression_use(code, callee);
+                let TypeKind::Pointer(pointee) = &unit.resolve(code.ty(callee.effective_type()).unwrap()).unwrap().kind else { panic!("call pointer type") };
+                let TypeKind::Function(function) = &unit.resolve(pointee).unwrap().kind else { panic!("call function type") };
+                assert!(!function.noreturn || *noreturn);
+                if *noreturn && !function.noreturn {
+                    assert!(code.entity(direct_callee.unwrap()).unwrap().noreturn());
+                }
                 if let Some(entity) = direct_callee {
                     assert!(code.entity(*entity).is_some());
                 }
@@ -315,12 +417,121 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     expression_use(code, argument);
                 }
             }
+            ExprKind::ConvertVector { value, destination } => {
+                expression_use(code, value);
+                assert_eq!(value.context(), UseContext::Value);
+                assert!(code.occurrence(destination.occurrence).is_some());
+                let destination = code.type_use(destination.type_use).unwrap();
+                let ty = code.ty(destination.shape()).unwrap();
+                let ty = unit.atomic_value(ty).unwrap().unwrap_or(ty);
+                let TypeKind::Vector { lanes: result, .. } = unit.resolve(ty).unwrap().kind else {
+                    panic!("convertvector destination");
+                };
+                let TypeKind::Vector { lanes: input, .. } = unit.resolve(code.ty(value.effective_type()).unwrap()).unwrap().kind else {
+                    panic!("convertvector source");
+                };
+                assert_eq!(input, result);
+            }
+            ExprKind::ShuffleVector {
+                callee_occurrence,
+                operands,
+                mask,
+            } => {
+                assert!(code.occurrence(*callee_occurrence).is_some());
+                for operand in operands {
+                    expression_use(code, operand);
+                }
+                let TypeKind::Vector { lanes: first, .. } =
+                    code.ty(operands[0].effective_type()).unwrap().kind
+                else {
+                    panic!("shuffle first operand")
+                };
+                let TypeKind::Vector { lanes: second, .. } =
+                    code.ty(operands[1].effective_type()).unwrap().kind
+                else {
+                    panic!("shuffle second operand")
+                };
+                let TypeKind::Vector { lanes: result, .. } = code.ty(expression.ty()).unwrap().kind
+                else {
+                    panic!("shuffle result")
+                };
+                match mask {
+                    ShuffleMask::Constant(indices) => {
+                        assert_eq!(indices.len() as u64, result);
+                        for index in indices {
+                            expression_use(code, index.operand());
+                            assert_eq!(index.operand().context(), UseContext::UnevaluatedValue);
+                            if let ShuffleLane::Index(lane) = index.lane() {
+                                assert!(lane < first + second);
+                            }
+                        }
+                    }
+                    ShuffleMask::Dynamic => {
+                        assert_eq!(first, second);
+                        assert_eq!(result, first);
+                    }
+                    _ => panic!("unhandled shuffle mask"),
+                }
+            }
             ExprKind::BuiltinCall {
                 callee_occurrence,
                 arguments,
+                builtin,
                 ..
             } => {
                 assert!(code.occurrence(*callee_occurrence).is_some());
+                if let Builtin::Elementwise(_) = builtin {
+                    assert_eq!(arguments.len(),2);
+                    for argument in arguments {
+                        assert_eq!(argument.context(),UseContext::Value);
+                        // Equal integer/vector value types can retain different
+                        // typedef alignment sugar when no conversion occurs.
+                        let operand = unit.resolve(code.ty(argument.effective_type()).unwrap()).unwrap();
+                        let result = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
+                        assert_eq!(operand.kind, result.kind);
+                        assert_eq!(operand.qualifiers, result.qualifiers);
+                    }
+                }
+                if *builtin == Builtin::Complex {
+                    let ty = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
+                    let TypeKind::Complex(kind) = ty.kind else {
+                        panic!("complex constructor result");
+                    };
+                    assert_eq!(arguments.len(), 2);
+                    for argument in arguments {
+                        assert_eq!(argument.context(), UseContext::Value);
+                        let ty = unit.resolve(code.ty(argument.effective_type()).unwrap()).unwrap();
+                        assert!(matches!(ty.kind, TypeKind::Float(component) if component == kind));
+                    }
+                }
+                if let Builtin::X86(intrinsic) = builtin {
+                    let signature = intrinsic
+                        .signature_with_profile(unit.profile().unwrap())
+                        .unwrap();
+                    assert_eq!(arguments.len(), signature.parameters().len());
+                    assert_eq!(code.ty(expression.ty()).unwrap(), signature.result());
+                    for (argument, parameter) in arguments.iter().zip(signature.parameters()) {
+                        assert_eq!(code.ty(argument.effective_type()).unwrap(), parameter);
+                    }
+                    for constraint in
+                        intrinsic.immediate_constraints_with_profile(unit.profile().unwrap())
+                    {
+                        assert!(constraint.argument() < arguments.len());
+                        assert!(constraint.minimum() <= constraint.maximum());
+                        assert!(constraint.multiple_of() > 0);
+                    }
+                    for constraint in intrinsic
+                        .conditional_immediate_constraints_with_profile(unit.profile().unwrap())
+                    {
+                        assert!(constraint.condition().0 < arguments.len());
+                        assert!(constraint.requirement().argument() < arguments.len());
+                        assert!(
+                            constraint.requirement().minimum()
+                                <= constraint.requirement().maximum()
+                        );
+                        assert!(constraint.requirement().multiple_of() > 0);
+                    }
+                }
                 for argument in arguments {
                     expression_use(code, argument);
                 }
@@ -332,10 +543,20 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 expression_use(code, list);
                 assert!(code.ty(*requested_type).is_some());
             }
-            ExprKind::SizeOfType(ty) | ExprKind::AlignOf(ty) => {
+            ExprKind::SizeOfType(ty) => {
                 assert!(code.ty(*ty).is_some());
             }
             ExprKind::SizeOfValue { operand, .. } => expression_use(code, operand),
+            ExprKind::AlignOf { operand, alignment_bytes, .. } => {
+                assert!(alignment_bytes.is_power_of_two());
+                match operand {
+                    toucan::semantic::checked::AlignmentOperand::Type(operand) => {
+                        assert!(code.occurrence(operand.occurrence).is_some());
+                        assert!(code.type_use(operand.type_use).is_some());
+                    }
+                    toucan::semantic::checked::AlignmentOperand::Expression(operand) => expression_use(code, operand),
+                }
+            }
             ExprKind::OffsetOf { record, members } => {
                 let mut ty = code.ty(*record).unwrap();
                 for member in members {
@@ -348,6 +569,37 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                         _ => panic!("new offsetof member needs invariant coverage"),
                     }
                 }
+            }
+            ExprKind::TypesCompatible { left, right, .. } => {
+                for operand in [left, right] {
+                    assert_eq!(
+                        code.occurrence(operand.occurrence).unwrap().kind(),
+                        OccurrenceKind::TypeName
+                    );
+                    assert!(code.type_use(operand.type_use).is_some());
+                }
+            }
+            ExprKind::Choose {
+                condition,
+                then_expression,
+                else_expression,
+                then_selected,
+            } => {
+                expression_use(code, condition);
+                assert_eq!(condition.context(), UseContext::UnevaluatedValue);
+                assert!(code.expression(*then_expression).is_some());
+                assert!(code.expression(*else_expression).is_some());
+                let selected = code
+                    .expression(if *then_selected {
+                        *then_expression
+                    } else {
+                        *else_expression
+                    })
+                    .unwrap();
+                assert_eq!(expression.ty(), selected.ty());
+                assert_eq!(expression.category(), selected.category());
+                assert_eq!(expression.bitfield(), selected.bitfield());
+                assert_eq!(expression.register(), selected.register());
             }
             ExprKind::Generic {
                 control,
@@ -409,6 +661,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 ..
             } => {
                 if let Some(member) = union_member {
+                    let root = unit.atomic_value(root).unwrap().unwrap_or(root);
                     let TypeKind::Record(record) = unit.resolve(root).unwrap().kind else {
                         panic!("union initializer needs record")
                     };
@@ -422,6 +675,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     assert!(code.initializer(entry.initializer()).is_some());
                     let mut ty = root;
                     for step in entry.path() {
+                        ty = unit.atomic_value(ty).unwrap().unwrap_or(ty);
                         match step {
                             Subobject::Field {
                                 record,
@@ -470,6 +724,29 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         assert!(code.ty(body.signature()).is_some());
         for parameter in body.parameters() {
             assert!(code.declaration(*parameter).is_some());
+        }
+        if let Some(old_style) = body.old_style() {
+            assert_eq!(old_style.evaluation_order(), ParameterEvaluationOrder::UnspecifiedBetweenParameters);
+            assert_eq!(old_style.parameters().len(), body.parameters().len());
+            for (entry, parameter) in old_style.parameters().iter().zip(body.parameters()) {
+                assert_eq!(entry.declaration(), *parameter);
+                let site = code.declaration(*parameter).unwrap();
+                assert_eq!(site.scope(), body.scope());
+                assert_eq!(code.entity(site.entity()).unwrap().kind(), EntityKind::Parameter);
+                assert_eq!(code.occurrence(entry.identifier()).unwrap().kind(), OccurrenceKind::OldStyleParameter);
+                assert_eq!(coverage[entry.identifier().index()] & 16, 0);
+                coverage[entry.identifier().index()] |= 16;
+                let mut ty = code.type_use(entry.incoming()).unwrap().shape();
+                for conversion in entry.conversions() {
+                    assert_ne!(conversion.kind(), Conversion::AtomicLoad);
+                    ty = conversion.target_type();
+                    assert!(code.ty(ty).is_some());
+                }
+                assert_eq!(ty, site.ty());
+            }
+            for declaration in old_style.declarations() {
+                assert!(code.declaration_group(*declaration).is_some());
+            }
         }
     }
     for (_, group) in code.declaration_groups() {
@@ -633,7 +910,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 assert_eq!(code.expression(*id).unwrap().occurrence(), row.occurrence())
             }
             ExpressionStatus::BuiltinCallee(id) => assert!(
-                matches!(code.expression(*id).unwrap().kind(), ExprKind::BuiltinCall { callee_occurrence, .. } if *callee_occurrence == row.occurrence())
+                matches!(code.expression(*id).unwrap().kind(), ExprKind::BuiltinCall { callee_occurrence, .. } | ExprKind::ShuffleVector {callee_occurrence, ..} if *callee_occurrence == row.occurrence())
             ),
             ExpressionStatus::CanceledIndirection(id) => assert!(
                 matches!(code.expression(*id).unwrap().kind(), ExprKind::AddressIndirection { indirection, .. } if *indirection == row.occurrence())
@@ -672,6 +949,7 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     }
     for (id, occurrence) in code.occurrences() {
         match occurrence.kind() {
+            OccurrenceKind::OldStyleParameter => assert_ne!(coverage[id.index()] & 16, 0),
             OccurrenceKind::Expression => assert_ne!(coverage[id.index()] & 1, 0),
             OccurrenceKind::Statement => assert_ne!(coverage[id.index()] & 2, 0),
             OccurrenceKind::Initializer => assert_ne!(coverage[id.index()] & 4, 0),
@@ -698,10 +976,25 @@ fn expression_use(code: &CheckedCode, operand: &ExprUse) {
         code.type_use(operand.type_use()).unwrap().shape(),
         operand.effective_type()
     );
+    let mut source_type = code.expression(operand.expression()).unwrap().ty();
     for step in operand.conversions() {
         assert!(code.ty(step.target_type()).is_some());
+        if step.kind() == Conversion::VectorReinterpret {
+            assert!(matches!(
+                code.ty(source_type).unwrap().kind,
+                TypeKind::Vector { .. } | TypeKind::Typedef(_)
+            ));
+            assert!(matches!(
+                code.ty(step.target_type()).unwrap().kind,
+                TypeKind::Vector { .. }
+            ));
+        }
+        source_type = step.target_type();
         if let Conversion::TransparentUnion { field } = step.kind() {
-            assert!(matches!(code.entity(field).unwrap().kind(), EntityKind::Field { .. }));
+            assert!(matches!(
+                code.entity(field).unwrap().kind(),
+                EntityKind::Field { .. }
+            ));
         }
     }
     if let Some(last) = operand.conversions().last() {
@@ -723,11 +1016,16 @@ fn field_path<'a>(unit: &'a TranslationUnit, mut ty: &'a Type, path: &[usize]) -
 }
 fn array_element<'a>(unit: &'a TranslationUnit, ty: &'a Type) -> &'a Type {
     match &unit.resolve(ty).unwrap().kind {
-        TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => element,
+        TypeKind::Array { element, .. }
+        | TypeKind::VariableArray { element, .. }
+        | TypeKind::Vector { element, .. } => element,
         _ => panic!("array path needs array"),
     }
 }
 fn array_index(unit: &TranslationUnit, ty: &Type, index: u64) {
+    if let TypeKind::Vector { lanes, .. } = unit.resolve(ty).unwrap().kind {
+        assert!(index < lanes);
+    }
     if let TypeKind::Array {
         length: Some(length),
         ..
@@ -738,10 +1036,13 @@ fn array_index(unit: &TranslationUnit, ty: &Type, index: u64) {
 }
 fn type_step<'a>(unit: &'a TranslationUnit, ty: &'a Type, step: &TypeStep) -> &'a Type {
     match (step, &unit.resolve(ty).unwrap().kind) {
-        (TypeStep::Pointer, TypeKind::Pointer(pointee)) => pointee,
+        (TypeStep::Pointer, TypeKind::Pointer(pointee))
+        | (TypeStep::AtomicValue, TypeKind::Atomic(pointee)) => pointee,
         (
             TypeStep::Element,
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element },
+            TypeKind::Array { element, .. }
+            | TypeKind::VariableArray { element, .. }
+            | TypeKind::Vector { element, .. },
         ) => element,
         (TypeStep::Return, TypeKind::Function(function)) => &function.return_type,
         (TypeStep::Parameter(index), TypeKind::Function(function)) => {
@@ -753,12 +1054,23 @@ fn type_step<'a>(unit: &'a TranslationUnit, ty: &'a Type, step: &TypeStep) -> &'
 fn type_shape(unit: &TranslationUnit, root: &Type) {
     let mut pending = vec![root];
     while let Some(ty) = pending.pop() {
+        unit.typedef_alignment_metadata(ty).unwrap();
         match &ty.kind {
-            TypeKind::Pointer(pointee) => pending.push(pointee),
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
-                pending.push(element)
+            TypeKind::Pointer(pointee) | TypeKind::Atomic(pointee) => pending.push(pointee),
+            TypeKind::VariableArray { element, identity } => {
+                assert!(identity.value() > 0);
+                pending.push(element);
+            }
+            TypeKind::Array { element, .. } | TypeKind::Vector { element, .. } => {
+                pending.push(element);
             }
             TypeKind::Function(function) => {
+                if let Some(id) = function.parameter_contracts {
+                    for &position in &unit.parameter_contracts(id).unwrap().no_escape {
+                        let parameter = &function.parameters[position as usize];
+                        assert!(matches!(unit.resolve(&parameter.ty).unwrap().kind, TypeKind::Pointer(_)));
+                    }
+                }
                 pending.push(&function.return_type);
                 pending.extend(function.parameters.iter().map(|parameter| &parameter.ty));
             }
@@ -771,7 +1083,12 @@ fn type_shape(unit: &TranslationUnit, root: &Type) {
             TypeKind::Typedef(_) => {
                 assert!(unit.resolve(ty).is_ok());
             }
-            TypeKind::Void | TypeKind::Bool | TypeKind::Integer(_) | TypeKind::Float(_) => {}
+            TypeKind::Void
+            | TypeKind::Bool
+            | TypeKind::Integer(_)
+            | TypeKind::Float(_)
+            | TypeKind::Complex(_)
+            | TypeKind::Sve(_) => {}
         }
     }
 }

@@ -4,7 +4,7 @@ use lang_c::{ast, span::Node};
 
 use crate::analyze::Analyzer;
 use crate::integer::{common, integer_to_type, promote};
-use crate::{DeclarationKind, Error, FloatKind, IntegerValue, Qualifiers, Type, TypeKind};
+use crate::{DeclarationKind, Error, IntegerValue, Qualifiers, Type, TypeKind};
 
 /// An expression's type before array/function conversion, with constraints that
 /// cannot be represented by its type alone.
@@ -14,6 +14,10 @@ pub(crate) struct ExpressionInfo {
     pub(crate) lvalue: bool,
     pub(crate) bitfield: Option<u64>,
     pub(crate) register: bool,
+    pub(crate) vector_element: bool,
+    /// Component places retain volatile access independently of their C type.
+    pub(crate) volatile_place: bool,
+    pub(crate) alignment_origin: Option<crate::alignof::OriginId>,
 }
 
 impl ExpressionInfo {
@@ -23,6 +27,9 @@ impl ExpressionInfo {
             lvalue: false,
             bitfield: None,
             register: false,
+            vector_element: false,
+            volatile_place: false,
+            alignment_origin: None,
         }
     }
 
@@ -32,6 +39,9 @@ impl ExpressionInfo {
             lvalue: true,
             bitfield: None,
             register: false,
+            vector_element: false,
+            volatile_place: false,
+            alignment_origin: None,
         }
     }
 }
@@ -58,13 +68,21 @@ impl Analyzer {
             None
         };
         self.enter_expression(expression.span.start)?;
+        // Type and body constraints always use the frontend's constant rules,
+        // even when an external folding query permits later object-size facts.
+        let late = std::mem::replace(&mut self.allow_late_object_size_folds, false);
         let result = self.expression_info_inner(expression);
         let result = result.and_then(|info| {
             if let Some(occurrence) = occurrence {
-                self.retain_expression(expression, occurrence, &info)?;
+                let saved = self.suppress_sve_features;
+                self.suppress_sve_features = true;
+                let retained = self.retain_expression(expression, occurrence, &info);
+                self.suppress_sve_features = saved;
+                retained?;
             }
             Ok(info)
         });
+        self.allow_late_object_size_folds = late;
         self.leave_expression();
         result
     }
@@ -78,33 +96,38 @@ impl Analyzer {
             ast::Expression::Constant(constant) => match &constant.node {
                 ast::Constant::Integer(integer) => integer_to_type(self.literal(integer, offset)?),
                 ast::Constant::Character(character) => {
-                    integer_to_type(crate::decode_character_literal(
+                    integer_to_type(crate::decode_character_literal_with_profile(
                         self.character_literals
                             .get(&constant.span.start)
                             .map_or(character.as_str(), String::as_str),
-                        self.unit.target,
+                        self.unit.profile()?,
                         offset,
                     )?)
                 }
                 ast::Constant::Float(float) => {
+                    let kind = crate::narrow_float::literal_kind(
+                        &float.suffix.format,
+                        self.unit.target,
+                        self.unit.compiler,
+                        offset,
+                    )?;
                     if float.suffix.imaginary {
-                        return Err(Error::new(offset, "complex expressions are unsupported"));
+                        self.require_complex_kind(kind, offset)?;
+                        Type::new(TypeKind::Complex(kind))
+                    } else {
+                        Type::new(TypeKind::Float(kind))
                     }
-                    Type::new(TypeKind::Float(match float.suffix.format {
-                        ast::FloatFormat::Float => FloatKind::Float,
-                        ast::FloatFormat::Double => FloatKind::Double,
-                        ast::FloatFormat::LongDouble => FloatKind::LongDouble,
-                        _ => return Err(Error::new(offset, "unsupported floating-point type")),
-                    }))
                 }
             },
             ast::Expression::Identifier(identifier) => {
                 let name = &identifier.node.name;
+                self.check_auto_reference(name, offset)?;
                 if let Some(value) = self.unit.constants.get(name) {
                     integer_to_type(*value)
                 } else if let Some(ty) = self.parameter_type(name) {
                     let mut info = ExpressionInfo::object(ty.clone());
                     info.register = self.is_register_object(name);
+                    info.alignment_origin = self.identifier_alignment_origin(name, offset)?;
                     return Ok(info);
                 } else if let Some(declaration) = self
                     .unit
@@ -114,9 +137,17 @@ impl Analyzer {
                 {
                     match declaration.kind {
                         DeclarationKind::Variable => {
-                            return Ok(ExpressionInfo::object(declaration.ty.clone()));
+                            let mut info = ExpressionInfo::object(declaration.ty.clone());
+                            info.alignment_origin =
+                                self.declaration_alignment_origin(declaration.alignment, offset)?;
+                            return Ok(info);
                         }
-                        DeclarationKind::Function => declaration.ty.clone(),
+                        DeclarationKind::Function => {
+                            let mut info = ExpressionInfo::value(declaration.ty.clone());
+                            info.alignment_origin =
+                                self.declaration_alignment_origin(declaration.alignment, offset)?;
+                            return Ok(info);
+                        }
                         DeclarationKind::Typedef => {
                             return Err(Error::new(offset, "a typedef name is not an expression"));
                         }
@@ -150,22 +181,54 @@ impl Analyzer {
                 return Ok(ExpressionInfo::object(ty));
             }
             ast::Expression::Statement(statement) => return self.statement_expression(statement),
+            ast::Expression::ConvertVector(conversion) => self.convert_vector_type(conversion)?,
+            ast::Expression::TypesCompatible(query) => {
+                self.eval_types_compatible(query)?;
+                integer_to_type(IntegerValue::int(0))
+            }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                return self.expression_info(selected);
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 return self.expression_info(selected);
             }
             ast::Expression::Cast(cast) => {
-                let source = self.value_expression_type(&cast.node.expression)?;
+                let source_info = self.expression_info(&cast.node.expression)?;
+                self.require_sve_value(&source_info.ty, cast.node.expression.span.start)?;
+                let source = self.converted_type(&source_info, cast.node.expression.span.start)?;
+                let source_origin = source_info.alignment_origin;
+                drop(source_info);
                 let destination = self.type_name(&cast.node.type_name.node)?;
-                let destination = self.unit.resolve(&destination)?.clone();
-                if matches!(destination.kind, TypeKind::Record(_))
-                    && self.compatible(&source, &self.unqualified(&destination)?)?
+                let mut written_destination = self.unit.resolve(&destination)?.clone();
+                written_destination.alignment =
+                    self.unit.typedef_alignment_metadata(&destination)?;
+                written_destination.qualifiers = self.unit.qualifiers(&destination)?;
+                let atomic_destination;
+                let destination = if self.unit.atomic_value(&written_destination)?.is_some() {
+                    atomic_destination = self.atomic_value_type(&written_destination)?;
+                    &atomic_destination
+                } else {
+                    &written_destination
+                };
+                if !matches!(destination.kind, TypeKind::Void)
+                    && (matches!(source.kind, TypeKind::Vector { .. })
+                        || matches!(destination.kind, TypeKind::Vector { .. }))
+                {
+                    self.check_vector_cast(&source, destination, offset)?;
+                } else if matches!(destination.kind, TypeKind::Sve(_))
+                    && self.compatible(&source, &self.unqualified(destination)?)?
+                {
+                    // ACLE permits a cast that preserves the sizeless type.
+                } else if matches!(destination.kind, TypeKind::Record(_))
+                    && self.compatible(&source, &self.unqualified(destination)?)?
                 {
                     // GNU permits a value cast to the same struct or union type.
-                    self.require_complete_object(&destination, offset)?;
+                    self.require_complete_object(destination, offset)?;
                 } else if !matches!(destination.kind, TypeKind::Void) {
                     self.require_scalar(&source, offset)?;
-                    self.require_scalar(&destination, offset)?;
+                    self.require_scalar(destination, offset)?;
                     if matches!(
                         destination.kind,
                         TypeKind::Array { .. }
@@ -173,13 +236,33 @@ impl Analyzer {
                             | TypeKind::Function(_)
                     ) || matches!(
                         (&destination.kind, &source.kind),
-                        (TypeKind::Pointer(_), TypeKind::Float(_))
-                            | (TypeKind::Float(_), TypeKind::Pointer(_))
+                        (
+                            TypeKind::Pointer(_),
+                            TypeKind::Float(_) | TypeKind::Complex(_)
+                        ) | (
+                            TypeKind::Float(_) | TypeKind::Complex(_),
+                            TypeKind::Pointer(_)
+                        )
                     ) {
                         return Err(Error::new(offset, "invalid scalar cast"));
                     }
                 }
-                self.unqualified(&destination)?
+                let ty = if self.gnu_sync_profile() {
+                    // GCC casts discard typedef alignment on the result value.
+                    // The pointed-to type remains part of a pointer cast's type.
+                    let mut ty = self.unqualified(destination)?;
+                    ty.alignment = crate::TypeAlignment::default();
+                    ty
+                } else {
+                    self.unqualified(&written_destination)?
+                };
+                let mut info = ExpressionInfo::value(ty);
+                if matches!(source.kind, TypeKind::Pointer(_))
+                    && matches!(self.unit.resolve(&info.ty)?.kind, TypeKind::Pointer(_))
+                {
+                    info.alignment_origin = source_origin;
+                }
+                return Ok(info);
             }
             ast::Expression::UnaryOperator(unary) => {
                 // In &*E neither operator is evaluated and the result is E after
@@ -188,16 +271,36 @@ impl Analyzer {
                     && let ast::Expression::UnaryOperator(indirection) = &unary.node.operand.node
                     && indirection.node.operator.node == ast::UnaryOperator::Indirection
                 {
-                    let ty = self.value_expression_type(&indirection.node.operand)?;
+                    let source = self.expression_info(&indirection.node.operand)?;
+                    self.require_sve_value(&source.ty, indirection.node.operand.span.start)?;
+                    let ty = self.converted_type(&source, indirection.node.operand.span.start)?;
                     if !matches!(ty.kind, TypeKind::Pointer(_)) {
                         return Err(Error::new(offset, "indirection requires a pointer"));
                     }
-                    return Ok(ExpressionInfo::value(ty));
+                    let mut info = ExpressionInfo::value(ty);
+                    info.alignment_origin = source.alignment_origin;
+                    return Ok(info);
                 }
                 let operand = self.expression_info(&unary.node.operand)?;
+                if matches!(
+                    unary.node.operator.node,
+                    ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary
+                ) {
+                    return self.complex_projection(
+                        operand,
+                        unary.node.operator.node == ast::UnaryOperator::Imaginary,
+                        offset,
+                    );
+                }
                 let value = self.converted_type(&operand, offset)?;
                 match unary.node.operator.node {
                     ast::UnaryOperator::Address => {
+                        if operand.vector_element && !self.gnu_vector_profile() {
+                            return Err(Error::new(
+                                offset,
+                                "taking the address of a vector element is unsupported by this target's compiler profile",
+                            ));
+                        }
                         if operand.register {
                             return Err(Error::new(
                                 offset,
@@ -221,7 +324,10 @@ impl Analyzer {
                                 "address requires an lvalue or function designator",
                             ));
                         }
-                        operand.ty.pointer()
+                        let origin = self.address_alignment_origin(&operand, offset)?;
+                        let mut info = ExpressionInfo::value(operand.ty.pointer());
+                        info.alignment_origin = origin;
+                        return Ok(info);
                     }
                     ast::UnaryOperator::Indirection => {
                         let TypeKind::Pointer(pointee) = value.kind else {
@@ -235,28 +341,68 @@ impl Analyzer {
                         }
                         let function =
                             matches!(self.unit.resolve(&pointee)?.kind, TypeKind::Function(_));
+                        let alignment_origin = self.dereference_alignment_origin(
+                            operand.alignment_origin,
+                            &pointee,
+                            offset,
+                        )?;
                         return Ok(ExpressionInfo {
                             ty: *pointee,
                             lvalue: !function,
                             bitfield: None,
                             register: false,
+                            vector_element: false,
+                            volatile_place: false,
+                            alignment_origin,
                         });
                     }
                     ast::UnaryOperator::Negate => {
                         self.require_scalar(&value, offset)?;
                         integer_to_type(IntegerValue::int(0))
                     }
+                    ast::UnaryOperator::Complement
+                        if matches!(value.kind, TypeKind::Vector { .. }) =>
+                    {
+                        let TypeKind::Vector { element, .. } = &value.kind else {
+                            unreachable!()
+                        };
+                        self.integer_type(element, offset)?;
+                        value
+                    }
+                    ast::UnaryOperator::Plus | ast::UnaryOperator::Minus
+                        if matches!(value.kind, TypeKind::Vector { .. }) =>
+                    {
+                        value
+                    }
+                    ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary => {
+                        unreachable!("handled above")
+                    }
+                    ast::UnaryOperator::Complement
+                        if matches!(value.kind, TypeKind::Complex(_)) =>
+                    {
+                        self.complex_unary_result(&operand, value)?
+                    }
                     ast::UnaryOperator::Complement => {
-                        let result = integer_to_type(self.promoted_integer(&operand, offset)?);
+                        let result = if self.unit.compiler == toucan_target::Compiler::Clang {
+                            self.promoted_integer_type(&operand, offset)?
+                        } else {
+                            integer_to_type(self.promoted_integer(&operand, offset)?)
+                        };
                         self.check_arithmetic_alignment(&operand, &result, offset)?;
                         result
                     }
                     ast::UnaryOperator::Plus | ast::UnaryOperator::Minus => {
                         self.require_arithmetic(&value, offset)?;
-                        if matches!(value.kind, TypeKind::Float(_)) {
+                        if matches!(value.kind, TypeKind::Complex(_)) {
+                            self.complex_unary_result(&operand, value)?
+                        } else if matches!(value.kind, TypeKind::Float(_)) {
                             value
                         } else {
-                            let result = integer_to_type(self.promoted_integer(&operand, offset)?);
+                            let result = if self.unit.compiler == toucan_target::Compiler::Clang {
+                                self.promoted_integer_type(&operand, offset)?
+                            } else {
+                                integer_to_type(self.promoted_integer(&operand, offset)?)
+                            };
                             self.check_arithmetic_alignment(&operand, &result, offset)?;
                             result
                         }
@@ -266,11 +412,20 @@ impl Analyzer {
                     | ast::UnaryOperator::PostIncrement
                     | ast::UnaryOperator::PostDecrement => {
                         self.require_modifiable(&operand, offset)?;
-                        self.require_scalar(&value, offset)?;
+                        if matches!(value.kind, TypeKind::Vector { .. }) {
+                            if !self.gnu_vector_profile() {
+                                return Err(Error::new(
+                                    offset,
+                                    "vector increment and decrement are unsupported by this target's compiler profile",
+                                ));
+                            }
+                        } else {
+                            self.require_scalar(&value, offset)?;
+                        }
                         if let TypeKind::Pointer(pointee) = &value.kind {
                             self.require_complete_object(pointee, offset)?;
                         }
-                        value
+                        self.complex_unary_result(&operand, value)?
                     }
                 }
             }
@@ -278,8 +433,24 @@ impl Analyzer {
             ast::Expression::Conditional(conditional) => {
                 let condition = self.value_expression_type(&conditional.node.condition)?;
                 self.require_scalar(&condition, offset)?;
+                let left_checkpoint = self.sve_feature_checkpoint();
+                let labels = self.sve_feature_labels;
                 let left = self.expression_info(&conditional.node.then_expression)?;
+                if self.sve_feature_checkpoint() > left_checkpoint
+                    && labels == self.sve_feature_labels
+                    && self.sve_constant_truth(&conditional.node.condition) == Some(false)
+                {
+                    self.discard_sve_feature_uses(left_checkpoint);
+                }
+                let right_checkpoint = self.sve_feature_checkpoint();
+                let labels = self.sve_feature_labels;
                 let right = self.expression_info(&conditional.node.else_expression)?;
+                if self.sve_feature_checkpoint() > right_checkpoint
+                    && labels == self.sve_feature_labels
+                    && self.sve_constant_truth(&conditional.node.condition) == Some(true)
+                {
+                    self.discard_sve_feature_uses(right_checkpoint);
+                }
                 let left_value = self.converted_type(&left, offset)?;
                 let right_value = self.converted_type(&right, offset)?;
                 let result = if self.is_arithmetic(&left_value)?
@@ -294,9 +465,11 @@ impl Analyzer {
                 } else if matches!(
                     (&left_value.kind, &right_value.kind),
                     (TypeKind::Record(_), TypeKind::Record(_))
+                        | (TypeKind::Vector { .. }, TypeKind::Vector { .. })
+                        | (TypeKind::Sve(_), TypeKind::Sve(_))
                 ) && self.compatible(&left_value, &right_value)?
                 {
-                    self.require_complete_object(&left_value, offset)?;
+                    self.require_definite_object(&left_value, offset)?;
                     left_value
                 } else if matches!(left_value.kind, TypeKind::Pointer(_))
                     && self
@@ -333,12 +506,26 @@ impl Analyzer {
                 } else {
                     (base.ty, base.lvalue)
                 };
+                if self.unit.atomic_value(&ty)?.is_some() {
+                    return Err(Error::new(
+                        offset,
+                        "accessing an atomic struct or union member is undefined; load the whole value first",
+                    ));
+                }
                 let (field, bitfield) =
                     self.member_type(&ty, &member.node.identifier.node.name, offset, 0)?;
+                let alignment_origin = if bitfield.is_none() {
+                    self.member_alignment_origin(&ty, &member.node.identifier.node.name, offset)?
+                } else {
+                    None
+                };
                 return Ok(ExpressionInfo {
                     ty: field,
                     lvalue,
                     bitfield,
+                    vector_element: false,
+                    volatile_place: false,
+                    alignment_origin,
                     register: member.node.operator.node == ast::MemberOperator::Direct
                         && base.register,
                 });
@@ -390,12 +577,24 @@ impl Analyzer {
                     self.unit.resolve(&function.return_type)?.kind,
                     TypeKind::Void
                 ) {
-                    self.require_complete_object(&function.return_type, offset)?;
+                    self.require_definite_object(&function.return_type, offset)?;
                 }
-                function.return_type
+                self.require_sve_value(&function.return_type, offset)?;
+                self.require_inline_features(call)?;
+                if self.gnu_sync_profile()
+                    && self.unit.atomic_value(&function.return_type)?.is_some()
+                {
+                    self.atomic_value_type(&function.return_type)?
+                } else {
+                    function.return_type
+                }
             }
             ast::Expression::SizeOfTy(size) => {
+                let checkpoint = self.sve_feature_checkpoint();
                 let ty = self.type_name(&size.node.0.node)?;
+                if !self.unit.is_variable_length_array(&ty)? {
+                    self.discard_sve_feature_uses(checkpoint);
+                }
                 self.require_complete_object(&ty, offset)?;
                 integer_to_type(self.size_value(0))
             }
@@ -404,8 +603,7 @@ impl Analyzer {
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::AlignOf(alignment) => {
-                let ty = self.type_name(&alignment.node.0.node)?;
-                self.require_complete_object(&ty, offset)?;
+                self.alignment_query(alignment)?;
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::OffsetOf(_) => {
@@ -436,7 +634,9 @@ impl Analyzer {
                 "generic selection exceeds the 256-association limit",
             ));
         }
+        let checkpoint = self.sve_feature_checkpoint();
         let control = self.value_expression_type(&selection.node.expression)?;
+        self.discard_sve_feature_uses(checkpoint);
         let mut types = Vec::new();
         let mut expressions = Vec::new();
         let mut selected = None;
@@ -451,7 +651,7 @@ impl Analyzer {
                             "generic association cannot have variably modified type",
                         ));
                     }
-                    self.require_complete_object(&ty, association.span.start)?;
+                    self.require_definite_object(&ty, association.span.start)?;
                     for previous in &types {
                         if self.compatible(previous, &ty)? {
                             return Err(Error::new(
@@ -488,7 +688,9 @@ impl Analyzer {
         // too would multiply the work at every nested generic selection.
         for (index, expression) in expressions.iter().enumerate() {
             if index != selected {
+                let checkpoint = self.sve_feature_checkpoint();
                 self.expression_type(expression)?;
+                self.discard_sve_feature_uses(checkpoint);
             }
         }
         // Record the decision even before a pack is discovered in the selected
@@ -511,7 +713,20 @@ impl Analyzer {
         use ast::BinaryOperator as Op;
         let offset = binary.span.start;
         let left = self.expression_info(&binary.node.lhs)?;
+        let checkpoint = self.sve_feature_checkpoint();
+        let labels = self.sve_feature_labels;
         let right = self.expression_info(&binary.node.rhs)?;
+        if self.sve_feature_checkpoint() > checkpoint
+            && labels == self.sve_feature_labels
+            && matches!(binary.node.operator.node, Op::LogicalAnd | Op::LogicalOr)
+        {
+            let truth = self.sve_constant_truth(&binary.node.lhs);
+            if (binary.node.operator.node == Op::LogicalAnd && truth == Some(false))
+                || (binary.node.operator.node == Op::LogicalOr && truth == Some(true))
+            {
+                self.discard_sve_feature_uses(checkpoint);
+            }
+        }
         let left_value = self.converted_type(&left, offset)?;
         let right_value = self.converted_type(&right, offset)?;
         let assignment = matches!(
@@ -532,6 +747,7 @@ impl Analyzer {
             Op::Assign => {
                 self.require_modifiable(&left, offset)?;
                 self.check_assignment_type(&left.ty, &right_value, &binary.node.rhs)?;
+                self.require_sve_value(&left.ty, offset)?;
                 return Ok(ExpressionInfo::value(left_value));
             }
             Op::AssignMultiply => Op::Multiply,
@@ -548,17 +764,110 @@ impl Analyzer {
         };
         if assignment {
             self.require_modifiable(&left, offset)?;
+            if !self.gnu_sync_profile()
+                && self.unit.atomic_value(&left.ty)?.is_some()
+                && matches!(left_value.kind, TypeKind::Pointer(_))
+            {
+                return Err(Error::new(
+                    offset,
+                    "this Clang profile does not support atomic pointer compound assignment",
+                ));
+            }
             if matches!(left_value.kind, TypeKind::Pointer(_)) {
                 self.integer_type(&right_value, offset)?;
             }
         }
+        if operator == Op::Index
+            && let TypeKind::Vector { element, .. } = &left_value.kind
+        {
+            self.integer_type(&right_value, offset)?;
+            let mut ty = (**element).clone();
+            ty.qualifiers = self.unit.qualifiers(&left.ty)?;
+            return Ok(ExpressionInfo {
+                ty,
+                lvalue: left.lvalue,
+                bitfield: None,
+                register: left.register,
+                vector_element: true,
+                volatile_place: false,
+                alignment_origin: None,
+            });
+        }
+        if !matches!(operator, Op::Index | Op::LogicalAnd | Op::LogicalOr)
+            && (matches!(left_value.kind, TypeKind::Vector { .. })
+                || matches!(right_value.kind, TypeKind::Vector { .. }))
+        {
+            let shift = matches!(operator, Op::ShiftLeft | Op::ShiftRight);
+            let vector = self.vector_operands(
+                &left_value,
+                &right_value,
+                &binary.node.lhs,
+                &binary.node.rhs,
+                shift,
+            )?;
+            if matches!(
+                operator,
+                Op::Modulo
+                    | Op::BitwiseAnd
+                    | Op::BitwiseOr
+                    | Op::BitwiseXor
+                    | Op::ShiftLeft
+                    | Op::ShiftRight
+            ) {
+                let TypeKind::Vector { element, .. } = &vector.kind else {
+                    unreachable!()
+                };
+                self.integer_type(element, offset)?;
+            }
+            let result = if matches!(
+                operator,
+                Op::Equals
+                    | Op::NotEquals
+                    | Op::Less
+                    | Op::LessOrEqual
+                    | Op::Greater
+                    | Op::GreaterOrEqual
+            ) {
+                self.vector_mask(&vector, offset)?
+            } else {
+                vector
+            };
+            if assignment && !self.compatible(&left_value, &result)? {
+                return Err(Error::new(
+                    offset,
+                    "compound vector assignment requires a compatible vector destination",
+                ));
+            }
+            return Ok(ExpressionInfo::value(if assignment {
+                left_value
+            } else {
+                result
+            }));
+        }
         let ty = match operator {
             Op::Index => {
-                for (pointer, index) in [(&left_value, &right_value), (&right_value, &left_value)] {
+                for (pointer, index, origin, index_expression) in [
+                    (
+                        &left_value,
+                        &right_value,
+                        left.alignment_origin,
+                        &binary.node.rhs,
+                    ),
+                    (
+                        &right_value,
+                        &left_value,
+                        right.alignment_origin,
+                        &binary.node.lhs,
+                    ),
+                ] {
                     if let TypeKind::Pointer(pointee) = &pointer.kind {
                         self.integer_type(index, offset)?;
                         self.require_complete_object(pointee, offset)?;
-                        return Ok(ExpressionInfo::object((**pointee).clone()));
+                        let origin = self.zero_offset_alignment_origin(origin, index_expression)?;
+                        let mut info = ExpressionInfo::object((**pointee).clone());
+                        info.alignment_origin =
+                            self.dereference_alignment_origin(origin, pointee, offset)?;
+                        return Ok(info);
                     }
                 }
                 return Err(Error::new(
@@ -578,6 +887,15 @@ impl Analyzer {
             | Op::Greater
             | Op::GreaterOrEqual => {
                 if self.is_arithmetic(&left_value)? && self.is_arithmetic(&right_value)? {
+                    if !matches!(operator, Op::Equals | Op::NotEquals)
+                        && (matches!(left_value.kind, TypeKind::Complex(_))
+                            || matches!(right_value.kind, TypeKind::Complex(_)))
+                    {
+                        return Err(Error::new(
+                            offset,
+                            "ordered comparison requires real operands",
+                        ));
+                    }
                     self.arithmetic_type(&left, &right, offset)?;
                 } else if matches!(operator, Op::Equals | Op::NotEquals) {
                     if matches!(left_value.kind, TypeKind::Pointer(_))
@@ -648,15 +966,22 @@ impl Analyzer {
             }
             Op::Multiply | Op::Divide => self.arithmetic_type(&left, &right, offset)?,
             Op::ShiftLeft | Op::ShiftRight => {
-                let left = self.promoted_integer(&left, offset)?;
+                let promoted_left = self.promoted_integer(&left, offset)?;
                 self.promoted_integer(&right, offset)?;
-                integer_to_type(left)
+                if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.promoted_integer_type(&left, offset)?
+                } else {
+                    integer_to_type(promoted_left)
+                }
             }
             Op::Modulo | Op::BitwiseAnd | Op::BitwiseXor | Op::BitwiseOr => {
-                integer_to_type(common(
+                let mut result = integer_to_type(common(
                     self.promoted_integer(&left, offset)?,
                     self.promoted_integer(&right, offset)?,
-                ))
+                ));
+                result.alignment =
+                    self.integer_arithmetic_alignment(&left, &right, &result, offset)?;
+                result
             }
             _ => unreachable!("assignment operators have been converted above"),
         };
@@ -680,11 +1005,19 @@ impl Analyzer {
                 self.check_arithmetic_alignment(&right, &ty, offset)?;
             }
         }
-        Ok(ExpressionInfo::value(if assignment {
-            left_value
-        } else {
-            ty
-        }))
+        let left_pointer = matches!(left_value.kind, TypeKind::Pointer(_));
+        let mut info = ExpressionInfo::value(if assignment { left_value } else { ty });
+        if !assignment
+            && matches!(operator, Op::Plus | Op::Minus)
+            && matches!(info.ty.kind, TypeKind::Pointer(_))
+        {
+            info.alignment_origin = if left_pointer {
+                self.zero_offset_alignment_origin(left.alignment_origin, &binary.node.rhs)?
+            } else {
+                self.zero_offset_alignment_origin(right.alignment_origin, &binary.node.lhs)?
+            };
+        }
+        Ok(info)
     }
 
     /// Checks the constraints shared by assignment, initialization and prototype arguments.
@@ -701,22 +1034,35 @@ impl Analyzer {
         Ok(())
     }
 
-    fn check_assignment_type(
+    pub(crate) fn check_assignment_type(
         &mut self,
         destination: &Type,
         source: &Type,
         expression: &Node<ast::Expression>,
     ) -> Result<(), Error> {
-        let destination = self.unqualified(destination)?;
         let offset = expression.span.start;
+        // Clang preserves an atomic rvalue's type. An exact copy requires no
+        // lvalue load and cannot use the non-atomic pointer/record constraints.
+        if self.unit.atomic_value(destination)?.is_some()
+            && self.unit.atomic_value(source)?.is_some()
+            && self.compatible(&self.unqualified(destination)?, &self.unqualified(source)?)?
+        {
+            self.require_complete_object(destination, offset)?;
+            return Ok(());
+        }
+        let destination = self.atomic_value_type(destination)?;
         if (self.is_arithmetic(&destination)? && self.is_arithmetic(source)?)
             || (matches!(destination.kind, TypeKind::Bool)
                 && matches!(source.kind, TypeKind::Pointer(_)))
         {
             return Ok(());
         }
-        if matches!(destination.kind, TypeKind::Record(_))
-            && self.compatible(&destination, source)?
+        if matches!(destination.kind, TypeKind::Sve(_)) && self.compatible(&destination, source)? {
+            return self.require_definite_object(&destination, offset);
+        }
+        if (matches!(destination.kind, TypeKind::Record(_))
+            && self.compatible(&destination, source)?)
+            || self.compatible_vector_lanes(&destination, source)?
         {
             self.require_complete_object(&destination, offset)?;
             return Ok(());
@@ -733,6 +1079,10 @@ impl Analyzer {
                     // qualify a function. GCC and Clang discard them here.
                     return Ok(());
                 }
+                let array_to = self.assignment_array_qualification(pointee, offset)?;
+                let array_from = self.assignment_array_qualification(source, offset)?;
+                let pointee = array_to.as_ref().unwrap_or(pointee);
+                let source = array_from.as_ref().unwrap_or(source);
                 let to = self.unit.qualifiers(pointee)?;
                 let from = self.unit.qualifiers(source)?;
                 if (from.is_const && !to.is_const)
@@ -741,13 +1091,84 @@ impl Analyzer {
                 {
                     return Err(Error::new(offset, "pointer assignment discards qualifiers"));
                 }
-                self.composite_pointer(pointee, source, offset)?;
+                // Assignment uses the destination type. Constructing a common
+                // type would apply conditional-expression alignment rules to
+                // conversions that preserve the declared pointer's alignment.
+                let to = self.unqualified(pointee)?;
+                let from = self.unqualified(source)?;
+                if !self.compatible(&to, &from)?
+                    && !matches!(to.kind, TypeKind::Void)
+                    && !matches!(from.kind, TypeKind::Void)
+                {
+                    return Err(Error::new(offset, "incompatible pointer types"));
+                }
+                self.check_noescape_conversion(&to, &from, offset)?;
                 return Ok(());
             }
         }
         Err(Error::new(
             offset,
             "incompatible assignment or argument types",
+        ))
+    }
+
+    /// GNU and Clang C modes allow array-element qualification conversions.
+    /// Normalize only this comparison view, preserving the stored source types.
+    fn assignment_array_qualification(
+        &self,
+        ty: &Type,
+        offset: usize,
+    ) -> Result<Option<Type>, Error> {
+        if !matches!(
+            self.unit.resolve(ty)?.kind,
+            TypeKind::Array { .. } | TypeKind::VariableArray { .. }
+        ) {
+            return Ok(None);
+        }
+        let (mut result, qualifiers) = self.array_qualification(ty, offset, 0)?;
+        result.qualifiers = qualifiers;
+        Ok(Some(result))
+    }
+
+    fn array_qualification(
+        &self,
+        ty: &Type,
+        offset: usize,
+        depth: usize,
+    ) -> Result<(Type, Qualifiers), Error> {
+        if depth >= 128 {
+            return Err(Error::new(
+                offset,
+                "array qualification nesting exceeds 128 levels",
+            ));
+        }
+        let mut qualifiers = self.unit.qualifiers(ty)?;
+        let kind = match &self.unit.resolve(ty)?.kind {
+            TypeKind::Array { element, length } => {
+                let (element, inner) = self.array_qualification(element, offset, depth + 1)?;
+                qualifiers = union_qualifiers(qualifiers, inner);
+                TypeKind::Array {
+                    element: Box::new(element),
+                    length: *length,
+                }
+            }
+            TypeKind::VariableArray { element, identity } => {
+                let (element, inner) = self.array_qualification(element, offset, depth + 1)?;
+                qualifiers = union_qualifiers(qualifiers, inner);
+                TypeKind::VariableArray {
+                    element: Box::new(element),
+                    identity: *identity,
+                }
+            }
+            kind => kind.clone(),
+        };
+        Ok((
+            Type {
+                kind,
+                qualifiers: Qualifiers::default(),
+                alignment: self.unit.typedef_alignment_metadata(ty)?,
+            },
+            qualifiers,
         ))
     }
 
@@ -760,7 +1181,11 @@ impl Analyzer {
     }
 
     fn sizeof_operand_type(&mut self, expression: &Node<ast::Expression>) -> Result<Type, Error> {
+        let checkpoint = self.sve_feature_checkpoint();
         let operand = self.expression_info(expression)?;
+        if !self.unit.is_variable_length_array(&operand.ty)? {
+            self.discard_sve_feature_uses(checkpoint);
+        }
         if operand.bitfield.is_some() {
             return Err(Error::new(
                 expression.span.start,
@@ -778,6 +1203,7 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
     ) -> Result<Type, Error> {
         let info = self.expression_info(expression)?;
+        self.require_sve_value(&info.ty, expression.span.start)?;
         self.converted_type(&info, expression.span.start)
     }
 
@@ -797,6 +1223,13 @@ impl Analyzer {
                 "register array cannot undergo pointer conversion",
             ));
         }
+        if self.unit.atomic_value(&expression.ty)?.is_some() {
+            return if expression.lvalue || self.gnu_sync_profile() {
+                self.atomic_value_type(&expression.ty)
+            } else {
+                self.unqualified(&expression.ty)
+            };
+        }
         self.value_type(&expression.ty)
     }
 
@@ -804,7 +1237,7 @@ impl Analyzer {
     pub(crate) fn value_type(&self, ty: &Type) -> Result<Type, Error> {
         let resolved = self.unit.resolve(ty)?;
         Ok(match &resolved.kind {
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                 let mut element = (**element).clone();
                 element.qualifiers =
                     union_qualifiers(self.unit.qualifiers(&element)?, self.unit.qualifiers(ty)?);
@@ -816,7 +1249,7 @@ impl Analyzer {
     }
 
     pub(crate) fn unqualified(&self, ty: &Type) -> Result<Type, Error> {
-        let alignment = self.unit.typedef_alignment(ty)?;
+        let alignment = self.unit.typedef_alignment_metadata(ty)?;
         let mut ty = self.unit.resolve(ty)?.clone();
         ty.alignment = alignment;
         ty.qualifiers = Qualifiers::default();
@@ -824,9 +1257,14 @@ impl Analyzer {
     }
 
     pub(crate) fn require_scalar(&self, ty: &Type, offset: usize) -> Result<(), Error> {
-        if matches!(
+        if !matches!(
             self.value_type(ty)?.kind,
-            TypeKind::Void | TypeKind::Record(_)
+            TypeKind::Bool
+                | TypeKind::Integer(_)
+                | TypeKind::Float(_)
+                | TypeKind::Complex(_)
+                | TypeKind::Enum(_)
+                | TypeKind::Pointer(_)
         ) {
             return Err(Error::new(offset, "operator requires a scalar operand"));
         }
@@ -836,11 +1274,15 @@ impl Analyzer {
     pub(crate) fn is_arithmetic(&self, ty: &Type) -> Result<bool, Error> {
         Ok(matches!(
             self.unit.resolve(ty)?.kind,
-            TypeKind::Bool | TypeKind::Integer(_) | TypeKind::Enum(_) | TypeKind::Float(_)
+            TypeKind::Bool
+                | TypeKind::Integer(_)
+                | TypeKind::Enum(_)
+                | TypeKind::Float(_)
+                | TypeKind::Complex(_)
         ))
     }
 
-    fn require_arithmetic(&self, ty: &Type, offset: usize) -> Result<(), Error> {
+    pub(crate) fn require_arithmetic(&self, ty: &Type, offset: usize) -> Result<(), Error> {
         if self.is_arithmetic(ty)? {
             Ok(())
         } else {
@@ -864,35 +1306,58 @@ impl Analyzer {
         expression: &ExpressionInfo,
         offset: usize,
     ) -> Result<IntegerValue, Error> {
-        let integer = self.integer_type(&expression.ty, offset)?;
-        if expression.bitfield.is_some_and(|width| width < 32) && integer.rank <= 3 {
+        let integer = if self.unit.atomic_value(&expression.ty)?.is_some() {
+            self.integer_type(&self.converted_type(expression, offset)?, offset)?
+        } else {
+            self.integer_type(&expression.ty, offset)?
+        };
+        if self.unit.compiler == toucan_target::Compiler::Clang
+            && let Some(width) = expression.bitfield
+            && width <= 32
+        {
+            Ok(if width < 32 || integer.signed {
+                IntegerValue::int(0)
+            } else {
+                IntegerValue {
+                    value: 0,
+                    bits: 32,
+                    signed: false,
+                    rank: 3,
+                }
+            })
+        } else if expression.bitfield.is_some_and(|width| width < 32) && integer.rank <= 3 {
             Ok(IntegerValue::int(0))
         } else {
             Ok(promote(integer))
         }
     }
 
-    /// GCC and Clang preserve different typedef sugar in arithmetic results.
-    /// Until that identity is represented, do not invent an observable typeof
-    /// alignment for an unpromoted, nonredundantly aligned operand.
+    /// Reject common-type alignment outside the modeled Clang integer rules.
+    /// GNU and floating/complex sugar require their own compiler-specific merge.
     fn check_arithmetic_alignment(
         &self,
         operand: &ExpressionInfo,
         result: &Type,
         offset: usize,
     ) -> Result<(), Error> {
+        if self.unit.compiler == toucan_target::Compiler::Clang
+            && matches!(result.kind, TypeKind::Integer(_))
+        {
+            return Ok(());
+        }
         if operand.bitfield.is_some() {
             return Ok(());
         }
-        let Some(alignment) = self.unit.typedef_alignment(&operand.ty)? else {
+        let operand_type = self.unit.atomic_value(&operand.ty)?.unwrap_or(&operand.ty);
+        let Some(alignment) = self.unit.typedef_alignment(operand_type)? else {
             return Ok(());
         };
-        let resolved = self.unit.resolve(&operand.ty)?;
+        let resolved = self.unit.resolve(operand_type)?;
         if resolved.kind != result.kind {
             return Ok(());
         }
         let mut underlying = resolved.clone();
-        underlying.alignment = None;
+        underlying.alignment = crate::TypeAlignment::default();
         if u64::from(alignment.get()) != self.unit.alignment(&underlying)? {
             return Err(Error::new(
                 offset,
@@ -903,39 +1368,118 @@ impl Analyzer {
     }
 
     pub(crate) fn arithmetic_type(
-        &self,
+        &mut self,
         left: &ExpressionInfo,
         right: &ExpressionInfo,
         offset: usize,
     ) -> Result<Type, Error> {
-        self.require_arithmetic(&left.ty, offset)?;
-        self.require_arithmetic(&right.ty, offset)?;
-        let left_kind = &self.unit.resolve(&left.ty)?.kind;
-        let right_kind = &self.unit.resolve(&right.ty)?.kind;
-        for float in [FloatKind::LongDouble, FloatKind::Double, FloatKind::Float] {
-            if left_kind == &TypeKind::Float(float) || right_kind == &TypeKind::Float(float) {
-                return Ok(Type::new(TypeKind::Float(float)));
+        let left_type = if left.lvalue || self.gnu_sync_profile() {
+            self.unit.atomic_value(&left.ty)?.unwrap_or(&left.ty)
+        } else {
+            &left.ty
+        };
+        let right_type = if right.lvalue || self.gnu_sync_profile() {
+            self.unit.atomic_value(&right.ty)?.unwrap_or(&right.ty)
+        } else {
+            &right.ty
+        };
+        self.require_arithmetic(left_type, offset)?;
+        self.require_arithmetic(right_type, offset)?;
+        let left_kind = &self.unit.resolve(left_type)?.kind;
+        let right_kind = &self.unit.resolve(right_type)?.kind;
+        let float_kind = |kind: &TypeKind| {
+            if let TypeKind::Float(kind) | TypeKind::Complex(kind) = kind {
+                Some(*kind)
+            } else {
+                None
             }
+        };
+        if let Some(kind) =
+            crate::narrow_float::common_kind(float_kind(left_kind), float_kind(right_kind), offset)?
+        {
+            return Ok(Type::new(
+                if matches!(left_kind, TypeKind::Complex(_))
+                    || matches!(right_kind, TypeKind::Complex(_))
+                {
+                    self.require_complex_kind(kind, offset)?;
+                    TypeKind::Complex(kind)
+                } else {
+                    TypeKind::Float(kind)
+                },
+            ));
         }
-        Ok(integer_to_type(common(
+        let mut result = integer_to_type(common(
             self.promoted_integer(left, offset)?,
             self.promoted_integer(right, offset)?,
-        )))
+        ));
+        result.alignment = self.integer_arithmetic_alignment(left, right, &result, offset)?;
+        Ok(result)
+    }
+
+    /// Compute common real precision without changing either operand's domain.
+    /// A real operand stays real in mixed complex arithmetic (C11 6.3.1.8).
+    pub(crate) fn arithmetic_operand_types(
+        &mut self,
+        left: &ExpressionInfo,
+        right: &ExpressionInfo,
+        offset: usize,
+    ) -> Result<(Type, Type, Type), Error> {
+        let result = self.arithmetic_type(left, right, offset)?;
+        if let TypeKind::Complex(kind) = result.kind {
+            let left = self.converted_type(left, offset)?;
+            let right = self.converted_type(right, offset)?;
+            let operand = |ty: &Type| {
+                Type::new(if matches!(ty.kind, TypeKind::Complex(_)) {
+                    TypeKind::Complex(kind)
+                } else {
+                    TypeKind::Float(kind)
+                })
+            };
+            Ok((operand(&left), operand(&right), result))
+        } else if self.unit.compiler == toucan_target::Compiler::Clang
+            && matches!(result.kind, TypeKind::Integer(_))
+        {
+            Ok((
+                self.integer_arithmetic_operand_type(left, &result, offset)?,
+                self.integer_arithmetic_operand_type(right, &result, offset)?,
+                result,
+            ))
+        } else {
+            Ok((result.clone(), result.clone(), result))
+        }
+    }
+
+    pub(crate) fn require_complex_kind(
+        &self,
+        kind: crate::FloatKind,
+        offset: usize,
+    ) -> Result<(), Error> {
+        if matches!(
+            kind,
+            crate::FloatKind::Float
+                | crate::FloatKind::Double
+                | crate::FloatKind::LongDouble
+                | crate::FloatKind::FLOAT128
+        ) {
+            Ok(())
+        } else {
+            Err(Error::new(offset, "extended complex types are unsupported"))
+        }
     }
 
     /// A common pointed-to type may add top-level qualifiers; nested pointers must
     /// already be compatible, so this does not permit `char **` to `const char **`.
-    pub(crate) fn composite_pointer(
+    pub(crate) fn check_composite_pointer_alignment(
         &self,
         left: &Type,
         right: &Type,
         offset: usize,
-    ) -> Result<Type, Error> {
+    ) -> Result<(), Error> {
         for mut ty in [left, right] {
             for _ in 0..128 {
                 if let Some(alignment) = self.unit.typedef_alignment(ty)? {
                     let mut underlying = self.unit.resolve(ty)?.clone();
-                    underlying.alignment = None;
+                    underlying.alignment = crate::TypeAlignment::default();
                     if u64::from(alignment.get()) != self.unit.alignment(&underlying)? {
                         return Err(Error::new(
                             offset,
@@ -946,27 +1490,33 @@ impl Analyzer {
                 match &self.unit.resolve(ty)?.kind {
                     TypeKind::Pointer(inner)
                     | TypeKind::Array { element: inner, .. }
-                    | TypeKind::VariableArray { element: inner } => ty = inner,
+                    | TypeKind::VariableArray { element: inner, .. } => ty = inner,
                     _ => break,
                 }
             }
         }
+        Ok(())
+    }
+
+    pub(crate) fn composite_pointer(
+        &mut self,
+        left: &Type,
+        right: &Type,
+        offset: usize,
+    ) -> Result<Type, Error> {
+        self.check_composite_pointer_alignment(left, right, offset)?;
         let mut qualifiers =
             union_qualifiers(self.unit.qualifiers(left)?, self.unit.qualifiers(right)?);
         let left = self.unqualified(left)?;
         let right = self.unqualified(right)?;
         let mut result = if self.compatible(&left, &right)? {
-            self.composite_type(&left, &right, 0)?
+            crate::noescape::composite_type!(self, &left, &right, 0, true)?
         } else if matches!(left.kind, TypeKind::Void) || matches!(right.kind, TypeKind::Void) {
             // Clang uses an unqualified void pointer for the conditional
             // function/void extension; GCC retains the void operand's qualifiers.
             if (matches!(left.kind, TypeKind::Function(_))
                 || matches!(right.kind, TypeKind::Function(_)))
-                && !matches!(
-                    self.unit.target,
-                    toucan_target::Target::X86_64UnknownLinuxGnu
-                        | toucan_target::Target::Aarch64UnknownLinuxGnu
-                )
+                && self.unit.compiler != toucan_target::Compiler::Gnu
             {
                 qualifiers = Qualifiers::default();
             }
@@ -1018,7 +1568,7 @@ impl Analyzer {
                 "assignment requires a modifiable lvalue",
             ));
         }
-        self.require_complete_object(&expression.ty, offset)
+        self.require_definite_object(&expression.ty, offset)
     }
 
     pub(crate) fn contains_const(&self, ty: &Type, depth: usize) -> Result<bool, Error> {
@@ -1044,7 +1594,10 @@ impl Analyzer {
             return Ok(true);
         }
         match &self.unit.resolve(ty)?.kind {
-            TypeKind::Array { element, .. } | TypeKind::VariableArray { element } => {
+            TypeKind::Atomic(value) if self.gnu_sync_profile() => {
+                self.contains_const_inner(value, depth + 1, visited)
+            }
+            TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                 self.contains_const_inner(element, depth + 1, visited)
             }
             TypeKind::Record(id) => {

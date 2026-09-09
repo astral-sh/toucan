@@ -74,6 +74,26 @@ pub trait Visit<'ast> {
         visit_member_operator(self, member_operator, span)
     }
 
+    fn visit_types_compatible_expression(
+        &mut self,
+        value: &'ast TypesCompatibleExpression,
+        span: &'ast Span,
+    ) {
+        visit_types_compatible_expression(self, value, span)
+    }
+
+    fn visit_convert_vector_expression(
+        &mut self,
+        value: &'ast ConvertVectorExpression,
+        span: &'ast Span,
+    ) {
+        visit_convert_vector_expression(self, value, span)
+    }
+
+    fn visit_choose_expression(&mut self, value: &'ast ChooseExpression, span: &'ast Span) {
+        visit_choose_expression(self, value, span)
+    }
+
     fn visit_generic_selection(
         &mut self,
         generic_selection: &'ast GenericSelection,
@@ -605,6 +625,13 @@ pub fn visit_expression<'ast, V: Visit<'ast> + ?Sized>(
         Expression::Constant(ref c) => visitor.visit_constant(&c.node, &c.span),
         Expression::StringLiteral(ref s) => visitor.visit_string_literal(&s.node, &s.span),
         Expression::GenericSelection(ref g) => visitor.visit_generic_selection(&g.node, &g.span),
+        Expression::TypesCompatible(ref t) => {
+            visitor.visit_types_compatible_expression(&t.node, &t.span)
+        }
+        Expression::Choose(ref c) => visitor.visit_choose_expression(&c.node, &c.span),
+        Expression::ConvertVector(ref c) => {
+            visitor.visit_convert_vector_expression(&c.node, &c.span)
+        }
         Expression::Member(ref m) => visitor.visit_member_expression(&m.node, &m.span),
         Expression::Call(ref c) => visitor.visit_call_expression(&c.node, &c.span),
         Expression::CompoundLiteral(ref c) => visitor.visit_compound_literal(&c.node, &c.span),
@@ -635,6 +662,34 @@ pub fn visit_member_operator<'ast, V: Visit<'ast> + ?Sized>(
     _member_operator: &'ast MemberOperator,
     _span: &'ast Span,
 ) {
+}
+
+pub fn visit_types_compatible_expression<'ast, V: Visit<'ast> + ?Sized>(
+    visitor: &mut V,
+    value: &'ast TypesCompatibleExpression,
+    _span: &'ast Span,
+) {
+    visitor.visit_type_name(&value.left.node, &value.left.span);
+    visitor.visit_type_name(&value.right.node, &value.right.span);
+}
+
+pub fn visit_convert_vector_expression<'ast, V: Visit<'ast> + ?Sized>(
+    visitor: &mut V,
+    value: &'ast ConvertVectorExpression,
+    _span: &'ast Span,
+) {
+    visitor.visit_expression(&value.expression.node, &value.expression.span);
+    visitor.visit_type_name(&value.type_name.node, &value.type_name.span);
+}
+
+pub fn visit_choose_expression<'ast, V: Visit<'ast> + ?Sized>(
+    visitor: &mut V,
+    value: &'ast ChooseExpression,
+    _span: &'ast Span,
+) {
+    visitor.visit_expression(&value.condition.node, &value.condition.span);
+    visitor.visit_expression(&value.then_expression.node, &value.then_expression.span);
+    visitor.visit_expression(&value.else_expression.node, &value.else_expression.span);
 }
 
 pub fn visit_generic_selection<'ast, V: Visit<'ast> + ?Sized>(
@@ -742,7 +797,12 @@ pub fn visit_alignof<'ast, V: Visit<'ast> + ?Sized>(
     alignofty: &'ast AlignOf,
     _span: &'ast Span,
 ) {
-    visitor.visit_type_name(&alignofty.0.node, &alignofty.0.span);
+    match &alignofty.operand {
+        AlignOfOperand::TypeName(name) => visitor.visit_type_name(&name.node, &name.span),
+        AlignOfOperand::Expression(expression) => {
+            visitor.visit_expression(&expression.node, &expression.span)
+        }
+    }
 }
 
 pub fn visit_unary_operator<'ast, V: Visit<'ast> + ?Sized>(
@@ -1040,6 +1100,7 @@ pub fn visit_specifier_qualifier<'ast, V: Visit<'ast> + ?Sized>(
     _span: &'ast Span,
 ) {
     match *specifier_qualifier {
+        SpecifierQualifier::Alignment(ref a) => visitor.visit_alignment_specifier(&a.node, &a.span),
         SpecifierQualifier::TypeSpecifier(ref t) => visitor.visit_type_specifier(&t.node, &t.span),
         SpecifierQualifier::TypeQualifier(ref t) => visitor.visit_type_qualifier(&t.node, &t.span),
         SpecifierQualifier::Extension(ref e) => {
@@ -1535,7 +1596,9 @@ pub fn visit_extension<'ast, V: Visit<'ast> + ?Sized>(
     span: &'ast Span,
 ) {
     match *extension {
-        Extension::Attribute(ref a) => visitor.visit_attribute(a, span),
+        Extension::Attribute(ref a) | Extension::CallingConvention(ref a) => {
+            visitor.visit_attribute(a, span)
+        }
         Extension::AsmLabel(ref a) => visitor.visit_string_literal(&a.node, &a.span),
         Extension::AvailabilityAttribute(ref a) => {
             visitor.visit_availability_attribute(&a.node, &a.span)

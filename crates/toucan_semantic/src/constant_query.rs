@@ -14,11 +14,14 @@ impl Analyzer {
         // not become a successful query returning zero. Retained type-name and
         // statement scopes are also established before speculative evaluation.
         self.builtin_call_type(call)?;
+        let checkpoint = self.sve_feature_checkpoint();
         let known = self.known_constant_operand(&call.node.arguments[0])?;
+        // This second pass determines constant knowledge, not execution.
+        self.discard_sve_feature_uses(checkpoint);
         Ok(IntegerValue::int(i128::from(known)))
     }
 
-    fn known_constant_operand(
+    pub(crate) fn known_constant_operand(
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<bool, Error> {
@@ -34,6 +37,10 @@ impl Analyzer {
     ) -> Result<bool, Error> {
         use ast::{BinaryOperator as Binary, UnaryOperator as Unary};
         match &expression.node {
+            ast::Expression::TypesCompatible(query) => {
+                self.eval_types_compatible(query)?;
+                return Ok(true);
+            }
             ast::Expression::StringLiteral(_) => return Ok(true),
             ast::Expression::Constant(_)
             | ast::Expression::SizeOfTy(_)
@@ -57,7 +64,12 @@ impl Analyzer {
             ast::Expression::UnaryOperator(unary) => {
                 if !matches!(
                     unary.node.operator.node,
-                    Unary::Plus | Unary::Minus | Unary::Complement | Unary::Negate
+                    Unary::Plus
+                        | Unary::Minus
+                        | Unary::Complement
+                        | Unary::Negate
+                        | Unary::Real
+                        | Unary::Imaginary
                 ) || !self.known_constant_operand(&unary.node.operand)?
                 {
                     return Ok(false);
@@ -100,17 +112,50 @@ impl Analyzer {
                     return Ok(true);
                 }
             }
+            ast::Expression::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                return self.known_constant_operand(selected);
+            }
             ast::Expression::GenericSelection(selection) => {
                 let selected = self.generic_expression(selection)?;
                 return self.known_constant_operand(selected);
             }
             ast::Expression::Call(call) => {
                 let name = self.builtin_name(call);
+                if name == Some("__c11_atomic_is_lock_free") {
+                    return Ok(self.eval_c11_atomic_lock_free(call).is_ok());
+                }
+                if name
+                    .and_then(crate::atomic::AtomicOperation::from_name)
+                    .is_some_and(crate::atomic::AtomicOperation::is_lock_free_query)
+                {
+                    return Ok(self.eval_atomic_lock_free(call).is_ok());
+                }
+                if name
+                    .and_then(crate::overflow::OverflowIntrinsic::from_name)
+                    .is_some_and(crate::overflow::OverflowIntrinsic::is_predicate)
+                {
+                    return Ok(self.eval_overflow_predicate(call).is_ok());
+                }
                 if name == Some("__builtin_constant_p") {
                     return Ok(true);
                 }
+                if name
+                    .and_then(|name| self.object_size_signature(name))
+                    .is_some()
+                {
+                    // Later object-size facts do not prove that the compiler's
+                    // frontend can fold this enclosing constant query.
+                    return Ok(self.infer_object_size(call)?.frontend_fold());
+                }
                 if !name.is_some_and(|name| {
-                    name == "__builtin_expect" || self.byte_swap_type(name).is_some()
+                    name == "__builtin_expect"
+                        || self.byte_swap_type(name).is_some()
+                        || self.bit_count_type(name).is_some()
+                        || self.infinity_builtin_kind(name).is_some()
+                        || self.nan_builtin(name).is_some()
+                        || name == "__builtin_complex"
+                        || self.gnu_sync_profile() && self.complex_unary_builtin(name).is_some()
                 }) {
                     return Ok(false);
                 }

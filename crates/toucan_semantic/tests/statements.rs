@@ -200,7 +200,7 @@ fn compile_with_mode(source: &str, gnu: bool) -> bool {
     }
     let mut child = command
         .stdin(Stdio::piped())
-        .stdout(Stdio::null())
+        .stdout(Stdio::piped())
         .stderr(Stdio::piped())
         .spawn()
         .expect("the differential test requires a C compiler (set CC)");
@@ -210,7 +210,9 @@ fn compile_with_mode(source: &str, gnu: bool) -> bool {
         .unwrap()
         .write_all(source.as_bytes())
         .unwrap();
-    child.wait_with_output().unwrap().status.success()
+    let output = child.wait_with_output().unwrap();
+    toucan_test_support::compiler_acceptance(&output)
+        .unwrap_or_else(|failure| panic!("C compiler failed for source:\n{source}\n{failure}"))
 }
 
 #[test]

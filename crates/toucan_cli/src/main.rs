@@ -1,10 +1,14 @@
+mod inspection;
+
 use std::io::{self, Write};
 use std::path::PathBuf;
 use std::process::ExitCode;
 
 use anyhow::{Context, Result};
-use clap::{Args, Parser, Subcommand};
-use toucan::{BindingOptions, Config, MacroType, RustTarget, Target};
+use clap::{ArgMatches, Args, CommandFactory, FromArgMatches, Parser, Subcommand};
+use toucan::{
+    BindingOptions, Compiler, CompilerProfile, Config, LanguageMode, MacroType, RustTarget, Target,
+};
 
 #[cfg(all(feature = "performance-allocator", unix, not(target_os = "openbsd")))]
 #[global_allocator]
@@ -61,6 +65,9 @@ enum Command {
         /// Omit a function by exact name or prefix ending in '*'. Repeat to add names.
         #[arg(long = "blocklist-function")]
         blocklist_functions: Vec<String>,
+        /// Use caller-supplied Rust definitions for matching C types.
+        #[arg(long = "blocklist-type")]
+        blocklist_types: Vec<String>,
         /// Append caller-provided Rust from a UTF-8 file, without parsing or ABI checks.
         #[arg(long)]
         raw_lines_file: Vec<PathBuf>,
@@ -102,6 +109,15 @@ struct Input {
     /// C ABI target. Defaults to the host on supported platforms.
     #[arg(long)]
     target: Option<String>,
+    /// Compiler semantics and header macros: gcc or clang. Defaults to the target's compiler.
+    #[arg(long)]
+    compiler: Option<Compiler>,
+    /// C keyword and preprocessing defaults; this does not enable pedantic diagnostics.
+    #[arg(long = "std", default_value_t = LanguageMode::Gnu11, overrides_with = "language_mode")]
+    language_mode: LanguageMode,
+    /// Override trigraph replacement; use --trigraphs=false to disable it.
+    #[arg(long, num_args = 0..=1, require_equals = true, default_missing_value = "true", overrides_with = "trigraphs")]
+    trigraphs: Option<bool>,
     /// Add an include search directory. Search order follows the argument order.
     #[arg(short = 'I', long = "include-dir")]
     include_dirs: Vec<PathBuf>,
@@ -120,12 +136,33 @@ struct Input {
 }
 
 impl Input {
-    fn config(&self) -> Result<Config> {
+    fn config(&self, arguments: &ArgMatches) -> Result<Config> {
         let target = match &self.target {
             Some(target) => Target::parse(target)?,
             None => host_target()?,
         };
-        let mut config = Config::new(target);
+        let profile = match self.compiler {
+            Some(compiler) => CompilerProfile::new(target, compiler)?,
+            None => CompilerProfile::default_for(target),
+        };
+        let mut config = Config::with_profile(profile.with_language_mode(self.language_mode));
+        // As in compiler drivers, a later -std resets earlier trigraph flags.
+        if let Some(enabled) = self.trigraphs {
+            let standard = arguments
+                .indices_of("language_mode")
+                .and_then(|mut i| i.next_back())
+                .unwrap_or(0);
+            let explicit = arguments
+                .indices_of("trigraphs")
+                .and_then(|mut i| i.next_back())
+                .unwrap_or(0);
+            if arguments.value_source("language_mode")
+                != Some(clap::parser::ValueSource::CommandLine)
+                || explicit > standard
+            {
+                config.preprocessor.trigraphs = enabled;
+            }
+        }
         config.preprocessor.timestamp = match std::env::var("SOURCE_DATE_EPOCH") {
             Ok(value) => value.parse().context("invalid SOURCE_DATE_EPOCH")?,
             Err(std::env::VarError::NotPresent) => {
@@ -144,6 +181,8 @@ impl Input {
             let multiarch = match target.triple() {
                 "x86_64-unknown-linux-gnu" => Some("x86_64-linux-gnu"),
                 "aarch64-unknown-linux-gnu" => Some("aarch64-linux-gnu"),
+                "x86_64-unknown-linux-musl" => Some("x86_64-linux-musl"),
+                "aarch64-unknown-linux-musl" => Some("aarch64-linux-musl"),
                 _ => None,
             };
             if let Some(multiarch) = multiarch {
@@ -154,16 +193,41 @@ impl Input {
             }
             config.preprocessor.include_dirs.push(include);
         }
-        for define in &self.defines {
-            let (name, value) = define.split_once('=').unwrap_or((define, "1"));
-            anyhow::ensure!(!name.is_empty(), "macro name must not be empty");
-            config
-                .preprocessor
-                .defines
-                .insert(name.into(), value.into());
-        }
-        for name in &self.undefines {
-            config.preprocessor.defines.remove(name);
+        let mut defines = arguments
+            .indices_of("defines")
+            .into_iter()
+            .flatten()
+            .zip(&self.defines)
+            .peekable();
+        let mut undefines = arguments
+            .indices_of("undefines")
+            .into_iter()
+            .flatten()
+            .zip(&self.undefines)
+            .peekable();
+        while defines.peek().is_some() || undefines.peek().is_some() {
+            let define_next = match (defines.peek(), undefines.peek()) {
+                (Some((d, _)), Some((u, _))) => d < u,
+                (Some(_), None) => true,
+                _ => false,
+            };
+            if define_next {
+                let (_, define) = defines.next().expect("peeked definition");
+                let (name, value) = define.split_once('=').unwrap_or((define, "1"));
+                anyhow::ensure!(!name.is_empty(), "macro name must not be empty");
+                let identifier = name.split('(').next().unwrap_or(name);
+                config
+                    .preprocessor
+                    .defines
+                    .retain(|key, _| key.split('(').next() != Some(identifier));
+                config
+                    .preprocessor
+                    .defines
+                    .insert(name.into(), value.into());
+            } else {
+                let (_, name) = undefines.next().expect("peeked undefinition");
+                config.preprocessor.undefine(name);
+            }
         }
         Ok(config)
     }
@@ -182,6 +246,16 @@ fn host_target() -> Result<Target> {
                 target_arch = "aarch64",
                 target_os = "linux",
                 target_env = "gnu"
+            )),
+            "x86_64-unknown-linux-musl" => cfg!(all(
+                target_arch = "x86_64",
+                target_os = "linux",
+                target_env = "musl"
+            )),
+            "aarch64-unknown-linux-musl" => cfg!(all(
+                target_arch = "aarch64",
+                target_os = "linux",
+                target_env = "musl"
             )),
             "x86_64-apple-darwin" => cfg!(all(target_arch = "x86_64", target_os = "macos")),
             "aarch64-apple-darwin" => cfg!(all(target_arch = "aarch64", target_os = "macos")),
@@ -205,10 +279,11 @@ fn write_output(path: Option<PathBuf>, source: &str) -> Result<()> {
     Ok(())
 }
 
-fn run(cli: Cli) -> Result<()> {
+fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
+    let arguments = arguments.subcommand().context("missing command")?.1;
     match cli.command {
         Command::Preprocess { input, output } => {
-            let config = input.config()?;
+            let config = input.config(arguments)?;
             let preprocessed =
                 toucan::Preprocessor::new(config.preprocessor).preprocess(&input.header)?;
             write_output(output, &preprocessed.source)
@@ -218,36 +293,16 @@ fn run(cli: Cli) -> Result<()> {
             output,
             checked_code,
         } => {
-            let mut config = input.config()?;
+            let mut config = input.config(arguments)?;
             config.analysis.retain_code = checked_code;
             let compilation = toucan::parse_file(&input.header, &config)?;
-            let manifest = if checked_code {
-                let preprocessed = compilation.preprocessed();
-                let mappings: Vec<_> = preprocessed.mappings.iter().map(|mapping| {
-                    let origin = &mapping.origin;
-                    let kind = match origin.kind {
-                        toucan::OriginKind::Token => "token",
-                        toucan::OriginKind::MacroInvocation => "macro_invocation",
-                        toucan::OriginKind::Directive => "directive",
-                    };
-                    serde_json::json!({
-                        "generated": mapping.generated,
-                        "origin": {"path": origin.path.as_ref(), "line": origin.line, "column": origin.column, "kind": kind},
-                    })
-                }).collect();
-                serde_json::json!({
-                    "schema_version": 2,
-                    "translation_unit": compilation.unit(),
-                    "checked_code": compilation.checked(),
-                    "preprocessed": {"source": preprocessed.source, "mappings": mappings},
-                })
-            } else {
-                serde_json::json!({ "schema_version": 1, "translation_unit": compilation.unit() })
-            };
-            write_output(output, &(serde_json::to_string_pretty(&manifest)? + "\n"))
+            write_output(
+                output,
+                &(inspection::serialize(&compilation, checked_code)? + "\n"),
+            )
         }
         Command::Check { input } => {
-            let compilation = toucan::parse_file(&input.header, &input.config()?)?;
+            let compilation = toucan::parse_file(&input.header, &input.config(arguments)?)?;
             eprintln!(
                 "Analyzed {} declarations for {}",
                 compilation.unit().declarations.len(),
@@ -267,6 +322,7 @@ fn run(cli: Cli) -> Result<()> {
             macro_type,
             macro_type_for,
             blocklist_functions,
+            blocklist_types,
             raw_lines_file,
             generate_cstr,
             rust_target,
@@ -288,14 +344,16 @@ fn run(cli: Cli) -> Result<()> {
                 .iter()
                 .map(std::fs::read_to_string)
                 .collect::<Result<Vec<_>, _>>()?;
-            let compilation = toucan::parse_file(&input.header, &input.config()?)?;
+            let compilation = toucan::parse_file(&input.header, &input.config(arguments)?)?;
             let (source, metadata) = compilation.bindings(&BindingOptions {
+                no_layout_tests: false,
                 allowlist,
                 rustified_enums,
                 size_t_is_usize,
                 helper_namespace,
                 macro_type_overrides,
                 blocklist_functions,
+                blocklist_types,
                 raw_lines,
                 generate_cstr,
                 rust_target,
@@ -329,7 +387,9 @@ fn run(cli: Cli) -> Result<()> {
 }
 
 fn main() -> ExitCode {
-    match run(Cli::parse()) {
+    let arguments = Cli::command().get_matches();
+    let cli = Cli::from_arg_matches(&arguments).unwrap_or_else(|error| error.exit());
+    match run(cli, &arguments) {
         Ok(()) => ExitCode::SUCCESS,
         Err(error) => {
             if error

@@ -1,0 +1,40 @@
+{
+  "status": "passed",
+  "library_source_commit": "019012e",
+  "binary_sha256": "d25676de1177af1edd461bba02ea25b867702f5f0ed331b8a854ac142edc1ba5",
+  "affinity": [
+    3
+  ],
+  "qualification": "Repeated library calls in one process, one discarded warmup per engine/process, three randomized process pairs with five measured calls each. Shared host, native x86-64 GNU Linux, system allocator. Configuration, parsing and string emission included; CLI startup and first libclang initialization excluded from measured calls.",
+  "projects": {
+    "zlib": {
+      "median_ms": {
+        "toucan": 39.206539,
+        "bindgen": 131.75445499999998
+      },
+      "bindgen_over_toucan": 3.360522462847332
+    },
+    "sqlite": {
+      "median_ms": {
+        "toucan": 187.72107599999998,
+        "bindgen": 167.99389200000002
+      },
+      "bindgen_over_toucan": 0.894912258014119
+    },
+    "zstd": {
+      "median_ms": {
+        "toucan": 9.434131,
+        "bindgen": 121.069749
+      },
+      "bindgen_over_toucan": 12.833163860031199
+    },
+    "libgit2": {
+      "median_ms": {
+        "toucan": 384.257579,
+        "bindgen": 266.939217
+      },
+      "bindgen_over_toucan": 0.6946882289080366
+    }
+  },
+  "evidence_sha256": "67edabe6fd09e1c593f8568460f6baa56a5bf68711d385e94e484ae2980b070c"
+}

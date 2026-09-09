@@ -92,7 +92,10 @@ fn derived_types_obey_object_and_qualifier_constraints() {
             let result = analyze(source, target);
             assert_eq!(
                 result.is_ok(),
-                target == Target::X86_64UnknownLinuxGnu,
+                matches!(
+                    target,
+                    Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+                ),
                 "{target:?}: {source}: {result:?}"
             );
         }
@@ -149,8 +152,8 @@ fn derived_type_constraints_match_c_compilers() {
                 .unwrap();
             let output = child.wait_with_output().unwrap();
             assert_eq!(
-                output.status.success(),
-                accepted,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted),
                 "{compiler}: {source}\n{}",
                 String::from_utf8_lossy(&output.stderr)
             );

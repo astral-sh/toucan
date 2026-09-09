@@ -1,0 +1,1379 @@
+{
+  "recorded_at": "2026-09-08T13:43:13.584051+00:00",
+  "platform": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
+  "status": "passed",
+  "mode": "unchanged-build-script",
+  "projects": {
+    "ty": {
+      "status": "passed",
+      "project": {
+        "repository": "astral-sh/ruff",
+        "revision": "e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+        "archive_sha256": "babff09f8302fb18bc0ba465983801acccb2035777f8ff43b1da1f25a9c23e5b",
+        "license": "MIT",
+        "package": "ty",
+        "binary": "ty",
+        "library_tests": [
+          {
+            "package": "ty_vendored",
+            "features": [
+              "zstd"
+            ]
+          }
+        ]
+      },
+      "source_before": {
+        "source_files": 11118,
+        "archive_link_normalizations": {},
+        "source_sha256_without_lock": "d86b909d45e9b96ad8a5f8faaa3363b3db025f420bcb6cfd2403d943a1ccbc7a",
+        "changed_files": [
+          "Cargo.lock"
+        ]
+      },
+      "commands": [
+        {
+          "command": [
+            "cargo",
+            "build",
+            "--locked",
+            "--offline",
+            "-p",
+            "ty",
+            "--message-format=json-render-diagnostics"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/ruff-target",
+            "RUSTUP_TOOLCHAIN": "stable",
+            "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/upstream.jsonl",
+          "stdout_sha256": "248c75ca4555fc1649f5a5925fe61ac4a112479f8332fd52e0346eacf0666de7",
+          "stderr": "corpus/evidence/astral-builder-a7fab44/logs/882f2d566999cd1d1d0cbb4dbc540e38939115a29a5abab75d38c7eafc17e95a.stderr",
+          "stderr_sha256": "882f2d566999cd1d1d0cbb4dbc540e38939115a29a5abab75d38c7eafc17e95a"
+        },
+        {
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "--no-run",
+            "--lib",
+            "-p",
+            "ty_vendored",
+            "--message-format=json-render-diagnostics",
+            "--features",
+            "zstd"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/ruff-target",
+            "RUSTUP_TOOLCHAIN": "stable",
+            "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/upstream-tests-ty_vendored.jsonl",
+          "stdout_sha256": "21ce81cfa774d75e31e8640e948f88948600716475a10161ed9848e9460660d3",
+          "stderr": "corpus/evidence/astral-builder-a7fab44/logs/f00f25dd22a7ca75a7303e0da76981c8b1dd59631c49589c4e7deada4ab634c3.stderr",
+          "stderr_sha256": "f00f25dd22a7ca75a7303e0da76981c8b1dd59631c49589c4e7deada4ab634c3"
+        },
+        {
+          "command": [
+            "cargo",
+            "tree",
+            "--offline",
+            "-p",
+            "ty",
+            "--edges",
+            "normal,build",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+            "--config",
+            "patch.crates-io.zstd-sys.path=\"/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys\""
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/ruff-target",
+            "RUSTUP_TOOLCHAIN": "stable",
+            "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/resolve-builder.stdout",
+          "stdout_sha256": "853f7b8e676828bd6f64fd10cc4f55cbe7f28503fc0185f504642550f910f605",
+          "stderr": "corpus/evidence/astral-builder-a7fab44/logs/74f47302990c4e926ccc4b83a29d3a60750e5b82d2a131111d9fa93c85d9adda.stderr",
+          "stderr_sha256": "74f47302990c4e926ccc4b83a29d3a60750e5b82d2a131111d9fa93c85d9adda"
+        },
+        {
+          "command": [
+            "cargo",
+            "build",
+            "--locked",
+            "--offline",
+            "-p",
+            "ty",
+            "--message-format=json-render-diagnostics",
+            "--config",
+            "patch.crates-io.zstd-sys.path=\"/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys\""
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/ruff-target",
+            "RUSTUP_TOOLCHAIN": "stable",
+            "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/builder.jsonl",
+          "stdout_sha256": "cabf40bb43730e46e17cd5806217dc1b97bc11e72de051101a4ad428c80aca4f",
+          "stderr": "corpus/evidence/astral-builder-a7fab44/logs/168f3a8bdf27d7d9af81f1e33ea9495fb9c082522ac85504b2944795d0d9c372.stderr",
+          "stderr_sha256": "168f3a8bdf27d7d9af81f1e33ea9495fb9c082522ac85504b2944795d0d9c372"
+        },
+        {
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "--no-run",
+            "--lib",
+            "-p",
+            "ty_vendored",
+            "--message-format=json-render-diagnostics",
+            "--features",
+            "zstd",
+            "--config",
+            "patch.crates-io.zstd-sys.path=\"/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys\""
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/ruff-target",
+            "RUSTUP_TOOLCHAIN": "stable",
+            "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/builder-tests-ty_vendored.jsonl",
+          "stdout_sha256": "9feb0438705aef6874d0b3bb0448c6d59badaa3ce013a718fd9256584027e86a",
+          "stderr": "corpus/evidence/astral-builder-a7fab44/logs/c7abfa6e011293b437d3ecd4f9b21d2ba3f7dc0fcdabf7cf3e7d7b316c7efa00.stderr",
+          "stderr_sha256": "c7abfa6e011293b437d3ecd4f9b21d2ba3f7dc0fcdabf7cf3e7d7b316c7efa00"
+        }
+      ],
+      "target_directory": "/home/dev-user/.cache/toucan/project-consumers/ruff-target",
+      "upstream_binary_artifact": {
+        "executable": "/home/dev-user/.cache/toucan/project-consumers/ruff-target/debug/ty",
+        "sha256": "3a337173f06fabc2cb1e76eea6ff155e38ca07fad6e81e4b653a64e710e45f55",
+        "manifest_path": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3/crates/ty/Cargo.toml",
+        "package_id": "path+file:///home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3/crates/ty#0.0.0",
+        "profile": {
+          "opt_level": "1",
+          "debuginfo": "line-tables-only",
+          "debug_assertions": true,
+          "overflow_checks": true,
+          "test": false
+        }
+      },
+      "lock": {
+        "upstream_sha256": "fea1c04b2bce37f54c14449e8402528e652f4e5b9fcd366c118c360d439924c8",
+        "builder_sha256": "aef55ca9678db445b5be67e138f94e38b11f014ce242bcc28dc97f980dd0d895",
+        "existing_packages_preserved": 557,
+        "added_packages": [
+          {
+            "name": "rustc_apfloat",
+            "version": "0.2.3+llvm-462a31f5a5ab",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "486c2179b4796f65bfe2ee33679acf0927ac83ecf583ad6c91c3b4570911b9ad",
+            "dependencies": [
+              "bitflags 2.13.1",
+              "smallvec"
+            ]
+          },
+          {
+            "name": "toucan",
+            "version": "0.0.1",
+            "dependencies": [
+              "serde",
+              "thiserror 2.0.19",
+              "toucan_bindings",
+              "toucan_preprocessor",
+              "toucan_semantic",
+              "toucan_source",
+              "toucan_target"
+            ]
+          },
+          {
+            "name": "toucan_bindgen",
+            "version": "0.0.1",
+            "dependencies": [
+              "shlex",
+              "thiserror 2.0.19",
+              "toucan"
+            ]
+          },
+          {
+            "name": "toucan_bindings",
+            "version": "0.0.1",
+            "dependencies": [
+              "serde",
+              "thiserror 2.0.19",
+              "toucan_semantic",
+              "toucan_target"
+            ]
+          },
+          {
+            "name": "toucan_layout",
+            "version": "0.0.1"
+          },
+          {
+            "name": "toucan_parser",
+            "version": "0.0.1"
+          },
+          {
+            "name": "toucan_preprocessor",
+            "version": "0.0.1"
+          },
+          {
+            "name": "toucan_semantic",
+            "version": "0.0.1",
+            "dependencies": [
+              "rustc_apfloat",
+              "serde",
+              "thiserror 2.0.19",
+              "toucan_parser",
+              "toucan_target"
+            ]
+          },
+          {
+            "name": "toucan_source",
+            "version": "0.0.1"
+          },
+          {
+            "name": "toucan_target",
+            "version": "0.0.1",
+            "dependencies": [
+              "serde",
+              "thiserror 2.0.19",
+              "toucan_layout"
+            ]
+          }
+        ],
+        "existing_dependency_edge_additions": [
+          {
+            "package": [
+              "zstd-sys",
+              "2.0.16+zstd.1.5.7"
+            ],
+            "added_dependencies": [
+              [
+                "toucan_bindgen",
+                "0.0.1",
+                null
+              ]
+            ]
+          }
+        ]
+      },
+      "builder_binary_artifact": {
+        "executable": "/home/dev-user/.cache/toucan/project-consumers/ruff-target/debug/ty",
+        "sha256": "7193c34ddaedf3b5358da17648eb148727eed99731c4e131d183932e782d7d9f",
+        "manifest_path": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3/crates/ty/Cargo.toml",
+        "package_id": "path+file:///home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3/crates/ty#0.0.0",
+        "profile": {
+          "opt_level": "1",
+          "debuginfo": "line-tables-only",
+          "debug_assertions": true,
+          "overflow_checks": true,
+          "test": false
+        }
+      },
+      "upstream_bindings": [
+        {
+          "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+          "features": [
+            "std"
+          ],
+          "profile": {
+            "opt_level": "1",
+            "debuginfo": "line-tables-only",
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2.d",
+          "dep_info_sha256": "d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2",
+          "active_bindings": {
+            "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+          }
+        },
+        {
+          "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+          "features": [
+            "std"
+          ],
+          "profile": {
+            "opt_level": "0",
+            "debuginfo": 0,
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c.d",
+          "dep_info_sha256": "47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c",
+          "active_bindings": {
+            "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+          }
+        }
+      ],
+      "builder_bindings": [
+        {
+          "package_id": "path+file:///home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys#2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys/Cargo.toml",
+          "features": [
+            "bindgen",
+            "std"
+          ],
+          "profile": {
+            "opt_level": "1",
+            "debuginfo": "line-tables-only",
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/4ac8db4e438c725771f6886ec2f4777513d08b0a858c678b36f5e160b474667b.d",
+          "dep_info_sha256": "4ac8db4e438c725771f6886ec2f4777513d08b0a858c678b36f5e160b474667b",
+          "generated_binding": "corpus/evidence/astral-builder-a7fab44/bindings/21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5.rs",
+          "generated_binding_sha256": "21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5",
+          "original_out_dir_binding": "/home/dev-user/.cache/toucan/project-consumers/ruff-target/debug/build/zstd-sys-2af978c46ccdaa20/out/bindings.rs"
+        },
+        {
+          "package_id": "path+file:///home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys#2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys/Cargo.toml",
+          "features": [
+            "bindgen",
+            "std"
+          ],
+          "profile": {
+            "opt_level": "0",
+            "debuginfo": 0,
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/3e115cf09f5e26628c62299add5db46331b52465cfbaf1ea4b7469265e151e5b.d",
+          "dep_info_sha256": "3e115cf09f5e26628c62299add5db46331b52465cfbaf1ea4b7469265e151e5b",
+          "generated_binding": "corpus/evidence/astral-builder-a7fab44/bindings/21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5.rs",
+          "generated_binding_sha256": "21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5",
+          "original_out_dir_binding": "/home/dev-user/.cache/toucan/project-consumers/ruff-target/debug/build/zstd-sys-273d786cc3b90080/out/bindings.rs"
+        }
+      ],
+      "library_tests": {
+        "upstream": [
+          {
+            "package": "ty_vendored",
+            "features": [
+              "zstd"
+            ],
+            "executable_sha256": "a6afd9141fd1197a83ed0c5813f1c5168abb1b75001b616cc034944c7c625381",
+            "execution": {
+              "command": [
+                "/home/dev-user/.cache/toucan/project-consumers/ruff-target/debug/deps/ty_vendored-681af707f77a1adc",
+                "--test-threads=1",
+                "--color=never"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3/crates/ty_vendored",
+              "exit_code": 0,
+              "stdout": "\nrunning 2 tests\ntest tests::typeshed_vfs_consistent_with_vendored_stubs ... ok\ntest tests::typeshed_zip_created_at_build_time ... ok\n\ntest result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n\n",
+              "stderr": ""
+            },
+            "result": {
+              "passed": 2,
+              "ignored": 0,
+              "tests": {
+                "tests::typeshed_vfs_consistent_with_vendored_stubs": "ok",
+                "tests::typeshed_zip_created_at_build_time": "ok"
+              }
+            },
+            "bindings": [
+              {
+                "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+                "manifest_path": "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+                "features": [
+                  "std"
+                ],
+                "profile": {
+                  "opt_level": "0",
+                  "debuginfo": 0,
+                  "debug_assertions": true,
+                  "overflow_checks": true,
+                  "test": false
+                },
+                "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c.d",
+                "dep_info_sha256": "47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c",
+                "active_bindings": {
+                  "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+                }
+              },
+              {
+                "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+                "manifest_path": "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+                "features": [
+                  "std"
+                ],
+                "profile": {
+                  "opt_level": "1",
+                  "debuginfo": "line-tables-only",
+                  "debug_assertions": true,
+                  "overflow_checks": true,
+                  "test": false
+                },
+                "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2.d",
+                "dep_info_sha256": "d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2",
+                "active_bindings": {
+                  "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+                }
+              }
+            ]
+          }
+        ],
+        "builder": [
+          {
+            "package": "ty_vendored",
+            "features": [
+              "zstd"
+            ],
+            "executable_sha256": "6919ae9866878591bf72ad0ca52458eba37f61f0af6b19983b59a63ebadd71f6",
+            "execution": {
+              "command": [
+                "/home/dev-user/.cache/toucan/project-consumers/ruff-target/debug/deps/ty_vendored-731f9e14461ff539",
+                "--test-threads=1",
+                "--color=never"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/project-consumers/ruff-e7adf82ff005f3ab3051c363464cf65bf8a6e2f3/crates/ty_vendored",
+              "exit_code": 0,
+              "stdout": "\nrunning 2 tests\ntest tests::typeshed_vfs_consistent_with_vendored_stubs ... ok\ntest tests::typeshed_zip_created_at_build_time ... ok\n\ntest result: ok. 2 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.01s\n\n",
+              "stderr": ""
+            },
+            "result": {
+              "passed": 2,
+              "ignored": 0,
+              "tests": {
+                "tests::typeshed_vfs_consistent_with_vendored_stubs": "ok",
+                "tests::typeshed_zip_created_at_build_time": "ok"
+              }
+            },
+            "bindings": [
+              {
+                "package_id": "path+file:///home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys#2.0.16+zstd.1.5.7",
+                "manifest_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys/Cargo.toml",
+                "features": [
+                  "bindgen",
+                  "std"
+                ],
+                "profile": {
+                  "opt_level": "0",
+                  "debuginfo": 0,
+                  "debug_assertions": true,
+                  "overflow_checks": true,
+                  "test": false
+                },
+                "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/3e115cf09f5e26628c62299add5db46331b52465cfbaf1ea4b7469265e151e5b.d",
+                "dep_info_sha256": "3e115cf09f5e26628c62299add5db46331b52465cfbaf1ea4b7469265e151e5b",
+                "generated_binding": "corpus/evidence/astral-builder-a7fab44/bindings/21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5.rs",
+                "generated_binding_sha256": "21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5",
+                "original_out_dir_binding": "/home/dev-user/.cache/toucan/project-consumers/ruff-target/debug/build/zstd-sys-273d786cc3b90080/out/bindings.rs"
+              },
+              {
+                "package_id": "path+file:///home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys#2.0.16+zstd.1.5.7",
+                "manifest_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys/Cargo.toml",
+                "features": [
+                  "bindgen",
+                  "std"
+                ],
+                "profile": {
+                  "opt_level": "1",
+                  "debuginfo": "line-tables-only",
+                  "debug_assertions": true,
+                  "overflow_checks": true,
+                  "test": false
+                },
+                "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/4ac8db4e438c725771f6886ec2f4777513d08b0a858c678b36f5e160b474667b.d",
+                "dep_info_sha256": "4ac8db4e438c725771f6886ec2f4777513d08b0a858c678b36f5e160b474667b",
+                "generated_binding": "corpus/evidence/astral-builder-a7fab44/bindings/21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5.rs",
+                "generated_binding_sha256": "21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5",
+                "original_out_dir_binding": "/home/dev-user/.cache/toucan/project-consumers/ruff-target/debug/build/zstd-sys-2af978c46ccdaa20/out/bindings.rs"
+              }
+            ]
+          }
+        ]
+      },
+      "changed_project_files": [
+        "Cargo.lock"
+      ],
+      "upstream_binary": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/bin/ty-upstream",
+      "builder_binary": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/bin/ty-builder",
+      "runtime": {
+        "upstream": {
+          "binary_sha256": "3a337173f06fabc2cb1e76eea6ff155e38ca07fad6e81e4b653a64e710e45f55",
+          "cases": {
+            "valid": {
+              "command": [
+                "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/bin/ty-upstream",
+                "check",
+                "--no-progress",
+                "--color",
+                "never",
+                "--output-format",
+                "concise",
+                "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/runtime/ty-cases/valid.py"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/runtime/ty-cases",
+              "exit_code": 0,
+              "stdout": "All checks passed!\n",
+              "stderr": "",
+              "source_sha256": "9fa386bf70381a944afa58912649e6501c0779c9702028453cbca26420ba2b65"
+            },
+            "invalid": {
+              "command": [
+                "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/bin/ty-upstream",
+                "check",
+                "--no-progress",
+                "--color",
+                "never",
+                "--output-format",
+                "concise",
+                "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/runtime/ty-cases/invalid.py"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/runtime/ty-cases",
+              "exit_code": 1,
+              "stdout": "invalid.py:4:13: error[invalid-assignment] Object of type `str` is not assignable to `int`\ninvalid.py:5:14: error[invalid-assignment] Object of type `datetime` is not assignable to `str`\nFound 2 diagnostics\n",
+              "stderr": "",
+              "source_sha256": "541d4469238063257083462482cd351eaf70ab6e90b470dde14856c9b401b126"
+            }
+          }
+        },
+        "generated": {
+          "binary_sha256": "7193c34ddaedf3b5358da17648eb148727eed99731c4e131d183932e782d7d9f",
+          "cases": {
+            "valid": {
+              "command": [
+                "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/bin/ty-builder",
+                "check",
+                "--no-progress",
+                "--color",
+                "never",
+                "--output-format",
+                "concise",
+                "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/runtime/ty-cases/valid.py"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/runtime/ty-cases",
+              "exit_code": 0,
+              "stdout": "All checks passed!\n",
+              "stderr": "",
+              "source_sha256": "9fa386bf70381a944afa58912649e6501c0779c9702028453cbca26420ba2b65"
+            },
+            "invalid": {
+              "command": [
+                "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/bin/ty-builder",
+                "check",
+                "--no-progress",
+                "--color",
+                "never",
+                "--output-format",
+                "concise",
+                "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/runtime/ty-cases/invalid.py"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/runtime/ty-cases",
+              "exit_code": 1,
+              "stdout": "invalid.py:4:13: error[invalid-assignment] Object of type `str` is not assignable to `int`\ninvalid.py:5:14: error[invalid-assignment] Object of type `datetime` is not assignable to `str`\nFound 2 diagnostics\n",
+              "stderr": "",
+              "source_sha256": "541d4469238063257083462482cd351eaf70ab6e90b470dde14856c9b401b126"
+            }
+          }
+        }
+      },
+      "entry_inventory_restored": true,
+      "entry_lock": {
+        "cache_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/entry.lock",
+        "sha256": "3ff9134c7c9a481d7e0596604215f2912fd54e58c72a876728b4aea97971b4af"
+      },
+      "upstream_lock": {
+        "cache_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/upstream.lock",
+        "sha256": "fea1c04b2bce37f54c14449e8402528e652f4e5b9fcd366c118c360d439924c8"
+      },
+      "builder_lock": {
+        "cache_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/ty/builder.lock",
+        "sha256": "aef55ca9678db445b5be67e138f94e38b11f014ce242bcc28dc97f980dd0d895"
+      }
+    },
+    "uv": {
+      "status": "passed",
+      "project": {
+        "repository": "astral-sh/uv",
+        "revision": "d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+        "archive_sha256": "9ef2613de29543b8e1975837ed1483d245db4fefaaa9f79507fc87a0dfc63af0",
+        "license": "MIT OR Apache-2.0",
+        "package": "uv",
+        "binary": "uv",
+        "library_tests": [
+          {
+            "package": "uv-extract",
+            "features": []
+          }
+        ]
+      },
+      "source_before": {
+        "source_files": 1738,
+        "archive_link_normalizations": {
+          "test/packages/fake-uv/src": {
+            "archive": "../../../python/",
+            "extracted": "../../../python"
+          }
+        },
+        "source_sha256_without_lock": "f739a26fabdcc7eb1a83095d423d8bb40828f03127bf825a019bd861c267a78e",
+        "changed_files": [
+          "Cargo.lock"
+        ]
+      },
+      "commands": [
+        {
+          "command": [
+            "cargo",
+            "build",
+            "--locked",
+            "--offline",
+            "-p",
+            "uv",
+            "--message-format=json-render-diagnostics"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/uv-target",
+            "RUSTUP_TOOLCHAIN": "stable",
+            "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/upstream.jsonl",
+          "stdout_sha256": "b34d5c51204164b3acd0a251b6908b47ca33cff66906d0c87e888dccf3cdba2f",
+          "stderr": "corpus/evidence/astral-builder-a7fab44/logs/0674b29b50c3dec56646820dd880f72135797e8fbae612e62ca8370ee4ddce1c.stderr",
+          "stderr_sha256": "0674b29b50c3dec56646820dd880f72135797e8fbae612e62ca8370ee4ddce1c"
+        },
+        {
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "--no-run",
+            "--lib",
+            "-p",
+            "uv-extract",
+            "--message-format=json-render-diagnostics"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/uv-target",
+            "RUSTUP_TOOLCHAIN": "stable",
+            "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/upstream-tests-uv-extract.jsonl",
+          "stdout_sha256": "64d130aecdfeddc25dbf6c66f2d680c62079bdc437046b78c458aaee5d137855",
+          "stderr": "corpus/evidence/astral-builder-a7fab44/logs/4e2b2ae92e6d0f683723537fb89d0ed87913cf3ed0cad443753ee00dc32972c7.stderr",
+          "stderr_sha256": "4e2b2ae92e6d0f683723537fb89d0ed87913cf3ed0cad443753ee00dc32972c7"
+        },
+        {
+          "command": [
+            "cargo",
+            "tree",
+            "--offline",
+            "-p",
+            "uv",
+            "--edges",
+            "normal,build",
+            "--target",
+            "x86_64-unknown-linux-gnu",
+            "--config",
+            "patch.crates-io.zstd-sys.path=\"/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys\""
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/uv-target",
+            "RUSTUP_TOOLCHAIN": "stable",
+            "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/resolve-builder.stdout",
+          "stdout_sha256": "3581a6070818182bbbcb60115faf2c46fa409d05671a767764910b8ae09042eb",
+          "stderr": "corpus/evidence/astral-builder-a7fab44/logs/223364fdcea9bd2bcf4886c525b5b79337cce55d2c90e3ab0f2331af0b3a61bf.stderr",
+          "stderr_sha256": "223364fdcea9bd2bcf4886c525b5b79337cce55d2c90e3ab0f2331af0b3a61bf"
+        },
+        {
+          "command": [
+            "cargo",
+            "build",
+            "--locked",
+            "--offline",
+            "-p",
+            "uv",
+            "--message-format=json-render-diagnostics",
+            "--config",
+            "patch.crates-io.zstd-sys.path=\"/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys\""
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/uv-target",
+            "RUSTUP_TOOLCHAIN": "stable",
+            "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/builder.jsonl",
+          "stdout_sha256": "bcfb4bc83a3a639c5376d58f0c52c9494f77892ea983a036ebd4eba256fdc042",
+          "stderr": "corpus/evidence/astral-builder-a7fab44/logs/50d7c5226c6686d9fd7d2627bd23839dc13ee8383fe9823565b691ccfacf358d.stderr",
+          "stderr_sha256": "50d7c5226c6686d9fd7d2627bd23839dc13ee8383fe9823565b691ccfacf358d"
+        },
+        {
+          "command": [
+            "cargo",
+            "test",
+            "--locked",
+            "--offline",
+            "--no-run",
+            "--lib",
+            "-p",
+            "uv-extract",
+            "--message-format=json-render-diagnostics",
+            "--config",
+            "patch.crates-io.zstd-sys.path=\"/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys\""
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+          "environment": {
+            "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/project-consumers/uv-target",
+            "RUSTUP_TOOLCHAIN": "stable",
+            "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo"
+          },
+          "exit_code": 0,
+          "stdout": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/builder-tests-uv-extract.jsonl",
+          "stdout_sha256": "35fa761671207342676c0af0ba80b1fcec38c660b09e729b34b70a12238d4396",
+          "stderr": "corpus/evidence/astral-builder-a7fab44/logs/df35beb3572f7df55fcbf85fdedca225dd86ad457956d09f3e4de0c632ef4bb6.stderr",
+          "stderr_sha256": "df35beb3572f7df55fcbf85fdedca225dd86ad457956d09f3e4de0c632ef4bb6"
+        }
+      ],
+      "target_directory": "/home/dev-user/.cache/toucan/project-consumers/uv-target",
+      "upstream_binary_artifact": {
+        "executable": "/home/dev-user/.cache/toucan/project-consumers/uv-target/debug/uv",
+        "sha256": "40239c411ee81b737df51aa849440dcf95348c5f39972204d2be3f5dc7f02f29",
+        "manifest_path": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv/Cargo.toml",
+        "package_id": "path+file:///home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv#0.12.10",
+        "profile": {
+          "opt_level": "0",
+          "debuginfo": 2,
+          "debug_assertions": true,
+          "overflow_checks": true,
+          "test": false
+        }
+      },
+      "lock": {
+        "upstream_sha256": "18692de922c66b146425eb9157aa0c83667b541338cb089299882ac611a3c056",
+        "builder_sha256": "bd10d720a0e6e35dc3308741a2cf5295c4801d6bb11bad56f5ff1db7b29689af",
+        "existing_packages_preserved": 750,
+        "added_packages": [
+          {
+            "name": "rustc_apfloat",
+            "version": "0.2.3+llvm-462a31f5a5ab",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "486c2179b4796f65bfe2ee33679acf0927ac83ecf583ad6c91c3b4570911b9ad",
+            "dependencies": [
+              "bitflags 2.13.1",
+              "smallvec"
+            ]
+          },
+          {
+            "name": "shlex",
+            "version": "2.0.1",
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba"
+          },
+          {
+            "name": "toucan",
+            "version": "0.0.1",
+            "dependencies": [
+              "serde",
+              "thiserror",
+              "toucan_bindings",
+              "toucan_preprocessor",
+              "toucan_semantic",
+              "toucan_source",
+              "toucan_target"
+            ]
+          },
+          {
+            "name": "toucan_bindgen",
+            "version": "0.0.1",
+            "dependencies": [
+              "shlex 2.0.1",
+              "thiserror",
+              "toucan"
+            ]
+          },
+          {
+            "name": "toucan_bindings",
+            "version": "0.0.1",
+            "dependencies": [
+              "serde",
+              "thiserror",
+              "toucan_semantic",
+              "toucan_target"
+            ]
+          },
+          {
+            "name": "toucan_layout",
+            "version": "0.0.1"
+          },
+          {
+            "name": "toucan_parser",
+            "version": "0.0.1"
+          },
+          {
+            "name": "toucan_preprocessor",
+            "version": "0.0.1"
+          },
+          {
+            "name": "toucan_semantic",
+            "version": "0.0.1",
+            "dependencies": [
+              "rustc_apfloat",
+              "serde",
+              "thiserror",
+              "toucan_parser",
+              "toucan_target"
+            ]
+          },
+          {
+            "name": "toucan_source",
+            "version": "0.0.1"
+          },
+          {
+            "name": "toucan_target",
+            "version": "0.0.1",
+            "dependencies": [
+              "serde",
+              "thiserror",
+              "toucan_layout"
+            ]
+          }
+        ],
+        "existing_dependency_edge_additions": [
+          {
+            "package": [
+              "zstd-sys",
+              "2.0.16+zstd.1.5.7"
+            ],
+            "added_dependencies": [
+              [
+                "toucan_bindgen",
+                "0.0.1",
+                null
+              ]
+            ]
+          }
+        ]
+      },
+      "builder_binary_artifact": {
+        "executable": "/home/dev-user/.cache/toucan/project-consumers/uv-target/debug/uv",
+        "sha256": "25bf6acbd82fbe253f2b623f01d957874b1cd973a85f8d899299bacdfe98fda2",
+        "manifest_path": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv/Cargo.toml",
+        "package_id": "path+file:///home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv#0.12.10",
+        "profile": {
+          "opt_level": "0",
+          "debuginfo": 2,
+          "debug_assertions": true,
+          "overflow_checks": true,
+          "test": false
+        }
+      },
+      "upstream_bindings": [
+        {
+          "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+          "features": [
+            "std"
+          ],
+          "profile": {
+            "opt_level": "0",
+            "debuginfo": 2,
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135.d",
+          "dep_info_sha256": "9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135",
+          "active_bindings": {
+            "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+          }
+        }
+      ],
+      "builder_bindings": [
+        {
+          "package_id": "path+file:///home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys#2.0.16+zstd.1.5.7",
+          "manifest_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys/Cargo.toml",
+          "features": [
+            "bindgen",
+            "std"
+          ],
+          "profile": {
+            "opt_level": "0",
+            "debuginfo": 2,
+            "debug_assertions": true,
+            "overflow_checks": true,
+            "test": false
+          },
+          "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/3bc114a62c992f7fb1a3b1a248a538cf4f9f712530c2816e39398839c6c6cc10.d",
+          "dep_info_sha256": "3bc114a62c992f7fb1a3b1a248a538cf4f9f712530c2816e39398839c6c6cc10",
+          "generated_binding": "corpus/evidence/astral-builder-a7fab44/bindings/21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5.rs",
+          "generated_binding_sha256": "21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5",
+          "original_out_dir_binding": "/home/dev-user/.cache/toucan/project-consumers/uv-target/debug/build/zstd-sys-82a1cc9a6c95714b/out/bindings.rs"
+        }
+      ],
+      "library_tests": {
+        "upstream": [
+          {
+            "package": "uv-extract",
+            "features": [],
+            "executable_sha256": "6ff0105002d656ebea62f4f665ccc9023176dcc3c8853b74fbb17648fb4dbc61",
+            "execution": {
+              "command": [
+                "/home/dev-user/.cache/toucan/project-consumers/uv-target/debug/deps/uv_extract-7616c9f65c9ff631",
+                "--test-threads=1",
+                "--color=never"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-extract",
+              "exit_code": 0,
+              "stdout": "\nrunning 19 tests\ntest archive_path::tests::archive_member_path_normalizes_safe_paths ... ok\ntest archive_path::tests::archive_member_path_rejects_invalid_names ... ok\ntest archive_path::tests::archive_member_path_rejects_paths_outside_root ... ok\ntest dirhash::archive::tests::digest_path_uses_normalized_archive_path ... ok\ntest dirhash::archive::tests::directory_digest_uses_shared_dirhash_scheme ... ok\ntest dirhash::archive::tests::extracted_file_executable_status ... ok\ntest dirhash::tests::test_add_update_and_add_empty_dir ... ok\ntest dirhash::tests::test_blake3_copy ... ok\ntest dirhash::tests::test_blake3_copy_reuses_buffer ... ok\ntest dirhash::tests::test_blake3_copy_short_reader ... ok\ntest dirhash::tests::test_dirhash_path ... ok\ntest dirhash::tests::test_dirhash_path_symlinks ... ok\ntest dirhash::tests::test_normalize ... ok\ntest dirhash::tests::test_vectors_json ... ok\ntest tests::test_unacceptable_filename_error_replaces_control_characters ... ok\ntest tests::test_validate_archive_member_name ... ok\ntest vendor::cloneable_seekable_reader::test::test_cloneable_seekable_reader ... ok\ntest vendor::cloneable_seekable_reader::test::test_clones_have_independent_buffers_and_positions ... ok\ntest vendor::cloneable_seekable_reader::test::test_concurrent_clones_read_distinct_offsets ... ok\n\ntest result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s\n\n",
+              "stderr": ""
+            },
+            "result": {
+              "passed": 19,
+              "ignored": 0,
+              "tests": {
+                "archive_path::tests::archive_member_path_normalizes_safe_paths": "ok",
+                "archive_path::tests::archive_member_path_rejects_invalid_names": "ok",
+                "archive_path::tests::archive_member_path_rejects_paths_outside_root": "ok",
+                "dirhash::archive::tests::digest_path_uses_normalized_archive_path": "ok",
+                "dirhash::archive::tests::directory_digest_uses_shared_dirhash_scheme": "ok",
+                "dirhash::archive::tests::extracted_file_executable_status": "ok",
+                "dirhash::tests::test_add_update_and_add_empty_dir": "ok",
+                "dirhash::tests::test_blake3_copy": "ok",
+                "dirhash::tests::test_blake3_copy_reuses_buffer": "ok",
+                "dirhash::tests::test_blake3_copy_short_reader": "ok",
+                "dirhash::tests::test_dirhash_path": "ok",
+                "dirhash::tests::test_dirhash_path_symlinks": "ok",
+                "dirhash::tests::test_normalize": "ok",
+                "dirhash::tests::test_vectors_json": "ok",
+                "tests::test_unacceptable_filename_error_replaces_control_characters": "ok",
+                "tests::test_validate_archive_member_name": "ok",
+                "vendor::cloneable_seekable_reader::test::test_cloneable_seekable_reader": "ok",
+                "vendor::cloneable_seekable_reader::test::test_clones_have_independent_buffers_and_positions": "ok",
+                "vendor::cloneable_seekable_reader::test::test_concurrent_clones_read_distinct_offsets": "ok"
+              }
+            },
+            "bindings": [
+              {
+                "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+                "manifest_path": "/home/dev-user/.cache/toucan/cargo/registry/src/socket-firewall-registry.gateway.admin-0.internal.api.openai.org-42b3aaa0d2956984/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+                "features": [
+                  "std"
+                ],
+                "profile": {
+                  "opt_level": "0",
+                  "debuginfo": 2,
+                  "debug_assertions": true,
+                  "overflow_checks": true,
+                  "test": false
+                },
+                "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135.d",
+                "dep_info_sha256": "9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135",
+                "active_bindings": {
+                  "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+                }
+              }
+            ]
+          }
+        ],
+        "builder": [
+          {
+            "package": "uv-extract",
+            "features": [],
+            "executable_sha256": "f94e4e31b8e3887a17331de4db9ca7d5237689ad7feee386dbad1172bba5956d",
+            "execution": {
+              "command": [
+                "/home/dev-user/.cache/toucan/project-consumers/uv-target/debug/deps/uv_extract-88a13e57b67f14c9",
+                "--test-threads=1",
+                "--color=never"
+              ],
+              "cwd": "/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-extract",
+              "exit_code": 0,
+              "stdout": "\nrunning 19 tests\ntest archive_path::tests::archive_member_path_normalizes_safe_paths ... ok\ntest archive_path::tests::archive_member_path_rejects_invalid_names ... ok\ntest archive_path::tests::archive_member_path_rejects_paths_outside_root ... ok\ntest dirhash::archive::tests::digest_path_uses_normalized_archive_path ... ok\ntest dirhash::archive::tests::directory_digest_uses_shared_dirhash_scheme ... ok\ntest dirhash::archive::tests::extracted_file_executable_status ... ok\ntest dirhash::tests::test_add_update_and_add_empty_dir ... ok\ntest dirhash::tests::test_blake3_copy ... ok\ntest dirhash::tests::test_blake3_copy_reuses_buffer ... ok\ntest dirhash::tests::test_blake3_copy_short_reader ... ok\ntest dirhash::tests::test_dirhash_path ... ok\ntest dirhash::tests::test_dirhash_path_symlinks ... ok\ntest dirhash::tests::test_normalize ... ok\ntest dirhash::tests::test_vectors_json ... ok\ntest tests::test_unacceptable_filename_error_replaces_control_characters ... ok\ntest tests::test_validate_archive_member_name ... ok\ntest vendor::cloneable_seekable_reader::test::test_cloneable_seekable_reader ... ok\ntest vendor::cloneable_seekable_reader::test::test_clones_have_independent_buffers_and_positions ... ok\ntest vendor::cloneable_seekable_reader::test::test_concurrent_clones_read_distinct_offsets ... ok\n\ntest result: ok. 19 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.03s\n\n",
+              "stderr": ""
+            },
+            "result": {
+              "passed": 19,
+              "ignored": 0,
+              "tests": {
+                "archive_path::tests::archive_member_path_normalizes_safe_paths": "ok",
+                "archive_path::tests::archive_member_path_rejects_invalid_names": "ok",
+                "archive_path::tests::archive_member_path_rejects_paths_outside_root": "ok",
+                "dirhash::archive::tests::digest_path_uses_normalized_archive_path": "ok",
+                "dirhash::archive::tests::directory_digest_uses_shared_dirhash_scheme": "ok",
+                "dirhash::archive::tests::extracted_file_executable_status": "ok",
+                "dirhash::tests::test_add_update_and_add_empty_dir": "ok",
+                "dirhash::tests::test_blake3_copy": "ok",
+                "dirhash::tests::test_blake3_copy_reuses_buffer": "ok",
+                "dirhash::tests::test_blake3_copy_short_reader": "ok",
+                "dirhash::tests::test_dirhash_path": "ok",
+                "dirhash::tests::test_dirhash_path_symlinks": "ok",
+                "dirhash::tests::test_normalize": "ok",
+                "dirhash::tests::test_vectors_json": "ok",
+                "tests::test_unacceptable_filename_error_replaces_control_characters": "ok",
+                "tests::test_validate_archive_member_name": "ok",
+                "vendor::cloneable_seekable_reader::test::test_cloneable_seekable_reader": "ok",
+                "vendor::cloneable_seekable_reader::test::test_clones_have_independent_buffers_and_positions": "ok",
+                "vendor::cloneable_seekable_reader::test::test_concurrent_clones_read_distinct_offsets": "ok"
+              }
+            },
+            "bindings": [
+              {
+                "package_id": "path+file:///home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys#2.0.16+zstd.1.5.7",
+                "manifest_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys/Cargo.toml",
+                "features": [
+                  "bindgen",
+                  "std"
+                ],
+                "profile": {
+                  "opt_level": "0",
+                  "debuginfo": 2,
+                  "debug_assertions": true,
+                  "overflow_checks": true,
+                  "test": false
+                },
+                "dep_info": "corpus/evidence/astral-builder-a7fab44/dep-info/3bc114a62c992f7fb1a3b1a248a538cf4f9f712530c2816e39398839c6c6cc10.d",
+                "dep_info_sha256": "3bc114a62c992f7fb1a3b1a248a538cf4f9f712530c2816e39398839c6c6cc10",
+                "generated_binding": "corpus/evidence/astral-builder-a7fab44/bindings/21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5.rs",
+                "generated_binding_sha256": "21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5",
+                "original_out_dir_binding": "/home/dev-user/.cache/toucan/project-consumers/uv-target/debug/build/zstd-sys-82a1cc9a6c95714b/out/bindings.rs"
+              }
+            ]
+          }
+        ]
+      },
+      "changed_project_files": [
+        "Cargo.lock"
+      ],
+      "upstream_binary": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/bin/uv-upstream",
+      "builder_binary": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/bin/uv-builder",
+      "runtime": {
+        "encoder": {
+          "library": "libzstd.so.1",
+          "version": "1.5.5"
+        },
+        "wheel_sha256": "23814de6e20b910903ad084f034b7dfaca670c2586ab7b3f0b05be0d18a52c7e",
+        "encoded_wheel_sha256": "ba7a5d12ba5068ac326d80bd0a8860130114bf85cf1f6e162fe27f48291c5161",
+        "upstream": {
+          "command": [
+            "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/bin/uv-upstream",
+            "--no-progress",
+            "--color",
+            "never",
+            "pip",
+            "install",
+            "--no-deps",
+            "--no-index",
+            "--link-mode",
+            "copy",
+            "--python",
+            "/home/dev-user/.virtualenvs/openai/bin/python3",
+            "--target",
+            "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-upstream/installed",
+            "http://127.0.0.1:36975/toucan_consumer_probe-1.0.0-py3-none-any.whl"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-upstream",
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": "Using CPython 3.12.13 interpreter at: /home/dev-user/.virtualenvs/openai/bin/python3\nResolved 1 package in 11ms\nDownloading toucan-consumer-probe\n Downloaded toucan-consumer-probe\nPrepared 1 package in 13ms\nInstalled 1 package in 176ms\n + toucan-consumer-probe==1.0.0 (from http://127.0.0.1:36975/toucan_consumer_probe-1.0.0-py3-none-any.whl)\n",
+          "binary_sha256": "40239c411ee81b737df51aa849440dcf95348c5f39972204d2be3f5dc7f02f29",
+          "installed_fixture_sha256": {
+            "toucan_consumer_probe/__init__.py": "94b882363df5755799f970a566e95be6d3cb0e34673efca79c142922c5489972",
+            "toucan_consumer_probe/data.bin": "120c518a83325c66464701a6ee080302f332bc768ea3f60473b209f1bfb091df",
+            "toucan_consumer_probe-1.0.0.dist-info/METADATA": "4d7c66b0c7158a524f1eef397daf5daaaf6bae8aaa255dd0e60a3ee0db42a41b",
+            "toucan_consumer_probe-1.0.0.dist-info/WHEEL": "8f347e3b5103e1b6cf9df83d9f6f9dfcec9a97e078ab3e7216e4eddff75e5a24"
+          },
+          "import": {
+            "command": [
+              "/home/dev-user/.virtualenvs/openai/bin/python3",
+              "-I",
+              "-c",
+              "import sys; sys.path.insert(0, sys.argv[1]); import toucan_consumer_probe as p; print(p.VALUE)",
+              "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-upstream/installed"
+            ],
+            "cwd": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-upstream",
+            "exit_code": 0,
+            "stdout": "toucan-zstd-workspace-probe\n",
+            "stderr": ""
+          },
+          "requests": [
+            {
+              "method": "HEAD",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:36975"
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:36975"
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:36975"
+              }
+            }
+          ]
+        },
+        "generated": {
+          "command": [
+            "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/bin/uv-builder",
+            "--no-progress",
+            "--color",
+            "never",
+            "pip",
+            "install",
+            "--no-deps",
+            "--no-index",
+            "--link-mode",
+            "copy",
+            "--python",
+            "/home/dev-user/.virtualenvs/openai/bin/python3",
+            "--target",
+            "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-generated/installed",
+            "http://127.0.0.1:36975/toucan_consumer_probe-1.0.0-py3-none-any.whl"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-generated",
+          "exit_code": 0,
+          "stdout": "",
+          "stderr": "Using CPython 3.12.13 interpreter at: /home/dev-user/.virtualenvs/openai/bin/python3\nResolved 1 package in 10ms\nDownloading toucan-consumer-probe\n Downloaded toucan-consumer-probe\nPrepared 1 package in 13ms\nInstalled 1 package in 4ms\n + toucan-consumer-probe==1.0.0 (from http://127.0.0.1:36975/toucan_consumer_probe-1.0.0-py3-none-any.whl)\n",
+          "binary_sha256": "25bf6acbd82fbe253f2b623f01d957874b1cd973a85f8d899299bacdfe98fda2",
+          "installed_fixture_sha256": {
+            "toucan_consumer_probe/__init__.py": "94b882363df5755799f970a566e95be6d3cb0e34673efca79c142922c5489972",
+            "toucan_consumer_probe/data.bin": "120c518a83325c66464701a6ee080302f332bc768ea3f60473b209f1bfb091df",
+            "toucan_consumer_probe-1.0.0.dist-info/METADATA": "4d7c66b0c7158a524f1eef397daf5daaaf6bae8aaa255dd0e60a3ee0db42a41b",
+            "toucan_consumer_probe-1.0.0.dist-info/WHEEL": "8f347e3b5103e1b6cf9df83d9f6f9dfcec9a97e078ab3e7216e4eddff75e5a24"
+          },
+          "import": {
+            "command": [
+              "/home/dev-user/.virtualenvs/openai/bin/python3",
+              "-I",
+              "-c",
+              "import sys; sys.path.insert(0, sys.argv[1]); import toucan_consumer_probe as p; print(p.VALUE)",
+              "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-generated/installed"
+            ],
+            "cwd": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-generated",
+            "exit_code": 0,
+            "stdout": "toucan-zstd-workspace-probe\n",
+            "stderr": ""
+          },
+          "requests": [
+            {
+              "method": "HEAD",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:36975"
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:36975"
+              }
+            },
+            {
+              "method": "GET",
+              "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+              "headers": {
+                "Accept-Encoding": "identity",
+                "Accept": "*/*",
+                "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                "Host": "127.0.0.1:36975"
+              }
+            }
+          ]
+        },
+        "truncated_frame": {
+          "sha256": "5093952323b89dd99582c3d7919dd5f70a6928d9b417b10a0a3e08d5f53ed9f5",
+          "upstream": {
+            "command": [
+              "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/bin/uv-upstream",
+              "--no-progress",
+              "--color",
+              "never",
+              "pip",
+              "install",
+              "--no-deps",
+              "--no-index",
+              "--link-mode",
+              "copy",
+              "--python",
+              "/home/dev-user/.virtualenvs/openai/bin/python3",
+              "--target",
+              "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-truncated-upstream/installed",
+              "http://127.0.0.1:42373/toucan_consumer_probe-1.0.0-py3-none-any.whl"
+            ],
+            "cwd": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-truncated-upstream",
+            "exit_code": 1,
+            "stdout": "",
+            "stderr": "Using CPython 3.12.13 interpreter at: /home/dev-user/.virtualenvs/openai/bin/python3\n  \u00d7 No solution found when resolving dependencies:\n  \u2570\u2500\u25b6 Because toucan-consumer-probe has an invalid package format and you\n      require toucan-consumer-probe, we can conclude that your requirements\n      are unsatisfiable.\n\nhint: The structure of `toucan-consumer-probe` was invalid\n  Caused by: Failed to read from zip file\n  Caused by: an upstream reader returned an error: unexpected end of file\n  Caused by: unexpected end of file\n\n",
+            "binary_sha256": "40239c411ee81b737df51aa849440dcf95348c5f39972204d2be3f5dc7f02f29",
+            "fixture_installed": false,
+            "requests": [
+              {
+                "method": "HEAD",
+                "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+                "headers": {
+                  "Accept-Encoding": "identity",
+                  "Accept": "*/*",
+                  "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                  "Host": "127.0.0.1:42373"
+                }
+              },
+              {
+                "method": "GET",
+                "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+                "headers": {
+                  "Accept-Encoding": "identity",
+                  "Accept": "*/*",
+                  "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                  "Host": "127.0.0.1:42373"
+                }
+              }
+            ]
+          },
+          "generated": {
+            "command": [
+              "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/bin/uv-builder",
+              "--no-progress",
+              "--color",
+              "never",
+              "pip",
+              "install",
+              "--no-deps",
+              "--no-index",
+              "--link-mode",
+              "copy",
+              "--python",
+              "/home/dev-user/.virtualenvs/openai/bin/python3",
+              "--target",
+              "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-truncated-generated/installed",
+              "http://127.0.0.1:42373/toucan_consumer_probe-1.0.0-py3-none-any.whl"
+            ],
+            "cwd": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/runtime/uv-truncated-generated",
+            "exit_code": 1,
+            "stdout": "",
+            "stderr": "Using CPython 3.12.13 interpreter at: /home/dev-user/.virtualenvs/openai/bin/python3\n  \u00d7 No solution found when resolving dependencies:\n  \u2570\u2500\u25b6 Because toucan-consumer-probe has an invalid package format and you\n      require toucan-consumer-probe, we can conclude that your requirements\n      are unsatisfiable.\n\nhint: The structure of `toucan-consumer-probe` was invalid\n  Caused by: Failed to read from zip file\n  Caused by: an upstream reader returned an error: unexpected end of file\n  Caused by: unexpected end of file\n\n",
+            "binary_sha256": "25bf6acbd82fbe253f2b623f01d957874b1cd973a85f8d899299bacdfe98fda2",
+            "fixture_installed": false,
+            "requests": [
+              {
+                "method": "HEAD",
+                "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+                "headers": {
+                  "Accept-Encoding": "identity",
+                  "Accept": "*/*",
+                  "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                  "Host": "127.0.0.1:42373"
+                }
+              },
+              {
+                "method": "GET",
+                "path": "/toucan_consumer_probe-1.0.0-py3-none-any.whl",
+                "headers": {
+                  "Accept-Encoding": "identity",
+                  "Accept": "*/*",
+                  "User-Agent": "uv/0.12.10 {\"installer\":{\"name\":\"uv\",\"version\":\"0.12.10\",\"subcommand\":[\"pip\",\"install\"]},\"python\":\"3.12.13\",\"implementation\":{\"name\":\"CPython\",\"version\":\"3.12.13\"},\"distro\":{\"name\":\"Ubuntu\",\"version\":\"24.04\",\"id\":\"noble\",\"libc\":{\"lib\":\"glibc\",\"version\":\"2.39\"}},\"system\":{\"name\":\"Linux\",\"release\":\"6.8.0-106-generic\"},\"cpu\":\"x86_64\",\"openssl_version\":null,\"setuptools_version\":null,\"rustc_version\":null,\"ci\":null}",
+                  "Host": "127.0.0.1:42373"
+                }
+              }
+            ]
+          }
+        }
+      },
+      "entry_inventory_restored": true,
+      "entry_lock": {
+        "cache_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/entry.lock",
+        "sha256": "4aded2b24fec47f12aa101ec32f8fea6d18a10a9165e581fb09c700a537ee6be"
+      },
+      "upstream_lock": {
+        "cache_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/upstream.lock",
+        "sha256": "18692de922c66b146425eb9157aa0c83667b541338cb089299882ac611a3c056"
+      },
+      "builder_lock": {
+        "cache_path": "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final/uv/builder.lock",
+        "sha256": "bd10d720a0e6e35dc3308741a2cf5295c4801d6bb11bad56f5ff1db7b29689af"
+      }
+    }
+  },
+  "driver_sha256": "0c31c09ee232a06b49c350a138a1f7a3aec39d0219c7044d0a5653204374905c",
+  "tools": {
+    "rustc": {
+      "command": [
+        "rustc",
+        "--version",
+        "--verbose"
+      ],
+      "cwd": "/home/dev-user/.cache/toucan/astral-builder-source-a7fab44",
+      "exit_code": 0,
+      "stdout": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+      "stderr": ""
+    },
+    "cargo": {
+      "command": [
+        "cargo",
+        "--version"
+      ],
+      "cwd": "/home/dev-user/.cache/toucan/astral-builder-source-a7fab44",
+      "exit_code": 0,
+      "stdout": "cargo 1.98.1 (797e8a9bc 2026-08-05)\n",
+      "stderr": ""
+    },
+    "cc": {
+      "command": [
+        "cc",
+        "--version"
+      ],
+      "cwd": "/home/dev-user/.cache/toucan/astral-builder-source-a7fab44",
+      "exit_code": 0,
+      "stdout": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.\n\n",
+      "stderr": ""
+    }
+  },
+  "target": "x86_64-unknown-linux-gnu"
+}

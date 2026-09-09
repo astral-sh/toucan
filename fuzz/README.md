@@ -10,20 +10,75 @@ cargo +nightly fuzz run checked -- -max_total_time=60
 ```
 
 Targets exercise UTF-8 input, bounded preprocessing, declaration analysis, layout,
-and binding generation. The `checked` target selects among all five target profiles
-and compares analysis with and without retained code. Successful results must have
+and binding generation. Semantic, binding, and checked-code targets select among
+all eleven compiler profiles using the sum of input bytes modulo eleven. The
+`CompilerProfile::ALL` order preserves the original seven entries (five original
+target defaults, then Clang on GNU Linux x86-64 and AArch64), followed by GCC on
+musl x86-64 and AArch64, then Clang on those two musl targets. Preprocessing has no profile
+selector. Archived campaigns using modulo five or seven retain their selector contracts;
+replaying their exact bytes with the new harness can select a different profile.
+Record the harness source and selector count with each campaign. The same byte sum's
+`0x100` bit independently selects GNU11 (clear) or C11 (set). The preprocessing
+harness uses that bit to disable or enable trigraph replacement, and bit `1` selects
+GNU (clear) or Clang (set) feature-query argument rules with a small test catalog.
+Preprocessing selector version 2 also uses `(sum(input bytes) >> 9) % 5` for
+line-comment handling: enabled, GCC C90 compilation, GCC C90 preprocessing,
+Clang C90 compilation, or Clang C90 preprocessing, in that order. The source
+bytes remain intact. The runner appends block-comment padding to cover all 20
+comment/query/trigraph combinations for every preprocessing seed. Older
+preprocessing campaigns always enabled line comments; replay their saved binary
+to preserve that behavior. This change does not alter the semantic targets'
+two-mode selector.
+It has no physical target profile. The campaign runner pads each seed with a comment to cover every compiler
+profile in both modes, including both trigraph settings and query dialects for preprocessing. The
+reported profile count must match the compiled harness's `CompilerProfile::ALL`.
+Older archived sources retain their recorded selector contracts. The `checked`
+target compares analysis with and without retained code. Successful results must have
 identical declarations; invalid inputs must produce the same diagnostic, except
 when the separate retention limits are reached. It also exercises layout queries
-on the retained analysis owner. This target explicitly rejects invalid UTF-8 so
-the reproducer bytes are exactly the source used for analysis and target selection.
+on the retained analysis owner. All targets reject invalid UTF-8, so saved reproducer
+bytes are exactly the source used for preprocessing, analysis, binding generation,
+and target selection.
 Invalid input may return a diagnostic; panics, aborts,
 timeouts, and sanitizer failures are findings. Minimize failures and add regression
 tests before fixing them. Short local runs are smoke tests, not a completed fuzz campaign.
+
+CI uses the C dictionary and immediately permits each harness's maximum input size:
+16 KiB for preprocessing and analysis, 8 KiB for binding generation. The smoke
+runs still last 60 seconds per target; they are not sustained campaigns.
+
+The daily and manually dispatched workflow runs each target for 15 minutes with
+AddressSanitizer. Successful default-branch runs save the evolving corpus for the
+next campaign. Every run uploads its starting corpus archive, final corpus,
+dictionary, binary, source hashes, logs, and reproducer files for 30 days. The
+starting archive makes a recorded random seed useful even after the corpus changes.
+These jobs start running after the workflow reaches the default branch; adding
+the workflow is not evidence that a scheduled campaign has completed.
+
+The same runner works locally with a nightly toolchain and `cargo-fuzz` selected:
+
+```console
+python3 scripts/run_fuzz_campaign.py checked --seconds 900 --seed 12345 --output fuzz/runs/checked-local
+```
+
+The output directory must be new. To replay a saved campaign, extract its starting
+corpus into a new directory and invoke its saved binary with that directory and
+the recorded libFuzzer arguments, updating the dictionary and artifact paths.
+The binary requires a compatible host. Preserve the archive before further
+mutations; a final corpus is not an exact substitute for the starting corpus.
 
 The preprocessing targets disable filesystem access. Includes can resolve only to
 the configured in-memory resource headers.
 
 ## Recorded smoke tests
+
+The [exact-input profile smoke](evidence/input-profiles-2026-09-08.json) validates
+all four byte-input harnesses at `48b7d73`, after atomic types and parser
+limits. The 31-second AddressSanitizer runs processed 139,050 preprocessing inputs,
+12,910 semantic inputs, 5,096 binding inputs, and 6,782 checked-code inputs without
+findings. Seeds cover every target profile for the three target-aware harnesses.
+Source and binary hashes are recorded; LeakSanitizer was unavailable under ptrace.
+These runs validate the changed harnesses and do not replace sustained campaigns.
 
 The [local evidence](evidence.json) records 382,661 preprocessing inputs, 446,536
 semantic inputs, and 25,192 binding inputs, with no findings in the final 61-second
@@ -80,7 +135,68 @@ cp fuzz/seeds/semantic/*.h /tmp/toucan-fuzz-semantic/
 cargo +nightly fuzz run semantic /tmp/toucan-fuzz-semantic -- -dict=fuzz/c.dict -max_total_time=300 -max_len=16384 -len_control=0 -timeout=5 -rss_limit_mb=1024 -print_final_stats=1
 ```
 
+## Compiler-profile sanitizer campaigns
+
+The [seven-profile campaign](evidence/2026-09-08-1d8f508/summary.json) at `1d8f508`
+completed 2,318,467 executions with AddressSanitizer and no findings:
+
+| Target | Executions | Duration | Peak RSS |
+| --- | ---: | ---: | ---: |
+| Preprocessor | 1,430,525 | 901 s | 517 MiB |
+| Semantics and layout | 441,788 | 901 s | 513 MiB |
+| Bindings | 163,821 | 901 s | 522 MiB |
+| Retained-code comparison | 282,333 | 901 s | 513 MiB |
+
+These sources include explicit compiler profiles, atomic Rust storage and call
+validation, VLA identities, half types, and `nodebug`. They precede packed enums
+and multiple/derived `__auto_type` declarations. The three target-aware harnesses
+select all seven profiles; preprocessing has no profile selector.
+
+The source manifest, saved binaries, logs, dictionary, starting corpus archives,
+and every archived input were independently checked against their hashes. Reports
+and starting archives are checked in alongside compressed logs. All runs executed
+on x86-64 Linux with LeakSanitizer disabled under ptrace. Counts include invalid
+input and do not establish complete safety or conformance.
+
 ## Retained-code differential campaign
+
+The [four-boundary campaign](evidence/2026-09-08-8cb3e06/summary.json) at `8cb3e06`
+completed 2,023,237 executions with AddressSanitizer and no findings:
+
+| Target | Executions | Duration | Peak RSS |
+| --- | ---: | ---: | ---: |
+| Preprocessor | 1,111,545 | 901 s | 519 MiB |
+| Semantics and layout | 492,670 | 901 s | 513 MiB |
+| Bindings | 142,125 | 901 s | 513 MiB |
+| Retained-code comparison | 276,897 | 901 s | 514 MiB |
+
+The reports record fixed source and binary hashes, commands, limits, and sanitizer
+settings. Starting corpus archives and compressed logs are checked in beside them;
+each archive was verified against its recorded input hashes. This source includes
+C11 atomic types, introspection, ARM declarations, native atomic headers, and plain
+`__auto_type`. It precedes atomic Rust storage and explicit Clang/Linux profiles.
+The target-aware harnesses used the five original profiles. All executions ran on
+x86-64 Linux; LeakSanitizer remained disabled under ptrace. Counts include invalid
+input and do not establish complete safety or conformance.
+
+Two [earlier campaigns](evidence/checked-parser-campaigns-2026-09-08.json) completed
+without findings: 195,925 executions at `caf6bcf` after GNU atomic intrinsics and
+MMX, and 80,241 at `4945364` after parser limits, SSE, overflow intrinsics, and TLS.
+Each ran for 901 seconds with AddressSanitizer, a 16 KiB input limit, a five-second
+per-input timeout, and a 1 GiB RSS limit. Peak RSS was 709 MiB and 670 MiB,
+respectively. LeakSanitizer remained disabled under ptrace. Neither run covers the
+later C11 atomic types, type introspection, ARM, or `__auto_type` implementations.
+These historical reports contain hashes; exact replay also requires the locally
+saved starting corpus. New campaigns archive those inputs with their evidence.
+
+The [definition follow-up](evidence/checked-definition-2026-09-08.json) found a
+parameter-scope assertion after 179,902 executions: `int f(int named); int f() { return 0; }`
+incorrectly inherited the declaration's parameter in the empty-list definition.
+Commit `4962937` rejects that conflicting definition. The restarted campaign,
+including the failing input, completed **243,023 executions in 901 seconds** with
+AddressSanitizer and no findings. Peak RSS was 661 MiB. The report preserves both
+runs, compiler validation, source hashes, and the fix; later intrinsic and parser
+changes require separate validation.
 
 The [retained-code campaign](evidence/checked-2026-09-08.json) completed **333,577
 inputs in 901 seconds** without new findings at commit `ad162bd`. It used an immutable source snapshot
@@ -106,3 +222,18 @@ commands, limits, and final libFuzzer statistics. Fuzzer counts include rejected
 and invalid UTF-8; they do not measure accepted programs or prove execution
 semantics. LeakSanitizer remained disabled because process inspection is unavailable
 under ptrace. A clean bounded run does not establish complete safety or conformance.
+
+The expression-alignment seed covers packed fields, declared object alignment,
+pointer-cast provenance, `_Generic`, and unevaluated VLA bounds. Exact replay
+checks the public retained graph on all seven compiler profiles; see the
+[alignment evidence](../corpus/evidence/expression-alignment-2026-09-08.json).
+This replay is separate from the sanitizer campaigns above.
+
+The [combined revision campaign](evidence/2026-09-08-bb6a401/summary.json) at
+`bb6a401` completed 2,547,850 executions with ASan and no findings: 1,632,314
+preprocessing, 453,296 semantic, 172,151 binding, and 290,089 checked-code inputs.
+Each campaign ran for 900 seconds on x86-64 Linux; peak RSS was 513–519 MiB.
+The archive includes original starting corpora, compressed logs, exact source and
+binary hashes, commands, and toolchain versions. LeakSanitizer was disabled under
+ptrace. These runs precede explicit C11/GNU11 modes and use the archived single-mode
+harnesses. Execution counts include rejected inputs and do not establish conformance.

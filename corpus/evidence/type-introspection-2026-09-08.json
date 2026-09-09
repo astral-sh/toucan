@@ -1,0 +1,1341 @@
+{
+  "schema_version": 1,
+  "base_revision": "494536458133e4b7a8e80bee4a8880b80ec5f82d",
+  "scope": "GNU type compatibility and compile-time expression selection; no compiler optimization-equivalence claim",
+  "primary_sources": [
+    {
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-18.1.3/clang/lib/Sema/SemaExprCXX.cpp",
+      "sha256": "9b1db9aefbf24372e3f9cc30e0832300cf759439ec9bb9d7ec8261f58f486e33"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-18.1.3/clang/lib/Sema/SemaExpr.cpp",
+      "sha256": "84c2d7da598e6a8a8447f2e23fa719d18e1da049955dba089b7f78384682f73c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-18.1.3/clang/lib/AST/Expr.cpp",
+      "sha256": "d15f171020ccb629f488c329747aebe59d9c52aea17171e977f4101db9469c5c"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/llvm/llvm-project/llvmorg-18.1.3/clang/lib/AST/ExprConstant.cpp",
+      "sha256": "98e08379b97d1ac4f9e7acf3b8235602963f998715a6d68f880aa647db3328bb"
+    },
+    {
+      "url": "https://raw.githubusercontent.com/gcc-mirror/gcc/releases/gcc-13.3.0/gcc/c/c-parser.cc",
+      "sha256": "59adadc49b2715e6bc4833ab7c6986e16fd095f8e71e00965fbb5eff1b673c12"
+    }
+  ],
+  "compiler_command_templates": {
+    "runtime": [
+      "${COMPILER}",
+      "-std=gnu11",
+      "${OPTIMIZATION}",
+      "${SOURCE}",
+      "-o",
+      "${EXECUTABLE}"
+    ],
+    "constraint": [
+      "${COMPILER}",
+      "-std=gnu11",
+      "-fsyntax-only",
+      "-x",
+      "c",
+      "${SOURCE}",
+      "${OPTIONAL_PEDANTIC_ERRORS}"
+    ]
+  },
+  "sources": {
+    "choose_address_indirection.c": {
+      "sha256": "3e1cae4d9c000c48bfb784ea374ed1949b9ad8432639b7ce08f7d70bed44e639",
+      "source": "#include <stdio.h>\nint main(void){void *p=0;void *q=&__builtin_choose_expr(1,*p,17);printf(\"%d\\n\",p==q);return 0;}\n"
+    },
+    "choose_array.c": {
+      "sha256": "43c473341834646d2669a3791b64c36e196ffc1cc67ae82b2303a1c234d4c069",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int a[3]; printf(\"%zu\\n\",sizeof(__builtin_choose_expr(1,a,(void)0)));return 0;}\n"
+    },
+    "choose_bitfield_address.c": {
+      "sha256": "038d6d8b83ac9ceec91f29ee4ed926fc7ac9a80d67003a06196e0e52d887821d",
+      "source": "struct S {int x:3;}; struct S s; int *p=&__builtin_choose_expr(1,s.x,0);\n"
+    },
+    "choose_comma_condition.c": {
+      "sha256": "7bbca1efcfcaf7b2cc1f77192fc5245c3837f6e10af320af31e99f377039b440",
+      "source": "int x=__builtin_choose_expr((1,1),1,2);\n"
+    },
+    "choose_const_assignment.c": {
+      "sha256": "d5a1177aa4a8f50d459b3f14e40fb146af652147d6c0211f5d82069e5acb2807",
+      "source": "const int x=0; void f(void){__builtin_choose_expr(1,x,0)=1;}\n"
+    },
+    "choose_const_variable.c": {
+      "sha256": "169cb43b91811695dc133271a42706b574576fac1af63f9c2f560e6bb3056640",
+      "source": "const int a=1; int x=__builtin_choose_expr(a,1,2);\n"
+    },
+    "choose_dead_bound.c": {
+      "sha256": "389261a67231b7a6e1191b67d8c556130605b53bfc944c6dc8f05fececfcbc4b",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int n=3; int r=__builtin_choose_expr(1,17,sizeof(int[n++])); printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "choose_dead_divzero.c": {
+      "sha256": "9cc32a53f7388d6ea6a2a9ea3d9ca73b7291d23b39a38779523ec5009ad12b64",
+      "source": "enum {X=__builtin_choose_expr(1,7,1/0)};\n"
+    },
+    "choose_dead_invalid_call.c": {
+      "sha256": "1a11641039b723a872a36baf134a5f00bb517b6b14af0aff98b0680938c78333",
+      "source": "int f(void){return __builtin_choose_expr(1,0,1());}\n"
+    },
+    "choose_dead_undeclared.c": {
+      "sha256": "3e042b10cac830c1920bb82cc2654e29e6994c7994f6156cebeac8cb9a49da0f",
+      "source": "int f(void){return __builtin_choose_expr(1,0,unknown);}\n"
+    },
+    "choose_float_condition.c": {
+      "sha256": "fa71e9ac9e060201f0712ea32a51ffe4884a328d04c8b6a329abec463db6dc7c",
+      "source": "int x=__builtin_choose_expr(1.0,1,2);\n"
+    },
+    "choose_function.c": {
+      "sha256": "6e9717c439173bf602bfe50614a713fa7d8d1300d45f0be5c7ccd8eafb8d0a9d",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int puts(const char*); __builtin_choose_expr(1,puts,17)(\"selected\");return 0;}\n"
+    },
+    "choose_ice_selected.c": {
+      "sha256": "b9fb6337d8e058fecff0c0960161d505f3e376fe73d00ecb8bee24a1c18b6b8e",
+      "source": "int f(void); enum {X=__builtin_choose_expr(1,7,f())};\n"
+    },
+    "choose_lvalue.c": {
+      "sha256": "ef6a1ea8d48f75b97965fbd993c63346d65ef76f6c6a60cd2e62c03c434f955a",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int x=1; __builtin_choose_expr(1,x,(void)0)=7; printf(\"%d\\n\",x);return 0;}\n"
+    },
+    "choose_nonice_selected.c": {
+      "sha256": "378e2261292ffb564c4e51c01a0e558b133289dddced2c2dc653e52130f6d6b4",
+      "source": "int x; enum {X=__builtin_choose_expr(1,x,7)};\n"
+    },
+    "choose_query_dead_effect.c": {
+      "sha256": "716938d6b7dcaefdf062f18dcaf4f72cff19d8bb0fffe76d901510c42e26f62c",
+      "source": "#include <stdio.h>\nint main(void){int n=3;int r=__builtin_constant_p(__builtin_choose_expr(1,sizeof(int[n++]),n++));printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "choose_query_live_effect.c": {
+      "sha256": "0ac32f1efcd31fac03f4a6f2a816fcdbd4119eb2240cfde0cc16d7c361818bcc",
+      "source": "#include <stdio.h>\nint main(void){int n=3,m=3;int r=__builtin_constant_p(__builtin_choose_expr(1,n+++sizeof(int[m++]),17));printf(\"%d %d %d\\n\",r,n,m);return 0;}\n"
+    },
+    "choose_selected_bound.c": {
+      "sha256": "aaeadc88fd6536a425bed6de11dad85e954abe90d8ecb635ea4545fe30b2c922",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int n=3,m=4; int r=__builtin_choose_expr(1,sizeof(int[n++]),sizeof(int[m++])); printf(\"%d %d %d\\n\",r,n,m);return 0;}\n"
+    },
+    "choose_typeof_dead.c": {
+      "sha256": "6e741989f04e38c1aa2ce73e5fc001bb5ac9a23886444dcb386f2fa31989fd3a",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int n=3; __typeof__(__builtin_choose_expr(1,(int(*)[n++])0,17)) p=0; printf(\"%d %zu\\n\",n,sizeof p);return 0;}\n"
+    },
+    "choose_typeof_existing_vm.c": {
+      "sha256": "a952cead2de80aa2102abceaaa309c51a532efa33e39244056f51499c87aec94",
+      "source": "#include <stdio.h>\nint main(void){int n=3;int a[2][n],(*p)[n]=a;typeof(__builtin_choose_expr(1,*p++,17)) b;printf(\"%td %zu\\n\",p-a,sizeof b);return 0;}\n"
+    },
+    "choose_vm_cond.c": {
+      "sha256": "4dda6d83907bb946fd43b6d2bf273f22ca71f7c319a8990b03a5e17bd821da7c",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int n=3; int r=__builtin_choose_expr(__builtin_types_compatible_p(int[n++],int[3]),1,2); printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "choose_void.c": {
+      "sha256": "01625d433f7b1ceeea9b8b9fc9ac2eedbe1dc8e4d1122859306b1f2e58e9ed88",
+      "source": "void f(void){__builtin_choose_expr(1,(void)0,7);}\n"
+    },
+    "comma_bound.c": {
+      "sha256": "eeb819657ac38d11e753b2e5a023c7016b6f624868beee773a5c9368e4ffdfe2",
+      "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[(1,3)],int[4]));}\n"
+    },
+    "comma_bound_equal.c": {
+      "sha256": "b14c805f7f9c05c3f81e0a6b03fbdd0c16a478fec3566172fff45dd494fce555",
+      "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[(1,3)],int[3]));}\n"
+    },
+    "compatible_statement_expression.c": {
+      "sha256": "ed0323d733d099a0bfe0f004fb03b5296f85a1ca31335cefea01415ac660dee9",
+      "source": "#include <stdio.h>\nint main(void){int n=3;int r=__builtin_types_compatible_p(typeof(({n++;(int(*)[n++])0;})),int(*)[3]);printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "compatible_typedef_bound_reuse.c": {
+      "sha256": "37aef6e776bd191b66a6c0a2acc99e1baddd0bab1dacaf1d426aed66b43e8253",
+      "source": "#include <stdio.h>\nint main(void){int n=3;typedef int A[n++];int r=__builtin_types_compatible_p(A,int[4]);printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "condition_pointer_vla_sizeof.c": {
+      "sha256": "c1bc5c63aa03b1c23c7c5d30d0488c8358cb76ee0f65346df8d70e518993581d",
+      "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(sizeof(int(*)[n++]),17,2);printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "condition_typeof_pointer_vla.c": {
+      "sha256": "6696b7ceed48e8f630aae8f0ef75b0b7bf6c20d43c57b4092f6a55cad0200aba",
+      "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(sizeof(typeof((int(*)[n++])0)),17,2);printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "constant_variable_bound.c": {
+      "sha256": "e4a9fabb13775d12ef6c0971c60c160494d6ac032c0c716a712e1bb85fb382bf",
+      "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[n],int[4]));}\n"
+    },
+    "dead_typeof_pointer_vla.c": {
+      "sha256": "5abe5dcbffa6e86b10c9b720401c70e1ad6cba30d94cacad4fe5c012d5a8b598",
+      "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(1,17,sizeof(typeof((int(*)[n++])0)));printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "query_compatible_vm.c": {
+      "sha256": "19c0409f474b0221bdd78daddce6f009c5f45032a92d1bf45ad3a70aabe6a06c",
+      "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_constant_p(__builtin_types_compatible_p(int[n++],int[3]));printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "tc_expression_argument.c": {
+      "sha256": "ba8788f687b67b7aa5f8b1b8ac9c10fc09535809ba65ecfe16f9956c0e909572",
+      "source": "int x; int y=__builtin_types_compatible_p(x,int);\n"
+    },
+    "tc_ice.c": {
+      "sha256": "eb3b9eb5ae6f8f4561b07030930c98ed6cad0888b5e73553933611c20adacf86",
+      "source": "enum {X=__builtin_types_compatible_p(int,const int)}; _Static_assert(X==1,\"x\");\n"
+    },
+    "tc_negative_array.c": {
+      "sha256": "6119d857d0d5907d2176233444af9f5f63fdb5abe9ed4cdafbdd3ec9bc6c0b49",
+      "source": "int x=__builtin_types_compatible_p(int[-1],int[]);\n"
+    },
+    "tc_vla_bad_bound.c": {
+      "sha256": "0e041df602828cd65169ff439b489e652a82ae3512ed62cc0b56493d9c2343fd",
+      "source": "int f(void){return __builtin_types_compatible_p(int[1.0],int[]);}\n"
+    },
+    "tc_void.c": {
+      "sha256": "94782619579bff68231965ff8e295bf0f98a211b4edbc6c93211f15ef6b57562",
+      "source": "_Static_assert(__builtin_types_compatible_p(void,void),\"x\");\n"
+    },
+    "tc_zero_array.c": {
+      "sha256": "d607ac62785bec56a7e69ec20095edc74a37f0880def24ef3cedfbc41fb9ff59",
+      "source": "int x=__builtin_types_compatible_p(int[0],int[]);\n"
+    },
+    "type_typeof_vla.c": {
+      "sha256": "fc8879b6b351f907d649e53e52a3b447a829e4dc607072807a66d30bcc057324",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int n=3; int r=__builtin_types_compatible_p(__typeof__((int(*)[n++])0),int(*)[3]); printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "type_vla.c": {
+      "sha256": "927e3ac9d58c3ef6e8d02bc9e1ce6e69e58d897f62aaf13f75994212b0edfa60",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int n=3,m=4; int r=__builtin_types_compatible_p(int[n++],int[m++]); printf(\"%d %d %d\\n\",r,n,m);return 0;}\n"
+    },
+    "type_vla_fixed.c": {
+      "sha256": "98cfeca7f530a4bcc85785abd90cd92d1956635f94ac083dd31b6d48d2725a59",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int n=3; int r=__builtin_types_compatible_p(int[n++],int[5]); printf(\"%d %d\\n\",r,n);return 0;}\n"
+    },
+    "type_vla_pointer.c": {
+      "sha256": "3046d3036204f525aad63509b99cf9da0a17c46d746434a4e4e187cefe7fbf8b",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){int n=3,m=4; int r=__builtin_types_compatible_p(int(*)[n++],int(*)[m++]); printf(\"%d %d %d\\n\",r,n,m);return 0;}\n"
+    },
+    "types-more.c": {
+      "sha256": "7c623e26475f9cdff602c286aea1aed20660f9f35d97b9a8049edd8ea44513e1",
+      "source": "#include <stdio.h>\nint main(void){int n=2,m=3;\nprintf(\"atomic_array %d\\n\",__builtin_types_compatible_p(_Atomic(int)[5],int[5]));\nprintf(\"const_pointer_array %d\\n\",__builtin_types_compatible_p(int *const[5],int *[5]));\nprintf(\"const_pointee_array %d\\n\",__builtin_types_compatible_p(const int *[5],int *[5]));\nprintf(\"nested_const_array %d\\n\",__builtin_types_compatible_p(const int[2][3],int[2][3]));\nprintf(\"nested_atomic_array %d\\n\",__builtin_types_compatible_p(_Atomic(int)[2][3],int[2][3]));\nprintf(\"array_of_qualified_function_pointer %d\\n\",__builtin_types_compatible_p(const int (*[2])(void),int (*[2])(void)));\nprintf(\"function_pointer_const_return %d\\n\",__builtin_types_compatible_p(const int (*)(void),int (*)(void)));\nprintf(\"function_atomic_return %d\\n\",__builtin_types_compatible_p(_Atomic(int)(void),int(void)));\nprintf(\"function_pointer_atomic_return %d\\n\",__builtin_types_compatible_p(_Atomic(int)(*)(void),int(*)(void)));\nprintf(\"function_pointer_return_qual %d\\n\",__builtin_types_compatible_p(int *const (void),int *(void)));\nprintf(\"function_return_pointee_const %d\\n\",__builtin_types_compatible_p(const int *(void),int *(void)));\nprintf(\"function_void_return_qual %d\\n\",__builtin_types_compatible_p(const void(void),void(void)));\nprintf(\"function_atomic_param_qual %d\\n\",__builtin_types_compatible_p(int(_Atomic(int)),int(int)));\nprintf(\"vla_two_dimensions %d\\n\",__builtin_types_compatible_p(int[2][n],int[3][n]));\nprintf(\"vla_different_bound %d\\n\",__builtin_types_compatible_p(int[n],int[m]));\n}\n"
+    },
+    "types.c": {
+      "sha256": "4f8bd90834c53f9cdbd0970c969915e9b17257d72aa5a616a04c1b260239df17",
+      "source": "#include <stdio.h>\nstruct S {int x;}; struct T {int x;}; enum E {E0}; enum F {F0};\nint main(void){\nprintf(\"const %d\\n\",__builtin_types_compatible_p(int,const int));\nprintf(\"volatile %d\\n\",__builtin_types_compatible_p(volatile int,int));\nprintf(\"atomic %d\\n\",__builtin_types_compatible_p(_Atomic(int),int));\nprintf(\"atomic_record %d\\n\",__builtin_types_compatible_p(_Atomic(struct S),struct S));\nprintf(\"atomic_pointer %d\\n\",__builtin_types_compatible_p(_Atomic(int)*,int*));\nprintf(\"pointee_const %d\\n\",__builtin_types_compatible_p(const int*,int*));\nprintf(\"pointer_const %d\\n\",__builtin_types_compatible_p(int*const,int*));\nprintf(\"unknown_array %d\\n\",__builtin_types_compatible_p(int[],int[5]));\nprintf(\"array_size %d\\n\",__builtin_types_compatible_p(int[5],int[6]));\nprintf(\"array_qualified %d\\n\",__builtin_types_compatible_p(const int[5],int[5]));\nprintf(\"enum_int %d\\n\",__builtin_types_compatible_p(enum E,int));\nprintf(\"enum_uint %d\\n\",__builtin_types_compatible_p(enum E,unsigned int));\nprintf(\"distinct_enums %d\\n\",__builtin_types_compatible_p(enum E,enum F));\nprintf(\"distinct_structs %d\\n\",__builtin_types_compatible_p(struct S,struct T));\nprintf(\"incomplete %d\\n\",__builtin_types_compatible_p(struct U,struct U));\nprintf(\"function_old %d\\n\",__builtin_types_compatible_p(int(int),int()));\nprintf(\"function_float_old %d\\n\",__builtin_types_compatible_p(int(float),int()));\nprintf(\"function_variadic %d\\n\",__builtin_types_compatible_p(int(int,...),int(int)));\nprintf(\"function_atomic %d\\n\",__builtin_types_compatible_p(int(_Atomic(int)),int(int)));\nprintf(\"function_return_qual %d\\n\",__builtin_types_compatible_p(const int(void),int(void)));\n}\n"
+    },
+    "unselected_bound.c": {
+      "sha256": "357b1af020cf446580a2881484c0ee10835df50fde709edc00c3344bc0f3eee8",
+      "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[1?3:n],int[4]));}\n"
+    },
+    "zero_shortcircuit.c": {
+      "sha256": "ed6dddf7391955dd853413153f83faa4f9eab9aff1c9e2a573d8141f755b6d56",
+      "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[1||n],int[4]));}\n"
+    }
+  },
+  "probes": {
+    "evidence.json": {
+      "gcc": {
+        "version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+        "constraints": {
+          "choose_dead_undeclared": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_dead_undeclared.c: In function \u2018f\u2019:\n${PROBE_DIRECTORY}/choose_dead_undeclared.c:1:46: error: \u2018unknown\u2019 undeclared (first use in this function)\n    1 | int f(void){return __builtin_choose_expr(1,0,unknown);}\n      |                                              ^~~~~~~\n${PROBE_DIRECTORY}/choose_dead_undeclared.c:1:46: note: each undeclared identifier is reported only once for each function it appears in\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_dead_undeclared.c: In function \u2018f\u2019:\n${PROBE_DIRECTORY}/choose_dead_undeclared.c:1:46: error: \u2018unknown\u2019 undeclared (first use in this function)\n    1 | int f(void){return __builtin_choose_expr(1,0,unknown);}\n      |                                              ^~~~~~~\n${PROBE_DIRECTORY}/choose_dead_undeclared.c:1:46: note: each undeclared identifier is reported only once for each function it appears in\n"
+            }
+          },
+          "choose_dead_invalid_call": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_dead_invalid_call.c: In function \u2018f\u2019:\n${PROBE_DIRECTORY}/choose_dead_invalid_call.c:1:46: error: called object is not a function or function pointer\n    1 | int f(void){return __builtin_choose_expr(1,0,1());}\n      |                                              ^\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_dead_invalid_call.c: In function \u2018f\u2019:\n${PROBE_DIRECTORY}/choose_dead_invalid_call.c:1:46: error: called object is not a function or function pointer\n    1 | int f(void){return __builtin_choose_expr(1,0,1());}\n      |                                              ^\n"
+            }
+          },
+          "choose_dead_divzero": {
+            "False": {
+              "status": 0,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_dead_divzero.c:1:36: warning: division by zero [-Wdiv-by-zero]\n    1 | enum {X=__builtin_choose_expr(1,7,1/0)};\n      |                                    ^\n"
+            },
+            "True": {
+              "status": 0,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_dead_divzero.c:1:36: warning: division by zero [-Wdiv-by-zero]\n    1 | enum {X=__builtin_choose_expr(1,7,1/0)};\n      |                                    ^\n"
+            }
+          },
+          "choose_ice_selected": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 0,
+              "diagnostic": ""
+            }
+          },
+          "choose_nonice_selected": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_nonice_selected.c:1:14: error: enumerator value for \u2018X\u2019 is not an integer constant\n    1 | int x; enum {X=__builtin_choose_expr(1,x,7)};\n      |              ^\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_nonice_selected.c:1:14: error: enumerator value for \u2018X\u2019 is not an integer constant\n    1 | int x; enum {X=__builtin_choose_expr(1,x,7)};\n      |              ^\n"
+            }
+          },
+          "choose_float_condition": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_float_condition.c:1:7: error: first argument to \u2018__builtin_choose_expr\u2019 not a constant\n    1 | int x=__builtin_choose_expr(1.0,1,2);\n      |       ^~~~~~~~~~~~~~~~~~~~~\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_float_condition.c:1:7: error: first argument to \u2018__builtin_choose_expr\u2019 not a constant\n    1 | int x=__builtin_choose_expr(1.0,1,2);\n      |       ^~~~~~~~~~~~~~~~~~~~~\n"
+            }
+          },
+          "choose_const_variable": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_const_variable.c:1:22: error: first argument to \u2018__builtin_choose_expr\u2019 not a constant\n    1 | const int a=1; int x=__builtin_choose_expr(a,1,2);\n      |                      ^~~~~~~~~~~~~~~~~~~~~\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_const_variable.c:1:22: error: first argument to \u2018__builtin_choose_expr\u2019 not a constant\n    1 | const int a=1; int x=__builtin_choose_expr(a,1,2);\n      |                      ^~~~~~~~~~~~~~~~~~~~~\n"
+            }
+          },
+          "choose_comma_condition": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_comma_condition.c:1:7: error: first argument to \u2018__builtin_choose_expr\u2019 not a constant\n    1 | int x=__builtin_choose_expr((1,1),1,2);\n      |       ^~~~~~~~~~~~~~~~~~~~~\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_comma_condition.c:1:7: error: first argument to \u2018__builtin_choose_expr\u2019 not a constant\n    1 | int x=__builtin_choose_expr((1,1),1,2);\n      |       ^~~~~~~~~~~~~~~~~~~~~\n"
+            }
+          },
+          "choose_void": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 0,
+              "diagnostic": ""
+            }
+          },
+          "choose_bitfield_address": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_bitfield_address.c:1:41: error: cannot take address of bit-field \u2018x\u2019\n    1 | struct S {int x:3;}; struct S s; int *p=&__builtin_choose_expr(1,s.x,0);\n      |                                         ^\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_bitfield_address.c:1:41: error: cannot take address of bit-field \u2018x\u2019\n    1 | struct S {int x:3;}; struct S s; int *p=&__builtin_choose_expr(1,s.x,0);\n      |                                         ^\n"
+            }
+          },
+          "choose_const_assignment": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_const_assignment.c: In function \u2018f\u2019:\n${PROBE_DIRECTORY}/choose_const_assignment.c:1:57: error: assignment of read-only variable \u2018x\u2019\n    1 | const int x=0; void f(void){__builtin_choose_expr(1,x,0)=1;}\n      |                                                         ^\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_const_assignment.c: In function \u2018f\u2019:\n${PROBE_DIRECTORY}/choose_const_assignment.c:1:57: error: assignment of read-only variable \u2018x\u2019\n    1 | const int x=0; void f(void){__builtin_choose_expr(1,x,0)=1;}\n      |                                                         ^\n"
+            }
+          },
+          "tc_expression_argument": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_expression_argument.c:1:43: error: expected specifier-qualifier-list before \u2018x\u2019\n    1 | int x; int y=__builtin_types_compatible_p(x,int);\n      |                                           ^\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_expression_argument.c:1:43: error: expected specifier-qualifier-list before \u2018x\u2019\n    1 | int x; int y=__builtin_types_compatible_p(x,int);\n      |                                           ^\n"
+            }
+          },
+          "tc_zero_array": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_zero_array.c:1:39: error: ISO C forbids zero-size array [-Wpedantic]\n    1 | int x=__builtin_types_compatible_p(int[0],int[]);\n      |                                       ^\n"
+            }
+          },
+          "tc_negative_array": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_negative_array.c:1:39: error: size of unnamed array is negative\n    1 | int x=__builtin_types_compatible_p(int[-1],int[]);\n      |                                       ^\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_negative_array.c:1:39: error: size of unnamed array is negative\n    1 | int x=__builtin_types_compatible_p(int[-1],int[]);\n      |                                       ^\n"
+            }
+          },
+          "tc_ice": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 0,
+              "diagnostic": ""
+            }
+          },
+          "tc_void": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 0,
+              "diagnostic": ""
+            }
+          },
+          "tc_vla_bad_bound": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_vla_bad_bound.c: In function \u2018f\u2019:\n${PROBE_DIRECTORY}/tc_vla_bad_bound.c:1:52: error: size of unnamed array has non-integer type\n    1 | int f(void){return __builtin_types_compatible_p(int[1.0],int[]);}\n      |                                                    ^\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_vla_bad_bound.c: In function \u2018f\u2019:\n${PROBE_DIRECTORY}/tc_vla_bad_bound.c:1:52: error: size of unnamed array has non-integer type\n    1 | int f(void){return __builtin_types_compatible_p(int[1.0],int[]);}\n      |                                                    ^\n"
+            }
+          }
+        },
+        "runtime": {
+          "-O0:types": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "const 1\nvolatile 1\natomic 1\natomic_record 1\natomic_pointer 0\npointee_const 0\npointer_const 1\nunknown_array 1\narray_size 0\narray_qualified 1\nenum_int 0\nenum_uint 1\ndistinct_enums 0\ndistinct_structs 0\nincomplete 1\nfunction_old 1\nfunction_float_old 0\nfunction_variadic 0\nfunction_atomic 0\nfunction_return_qual 1\n",
+            "stderr": ""
+          },
+          "-O0:type_vla": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3 4\n",
+            "stderr": ""
+          },
+          "-O0:type_vla_pointer": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3 4\n",
+            "stderr": ""
+          },
+          "-O0:type_vla_fixed": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          },
+          "-O0:type_typeof_vla": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          },
+          "-O0:choose_selected_bound": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "12 4 4\n",
+            "stderr": ""
+          },
+          "-O0:choose_dead_bound": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "17 3\n",
+            "stderr": ""
+          },
+          "-O0:choose_lvalue": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "7\n",
+            "stderr": ""
+          },
+          "-O0:choose_function": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "selected\n",
+            "stderr": ""
+          },
+          "-O0:choose_array": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "12\n",
+            "stderr": ""
+          },
+          "-O0:choose_typeof_dead": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "4 8\n",
+            "stderr": ""
+          },
+          "-O0:choose_vm_cond": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          },
+          "-O2:types": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "const 1\nvolatile 1\natomic 1\natomic_record 1\natomic_pointer 0\npointee_const 0\npointer_const 1\nunknown_array 1\narray_size 0\narray_qualified 1\nenum_int 0\nenum_uint 1\ndistinct_enums 0\ndistinct_structs 0\nincomplete 1\nfunction_old 1\nfunction_float_old 0\nfunction_variadic 0\nfunction_atomic 0\nfunction_return_qual 1\n",
+            "stderr": ""
+          },
+          "-O2:type_vla": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3 4\n",
+            "stderr": ""
+          },
+          "-O2:type_vla_pointer": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3 4\n",
+            "stderr": ""
+          },
+          "-O2:type_vla_fixed": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          },
+          "-O2:type_typeof_vla": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          },
+          "-O2:choose_selected_bound": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "12 4 4\n",
+            "stderr": ""
+          },
+          "-O2:choose_dead_bound": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "17 3\n",
+            "stderr": ""
+          },
+          "-O2:choose_lvalue": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "7\n",
+            "stderr": ""
+          },
+          "-O2:choose_function": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "selected\n",
+            "stderr": ""
+          },
+          "-O2:choose_array": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "12\n",
+            "stderr": ""
+          },
+          "-O2:choose_typeof_dead": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "4 8\n",
+            "stderr": ""
+          },
+          "-O2:choose_vm_cond": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          }
+        }
+      },
+      "clang": {
+        "version": "Ubuntu clang version 18.1.3 (1ubuntu1)",
+        "constraints": {
+          "choose_dead_undeclared": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_dead_undeclared.c:1:46: error: use of undeclared identifier 'unknown'\n    1 | int f(void){return __builtin_choose_expr(1,0,unknown);}\n      |                                              ^\n1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_dead_undeclared.c:1:46: error: use of undeclared identifier 'unknown'\n    1 | int f(void){return __builtin_choose_expr(1,0,unknown);}\n      |                                              ^\n1 error generated.\n"
+            }
+          },
+          "choose_dead_invalid_call": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_dead_invalid_call.c:1:47: error: called object type 'int' is not a function or function pointer\n    1 | int f(void){return __builtin_choose_expr(1,0,1());}\n      |                                              ~^\n1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_dead_invalid_call.c:1:47: error: called object type 'int' is not a function or function pointer\n    1 | int f(void){return __builtin_choose_expr(1,0,1());}\n      |                                              ~^\n1 error generated.\n"
+            }
+          },
+          "choose_dead_divzero": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 0,
+              "diagnostic": ""
+            }
+          },
+          "choose_ice_selected": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 0,
+              "diagnostic": ""
+            }
+          },
+          "choose_nonice_selected": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_nonice_selected.c:1:16: error: expression is not an integer constant expression\n    1 | int x; enum {X=__builtin_choose_expr(1,x,7)};\n      |                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~\n1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_nonice_selected.c:1:16: error: expression is not an integer constant expression\n    1 | int x; enum {X=__builtin_choose_expr(1,x,7)};\n      |                ^~~~~~~~~~~~~~~~~~~~~~~~~~~~\n1 error generated.\n"
+            }
+          },
+          "choose_float_condition": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_float_condition.c:1:29: error: '__builtin_choose_expr' requires a constant expression\n    1 | int x=__builtin_choose_expr(1.0,1,2);\n      |                             ^~~\n1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_float_condition.c:1:29: error: '__builtin_choose_expr' requires a constant expression\n    1 | int x=__builtin_choose_expr(1.0,1,2);\n      |                             ^~~\n1 error generated.\n"
+            }
+          },
+          "choose_const_variable": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_const_variable.c:1:44: error: '__builtin_choose_expr' requires a constant expression\n    1 | const int a=1; int x=__builtin_choose_expr(a,1,2);\n      |                                            ^\n1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_const_variable.c:1:44: error: '__builtin_choose_expr' requires a constant expression\n    1 | const int a=1; int x=__builtin_choose_expr(a,1,2);\n      |                                            ^\n1 error generated.\n"
+            }
+          },
+          "choose_comma_condition": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_comma_condition.c:1:30: warning: left operand of comma operator has no effect [-Wunused-value]\n    1 | int x=__builtin_choose_expr((1,1),1,2);\n      |                              ^\n${PROBE_DIRECTORY}/choose_comma_condition.c:1:29: error: '__builtin_choose_expr' requires a constant expression\n    1 | int x=__builtin_choose_expr((1,1),1,2);\n      |                             ^~~~~\n1 warning and 1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_comma_condition.c:1:30: warning: left operand of comma operator has no effect [-Wunused-value]\n    1 | int x=__builtin_choose_expr((1,1),1,2);\n      |                              ^\n${PROBE_DIRECTORY}/choose_comma_condition.c:1:29: error: '__builtin_choose_expr' requires a constant expression\n    1 | int x=__builtin_choose_expr((1,1),1,2);\n      |                             ^~~~~\n1 warning and 1 error generated.\n"
+            }
+          },
+          "choose_void": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 0,
+              "diagnostic": ""
+            }
+          },
+          "choose_bitfield_address": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_bitfield_address.c:1:41: error: address of bit-field requested\n    1 | struct S {int x:3;}; struct S s; int *p=&__builtin_choose_expr(1,s.x,0);\n      |                                         ^                        ~~~\n1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_bitfield_address.c:1:41: error: address of bit-field requested\n    1 | struct S {int x:3;}; struct S s; int *p=&__builtin_choose_expr(1,s.x,0);\n      |                                         ^                        ~~~\n1 error generated.\n"
+            }
+          },
+          "choose_const_assignment": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_const_assignment.c:1:57: error: cannot assign to variable 'x' with const-qualified type 'const int'\n    1 | const int x=0; void f(void){__builtin_choose_expr(1,x,0)=1;}\n      |                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n${PROBE_DIRECTORY}/choose_const_assignment.c:1:11: note: variable 'x' declared const here\n    1 | const int x=0; void f(void){__builtin_choose_expr(1,x,0)=1;}\n      | ~~~~~~~~~~^~~\n1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/choose_const_assignment.c:1:57: error: cannot assign to variable 'x' with const-qualified type 'const int'\n    1 | const int x=0; void f(void){__builtin_choose_expr(1,x,0)=1;}\n      |                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^\n${PROBE_DIRECTORY}/choose_const_assignment.c:1:11: note: variable 'x' declared const here\n    1 | const int x=0; void f(void){__builtin_choose_expr(1,x,0)=1;}\n      | ~~~~~~~~~~^~~\n1 error generated.\n"
+            }
+          },
+          "tc_expression_argument": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_expression_argument.c:1:43: error: unknown type name 'x'\n    1 | int x; int y=__builtin_types_compatible_p(x,int);\n      |                                           ^\n1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_expression_argument.c:1:43: error: unknown type name 'x'\n    1 | int x; int y=__builtin_types_compatible_p(x,int);\n      |                                           ^\n1 error generated.\n"
+            }
+          },
+          "tc_zero_array": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_zero_array.c:1:40: error: zero size arrays are an extension [-Werror,-Wzero-length-array]\n    1 | int x=__builtin_types_compatible_p(int[0],int[]);\n      |                                        ^\n1 error generated.\n"
+            }
+          },
+          "tc_negative_array": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_negative_array.c:1:40: error: array size is negative\n    1 | int x=__builtin_types_compatible_p(int[-1],int[]);\n      |                                        ^~\n1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_negative_array.c:1:40: error: array size is negative\n    1 | int x=__builtin_types_compatible_p(int[-1],int[]);\n      |                                        ^~\n1 error generated.\n"
+            }
+          },
+          "tc_ice": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 0,
+              "diagnostic": ""
+            }
+          },
+          "tc_void": {
+            "False": {
+              "status": 0,
+              "diagnostic": ""
+            },
+            "True": {
+              "status": 0,
+              "diagnostic": ""
+            }
+          },
+          "tc_vla_bad_bound": {
+            "False": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_vla_bad_bound.c:1:53: error: size of array has non-integer type 'double'\n    1 | int f(void){return __builtin_types_compatible_p(int[1.0],int[]);}\n      |                                                     ^~~\n1 error generated.\n"
+            },
+            "True": {
+              "status": 1,
+              "diagnostic": "${PROBE_DIRECTORY}/tc_vla_bad_bound.c:1:53: error: size of array has non-integer type 'double'\n    1 | int f(void){return __builtin_types_compatible_p(int[1.0],int[]);}\n      |                                                     ^~~\n1 error generated.\n"
+            }
+          }
+        },
+        "runtime": {
+          "-O0:types": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "const 1\nvolatile 1\natomic 0\natomic_record 0\natomic_pointer 0\npointee_const 0\npointer_const 1\nunknown_array 1\narray_size 0\narray_qualified 1\nenum_int 0\nenum_uint 1\ndistinct_enums 0\ndistinct_structs 0\nincomplete 1\nfunction_old 1\nfunction_float_old 0\nfunction_variadic 0\nfunction_atomic 0\nfunction_return_qual 0\n",
+            "stderr": ""
+          },
+          "-O0:type_vla": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3 4\n",
+            "stderr": ""
+          },
+          "-O0:type_vla_pointer": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3 4\n",
+            "stderr": ""
+          },
+          "-O0:type_vla_fixed": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          },
+          "-O0:type_typeof_vla": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          },
+          "-O0:choose_selected_bound": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "12 4 4\n",
+            "stderr": ""
+          },
+          "-O0:choose_dead_bound": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "17 3\n",
+            "stderr": ""
+          },
+          "-O0:choose_lvalue": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "7\n",
+            "stderr": ""
+          },
+          "-O0:choose_function": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "selected\n",
+            "stderr": ""
+          },
+          "-O0:choose_array": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "12\n",
+            "stderr": ""
+          },
+          "-O0:choose_typeof_dead": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "4 8\n",
+            "stderr": ""
+          },
+          "-O0:choose_vm_cond": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          },
+          "-O2:types": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "const 1\nvolatile 1\natomic 0\natomic_record 0\natomic_pointer 0\npointee_const 0\npointer_const 1\nunknown_array 1\narray_size 0\narray_qualified 1\nenum_int 0\nenum_uint 1\ndistinct_enums 0\ndistinct_structs 0\nincomplete 1\nfunction_old 1\nfunction_float_old 0\nfunction_variadic 0\nfunction_atomic 0\nfunction_return_qual 0\n",
+            "stderr": ""
+          },
+          "-O2:type_vla": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3 4\n",
+            "stderr": ""
+          },
+          "-O2:type_vla_pointer": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3 4\n",
+            "stderr": ""
+          },
+          "-O2:type_vla_fixed": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          },
+          "-O2:type_typeof_vla": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          },
+          "-O2:choose_selected_bound": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "12 4 4\n",
+            "stderr": ""
+          },
+          "-O2:choose_dead_bound": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "17 3\n",
+            "stderr": ""
+          },
+          "-O2:choose_lvalue": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "7\n",
+            "stderr": ""
+          },
+          "-O2:choose_function": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "selected\n",
+            "stderr": ""
+          },
+          "-O2:choose_array": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "12\n",
+            "stderr": ""
+          },
+          "-O2:choose_typeof_dead": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "4 8\n",
+            "stderr": ""
+          },
+          "-O2:choose_vm_cond": {
+            "compile_status": 0,
+            "diagnostic": "",
+            "status": 0,
+            "stdout": "1 3\n",
+            "stderr": ""
+          }
+        }
+      }
+    },
+    "more.json": {
+      "gcc": {
+        "types": {
+          "status": 0,
+          "stderr": "",
+          "stdout": "atomic_array 1\nconst_pointer_array 1\nconst_pointee_array 0\nnested_const_array 1\nnested_atomic_array 1\narray_of_qualified_function_pointer 1\nfunction_pointer_const_return 1\nfunction_atomic_return 0\nfunction_pointer_atomic_return 0\nfunction_pointer_return_qual 1\nfunction_return_pointee_const 0\nfunction_void_return_qual 1\nfunction_atomic_param_qual 0\nvla_two_dimensions 0\nvla_different_bound 1\n"
+        },
+        "return_const": {
+          "source": "const int f(void); int f(void);",
+          "status": 0,
+          "stderr": ""
+        },
+        "return_atomic": {
+          "source": "_Atomic(int) f(void); int f(void);",
+          "status": 1,
+          "stderr": "<stdin>:1:27: error: conflicting types for \u2018f\u2019; have \u2018int(void)\u2019\n<stdin>:1:14: note: previous declaration of \u2018f\u2019 with type \u2018_Atomic int(void)\u2019\ncc1: note: unrecognized command-line option \u2018-Wno-gnu-statement-expression\u2019 may have been intended to silence earlier diagnostics\n"
+        },
+        "return_ptr_const": {
+          "source": "int *const f(void); int *f(void);",
+          "status": 0,
+          "stderr": ""
+        },
+        "tc_atomic_function_qual": {
+          "source": "int f(void){return __builtin_types_compatible_p(_Atomic(int)(void),int(void));}",
+          "status": 0,
+          "stderr": ""
+        },
+        "tc_definition_escape": {
+          "source": "_Static_assert(__builtin_types_compatible_p(struct Q {int x;},struct Q),\"same\"); struct Q value;",
+          "status": 0,
+          "stderr": ""
+        },
+        "choose_statement_expr_goto": {
+          "source": "int f(void){__builtin_choose_expr(1,0,({goto label; 0;})); return 1; label:return 2;}",
+          "status": 1,
+          "stderr": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:39: error: ISO C forbids braced-groups within expressions [-Wpedantic]\nAt top level:\ncc1: note: unrecognized command-line option \u2018-Wno-gnu-statement-expression\u2019 may have been intended to silence earlier diagnostics\n"
+        },
+        "choose_statement_expr_label": {
+          "source": "int f(void){if(0)goto label;__builtin_choose_expr(1,0,({label:0;}));return 1;}",
+          "status": 1,
+          "stderr": "<stdin>: In function \u2018f\u2019:\n<stdin>:1:18: error: jump into statement expression\n<stdin>:1:57: note: label \u2018label\u2019 defined here\n<stdin>:1:55: error: ISO C forbids braced-groups within expressions [-Wpedantic]\nAt top level:\ncc1: note: unrecognized command-line option \u2018-Wno-gnu-statement-expression\u2019 may have been intended to silence earlier diagnostics\n"
+        }
+      },
+      "clang": {
+        "types": {
+          "status": 0,
+          "stderr": "",
+          "stdout": "atomic_array 0\nconst_pointer_array 1\nconst_pointee_array 0\nnested_const_array 1\nnested_atomic_array 0\narray_of_qualified_function_pointer 0\nfunction_pointer_const_return 0\nfunction_atomic_return 0\nfunction_pointer_atomic_return 0\nfunction_pointer_return_qual 0\nfunction_return_pointee_const 0\nfunction_void_return_qual 0\nfunction_atomic_param_qual 0\nvla_two_dimensions 0\nvla_different_bound 1\n"
+        },
+        "return_const": {
+          "source": "const int f(void); int f(void);",
+          "status": 1,
+          "stderr": "<stdin>:1:24: error: conflicting types for 'f'\n    1 | const int f(void); int f(void);\n      |                        ^\n<stdin>:1:11: note: previous declaration is here\n    1 | const int f(void); int f(void);\n      |           ^\n1 error generated.\n"
+        },
+        "return_atomic": {
+          "source": "_Atomic(int) f(void); int f(void);",
+          "status": 1,
+          "stderr": "<stdin>:1:27: error: conflicting types for 'f'\n    1 | _Atomic(int) f(void); int f(void);\n      |                           ^\n<stdin>:1:14: note: previous declaration is here\n    1 | _Atomic(int) f(void); int f(void);\n      |              ^\n1 error generated.\n"
+        },
+        "return_ptr_const": {
+          "source": "int *const f(void); int *f(void);",
+          "status": 1,
+          "stderr": "<stdin>:1:26: error: conflicting types for 'f'\n    1 | int *const f(void); int *f(void);\n      |                          ^\n<stdin>:1:12: note: previous declaration is here\n    1 | int *const f(void); int *f(void);\n      |            ^\n1 error generated.\n"
+        },
+        "tc_atomic_function_qual": {
+          "source": "int f(void){return __builtin_types_compatible_p(_Atomic(int)(void),int(void));}",
+          "status": 0,
+          "stderr": ""
+        },
+        "tc_definition_escape": {
+          "source": "_Static_assert(__builtin_types_compatible_p(struct Q {int x;},struct Q),\"same\"); struct Q value;",
+          "status": 0,
+          "stderr": ""
+        },
+        "choose_statement_expr_goto": {
+          "source": "int f(void){__builtin_choose_expr(1,0,({goto label; 0;})); return 1; label:return 2;}",
+          "status": 0,
+          "stderr": "<stdin>:1:37: warning: expression result unused [-Wunused-value]\n    1 | int f(void){__builtin_choose_expr(1,0,({goto label; 0;})); return 1; label:return 2;}\n      |                                     ^\n1 warning generated.\n"
+        },
+        "choose_statement_expr_label": {
+          "source": "int f(void){if(0)goto label;__builtin_choose_expr(1,0,({label:0;}));return 1;}",
+          "status": 1,
+          "stderr": "<stdin>:1:18: error: cannot jump from this goto statement to its label\n    1 | int f(void){if(0)goto label;__builtin_choose_expr(1,0,({label:0;}));return 1;}\n      |                  ^\n<stdin>:1:55: note: jump enters a statement expression\n    1 | int f(void){if(0)goto label;__builtin_choose_expr(1,0,({label:0;}));return 1;}\n      |                                                       ^\n<stdin>:1:53: warning: expression result unused [-Wunused-value]\n    1 | int f(void){if(0)goto label;__builtin_choose_expr(1,0,({label:0;}));return 1;}\n      |                                                     ^\n1 warning and 1 error generated.\n"
+        }
+      }
+    },
+    "effects.json": {
+      "gcc": {
+        "condition_pointer_vla_sizeof-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(sizeof(int(*)[n++]),17,2);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "condition_pointer_vla_sizeof-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(sizeof(int(*)[n++]),17,2);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "condition_typeof_pointer_vla-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(sizeof(typeof((int(*)[n++])0)),17,2);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "condition_typeof_pointer_vla-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(sizeof(typeof((int(*)[n++])0)),17,2);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "dead_typeof_pointer_vla-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(1,17,sizeof(typeof((int(*)[n++])0)));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "dead_typeof_pointer_vla-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(1,17,sizeof(typeof((int(*)[n++])0)));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "choose_query_dead_effect-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int r=__builtin_constant_p(__builtin_choose_expr(1,sizeof(int[n++]),n++));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "0 3\n"
+        },
+        "choose_query_dead_effect-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int r=__builtin_constant_p(__builtin_choose_expr(1,sizeof(int[n++]),n++));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "0 3\n"
+        },
+        "choose_query_live_effect-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3,m=3;int r=__builtin_constant_p(__builtin_choose_expr(1,n+++sizeof(int[m++]),17));printf(\"%d %d %d\\n\",r,n,m);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "0 3 3\n"
+        },
+        "choose_query_live_effect-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3,m=3;int r=__builtin_constant_p(__builtin_choose_expr(1,n+++sizeof(int[m++]),17));printf(\"%d %d %d\\n\",r,n,m);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "0 3 3\n"
+        },
+        "query_compatible_vm-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_constant_p(__builtin_types_compatible_p(int[n++],int[3]));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 3\n"
+        },
+        "query_compatible_vm-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_constant_p(__builtin_types_compatible_p(int[n++],int[3]));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 3\n"
+        },
+        "compatible_statement_expression-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int r=__builtin_types_compatible_p(typeof(({n++;(int(*)[n++])0;})),int(*)[3]);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 3\n"
+        },
+        "compatible_statement_expression-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int r=__builtin_types_compatible_p(typeof(({n++;(int(*)[n++])0;})),int(*)[3]);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 3\n"
+        },
+        "compatible_typedef_bound_reuse-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;typedef int A[n++];int r=__builtin_types_compatible_p(A,int[4]);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 4\n"
+        },
+        "compatible_typedef_bound_reuse-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;typedef int A[n++];int r=__builtin_types_compatible_p(A,int[4]);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 4\n"
+        },
+        "choose_typeof_existing_vm-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int a[2][n],(*p)[n]=a;typeof(__builtin_choose_expr(1,*p++,17)) b;printf(\"%td %zu\\n\",p-a,sizeof b);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 12\n"
+        },
+        "choose_typeof_existing_vm-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int a[2][n],(*p)[n]=a;typeof(__builtin_choose_expr(1,*p++,17)) b;printf(\"%td %zu\\n\",p-a,sizeof b);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 12\n"
+        },
+        "choose_address_indirection-O0": {
+          "source": "#include <stdio.h>\nint main(void){void *p=0;void *q=&__builtin_choose_expr(1,*p,17);printf(\"%d\\n\",p==q);return 0;}\n",
+          "status": 0,
+          "stderr": "${PROBE_DIRECTORY}/choose_address_indirection.c: In function \u2018main\u2019:\n${PROBE_DIRECTORY}/choose_address_indirection.c:2:59: warning: dereferencing \u2018void *\u2019 pointer\n    2 | int main(void){void *p=0;void *q=&__builtin_choose_expr(1,*p,17);printf(\"%d\\n\",p==q);return 0;}\n      |                                                           ^~\n",
+          "stdout": "1\n"
+        },
+        "choose_address_indirection-O2": {
+          "source": "#include <stdio.h>\nint main(void){void *p=0;void *q=&__builtin_choose_expr(1,*p,17);printf(\"%d\\n\",p==q);return 0;}\n",
+          "status": 0,
+          "stderr": "${PROBE_DIRECTORY}/choose_address_indirection.c: In function \u2018main\u2019:\n${PROBE_DIRECTORY}/choose_address_indirection.c:2:59: warning: dereferencing \u2018void *\u2019 pointer\n    2 | int main(void){void *p=0;void *q=&__builtin_choose_expr(1,*p,17);printf(\"%d\\n\",p==q);return 0;}\n      |                                                           ^~\n",
+          "stdout": "1\n"
+        }
+      },
+      "clang": {
+        "condition_pointer_vla_sizeof-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(sizeof(int(*)[n++]),17,2);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "condition_pointer_vla_sizeof-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(sizeof(int(*)[n++]),17,2);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "condition_typeof_pointer_vla-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(sizeof(typeof((int(*)[n++])0)),17,2);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "condition_typeof_pointer_vla-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(sizeof(typeof((int(*)[n++])0)),17,2);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "dead_typeof_pointer_vla-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(1,17,sizeof(typeof((int(*)[n++])0)));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "dead_typeof_pointer_vla-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_choose_expr(1,17,sizeof(typeof((int(*)[n++])0)));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "17 3\n"
+        },
+        "choose_query_dead_effect-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int r=__builtin_constant_p(__builtin_choose_expr(1,sizeof(int[n++]),n++));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "0 4\n"
+        },
+        "choose_query_dead_effect-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int r=__builtin_constant_p(__builtin_choose_expr(1,sizeof(int[n++]),n++));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 4\n"
+        },
+        "choose_query_live_effect-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3,m=3;int r=__builtin_constant_p(__builtin_choose_expr(1,n+++sizeof(int[m++]),17));printf(\"%d %d %d\\n\",r,n,m);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "0 3 3\n"
+        },
+        "choose_query_live_effect-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3,m=3;int r=__builtin_constant_p(__builtin_choose_expr(1,n+++sizeof(int[m++]),17));printf(\"%d %d %d\\n\",r,n,m);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "0 3 3\n"
+        },
+        "query_compatible_vm-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_constant_p(__builtin_types_compatible_p(int[n++],int[3]));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 3\n"
+        },
+        "query_compatible_vm-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3; int r=__builtin_constant_p(__builtin_types_compatible_p(int[n++],int[3]));printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 3\n"
+        },
+        "compatible_statement_expression-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int r=__builtin_types_compatible_p(typeof(({n++;(int(*)[n++])0;})),int(*)[3]);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 3\n"
+        },
+        "compatible_statement_expression-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int r=__builtin_types_compatible_p(typeof(({n++;(int(*)[n++])0;})),int(*)[3]);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 3\n"
+        },
+        "compatible_typedef_bound_reuse-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;typedef int A[n++];int r=__builtin_types_compatible_p(A,int[4]);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 4\n"
+        },
+        "compatible_typedef_bound_reuse-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;typedef int A[n++];int r=__builtin_types_compatible_p(A,int[4]);printf(\"%d %d\\n\",r,n);return 0;}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1 4\n"
+        },
+        "choose_typeof_existing_vm-O0": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int a[2][n],(*p)[n]=a;typeof(__builtin_choose_expr(1,*p++,17)) b;printf(\"%td %zu\\n\",p-a,sizeof b);return 0;}\n",
+          "status": 0,
+          "stderr": "${PROBE_DIRECTORY}/choose_typeof_existing_vm.c:2:109: warning: subtraction of pointers to type 'int[n]' of zero size has undefined behavior [-Wpointer-arith]\n    2 | int main(void){int n=3;int a[2][n],(*p)[n]=a;typeof(__builtin_choose_expr(1,*p++,17)) b;printf(\"%td %zu\\n\",p-a,sizeof b);return 0;}\n      |                                                                                                            ~^~\n1 warning generated.\n",
+          "stdout": "1 12\n"
+        },
+        "choose_typeof_existing_vm-O2": {
+          "source": "#include <stdio.h>\nint main(void){int n=3;int a[2][n],(*p)[n]=a;typeof(__builtin_choose_expr(1,*p++,17)) b;printf(\"%td %zu\\n\",p-a,sizeof b);return 0;}\n",
+          "status": 0,
+          "stderr": "${PROBE_DIRECTORY}/choose_typeof_existing_vm.c:2:109: warning: subtraction of pointers to type 'int[n]' of zero size has undefined behavior [-Wpointer-arith]\n    2 | int main(void){int n=3;int a[2][n],(*p)[n]=a;typeof(__builtin_choose_expr(1,*p++,17)) b;printf(\"%td %zu\\n\",p-a,sizeof b);return 0;}\n      |                                                                                                            ~^~\n1 warning generated.\n",
+          "stdout": "1 12\n"
+        },
+        "choose_address_indirection-O0": {
+          "source": "#include <stdio.h>\nint main(void){void *p=0;void *q=&__builtin_choose_expr(1,*p,17);printf(\"%d\\n\",p==q);return 0;}\n",
+          "status": 0,
+          "stderr": "${PROBE_DIRECTORY}/choose_address_indirection.c:2:59: warning: ISO C does not allow indirection on operand of type 'void *' [-Wvoid-ptr-dereference]\n    2 | int main(void){void *p=0;void *q=&__builtin_choose_expr(1,*p,17);printf(\"%d\\n\",p==q);return 0;}\n      |                                                           ^~\n1 warning generated.\n",
+          "stdout": "1\n"
+        },
+        "choose_address_indirection-O2": {
+          "source": "#include <stdio.h>\nint main(void){void *p=0;void *q=&__builtin_choose_expr(1,*p,17);printf(\"%d\\n\",p==q);return 0;}\n",
+          "status": 0,
+          "stderr": "${PROBE_DIRECTORY}/choose_address_indirection.c:2:59: warning: ISO C does not allow indirection on operand of type 'void *' [-Wvoid-ptr-dereference]\n    2 | int main(void){void *p=0;void *q=&__builtin_choose_expr(1,*p,17);printf(\"%d\\n\",p==q);return 0;}\n      |                                                           ^~\n1 warning generated.\n",
+          "stdout": "1\n"
+        }
+      }
+    },
+    "folded-bounds.json": {
+      "gcc": {
+        "comma_bound": {
+          "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[(1,3)],int[4]));}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1\n"
+        },
+        "constant_variable_bound": {
+          "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[n],int[4]));}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1\n"
+        },
+        "comma_bound_equal": {
+          "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[(1,3)],int[3]));}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1\n"
+        },
+        "unselected_bound": {
+          "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[1?3:n],int[4]));}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1\n"
+        },
+        "zero_shortcircuit": {
+          "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[1||n],int[4]));}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1\n"
+        }
+      },
+      "clang": {
+        "comma_bound": {
+          "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[(1,3)],int[4]));}\n",
+          "status": 0,
+          "stderr": "${PROBE_DIRECTORY}/comma_bound.c:2:78: warning: left operand of comma operator has no effect [-Wunused-value]\n    2 | int main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[(1,3)],int[4]));}\n      |                                                                              ^\n1 warning generated.\n",
+          "stdout": "1\n"
+        },
+        "constant_variable_bound": {
+          "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[n],int[4]));}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1\n"
+        },
+        "comma_bound_equal": {
+          "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[(1,3)],int[3]));}\n",
+          "status": 0,
+          "stderr": "${PROBE_DIRECTORY}/comma_bound_equal.c:2:78: warning: left operand of comma operator has no effect [-Wunused-value]\n    2 | int main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[(1,3)],int[3]));}\n      |                                                                              ^\n1 warning generated.\n",
+          "stdout": "1\n"
+        },
+        "unselected_bound": {
+          "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[1?3:n],int[4]));}\n",
+          "status": 0,
+          "stderr": "",
+          "stdout": "1\n"
+        },
+        "zero_shortcircuit": {
+          "source": "#include <stdio.h>\nint main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[1||n],int[4]));}\n",
+          "status": 0,
+          "stderr": "${PROBE_DIRECTORY}/zero_shortcircuit.c:2:78: warning: use of logical '||' with constant operand [-Wconstant-logical-operand]\n    2 | int main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[1||n],int[4]));}\n      |                                                                              ^ ~\n${PROBE_DIRECTORY}/zero_shortcircuit.c:2:78: note: use '|' for a bitwise operation\n    2 | int main(void){const int n=3;printf(\"%d\\n\",__builtin_types_compatible_p(int[1||n],int[4]));}\n      |                                                                              ^~~\n      |                                                                              |\n1 warning generated.\n",
+          "stdout": "1\n"
+        }
+      }
+    }
+  },
+  "validation": {
+    "workspace": "cargo test --workspace --all-features: passed",
+    "native": "cargo test -p toucan_semantic --test introspection -- --include-ignored: 9 passed",
+    "clippy": "workspace/all-targets/all-features and checked fuzz target with -D warnings: passed",
+    "rustdoc": "workspace/all-features/no-deps with -Dwarnings: passed",
+    "regeneration": "PYTHONOPTIMIZE=1 make -B src/parser.rs with peg 0.5.4; checked-in output identical",
+    "parser_sha256": "1a8d56a6211ebbd23ccc184e93bc35cba3b7f57bc809f7baeb52253db46a36ae",
+    "seed_replay": {
+      "seed_files": 42,
+      "targets_per_seed": 5,
+      "accepted_with_graph_invariants": 158,
+      "rejected_with_identical_diagnostics": 52,
+      "sanitizer": false,
+      "mutational_fuzzing": false
+    }
+  },
+  "integration_notes": [
+    "Atomic query behavior is recorded in native probes; TypeKind::Atomic integration follows this patch on the parent branch.",
+    "SVE feature obligations are integrated separately using checkpoint/discard around the unevaluated checks.",
+    "The pre-existing unsupported bare void-pointer indirection remains outside this layer, including when nested in a choose arm."
+  ]
+}

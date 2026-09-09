@@ -15,6 +15,7 @@ import io
 import json
 import os
 import platform
+import re
 import shutil
 import subprocess
 import sys
@@ -495,6 +496,53 @@ def binding_artifacts(log: Path, source: Path | None, output: Path) -> list[dict
     return result
 
 
+def library_test_executable(log: Path, package: str) -> Path:
+    """Select the requested library test executable from this Cargo invocation."""
+    executables = []
+    for line in log.read_text().splitlines():
+        artifact = json.loads(line)
+        if (
+            artifact.get("reason") == "compiler-artifact"
+            and artifact["target"]["name"] == package.replace("-", "_")
+            and "lib" in artifact["target"]["kind"]
+            and artifact["profile"]["test"]
+            and artifact["executable"] is not None
+        ):
+            executables.append(Path(artifact["executable"]))
+    if len(executables) != 1:
+        raise RuntimeError(f"expected one {package} library test executable in {log}")
+    return executables[0]
+
+
+def library_test_results(stdout: str) -> dict:
+    """Require actual, unfiltered test execution and retain named test results."""
+    summaries = re.findall(
+        r"^test result: ok\. (\d+) passed; (\d+) failed; (\d+) ignored; "
+        r"(\d+) measured; (\d+) filtered out;",
+        stdout,
+        re.MULTILINE,
+    )
+    if len(summaries) != 1:
+        raise RuntimeError("missing or ambiguous successful library test summary")
+    passed, failed, ignored, measured, filtered = map(int, summaries[0])
+    names = re.findall(
+        r"^test (\S+) \.\.\. (ok|ignored)(?:\b.*)$", stdout, re.MULTILINE
+    )
+    if (
+        passed == 0
+        or failed
+        or measured
+        or filtered
+        or len(names) != passed + ignored
+        or len({name for name, _ in names}) != len(names)
+        or sum(result == "ok" for _, result in names) != passed
+    ):
+        raise RuntimeError(
+            "library tests did not execute the complete selected test suite"
+        )
+    return {"passed": passed, "ignored": ignored, "tests": dict(sorted(names))}
+
+
 def prepare_project(project: dict, cache: Path, offline: bool) -> tuple[Path, Path]:
     import tarfile
     import urllib.request
@@ -575,6 +623,49 @@ def build_project(name: str, project: dict, args: argparse.Namespace) -> dict:
             raise RuntimeError(f"build step failed; see {stderr}")
         return stdout
 
+    def library_tests(label: str, config: list[str]) -> list[dict]:
+        if not args.library_tests:
+            return []
+        results = []
+        for spec in project["library_tests"]:
+            package = spec["package"]
+            arguments = [
+                "test",
+                "--locked",
+                "--no-run",
+                "--lib",
+                "-p",
+                package,
+                "--message-format=json-render-diagnostics",
+            ]
+            if spec["features"]:
+                arguments.extend(["--features", ",".join(spec["features"])])
+            if args.offline:
+                arguments.append("--offline")
+            log = cargo([*arguments, *config], f"{label}-tests-{package}")
+            executable = library_test_executable(log, package)
+            execution = run(
+                [str(executable), "--test-threads=1", "--color=never"],
+                source / "crates" / package,
+                timeout=args.build_timeout,
+                env=environment,
+            )
+            results.append(
+                {
+                    "package": package,
+                    "features": spec["features"],
+                    "executable_sha256": digest(executable),
+                    "execution": execution,
+                    "result": library_test_results(execution["stdout"]),
+                    "bindings": binding_artifacts(
+                        log,
+                        args.zstd_source if config else None,
+                        output / f"{label}-tests-{package}-dep-info",
+                    ),
+                }
+            )
+        return results
+
     common = [
         "build",
         "--locked",
@@ -593,6 +684,7 @@ def build_project(name: str, project: dict, args: argparse.Namespace) -> dict:
     upstream_bindings = binding_artifacts(
         upstream_log, None, output / "upstream-dep-info"
     )
+    upstream_tests = library_tests("upstream", [])
     config = [
         "--config",
         f"patch.crates-io.zstd-sys.path={json.dumps(str(args.zstd_source))}",
@@ -609,6 +701,18 @@ def build_project(name: str, project: dict, args: argparse.Namespace) -> dict:
     generated_bindings = binding_artifacts(
         generated_log, args.zstd_source, output / "generated-dep-info"
     )
+    generated_tests = library_tests("generated", config)
+    for upstream_test, generated_test in zip(
+        upstream_tests, generated_tests, strict=True
+    ):
+        if upstream_test["result"] != generated_test["result"]:
+            raise RuntimeError(
+                f"library test results changed for {upstream_test['package']}"
+            )
+        if sorted(x["features"] for x in upstream_test["bindings"]) != sorted(
+            x["features"] for x in generated_test["bindings"]
+        ):
+            raise RuntimeError("zstd-sys test features changed between builds")
     if sorted(x["features"] for x in upstream_bindings) != sorted(
         x["features"] for x in generated_bindings
     ):
@@ -622,6 +726,7 @@ def build_project(name: str, project: dict, args: argparse.Namespace) -> dict:
         "commands": commands,
         "upstream_bindings": upstream_bindings,
         "generated_bindings": generated_bindings,
+        "library_tests": {"upstream": upstream_tests, "generated": generated_tests},
         "upstream_binary": str(upstream),
         "generated_binary": str(generated),
     }
@@ -719,6 +824,11 @@ def main() -> None:
     )
     parser.add_argument("--build-timeout", type=int, default=1800)
     parser.add_argument(
+        "--library-tests",
+        action="store_true",
+        help="also compare the pinned compression consumer library test suites",
+    )
+    parser.add_argument(
         "--offline",
         action="store_true",
         help="require cached archives and Cargo dependencies",
@@ -738,6 +848,8 @@ def main() -> None:
     )
     args = parser.parse_args()
     if args.runtime_only:
+        if args.library_tests:
+            parser.error("--library-tests requires full build validation")
         if args.project == "all" or not args.upstream or not args.generated:
             parser.error(
                 "--runtime-only needs one --project, --upstream and --generated"

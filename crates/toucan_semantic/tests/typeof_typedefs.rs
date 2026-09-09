@@ -127,8 +127,8 @@ fn typeof_typedef_constraints_and_bound_effects_match_c_compilers() {
                 .output()
                 .unwrap();
             assert_eq!(
-                output.status.success(),
-                accepted,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted),
                 "{compiler}: {source}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );

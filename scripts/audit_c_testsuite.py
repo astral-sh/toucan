@@ -212,6 +212,19 @@ def compiler_flags(args: argparse.Namespace, compiler: str, mode: str) -> list[s
     return flags
 
 
+def toucan_command(args: argparse.Namespace, source: Path) -> list[str]:
+    """Check the selected compiler's source with its corresponding frontend profile."""
+    return [
+        args.toucan,
+        "check",
+        "--target",
+        args.target,
+        "--compiler",
+        args.compiler,
+        str(source),
+    ]
+
+
 def audit(source: Path, args: argparse.Namespace, manifest: dict) -> dict:
     directory = args.output / "cases" / source.stem
     directory.mkdir(parents=True)
@@ -272,7 +285,7 @@ def audit(source: Path, args: argparse.Namespace, manifest: dict) -> dict:
             args.timeout,
         )
         result["toucan"] = run(
-            [args.toucan, "check", "--target", args.target, str(preprocessed)],
+            toucan_command(args, preprocessed),
             directory,
             "toucan",
             args.timeout,
@@ -457,6 +470,7 @@ def main() -> int:
     timestamp = datetime.datetime.now(datetime.UTC)
     manifest = json.loads(MANIFEST.read_text(encoding="utf-8"))
     args.target = args.target or native_target()
+    args.compiler = args.preprocessor
     for name in ["toucan", "gcc", "clang"]:
         setattr(args, name, executable(getattr(args, name)))
     args.cache = args.cache.resolve()
@@ -521,7 +535,7 @@ def main() -> int:
                 )
         tools[compiler]["configuration_controls"] = validations
     toucan_control = run(
-        [args.toucan, "check", "--target", args.target, str(probe)],
+        toucan_command(args, probe),
         args.output,
         "toucan-validate",
         args.timeout,
@@ -548,6 +562,7 @@ def main() -> int:
             name: getattr(args, name)
             for name in [
                 "target",
+                "compiler",
                 "preprocessor",
                 "dialect",
                 "cc_arg",
@@ -574,7 +589,7 @@ def main() -> int:
             ]
             if name in os.environ
         },
-        "method": "Original sources are classified with GCC and Clang in C11, GNU11, and pedantic C11 modes. The chosen compiler's -E -P output is validated by that same compiler before the Toucan acceptance comparison. Sources are never linked or executed; this is not an ABI, runtime, or Toucan preprocessing conformance test.",
+        "method": "Original sources are classified with GCC and Clang in C11, GNU11, and pedantic C11 modes. The chosen compiler's -E -P output is validated by that same compiler before the Toucan acceptance comparison, which selects the matching GNU or Clang compiler profile. Sources are never linked or executed; this is not an ABI, runtime, or Toucan preprocessing conformance test.",
         "clang_strict_warning_exceptions": CLANG_C11_WARNINGS,
         "cases": [],
     }

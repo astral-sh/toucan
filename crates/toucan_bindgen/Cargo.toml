@@ -1,0 +1,24 @@
+[package]
+name = "toucan_bindgen"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A libclang-free binding builder for C build scripts"
+
+[features]
+# Accepted for build scripts that enable bindgen's dynamically loaded frontend.
+# Both configurations use Toucan's Rust frontend.
+runtime = []
+
+[dependencies]
+shlex = "2.0.1"
+thiserror.workspace = true
+toucan = { version = "0.0.1", path = "../toucan" }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

@@ -37,6 +37,38 @@ pub struct FunctionBody {
     pub(crate) scope: ScopeId,
     pub(crate) signature: TypeId,
     pub(crate) parameters: Vec<SiteId>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) old_style: Option<Box<OldStyleDefinition>>,
+}
+
+/// Entry facts for a definition written with an identifier list.
+#[derive(Debug, Serialize)]
+pub struct OldStyleDefinition {
+    /// Declaration-list groups in source order, not runtime execution order.
+    pub(crate) declarations: Vec<DeclarationGroupId>,
+    /// Incoming arguments in identifier-list order.
+    pub(crate) parameters: Vec<ParameterEntry>,
+    pub(crate) evaluation_order: ParameterEvaluationOrder,
+}
+
+/// The entry ordering promised by the C source semantics.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
+#[non_exhaustive]
+pub enum ParameterEvaluationOrder {
+    /// Parameter conversions and required bounds complete before the body;
+    /// the lists do not specify a total order between different parameters.
+    UnspecifiedBetweenParameters,
+}
+
+/// Conversion from an incoming C argument value to its local parameter object.
+/// This describes C types, not machine registers or ABI lowering.
+#[derive(Debug, Serialize)]
+pub struct ParameterEntry {
+    pub(crate) identifier: OccurrenceId,
+    pub(crate) declaration: SiteId,
+    pub(crate) incoming: super::TypeUseId,
+    /// Value conversion at entry; never an atomic load from the incoming value.
+    pub(crate) conversions: Vec<super::ConversionStep>,
 }
 
 #[derive(Debug, Serialize)]
@@ -340,6 +372,24 @@ impl Builder {
             .ok_or_else(|| Error::new(offset, "checked jump has no retained target"))
     }
 
+    pub(crate) fn reserve_old_style(
+        &mut self,
+        parameters: usize,
+        declarations: usize,
+        offset: usize,
+    ) -> Result<(), Error> {
+        self.budget.charge(
+            1,
+            parameters * 4 + declarations,
+            std::mem::size_of::<OldStyleDefinition>()
+                + parameters
+                    * (std::mem::size_of::<ParameterEntry>()
+                        + std::mem::size_of::<super::ConversionStep>())
+                + declarations * std::mem::size_of::<DeclarationGroupId>(),
+            offset,
+        )
+    }
+
     pub(crate) fn declaration_checkpoint(&self) -> usize {
         self.code.declarations.len()
     }
@@ -379,7 +429,7 @@ impl Builder {
         Ok(())
     }
 
-    fn declaration_group(
+    pub(crate) fn declaration_group(
         &mut self,
         declaration: &Node<ast::Declaration>,
     ) -> Result<DeclarationGroupId, Error> {
@@ -480,6 +530,47 @@ impl Analyzer {
         let statement = self
             .statement_builder()
             .statement_id(&definition.node.statement)?;
+        let old_style = if let Some(signature) = self
+            .current_function
+            .as_ref()
+            .and_then(|function| function.old_style.as_ref())
+        {
+            let retained = signature
+                .retained
+                .as_ref()
+                .ok_or_else(|| Error::new(offset, "old-style body has no retained parameters"))?;
+            let builder = self.checked.as_mut().expect("retained analysis");
+            let mut entries = Vec::with_capacity(retained.parameters.len());
+            for ((identifier, declaration), incoming) in
+                retained.parameters.iter().zip(&signature.incoming)
+            {
+                let site = &builder.code.declarations[declaration.index()];
+                let local = site.ty;
+                let use_id = site.type_use;
+                let incoming = builder.retype_use(use_id, incoming, offset)?;
+                let conversions = if builder.code.type_uses[incoming.index()].shape == local {
+                    Vec::new()
+                } else {
+                    vec![super::ConversionStep {
+                        kind: Conversion::Assignment,
+                        target_type: local,
+                    }]
+                };
+                entries.push(ParameterEntry {
+                    identifier: *identifier,
+                    declaration: *declaration,
+                    incoming,
+                    conversions,
+                });
+            }
+            Some(Box::new(OldStyleDefinition {
+                declarations: retained.declarations.clone(),
+                parameters: entries,
+                evaluation_order: ParameterEvaluationOrder::UnspecifiedBetweenParameters,
+            }))
+        } else {
+            None
+        };
         let builder = self.statement_builder();
         let function = builder
             .statement_builder
@@ -509,6 +600,15 @@ impl Analyzer {
                     == EntityKind::Parameter
             })
             .collect();
+        let parameters = if let Some(old_style) = &old_style {
+            old_style
+                .parameters
+                .iter()
+                .map(|parameter| parameter.declaration)
+                .collect()
+        } else {
+            parameters
+        };
         builder.budget.charge(
             1,
             5 + parameters.len(),
@@ -523,6 +623,7 @@ impl Analyzer {
             scope: builder.current,
             signature,
             parameters,
+            old_style,
         });
         builder.code.entities[entity.index()].body = Some(id);
         builder.code.declarations[function.declaration.index()].body = Some(id);
@@ -1199,7 +1300,10 @@ mod tests {
                 .unwrap();
             let gnu = matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
+                    | Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
             );
             assert_eq!(target_id, loops[usize::from(!gnu)]);
         }

@@ -1,0 +1,31 @@
+{
+  "schema_version": 1,
+  "integration_base": "f0f1e31",
+  "frozen_patch_sha256": "f0f22b2ad9b859bee783a4f9c3e2e5fd7c4165e3a1d7c4229a51880bb2c01278",
+  "integration": "Preserve inspection schema 5 and its migration description while adding the builtin identity.",
+  "validation": {
+    "focused_native_tests": 4,
+    "checked_seed_replay": {
+      "profiles": 7,
+      "accepted": 348,
+      "matching_diagnostics": 114,
+      "normal_retained_unit_equality": true,
+      "graph_invariants": true
+    },
+    "clippy": "workspace all targets/all features, warnings denied",
+    "logs": {
+      "tests": {
+        "path": "/tmp/toucan-undef-integrated-tests.log",
+        "sha256": "4cf1860ec05775d9be671532a05bcc6680fc47850c0b4cdccab58ecf8861f38d"
+      },
+      "clippy": {
+        "path": "/tmp/toucan-undef-integrated-clippy.log",
+        "sha256": "09dbbc13202df86f044fdc0d37352bc0883ffae9f92b6f64f59cff48483a9efb"
+      },
+      "replay": {
+        "path": "/tmp/toucan-undef-integrated-replay.log",
+        "sha256": "f0c165dcf9b5cb66e18860dc1a7605daa235cfa1bc0158ee854520d722d6ed2c"
+      }
+    }
+  }
+}

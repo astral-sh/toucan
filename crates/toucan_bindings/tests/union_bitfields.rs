@@ -341,7 +341,7 @@ fn union_accessors_match_c_bytes_and_pointer_callbacks() {
             .args(["--edition=2021", "unsafe.rs"])
             .output()
             .unwrap();
-        assert!(!output.status.success());
+        assert_eq!(toucan_test_support::compiler_acceptance(&output), Ok(false));
         assert!(String::from_utf8_lossy(&output.stderr).contains("E0133"));
     }
 }

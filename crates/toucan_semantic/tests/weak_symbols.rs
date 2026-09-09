@@ -142,7 +142,10 @@ fn late_weak_definitions_follow_the_target_compiler_profile() {
             let result = analyze(source, target);
             if matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
+                    | Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
             ) {
                 let unit = result.unwrap();
                 assert_eq!(unit.declarations[0].symbol_binding, SymbolBinding::Weak);
@@ -177,8 +180,8 @@ fn weak_declaration_constraints_match_gcc_and_clang() {
                 }
                 let output = command.arg(&input).output().unwrap();
                 assert_eq!(
-                    output.status.success(),
-                    accepted,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(accepted),
                     "{compiler} {target:?}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );

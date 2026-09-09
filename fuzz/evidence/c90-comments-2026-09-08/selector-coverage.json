@@ -1,0 +1,49 @@
+{
+  "selector_version": 2,
+  "policies": [
+    "enabled",
+    "gcc-c90-compile",
+    "gcc-c90-preprocess",
+    "clang-c90-compile",
+    "clang-c90-preprocess"
+  ],
+  "combinations_per_seed": 20,
+  "seeds": [
+    {
+      "path": "fuzz/seeds/preprocess/c90-comments.h",
+      "sha256": "453e17f16d020ff353381b5f75f4e3c2180b19928d3d4dc74425dc3c518209e2",
+      "variants": 20,
+      "maximum_bytes": 364
+    },
+    {
+      "path": "fuzz/seeds/preprocess/c90-pragmas.h",
+      "sha256": "74f8f880ece646052c8181ba6ffd1a5a1c897a04878acfcfbd2ba2c21ffeb489",
+      "variants": 20,
+      "maximum_bytes": 248
+    },
+    {
+      "path": "fuzz/seeds/preprocess/conditional_paste.h",
+      "sha256": "acf16909c524ad7f5fd189b280a2d7dc7406e05bb0918b8eb1216ec19424b34e",
+      "variants": 20,
+      "maximum_bytes": 341
+    },
+    {
+      "path": "fuzz/seeds/preprocess/feature-queries.h",
+      "sha256": "2484180a6a453f4bc009017e98a587d732ba01df9afa4ffab5c8681f333d1d78",
+      "variants": 20,
+      "maximum_bytes": 395
+    },
+    {
+      "path": "fuzz/seeds/preprocess/macros.h",
+      "sha256": "b5a30299e7f3719e7c8f2f78cba2503520d3302c07702673f2115d0e81e1f701",
+      "variants": 20,
+      "maximum_bytes": 237
+    },
+    {
+      "path": "fuzz/seeds/preprocess/query-counter.h",
+      "sha256": "28fc1b35d25d7716cd49e56eb8ad7481b541facc4707eefa786247c05cbd1c93",
+      "variants": 20,
+      "maximum_bytes": 170
+    }
+  ]
+}

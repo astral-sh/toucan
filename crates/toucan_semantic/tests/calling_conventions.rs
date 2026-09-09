@@ -339,8 +339,8 @@ fn convention_constraints_match_native_compilers() {
             writeln!(child.stdin.take().unwrap(), "{source}").unwrap();
             let output = child.wait_with_output().unwrap();
             assert_eq!(
-                output.status.success(),
-                accepted,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted),
                 "{compiler}: {source}\n{}",
                 String::from_utf8_lossy(&output.stderr)
             );
@@ -416,7 +416,9 @@ fn conventions_match_clang_target_ir() {
             let result = analyze(&source, target);
             if matches!(
                 target,
-                Target::Aarch64UnknownLinuxGnu | Target::Aarch64AppleDarwin
+                Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
+                    | Target::Aarch64AppleDarwin
             ) && matches!(convention, "ms_abi" | "sysv_abi")
             {
                 assert!(

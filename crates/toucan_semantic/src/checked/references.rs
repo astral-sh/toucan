@@ -107,9 +107,9 @@ impl Builder {
         index: usize,
         field: &Field,
         name_span: Option<Span>,
-    ) -> Result<(), Error> {
+    ) -> Result<Option<super::SiteId>, Error> {
         let Some(occurrence) = self.find(occurrence_kind, node)? else {
-            return Ok(());
+            return Ok(None);
         };
         let entity = self.entity(
             EntityKey::Field(record, index),
@@ -117,7 +117,7 @@ impl Builder {
             EntityKind::Field { record, index },
             node.span.start,
         )?;
-        self.site(
+        let site = self.site(
             entity,
             occurrence,
             &field.ty,
@@ -129,7 +129,7 @@ impl Builder {
                 definition: true,
             },
         )?;
-        Ok(())
+        Ok(Some(site))
     }
 
     pub(super) fn finish_references(

@@ -1,0 +1,90 @@
+{
+  "schema_version": 1,
+  "source_commit": "1d8f50818f9792dd092aa2a0b622aeeb07bdbd46",
+  "purpose": "Four sustained AddressSanitizer campaigns after explicit compiler profiles, atomic Rust storage and call validation, VLA identity, half types, and nodebug declarations.",
+  "profiles": 7,
+  "profile_order": [
+    "x86_64-unknown-linux-gnu (GCC)",
+    "aarch64-unknown-linux-gnu (GCC)",
+    "x86_64-apple-darwin (Clang)",
+    "aarch64-apple-darwin (Clang)",
+    "x86_64-pc-windows-msvc (Clang)",
+    "x86_64-unknown-linux-gnu (Clang)",
+    "aarch64-unknown-linux-gnu (Clang)"
+  ],
+  "source_manifest": {
+    "path": "source.json",
+    "sha256": "41b26faf5d3e42773b5af74e373c99c8c17b30d4953e3e2b852fb7aec1b018cb"
+  },
+  "runs": [
+    {
+      "target": "preprocess",
+      "report": "preprocess.json",
+      "sha256": "4e5c2df6f94100bf7cb503b40240307c604183496b6d30b66136575bd42bff77",
+      "statistics": {
+        "number_of_executed_units": 1430525,
+        "average_exec_per_sec": 1587,
+        "new_units_added": 11043,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 517
+      },
+      "elapsed_seconds": 901.1180865580027,
+      "initial_corpus_files": 3,
+      "binary_sha256": "a9f6f057966ddf52e6f4c8d63740265d7f0256fe18634d2241273dc25c9753b2"
+    },
+    {
+      "target": "semantic",
+      "report": "semantic.json",
+      "sha256": "fb022d518b0d1a01890895b6522a5ec27f92b91ed462a0c696c4bc1cfbdb39e8",
+      "statistics": {
+        "number_of_executed_units": 441788,
+        "average_exec_per_sec": 490,
+        "new_units_added": 8756,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 513
+      },
+      "elapsed_seconds": 901.1618321490023,
+      "initial_corpus_files": 85,
+      "binary_sha256": "97769c4cbe1c3dcfa80ccab1d07294399c8c64d9ecf84e8831a4cc25c3ce4e13"
+    },
+    {
+      "target": "bindings",
+      "report": "bindings.json",
+      "sha256": "7fcf78ea7b49951d410cb51883e39d15e25e457b5ae0f9048a00e8d99a80e89b",
+      "statistics": {
+        "number_of_executed_units": 163821,
+        "average_exec_per_sec": 181,
+        "new_units_added": 4170,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 522
+      },
+      "elapsed_seconds": 901.244171033999,
+      "initial_corpus_files": 78,
+      "binary_sha256": "91bf22d4ff2d0af339006aa4882de0bb34d30f6f74be074cbec07d1c06f88b35"
+    },
+    {
+      "target": "checked",
+      "report": "checked.json",
+      "sha256": "35a523d96734b57cdf80754f14002de451c600b8e3855314fff439d3cd7204b5",
+      "statistics": {
+        "number_of_executed_units": 282333,
+        "average_exec_per_sec": 313,
+        "new_units_added": 5670,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 513
+      },
+      "elapsed_seconds": 901.1513032139992,
+      "initial_corpus_files": 379,
+      "binary_sha256": "efb5ad19b263abce5bf6d3b0907b78e8c543fa9931a81565f06010e2e4924152"
+    }
+  ],
+  "limitations": [
+    "These exact sources precede packed enums, multiple/derived auto declarators, and later conformance changes.",
+    "Counts include rejected C and invalid UTF-8; they are not accepted-program counts or a conformance proof.",
+    "AddressSanitizer was enabled; LeakSanitizer was disabled because this devbox runs under ptrace.",
+    "All runs executed on x86-64 Linux. Compiler profiles are analysis inputs, not native execution on other hosts. The preprocessor harness does not select a compiler profile.",
+    "Rebuild the recorded source/toolchain or use the saved run binary. Git contains starting corpus archives and compressed logs, not the binaries. Wall-clock campaigns are not guaranteed to reproduce identical execution counts."
+  ],
+  "executions": 2318467,
+  "status": "passed"
+}

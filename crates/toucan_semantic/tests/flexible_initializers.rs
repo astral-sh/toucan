@@ -108,7 +108,10 @@ fn allocation_extent_does_not_complete_the_declared_flexible_type() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         assert_eq!(
             extent(
@@ -223,8 +226,8 @@ fn flexible_initializer_constraints_match_compilers() {
             for source in cases {
                 let output = c_compile(compiler, source, &["-fsyntax-only"]);
                 assert_eq!(
-                    output.status.success(),
-                    accepted,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(accepted),
                     "{compiler}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );

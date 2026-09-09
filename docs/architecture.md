@@ -5,7 +5,8 @@ Toucan separates reusable compiler components from application policy.
 | Crate | Responsibility |
 | --- | --- |
 | `toucan_source` | Immutable source files, checked byte spans, and source locations |
-| `toucan_target` | Explicit target data models and a `repc` layout adapter |
+| `toucan_layout` | Record and bitfield layout rules, derived from `repc` |
+| `toucan_target` | Explicit target data models and a layout adapter |
 | `toucan_preprocessor` | Tokens, macro expansion, conditional expressions, includes, and limits |
 | `toucan_parser` | The C grammar and lexical environments, derived from `lang-c` |
 | `toucan_semantic` | Parser adaptation, target-specific types, constant evaluation, and checked code |
@@ -15,18 +16,27 @@ Toucan separates reusable compiler components from application policy.
 
 ## Target selection
 
-The selected C ABI determines integer widths, builtin macro values, record layout,
-and generated Rust's target guard. It is independent of the machine running Toucan.
-Include paths and sysroots are explicit inputs. A target profile is a compatibility
-profile for system headers, not a claim that every extension of that compiler exists.
-Capability predicates such as `__has_builtin` currently return zero. Headers may
-therefore select fallback implementations even when some advertised GNU syntax is
-accepted.
+The physical C target determines scalar widths, operating system, architecture,
+and generated Rust's target guard. `CompilerProfile` independently selects GCC or
+Clang semantics, builtin signatures, compiler macros, and layout differences.
+The validated pair is retained on the translation unit and used by later constant
+evaluation and nested layout queries. Both choices are independent of the machine
+running Toucan. Include paths and sysroots are explicit inputs. See
+[compiler profiles](compiler-profiles.md) for supported pairs and defaults; a
+profile does not claim every extension of that compiler exists.
+`__has_builtin` and `__has_attribute` use the semantic classifiers for supported
+names and profile constraints. Other feature queries still return zero. See the
+[query contract](feature-queries.md) for argument rules and catalog coverage.
 
-`repc` supplies record and bitfield layout rules. The adapter preserves bit offsets,
+`toucan_layout` supplies record and bitfield layout rules through an attributed
+fork of `repc`. The engine accepts an explicit compiler choice, including Clang
+on GNU and musl Linux targets, while preserving the upstream defaults. Its
+[upstream record](../crates/toucan_layout/UPSTREAM.md) documents the import and
+[comparison evidence](../corpus/evidence/compiler-layout-2026-09-08.json) records
+default compatibility and compiler probes. The adapter preserves bit offsets,
 field alignment, pointer alignment, and MSVC's required alignment separately. It
 rejects unknown targets and unsupported layout inputs. Clang cross-compilation
-probes exercise five target models. Native C/Rust runtime evidence is tracked separately in the
+probes exercise seven target models. Native C/Rust runtime evidence is tracked separately in the
 [corpus](../corpus/README.md); those are different kinds of validation.
 
 ## Parsing and semantics
@@ -47,6 +57,13 @@ type-checked without evaluating its arithmetic. Floating constants use a softwar
 APFloat evaluator with the selected target's format, including x87 and binary128
 `long double`. Arithmetic constant evaluation is separate from C's stricter integer
 constant-expression rules; no host floating representation substitutes for the target.
+[Half and bfloat types](half-types.md) preserve separate nominal identities and
+encodings. GNU excess-precision constant cases that are not modeled fail explicitly.
+
+[Per-function target options](function-targets.md) retain declaration identity
+separately from C function types. Sparse metadata preserves visible options and
+feature-sensitive inlining stages; evaluated intrinsic requirements use the same
+unevaluated and discarded-branch boundaries as SVE checks.
 
 The fixed-argument GNU `clz`/`ctz` builtins and their `l`/`ll` variants use unsigned
 C parameter conversions and return `int`. Constant evaluation diagnoses zero after
@@ -72,7 +89,9 @@ by the final link name; treating the other C names as strong would be incorrect.
 
 The semantic layer checks declarations, expressions, initializers, and function
 bodies. Lexical scopes keep local names out of the exported declarations while
-preserving tag identities. Aggregate initialization uses a subobject cursor, so
+preserving tag identities. Object storage duration is separate from type and linkage;
+thread-local declarations retain their per-thread lifetime in the analysis APIs.
+Aggregate initialization uses a subobject cursor, so
 sparse designated initializers do not expand implicitly zeroed elements. Function
 checking validates calls, assignments, returns, control-flow constraints, and labels.
 Unsupported constructs produce diagnostics; this remains an incomplete C11 implementation.
@@ -103,8 +122,11 @@ libraries use whichever allocator their embedding application selects.
 
 Preprocessing bounds source bytes, include depth, tokens, expansion depth, and output.
 Filesystem access can be disabled for an in-memory embedding. Syntax and semantic
-traversals have nesting limits. Fuzzing has already identified parser backtracking
-cases; the guards are not a proof of bounded runtime for every possible input.
+traversals have nesting limits. The generated parser also counts total work and
+steps without forward progress, validates owned-tree depth before folding or
+cloning, and runs on a bounded scoped stack. [Parser limits](parser-limits.md)
+describes the accounting and its validation; these counters are not wall-time or
+allocator-RSS limits.
 
 ## Consumer boundaries
 
@@ -144,7 +166,7 @@ See [the analysis API](analysis-api.md) for traversal and source-mapping example
 
 GNU `transparent_union` changes fixed-parameter calls while preserving ordinary
 union storage, return values, and variadic arguments. The semantic API exposes the
-first member through `TranslationUnit::parameter_abi_type`. Retained call operands
+supported carrier through `TranslationUnit::parameter_abi_type`. Retained call operands
 include a `Conversion::TransparentUnion` step naming the source field used to
 construct the union. GCC matches member types; Clang profiles try assignment
 conversions in field order. These rules can select different scalar members.
@@ -159,9 +181,7 @@ Additional cloned variant representations have a conservative 16 MiB budget.
 The current semantic support requires a non-bitfield integer or pointer first
 member and scalar alternatives. Unsupported aggregate members, invalid widths,
 and union definitions combined with member-typed redeclarations return explicit
-diagnostics. The latter has a GCC/Clang ABI difference. Binding generation rejects
-selected transparent fixed parameters until first-member projection is provided;
-ordinary storage and union-return declarations remain representable.
+diagnostics. The latter has a GCC/Clang ABI difference.
 
 The [transparent-union evidence](../corpus/evidence/transparent-unions-2026-09-08.json)
 records compiler profile differences, native calls, cross-target LLVM carriers,
@@ -171,5 +191,40 @@ baseline comparison of default-path allocations.
 The [member-alignment probes](../corpus/evidence/transparent-union-member-alignment-2026-09-08.json)
 distinguish a member type’s alignment from field and union layout annotations.
 Clang compares natural or increased member type alignments; typedef alignment
-decreases and overall packed or increased union
-alignment remains a separate storage property.
+decreases and overall packed or increased union alignment remain separate storage
+properties.
+
+Transparent fixed parameters use the target call ABI in Rust signatures, including
+nested function pointers. GNU and ordinary Clang cases use the first member’s
+machine representation; Microsoft targets retain ordinary union passing. Boolean
+and enum scalar carriers use raw integers so callbacks can receive every union
+bit pattern. GNU unions with a
+narrower alternative use a generated `repr(C)` union containing the carrier and
+`MaybeUninit` bytes; this preserves partially initialized arguments. The generated
+size and alignment assertions check that helper's representation. Ordinary union
+storage, return values, and variadic union arguments keep their original types.
+
+AArch64 transparent unions with tail padding require Clang’s expanded padding
+arguments. The carrier query and binding generator diagnose that unsupported ABI;
+the semantic union storage and argument conversions remain available. Intel macOS
+uses the scalar carrier even when the union is over-aligned, while Microsoft
+keeps ordinary union passing. Cross-target LLVM probes distinguish these cases.
+
+The [binding evidence](../corpus/evidence/transparent-union-bindings-2026-09-08.json)
+records native C/Rust calls, Miri validity checks, LLVM argument attributes,
+cross-target padding differences, and Rust 1.64 compilation. Projected parameters
+expose carrier types to Rust callers; bindgen’s union-shaped parameter APIs can
+differ even when the C call representation agrees.
+
+Fixed-vector shuffle expressions retain operand evaluation and normalized lane
+selections separately; see [vector shuffles](vector-shuffles.md) for compiler
+rules and representation limits.
+
+The x86 Clang undefined-vector intrinsic preserves a stable unspecified result
+through its retained identity; it is neither a C constant nor LLVM per-use undef.
+See [unspecified vector values](undefined-vectors.md).
+
+[Non-temporal memory intrinsics](nontemporal-accesses.md) preserve their cache hint
+separately from atomic and volatile access semantics. Pointer-to-VLA loads retain
+their bound origins, and stored vector reinterpretations have an explicit
+conversion kind.

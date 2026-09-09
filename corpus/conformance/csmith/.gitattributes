@@ -1,0 +1,4 @@
+# Preserve byte-identical generated fixtures and upstream runtime files.
+*.c -whitespace
+runtime/*.h -whitespace
+runtime/LICENSE -whitespace

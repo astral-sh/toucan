@@ -116,3 +116,48 @@ and does not acquire the original declaration's operand execution.
 
 [Ownership validation](../corpus/evidence/type-ownership-2026-09-08.json) records
 native side-effect probes, external corpus parity and default allocation checks.
+
+## Compiler query results
+
+Object-size builtin calls expose an optional `ObjectSizeProof`. `whole_bytes()`
+and `subobject_bytes()` describe structurally identified storage ranges. `result()`
+separately reports a known scalar value and its fold stage, or an unresolved
+compiler answer. A default sentinel is marked explicitly and is not a range proof.
+For example, GCC can return different mode-three values for `record.buffer + 2`
+across optimization levels; the graph can still retain the buffer's remaining
+bytes without claiming a scalar result.
+
+`QueryEvaluation` governs the first argument's execution. A frontend object-size
+fold suppresses operand evaluation. A known later fold can still execute Clang's
+conditional scalar fallback, including fresh VLA bounds. Follow the argument's
+expression tree and its query policy; a known scalar value alone is not proof that
+its operand is unevaluated. External folding APIs accept supported later facts,
+while nested declarations, types and static initializers retain frontend constant
+constraints.
+
+## Functions that may return more than once
+
+`Declaration::returns_twice` and `Entity::returns_twice()` preserve the merged GNU
+function annotation. `DeclarationSite::returns_twice()` records the state when a
+declaration was checked; `returns_twice_attribute()` gives its explicit original
+source span. Follow the entity's sites and their scopes to distinguish earlier
+prototypes from later annotations. These flags are not C type qualifiers and do
+not claim that a compiler retroactively annotates earlier calls. Ordinary function
+pointers retain their ordinary C types; indirect-call target analysis remains a
+consumer responsibility. Binding generation rejects selected direct returns-twice
+functions because Rust cannot express the required caller contract.
+
+## Object storage duration
+
+`Declaration::is_thread_local` distinguishes file-scope thread-local objects from
+ordinary objects. TLS belongs to an object, not its C type. `Entity::storage()`
+and `DeclarationSite::storage()` expose `Storage::Thread`, `Static`, `Automatic`,
+or `None`; linkage remains a separate property. Block `extern` declarations share
+their linked entity, while a block-static shadow has its own identity. Source
+spelling remains available through the declaration's written type-owner occurrence.
+
+`Initializer::requires_constant()` covers both static and thread storage. It
+replaces the earlier `static_storage()` getter and serialized field. For example,
+`_Thread_local const char *text = "hello";` has a constant initializer, while
+`static int *p = &thread_object;` is invalid: a TLS address is computed for the
+current thread. Runtime address-taking is valid and retains ordinary pointer types.

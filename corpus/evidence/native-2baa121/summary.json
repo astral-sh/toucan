@@ -1,0 +1,176 @@
+{
+  "schema_version": 1,
+  "head_commit": "2baa1213fb097b38502bf513d6efb222ccee8402",
+  "tested_merge_commit": "031d7b4b549dd4176196364a3129e42522458c48",
+  "head_and_merge_tree": "8fc35618fd4cd22578f4f55bcab866b1f79499a6",
+  "workflow_url": "https://github.com/astral-sh/toucan/actions/runs/34222265563",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "platform": "linux-intel",
+      "job_id": 102047928066,
+      "url": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928066",
+      "tests": {
+        "passed": 708,
+        "failed": 0,
+        "ignored": 0
+      },
+      "log": "linux-intel.log.gz",
+      "log_sha256": "14c6848b9dddada9aeab8666fe7bda8b75cc03c3e559bb9b3f9f250eea5f8683",
+      "archive_sha256": "fb3432bde46f8d3154b7f28a982697d5e7c2f2322ddb7e4026bbe3d4b23f2214",
+      "oracle_intrinsics": "passed",
+      "function_target_codegen": "passed",
+      "compiler_versions": [
+        "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+        "Ubuntu clang version 18.1.3 (1ubuntu1)"
+      ]
+    },
+    {
+      "platform": "linux-arm",
+      "job_id": 102047927985,
+      "url": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047927985",
+      "tests": {
+        "passed": 708,
+        "failed": 0,
+        "ignored": 0
+      },
+      "log": "linux-arm.log.gz",
+      "log_sha256": "6cfca8e3b248c2f61927a11ea97d91f27e4e680a3b5ced53e08995fcdd95ae2e",
+      "archive_sha256": "629b089f5445ede5f4c69a9ee8c53a587d3c3e8b6ff8fea9ce1686e319b5a783",
+      "oracle_intrinsics": "passed",
+      "function_target_codegen": "passed",
+      "compiler_versions": [
+        "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+        "Ubuntu clang version 18.1.3 (1ubuntu1)"
+      ]
+    },
+    {
+      "platform": "macos-intel",
+      "job_id": 102047928026,
+      "url": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928026",
+      "tests": {
+        "passed": 706,
+        "failed": 0,
+        "ignored": 0
+      },
+      "log": "macos-intel.log.gz",
+      "log_sha256": "16fcbf3dfa5308bb433c8f438aea92ef1bbfae15f89ac8ef67cd7809a8c28a63",
+      "archive_sha256": "dd38cf72f56f437063cc0428ffeb1b22c4c6472998d46d7abda3d945d0384382",
+      "oracle_intrinsics": "passed",
+      "function_target_codegen": "passed",
+      "compiler_versions": [
+        "gcc-14 (Homebrew GCC 14.4.0) 14.4.0",
+        "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+        "Homebrew clang version 18.1.8"
+      ]
+    },
+    {
+      "platform": "macos-arm",
+      "job_id": 102047928197,
+      "url": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928197",
+      "tests": {
+        "passed": 706,
+        "failed": 0,
+        "ignored": 0
+      },
+      "log": "macos-arm.log.gz",
+      "log_sha256": "02b52c3cafa9443f36e790f859d1b9b65332f0e7455c045bc5aa62f42dcb6954",
+      "archive_sha256": "f0bb810bf757c0304e98b8247890d4d2fccb621fb4faa28b84260b73ca21b744",
+      "oracle_intrinsics": "passed",
+      "function_target_codegen": "passed",
+      "compiler_versions": [
+        "gcc-14 (Homebrew GCC 14.4.0) 14.4.0",
+        "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+        "Homebrew clang version 18.1.8"
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265413/job/102047928181",
+      "name": "Native corpus (aarch64-apple-darwin)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928197",
+      "name": "Test (macos-15)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265413/job/102047928100",
+      "name": "Native corpus (x86_64-apple-darwin)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047927757",
+      "name": "Packages and allocators (macos-15)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928026",
+      "name": "Test (macos-15-intel)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928103",
+      "name": "Lint",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265413/job/102047927934",
+      "name": "Native corpus (aarch64-unknown-linux-gnu)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047927985",
+      "name": "Test (ubuntu-24.04-arm)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265454/job/102047927649",
+      "name": "Pedantic C11 acceptance (gcc)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265413/job/102047928116",
+      "name": "Native corpus (x86_64-unknown-linux-gnu)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265431/job/102047927247",
+      "name": "smoke",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928183",
+      "name": "Rust 1.96",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928359",
+      "name": "Packages and allocators (ubuntu-24.04)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928066",
+      "name": "Test (ubuntu-24.04)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265454/job/102047927270",
+      "name": "Pedantic C11 acceptance (clang)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928084",
+      "name": "Packages and allocators (windows-2025)",
+      "state": "SUCCESS"
+    },
+    {
+      "link": "https://github.com/astral-sh/toucan/actions/runs/34222265431/job/102047928470",
+      "name": "campaign",
+      "state": "SKIPPED"
+    }
+  ],
+  "scope": "All native workspace tests on four Linux/macOS architectures at 2baa121. Includes the revised Clang invalid-va_arg syntax-only oracle and valid function-pointer object-generation control. This archive does not rerun or independently validate the separate native-corpus artifacts. Later implementation commits need their own CI results."
+}

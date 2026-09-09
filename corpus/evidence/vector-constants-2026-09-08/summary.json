@@ -1,0 +1,92 @@
+{
+  "schema_version": 1,
+  "source_base": "d7ba4de445db38641d1108f7ce94548e90cbaa04",
+  "recorded_utc": "2026-09-08T15:11:31.787688+00:00",
+  "implementation_files": {
+    "crates/toucan_semantic/src/analyze.rs": "e05a39021801c225e253f20aff2e8fb43b640849ae8d390adb1f1f5b8daddbc0",
+    "crates/toucan_semantic/src/floating.rs": "98d7826db3c187b70a9a18a5229c50446c58d6769c0653696ce7535e5d0d35cb",
+    "crates/toucan_semantic/src/initializer.rs": "12f385f6a573d02a45f2374010af47341f710bfef0b999883c8f46b11ee71d1b",
+    "crates/toucan_semantic/src/lib.rs": "0db97e816dd2e3075a0a86d5fbce7774fc21f5b47fdad0b84d659894d90b47dc",
+    "crates/toucan_semantic/src/vector_constant.rs": "22c3fb88dbd73ffd82d13a974c2cf0091d98d6b1c4090c0a046f11ccc1b2015a",
+    "crates/toucan_semantic/tests/vector_constants.rs": "fe84c4961e69c8f237b063c0729c98b6e349bf6f701d95962edcd45e03378fff",
+    "docs/compatibility.md": "548cf766d6cde13c99c080702b676883eb69a224d7e48fbd8359cb252391302d",
+    "docs/vector-constants.md": "1b16b962f17571840d1f62f4c16180a37ef114345ed8f10220e2222416361b1d",
+    "docs/vector-conversions.md": "d3ba9c4bc1a9548bf4f1f269ee8c1636db72055d75515491a17652d07ee69c55",
+    "fuzz/seeds/bindings/vector-constant-arithmetic.h": "811f3a8e2ec7c0c4825a597c81e631056690eff32a8ec89536ef893066104e65",
+    "fuzz/seeds/bindings/vector-constant-selection.h": "afe4a64ac2c2d9dc99f52cc3cc422a0ff3e9c219d6e6a5c474f5fa6cc7fb8c83",
+    "fuzz/seeds/checked/vector-constant-arithmetic.h": "811f3a8e2ec7c0c4825a597c81e631056690eff32a8ec89536ef893066104e65",
+    "fuzz/seeds/checked/vector-constant-selection.h": "afe4a64ac2c2d9dc99f52cc3cc422a0ff3e9c219d6e6a5c474f5fa6cc7fb8c83",
+    "fuzz/seeds/semantic/vector-constant-arithmetic.h": "811f3a8e2ec7c0c4825a597c81e631056690eff32a8ec89536ef893066104e65",
+    "fuzz/seeds/semantic/vector-constant-selection.h": "afe4a64ac2c2d9dc99f52cc3cc422a0ff3e9c219d6e6a5c474f5fa6cc7fb8c83"
+  },
+  "compiler_source_decisions": {
+    "cases": 25,
+    "decisions": 300,
+    "accepted": 222,
+    "mismatches": 0,
+    "modes": [
+      "c11",
+      "gnu11"
+    ],
+    "native_gnu_targets": [
+      "x86_64-unknown-linux-gnu"
+    ],
+    "clang_targets": [
+      "aarch64-apple-darwin",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "x86_64-unknown-linux-gnu"
+    ]
+  },
+  "native_constant_storage": {
+    "compilers": [
+      "GCC13.3.0",
+      "Clang18.1.3"
+    ],
+    "optimizations": [
+      "O0",
+      "O2"
+    ],
+    "sanitizer": "undefined",
+    "executable_runs": 4,
+    "lane_bit_comparisons": 212,
+    "mismatches": 0
+  },
+  "cross_target_format_llvm_outputs": 21,
+  "tests": {
+    "semantic_suite_before_snapshot_api": {
+      "passed": 418,
+      "ignored": 125
+    },
+    "related_native_tests": 34,
+    "final_focused_tests": 7,
+    "semantic_clippy": "passed"
+  },
+  "asan_campaign": {
+    "executed_inputs": 46304,
+    "elapsed_seconds": 181.1135213430025,
+    "peak_rss_mb": 526,
+    "findings": 0,
+    "source_unchanged": true,
+    "leak_detection": false
+  },
+  "asan_query_replay": {
+    "checked_seed_pairs": 1092,
+    "accepted": 785,
+    "matching_diagnostics": 307,
+    "public_queries": 168,
+    "source": "asan-query-replay.rs",
+    "log": "asan-query-replay.log.gz",
+    "asan_init_symbol_verified": true,
+    "leak_detection": false,
+    "rustflags": "-Zsanitizer=address",
+    "binary_sha256": "c587959232bb1208f8c239d018ff9058b7532f14812f97f168d7669bd1f5b9a8"
+  },
+  "limitations": [
+    "The source profiles model GCC13 and upstream Clang18. Apple clang-1700.0.13.5 accepts additional numeric-conversion static initializers; that remains an explicit compatibility gap.",
+    "Cross-target LLVM outputs are not native execution or Rust by-value ABI validation.",
+    "No new performance or allocation claim is made by this layer.",
+    "The full semantic suite predates the owner-independent snapshot API adjustment; the final focused tests, Clippy, ASan campaign and public-query replay include it."
+  ]
+}

@@ -1,0 +1,2734 @@
+{
+  "source_commit": "48b7d73d509513499fb1a0d5c51a3d27bda4ac1c",
+  "source_files_sha256": {
+    ".github/workflows/ci.yml": "27b34b41169d762649ec8e0a86e37b3ce1d5e865de44df35bbbeb03879989cd1",
+    ".github/workflows/conformance.yml": "a77c5b3301611a9652a388bb0342ab872df7748cf2cb8a0b394ab3eb20f01b2f",
+    ".github/workflows/corpus.yml": "8e3c5a98ba923e35b26ab0eab3bbdf2a1296e07739da68b0c3fbd85bc897e821",
+    ".github/workflows/fuzz.yml": "a85bfdca996a35b85e1ed960656fc9f15fc40f68e201f717be44c96b411c17e6",
+    ".gitignore": "6e3eec7e1f3dada96fe75dc97aab5eec62063e6f6ecf81d521da2f96bf56fde0",
+    "Cargo.lock": "fc027c44d342c3682e58bc503e66b3453f95131661374f3fc82086f3b9ee9075",
+    "Cargo.toml": "8f9d629d0c9fc2a2efc273b76d382c9898ada098d5017d220360cf6c205d0dd3",
+    "LICENSE-APACHE": "c95bae1d1ce0235ecccd3560b772ec1efb97f348a79f0fbe0a634f0c2ccefe2c",
+    "LICENSE-MIT": "810c1a429f4afdce35e62bd91661c8d56d4c3fc4aa3401c8f23c3eac604c3e45",
+    "README.md": "118f3cc0a9fe363e25bbaec24ff6f402d053bd87505dca50de8f02ebbb6f9757",
+    "benchmarks/evidence/2026-09-08-4945364/equivalence.json": "dd08947a045be0e67f2279a21c31c47a8be5b873a625d33b53399cb91548737d",
+    "benchmarks/evidence/2026-09-08-4945364/layouts.json": "1d72b412ade22824377594b1ff984cba0953658ef193467a5b84ee2927cb1bb9",
+    "benchmarks/evidence/2026-09-08-4945364/libgit2.json": "2d2b6f66004f1c473efd87013318f40130fb32b788df3dff40b383a0b2c541c9",
+    "benchmarks/evidence/2026-09-08-4945364/native.json": "a46471b9ff7f593155b2723b88ee057e86d0d10b3e2192c3524819d8aba9d4fb",
+    "benchmarks/evidence/2026-09-08-4945364/sqlite.json": "8976df887c91ed9c35a056a39b924a1a0d44d83faba1dab04adf52cc5d839213",
+    "benchmarks/evidence/2026-09-08-4945364/summary.json": "417648411fa0f3798564f659c0c9deb3ec885ced6d795d44483fffa9c5db5fda",
+    "benchmarks/evidence/2026-09-08-4945364/zlib.json": "52b6a4c1f7df4d47ad606c7ee6b15c3114cefc06c883c68a65408a78249ce3d9",
+    "benchmarks/evidence/2026-09-08-4945364/zstd.json": "8feb9b802cfed206af251c94b5ef041f0581af2682b3db02ac53985b6f6f7a0b",
+    "benchmarks/evidence/2026-09-08-4ac7511/equivalence.json": "4fc3bfea634dc8b2cb3a2dd1872346e7e3f9ba04462d6d15e32228b20b9a289c",
+    "benchmarks/evidence/2026-09-08-4ac7511/layouts.json": "3a26865751b3de56484f03eabab59902de7850c444c827e474220ebcccb0d111",
+    "benchmarks/evidence/2026-09-08-4ac7511/libgit2.json": "b5fd66fc334d82ed2276ed92f8d70f083e22de7b0c9ce08e444b58ff582ba9d3",
+    "benchmarks/evidence/2026-09-08-4ac7511/native.json": "26f35bfa7f96b5431869c2461b81398c0169bee5c46be5bfcc204282496cfd62",
+    "benchmarks/evidence/2026-09-08-4ac7511/sqlite.json": "91d7ee2f22b92db9cff3685cfa228c55a56067c5f81c08986f854572dc4ab88a",
+    "benchmarks/evidence/2026-09-08-4ac7511/summary.json": "360ffc81ce73ac15a8c5d5c861209bebb282e8e0ab3541f2b42f744cde648104",
+    "benchmarks/evidence/2026-09-08-4ac7511/zlib.json": "ee91fc25192b37ad842423d9f961f7ba5a31e40c208c222c843dbdb2c0c75422",
+    "benchmarks/evidence/2026-09-08-4ac7511/zstd.json": "ba94187778e433b4bb691f66d590e05d81cbcff738bb0e919afec1adb5d2d7ec",
+    "benchmarks/evidence/2026-09-08-allocators-f78baa8/evidence.json": "af0e52bf9412c53dc20ec308682f4cc3c55a9cf3a97668ed7f124b903d2b29e0",
+    "benchmarks/evidence/2026-09-08-allocators-f78baa8/runner.py": "f50f04c3ae4042089957d2c7eaa91d1fc5356b9d325feb6b3a3b572015899141",
+    "benchmarks/evidence/2026-09-08/libgit2.json": "551732a9e0627290945903e6768c5b0c96db4defb48f3705b431c65adc8c6512",
+    "benchmarks/evidence/2026-09-08/sqlite.json": "56f7e4d17ba8e242d531b76f89aa15057960be36a2f8e5b3fcab8eeb672c1dac",
+    "benchmarks/evidence/2026-09-08/summary.json": "2e978e607c4b0ff3d36c0d1c901d628753a6d7cd0a06c3490527a3cc6ea621b4",
+    "benchmarks/evidence/2026-09-08/zlib.json": "6feb385215ef1bed48e267be53d3313fbcfc26d85d514daf97e776316d23feb3",
+    "benchmarks/evidence/2026-09-08/zstd.json": "457ccec1fd5a5d2c04fec9fbf11b109941034f8ed7c389d39511f08c467726a5",
+    "corpus/.gitignore": "fe10f8ed14de161b354fdcf5e27938b79ddb153a01cdf17da1b62bbd113355f1",
+    "corpus/README.md": "ef7eaf325086589bb91c371df05f62ebd494c3392fa8dbdaf4588771b1f19f9c",
+    "corpus/conformance/README.md": "64c20a3eb2c58d9c5d5fb2f3fef9cf7161479f36930e8e5afa5cc656d053fa71",
+    "corpus/conformance/c-testsuite.json": "67dd399dd843bebe100613ef6a818d1efc2e67fca65442abc530460950468cd6",
+    "corpus/consumers/astral.json": "c2a7eba0706cf8bd19631804110f3cbaa0fade06b325a5615b47dd8dfd131a33",
+    "corpus/evidence/aligned-typedefs-2026-09-08.json": "46b2d64dd6c7644aff2084838c8193cbb23be79eda2b6d81bb1bc08b28f8a607",
+    "corpus/evidence/arithmetic-conversions-2026-09-08.json": "baa09c9b19402518e45963962e095e9db4a568b272fac822edf40bdb490173e1",
+    "corpus/evidence/astral-consumers-2026-09-08/artifacts.json": "4b41821ae607662f0f45b92fa6e99a88d440525e125d6b4cafda8dc82944195d",
+    "corpus/evidence/astral-consumers-2026-09-08/report.json": "5627472db3ee1622d62a1c8afa502399074e3ecd17a3ba4ebbe95e09d1c2a556",
+    "corpus/evidence/astral-consumers-2026-09-08/ty/generated-dep-info/zstd_sys-7efe1def8681a072.d": "27888bbd274156f4555715905df5ed1031f0c32cf57fe69fe9bcda4a7182519b",
+    "corpus/evidence/astral-consumers-2026-09-08/ty/generated-dep-info/zstd_sys-a6a3e9a2053310f4.d": "cbe67611addd061c2be7cf7bcb44d2702cb2ad15d3fd6bea4f73cf82689221c7",
+    "corpus/evidence/astral-consumers-2026-09-08/ty/generated.stderr": "97c8f8c371a0f488a0f351eed2af1f82b50f31db65964a6c720d45c6db33eaf6",
+    "corpus/evidence/astral-consumers-2026-09-08/ty/upstream-dep-info/zstd_sys-21d71e1ce1a75a44.d": "d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2",
+    "corpus/evidence/astral-consumers-2026-09-08/ty/upstream-dep-info/zstd_sys-fff0f1aed6e3ed9b.d": "47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c",
+    "corpus/evidence/astral-consumers-2026-09-08/ty/upstream.stderr": "3e95f8b806a4d38422f100de67a9eb863e411092e0bc000b9676e52f1f2a98d6",
+    "corpus/evidence/astral-consumers-2026-09-08/uv/generated-dep-info/zstd_sys-dcbdbc051700bd11.d": "059c1449f1cb463ede83c55caa3c1e63f1570067e6566307ece51e91a0a08876",
+    "corpus/evidence/astral-consumers-2026-09-08/uv/generated.stderr": "825325d1dba4a0b13e2a90e26a106bbc56856947737b406c2d6709af4e2e1e69",
+    "corpus/evidence/astral-consumers-2026-09-08/uv/upstream-dep-info/zstd_sys-4e75c4015752c8db.d": "9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135",
+    "corpus/evidence/astral-consumers-2026-09-08/uv/upstream.stderr": "3dbebdfe57c58e155ac8a657a434094c1504a64a2cee500df8a6e14e483660d2",
+    "corpus/evidence/astral-consumers-caf6bcf/report.json": "29e178a28593813d782c8fee75d86eaad904b296dd7286370ab59c1201a09833",
+    "corpus/evidence/astral-consumers-caf6bcf/summary.json": "e7358a7a7d7bc3c8cc5c6cfb316db07afd50ea7a3b5663e228d5df9ebf412ba6",
+    "corpus/evidence/astral-consumers-caf6bcf/zstd.json": "5e7749128335eadb08ff8f11149bad5b190e530305f1893d6505731214ad17b1",
+    "corpus/evidence/atomic-builtins-2026-09-08.json": "d666fbfc28ebdb28fb2954108496980cba76893b9cd56e06f01cbc1109b642eb",
+    "corpus/evidence/atomic-types-2026-09-08.json": "f3cc2adf92fc0405b8e01df83b52136994786148bc2e4b8ad991002c26c35410",
+    "corpus/evidence/bit-count-intrinsics-2026-09-08.json": "a961729a133cb0725153ac433eb2ab521dd76b41aa1dad5045d8e897b85819d4",
+    "corpus/evidence/bitfield-safety-2026-09-08.json": "0358607c75d95eb4a035eb676bef22883b9a360dc05a1514ffd6d39903409633",
+    "corpus/evidence/c-testsuite-2026-09-08-differences.json": "39169762e58431928d03603d1780699561f686d88f8383b29fcb0a16d6e2a925",
+    "corpus/evidence/c-testsuite-2026-09-08.json": "81d751c9404c2e166e443e326d5709034301fec724181b1f2bf3a5873371f327",
+    "corpus/evidence/checked-bounds-2026-09-08.json": "124d0ab1291bf1dba107d6f21aac48f96ff7a5604f7f89be79e2c5c4153a8161",
+    "corpus/evidence/dependency-audit-2026-09-08-expanded.json": "540926cc670d0e0ac9949d0e9da4db83a15efbaf3f8797bea689703b099f91c1",
+    "corpus/evidence/dependency-audit-2026-09-08.json": "0d779a1db1621955700480b03b1597bc24b69cedb36eae04a933dece73176771",
+    "corpus/evidence/infinity-intrinsics-2026-09-08.json": "996b01834a555a57332039d236db09ca21629e57c378d7ef02cee607657c1ef5",
+    "corpus/evidence/linux-x86_64.json": "2b482a1b2b85c97e313296c574d2136a1d6d4c882d716db25f084112be737448",
+    "corpus/evidence/mmx-intrinsics-2026-09-08.json": "61b8d28e354f29abb1376e29bd812d3dbf618abe636631384cc0d5bff67488ac",
+    "corpus/evidence/nan-intrinsics-2026-09-08.json": "49a88764ca0a3afe882ba57ab27e9c53d5b0940b62217a864d7f6ed74fa21ed8",
+    "corpus/evidence/native-2026-09-08.json": "da363a7a30251d8e506c3b1e8547b7f0d968f309b9faba8d123af36dbbb42694",
+    "corpus/evidence/native-equivalence-2026-09-08.json": "c6408ca5b70993e3f3a4462c90729925aae0d3691e970e3399d389b7b6aad001",
+    "corpus/evidence/overflow-builtins-2026-09-08.json": "7832f95fb7699d746f1a179ef650ff8f4dfe94dfa9af769f1cbca73cf39c9c4f",
+    "corpus/evidence/parser-budgets-2026-09-08.json": "7a8f9336744101c98e97e6f57519c993b7520a468ca63c4ff9e3edfa17c49410",
+    "corpus/evidence/public-analysis-2026-09-08.json": "88c8a4d04778671c1e89756258d1be962777f6942b662572e254c1e4dcb9510e",
+    "corpus/evidence/size-t-collection-2026-09-08.json": "8d0a5fa33cc26ddebd78c4c12724a1544101d0c8bfe4700f455e7b7919979f3c",
+    "corpus/evidence/sse-intrinsics-2026-09-08.json": "3db0a0be3a2e5ed8b5823b235792551ae5a72d92b4148c273028ffe558f88c9e",
+    "corpus/evidence/sync-builtins-2026-09-08.json": "bce672676800224a20734fbfc203a8fa7cd3d1440b3c1bf2adb9dd8fc7492bc2",
+    "corpus/evidence/thread-local-2026-09-08.json": "76f5eb24463d928ec891f38cef0545ed0b320296a4782d8837c39a75c1becb0d",
+    "corpus/evidence/translation-units-1dd52e3.json": "0d025ee0f9e550631ac353ed25626bfb1fc33e09d57040ed233b3648e4de36e4",
+    "corpus/evidence/translation-units-2026-09-08.json": "371ec622c88091b027f920d21c61cab1d616b37b09e1eb96580a5791538ff1af",
+    "corpus/evidence/translation-units-4945364.json": "9611957e6350ab3338025b4b26c872590feeb023465f1f49f2a7ab29bc50f2eb",
+    "corpus/evidence/transparent-union-bindings-2026-09-08.json": "96a980cfa50a0a00813b48440c39aabc0b2c6c73afb227b8dbfe870e6cadaa46",
+    "corpus/evidence/transparent-union-member-alignment-2026-09-08.json": "306d8ea4ef60357e79835fa3ad532c5acc903f021ad8705a4886dba274d4d7fd",
+    "corpus/evidence/transparent-unions-2026-09-08.json": "edd201d9510ecaaade649232866b4dd2ddbf4220e51eedd63e3357f4153638b6",
+    "corpus/evidence/type-ownership-2026-09-08.json": "d45cbdb124ce4e2bfad500ee53d1d18c96b4795906291aaea1dbe995b4eda31a",
+    "corpus/evidence/variadic-pack-2026-09-08.json": "bd30413368bcce2fb79a7749c583074adeb2724bcbb76e0871f96a37324133b3",
+    "corpus/evidence/vector-types-2026-09-08.json": "0ef61cc41dc9f3822097528354c0af181572157e1e35eb65db0c4994546404ce",
+    "corpus/evidence/weak-symbols-2026-09-08.json": "2fdafc798039c989c12d0ad7b7919b7cf9647194929c09fdd9da83003aa61a96",
+    "corpus/evidence/zstd-features-2026-09-08.json": "26de0dcb25634de49689ab56ed500d0940a721f65e8abc9a694b84d40046d9d2",
+    "corpus/evidence/zstd-features-2026-09-08/rust-1.64.0/default.json": "60751a4c55836e4ebdf71970713c2b5f2ba7aa8229ba93c479de7182be74ac4a",
+    "corpus/evidence/zstd-features-2026-09-08/rust-1.64.0/experimental-zstdmt.json": "fb0099cff5e10f1ebb830b68d80c7d07fd6eeb8264b086617297941744a25b85",
+    "corpus/evidence/zstd-features-2026-09-08/rust-1.64.0/experimental.json": "cff03519f42a03e21e3cb2ea26afee39989d39ec417a9012499b847252f89073",
+    "corpus/evidence/zstd-features-2026-09-08/rust-1.64.0/zstdmt.json": "4d4002455885313572525df6d10f8d98eab8600ec1418a65d1577e4cbef11d74",
+    "corpus/evidence/zstd-features-2026-09-08/rust-1.98.1/default.json": "0e3333ae33e6cdd7538846eda929c6185d2b952d97fe1bf4d903ffe1b0a289c0",
+    "corpus/evidence/zstd-features-2026-09-08/rust-1.98.1/experimental-zstdmt.json": "a07e2942132bd9bf8708bdc5e762de99d93d99733c8d6ab4dfcc51ac9545d41a",
+    "corpus/evidence/zstd-features-2026-09-08/rust-1.98.1/experimental.json": "96b618701bd8abc1ecf5101a1179388db997ee9070238ab9c08d095bbb20aa50",
+    "corpus/evidence/zstd-features-2026-09-08/rust-1.98.1/zstdmt.json": "7978b4a6bffb6ae668a2962276a0d0d27de55cf988072a8259a9a235ff78f151",
+    "corpus/ffi/libgit2.c": "3db2580b12fdf87431ba1db15039f5ada94187ec173c61d28d780e060c0e39cf",
+    "corpus/ffi/libgit2.rs": "94b38602965061500d7cb5a8681d0cdddb7e687e0e38da3f549922c34492701e",
+    "corpus/ffi/sqlite.rs": "76fcba20933ef298f5e0e76dd1a9a1c10e20ba53e55fb5eff95447ca3c253cc4",
+    "corpus/ffi/zlib.rs": "f4032f7983b0c6382ff14ce987f3dd9932fc73bb68eb7bf8f343fe338247dfbf",
+    "corpus/ffi/zstd.rs": "e4b8788f35c7d97afabc511c94c931a1434e586ddd30861c807da5de62e0bd7b",
+    "corpus/manifest.json": "399dba14e90eef0375eff3229db1fd927677cd94e31fc98221a7d842b40260bb",
+    "corpus/oracles/README.md": "e2c807fe717456ecae3c6808472d6ca838b6b80201b9a4342b7bde52b259cf30",
+    "corpus/oracles/libgit2.c": "f87d624542b0d4416e6fa8649f6f9e6fe91c0da943cae0ea2e037815116453e4",
+    "corpus/oracles/sqlite.c": "6bbff73156f8eeded89327a178168bc567ef303c8a90c7940e2d93dc42bc77fe",
+    "corpus/oracles/zstd.c": "6beb4f003c4c3259deb2fa3ee2c12590968643ca5649ed8c1acf5269e7ea62b2",
+    "corpus/probes.json": "4997da498c8d548105be3b4e7ec637076e15dc79b47db3c089694706dab3cc99",
+    "corpus/translation-units.json": "511f9654c3c15aba527aafb33d89472dbc30d3b1d112ef4b8cfb201f5dfe88f5",
+    "corpus/translation-units.md": "cb4374321bebf0c10c053836c6db6a52efd8c756a98f862fcd4ba9ab9c53e525",
+    "crates/toucan/Cargo.toml": "402d149f1f171ec8e4cb84416ea91981099b9fd10f8933e0e1ce9236795a43b1",
+    "crates/toucan/examples/audit_translation_unit.rs": "7b64d6943befb9a403c66add8123ca5084ff1b2d8580696a78e13cf776a07cca",
+    "crates/toucan/resources/integer-types.h": "f9d8e279304812bf67d6ed901acc4cf8354a3f85e95b839a4b61186d51fe5c4a",
+    "crates/toucan/resources/limits.h": "4c28fe0df157fdb428600bf877ccdb6e6c753a03bc5ec62a86ddd86071af1e04",
+    "crates/toucan/resources/stdarg.h": "4923354e95ecdb7a521f7bd30b9433e926d90d14448e2f7b1bed1974144a7aed",
+    "crates/toucan/resources/stdbool.h": "0cf6bbc7c63649e8eb29fc304520281629618b124bd39fc986068aff96577182",
+    "crates/toucan/resources/stddef.h": "6dda7522c3e54c6ba4536f2879fc3a9e0cc8f58e4973904480de8116b31c2624",
+    "crates/toucan/src/lib.rs": "dee7cdbee8b4c2b93232f87ce0cb1c0aebecccef4f845050357de98566cd4f15",
+    "crates/toucan/tests/analysis_api.rs": "8111b617b46eec837b21d56033e004edb66429d98a3d93f33a6554682c8cd9d8",
+    "crates/toucan/tests/compiler_builtins.rs": "b76421d0d94fad1029d58691df256e335849e8da5e125a5a2c474de4de67e17e",
+    "crates/toucan/tests/diagnostics.rs": "a162c09d49be960c0248a2fb0580422a9d9ca0e018be4f5dd2aa8b68540ddd12",
+    "crates/toucan/tests/enum_constants.rs": "d8dd8a2b47840092c73fed1cb8b83919f94dc5da95ce8ec47ed0fb2baf99a926",
+    "crates/toucan/tests/floating_macros.rs": "86f57fd8b9dcc8cade60e9c9cec0869d5b2b98156ffe5fb6f7b336bdc48aab83",
+    "crates/toucan/tests/inline_asm.rs": "4bbecf2c3348fcaa5c173a1e33d3cbff57089caa930cd73cbb85605a4598b0ce",
+    "crates/toucan/tests/macro_shadow.rs": "ef3772b7b128fdcb7c5b3298617640ccf82cdfe2a4bf215e39f3abed31ab19e7",
+    "crates/toucan/tests/macro_types.rs": "dda9a813271a14d823f29e4ae5bb515729c19fa949c24c7d871d2774bf1fe1a8",
+    "crates/toucan/tests/pragma.rs": "1b57b3a849abb2e942c785857f1b23f78d3fa9132eb317bf1d0b5880db7d33d7",
+    "crates/toucan/tests/preprocessor_characters.rs": "baae1d665c742956c6de4ec1a4e620a104eb2771d45427086fc596fd913d0578",
+    "crates/toucan/tests/rust_target.rs": "a2d3795653a7339187ac1116cb60848a40b78967233188e17e2111ad1ed4ffb4",
+    "crates/toucan/tests/sqlite_options.rs": "34708cb395287f9644490d1f8bf71d6c6c8fe5978d8dc1270032b92a6d3010ef",
+    "crates/toucan/tests/string_macros.rs": "56c4fdb40569bd01dbc07257b661e1dd8217c1c4e0348caa8a83633ff4737d20",
+    "crates/toucan/tests/variadic_pack.rs": "348186cf68aca87fa6f25b303af827701587ee1de54e61e4fe21118a09ed787d",
+    "crates/toucan_bindings/Cargo.toml": "1d23e833f728f59625fdf57c4bdc6e22d6a3f2a6aa0f344b12d9cb12ebda125c",
+    "crates/toucan_bindings/src/lib.rs": "9cf88ca55defd0fd46b60aa46643643fc1593de9d91fc1207ffb900457e4f83d",
+    "crates/toucan_bindings/tests/aligned_typedefs.rs": "a19e75a280307548725917d16176283357bdb69f877edab0f0ba13a7086bf193",
+    "crates/toucan_bindings/tests/atomic_types.rs": "3b0b5baa1b6d2dfc04760e3309d3175e221091906c46ea8e57849681e033841d",
+    "crates/toucan_bindings/tests/bitfield_qualifiers.rs": "268877a586856445f7fc4d3742b5772488141b076051cec994c746cf87dc4323",
+    "crates/toucan_bindings/tests/calling_conventions.rs": "e32e2bc51dce2018f1b850abe7d2f0fa7fd03f27317b6570921cd758e5ae69c4",
+    "crates/toucan_bindings/tests/consumer_options.rs": "9616ebbdd0e20a01acc1223dbac461a4a5413bb530a46880104da46b094b13f3",
+    "crates/toucan_bindings/tests/ffi.rs": "67cb04b51a03ea5ef314f34807128a0b68cb23a488dba25f843da2d93bdafece",
+    "crates/toucan_bindings/tests/int128.rs": "515db12a542f0bb92468dce97ada594e1a75a30e5305ff20f62cdbcd0e45f03c",
+    "crates/toucan_bindings/tests/prototype_scope.rs": "6647da3ee8eda7b422886691a29ffeecd2234b0a038d68dc68038721c03dc852",
+    "crates/toucan_bindings/tests/returns_twice.rs": "be81dc93f924e000216a40197373ef792f3d4d7815298285f24a6bbdd9144df4",
+    "crates/toucan_bindings/tests/thread_local.rs": "c45697cc87a86365308302186c5a7c166ce31a8f93a4b4dc61f3b2977ff60ca4",
+    "crates/toucan_bindings/tests/transparent_unions.rs": "01a8f98989eb94ae49a8cc43f6b01d28aa462317f0c16da5277078980f1e67d5",
+    "crates/toucan_bindings/tests/union_bitfields.rs": "3b9bcca13512c5885534de6700bdb56c6a4dc74222c976cdf570846299963116",
+    "crates/toucan_bindings/tests/va_list.rs": "cc37550bd32a1a9e8896691dc769cc3904b92950229735cf3ea0d03ccdb8d610",
+    "crates/toucan_bindings/tests/variable_arrays.rs": "b69d15930ce629a03295bb895e30e69f43dacccc93f129134caea65e9bc750e2",
+    "crates/toucan_bindings/tests/vector_types.rs": "19e2a2d195e52e11f83d41efa4552aab67c3ea7c9f420ece11fc01addc734d2e",
+    "crates/toucan_bindings/tests/weak_symbols.rs": "229e94c8ae79f2b69f26c34828d67f830432973b4a0b07e59d67b10e65659752",
+    "crates/toucan_cli/Cargo.toml": "7c07eaf664af1d126771d67f9f0b74e33992528095782979d46cda2c109cda2d",
+    "crates/toucan_cli/src/main.rs": "095f4714f27f75817662ea3b363ee65323d7442ada6710de4becfc2b55f6d9e9",
+    "crates/toucan_cli/tests/checked_inspection.rs": "49fa66772f6640f115483f8b7524447cb5cba4b5e9b486437ec1c504107ba95c",
+    "crates/toucan_cli/tests/cli.rs": "9be3189835c7a4783ff0537f030c21045dedf699d74528884c75631440e45108",
+    "crates/toucan_cli/tests/preprocessed_input.rs": "57d1ab452d73e646076202ef843e0ebeb59164bcb12684de7ad70143681abc82",
+    "crates/toucan_parser/Cargo.toml": "31c0321d4edbdfcc9ac886e6d37c4fde6f7d6a4609525decab4ee569cef8ef18",
+    "crates/toucan_parser/LICENSE-APACHE": "a60eea817514531668d7e00765731449fe14d059d3249e0bc93b36de45f759f2",
+    "crates/toucan_parser/LICENSE-MIT": "23f18e03dc49df91622fe2a76176497404e46ced8a715d9d2b67a7446571cca3",
+    "crates/toucan_parser/Makefile": "af7bf964d02d24546e706fa7cdf44faccaa11a86230e95c836360d33747af847",
+    "crates/toucan_parser/README.md": "97e5cec2794a3b0e6d4f4ec3a30372a5ccd58a3c2a87660deb5ac633abe54541",
+    "crates/toucan_parser/UPSTREAM.md": "f300a46074aa5d77884822915721f2707f41793b6c8d5c5d1b38d40f738fa85f",
+    "crates/toucan_parser/grammar.header": "fe1fd4af4c66e6b967a452b39cc44716a776670a9a2eca7f68e9f41340950b05",
+    "crates/toucan_parser/grammar.rustfmt": "d2e6a5dc9332cf497051d8384a403f174626a3a6a6f50386e644ceeda688b287",
+    "crates/toucan_parser/grammar.rustpeg": "01f7bb111aef3b49313452851ddc7844a8389b7e2866bb1539f4a51edd5dc3e2",
+    "crates/toucan_parser/reftests/constant-322.c": "0fe745592afa67325122a49aa43f8209792b77f904e7a17314c3bcabfa2e1e85",
+    "crates/toucan_parser/reftests/constant-323.c": "420daed043438e86bc728f5fc328c6f921b5c1882c1f17e7037b47fc80402bdb",
+    "crates/toucan_parser/reftests/constant-324.c": "15f84b2dbee47c28fddc883cce483b39526ace62c0c3eb425687eae42b572118",
+    "crates/toucan_parser/reftests/constant-328.c": "d9f7238cdca521157e4045ed5ea515b623fe14bdae2d01ed704de405944fbc3f",
+    "crates/toucan_parser/reftests/constant-332.c": "6da7bcdf405a772515c36e8299e8ec5f0a047f9610041e884022933883975fd2",
+    "crates/toucan_parser/reftests/constant-336.c": "4a4561c5c52f0a08813a2cbc9946a923132ca04a6c74cb426d4e84a69ef8dc51",
+    "crates/toucan_parser/reftests/constant-340.c": "ea8fdb76fff9062818a99fe1f8eb3581eb9f4266ddb69a54a8c90cb88aa89607",
+    "crates/toucan_parser/reftests/constant-341.c": "358f69f3992f2edd435994e3e1bde2592c0f70d8e02da694667143a04286773c",
+    "crates/toucan_parser/reftests/constant-342.c": "81abf33912cf427e72505f93a05bd0be9e2c5e26769c2e51fad04b746939d14f",
+    "crates/toucan_parser/reftests/constant-344.c": "eab75178d575c4beefe97d499fc1c172cfeeec4cb771d14974517db5e9d1dc81",
+    "crates/toucan_parser/reftests/constant-345.c": "50e74bc7930090cf33ac7e7fc087c002087b9e6f1cfbd763b342ec27a969e55b",
+    "crates/toucan_parser/reftests/constant-346.c": "18c1633eac79b167ee99a597fa636873c7467d9aed8e9012d95c5c0043f4da3d",
+    "crates/toucan_parser/reftests/constant-347.c": "1f4821658294bafdeb90edd07dfe4f49b85fc1f81c8f03cadaf6c80d25adbd7a",
+    "crates/toucan_parser/reftests/constant-348.c": "7f7ad8da5969722974ecbd1a1f95e63d9f560fc505fe69d64f18f778d3191329",
+    "crates/toucan_parser/reftests/constant-349.c": "567ce509266aadafb52aa041b0832f58fe7f8b70ae15723a25530905193c3c3a",
+    "crates/toucan_parser/reftests/constant-370.c": "2103fc6d990c1221cd0a334f0fa60ad47632f64dc1be30488b252ce5c1b299e0",
+    "crates/toucan_parser/reftests/constant-371.c": "e039537e4f4b45f45a3c65cb2b2a6755bad83db72c228ec86cbd2e0a305e176c",
+    "crates/toucan_parser/reftests/constant-375.c": "0a512a92880186ad204908c3c1e3f1931bf00179f16bb9f2c82d64b8f59837a1",
+    "crates/toucan_parser/reftests/constant-376.c": "4517343700d4d92f5477ecd9cffe85b34e7529fc1ff2fb751b1435076842ab35",
+    "crates/toucan_parser/reftests/constant-380.c": "04be86e61f5aee62d18c49ec929ade7ad746d3d0c8813102ec407f5366a4543c",
+    "crates/toucan_parser/reftests/constant-381.c": "765a863491637be6eb2142f3a6c9fffd6b54365776e52cd92d49b83ea5e0a4cf",
+    "crates/toucan_parser/reftests/constant-383.c": "6b6c78e32b9b1e23f004f960a2637c918be0c20089db794c615af6bb72f9f2c7",
+    "crates/toucan_parser/reftests/constant-387.c": "02a6b07d2aaf62cc030834c13315f55734c3a3baf07d64e5e4c7176720c8537d",
+    "crates/toucan_parser/reftests/constant-391.c": "a5322dcfd79f63c89b92e434b62328514487f43c45c930c000d59a7a355c161b",
+    "crates/toucan_parser/reftests/constant-395.c": "4a8783e7341449a0804b3626a918d08aa6d595c96f2fe2b65440ac4005f78197",
+    "crates/toucan_parser/reftests/constant-400.c": "80eeeffa4a5b5e72951250ad52b414a5796191e973a1dc1a92d41a21de026b2f",
+    "crates/toucan_parser/reftests/constant-404.c": "05699a61e773a50995640e9c62068b55c7ce5618a61c6b0df11840b6cb801578",
+    "crates/toucan_parser/reftests/constant-408.c": "ed5abcf16f3c8b2772e7b8338d2631ab38bf936de8a87f6081d76d353a3e01bd",
+    "crates/toucan_parser/reftests/constant-412.c": "712969f6d687b1b9bf4464f11b671bff7506c72801204f9ca14ea34eae39c7b9",
+    "crates/toucan_parser/reftests/constant-442.c": "7dfc287441726ec528dd0d4fb0b95ae75398e7324ed692deb85711e6df5af9b3",
+    "crates/toucan_parser/reftests/constant-446.c": "6e9ed22244178b4599659a8e0f2cf7b0d74e035cc2872823e0c2141c4f2b4b30",
+    "crates/toucan_parser/reftests/constant-458.c": "cc17debe6666f8f4a83baaf787535b20f5cbb3d43b99415256932d09d157edd8",
+    "crates/toucan_parser/reftests/constant-459.c": "bdde916a371142774bc2d416a09a4a7224499e98cf530faade025bb2ce02a64b",
+    "crates/toucan_parser/reftests/constant-460.c": "55bf181688e2186226d5c79355ce9c654e455ab02731f214431dd9ce7b2454a5",
+    "crates/toucan_parser/reftests/constant-461.c": "92566a1a6d34c4e922817cdec4b08f5986623242147b5a7c3a060ca94b899599",
+    "crates/toucan_parser/reftests/constant-462.c": "bd509ac363207b506aa776cd16aa8a89602079b66fc30efa25423d3667c712b3",
+    "crates/toucan_parser/reftests/constant-463.c": "f2597a0ec871f218db7f235fe6c1acdbdf3fa37196847e0b93585d4ea94e3792",
+    "crates/toucan_parser/reftests/constant-464.c": "b3c522155ad5de6aa977af2cd9c755527fc93b2433881d94e4ab2df107ce6c7a",
+    "crates/toucan_parser/reftests/constant-465.c": "bd6b09ac3023f0d262a6d33b9f98b1d966902d338cdfe0900b0a6a0616974e9a",
+    "crates/toucan_parser/reftests/declaration-1080.c": "4ef63a75596ef29a96e2b14a4faf46d202e251e85a0392a1847e5287605f7454",
+    "crates/toucan_parser/reftests/declaration-1443.c": "08c62e60b2392b87c65d15ea942b981c8480f7b3fe43b6cfd9744ec6c41883c9",
+    "crates/toucan_parser/reftests/declaration-1610.c": "122e7874ac3aaa5ff8d1ea01a14d0b2b707516734681fd0dda6fa1d708fa86f5",
+    "crates/toucan_parser/reftests/declaration-1847.c": "6f3b323d4bb471d93c6c58272d95758a4470b342ff23ae16219cc6d7349144a7",
+    "crates/toucan_parser/reftests/declaration-2243.c": "0bdc42dd89191a3cd2536f24642ba1fcdb47573d223acbe73f7340dcff0fd71d",
+    "crates/toucan_parser/reftests/declaration-2321.c": "e866ccd36029161231201f0c7121979bc3e223a3d978fdedfdc0ba2d8938f588",
+    "crates/toucan_parser/reftests/declaration-2429.c": "ef42dc8fac708d81ea042daad493b9b96a76b0194375655f195e276c05a84bbc",
+    "crates/toucan_parser/reftests/declaration-2477.c": "bcbf9b0f6ef3317d60ffdbbd2697e6ad883245123c2db06b20d364a8581ae13c",
+    "crates/toucan_parser/reftests/declaration-2508.c": "808c4115e0d4739291bf07cd948a43cc2f806a571ef99b4f299982d7f97ce20e",
+    "crates/toucan_parser/reftests/declaration-2512.c": "babdb7589294817840f4d1242926cea95349454797ed53698b19865fcc8e3b18",
+    "crates/toucan_parser/reftests/declaration-2594.c": "2fbc0ca050d9bae778d03f4dcb05eb634882f4dd92ea94c51f471529e826088b",
+    "crates/toucan_parser/reftests/declaration-31-field-semicolon.c": "038933617099987daa6246f3ee4031e5c82b38a9d0390124d689e8d0d4e4aba1",
+    "crates/toucan_parser/reftests/declaration-31-ty-attr1.c": "5464172d91ddceb743360504e5594e8c10c4cddb844fe56419edf616168b7f3c",
+    "crates/toucan_parser/reftests/declaration-31-ty-attr2.c": "8fc3a924c660770ff70d9aa2c310778380df2ab09cefd64937d5ccb9e77722ef",
+    "crates/toucan_parser/reftests/declaration-31-ty-attr3.c": "c4428e4117f2847adc55c6b1002108b89eba5f2b777460abefa53bc1f4d217a5",
+    "crates/toucan_parser/reftests/declaration-659.c": "30abbbda7fae4d33ce2499adea4c78cf2c466fceda0b9d70383d4df59d4deb98",
+    "crates/toucan_parser/reftests/declaration-714.c": "3423126ad5e94c0d2f5dddea129eafe16b530e5e616c9599ae51f91a83932281",
+    "crates/toucan_parser/reftests/declaration-760.c": "86683a0b97bc9858abfa632084b203b3d7f3d968d240411f6b259d56863a4857",
+    "crates/toucan_parser/reftests/declaration-837.c": "41b25599c7e904a74fe03b7e78b86fcead549483372ce417baf03a5f56a47d92",
+    "crates/toucan_parser/reftests/declaration-855.c": "b9ecca3af91c791d69ba8c21cd076122318ebb18a614005edd93213814e4d3ff",
+    "crates/toucan_parser/reftests/declaration-880.c": "6271eea79b2cc866f4f387db32fc4708face96b9eeaab893941faa0505423d69",
+    "crates/toucan_parser/reftests/declaration-983.c": "e4bf97e09ede5c61c7574532f9e28e10f28c924e956d5cb0de050da4996c2106",
+    "crates/toucan_parser/reftests/declaration-block-2.c": "dc5da4cba37351cea2187cf8abf5a911fad1c1067fd93525f514709649c8cca1",
+    "crates/toucan_parser/reftests/declaration-block-3.c": "e684bc54991c28196345906f4eae555e467da76ee553d3e38c58e8b7c8530e73",
+    "crates/toucan_parser/reftests/declaration-block-4.c": "0b70338e938be61b5db3eff743fcd2e58beed0b94103ddf0c863debeff3fd049",
+    "crates/toucan_parser/reftests/declaration-block-5.c": "98074e23cf2b9f07490e6593ac5fb4a0e16831fadb4be45ffeb0adce54799533",
+    "crates/toucan_parser/reftests/declaration-block.c": "8399ccc6f253e0976fa66d671d54f898ee7b7918032ba17864cc95535d675bae",
+    "crates/toucan_parser/reftests/declaration-enum-attr.c": "55217da6085b6fd3e1ff5ffca8a882e4c77f7b67754c1895c1b420156b637ce0",
+    "crates/toucan_parser/reftests/declaration-ptr-attr1.c": "c31ca47eb726ca6ff5fce152bdc73dbb175521cee8ee4bc61594c0bf5942433f",
+    "crates/toucan_parser/reftests/declaration-ptr-attr2.c": "b07cb638410c0648bdb668c68a9542c931510266120715db4f732bf45f97da5d",
+    "crates/toucan_parser/reftests/declaration-ptr-attr3.c": "398bd27e163b20c0a6ba6599542d6b9747dee7009b7183efcb6b34982c623558",
+    "crates/toucan_parser/reftests/declaration-struct.c": "105e8b1a52b54c06899c5bbbb86256a2ba29d7f450dc81752dac8902bd99a8cb",
+    "crates/toucan_parser/reftests/declaration-typedef.c": "93e80092553119ce303652c1bd2a368c22268e5378cc1e3901075b31ced2dfd9",
+    "crates/toucan_parser/reftests/expression-1295.c": "9f30b30845d513692d3d9a4dff91db9657982977b014350d30afd23a854b210e",
+    "crates/toucan_parser/reftests/expression-1307.c": "c09e0fc448b1e4b95041d0c9e5c55130b48fdcfe11de3f54da8bd1f7b40e8b05",
+    "crates/toucan_parser/reftests/expression-1319.c": "7465dfe6daabfb024915a1d9fcee2b0bc893a2b31c4ca38cb3c37aca3649e443",
+    "crates/toucan_parser/reftests/expression-1338.c": "4201f4d5066791e247fe43f72ca8a126615e790952f241490470a64ff75b94b5",
+    "crates/toucan_parser/reftests/expression-1370.c": "84da6632cd0c3d587af3a501a124aade9495a0e6be9165ecccbc6c8935041fa3",
+    "crates/toucan_parser/reftests/expression-1523.c": "fa97ad74c7ea4ca516e187d308452fdb5baa2f4e25fc0c06577f159ca51ba9a7",
+    "crates/toucan_parser/reftests/expression-1595.c": "598dad4ebcc8c1761fd64f3b10dabe6363d4b06263e7dd425ea2f39e158da431",
+    "crates/toucan_parser/reftests/expression-2224.c": "44f35d35b17bff6b68323ca810dd97b337cbb228d0230b8243670ffb7f089df2",
+    "crates/toucan_parser/reftests/expression-2229.c": "bf0d53204def6b163e00333c60ff7a6b6e2fb51bdc54fa134fd9c0e326b8f6eb",
+    "crates/toucan_parser/reftests/expression-2234.c": "f99ff4c4053b8db9fe875cc05429f81f4dc11972b2550c3b00f6177d17ff561e",
+    "crates/toucan_parser/reftests/expression-2546.c": "da4fd26b47bc2abc4b9758a0b9ce3f478f765a31b2015e19d22a5ce9db02eb4b",
+    "crates/toucan_parser/reftests/expression-475.c": "bcd4cdd67f33b1b007dbbca2495f8b67e8ed2b250d9b302575c087c7dd018146",
+    "crates/toucan_parser/reftests/expression-476.c": "23cce0a1f3b8f17f0aa68a0c46545371dd639a25cabcaa69046c5defe10d93aa",
+    "crates/toucan_parser/reftests/expression-477.c": "168335607c9e318039eff39e465e4980fc37d71b0cc6584adfe52ce4097ff639",
+    "crates/toucan_parser/reftests/expression-478.c": "340678f8122ad0b1ef5e35bc7ea0d4c52980ec15c432a495a31edd3d1a47c797",
+    "crates/toucan_parser/reftests/expression-491.c": "716974de833c18f278ab19cbfbc4a882b8011b6abdb838abd65559f47e00831a",
+    "crates/toucan_parser/reftests/expression-495.c": "c86801f33baf28e648ad6ffbe40648820f204a45b3640473440ca9b8bfd39c95",
+    "crates/toucan_parser/reftests/expression-517.c": "c7cee01cba9efb47aacf151680460caec857553edd33e2bf2b59e56d11baf980",
+    "crates/toucan_parser/reftests/expression-538.c": "4e54132023b03bbc298af4f8cea406476f07522b262d38506fbc5ae1e969bde1",
+    "crates/toucan_parser/reftests/expression-551.c": "d57a07edb916f5ce60178aa0a3cb2a62674583139c6bb632c7de22f746831509",
+    "crates/toucan_parser/reftests/expression-567.c": "3f1ab741fec722148b404a78d64af6c2e06137f2e2292f6bc1e87e3d6ed1b28f",
+    "crates/toucan_parser/reftests/expression-583.c": "9f726734914e58c7bd5998c716996af400cf3446f8e58d7fc0eeb7eb514a1e52",
+    "crates/toucan_parser/reftests/expression-599.c": "1900b7e02da442167130bbc1811fd57a680610a5a165cc85aaf41e988aadeddc",
+    "crates/toucan_parser/reftests/expression-616.c": "4454888c1abcfeee92c7fedc23ee5543e2f1578f45c972d1c96c6a65189f0b68",
+    "crates/toucan_parser/reftests/expression-617.c": "77de3c649e1149fda7bdc6112102ead93359b0ece91cf24ce287efa25a310d0b",
+    "crates/toucan_parser/reftests/expression-632.c": "477b0d98331be0990aaf7b764c38fc78bc718093e94c52d79caa4d1fa68c1ffd",
+    "crates/toucan_parser/reftests/expression-645.c": "6d5a75eb99cdbbb1997b8380cec0d77922645c72742a790aecde2550042c2893",
+    "crates/toucan_parser/reftests/expression-ident-const.c": "a2313cff3eb14430f857e07993114a67f010c9c2b9a349e72ad2f2aa19adea8d",
+    "crates/toucan_parser/reftests/expression-sizeof.c": "2942037df124536ceb7848d884ea1f8a0c0e62081a5026eabc616bb9ef5035e9",
+    "crates/toucan_parser/reftests/expression-string-1.c": "38a9c1cd8a388bb8dc4c044b56ff566c9c01a09a42d07d0eaa2b1e8f070ae626",
+    "crates/toucan_parser/reftests/expression-string-2.c": "b7cee0cb5ba735b5a827154a94c552ca3f069d20979d71240fed959397642c0f",
+    "crates/toucan_parser/reftests/statement-1408.c": "4157eed684695c89483d05ef98e4d72830b1aca0c19f262211b093a9ba65dfcf",
+    "crates/toucan_parser/reftests/statement-1650.c": "1f7d4d418dd6660135f1e24285981b5188b79e98e54a68b758dfecf500667fec",
+    "crates/toucan_parser/reftests/statement-2625.c": "af81b714cb48e2064c3c3129587e0c414f4e4f179a261533eddb75d984bf8803",
+    "crates/toucan_parser/reftests/statement-2669.c": "910932c63c8260e166b57fb9d1084922e5f4c50e00b6022303dabb5b7c17050f",
+    "crates/toucan_parser/reftests/statement-case.c": "fc831c3612db1bf10f2984cea2de49317d44aaa3ab397c2400d2201c0a77faa7",
+    "crates/toucan_parser/reftests/statement-case2.c": "ed66288a1ab81e66c1eda1c312121190cfa09c92a94c7d5d93d0df7a8ac2fe4c",
+    "crates/toucan_parser/reftests/statement-caserange.c": "c97631b9e91e60499dadc9620a12db77cca437e9959a5ec9c92e20c2977f3716",
+    "crates/toucan_parser/reftests/statement-caserange2.c": "bd8df551614ffecd431c6950a83534fa590ad1ed78ebd21cd48a253761aba71f",
+    "crates/toucan_parser/reftests/statement-caserange3.c": "96a1152f9568f393e5719ad6d581756f1518bb4afb827cdbe632c8c8e8cf4b80",
+    "crates/toucan_parser/reftests/statement-caserange4.c": "ae627a43e582a4cf247f913bd9edcc073813daadc26210f6392d2def06b00df3",
+    "crates/toucan_parser/reftests/statement-caserange5.c": "04aca8c74bd1ccc2a14327b594aace156016e97c78001decbf0e7302926b2e48",
+    "crates/toucan_parser/reftests/statement-default.c": "c5337439a1650881531bafdb4ef956eb6b002531f4ea424c0082e75d7b47b6d3",
+    "crates/toucan_parser/reftests/statement-label.c": "f6fbbafca5e323e1c4ef122c6a8480321f5018bf300f75b457c0348b410164a9",
+    "crates/toucan_parser/reftests/translation_unit-1183.c": "ec1e337034a1735239f01173a941f1eb11d08ac3bbaedf62df4ad0cdf5d6be0d",
+    "crates/toucan_parser/reftests/translation_unit-1388.c": "97e504056c32552c8e545b5283fc96c995dd45c2d2027118a4b034d03ccddd4a",
+    "crates/toucan_parser/reftests/translation_unit-1692.c": "4da0dd04699db9afea586593c34a7cb2fea7c5541fc480c2851a7451c043fac0",
+    "crates/toucan_parser/reftests/translation_unit-1781.c": "777abcac3f4ed3e4aef0171df7ce3f1a4ebd62917eb911a08c4a23b3ad4a5970",
+    "crates/toucan_parser/reftests/translation_unit-1961.c": "4dbd04ad54ff5a11500b41b96cb2051ebb2b467b7b60eab110226e2907378b3a",
+    "crates/toucan_parser/reftests/translation_unit-1993.c": "ed2ab6d82255ca80b6aeaea630dcffc9a3db4614ec1740ea274b3de787d574af",
+    "crates/toucan_parser/reftests/translation_unit-2015.c": "c690e62b93559ad4cffe87742a68a5534034b70568cee9706460def76f7bfd29",
+    "crates/toucan_parser/reftests/translation_unit-2029.c": "221b79e4760484ffb1816429fde68d89b38d0915fec454d2c826647dc3bb9b4d",
+    "crates/toucan_parser/reftests/translation_unit-2045.c": "904dd96c1e788e077ef6ba41db545acedca718ba8eaf4691114539e580d70032",
+    "crates/toucan_parser/reftests/translation_unit-2060.c": "df36697333058931dcf41ad211f4441c37a339dd99ba13fe39b7e33e905fb3cc",
+    "crates/toucan_parser/reftests/translation_unit-2070.c": "ab0a579117ba1b8ae20482a136dcb1b1fdf46db62ec1762341f09f66acb5f695",
+    "crates/toucan_parser/reftests/translation_unit-2086.c": "37c21998292c285b524d9083e49ebeff7a4aecce87dc95b6e26907d9cdf951f9",
+    "crates/toucan_parser/reftests/translation_unit-2103.c": "b9fca6d9ca0efa9d0a08bcb27dd94f9c7840869c05c16f92b300843dc14aecaa",
+    "crates/toucan_parser/reftests/translation_unit-2114.c": "03f4f7287e7201c8f8c14f18a6435febd7a44711f3d9b13ba741792ef7b96fb1",
+    "crates/toucan_parser/reftests/translation_unit-2129.c": "0e50b448952d528ae798b97288a2d0108ec081768834d50a72f35cc497faf083",
+    "crates/toucan_parser/reftests/translation_unit-2147.c": "ea5dac0d3c098a86160254420fe2982f852c0b808c7d79e6d593ad06be53f4d7",
+    "crates/toucan_parser/reftests/translation_unit-2167.c": "3266d45343156805d44f1dd14163d88888967e0a35c6a1a1f4b99d3f8e1d3b68",
+    "crates/toucan_parser/reftests/translation_unit-2190.c": "c8457f8df84345529212c10a9dc76efa20ac0dd23ff66474a0b72ea5f0d024be",
+    "crates/toucan_parser/reftests/translation_unit-2208.c": "82cc1783ebc0768354d67519bfd81ad856bef55f7b7f1f38638458de354b67c2",
+    "crates/toucan_parser/reftests/translation_unit-2270.c": "350c5de474274979c385cb3374d33ba3711c98e661bd9c6f4f394d2fe8e01e78",
+    "crates/toucan_parser/reftests/translation_unit-2300.c": "17cd4782ea8977f70f7d253e04502bec95bf944d23d16938c7bb90030c815beb",
+    "crates/toucan_parser/reftests/translation_unit-2373.c": "ca2abbcaddc9ea9e123862979e0dd7cd3ebb1aa34d175a0e342253863270a7e3",
+    "crates/toucan_parser/reftests/translation_unit-31-semicolon.c": "c3e9707b6153ae4143d9a1c8211e06e9e4144a238c0e8746cdcbb444c4bc5cb2",
+    "crates/toucan_parser/scripts/instrument.py": "69c4624af8fad3a0f8aee68205d8568749dcbfc12f7f9298d19fa18cbffa83ea",
+    "crates/toucan_parser/src/ast.rs": "ba0f0dd6bc1631b48d792a094db7e995b6e40f16edcbc72fd373a1dc5009fab4",
+    "crates/toucan_parser/src/astutil.rs": "76b3ea93154ccf1be356a5b8e4dbf1deb6a4e826d995436b33fb3fdb86f66f9b",
+    "crates/toucan_parser/src/bin/dump.rs": "d291595ddb23b6da5b7caaae46634d7e04f05495b19258d1aeecca8616af998c",
+    "crates/toucan_parser/src/bin/meminfo.rs": "28614fb48cc4a3870ed8f847f13e9b6dd3568f599689cbcb9d36331eae8b0571",
+    "crates/toucan_parser/src/driver.rs": "69b1e465292aac63b4af9ea32119df757e732c6b247d21d7a9d1d71582efbf11",
+    "crates/toucan_parser/src/env.rs": "d44c5d1bfca6dc27de1bdec4941818b3e1a746685a6570e459e0398305b2dc08",
+    "crates/toucan_parser/src/lib.rs": "931a9a9d4cd3b9793dafefaf5e72dbbe23a2ad248ed7d10cb74c35d574c13969",
+    "crates/toucan_parser/src/limits.rs": "11463bf3ae7c7714b4c9ad19f7f2ddf836b91880e621a40464c376dd14c06aa2",
+    "crates/toucan_parser/src/loc.rs": "2e6629ee87f17c940ca857d17d1f1b8368c1869323ff5991e6d3482bbe7d598e",
+    "crates/toucan_parser/src/measure.rs": "5250275f7686468700f4a5e88f3f8f657a4093d7d6299590a918c10b5abf8bfc",
+    "crates/toucan_parser/src/parser.rs": "ed5cd327b8cd47dd0a2e08bf30e33cdfcc5a9bf1a90e7c4f0461fbadf6eaf245",
+    "crates/toucan_parser/src/print.rs": "98d8f3939814d69922fbba6ab6dc1f705f9d4ea98cc996fa602a0dbf307b9090",
+    "crates/toucan_parser/src/span.rs": "55709b3ec6a74577ed4b333f635779daf78471ec4861f30857a1a53955e02052",
+    "crates/toucan_parser/src/strings.rs": "d8a326e82fad9a48ed1318adf7e3fd081790a96d9272fe29b3f7cb5d0e8b8f51",
+    "crates/toucan_parser/src/tests.rs": "8af70ea9dfb6b4cf2723f868088acfed93fc76b40f9707900d2603a36cc576ab",
+    "crates/toucan_parser/src/visit.rs": "e2a0baff89b628fe45ad20bc50bdf41165350b7819360f74170b4b3a8e25c4d2",
+    "crates/toucan_parser/tests/resources.rs": "eb7da2fab7b1b553bee55bf68f5d8a7573b7f2b12d805f428d6779d0d379ee16",
+    "crates/toucan_parser/tests/typeof.rs": "3ae69c57362ec00e0bbef375e89d351bf0a290dd14d339a371c4e507b513fd9d",
+    "crates/toucan_preprocessor/Cargo.toml": "c6a1cd9f72f26cbfe79ca6742acc7d55f576719de1d5f74d3b9a0f1d56cd315c",
+    "crates/toucan_preprocessor/README.md": "2976ffaada1d4834abb88a9df382216f516d06efca2d8d7d26d6c8dcc51e2230",
+    "crates/toucan_preprocessor/src/expand.rs": "9e059ee0ed804c72bad40b66a2d83552b441060d42bbb9249273a7d5b65ed85f",
+    "crates/toucan_preprocessor/src/expression.rs": "ad9a4b57e41017f11337b403acb224224261c4c068b26da10d269fc3c141d1b3",
+    "crates/toucan_preprocessor/src/lib.rs": "a04cede422cb80332f4904b567e35cf15db06ccbeccf91d236199c3c48112900",
+    "crates/toucan_preprocessor/src/provenance.rs": "b924ad4df444cd1127fc6334654d8921f784710088fa0843ef72de35a3de10a6",
+    "crates/toucan_preprocessor/src/tests.rs": "4d8268f417e5200aa95ba0cd47e93681a1d1499bb0afe59cc37112fc8b31addf",
+    "crates/toucan_preprocessor/src/timestamp.rs": "5e52c2b812d3fd88263dd35d51c13a9c8d9b35192d5d985e1b9d2a2536d769fe",
+    "crates/toucan_preprocessor/src/token.rs": "05643f0dc6f7d45ece3e04c45bc4743542adef83d7f6c50310739afc00090b8f",
+    "crates/toucan_semantic/Cargo.toml": "2b3dadae603732769df9019546d3c67c3db2d97ae573930cb0831cf89dca1789",
+    "crates/toucan_semantic/src/analyze.rs": "b8c78682506482360977e150d43423efdc4273150780ba1a1da923a39dabb817",
+    "crates/toucan_semantic/src/asm.rs": "92b625b8e53f5d04bac58728803448e3ced7e17d1961452110d9a11d00c3c6ce",
+    "crates/toucan_semantic/src/atomic.rs": "b2928bd1993d22a65f40a220a65fdc3193f7c97ebdd283c3a2c6269fc8777969",
+    "crates/toucan_semantic/src/atomic_type.rs": "5c7a96f5282eb7f488cc86792a2643493415f8978af4382e809b8568ff0ff01b",
+    "crates/toucan_semantic/src/builtins.rs": "7a2de3808f3b8051ef2350508ce00cdd34c2d49c3140dd857adbad2a58d9e847",
+    "crates/toucan_semantic/src/checked.rs": "674cccfd7e1e31e23ecc9250b689dd0dcc4210e10a828fe02024bd6b8b2358b7",
+    "crates/toucan_semantic/src/checked/access.rs": "95aad73d4c5f02844d9cc3d489d08f00b18bfc4eb04e157a139524f5f6e32d7f",
+    "crates/toucan_semantic/src/checked/attributes.rs": "879851957cada1bffb55c2b3c80cc5f78e62f4bfe7dd8e789901a146a78b4276",
+    "crates/toucan_semantic/src/checked/bounds.rs": "64a6598fe69d6272464514a21df05921b5602b8644c0f4b047003b158baa2730",
+    "crates/toucan_semantic/src/checked/expression.rs": "1b4d50b1ceb6a2955ddfef3016058b6fc65fdb1edf53f688865494254ac43357",
+    "crates/toucan_semantic/src/checked/initializer.rs": "b7e349e02a78bab2df9367c9add3ab0c93913e6b457014cd777ededa92c326c1",
+    "crates/toucan_semantic/src/checked/ownership.rs": "c380f3197c1b7713a4127f1c7d7c2e3680805aa05d34da5a2749e089e4950665",
+    "crates/toucan_semantic/src/checked/query.rs": "c55fff3522728c44ed6380ee0308076a1c1950a4bbecea1870d630da34d53e23",
+    "crates/toucan_semantic/src/checked/references.rs": "16d7798669dcbf74858b550f91d26502f9e696a6f9f234515a2f12aa729c6cd3",
+    "crates/toucan_semantic/src/checked/statement.rs": "298d45ba09aa3029ce680426b57ab08121ece4afe349c25b31267df0a53a6a7f",
+    "crates/toucan_semantic/src/constant_query.rs": "496098bd48adc778f3450906e240307041cd39dcf6d2117e40ac500ac1fe4749",
+    "crates/toucan_semantic/src/expression.rs": "9f255b3ba3997920beabd42d8f6ae502db3901e05973ad71bc23386cc1bfd952",
+    "crates/toucan_semantic/src/floating.rs": "0d11147fb80109f559c2f917846e63bc78bb99206ee8978f596a77e126d65e75",
+    "crates/toucan_semantic/src/floating_tests.rs": "858241d29e75a105a28433cd1afeca31996923488c0ed36c68e803c2bf9c4958",
+    "crates/toucan_semantic/src/fortified.rs": "1fc0ac4fcabe0dba5714a308918f22ef50f2eb0855a4782770e7e96290c9cdc9",
+    "crates/toucan_semantic/src/initializer.rs": "66dbf34d966ce824ccb8d65a295729c329819b04f24b92ef19be617f0154e5e9",
+    "crates/toucan_semantic/src/integer.rs": "260052c9d48b5232562aed5c4bf1bd78c53fd896d44a600b22906a86e9b1468e",
+    "crates/toucan_semantic/src/ir.rs": "e03ae6ad491099a526ae7ab1c225fcee2674827cb4d9556a8b4891569f9914d4",
+    "crates/toucan_semantic/src/lib.rs": "b7b4a38f293888879132d8ff0ed5221d21a11d635aabf885b79aa18786cfba21",
+    "crates/toucan_semantic/src/literals.rs": "578657d1c11d5aef3c487dc9f3a58f1dd42b1bdaa9c92e8353d568683ead8fcb",
+    "crates/toucan_semantic/src/object_extent.rs": "47ece05b3b9a1c0d502b4fcee6fa63b500fe608a62272a1d4e5587f39559fc6b",
+    "crates/toucan_semantic/src/object_size.rs": "2f7640410c0092ce0c58d95ae396de392ae0897e82b4479f058224a783746eb8",
+    "crates/toucan_semantic/src/overflow.rs": "65c0d5c048644a1c6033fc1192242f0430de79d6db931607df4c55de37faecfd",
+    "crates/toucan_semantic/src/parser_extensions.rs": "2e2edd79482c0e712bf3c521a113d05cf8d3587d49d3c9436b0371d961d0f4da",
+    "crates/toucan_semantic/src/returns_twice.rs": "74625e4a9ec40b69428c9655e72fc641dbca8452c1dcf00da2d9fe83bbc029ae",
+    "crates/toucan_semantic/src/statement.rs": "f82888bff450cc6b3ed936b70001b24b00db0f8f26b81ff5db04938f66c2914a",
+    "crates/toucan_semantic/src/sync.rs": "33f567fa4413ddba2c7082a5e01de77f473349c5416b26a58ebe6636d442d275",
+    "crates/toucan_semantic/src/transparent_union.rs": "72b73883c50fd19f234ff3f285e145e9116e15325ca69f84b1c104490abebcba",
+    "crates/toucan_semantic/src/variadic_pack.rs": "581d094dab39ca2e7ff49a5a7c7c96ea7168d5633c9a3b0dda3a4fde84501523",
+    "crates/toucan_semantic/src/vector.rs": "31a2144a7a0a37589e159342265430170a08d4f81b995264518b9e8e3d6fa21f",
+    "crates/toucan_semantic/src/weak.rs": "cc03240f3f6eabc888515d77750c9b1cac7ca7b12600ec6200d852e0c986091f",
+    "crates/toucan_semantic/src/x86.rs": "de1fe8734845c2fb19f764fe96ec770adecc95b8e576535efb9d425ae2d35f13",
+    "crates/toucan_semantic/tests/aligned_pointer_conversions.rs": "a8762969a0a17bbcc10ebcac4d7aead1ad8e9f492076b7d29932a50a7766b43c",
+    "crates/toucan_semantic/tests/aligned_typedefs.rs": "c14d42f97c1ced94dd7b8a04b3d9b42f217a72a2f45e6f40ffdf03235cc3279f",
+    "crates/toucan_semantic/tests/analysis_api.rs": "99c90498273d6729afe488952f811eb1e7d3a602cc2822e660b83f903937588a",
+    "crates/toucan_semantic/tests/arithmetic_conversions.rs": "16ad61288802aaeb662d923f7542984160dfd2cb226574ced7c4bdc198904d23",
+    "crates/toucan_semantic/tests/arithmetic_query.rs": "9788800bf1968a408057295e177eb7a8e333c26ebde24a9874f259bd313eae09",
+    "crates/toucan_semantic/tests/atomic_builtins.rs": "5da1664cd4db03aa4c98afcf6641931e4e8c0661e71f2ea1267507c1ae982ef0",
+    "crates/toucan_semantic/tests/atomic_types.rs": "c14308f615e3e8e5fd00ba91592694dab1da1f819befa2eb35d29f5fcecf3d59",
+    "crates/toucan_semantic/tests/bit_count_intrinsics.rs": "1455c14c3db3144bcc94a7e5ba4c20dd73ad1f0513a2c118f95f60b5789f012d",
+    "crates/toucan_semantic/tests/byte_swap_intrinsics.rs": "4f05611bca69d2808ed21adf9c085f4af04dd767775aa8ee7447797108015a9f",
+    "crates/toucan_semantic/tests/calling_conventions.rs": "026303b38556d469696ac641d7b4b60f387fc29a18944c0193f9c88a5746e80f",
+    "crates/toucan_semantic/tests/compiler_intrinsics.rs": "fe51f46f133814cd9049196c6866382bc8632d7c960fa22cdb51883ad6741de7",
+    "crates/toucan_semantic/tests/constant_query.rs": "9b6e0b64a503fa8f8442fdbe40621bed4b06dac311b1a862de8666fc0ef5b721",
+    "crates/toucan_semantic/tests/declaration_constraints.rs": "c34397613c6862f006ecb0c08f3efcc1ef89371d3050511ff802ec063ec111ac",
+    "crates/toucan_semantic/tests/derived_types.rs": "efabc8b8b6d5a95a3b8760b205a358bb6b915088eab45bd1aa09926e6584f9c8",
+    "crates/toucan_semantic/tests/diagnostic_attributes.rs": "498236aa8c3aef6cfd1e80bc41b027229e862a16e744a9b7b3539899de5117c0",
+    "crates/toucan_semantic/tests/empty_definitions.rs": "97f4d8643a6df4664bd19976204654c4e03aea399412f4b7799d11c37d9c7cec",
+    "crates/toucan_semantic/tests/expressions.rs": "41b6ea34c917a30120c551a570bf518df5d3d440db54aaa160977530f2fd6a71",
+    "crates/toucan_semantic/tests/extension_casts.rs": "9fe28a1e3b3ec4b3e27224dbeffe72c9989f887c709562a808dbaa57ebe4fe48",
+    "crates/toucan_semantic/tests/external_regressions.rs": "674d130c8a9a886f52c84c3d50cd3e0b15379a22085ccfbf451dc83c28360f1f",
+    "crates/toucan_semantic/tests/fallthrough.rs": "13a61d31b7bbd17d3849f99efeeffe8ff8f3e306d17718b02b0dcafe2b48cf81",
+    "crates/toucan_semantic/tests/fixtures/sse_builtin_names.txt": "8656fddd2a37be72f8fe089373396392856ca660bd30da1471afe299257847b9",
+    "crates/toucan_semantic/tests/flexible_initializers.rs": "e77d6230d40a6fc4d7f878ef1fc44546f762e76bb705e36975e985c8210c6f05",
+    "crates/toucan_semantic/tests/floating_constants.rs": "e2fec20ddca7f2d3aed7ad4c8eabc63c76fc99ac9a4d526e4ba30532be6537e0",
+    "crates/toucan_semantic/tests/fortified_intrinsics.rs": "9d5729e1c73b469a4ed48965f36e9229ede5a2edb51da25b4f56844f154abfad",
+    "crates/toucan_semantic/tests/gnu_pointer_conversions.rs": "8e11ed0721e0349deebe8d38e4a19524116de51a975c7cf9664590df3f90cda3",
+    "crates/toucan_semantic/tests/gnu_record_casts.rs": "08fb3889993e89b765df604545deb0409399b998ccfcc8e7a6be0f10c8a0e6eb",
+    "crates/toucan_semantic/tests/infinity_intrinsics.rs": "caf7d225349f82e58407d0d21b975dca8fcee18f5b3ffb8cd8f5228e01f780ee",
+    "crates/toucan_semantic/tests/initializers.rs": "6afb65e009967947d3bf86bd402ad9d1ce0628e13145078ef2a546c22cd5d8c9",
+    "crates/toucan_semantic/tests/int128.rs": "b1378c8712799b79ee5035705b4eda74ffecc4f01324cbfbf515cc7b0a470ce6",
+    "crates/toucan_semantic/tests/large_enums.rs": "c31571a974f87458d1ddaf31a20065359bbca62fbd8649f3fd639f53738e14a2",
+    "crates/toucan_semantic/tests/layout_graph.rs": "3ca6eb2f05456e2f34a1a5bf1934c996d626c98f742eff3d69460a1c489a3949",
+    "crates/toucan_semantic/tests/literals.rs": "11e9f10af858564463c5d1677538a43eb08130c9e2293acd8f63305591b6a9be",
+    "crates/toucan_semantic/tests/memory_intrinsics.rs": "72c5f9f5a387d3b8fe084e76d3c9c36feeebe24c1a591df5ae6ff57c86183958",
+    "crates/toucan_semantic/tests/nan_intrinsics.rs": "49ccb177832efde75972a0b956b481388779270c4f62bee29bc237c49d37ef96",
+    "crates/toucan_semantic/tests/object_extents.rs": "ec1dec82fd5fba407d05b4848015f4ef2a403049bd6031ce889c710fb6a13a47",
+    "crates/toucan_semantic/tests/object_size.rs": "43e01df8493a97e4f4f48061771608995ff4bf03df02956af7ab422fc6e494f2",
+    "crates/toucan_semantic/tests/overflow_builtins.rs": "7700c5d57c0285e4bdab358b333593bdf13c56e08394fb4462cd7e28037b142a",
+    "crates/toucan_semantic/tests/parser_extensions.rs": "1512d544fda870e4dec3103a92ac6e4ea59c521f00517d419ecc77b6deac3d3d",
+    "crates/toucan_semantic/tests/parser_limits.rs": "d23a8a415b0994b503bd94c74fc4379bb7962b281e9b71973b1e9b382bb0909e",
+    "crates/toucan_semantic/tests/prototype_scope.rs": "006d393af7cc865dcfb378206a0c5929b8ee62d0067f26a2987b62310eed9931",
+    "crates/toucan_semantic/tests/query_evaluation.rs": "f2ae68ab60db4203a39aa2d7d336766454b341942f7a986b70b60044bd4ca6a9",
+    "crates/toucan_semantic/tests/retention_diagnostics.rs": "f289bdc824411529f794f09189c8083559caab096aeefbb4c56a4e6e7f55262c",
+    "crates/toucan_semantic/tests/returns_twice.rs": "577eb126c9cb822d3e46d21d494b0e758710540fcf502a8dcde6e95723d6f674",
+    "crates/toucan_semantic/tests/semantics.rs": "1c021f581fbf9955164ea154ada1a4bf015b5458bc60e571156cf5816da041bf",
+    "crates/toucan_semantic/tests/sse_intrinsics.rs": "0dfca9f2ecaadae53c03792940eeb11a11cf23acf11a898835769c371d30ca74",
+    "crates/toucan_semantic/tests/statement_expressions.rs": "a51fad6fba063c3a74afd5580390fa684eb26fd95f6ce46cea824098b0996525",
+    "crates/toucan_semantic/tests/statements.rs": "ddad313cfb4b2b172c4dd2af2260f8916309cc5a7d9ef8e0bf8abcc41ed4e96c",
+    "crates/toucan_semantic/tests/storage_and_parameters.rs": "0abc8eaa0cd134a4620578cc24f5c147669df48c32bb19a8ec94115196dd89fa",
+    "crates/toucan_semantic/tests/sync_builtins.rs": "9936ceef4c21d247d24f76051bf73b7f33724d31a7dce50e7b5df87fbf344465",
+    "crates/toucan_semantic/tests/thread_local.rs": "0b10b1839e87fdcf99216cacffd32421ce1921aaad6e67177228e903c16e167e",
+    "crates/toucan_semantic/tests/transparent_unions.rs": "5a2145cd1bd8b638295aeda16ab3eab520f970eac4c82f84cab7311464898113",
+    "crates/toucan_semantic/tests/typeof_typedefs.rs": "1881746b875b919d090129bd2eaa7eeec878ffa53464b9aa8cd7b97675a1c1a5",
+    "crates/toucan_semantic/tests/variable_arrays.rs": "12c618e77a6fbf705eb34bcc6da061a14a10c9e9b58caf14d6fef41e74fde9df",
+    "crates/toucan_semantic/tests/variadic_pack.rs": "e65c84422d154ee6754b6b57cd08f5670c9cd6bc226e94902d5c01fb46c88a87",
+    "crates/toucan_semantic/tests/vector_shuffle.rs": "432aec85ffc1cce52e8b5ace7bafcc232d7f337133e1ca7e1ad21822bc9c6202",
+    "crates/toucan_semantic/tests/vector_types.rs": "6bf6fb8b0ff204d49e0f30933a43251917c6e3f7c2b1dbdb4fc12cd3e07da1c4",
+    "crates/toucan_semantic/tests/void_pointer_ordering.rs": "9336f53634edcbc0daf3da0998813ddf0de6d1840341521af741139786d04780",
+    "crates/toucan_semantic/tests/weak_symbols.rs": "1f8131e5e7aebb7aa9bc9f33e053a31b761a1952a318b03a282e705738af6b00",
+    "crates/toucan_semantic/tests/x86_intrinsics.rs": "6220f33d4a8fd4356478dc8d8d9ff4512422409baf2a5a8a441cfa023200ced7",
+    "crates/toucan_source/Cargo.toml": "dcd01a2a28a398180cf90e41f5d3c4d2dea68e52579ea033e49767fa7a44d906",
+    "crates/toucan_source/src/lib.rs": "d51303a95804152678ea0199f6a6d2662528e92a2a815e5bfd52bc45d4518b29",
+    "crates/toucan_target/Cargo.toml": "b92b8ad8bcdb2cac700773adbeac775fee5ec4b13326325d215f6cb461c71005",
+    "crates/toucan_target/README.md": "3e387e944083e38335d2da1c07f3800775c7f963fec72af2b286d1e8e0a20c41",
+    "crates/toucan_target/src/lib.rs": "6ecd27e54c4b398803df1e04fd7e513a9dcbb5fa0328cdaa502947d40247124c",
+    "crates/toucan_target/src/macros.rs": "9c824596221f424f7da3c495b207e68a176e0ff528a0f3fd5edeb61a27b8072c",
+    "crates/toucan_target/tests/c_probe.rs": "c3b6858cf3236dbcdaf75a898951d0c5edc8039aa09aebd73d891769a06e1dad",
+    "crates/toucan_target/tests/layout.rs": "37c0f6879c06c0532e258e24ea3beae5ced10f5c1027556a5836d81d7b708209",
+    "docs/analysis-api.md": "889323ec3d9a63e40ddb1b17e30574ffba5ef0f1e04e4e18fbc5f459060bf5c3",
+    "docs/architecture.md": "e547261a441fc0ab1f7a86870a77a75af1a416f8a763b5aae3516c68a8ac9ad2",
+    "docs/astral-consumers.md": "e468e32cf980cbe47c31f721a731936ac3f14d459e7107382eae5af7e8a18ebb",
+    "docs/benchmarks.md": "c5e38a73868dca9298ab457188ba7aa0798cec28debd2dae019d6710f4af4b2d",
+    "docs/compatibility.md": "39dcedb1db48b5a48e1c8255ff654eedf6ba766e20e0daa1c96c0aa482e2dadc",
+    "docs/development.md": "aaa0635a6a7d61a66813948120fdfd8b88600a7b09665995c838818c81c0ef41",
+    "docs/inspection.md": "89847603f0b2db353c82dbad9d15c6b2cecef46d0e0fc3ff7747c9eea705b363",
+    "docs/parser-limits.md": "e9c79d354dfe9a48d28a674e053ff0adf0c6507092fee9dbf7c857568443c6ff",
+    "fuzz/.gitignore": "2cef15520acfad68627ce037de28055124d05a657a568ee35b44289f7b694983",
+    "fuzz/Cargo.lock": "fa9d520a5a3928d0d89cd091aba9a158eecb3eefb0175e23c235e8cf60ec9e92",
+    "fuzz/Cargo.toml": "183b9dfc3fd43ba4f3b3e781505b1d8f2435bd62344b1399fa91b4f682f32042",
+    "fuzz/README.md": "a3a04975c9fbb8b2a3824ce8a9058cba3b3402f9b6939bc884465b1d1ce27ce9",
+    "fuzz/c.dict": "a8c480b1bd26e85a9ca6669457217db3d4f59def15b503f68d55b5c0a045dd6e",
+    "fuzz/evidence.json": "e002d9283c0e67df8e19be061298ad13874c31362e6859bd836050f89e53bf1c",
+    "fuzz/evidence/checked-2026-09-08.json": "24ecc18f99fa1642912919785697974d25d50a2950e7521f2ed9a47f0783c8a9",
+    "fuzz/evidence/checked-definition-2026-09-08.json": "3434dae287c54a613e0b9b1fc7fb6074523ec9c38f8e254be7c3852d73a91b74",
+    "fuzz/evidence/readiness-2026-09-08.json": "dcc2bc13dd3b1baca969808011f9e8db0d01deda5e4e5440a0b82a531c16b529",
+    "fuzz/evidence/semantic-2026-09-08.json": "e62e398d848aca2fa546fd2b0648220869a47528b344254f0f3db0de13afbdc0",
+    "fuzz/fuzz_targets/bindings.rs": "094e73a4c6aa0091637a92b68571d11e08f7cbfe30c9fe0f6a30e3da8b396bd5",
+    "fuzz/fuzz_targets/checked.rs": "d96f9276bcaeacd3795dbf23339b97e7f4ddcfe1b726a807f34e650618cecbe1",
+    "fuzz/fuzz_targets/checked_invariants.rs": "743763a793195d98b26e48deb6e4e7cdbb1a7907726ca5208d3953d491776c30",
+    "fuzz/fuzz_targets/preprocess.rs": "0c682b7a641df8672e918bdac9431238a3109e15c9aa576c957a285bdff5332f",
+    "fuzz/fuzz_targets/semantic.rs": "7edc81b7100ba84e70a30ac5fc85bcd79a8954af0dd0a9b58493aa40cd912923",
+    "fuzz/seeds/bindings/api.h": "9915e4c1534ea44ff51b0d2157ae294cfd88aabc1d51d55855721c280daefed5",
+    "fuzz/seeds/bindings/control_flow_budget.h": "e355db333c608da0751f1dafbdaae8a925ca6fc58e706528d7f05df24b615483",
+    "fuzz/seeds/bindings/floating.h": "eae23ad80dbba2971cfbda9ed177c1f702e0de29ef8303b2804cb6f23e2c24fd",
+    "fuzz/seeds/bindings/inline_assembly.h": "c3c0ad78b72cbc13797f8e1a282b6e75cfd7c9ab9576b56e7dc78eef7310864d",
+    "fuzz/seeds/bindings/nested_record_assignment.h": "756ca82a3ad6f5b381086577e3c948827836aeefcc2cf5aeceb2c3a31da6987b",
+    "fuzz/seeds/bindings/sparse_initializer.h": "d086a15ddd1842c8dce3e55caaf72246d28c82ec3c93c61a3d8040935e2e01af",
+    "fuzz/seeds/bindings/statement_expressions.h": "a6081b0408cc476ff7de88a9a88c0301a2d4bf1b230d820ca99e8b55fb81b742",
+    "fuzz/seeds/bindings/variable_array_scopes.h": "da9b085926725b953c84158a22ab69778665d99e5136450da51f1df630d7ce05",
+    "fuzz/seeds/bindings/variadic_body.h": "0a289e8cc6f21c7be9037f7ae00bd3dd580da1b29440c3b72e7c32a377aec474",
+    "fuzz/seeds/checked/atomic_builtins.h": "0d88c487f7aeedcab080b7afa3a55dbf2b37aba31e6f941aaf241f9310ff7b54",
+    "fuzz/seeds/checked/atomic_nested_address.h": "38c0586b960f37be132d2059acc0fd01ebacb8a949dd27840240cb2bce187ee0",
+    "fuzz/seeds/checked/atomic_nested_query.h": "5d41796c9a3fc5707639934b83146ffbf44333c490d8795527cb761f4e1bdf05",
+    "fuzz/seeds/checked/atomic_type_bounds.h": "abaafd2911ad1f8e324220cdf58b18576c72c5bda4f59031264da42e9b4530a7",
+    "fuzz/seeds/checked/atomic_type_initializers_gnu.h": "366fc39ea6d458f3868635693488a19283cd0ebc84e272a07c3819f99f1ae002",
+    "fuzz/seeds/checked/atomic_types.h": "663e95c1ae40c903a134b84c5dd206f667d5bca0e221dc26b7930f59dfca9650",
+    "fuzz/seeds/checked/bit_counts_llp64.h": "23012c6221f243332121ea370e6c64d43aeeed469cd2f721d52c827f43a6020a",
+    "fuzz/seeds/checked/bit_counts_lp64.h": "e6b3a348a779c4c1ee904ac375a6eb5724ccd928536578678bd9f0fe3405c69d",
+    "fuzz/seeds/checked/constant_diagnostic.h": "52c2b561d4df19b37e2360557e07a54968318c5c45285bae2b470a828fcf3a80",
+    "fuzz/seeds/checked/constant_query.h": "beaeef1bd10ab1e4f836b682b6d4e0ee820464b39d476bdf645e7fe814d8523e",
+    "fuzz/seeds/checked/diagnostic_attributes.h": "b735ff1fdf998744f75f35305d65d19f5d6ef5d957e3dd7086b69242e0216921",
+    "fuzz/seeds/checked/empty_definition.h": "42c7766a9813fdb8cd72b4bb79f449283e09b1e67fc0cbd20d718283e3455a31",
+    "fuzz/seeds/checked/fallthrough.h": "293f48d428addb2be1433603ad1fe9535097a2973794da6b8857a16704464a8a",
+    "fuzz/seeds/checked/fortified_intrinsics.h": "84c4844a0fd6d0d2ace5190a6bd6d009499cfbec6a0f07589470c904486c98af",
+    "fuzz/seeds/checked/gnu_vector_shuffle.h": "a1ff3dff9a377868f46b1df5b844d765476a2a0905b2f725f8d8e438831b5878",
+    "fuzz/seeds/checked/infinity_intrinsics.h": "ca073050dc8b2888eaef3103794c32f2c3287e0104b70c1091868a89c482f218",
+    "fuzz/seeds/checked/initializers.h": "e9a6b826d04bf52d5768f0593e822bfaf65c5bb90464ad015e27602fbe002dbc",
+    "fuzz/seeds/checked/intrinsic_queries.h": "5e77a1bd5f381af3f186075aa89b98ac6556334bc1541d5e3a6113783896d2ae",
+    "fuzz/seeds/checked/memory_and_byte_swap.h": "80ad3f010d25df1e061c1aa411c1e17e1d53bd8d612dda1e7e171f0ee755bc9e",
+    "fuzz/seeds/checked/mixed_floating_conversions.h": "5b22eeed688c3b1f77ead8d112be3babe7badc89d79bc87ce7d8ce5aff826b0b",
+    "fuzz/seeds/checked/mmx_deferred_immediate.h": "c0118bda7190a8b555c7d4da6af096eaaa7fb5c1fd78481c5a42ba7e7d83edb0",
+    "fuzz/seeds/checked/mmx_intrinsics.h": "a8600338512a4e4c746baa0769e68673e309fced9c015b3d541f9ed3b6c9b692",
+    "fuzz/seeds/checked/nan_intrinsics.h": "90781733ca46bbcc5631bd6152dff2d9d79d25406ea0c828928e38f86138032d",
+    "fuzz/seeds/checked/object_extents.h": "3e8e64e70a051d66490376b991594981ad3ae62cd58ef32ca12b311f7a2f5ded",
+    "fuzz/seeds/checked/object_size.h": "111c37a469bc3f4e1da8f53ba4a02715030a1c6a9c63ef55ac38d4d95ec0af86",
+    "fuzz/seeds/checked/overflow_nested_predicates.h": "f6c947da77f93b7adc02c096d4505445f5ba2d33546fe1932966849238f46d9a",
+    "fuzz/seeds/checked/overflow_predicates.h": "d95193d8aee3a4c0e01b2b4d20b13f51ccfbe60f0334ebeddcf4a37663531a2a",
+    "fuzz/seeds/checked/overflow_stores.h": "97f28f5ba4912d7ba43dcd4acd4c224a7765e5413ad29e747ac87832b64403df",
+    "fuzz/seeds/checked/prototype_typeof_ownership.h": "80ccf69fc59b1d40b1d3128798c520fc7353f34e821f7391c7248e86c16886ec",
+    "fuzz/seeds/checked/query_evaluation.h": "424948b1d90a3ddaf933cd5dbc9940f43bcd4c2666bcaa7909760eefca604dde",
+    "fuzz/seeds/checked/returns_twice.h": "4ca8d697df3f13dfa96aa2eb30742b935dabf303fdd023ec0d70df11a3c2f554",
+    "fuzz/seeds/checked/runtime_extent_conversions.h": "a2e526e715744fd25aaa6c44ae9d58461a6328547c5bdcc28c7c71da4cdc4347",
+    "fuzz/seeds/checked/sse_deferred_prefetch.h": "44bd4d552df66730866b90b4d444c50d5bfd41852b618ab2bd62d22903126837",
+    "fuzz/seeds/checked/sse_intrinsics.h": "229012cb5ea76e8ba34d4c670b6538776c58c753426fe212075118535bce4d81",
+    "fuzz/seeds/checked/statements.h": "9f1514806b2eb0f1690adfe81a7d5bd9cf9adba68b96f128c815099ba3a87012",
+    "fuzz/seeds/checked/sync_builtins.h": "bb783275ef7a9913e6451a5716029fa6666450df3368a61ed82df4c2bcf301ab",
+    "fuzz/seeds/checked/thread_local.h": "8eea8e0b838b15dddd7b817ff8843b4f9e4d372f0b6c85fec24f11023b3ab29b",
+    "fuzz/seeds/checked/transparent_unions.h": "c2655beb8aee4094af0ed7a5c8ddfa1a66416edee73eb7abc0ce1e672fc50591",
+    "fuzz/seeds/checked/type_uses.h": "b645b0dedfb872fe25318c2d1b01fdc4c8b0c623413c95630aca86513c07fb79",
+    "fuzz/seeds/checked/undefined_bit_count.h": "a635d8b16021543e4db72f89cf0b1750621366e100785c3fefc6f2f42832e95e",
+    "fuzz/seeds/checked/variadic_pack.h": "51278dcdaaf75751a48778f11bfda39d3eb5507fc7bce3ed4edcf766b2ad1050",
+    "fuzz/seeds/checked/variadic_pack_generic.h": "d730bf1a3d80263553e2ab919983f63a783ce2435cf960569e2535ee483c3a6e",
+    "fuzz/seeds/checked/vector_types.h": "ef9570aeaf7ec3899e00c82f77647cc2eb3b7f20e1d73839b81b62c8ec6717ea",
+    "fuzz/seeds/checked/weak_symbols.h": "f843f4689d2dfb865d84f9da82a13e2e4c2cd0b5f74b32d353ee20e218d17f2d",
+    "fuzz/seeds/preprocess/conditional_paste.h": "acf16909c524ad7f5fd189b280a2d7dc7406e05bb0918b8eb1216ec19424b34e",
+    "fuzz/seeds/preprocess/macros.h": "b5a30299e7f3719e7c8f2f78cba2503520d3302c07702673f2115d0e81e1f701",
+    "fuzz/seeds/semantic/calling_conventions.h": "4b37b1d0cfe8e6726a418bebca69c935e5517c4f8e3a1daf62510ef7da7e0a7f",
+    "fuzz/seeds/semantic/compiler_intrinsics.h": "83b7b6fa48a38eba149dc1773173c88ec007e92f803ed7bc2aa5141c28babf8d",
+    "fuzz/seeds/semantic/control_flow_budget.h": "e355db333c608da0751f1dafbdaae8a925ca6fc58e706528d7f05df24b615483",
+    "fuzz/seeds/semantic/declarations.h": "fb7bb36ed664f01ecf0f60a44057a64a6f990d2a7fb3fcb3ed27366930e5ba76",
+    "fuzz/seeds/semantic/floating.h": "088026cdfc071e104230227422b6fb7520f3d07fc0ec86ca4db4eafa19a72977",
+    "fuzz/seeds/semantic/inline_assembly.h": "c3c0ad78b72cbc13797f8e1a282b6e75cfd7c9ab9576b56e7dc78eef7310864d",
+    "fuzz/seeds/semantic/nested_record_assignment.h": "756ca82a3ad6f5b381086577e3c948827836aeefcc2cf5aeceb2c3a31da6987b",
+    "fuzz/seeds/semantic/sparse_initializer.h": "d086a15ddd1842c8dce3e55caaf72246d28c82ec3c93c61a3d8040935e2e01af",
+    "fuzz/seeds/semantic/statement_expressions.h": "a6081b0408cc476ff7de88a9a88c0301a2d4bf1b230d820ca99e8b55fb81b742",
+    "fuzz/seeds/semantic/variable_array_scopes.h": "da9b085926725b953c84158a22ab69778665d99e5136450da51f1df630d7ce05",
+    "fuzz/seeds/semantic/variable_arrays.h": "49717561fa6a437410dca83b25f76edd21bb5a25f6f03e38d36c46774b24aa69",
+    "fuzz/seeds/semantic/variadic_body.h": "2b4b208b8288d765dabf54f4f532a7746ac0cd1fb9acbc2dca26b112ad76a4be",
+    "rustfmt.toml": "85f2b593f70ca62876dcbeee0feccfbe5fb3678c545d4cf0eefe5c0344c59021",
+    "scripts/audit_c_testsuite.py": "942d54ea9491b1df9de1a871111264f96dc2c94645b1cc64fda4659683dba0d4",
+    "scripts/audit_translation_units.py": "a68f3e9266c769482d420a1a1db4bb3b5a9ee7053b5884fedc96831f3a3683ef",
+    "scripts/benchmark.py": "7e7c238a0f1f6b34d5c1c8a57c91646d30abbb853e8a16b4f1b267e2a1cda7f3",
+    "scripts/compare_bindings.py": "ed7d9c3815cbd3a30c42fa31cb9309a7433b7ba4ed6df01b234e77501b13ed81",
+    "scripts/prepare_corpus.py": "5d2e7b8d807a04f4c152b746b406042b2c0e91e1a9eb2ab17cfff5755bb86433",
+    "scripts/probe_record_layouts.py": "7b038db179d087f96982bdaea0d169aa7b2f8f8fde1026a6cc9d28b2afccfe30",
+    "scripts/tests/test_translation_unit_audit.py": "84a5d4df2094f794538fe30032c7c3da122b6cb5d5f8087e71eed2d08bac2269",
+    "scripts/verify_astral_consumers.py": "85da3e3cd505053ddd0c17f92f60b5b6264d195929ea683f375978fcfceb26a1",
+    "scripts/verify_corpus.py": "d51bcdf78c7ceff26d33c1153b3e7d98e6b7f4a9cbb9ee3057ad945d93f314cf",
+    "scripts/verify_equivalence.py": "c01d19b3200e380dcbf7499f305d60cffcf429709d6c91ed6e039bd0dd232d5f",
+    "scripts/verify_rust_target.py": "027d52e0d82987c34e9308e918edd3021d14d86ce0792e07496116c76c8ade14",
+    "scripts/verify_sqlite_consumer.py": "88ffe06c29ad988545ca3ae8eb2be23fb5a29af1d396fa499a1376490eabba0d",
+    "scripts/verify_zstd_consumer.py": "175d8d4e145d17642030dec61a48dd829f37fcffe3f8de550aff40ae11a54f7e",
+    "tools/binding_compare/.gitignore": "02e7b40893c74a993a139de7b0f85d8cf2eaea57d544effd576920a514872af4",
+    "tools/binding_compare/Cargo.lock": "b9412786b1b9cd0191ba018ec5f6791545c47088b6cc31945cf45620914422f7",
+    "tools/binding_compare/Cargo.toml": "08c66acfce8ac8ea0a7c846fafc5e4927b95cf40bc017d9f9556f3ef13251cb9",
+    "tools/binding_compare/README.md": "33d99a0459d2d666d4f8c346f6ad5a924c6febc4b201f01bd45c70085a47fad6",
+    "tools/binding_compare/src/main.rs": "b9ac5e3caf67ec2c357e58ef8662f06aa5ebe48655c717ad14f39c69e70ca40d",
+    "tools/binding_compare/tests/test_astral_consumers.py": "eed4bfa0466d6cf95d2f902a5ef22a1489b2094e0fc0e782ed3e8c06d0dff827",
+    "tools/binding_compare/tests/test_c_testsuite.py": "a758c6d8390c2f5bc036380293c95164c508046108e787f6fbbaa3c8604f9645",
+    "tools/binding_compare/tests/test_comparison.py": "708f725d8a614078b452db311f05419b8d84dea5fdf3b019cbdf0586f8479c6a",
+    "tools/binding_compare/tests/test_enum_probes.py": "83c09e245f16321a543a413181d9719efd154f585d12212b2c012867e486486c",
+    "tools/binding_compare/tests/test_equivalence.py": "7c8fedde0debfc575b7d6942a8791e1a85beecf6602803e7a0f1d546252ff0e2",
+    "tools/sqlite_consumer/Cargo.lock": "ea9bab4f91ccccc2973344696f26cb318a6b307683bd57164e65dec246ffe723",
+    "tools/sqlite_consumer/Cargo.toml": "04a4b9b1e49d48fa2a21e28978ab7ff8617ba2f7d03bccb5578576995f08e4cf",
+    "tools/sqlite_consumer/README.md": "df088c5c0255cdd15f49edc7103438acde53c73ed11bb87f513dccbb195d8c41",
+    "tools/sqlite_consumer/auto_extensions.rs": "31c5bd6610c41d5b50950e3d8fbcfece5c99415c3d75bb4f268060e69b8a5b34",
+    "tools/sqlite_consumer/src/main.rs": "1375ee510015c4307059ce5efd56c1e660f6d058f7772117b013e4a748d8d8f2",
+    "tools/zstd_consumer/Cargo.lock": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+    "tools/zstd_consumer/Cargo.toml": "4b4e6cbf08cad4231b8813d24c323ed980b76a77b04389ca054dd0d7c4b571a5",
+    "tools/zstd_consumer/README.md": "863949a1b4cc191770deba97ae466a55727aae3c7bf53ee503b5c17af71c67fc",
+    "tools/zstd_consumer/src/features.rs": "723f40e6862fc4b08379135b7dda5821423e0a61fcf7a114d28fe57289101d02",
+    "tools/zstd_consumer/src/main.rs": "e7d9f80c7f421e3c0d5dd15d3a5de4d37943d74dc5f8009d98fc1d0cdb52619a"
+  },
+  "started_utc": "2026-09-08T08:55:42.624656+00:00",
+  "runner_sha256": "7c6d997bb136717aba5a35ea6b170d1478ae44c184a4eea0826d190e2e61281a",
+  "address_sanitizer": true,
+  "leak_sanitizer": false,
+  "leak_sanitizer_reason": "LeakSanitizer process inspection is unavailable under ptrace in this devbox; see checked-fuzz-campaign/run-01/source-build.json.",
+  "toolchain": "rustc 1.100.0-nightly (5a2be9f5f 2026-09-06)\nbinary: rustc\ncommit-hash: 5a2be9f5f075d31e3ca5526b5b029881ce441253\ncommit-date: 2026-09-06\nhost: x86_64-unknown-linux-gnu\nrelease: 1.100.0-nightly\nLLVM version: 23.1.1\n",
+  "environment": {
+    "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo",
+    "RUSTUP_HOME": "/home/dev-user/.cache/toucan/rustup",
+    "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/checked-fuzz-campaign-target",
+    "CARGO_BUILD_JOBS": "4",
+    "ASAN_OPTIONS": "detect_leaks=0"
+  },
+  "targets": [
+    {
+      "target": "preprocess",
+      "initial_seeds": [
+        {
+          "source": "fuzz/seeds/preprocess/conditional_paste.h",
+          "sha256": "acf16909c524ad7f5fd189b280a2d7dc7406e05bb0918b8eb1216ec19424b34e",
+          "bytes": 257,
+          "target_index": null
+        },
+        {
+          "source": "fuzz/seeds/preprocess/macros.h",
+          "sha256": "b5a30299e7f3719e7c8f2f78cba2503520d3302c07702673f2115d0e81e1f701",
+          "bytes": 155,
+          "target_index": null
+        }
+      ],
+      "invalid_utf8_seed_sha256": "3a6e2b63b63b3df6ae7a377064ce76cdef6771aa5d7fc1ab5412cac661d17098",
+      "build_command": [
+        "taskset",
+        "-c",
+        "24-27",
+        "/home/dev-user/.cache/toucan/tools/bin/cargo-fuzz",
+        "build",
+        "preprocess",
+        "--sanitizer",
+        "address"
+      ],
+      "build_exit_code": 0,
+      "build_log_sha256": "04159407af10f5488d8ac86ec8adaa3a1ef79d025abd201216bf8266f66fc751",
+      "binary_sha256": "6bd3bb41125cca0163f1df4ffd81b784207426641347cad52e616ef58152ee84",
+      "command": [
+        "taskset",
+        "-c",
+        "24",
+        "/home/dev-user/.cache/toucan/fuzz-profile-smoke/preprocess/preprocess",
+        "/home/dev-user/.cache/toucan/fuzz-profile-smoke/preprocess/corpus",
+        "-dict=/home/dev-user/code/oss/toucan/fuzz/c.dict",
+        "-max_total_time=30",
+        "-max_len=16384",
+        "-len_control=0",
+        "-timeout=5",
+        "-rss_limit_mb=1024",
+        "-print_final_stats=1",
+        "-seed=20260920",
+        "-artifact_prefix=/home/dev-user/.cache/toucan/fuzz-profile-smoke/preprocess/artifacts/"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 31.066189962999488,
+      "log_sha256": "4777650c07b7421c8f03be7887a5f3996701ed296eb099fb7288991721d98540",
+      "statistics": {
+        "number_of_executed_units": 139050,
+        "average_exec_per_sec": 4485,
+        "new_units_added": 2911,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 516
+      },
+      "artifacts": []
+    },
+    {
+      "target": "semantic",
+      "initial_seeds": [
+        {
+          "source": "fuzz/seeds/semantic/calling_conventions.h",
+          "sha256": "f594e3bd33769a1b86f743e2bd0106afce0175b4261942dc59b21affadf56e12",
+          "bytes": 295,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/calling_conventions.h",
+          "sha256": "2ef0349592f875189f9c88de9433648443706a6c6a9cc962d2bfce3eeecd42f3",
+          "bytes": 293,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/calling_conventions.h",
+          "sha256": "225a0c11da14f5ee4b5c9b7186abe5a5652c84ac1bc0297f0e1f20f97ae21af7",
+          "bytes": 291,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/calling_conventions.h",
+          "sha256": "26ab9b2237ffb9e1ec636b97da15a9214a3cdb73f6d424a4646b315e38d7de32",
+          "bytes": 294,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/calling_conventions.h",
+          "sha256": "1d6fb17054c9f1308336ed974e37ffff67e459a1db4652febb3bf1d424cb10cb",
+          "bytes": 292,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/compiler_intrinsics.h",
+          "sha256": "7fe6b8ef44a4e3aa62effb2b8cecab8ae5c8b9000880d27dba57eb1d80d26398",
+          "bytes": 335,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/compiler_intrinsics.h",
+          "sha256": "5154ef0ef98e529ecaabc097cc5c01e4e53c7820c4c1fe996c5d29c4d1712c95",
+          "bytes": 338,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/compiler_intrinsics.h",
+          "sha256": "64acedef63c4181b2914995632ae0d8235e9c2845cfb55a9791cf0610861af83",
+          "bytes": 336,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/compiler_intrinsics.h",
+          "sha256": "ea0b8f4cc4382ab7213d4cd61baa1d0b30d9cbdb3df962d8e0d5f6738f15b1f2",
+          "bytes": 334,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/compiler_intrinsics.h",
+          "sha256": "d7f3c459c249a63e6afd5ef1bed8ba68b0801163a1658d75b9a28f49800b79fe",
+          "bytes": 337,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/control_flow_budget.h",
+          "sha256": "f0341353b7954f7efb403b21d076df89f66e9580f611023c9081e0fc449e298b",
+          "bytes": 3232,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/control_flow_budget.h",
+          "sha256": "9b4f1c8fc2f282fc550b3664afca0e1519dfa8302779d3c57bb7b29d794fbabb",
+          "bytes": 3235,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/control_flow_budget.h",
+          "sha256": "55e307f2025bb75caf4e2beb9058b14be9c958bb1b7e3904dfda910ebf540e96",
+          "bytes": 3233,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/control_flow_budget.h",
+          "sha256": "f6ae028534ea12f0e441f6763c2ca56f6ce2673e0d14ae9935f4941393fa5ea0",
+          "bytes": 3236,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/control_flow_budget.h",
+          "sha256": "ab2706550dcbb0da71d1fd358643c2cbd11592ddbb1be56778d6fdb1792d0b97",
+          "bytes": 3234,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/declarations.h",
+          "sha256": "1a508c693164df5b914a58aceb0edae881931ce97595f9e97652dbb0e694b9c4",
+          "bytes": 273,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/declarations.h",
+          "sha256": "24875ef127e073aa31a4254dc57966ea657b7415b397f7a5ffe33d584e60fce8",
+          "bytes": 276,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/declarations.h",
+          "sha256": "e21f992791f54f1f224316786a84ef356f399c753b6ede4af3adea9b91146a47",
+          "bytes": 274,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/declarations.h",
+          "sha256": "81a58210d6720f8c35c35c9ac525fbb7667f972bd3cea4e697c2fb7e6ac3a8f4",
+          "bytes": 277,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/declarations.h",
+          "sha256": "48e818c76cf10808b730966aeb1ca4394bc49354a234b019107d2bd966783a9d",
+          "bytes": 275,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/floating.h",
+          "sha256": "1206ef8dacbaedfdf30ce3a5a89ac4024024eec775897255269c6a319462a9dd",
+          "bytes": 320,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/floating.h",
+          "sha256": "3b999f6c4abdf602bef5609b01776fc2963a97108bf0db95927cb9d63af46f6b",
+          "bytes": 323,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/floating.h",
+          "sha256": "337861cafee561e4258282b2343a08ca8e738db886f279e5b8f6974b394b6357",
+          "bytes": 321,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/floating.h",
+          "sha256": "5396c35d0fa413d3c523a26b90408a4917e413764a9b81b35a1f7801767b421a",
+          "bytes": 319,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/floating.h",
+          "sha256": "6a7697871a65aa08246c2bdde3963388b708236b65de9095a693e631563d9e6a",
+          "bytes": 322,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/inline_assembly.h",
+          "sha256": "e5a87c4e30a6d45e0ea3e03a208fe6977d0c650a592714a6e3526447c1a7fd2c",
+          "bytes": 220,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/inline_assembly.h",
+          "sha256": "25aeed58c75722e97cd1cf4ce681f95fff2b6db028244622d6835ee0b45b9b61",
+          "bytes": 223,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/inline_assembly.h",
+          "sha256": "a26766502a7e45e534024330f8ba3ac80b3512a182257091f2f16455b61e0502",
+          "bytes": 221,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/inline_assembly.h",
+          "sha256": "98e4d2bb4193d976f7261a643aa6b0decf13b03530a895da6ccc2d786dfeef61",
+          "bytes": 219,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/inline_assembly.h",
+          "sha256": "9ef8379773aea8cfec51646e83b78d5a4d0232b2bc725552e2c8e6a6334d571e",
+          "bytes": 222,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/nested_record_assignment.h",
+          "sha256": "c15139a1fb906716633ed18bc03704ded3d1079c5c22d97f9a0a34476830edb9",
+          "bytes": 1136,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/nested_record_assignment.h",
+          "sha256": "012478308ce285f37456e1d3aaaee789b531609737fc10a0d7a235bbf8b2e610",
+          "bytes": 1134,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/nested_record_assignment.h",
+          "sha256": "17e4e3854ff7d7d5041dc95dbae8ef39ce618dc5ab2bc7f0ab7094c6d28f6ce4",
+          "bytes": 1137,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/nested_record_assignment.h",
+          "sha256": "26927b64ceb7d56142d25dddc71b49ea5f6c02aa7ed27c0e20888e6f6092b708",
+          "bytes": 1135,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/nested_record_assignment.h",
+          "sha256": "c5da9ff9ac7e045e1b714d1bf42df5b55749e075bdfacb2c63c74f24155f1681",
+          "bytes": 1138,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/sparse_initializer.h",
+          "sha256": "b00f611b19d3e7b2f30210fe977ad62d2db2f8d88e781f47c3fcdc5191ff25e9",
+          "bytes": 171,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/sparse_initializer.h",
+          "sha256": "67df3d343fd421cea96ab452ee5d86d55342ab540a771dec2359f520ceec5ae3",
+          "bytes": 174,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/sparse_initializer.h",
+          "sha256": "4bb27d9cc211b27c4a07f84ec7f654bc91fdd5484d5feefe362f929671f4b45b",
+          "bytes": 172,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/sparse_initializer.h",
+          "sha256": "fb0972c9e68ed7c32c318824ba20773d89b8274513b840378635c1b2d56cc65d",
+          "bytes": 170,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/sparse_initializer.h",
+          "sha256": "a8a2b9017fc47aa118b5582966ffd557011ac4cdd38cb1ae152d9886a893429d",
+          "bytes": 173,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/statement_expressions.h",
+          "sha256": "004771c1f681b97ff52d19b3674552a35cfd2348323df0a0eb4c510b02fefb5c",
+          "bytes": 162,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/statement_expressions.h",
+          "sha256": "33f746234df864139cacfa25736311164c16200982f4d77e224925552d061496",
+          "bytes": 160,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/statement_expressions.h",
+          "sha256": "3c795e17c541dd485eedd6c3c592f47995b580d771a095b7b834d34bdf6a9118",
+          "bytes": 158,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/statement_expressions.h",
+          "sha256": "84b80beeec96044d2a21afa14d44492ecf65373a382d45a01d64510476a9b384",
+          "bytes": 161,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/statement_expressions.h",
+          "sha256": "5593b97490f0d46c36de7f3fa0fe1437e4efbf25d76b80d5bf843442819d24b6",
+          "bytes": 159,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/variable_array_scopes.h",
+          "sha256": "5531b6f1ab00eb52df0a6af565cf18fd5b5187cafeb96341ee776541461e9a72",
+          "bytes": 185,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/variable_array_scopes.h",
+          "sha256": "c8d036546e836e40bceb35444bb4dd7f44f22297838a14c033e8dd927197227f",
+          "bytes": 183,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/variable_array_scopes.h",
+          "sha256": "8e272fdc99a3061e854cc726e6fc1991cc27d0bced9f2ca00dd425423f4b5dae",
+          "bytes": 186,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/variable_array_scopes.h",
+          "sha256": "772779cf9c63919675221d454d553dc19305e5861a3aa5ff9c168908a3d7e4e4",
+          "bytes": 184,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/variable_array_scopes.h",
+          "sha256": "83e9bdd818934f3b19b01764cd6fb377997034b2df867b5e3c6582129798d783",
+          "bytes": 182,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/variable_arrays.h",
+          "sha256": "5fce82d2868004347293e7601df43350fc4b56bfc063a5f7051f525ef89594be",
+          "bytes": 287,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/variable_arrays.h",
+          "sha256": "6adb14970cf8c902465191573b2880867aa2048276d78cccb2ef0baff0472399",
+          "bytes": 290,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/variable_arrays.h",
+          "sha256": "b04ec0a7060591a7a6162956c49417a2c7a70b1f334e02322fe4b775b8411dd3",
+          "bytes": 288,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/variable_arrays.h",
+          "sha256": "46745c0b153b44362aade3eaabe8bad835f3fe3bc4a32d9ee58f33cdf371a31d",
+          "bytes": 286,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/variable_arrays.h",
+          "sha256": "2718204ee2d6bce4efef19ad4b704dd138e31a1a5fd358d97c22419f001075bd",
+          "bytes": 289,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/semantic/variadic_body.h",
+          "sha256": "5b4cf5f13bfae7315d1d592b7519f912f155bf46578296445c77c80abd501edb",
+          "bytes": 278,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/semantic/variadic_body.h",
+          "sha256": "c65849df04380cdf392f872bd005c367689c6d6de75def3a513ab8ab6e786a43",
+          "bytes": 276,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/semantic/variadic_body.h",
+          "sha256": "55ce67cec22710efc9477e31253a2e7c6ba587bfef4044764b2f7416fefe7548",
+          "bytes": 279,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/semantic/variadic_body.h",
+          "sha256": "7be12559b98becdf9fb023baccf420ebaf331f4835aa3c70c020834f7abb70cc",
+          "bytes": 277,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/semantic/variadic_body.h",
+          "sha256": "bb0182390d3444a3cc8225bf67979b4933bc8439533e5cb97064d9522877abed",
+          "bytes": 280,
+          "target_index": 4
+        }
+      ],
+      "invalid_utf8_seed_sha256": "3a6e2b63b63b3df6ae7a377064ce76cdef6771aa5d7fc1ab5412cac661d17098",
+      "build_command": [
+        "taskset",
+        "-c",
+        "24-27",
+        "/home/dev-user/.cache/toucan/tools/bin/cargo-fuzz",
+        "build",
+        "semantic",
+        "--sanitizer",
+        "address"
+      ],
+      "build_exit_code": 0,
+      "build_log_sha256": "037b626b6404ff29cce71c52b1ab7aaa0c77766ad6f2cdefa8d2e4c01b9012ab",
+      "binary_sha256": "01bb249ed618b7cfd5c21ad4b562737c8f55d30dcbeea62a8f0916113f1127fe",
+      "command": [
+        "taskset",
+        "-c",
+        "24",
+        "/home/dev-user/.cache/toucan/fuzz-profile-smoke/semantic/semantic",
+        "/home/dev-user/.cache/toucan/fuzz-profile-smoke/semantic/corpus",
+        "-dict=/home/dev-user/code/oss/toucan/fuzz/c.dict",
+        "-max_total_time=30",
+        "-max_len=16384",
+        "-len_control=0",
+        "-timeout=5",
+        "-rss_limit_mb=1024",
+        "-print_final_stats=1",
+        "-seed=20260921",
+        "-artifact_prefix=/home/dev-user/.cache/toucan/fuzz-profile-smoke/semantic/artifacts/"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 31.116851528000552,
+      "log_sha256": "1478fe8137abdf1d7d3775eac638e65db6ff6c47039a5c3095f6650703bb4a16",
+      "statistics": {
+        "number_of_executed_units": 12910,
+        "average_exec_per_sec": 416,
+        "new_units_added": 1114,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 438
+      },
+      "artifacts": []
+    },
+    {
+      "target": "bindings",
+      "initial_seeds": [
+        {
+          "source": "fuzz/seeds/bindings/api.h",
+          "sha256": "8ebc6a4fb0a5a2a39f041cf558d6c41c0157d94e0321de2faf69d036c7274c2c",
+          "bytes": 216,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/bindings/api.h",
+          "sha256": "38cbfe1dcc62898d1d8a0ee3c0dbe717817742284c6067e36464f65ddbae89fa",
+          "bytes": 219,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/bindings/api.h",
+          "sha256": "4b0b6aa82006fb109bc0c565c6188b6f1956f4dbf340b1e4e6feade40920aa57",
+          "bytes": 217,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/bindings/api.h",
+          "sha256": "4282f2023bd3f141327fb06fa05d3bb36c5b5295b2987fb8f2d65993a1c6a393",
+          "bytes": 220,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/bindings/api.h",
+          "sha256": "181f2784ee7e5b987fac104455519cca77a37912f999505c87530433c0600c52",
+          "bytes": 218,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/bindings/control_flow_budget.h",
+          "sha256": "f0341353b7954f7efb403b21d076df89f66e9580f611023c9081e0fc449e298b",
+          "bytes": 3232,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/bindings/control_flow_budget.h",
+          "sha256": "9b4f1c8fc2f282fc550b3664afca0e1519dfa8302779d3c57bb7b29d794fbabb",
+          "bytes": 3235,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/bindings/control_flow_budget.h",
+          "sha256": "55e307f2025bb75caf4e2beb9058b14be9c958bb1b7e3904dfda910ebf540e96",
+          "bytes": 3233,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/bindings/control_flow_budget.h",
+          "sha256": "f6ae028534ea12f0e441f6763c2ca56f6ce2673e0d14ae9935f4941393fa5ea0",
+          "bytes": 3236,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/bindings/control_flow_budget.h",
+          "sha256": "ab2706550dcbb0da71d1fd358643c2cbd11592ddbb1be56778d6fdb1792d0b97",
+          "bytes": 3234,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/bindings/floating.h",
+          "sha256": "5b24ca43d84f6410c0061c0ab8972f1f31b622fa77a045a0002e7578030858d9",
+          "bytes": 398,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/bindings/floating.h",
+          "sha256": "343070547806237a730c5c042c1472af396135739b4e150e7b6c135bf236ef4c",
+          "bytes": 396,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/bindings/floating.h",
+          "sha256": "2de7219606902fc1db9241ae7ce6d1c1764471324155d1f93806519f2cf8a3fd",
+          "bytes": 394,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/bindings/floating.h",
+          "sha256": "2be922a2b3abc5653130d4353b215478e94d06520a8d17118ba6416b83f1850a",
+          "bytes": 397,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/bindings/floating.h",
+          "sha256": "a153f4023abbedfbd9fe56c8befc472d8684e45c58f3024cb54935a60e22cd03",
+          "bytes": 395,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/bindings/inline_assembly.h",
+          "sha256": "e5a87c4e30a6d45e0ea3e03a208fe6977d0c650a592714a6e3526447c1a7fd2c",
+          "bytes": 220,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/bindings/inline_assembly.h",
+          "sha256": "25aeed58c75722e97cd1cf4ce681f95fff2b6db028244622d6835ee0b45b9b61",
+          "bytes": 223,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/bindings/inline_assembly.h",
+          "sha256": "a26766502a7e45e534024330f8ba3ac80b3512a182257091f2f16455b61e0502",
+          "bytes": 221,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/bindings/inline_assembly.h",
+          "sha256": "98e4d2bb4193d976f7261a643aa6b0decf13b03530a895da6ccc2d786dfeef61",
+          "bytes": 219,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/bindings/inline_assembly.h",
+          "sha256": "9ef8379773aea8cfec51646e83b78d5a4d0232b2bc725552e2c8e6a6334d571e",
+          "bytes": 222,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/bindings/nested_record_assignment.h",
+          "sha256": "c15139a1fb906716633ed18bc03704ded3d1079c5c22d97f9a0a34476830edb9",
+          "bytes": 1136,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/bindings/nested_record_assignment.h",
+          "sha256": "012478308ce285f37456e1d3aaaee789b531609737fc10a0d7a235bbf8b2e610",
+          "bytes": 1134,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/bindings/nested_record_assignment.h",
+          "sha256": "17e4e3854ff7d7d5041dc95dbae8ef39ce618dc5ab2bc7f0ab7094c6d28f6ce4",
+          "bytes": 1137,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/bindings/nested_record_assignment.h",
+          "sha256": "26927b64ceb7d56142d25dddc71b49ea5f6c02aa7ed27c0e20888e6f6092b708",
+          "bytes": 1135,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/bindings/nested_record_assignment.h",
+          "sha256": "c5da9ff9ac7e045e1b714d1bf42df5b55749e075bdfacb2c63c74f24155f1681",
+          "bytes": 1138,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/bindings/sparse_initializer.h",
+          "sha256": "b00f611b19d3e7b2f30210fe977ad62d2db2f8d88e781f47c3fcdc5191ff25e9",
+          "bytes": 171,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/bindings/sparse_initializer.h",
+          "sha256": "67df3d343fd421cea96ab452ee5d86d55342ab540a771dec2359f520ceec5ae3",
+          "bytes": 174,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/bindings/sparse_initializer.h",
+          "sha256": "4bb27d9cc211b27c4a07f84ec7f654bc91fdd5484d5feefe362f929671f4b45b",
+          "bytes": 172,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/bindings/sparse_initializer.h",
+          "sha256": "fb0972c9e68ed7c32c318824ba20773d89b8274513b840378635c1b2d56cc65d",
+          "bytes": 170,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/bindings/sparse_initializer.h",
+          "sha256": "a8a2b9017fc47aa118b5582966ffd557011ac4cdd38cb1ae152d9886a893429d",
+          "bytes": 173,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/bindings/statement_expressions.h",
+          "sha256": "004771c1f681b97ff52d19b3674552a35cfd2348323df0a0eb4c510b02fefb5c",
+          "bytes": 162,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/bindings/statement_expressions.h",
+          "sha256": "33f746234df864139cacfa25736311164c16200982f4d77e224925552d061496",
+          "bytes": 160,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/bindings/statement_expressions.h",
+          "sha256": "3c795e17c541dd485eedd6c3c592f47995b580d771a095b7b834d34bdf6a9118",
+          "bytes": 158,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/bindings/statement_expressions.h",
+          "sha256": "84b80beeec96044d2a21afa14d44492ecf65373a382d45a01d64510476a9b384",
+          "bytes": 161,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/bindings/statement_expressions.h",
+          "sha256": "5593b97490f0d46c36de7f3fa0fe1437e4efbf25d76b80d5bf843442819d24b6",
+          "bytes": 159,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/bindings/variable_array_scopes.h",
+          "sha256": "5531b6f1ab00eb52df0a6af565cf18fd5b5187cafeb96341ee776541461e9a72",
+          "bytes": 185,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/bindings/variable_array_scopes.h",
+          "sha256": "c8d036546e836e40bceb35444bb4dd7f44f22297838a14c033e8dd927197227f",
+          "bytes": 183,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/bindings/variable_array_scopes.h",
+          "sha256": "8e272fdc99a3061e854cc726e6fc1991cc27d0bced9f2ca00dd425423f4b5dae",
+          "bytes": 186,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/bindings/variable_array_scopes.h",
+          "sha256": "772779cf9c63919675221d454d553dc19305e5861a3aa5ff9c168908a3d7e4e4",
+          "bytes": 184,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/bindings/variable_array_scopes.h",
+          "sha256": "83e9bdd818934f3b19b01764cd6fb377997034b2df867b5e3c6582129798d783",
+          "bytes": 182,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/bindings/variadic_body.h",
+          "sha256": "c3fabb0a0108617bb3ba0a8cfd3ba8de766424e8997ff8e4c976627318e332d9",
+          "bytes": 238,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/bindings/variadic_body.h",
+          "sha256": "fa81772f19f397d1564a1189c75209c1ef88e7cb50e39b7c3bd723ad40a6f3f4",
+          "bytes": 236,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/bindings/variadic_body.h",
+          "sha256": "6a00e4a704ece1b7d6a70e3bcefe766b3d8551333fa4af4d435f157224d57ec3",
+          "bytes": 239,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/bindings/variadic_body.h",
+          "sha256": "c3fe1a3597234662c6827fc10bab2fcc79606652822f4bc1b6c71b237f367e56",
+          "bytes": 237,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/bindings/variadic_body.h",
+          "sha256": "28af0777616c2405f41bbf33192a1c601a7cea962a89ed1c91b70d8ebcf97241",
+          "bytes": 240,
+          "target_index": 4
+        }
+      ],
+      "invalid_utf8_seed_sha256": "3a6e2b63b63b3df6ae7a377064ce76cdef6771aa5d7fc1ab5412cac661d17098",
+      "build_command": [
+        "taskset",
+        "-c",
+        "24-27",
+        "/home/dev-user/.cache/toucan/tools/bin/cargo-fuzz",
+        "build",
+        "bindings",
+        "--sanitizer",
+        "address"
+      ],
+      "build_exit_code": 0,
+      "build_log_sha256": "b4793efb807d296f3f61d2c0cb08f5d0cb7bbe1ee269cd4fc075af8a16e43e55",
+      "binary_sha256": "247901732abf6bccb3d361f14581eb53de5f395a0093114c5f8197c23521d8fb",
+      "command": [
+        "taskset",
+        "-c",
+        "24",
+        "/home/dev-user/.cache/toucan/fuzz-profile-smoke/bindings/bindings",
+        "/home/dev-user/.cache/toucan/fuzz-profile-smoke/bindings/corpus",
+        "-dict=/home/dev-user/code/oss/toucan/fuzz/c.dict",
+        "-max_total_time=30",
+        "-max_len=8192",
+        "-len_control=0",
+        "-timeout=5",
+        "-rss_limit_mb=1024",
+        "-print_final_stats=1",
+        "-seed=20260922",
+        "-artifact_prefix=/home/dev-user/.cache/toucan/fuzz-profile-smoke/bindings/artifacts/"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 31.148992882997845,
+      "log_sha256": "11283d7ef057c5c771a3e49f7fc389e8bc46978f63ae2a6a86ff97eccad5ca63",
+      "statistics": {
+        "number_of_executed_units": 5096,
+        "average_exec_per_sec": 164,
+        "new_units_added": 705,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 509
+      },
+      "artifacts": []
+    },
+    {
+      "target": "checked",
+      "initial_seeds": [
+        {
+          "source": "fuzz/seeds/checked/atomic_builtins.h",
+          "sha256": "86d53ab50ed9375dbaf1a44023d129ba7d2e3e11f9679fe2263b7210a5d850f5",
+          "bytes": 614,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_builtins.h",
+          "sha256": "d93b05cf9e584b1817f1b25f8546462697c18f25425eefd8aea93d8ec822539f",
+          "bytes": 612,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_builtins.h",
+          "sha256": "bd882cb508966ce5211c584b8b5a8f9f39f47e0a3d0f9d08fdcf0acd3e578711",
+          "bytes": 615,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_builtins.h",
+          "sha256": "43ab44c657f5523049087aac9827f8ccedb96ede5d6f52ff3adc8688626f7751",
+          "bytes": 613,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_builtins.h",
+          "sha256": "8e38aab5d107fa8ab41580a57a8ea92271cf4e78f0d06d7c298cdb7799a046f3",
+          "bytes": 611,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_nested_address.h",
+          "sha256": "b715e04f57149a3589235a28b0ab22a1ab879a7db22d046e16bd91275b5689e1",
+          "bytes": 758,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_nested_address.h",
+          "sha256": "841c8ef84a6451b79dd958083a37d50ed3d5bdb979ccec82a61f885f9dc8c3ab",
+          "bytes": 756,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_nested_address.h",
+          "sha256": "2b8e282e08fc93097f14486475300463e1c0a4a106eeba3d0157534c91037883",
+          "bytes": 754,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_nested_address.h",
+          "sha256": "3a1d92c7635016055270cdde87ecadc70339ade976f0c2aa81d93afd2038abba",
+          "bytes": 757,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_nested_address.h",
+          "sha256": "510341bdb7852f0ce3d584722c08654a24ce49e5bd024af7f060e40d182d9c99",
+          "bytes": 755,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_nested_query.h",
+          "sha256": "d13c958f52715aefd0fc47012bffd393bc39175062083c44bbfcd783a5bd876c",
+          "bytes": 844,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_nested_query.h",
+          "sha256": "64d5469d4299b1e49c04bdf36cc1245e079bb92dd0c42f127268d1465f6dfe2d",
+          "bytes": 842,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_nested_query.h",
+          "sha256": "87a352df9c92b1af14c54f47c24fdf560619aa357843cea327609d45245b331f",
+          "bytes": 840,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_nested_query.h",
+          "sha256": "52be661aaf4cb373a893f42f929c87abe08e6e181ed1687dd57fd69861922dbd",
+          "bytes": 843,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_nested_query.h",
+          "sha256": "f897fadea7cd626b0918a205e7fd3db09aabfb1c3d935d1c11475a27965bbe3f",
+          "bytes": 841,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_type_bounds.h",
+          "sha256": "a8c511be8a71bf09aeb8154515886dd9346b6880ae4f5165722f07976e049dcf",
+          "bytes": 284,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_type_bounds.h",
+          "sha256": "7286a1c17bbeb87c6bb4f7f2e02e5a7b3a90a5d3c6bf3b31486a156a752f26f8",
+          "bytes": 282,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_type_bounds.h",
+          "sha256": "914813f2c82823800a3279c2c9a787e1fc5d1511dd68ae35a3b858ba4f25e5f7",
+          "bytes": 280,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_type_bounds.h",
+          "sha256": "000833360de3e39cc2f6c5561e8faa9ca50f9bd3539413e4e07fdd112b7058b5",
+          "bytes": 283,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_type_bounds.h",
+          "sha256": "65b52ce296a7b7d9c01d1f1016e41ef75fcc5980ff6174524a52646ac790f7ec",
+          "bytes": 281,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_type_initializers_gnu.h",
+          "sha256": "ac6f8421a699b045682d501eb4d1697a1c3ab3a2850a0b5cf68788eda356189d",
+          "bytes": 404,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_type_initializers_gnu.h",
+          "sha256": "5b5af069a0fe75f1f4e33d618f639f7781e10b7995f3fa6976efe0605a5b123b",
+          "bytes": 402,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_type_initializers_gnu.h",
+          "sha256": "30efb94de43154fab2761bfd566571f6fcfdab03a7daa931e551c3bcf0c3c031",
+          "bytes": 405,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_type_initializers_gnu.h",
+          "sha256": "70fa0bd2562323be09d14f2a33f0dd525836a29ed3c9955b1ba8148a03ba68e6",
+          "bytes": 403,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_type_initializers_gnu.h",
+          "sha256": "639cd5f8c4604f83b774295d3b0ee50132b3da6f76d2ede00aa29482ec3efe70",
+          "bytes": 401,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_types.h",
+          "sha256": "c57a4e88981a612f5cb5690c042a451c2b1801ef3e56acaf1f9961cc6fb1ba90",
+          "bytes": 477,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_types.h",
+          "sha256": "12ac1f42c0d7945f2642c9d5b38fd6a8e9ab246be9ad86f26956e682647684b7",
+          "bytes": 475,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_types.h",
+          "sha256": "4e08c45a3809bfd3e65f2a0c41a81a1eb3c6da1aed261cd5a8b5000a71abb3db",
+          "bytes": 478,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_types.h",
+          "sha256": "0e9b59ee526688de6259db69e583eafe0dce3ea0b0d4bd67b078b3e7f0d5a03b",
+          "bytes": 476,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/atomic_types.h",
+          "sha256": "47d36f6b92017b8c711f6c076cc7e3d6184acdae433a4b602dc2319febb74047",
+          "bytes": 479,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/bit_counts_llp64.h",
+          "sha256": "8c1af9ff11a78511713d0326041bffa65e14537bea37080233c34744276e5d45",
+          "bytes": 559,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/bit_counts_llp64.h",
+          "sha256": "587cd71ba306c591ccb92309c4e599fc0c1edcb7c8aa3a426b111c5be65c8866",
+          "bytes": 557,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/bit_counts_llp64.h",
+          "sha256": "b80340c006f39ccff69bac785f77610b4d9fc231007536abbc5af6223f20bf79",
+          "bytes": 560,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/bit_counts_llp64.h",
+          "sha256": "6c6fd23ad7c5345bb0ab9f043edf9903b7a571f4c34effe08df8edec96991ea8",
+          "bytes": 558,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/bit_counts_llp64.h",
+          "sha256": "4d747b32c712c4204182c748040479d7ccf40a175f33ba5bfdb73b8989be0ad5",
+          "bytes": 561,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/bit_counts_lp64.h",
+          "sha256": "1219c81dee174989e01e0c8e51072ad3ba36733ac19f941b6a3c38140bd2378a",
+          "bytes": 559,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/bit_counts_lp64.h",
+          "sha256": "b54a73008ee52a9888e2aba7b152faa0f4b515e445e6632db20e0582d8a29379",
+          "bytes": 557,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/bit_counts_lp64.h",
+          "sha256": "b9489b4c32687ba0710551882a4a573119e56d6101e3eae58f44be4aee1f3629",
+          "bytes": 555,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/bit_counts_lp64.h",
+          "sha256": "4d072477c15cf58a15c3a2bc599b4cda3647149748a1293234af53bb3155c4c3",
+          "bytes": 558,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/bit_counts_lp64.h",
+          "sha256": "25998bba5ab3ca6b33b8b2fc0a32bbe089cafbdde77c23d0c6ac053682482b1e",
+          "bytes": 556,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/constant_diagnostic.h",
+          "sha256": "5c815abb6d9176936a60db0110d37bf616f6a0ae10b37c4522b2147793bb16cb",
+          "bytes": 28,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/constant_diagnostic.h",
+          "sha256": "b551d54f5322fdcf7580e64cee99b062b14bde4235792d46c9cc91a8ae154194",
+          "bytes": 31,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/constant_diagnostic.h",
+          "sha256": "70e0043ea33c8bc84604cc1c8a1e79309ed2c59d7498f57d90614f0d34cd1046",
+          "bytes": 29,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/constant_diagnostic.h",
+          "sha256": "ee445d3eaf0b968b9572cbe9a0c1470c5efc54f629a1c3f24ce129a729a985e9",
+          "bytes": 27,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/constant_diagnostic.h",
+          "sha256": "6564a94a007f713579949407349b3436fe6b069102e1efb27d161af5125cd630",
+          "bytes": 30,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/constant_query.h",
+          "sha256": "7b497a2ab5dcfc3b3aa133f4e3a5200db41b330f55eb14f8c5455f55d0818297",
+          "bytes": 216,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/constant_query.h",
+          "sha256": "6e6e7aad5c0ced69ab4f21a2e858732fcbd47cbcfb0379fff9d3b80ef3a0e665",
+          "bytes": 214,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/constant_query.h",
+          "sha256": "e9a43279a1230e5d82cca1910a6ec5362f2bc6e02eafb81293e04ec9d0b2f2d2",
+          "bytes": 217,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/constant_query.h",
+          "sha256": "bfc551fa1d6164f47b701dec466a08ea691102307a83dcb877aca8b3e8f36e49",
+          "bytes": 215,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/constant_query.h",
+          "sha256": "58df0e8772e98f752907402d6c4c4b73bc8d13b82042fb4e9e8a74584a1b55c9",
+          "bytes": 213,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/diagnostic_attributes.h",
+          "sha256": "0da267c33cbd47fd69414e4288fc8d20a2d7b8ac62dc860c4d7e2a50e02cfd61",
+          "bytes": 207,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/diagnostic_attributes.h",
+          "sha256": "d44017ba382ea6d54e7eee0a6500d040275ef8115e78df10d8688343748f5979",
+          "bytes": 210,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/diagnostic_attributes.h",
+          "sha256": "b374b4c9ba042366379b66a9dc5ffae4624723ac16584eacaa23809a00f3df3a",
+          "bytes": 208,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/diagnostic_attributes.h",
+          "sha256": "7114157e32f36a75b147ff341e3f7154aa061b706fdd53749f53e4a400108042",
+          "bytes": 211,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/diagnostic_attributes.h",
+          "sha256": "6c6c151313f8ba6d6ca41181c7980e3b3c637d28275122671c918cc99c2ea6ee",
+          "bytes": 209,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/empty_definition.h",
+          "sha256": "4ed15c9b58495133dd1552bf9d9f23b3188330804076f28800f2f599dd24a5fd",
+          "bytes": 56,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/empty_definition.h",
+          "sha256": "253ee5e3abcf720ca0840040998462cd583580111c064c44ef4d2c139831d782",
+          "bytes": 54,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/empty_definition.h",
+          "sha256": "85dd58ce6c5a88aaf7cda81c9848191510246b1d5b4a02f03dd60de6a9143ee2",
+          "bytes": 57,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/empty_definition.h",
+          "sha256": "9acb0d34dafc1eb8de853f947f996e68bd6753e2d40d0c75cbde7d6a3136d2ae",
+          "bytes": 55,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/empty_definition.h",
+          "sha256": "475dac74e8bb18108007871cf9e1cb43ddcbd4ca2783816b7e88a0e31494842a",
+          "bytes": 58,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/fallthrough.h",
+          "sha256": "ee6dea704027ddd6f04f690b2f25f7648ad4d8d2b654521ecb0a9b6eb4674552",
+          "bytes": 159,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/fallthrough.h",
+          "sha256": "54f4c256328e682063243803b6400783f14d602768ff44f5bab087b20b1481ba",
+          "bytes": 157,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/fallthrough.h",
+          "sha256": "d5ef928bb1f19f750d7db33cfba436fe575798ae3f4731c0a7863b2dda33df1b",
+          "bytes": 160,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/fallthrough.h",
+          "sha256": "504ee839fb250df80283a64350dbffaad49a85730cbd8276795025f63b821ce8",
+          "bytes": 158,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/fallthrough.h",
+          "sha256": "8d0f6a796b6f6e9058b9c04f1ed6038baeeca2bf7dd0bcecd152ed6cd467aeeb",
+          "bytes": 156,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/fortified_intrinsics.h",
+          "sha256": "7d7981fe2aee5c821b5f394527d679168ee2e9c31f2b837434470dc6ac4a460f",
+          "bytes": 339,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/fortified_intrinsics.h",
+          "sha256": "34e471ed9867d4d3a28128eb4c2116544c28a61f1ec76db56af2885c83f66f08",
+          "bytes": 337,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/fortified_intrinsics.h",
+          "sha256": "2911b7aa3e36614dc78fdc886cc985a69b30abccd47fd6547ae7e42a0e2600ee",
+          "bytes": 335,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/fortified_intrinsics.h",
+          "sha256": "827341ccdfac296707d6a35e00822649f40b15b0e0e09f75d070e168bb32b9ae",
+          "bytes": 338,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/fortified_intrinsics.h",
+          "sha256": "741a2e0bfbb72f7224d5e2069d1aa986ef20fc3fc84b49c7591b6e7246ddf695",
+          "bytes": 336,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/gnu_vector_shuffle.h",
+          "sha256": "f38fa1c7dd5329f15d8b47d74c0ac85a36cba9f1425d95146e884dbaa1617966",
+          "bytes": 241,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/gnu_vector_shuffle.h",
+          "sha256": "cfca34ae0e54666b2b33e13eaf59c3ab03c0aa6188b6798309da4fded7695637",
+          "bytes": 244,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/gnu_vector_shuffle.h",
+          "sha256": "fc0ee686253cc0134bd3289397881d8f08d66e3e485545fd9912828325ecd3b0",
+          "bytes": 242,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/gnu_vector_shuffle.h",
+          "sha256": "66a39b2deeb8a0969f341a17eff8a5f59b692236c2916a84c425c439252f845a",
+          "bytes": 240,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/gnu_vector_shuffle.h",
+          "sha256": "c530375a14a0b8a54902d9f6154ee87704a480a92400e551fe6b129cb480708e",
+          "bytes": 243,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/infinity_intrinsics.h",
+          "sha256": "9ad545c95606b389d6095c1900cd215bbc0a7ded438eba5cd07075a17ab8c9a1",
+          "bytes": 347,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/infinity_intrinsics.h",
+          "sha256": "5ee0d1f2c41f778c48eb0590e9d9c2c6c68b45b01dc18d8b0af6bd7a9b48aa4a",
+          "bytes": 350,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/infinity_intrinsics.h",
+          "sha256": "bb511cccc234d00bb142494ef792f52c7b4f3d5f4a7757b8f8e48615bc941dc5",
+          "bytes": 348,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/infinity_intrinsics.h",
+          "sha256": "7ca911a2000daaea3d091167bdbff83d0171507810524f1ef27fbc11296aa6cb",
+          "bytes": 351,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/infinity_intrinsics.h",
+          "sha256": "d114b5c77b2646e5c081ac672736121c81a4b3de1d840ec6fd8ec40099fab675",
+          "bytes": 349,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/initializers.h",
+          "sha256": "45b5632e08f81333edbbe0566628fb729caaf997ded63591739638c0f2a61b37",
+          "bytes": 196,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/initializers.h",
+          "sha256": "2954daf0a819a558ecf270d2a613dec4d97af54ce75c069e0df373ad142d2730",
+          "bytes": 194,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/initializers.h",
+          "sha256": "6dc4b7c6b9e6fdcbc6c6b43cc04eeb04e14fd860c66ce6625d92e586bd856771",
+          "bytes": 197,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/initializers.h",
+          "sha256": "f43b54c6581089b895b53cda601ab6e2e42b53d86a1b1c792d24500e68e67f9d",
+          "bytes": 195,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/initializers.h",
+          "sha256": "0fea5f45957125cac07ffa962a747c327d987549e59624ab94a42b4661a8325b",
+          "bytes": 193,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/intrinsic_queries.h",
+          "sha256": "5e7d055e75c1c5c8ee1d5400c7c09a238cc8ba40380c3f9fb9fd41f2e522d8f4",
+          "bytes": 421,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/intrinsic_queries.h",
+          "sha256": "49e0f98e8dad701d2edfa70d685330c9b1ac1977a413192a0fd5b73c15639141",
+          "bytes": 419,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/intrinsic_queries.h",
+          "sha256": "787476008ae660689ffb1b23f5114e07f50437b72030011c9955ac2cd625d033",
+          "bytes": 417,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/intrinsic_queries.h",
+          "sha256": "f301f4b586b2492e05c4fffc18daab239cce6b0d76c7e5962776038821b0103a",
+          "bytes": 420,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/intrinsic_queries.h",
+          "sha256": "7a6269fd18b29d401a0544876339f983f1bb85f10c3de7b8810daf3c3a84d1f3",
+          "bytes": 418,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/memory_and_byte_swap.h",
+          "sha256": "028b740ba37c98893f12ca0409df7e0a0083931b2e52fb4dd1ca84ab37a875b7",
+          "bytes": 982,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/memory_and_byte_swap.h",
+          "sha256": "143ed43965654b789a2b9654701d4c069c999c9a5f80e6ac160239b2ab1be0c4",
+          "bytes": 980,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/memory_and_byte_swap.h",
+          "sha256": "13ea0cd9586bd5be14ca3e33b1edde4f56cec86a05ac24df5bcff3c0ff2cc23c",
+          "bytes": 983,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/memory_and_byte_swap.h",
+          "sha256": "206d8b34744a2e38593cbe52f66f2e12284f76024ccd7ecb23caca026e1e2f4d",
+          "bytes": 981,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/memory_and_byte_swap.h",
+          "sha256": "a76bbcb529e240b30a27755f59a3e675e54c73c18476a7578738e949d8f403b7",
+          "bytes": 979,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/mixed_floating_conversions.h",
+          "sha256": "9995994270d4a007193dc8b25c93ea67f28a587dda45a5a037cf257fc65292ce",
+          "bytes": 634,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/mixed_floating_conversions.h",
+          "sha256": "ad5b4b9bae82ea960a594298224ad7776a7c0ac6ecc540729fbbb77a1358e70a",
+          "bytes": 632,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/mixed_floating_conversions.h",
+          "sha256": "e653b19851c3023923d5ca934bf8fc7454b23fd4330b01fb1d2d97c3a577e39c",
+          "bytes": 635,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/mixed_floating_conversions.h",
+          "sha256": "513e8406b833ad102e77056e64ea793ea992f27b584a6faf72a45422729bfbd8",
+          "bytes": 633,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/mixed_floating_conversions.h",
+          "sha256": "c6f38f81765df4a9411da1a31059713ffae0f689e36e8d4c8f7e79e1f59f3400",
+          "bytes": 636,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/mmx_deferred_immediate.h",
+          "sha256": "4eeb6b77219f1dd6168b39d728ecfef1c1a9d51dde3f60ae9819873ec66e4de7",
+          "bytes": 146,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/mmx_deferred_immediate.h",
+          "sha256": "5ecc0a33f2499bc2dd32664c7ea49f14b8f4fbca0c60d6ffd362bd1118f597be",
+          "bytes": 144,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/mmx_deferred_immediate.h",
+          "sha256": "4cd0b7cd65252bd35de939d7147408a21fd2ad5c9044f623f37f66fff52d09e7",
+          "bytes": 142,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/mmx_deferred_immediate.h",
+          "sha256": "36ce2394a5a8de282feff8e3e74f80229cbcc4014ef644621f6391ca738f35b8",
+          "bytes": 145,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/mmx_deferred_immediate.h",
+          "sha256": "d77cc6a07427b590e64f6d33a9fa71ef5845e2c7b735687e1d7264b92bbdf029",
+          "bytes": 143,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/mmx_intrinsics.h",
+          "sha256": "8d77deb1b30df53b58fad9507972acad682ab13a01d17fbc80161b10c80428f9",
+          "bytes": 375,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/mmx_intrinsics.h",
+          "sha256": "69dd7636acd6fcccfd1c5b84ef258d9b5c618f4ce3fe6352213951fc30062eb6",
+          "bytes": 373,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/mmx_intrinsics.h",
+          "sha256": "c5572dc4ca6f74246935a2c559bb0cdb6e8585b73aa6be97f2b3764984ddc0ba",
+          "bytes": 376,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/mmx_intrinsics.h",
+          "sha256": "580c64b1b86c52ef2ead72a2b0d2232d1954b21f98f18f17d5ef1a0897c356ac",
+          "bytes": 374,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/mmx_intrinsics.h",
+          "sha256": "7c15ffe3fd81b0fab99351ed6ce8e220e1d11c1d4b8f24535d67f235f98435ab",
+          "bytes": 372,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/nan_intrinsics.h",
+          "sha256": "11dabb7f5987faf4b973811bb8c4a175fc967e4cd62fcd42ca34bfdb17a8f668",
+          "bytes": 368,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/nan_intrinsics.h",
+          "sha256": "fa6870cec6fc779cc1a72e3abd426f724cf69074578f1f99e1cdb596d9225cc3",
+          "bytes": 366,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/nan_intrinsics.h",
+          "sha256": "2c4a9aa57ba55850214c4726f36f77cc5b0ee24f3016e13258a9bbaaa0d8c257",
+          "bytes": 364,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/nan_intrinsics.h",
+          "sha256": "ade7f87d51b0827a5986c18f013fdd9b8f0084f5c72b5c98034c3e91ba3e4d64",
+          "bytes": 367,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/nan_intrinsics.h",
+          "sha256": "7ff22982a1afee2ef1b57409294f6720b7d43a5f663893c2140bb97302b8ab6a",
+          "bytes": 365,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/object_extents.h",
+          "sha256": "bfe963b54da008f66b470aa43ba3111d6586f61fb883b8667d8145f05eeb3724",
+          "bytes": 532,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/object_extents.h",
+          "sha256": "9d2e5c26d094520953a9b2a7c3447e44cfee4c82ae615eff368b09aa80968f99",
+          "bytes": 530,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/object_extents.h",
+          "sha256": "909955385c4ae0a35b802456070e5dbda52200696036e1a606834b5d9dd1c100",
+          "bytes": 533,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/object_extents.h",
+          "sha256": "0c041321d25610841bb2476f7877b93c5800fbc1a156c950dd3522c22ae6c309",
+          "bytes": 531,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/object_extents.h",
+          "sha256": "a2e0ad5954c474813b393352bbfab907afb3fbd0f32515b390add2050d9a8ba7",
+          "bytes": 529,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/object_size.h",
+          "sha256": "ad1038edd2b38942edc3e27e7743f965d4153d0654e379ab260f2af31a6c3876",
+          "bytes": 127,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/object_size.h",
+          "sha256": "86b64b6a5d85f78db6b84fea43d9dd6b5b3a376b64e313c2dc98c90fe2919ab3",
+          "bytes": 125,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/object_size.h",
+          "sha256": "0de7fe27cb857a1334a0501f9a2d1be8da5c1dec5c10e1df4d63d5db527e7a62",
+          "bytes": 123,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/object_size.h",
+          "sha256": "59fb194098e2252719ebf7ec370573a84a1a95e298af87b908416e0e6de45edf",
+          "bytes": 126,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/object_size.h",
+          "sha256": "49458c38f3fc1f9270c68c7e4da54c1f2ccb8557796d6ce7a7f45f7a3c6aa8e0",
+          "bytes": 124,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_nested_predicates.h",
+          "sha256": "1310d172ddcc34e9cd1a22610dc1a44123c41d1a69521648514c5185577be28d",
+          "bytes": 1150,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_nested_predicates.h",
+          "sha256": "336921db4bff9bf7be4b7ad03d00a4042046f5a7474a0a123d2d889061740d4a",
+          "bytes": 1148,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_nested_predicates.h",
+          "sha256": "aff4738549fbd42981e930cc22879e91536acf1557f2452a04160c9e87ee0f21",
+          "bytes": 1151,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_nested_predicates.h",
+          "sha256": "c42939872fd1d221d127773a0179cb208ca638b883b173abb7968623e0b5eb3c",
+          "bytes": 1149,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_nested_predicates.h",
+          "sha256": "0ed6964b9ff09c5b4cccaf6378ef7fd99df3f3ae3a034111d7060cb111c05e6f",
+          "bytes": 1147,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_predicates.h",
+          "sha256": "6e33e8183077a9bfbd5fb824b470713ba9bc69c068c9707148d6bc3ee82b7d4a",
+          "bytes": 507,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_predicates.h",
+          "sha256": "67486096d3cd0e6b7912fbf31e7d4ccfac942f08717ca80183775c16cd5909f3",
+          "bytes": 505,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_predicates.h",
+          "sha256": "9fe4f78acbf7448c3e64574afc5916634deb47632993b9e306b48928febddc81",
+          "bytes": 508,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_predicates.h",
+          "sha256": "754dc6a019ab8ecf0b9bd77de89be38732cf4a21d95b1c25127123c3fb7269a3",
+          "bytes": 506,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_predicates.h",
+          "sha256": "90c7fd949f1086d180056dd426ac7ec9591cf2bb514593606df9556dc61139a8",
+          "bytes": 509,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_stores.h",
+          "sha256": "2b34745fde934167ec2dfd55c6ca7a0d49017510935845d401502b47429f445a",
+          "bytes": 318,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_stores.h",
+          "sha256": "75a9008fad8f857b613789409a61c2f33c64cf12ba5434a61d6783b3a377d99a",
+          "bytes": 321,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_stores.h",
+          "sha256": "947ae4aed7d2ef69826c344e7bfc8f7b37d7a0f0d6e9bd7a8cb65b22d792b3c8",
+          "bytes": 319,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_stores.h",
+          "sha256": "f376ec16e00c52f1489adfe441e16d69b1294d19e6bc3ddb8973f92a58374a23",
+          "bytes": 317,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/overflow_stores.h",
+          "sha256": "5c0741361fb72dfd022a0b39025a2d72a6025d2c8d6659260de87a0a662d2972",
+          "bytes": 320,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/prototype_typeof_ownership.h",
+          "sha256": "a1eab8f5bbb50ec74b71fd77355abdcfbbd45862a6f2a3e9630c80f7da129eb4",
+          "bytes": 632,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/prototype_typeof_ownership.h",
+          "sha256": "24f429f1fef6a2481dae503338c39db09674857f368f6550230d17934ed12b7f",
+          "bytes": 630,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/prototype_typeof_ownership.h",
+          "sha256": "2aa25ffabd66a79f7192fad6fe6bdc9f9db51a6055f932ee378dee065e5f66a7",
+          "bytes": 633,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/prototype_typeof_ownership.h",
+          "sha256": "8fa2629059ef4094f0f2dfd4918797d55830dda6bbced07b47ad1447814acf8a",
+          "bytes": 631,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/prototype_typeof_ownership.h",
+          "sha256": "5c16f9f995ee864b2157bbfacfa64e7f561f864a020b0dbde43c473ecfe59173",
+          "bytes": 629,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/query_evaluation.h",
+          "sha256": "c1fe1f6a458285a2e0091fbf3610744f7668d5ab2fb36beb55a9321339759802",
+          "bytes": 301,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/query_evaluation.h",
+          "sha256": "930326f217b62766ebd2736ec283cf34164359022f51e3c2e482e0a816da5f4f",
+          "bytes": 299,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/query_evaluation.h",
+          "sha256": "adfade5f8144e68c6d317c4eea967c6c7e47d2a413ce561b384c9e3363604715",
+          "bytes": 302,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/query_evaluation.h",
+          "sha256": "2c5141a059c2280c43218d9cc24c8e5aaf3a810f39e25d93d9a423453c455771",
+          "bytes": 300,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/query_evaluation.h",
+          "sha256": "be18b78065f6a86866591135cad673887ddd1301164df6ac5590f0d6914f2b78",
+          "bytes": 303,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/returns_twice.h",
+          "sha256": "e809f89b858e234e54a03f9b587f9c84a88c2a3114b6a7534dcc91431acdf737",
+          "bytes": 212,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/returns_twice.h",
+          "sha256": "2347476af52184b020a63afcb35d1940797cb8113e65cc1d7a0a05669ce4bafe",
+          "bytes": 215,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/returns_twice.h",
+          "sha256": "659f7393b038a79596d30c1628b0f831079c29852bbeedde5514a279c94ce6ce",
+          "bytes": 213,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/returns_twice.h",
+          "sha256": "8d5f79b453f91c1dcefa7117e57143843d0cc85633e538ce97cab03fdccb3641",
+          "bytes": 211,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/returns_twice.h",
+          "sha256": "fef13bff54c19fe21fdab139bfaed90924a924e4c66b84bd14858efa287e9316",
+          "bytes": 214,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/runtime_extent_conversions.h",
+          "sha256": "c75815aaeff99ca941fb0e0c0dc73cc086c59cfc4f585ba2154f3ed974135625",
+          "bytes": 427,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/runtime_extent_conversions.h",
+          "sha256": "ead888e85c4fa2279f1ae0247f3d29e373cd9352c05b8c50538894ba6ccf5791",
+          "bytes": 425,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/runtime_extent_conversions.h",
+          "sha256": "107aa4a3ee72edce06141d4886b5f3d28b23121e3b2851925ea1ef1256fdfc56",
+          "bytes": 428,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/runtime_extent_conversions.h",
+          "sha256": "9802fde77499e3ffe857b1178fde84ac903b6b44aa9831773797ba9355fa9d48",
+          "bytes": 426,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/runtime_extent_conversions.h",
+          "sha256": "be9eea6591949f863363d31a2834e5f5b5be2941c1610e139f01879cbc183ba6",
+          "bytes": 424,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/sse_deferred_prefetch.h",
+          "sha256": "37df721267049d782386cfa06ce0d15bf3c278c1999b23661b9d2373933b519e",
+          "bytes": 234,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/sse_deferred_prefetch.h",
+          "sha256": "b18a0fe9ca09e291de58962d689a4e7f9b779d77de93e065bdce07649f0fb364",
+          "bytes": 232,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/sse_deferred_prefetch.h",
+          "sha256": "26f364bc39359cf26603629f28ee65d907ca7344116479c98c2958a0ccb371b4",
+          "bytes": 230,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/sse_deferred_prefetch.h",
+          "sha256": "63b8c3208eafcdd540200d4de55db4c7dd8ebec991ac54176f96ceb841cdcf17",
+          "bytes": 233,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/sse_deferred_prefetch.h",
+          "sha256": "42b1355e90787a97a7b03ea2fe0a859cd3d97771efe3e321bbcef38990ac81b2",
+          "bytes": 231,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/sse_intrinsics.h",
+          "sha256": "fbfa9cbe6d049a0306e107f9a83c851ce9003b4a153df7d11028864dcd15d9af",
+          "bytes": 316,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/sse_intrinsics.h",
+          "sha256": "8ad7a104719e50537a72dd5e9e95822212085cfc9e60b07d0c6516f28d52744a",
+          "bytes": 314,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/sse_intrinsics.h",
+          "sha256": "7eca35b9391f717d63d78599e7f3de114df7a3b6c90e9c952eaec8106e01cd11",
+          "bytes": 317,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/sse_intrinsics.h",
+          "sha256": "ed994659c0fe184971771a1c50f3d0fd90da6ca51d4db07eb9e9e141407f45e0",
+          "bytes": 315,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/sse_intrinsics.h",
+          "sha256": "c0f19d0862d2d087cd80426408547d9191424ac9776ef64a7b30461735bfd802",
+          "bytes": 313,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/statements.h",
+          "sha256": "452adc39c4375f566a8c5a48b25f9f56f5f2c8440c7161f6f09f2c03b6834ed5",
+          "bytes": 247,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/statements.h",
+          "sha256": "ad95c3146039610601dfc4e205a2982c3a818ee0996ab918d3f1144d1df8dacf",
+          "bytes": 245,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/statements.h",
+          "sha256": "a059542b0ed0dcfc606058ee36307a52e3575bdd546220396470123e56f24e78",
+          "bytes": 248,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/statements.h",
+          "sha256": "0b253eb42f3d752977c227c17775d7d2be99c4b69cd9a8aa4befd98c916a082f",
+          "bytes": 246,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/statements.h",
+          "sha256": "555555b1582a8d1bd41808da96428d2081c2d0344b093074dd69c13d419ee7b0",
+          "bytes": 244,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/sync_builtins.h",
+          "sha256": "10e17d8a6187a2efa6f484f865f1712438e9315b9ef0dda79a925024dc84ab6b",
+          "bytes": 434,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/sync_builtins.h",
+          "sha256": "d420d188c27e8e605c2e58e160d209b8e66c3b093a74a95b34265ac6c85ff72f",
+          "bytes": 432,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/sync_builtins.h",
+          "sha256": "083e83c3ad213c6d9331413b604388f9cac3d2b2b83e369b92a58c749afe2deb",
+          "bytes": 430,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/sync_builtins.h",
+          "sha256": "5f21b83f87824bee070010a0067121324c24cb96041b05160120f1ebc4697bc1",
+          "bytes": 433,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/sync_builtins.h",
+          "sha256": "83d066daeab2b562d25fc58ad550e9a947cca01cfebc00112513a0087b1f7403",
+          "bytes": 431,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/thread_local.h",
+          "sha256": "6216833bf109f7d2b1febb448fb8cbc97bf19c986072c4660fbf814bd1286305",
+          "bytes": 439,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/thread_local.h",
+          "sha256": "3bba64409096855bd05d82ea36e0764783e82ed313e0bf89176e7e4144f5670e",
+          "bytes": 442,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/thread_local.h",
+          "sha256": "b832d1d9ca946637cc5f4161a07f5178930f603863e0ffd90e4dc60f08d34ad6",
+          "bytes": 440,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/thread_local.h",
+          "sha256": "ff0a528f8096b778b8e0c6c27a52e05e0c07edcbea3bb7d600cc4f0f6731fbaf",
+          "bytes": 443,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/thread_local.h",
+          "sha256": "ea4aba32b485c6f8629f87ee28b4f624e3300c19bfda3102522440eae5e4f1be",
+          "bytes": 441,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/transparent_unions.h",
+          "sha256": "3dec2f3a5ee75da82fc4a97239d9b7dd68cc227deb342389add78f6c99a54d78",
+          "bytes": 421,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/transparent_unions.h",
+          "sha256": "39e61912326c419e04fcc26f008a4a3eacb06cfc13d96573f1bca70efc622062",
+          "bytes": 424,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/transparent_unions.h",
+          "sha256": "ebca0a934042ddd745c33f4127aaefdf9460770a79ceb2b2b19ec1c82decf4a8",
+          "bytes": 422,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/transparent_unions.h",
+          "sha256": "8efd230484a72f1a832e1062ae14a40ea27f768ec16aa57ed5da1d13d7903f23",
+          "bytes": 420,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/transparent_unions.h",
+          "sha256": "e0dc02e2a292b6ec31c4f27b618d940d945926b1dabaf4f72a02c67813b491b0",
+          "bytes": 423,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/type_uses.h",
+          "sha256": "3e74dfe66bba26eb32c7b0f587e8e6b5570f67a1fdf4d5af1984a4a09200377d",
+          "bytes": 325,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/type_uses.h",
+          "sha256": "06be443b668545cba12bcbd18cad677a96c1b6d1833865e54fe6be49b1ec2646",
+          "bytes": 323,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/type_uses.h",
+          "sha256": "452667c2d2f9e588fee5f18c0f94f04ba0651f15eaed573b3e4749d790cb0215",
+          "bytes": 321,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/type_uses.h",
+          "sha256": "f64fa788261c5e24d4f92e0b5f81b81ec5155f04efa9a83883fa1bec9cec481e",
+          "bytes": 324,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/type_uses.h",
+          "sha256": "6e83866fec404ce27941702ee2a4723e723ccaf502598f96c6a2a7581e096d16",
+          "bytes": 322,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/undefined_bit_count.h",
+          "sha256": "5c3c5ac2adca972a089e011f9dfb97f19f3b8a28870521eb2c8f1c84ced75106",
+          "bytes": 76,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/undefined_bit_count.h",
+          "sha256": "38940fabdd571e665b3f6f1c768c75d99812105cac9b15dc50451d4174dae3bd",
+          "bytes": 74,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/undefined_bit_count.h",
+          "sha256": "28bfd3de72dbd69c5a0e5c5a1f5ebb02dc24d674956cc7b8e799c88e379c900c",
+          "bytes": 77,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/undefined_bit_count.h",
+          "sha256": "76adf736c34a0eef3f8581825b0ce9857228e010fb01d1a05cf0cc74d7ef09fe",
+          "bytes": 75,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/undefined_bit_count.h",
+          "sha256": "195fbac6b1e52af4eff4f7cfbc1131005d9e590d6c769153276809aaa1180904",
+          "bytes": 78,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/variadic_pack.h",
+          "sha256": "27fc5472445625ab6b690020c61e805e35ee53e91596d2439d29b14f0fb8ca76",
+          "bytes": 214,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/variadic_pack.h",
+          "sha256": "8fcf1bae3c642b6b32c2b8ca953db76740fe8dcb48b5ee8bdc10f32dc5ee0704",
+          "bytes": 212,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/variadic_pack.h",
+          "sha256": "8ebea0a3637825c425e422e1b6611e2f292131697c72fad368ce10ba428ae99c",
+          "bytes": 210,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/variadic_pack.h",
+          "sha256": "5247e230367a9c96ca64b9bd92b41b6ebb002a8379feddfef2a7f9534d439f96",
+          "bytes": 213,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/variadic_pack.h",
+          "sha256": "2c6f44fbedeec6fbcc670826326496ff46d62a845b6dcea4626e1728e3de755c",
+          "bytes": 211,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/variadic_pack_generic.h",
+          "sha256": "4b5d2b87db7b47834be53dae14e08ee87be534a41fd1538468aae8eabdd515b2",
+          "bytes": 734,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/variadic_pack_generic.h",
+          "sha256": "e8781e1f5dce56089f2bddc1032c47bc9ba4ad2fd90fcc0b9eefc799a0e9a833",
+          "bytes": 737,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/variadic_pack_generic.h",
+          "sha256": "3a6526d223898150d7f2a174df108e6dec1b9c9e2ccfe2b4b59ff58ac431f10b",
+          "bytes": 735,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/variadic_pack_generic.h",
+          "sha256": "fe75fcf9be2d83fc337ee9c0bc37aca2e74344d20b06a5ae6a845d039638f56c",
+          "bytes": 733,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/variadic_pack_generic.h",
+          "sha256": "2e2ba70085f3c335b278f21da662e684db0b30244dcefd6af12b4de434b104de",
+          "bytes": 736,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/vector_types.h",
+          "sha256": "f62aad0e11a7efd0dba25420537547c7201a41edbe2fdbd16d24e37d95741e1f",
+          "bytes": 347,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/vector_types.h",
+          "sha256": "e596b94a59edfb5e4f0abf275bc62c617b734538d0845f981482863c2df3b3fb",
+          "bytes": 345,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/vector_types.h",
+          "sha256": "4fae4e042c271c590f3b944ebad146abd5799df9a380731d5274a7bb1dad0058",
+          "bytes": 343,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/vector_types.h",
+          "sha256": "f1cc3f1c9178fad09ef1c7ec4743dc15b60a075956dfdac1448c0bf7537a82f1",
+          "bytes": 346,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/vector_types.h",
+          "sha256": "687257b4d08801f70bef870e6d02096a999159e3c8272d980c14473a5d3c4e80",
+          "bytes": 344,
+          "target_index": 4
+        },
+        {
+          "source": "fuzz/seeds/checked/weak_symbols.h",
+          "sha256": "d61ae30979cda93e87574d426e3fe76df965812c9786d52ec87fd3078c5c24e9",
+          "bytes": 277,
+          "target_index": 0
+        },
+        {
+          "source": "fuzz/seeds/checked/weak_symbols.h",
+          "sha256": "88343407c37c9db66db2995df25462143c739cead40ddb5b762c6e08af320883",
+          "bytes": 275,
+          "target_index": 1
+        },
+        {
+          "source": "fuzz/seeds/checked/weak_symbols.h",
+          "sha256": "355c70490bf47c940e2e9fbf0c2bb15731aab071b19ef13826ab8e3cfa503ef2",
+          "bytes": 273,
+          "target_index": 2
+        },
+        {
+          "source": "fuzz/seeds/checked/weak_symbols.h",
+          "sha256": "16ebac1c4257415109a66bbda26dfa16b71aa1a939c4f78d73bf99a525293ea9",
+          "bytes": 276,
+          "target_index": 3
+        },
+        {
+          "source": "fuzz/seeds/checked/weak_symbols.h",
+          "sha256": "ed3e50a37321dc6bea959f92a17c0012d4d6645b92821ba6658fcc55a9b347fa",
+          "bytes": 274,
+          "target_index": 4
+        }
+      ],
+      "invalid_utf8_seed_sha256": "3a6e2b63b63b3df6ae7a377064ce76cdef6771aa5d7fc1ab5412cac661d17098",
+      "build_command": [
+        "taskset",
+        "-c",
+        "24-27",
+        "/home/dev-user/.cache/toucan/tools/bin/cargo-fuzz",
+        "build",
+        "checked",
+        "--sanitizer",
+        "address"
+      ],
+      "build_exit_code": 0,
+      "build_log_sha256": "2215cb9c23d924d660cd2c9853d74c785f0680f005313e1362cf8d88e3ba3080",
+      "binary_sha256": "52df195be8e92e1f3dea7f9bb9e391786616648c16ad0364154683ec2d872d04",
+      "command": [
+        "taskset",
+        "-c",
+        "24",
+        "/home/dev-user/.cache/toucan/fuzz-profile-smoke/checked/checked",
+        "/home/dev-user/.cache/toucan/fuzz-profile-smoke/checked/corpus",
+        "-dict=/home/dev-user/code/oss/toucan/fuzz/c.dict",
+        "-max_total_time=30",
+        "-max_len=16384",
+        "-len_control=0",
+        "-timeout=5",
+        "-rss_limit_mb=1024",
+        "-print_final_stats=1",
+        "-seed=20260923",
+        "-artifact_prefix=/home/dev-user/.cache/toucan/fuzz-profile-smoke/checked/artifacts/"
+      ],
+      "exit_code": 0,
+      "elapsed_seconds": 31.20824552099657,
+      "log_sha256": "3b69fcc9004a5d5e924ab275ddf4d7cf3576a0b22c7fa961640e25e5a2c6c93b",
+      "statistics": {
+        "number_of_executed_units": 6782,
+        "average_exec_per_sec": 218,
+        "new_units_added": 731,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 473
+      },
+      "artifacts": []
+    }
+  ],
+  "status": "passed",
+  "source_unchanged": true,
+  "finished_utc": "2026-09-08T08:58:39.700640+00:00",
+  "raw_evidence_sha256": "3150c1c4da115f410e71d69d55beb14f77189226c6e87912557faae5790338dd",
+  "limitations": [
+    "Four 31-second smoke runs, not sustained fuzz campaigns or conformance proof.",
+    "Counts include invalid C and invalid UTF-8; they are not accepted-program counts.",
+    "Five target profiles execute on one native Linux host. LeakSanitizer is unavailable under ptrace."
+  ]
+}

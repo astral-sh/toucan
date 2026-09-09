@@ -8,9 +8,9 @@ compatibility checks and indexing should use the same semantic representation.
 C++ and machine-code generation are subsequent projects.
 
 Reusable libraries must not run compiler subprocesses, select a global allocator,
-change process state, or hide unsupported ABI semantics. Parsing uses `lang-c`'s
-preprocessed-source API. Layout uses `repc` behind a target adapter. Both dependencies
-are licensed under MIT or Apache-2.0; the separate GPL-licensed `cly` tool is not used.
+change process state, or hide unsupported ABI semantics. The parser and layout
+engine are local, attributed forks of `lang-c` and `repc`, respectively. Both are
+licensed under MIT or Apache-2.0; the separate GPL-licensed `cly` tool is not used.
 
 ## Review stack
 
@@ -59,3 +59,31 @@ outside this checkout. CI packages every crate and tests `--all-features` on Lin
 macOS, and Windows, including the CLI's jemalloc or mimalloc configuration. Compiler
 oracle tests run separately on the native Linux and macOS jobs with
 `--include-ignored`.
+
+## Compiler oracles
+
+Use `toucan_test_support::compiler_acceptance` when comparing a compiler result
+with expected acceptance. It returns `Ok(true)` for acceptance, `Ok(false)` for
+an ordinary diagnostic, and `Err` for a compiler failure. Compare with
+`Ok(expected)` so a crashing compiler cannot satisfy a negative source test.
+Keep assertions for the expected diagnostic as well. The helper recognizes
+crashes reported by compiler drivers through exit code 1, including the Apple
+Clang frontend failure that exposed this gap.
+
+This contract applies to GCC, Clang and rustc invocations. Generated executables,
+Rust test harnesses and CLI validation have separate exit contracts. The shared
+helper has no dependencies and is used through versioned dev-dependencies;
+normal package verification includes it.
+
+The [compiler-oracle audit](../corpus/evidence/compiler-oracles-2026-09-08.json)
+records the migrated call sites, crash regression, cross-target compilation and
+package checks.
+
+## Generated-C conformance
+
+The [Csmith audit](../corpus/conformance/csmith/README.md) checks pinned or supplied
+programs against strict GCC and Clang acceptance, both preprocessed frontend
+profiles, and normal/retained declaration parity. Its Linux CI gate uses four
+pinned programs and native CRC/UBSan controls. Larger runs retain every exclusion
+and tool failure separately; a compiler-rejected program never counts as a
+frontend success.

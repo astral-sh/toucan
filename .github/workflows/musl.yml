@@ -1,0 +1,114 @@
+name: Musl ABI and consumers
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "corpus/musl/**"
+      - "tools/zstd_consumer/**"
+      - "scripts/verify_musl_abi.py"
+      - "scripts/verify_bindgen_builder.py"
+      - ".github/workflows/musl.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: musl-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-24.04
+            target: x86_64-unknown-linux-musl
+            arch: x86_64
+          - os: ubuntu-24.04-arm
+            target: aarch64-unknown-linux-musl
+            arch: aarch64
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 35
+    env:
+      MUSL_TARGET: ${{ matrix.target }}
+      MUSL_ARCH: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: stable
+          targets: ${{ matrix.target }}
+      - name: Install native musl compilers and generated-code MSRV
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools clang lld
+          rustup toolchain install 1.64.0 --profile minimal --target "$MUSL_TARGET"
+      - name: Build the frontend
+        run: cargo build --locked -p toucan_cli
+      - name: Run C and Rust ABI combinations
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/musl" results/musl
+          include="/usr/include/$MUSL_ARCH-linux-musl"
+          clang_include="$(clang -print-resource-dir)/include"
+          gcc_include="$(gcc -print-file-name=include)"
+          linker="$RUNNER_TEMP/musl/linker"
+          printf '#!/bin/sh\nexec clang --target=%s -fuse-ld=lld "$@"\n' "$MUSL_TARGET" > "$linker"
+          chmod +x "$linker"
+          stable_rustc="$(rustup which --toolchain stable rustc)"
+          old_rustc="$(rustup which --toolchain 1.64.0 rustc)"
+          for compiler in gcc clang; do
+            if [[ "$compiler" == gcc ]]; then
+              command=musl-gcc
+              resource="$gcc_include"
+            else
+              command="clang --target=$MUSL_TARGET -nostdinc -isystem $include -isystem $clang_include"
+              resource="$clang_include"
+            fi
+            python3 scripts/verify_musl_abi.py \
+              --target "$MUSL_TARGET" --compiler "$compiler" --sysroot / \
+              --include-dir "$include" --include-dir "$resource" \
+              --cc "$command" --rust-linker "$linker" \
+              --rustc "$stable_rustc" --rustc "$old_rustc" \
+              --toucan target/debug/toucan --output "results/musl/$compiler"
+          done
+          printf '#!/bin/sh\nexec clang --target=%s -nostdinc -isystem %s -isystem %s "$@"\n' \
+            "$MUSL_TARGET" "$include" "$clang_include" > "$RUNNER_TEMP/musl/clang"
+          chmod +x "$RUNNER_TEMP/musl/clang"
+          target_variable="${MUSL_TARGET//-/_}"
+          {
+            echo "CC_${target_variable}=$RUNNER_TEMP/musl/clang"
+            echo "CARGO_TARGET_${target_variable^^}_LINKER=$linker"
+            echo "BINDGEN_EXTRA_CLANG_ARGS_${target_variable}=--sysroot=/ -I$include -I$clang_include"
+          } >> "$GITHUB_ENV"
+      - name: Run unchanged zstd-sys build scripts and zstd consumers
+        env:
+          CARGO_TARGET_DIR: target/musl-consumer
+        run: |
+          python3 scripts/verify_bindgen_builder.py \
+            --target "$MUSL_TARGET" --cache "$RUNNER_TEMP/musl/consumer" \
+            --output results/musl/consumer
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: musl-${{ matrix.arch }}
+          path: |
+            results/musl/**/*.json
+            results/musl/**/*.stdout
+            results/musl/**/*.stderr
+            results/musl/**/*.rs
+            results/musl/**/*.c
+            results/musl/**/*.h
+            results/musl/**/*.d
+          retention-days: 14
+          if-no-files-found: warn

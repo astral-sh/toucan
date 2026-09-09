@@ -1,0 +1,340 @@
+{
+  "note": "Resolution of first linked Clang declaration inheritance found after the frozen target-attribute evidence. Original evidence remains unchanged. First block declarations supply inherited entity properties; later block declarations remain lexical when an earlier file or block declaration exists.",
+  "frozen_target_patch_sha256": "e697bbe2bec435629c51aecec9e1660b0ff54919d28b5e873b1e8ac8b9cbfd7c",
+  "compilers": {
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+  },
+  "probes": [
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0-gcc-x86_64-unknown-linux-gnu.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0-clang-x86_64-unknown-linux-gnu.s"
+      ],
+      "exit_code": 1,
+      "stderr": "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0.c:1:74: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}\n      |                                                                          ^\n1 error generated.\n",
+      "expected_acceptance": false
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-apple-darwin",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0-clang-x86_64-apple-darwin.s"
+      ],
+      "exit_code": 1,
+      "stderr": "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0.c:1:74: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}\n      |                                                                          ^\n1 error generated.\n",
+      "expected_acceptance": false
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-pc-windows-msvc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0-clang-x86_64-pc-windows-msvc.s"
+      ],
+      "exit_code": 1,
+      "stderr": "/home/dev-user/.cache/toucan/function-target-probes/first-linked/0.c:1:74: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}\n      |                                                                          ^\n1 error generated.\n",
+      "expected_acceptance": false
+    },
+    {
+      "source": "int f(void); void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/1.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/1-gcc-x86_64-unknown-linux-gnu.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "int f(void); void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/1.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/1-clang-x86_64-unknown-linux-gnu.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "int f(void); void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-apple-darwin",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/1.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/1-clang-x86_64-apple-darwin.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "int f(void); void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-pc-windows-msvc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/1.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/1-clang-x86_64-pc-windows-msvc.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "void a(void){int f(void);} void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/2.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/2-gcc-x86_64-unknown-linux-gnu.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "void a(void){int f(void);} void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/2.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/2-clang-x86_64-unknown-linux-gnu.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "void a(void){int f(void);} void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-apple-darwin",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/2.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/2-clang-x86_64-apple-darwin.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "void a(void){int f(void);} void g(void){__attribute__((target(\"no-mmx\"))) int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-pc-windows-msvc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/2.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/2-clang-x86_64-pc-windows-msvc.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(void); int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3-gcc-x86_64-unknown-linux-gnu.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(void); int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3-clang-x86_64-unknown-linux-gnu.s"
+      ],
+      "exit_code": 1,
+      "stderr": "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3.c:1:87: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | void g(void){__attribute__((target(\"no-mmx\"))) int f(void); int f(void);} int f(void){__builtin_ia32_emms();return 0;}\n      |                                                                                       ^\n1 error generated.\n",
+      "expected_acceptance": false
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(void); int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-apple-darwin",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3-clang-x86_64-apple-darwin.s"
+      ],
+      "exit_code": 1,
+      "stderr": "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3.c:1:87: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | void g(void){__attribute__((target(\"no-mmx\"))) int f(void); int f(void);} int f(void){__builtin_ia32_emms();return 0;}\n      |                                                                                       ^\n1 error generated.\n",
+      "expected_acceptance": false
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(void); int f(void);} int f(void){__builtin_ia32_emms();return 0;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-pc-windows-msvc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3-clang-x86_64-pc-windows-msvc.s"
+      ],
+      "exit_code": 1,
+      "stderr": "/home/dev-user/.cache/toucan/function-target-probes/first-linked/3.c:1:87: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | void g(void){__attribute__((target(\"no-mmx\"))) int f(void); int f(void);} int f(void){__builtin_ia32_emms();return 0;}\n      |                                                                                       ^\n1 error generated.\n",
+      "expected_acceptance": false
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(int, int*);} int f(int n,int a[(__builtin_ia32_emms(),n)]){return n;}",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4-gcc-x86_64-unknown-linux-gnu.s"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "expected_acceptance": true
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(int, int*);} int f(int n,int a[(__builtin_ia32_emms(),n)]){return n;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-unknown-linux-gnu",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4-clang-x86_64-unknown-linux-gnu.s"
+      ],
+      "exit_code": 1,
+      "stderr": "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4.c:1:86: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | void g(void){__attribute__((target(\"no-mmx\"))) int f(int, int*);} int f(int n,int a[(__builtin_ia32_emms(),n)]){return n;}\n      |                                                                                      ^\n1 error generated.\n",
+      "expected_acceptance": false
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(int, int*);} int f(int n,int a[(__builtin_ia32_emms(),n)]){return n;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-apple-darwin",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4-clang-x86_64-apple-darwin.s"
+      ],
+      "exit_code": 1,
+      "stderr": "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4.c:1:86: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | void g(void){__attribute__((target(\"no-mmx\"))) int f(int, int*);} int f(int n,int a[(__builtin_ia32_emms(),n)]){return n;}\n      |                                                                                      ^\n1 error generated.\n",
+      "expected_acceptance": false
+    },
+    {
+      "source": "void g(void){__attribute__((target(\"no-mmx\"))) int f(int, int*);} int f(int n,int a[(__builtin_ia32_emms(),n)]){return n;}",
+      "command": [
+        "clang",
+        "-target",
+        "x86_64-pc-windows-msvc",
+        "-std=gnu11",
+        "-O0",
+        "-S",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4.c",
+        "-o",
+        "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4-clang-x86_64-pc-windows-msvc.s"
+      ],
+      "exit_code": 1,
+      "stderr": "/home/dev-user/.cache/toucan/function-target-probes/first-linked/4.c:1:86: error: '__builtin_ia32_emms' needs target feature mmx\n    1 | void g(void){__attribute__((target(\"no-mmx\"))) int f(int, int*);} int f(int n,int a[(__builtin_ia32_emms(),n)]){return n;}\n      |                                                                                      ^\n1 error generated.\n",
+      "expected_acceptance": false
+    }
+  ]
+}

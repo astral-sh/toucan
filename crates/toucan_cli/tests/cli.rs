@@ -38,6 +38,41 @@ fn generation_does_not_need_a_compiler_on_path() {
 }
 
 #[test]
+fn external_types_use_caller_source_and_report_required_layout() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("api.h");
+    let raw = directory.path().join("external.rs");
+    let report = directory.path().join("report.json");
+    std::fs::write(&header, "typedef int Number; void take(Number);\n").unwrap();
+    std::fs::write(&raw, "pub type Number = ::core::ffi::c_int;\n").unwrap();
+    let result = Command::new(env!("CARGO_BIN_EXE_toucan"))
+        .env("PATH", directory.path())
+        .arg("bindgen")
+        .arg(&header)
+        .args(["--target", "x86_64-unknown-linux-gnu"])
+        .args(["--blocklist-type", "Number", "--raw-lines-file"])
+        .arg(&raw)
+        .arg("--report")
+        .arg(&report)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    let source = String::from_utf8(result.stdout).unwrap();
+    assert_eq!(source.matches("pub type Number").count(), 1);
+    assert!(source.contains("pub fn take("));
+    assert!(source.contains("size_of::<Number>()"));
+    let report: serde_json::Value =
+        serde_json::from_slice(&std::fs::read(report).unwrap()).unwrap();
+    assert_eq!(report["blocked_types"][0]["c_name"], "Number");
+    assert_eq!(report["blocked_types"][0]["layout_required"], true);
+    assert_eq!(report["blocked_types"][0]["size_bytes"], 4);
+}
+
+#[test]
 fn failed_generation_preserves_existing_output() {
     let directory = tempfile::tempdir().unwrap();
     let header = directory.path().join("bad.h");

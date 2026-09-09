@@ -36,6 +36,8 @@ impl BoundId {
 #[derive(Clone, Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Serialize)]
 #[non_exhaustive]
 pub enum TypeStep {
+    /// The ordinary value contained by an atomic object type.
+    AtomicValue,
     Pointer,
     Element,
     Return,
@@ -99,8 +101,12 @@ pub enum BoundValue {
     },
     PrototypeStar,
     /// Compatibility does not prove that these runtime values are equal.
+    /// C11 6.2.7 and 6.7.6.2 impose additional runtime requirements; forming a
+    /// composite from an unevaluated runtime bound can have undefined behavior.
     Composite {
         inputs: Vec<BoundInput>,
+        /// The source conditional's condition, if any. This is provenance, not
+        /// an instruction to select one input as the resulting runtime bound.
         selection: Option<ExprId>,
     },
 }
@@ -254,7 +260,8 @@ impl Builder {
         }
         if matches!(
             kind,
-            ExprKind::AlignOf(_)
+            ExprKind::AlignOf { .. }
+                | ExprKind::TypesCompatible { .. }
                 | ExprKind::BuiltinCall {
                     query_evaluation: Some(super::QueryEvaluation::Unevaluated(_)),
                     ..
@@ -269,21 +276,8 @@ impl Builder {
                 }
             }
         }
-        if let ExprKind::Generic {
-            control,
-            arms,
-            selected,
-        } = kind
-        {
-            let ranges: Vec<_> = std::iter::once(control.expression)
-                .chain(
-                    arms.iter()
-                        .enumerate()
-                        .filter(|(index, _)| index != selected)
-                        .map(|(_, arm)| arm.expression),
-                )
-                .map(|id| self.parsed_spans[self.code.expressions[id.index()].occurrence.index()])
-                .collect();
+        let ranges = self.unevaluated_selection_ranges(kind);
+        if !ranges.is_empty() {
             for (bound, span) in self.code.bounds[start..]
                 .iter_mut()
                 .zip(&self.bounds_builder.spans[start..])
@@ -450,6 +444,7 @@ impl Builder {
         result: TypeUseId,
         parameters: &[TypeUseId],
         scope: Option<ScopeId>,
+        old_style_parameters: Option<&[(OccurrenceId, super::SiteId)]>,
         ty: &Type,
         offset: usize,
     ) -> Result<TypeUseId, Error> {
@@ -465,6 +460,9 @@ impl Builder {
                         == EntityKind::Parameter
                 })
                 .collect();
+            let parameters = old_style_parameters.map_or(parameters, |parameters| {
+                parameters.iter().map(|(_, site)| *site).collect()
+            });
             functions.push(FunctionUse {
                 path: Vec::new(),
                 scope,
@@ -562,13 +560,14 @@ impl Builder {
         }
         Ok(())
     }
-    pub(crate) fn parameter_type_use(
+    pub(crate) fn parameter_type_use<T>(
         &mut self,
-        parameter: &Node<ast::ParameterDeclaration>,
+        parameter: &Node<T>,
+        kind: OccurrenceKind,
         id: TypeUseId,
         resolved: &TypeKind,
     ) -> Result<(), Error> {
-        if let Some(occurrence) = self.find(OccurrenceKind::Parameter, parameter)? {
+        if let Some(occurrence) = self.find(kind, parameter)? {
             self.budget.charge(0, 1, 0, parameter.span.start)?;
             let adjustment = match resolved {
                 TypeKind::Array { .. } | TypeKind::VariableArray { .. } => {
@@ -621,6 +620,14 @@ impl Builder {
                         function.path[0] = TypeStep::Pointer;
                     }
                 }
+                if matches!(ty.kind, TypeKind::Atomic(_)) {
+                    for extent in &mut extents {
+                        extent.path.insert(0, TypeStep::AtomicValue);
+                    }
+                    for function in &mut functions {
+                        function.path.insert(0, TypeStep::AtomicValue);
+                    }
+                }
                 let shape = self.intern_type(ty, offset)?;
                 result = self.type_use(shape, extents, functions, offset)?;
             } else if adjustment == Some(ParameterAdjustment::Function) {
@@ -642,9 +649,11 @@ impl Builder {
         offset: usize,
         variably_modified: bool,
         definition_parameter: bool,
+        atomic_wrapper: bool,
     ) -> Result<TypeUseId, Error> {
         let inherited = if let [specifier] = specs {
             match &specifier.node {
+                ast::TypeSpecifier::Atomic(name) => self.type_name_use(&name.node),
                 ast::TypeSpecifier::TypedefName(name) => self
                     .entity_for_name(&name.node.name)
                     .and_then(|id| self.bounds_builder.entities.get(&id).copied()),
@@ -678,6 +687,18 @@ impl Builder {
             None
         };
         match inherited {
+            Some(id)
+                if atomic_wrapper
+                    || matches!(
+                        specs,
+                        [Node {
+                            node: ast::TypeSpecifier::Atomic(_),
+                            ..
+                        }]
+                    ) =>
+            {
+                self.wrap_type_use(id, ty, TypeStep::AtomicValue, None, offset)
+            }
             Some(id) => self.retype_use(id, ty, offset),
             None => self.plain_type_use(ty, offset),
         }
@@ -709,6 +730,18 @@ impl Builder {
         let mut functions = self.code.type_uses[id.index()].functions.clone();
         for conversion in conversions {
             match conversion.kind {
+                Conversion::AtomicLoad => {
+                    for function in &mut functions {
+                        if function.path.first() == Some(&TypeStep::AtomicValue) {
+                            function.path.remove(0);
+                        }
+                    }
+                    for extent in &mut extents {
+                        if extent.path.first() == Some(&TypeStep::AtomicValue) {
+                            extent.path.remove(0);
+                        }
+                    }
+                }
                 Conversion::ArrayDecay => {
                     for function in &mut functions {
                         if function.path.first() == Some(&TypeStep::Element) {
@@ -740,6 +773,7 @@ impl Builder {
                 | TypeKind::Array { .. }
                 | TypeKind::Function(_)
                 | TypeKind::Typedef(_)
+                | TypeKind::Atomic(_)
         ) {
             extents.clear();
         }
@@ -813,7 +847,17 @@ impl Builder {
                 operator: Binary::Assign | Binary::AssignPlus | Binary::AssignMinus,
                 left,
                 ..
-            } => self.retype_use(left.type_use, ty, offset),
+            } => {
+                if matches!(
+                    self.code.types[left.effective_type.index()].kind,
+                    TypeKind::Atomic(_)
+                ) && !matches!(ty.kind, TypeKind::Atomic(_))
+                {
+                    self.project_type_use(left.type_use, ty, TypeStep::AtomicValue, offset)
+                } else {
+                    self.retype_use(left.type_use, ty, offset)
+                }
+            }
             ExprKind::Binary {
                 operator: Binary::Plus | Binary::Minus,
                 left,
@@ -839,6 +883,21 @@ impl Builder {
                 let right = self.before_composite_conversion(else_value, offset)?;
                 self.composite_type_use(&[left, right], Some(condition.expression), ty, owner)
             }
+            ExprKind::Choose {
+                then_expression,
+                else_expression,
+                then_selected,
+                ..
+            } => self.retype_use(
+                self.code.expressions[if *then_selected {
+                    then_expression.index()
+                } else {
+                    else_expression.index()
+                }]
+                .type_use,
+                ty,
+                offset,
+            ),
             ExprKind::Generic { arms, selected, .. } => self.retype_use(
                 self.code.expressions[arms[*selected].expression.index()].type_use,
                 ty,
@@ -852,6 +911,31 @@ impl Builder {
                 result: Some(value),
                 ..
             } => self.retype_use(value.type_use, ty, offset),
+            ExprKind::BuiltinCall {
+                builtin:
+                    super::expression::Builtin::Nontemporal(
+                        crate::nontemporal::NontemporalOperation::Load,
+                    ),
+                arguments,
+                ..
+            } if matches!(ty.kind, TypeKind::Pointer(_)) => {
+                self.project_type_use(arguments[0].type_use, ty, TypeStep::Pointer, offset)
+            }
+            ExprKind::BuiltinCall {
+                builtin: super::expression::Builtin::C11Atomic(_),
+                arguments,
+                ..
+            } if matches!(ty.kind, TypeKind::Pointer(_)) => {
+                let address = &arguments[0];
+                let TypeKind::Pointer(atomic) =
+                    self.code.types[address.effective_type.index()].kind.clone()
+                else {
+                    return plain(self);
+                };
+                let storage =
+                    self.project_type_use(address.type_use, &atomic, TypeStep::Pointer, offset)?;
+                self.project_type_use(storage, ty, TypeStep::AtomicValue, offset)
+            }
             ExprKind::Call { callee, .. } => {
                 let functions = self.code.type_uses[callee.type_use.index()]
                     .functions
@@ -860,7 +944,13 @@ impl Builder {
                         f.path
                             .strip_prefix(&[TypeStep::Pointer, TypeStep::Return])
                             .map(|path| FunctionUse {
-                                path: path.to_vec(),
+                                path: if !matches!(ty.kind, TypeKind::Atomic(_)) {
+                                    path.strip_prefix(&[TypeStep::AtomicValue])
+                                        .unwrap_or(path)
+                                        .to_vec()
+                                } else {
+                                    path.to_vec()
+                                },
                                 scope: f.scope,
                                 parameters: f.parameters.clone(),
                             })
@@ -874,7 +964,13 @@ impl Builder {
                             .path
                             .strip_prefix(&[TypeStep::Pointer, TypeStep::Return])
                             .map(|path| Extent {
-                                path: path.to_vec(),
+                                path: if !matches!(ty.kind, TypeKind::Atomic(_)) {
+                                    path.strip_prefix(&[TypeStep::AtomicValue])
+                                        .unwrap_or(path)
+                                        .to_vec()
+                                } else {
+                                    path.to_vec()
+                                },
                                 bound: extent.bound,
                             })
                     })
@@ -894,7 +990,7 @@ impl Builder {
         if let Some(step) = value.conversions.first()
             && matches!(
                 step.kind,
-                Conversion::ArrayDecay | Conversion::FunctionDecay
+                Conversion::ArrayDecay | Conversion::FunctionDecay | Conversion::AtomicLoad
             )
         {
             let ty = self.code.types[step.target_type.index()].clone();
@@ -928,6 +1024,7 @@ impl Builder {
                         | TypeKind::Array { .. }
                         | TypeKind::VariableArray { .. }
                         | TypeKind::Typedef(_)
+                        | TypeKind::Atomic(_)
                 ) {
                     continue;
                 }
@@ -997,10 +1094,13 @@ fn path_type<'a>(mut ty: &'a Type, path: &[TypeStep]) -> Option<&'a TypeKind> {
     for step in path {
         ty = match (step, &ty.kind) {
             (_, TypeKind::Typedef(_)) => return Some(&ty.kind),
-            (TypeStep::Pointer, TypeKind::Pointer(inner)) => inner,
+            (TypeStep::Pointer, TypeKind::Pointer(inner))
+            | (TypeStep::AtomicValue, TypeKind::Atomic(inner)) => inner,
             (
                 TypeStep::Element,
-                TypeKind::Array { element, .. } | TypeKind::VariableArray { element },
+                TypeKind::Array { element, .. }
+                | TypeKind::VariableArray { element, .. }
+                | TypeKind::Vector { element, .. },
             ) => element,
             (TypeStep::Return, TypeKind::Function(function)) => &function.return_type,
             (TypeStep::Parameter(index), TypeKind::Function(function)) => {
@@ -1209,7 +1309,7 @@ mod tests {
         assert!(
             code.expressions
                 .iter()
-                .filter(|e| matches!(e.kind, ExprKind::SizeOfType(_) | ExprKind::AlignOf(_)))
+                .filter(|e| matches!(e.kind, ExprKind::SizeOfType(_) | ExprKind::AlignOf { .. }))
                 .all(|e| e.type_name_use.is_some())
         );
     }

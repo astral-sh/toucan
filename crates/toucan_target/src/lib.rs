@@ -4,7 +4,11 @@
 //! alignment annotations use bits. The layout rules follow the target's default GCC, Clang,
 //! or MSVC ABI through `repc`; flags such as `-fshort-enums` are not implied.
 
+mod language;
 mod macros;
+mod profile;
+pub use language::LanguageMode;
+pub use profile::{Compiler, CompilerProfile};
 
 use std::fmt;
 use std::str::FromStr;
@@ -26,16 +30,22 @@ pub enum Target {
     Aarch64AppleDarwin,
     /// The Microsoft x64 ABI.
     X86_64PcWindowsMsvc,
+    /// The System V AMD64 ABI with musl Linux headers.
+    X86_64UnknownLinuxMusl,
+    /// The AArch64 ELF ABI with musl Linux headers.
+    Aarch64UnknownLinuxMusl,
 }
 
 impl Target {
     /// All supported targets, in a stable order.
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 7] = [
         Self::X86_64UnknownLinuxGnu,
         Self::Aarch64UnknownLinuxGnu,
         Self::X86_64AppleDarwin,
         Self::Aarch64AppleDarwin,
         Self::X86_64PcWindowsMsvc,
+        Self::X86_64UnknownLinuxMusl,
+        Self::Aarch64UnknownLinuxMusl,
     ];
 
     /// Parses a canonical target triple. Unknown triples are rejected.
@@ -54,7 +64,47 @@ impl Target {
             Self::X86_64AppleDarwin => "x86_64-apple-darwin",
             Self::Aarch64AppleDarwin => "aarch64-apple-darwin",
             Self::X86_64PcWindowsMsvc => "x86_64-pc-windows-msvc",
+            Self::X86_64UnknownLinuxMusl => "x86_64-unknown-linux-musl",
+            Self::Aarch64UnknownLinuxMusl => "aarch64-unknown-linux-musl",
         }
+    }
+
+    /// Whether the target uses a Linux ABI and headers.
+    pub const fn is_linux(self) -> bool {
+        matches!(
+            self,
+            Self::X86_64UnknownLinuxGnu
+                | Self::Aarch64UnknownLinuxGnu
+                | Self::X86_64UnknownLinuxMusl
+                | Self::Aarch64UnknownLinuxMusl
+        )
+    }
+
+    /// Whether the target uses the musl C library.
+    pub const fn is_musl(self) -> bool {
+        matches!(
+            self,
+            Self::X86_64UnknownLinuxMusl | Self::Aarch64UnknownLinuxMusl
+        )
+    }
+
+    /// Whether the target uses the AArch64 instruction set.
+    pub const fn is_aarch64(self) -> bool {
+        matches!(
+            self,
+            Self::Aarch64UnknownLinuxGnu | Self::Aarch64UnknownLinuxMusl | Self::Aarch64AppleDarwin
+        )
+    }
+
+    /// Whether the target uses the x86-64 instruction set.
+    pub const fn is_x86_64(self) -> bool {
+        matches!(
+            self,
+            Self::X86_64UnknownLinuxGnu
+                | Self::X86_64UnknownLinuxMusl
+                | Self::X86_64AppleDarwin
+                | Self::X86_64PcWindowsMsvc
+        )
     }
 
     /// Alignment requested by GNU `aligned` without an argument, in bytes.
@@ -63,6 +113,8 @@ impl Target {
         match self {
             Self::X86_64UnknownLinuxGnu
             | Self::Aarch64UnknownLinuxGnu
+            | Self::X86_64UnknownLinuxMusl
+            | Self::Aarch64UnknownLinuxMusl
             | Self::X86_64AppleDarwin
             | Self::Aarch64AppleDarwin
             | Self::X86_64PcWindowsMsvc => 16,
@@ -71,7 +123,10 @@ impl Target {
 
     /// Returns whether plain `char` is signed in this profile.
     pub const fn char_is_signed(self) -> bool {
-        !matches!(self, Self::Aarch64UnknownLinuxGnu)
+        !matches!(
+            self,
+            Self::Aarch64UnknownLinuxGnu | Self::Aarch64UnknownLinuxMusl
+        )
     }
 
     /// Returns the width of object and function pointers, in bits.
@@ -101,7 +156,9 @@ impl Target {
     pub const fn wchar_is_signed(self) -> bool {
         !matches!(
             self,
-            Self::X86_64PcWindowsMsvc | Self::Aarch64UnknownLinuxGnu
+            Self::X86_64PcWindowsMsvc
+                | Self::Aarch64UnknownLinuxGnu
+                | Self::Aarch64UnknownLinuxMusl
         )
     }
 
@@ -116,22 +173,27 @@ impl Target {
     /// placement. This function validates layout-specific input and bounds nesting before
     /// calling the ABI engine.
     pub fn layout(self, ty: &Type) -> Result<Layout, LayoutError> {
-        let input = self.lower(ty, 0)?;
-        let output = repc::compute_layout(self.abi_target(), &input)?;
-        Ok(Layout::from_abi(&output))
+        CompilerProfile::default_for(self).layout(ty)
     }
 
     const fn abi_target(self) -> repc::Target {
         match self {
             Self::X86_64UnknownLinuxGnu => repc::Target::X86_64UnknownLinuxGnu,
             Self::Aarch64UnknownLinuxGnu => repc::Target::Aarch64UnknownLinuxGnu,
+            Self::X86_64UnknownLinuxMusl => repc::Target::X86_64UnknownLinuxMusl,
+            Self::Aarch64UnknownLinuxMusl => repc::Target::Aarch64UnknownLinuxMusl,
             Self::X86_64AppleDarwin => repc::Target::X86_64AppleMacosx,
             Self::Aarch64AppleDarwin => repc::Target::Aarch64AppleMacosx,
             Self::X86_64PcWindowsMsvc => repc::Target::X86_64PcWindowsMsvc,
         }
     }
 
-    fn lower(self, ty: &Type, depth: usize) -> Result<abi::Type<()>, LayoutError> {
+    fn lower(
+        self,
+        ty: &Type,
+        depth: usize,
+        compiler: Compiler,
+    ) -> Result<abi::Type<()>, LayoutError> {
         if depth >= 256 {
             return Err(LayoutError::NestingLimit);
         }
@@ -173,7 +235,7 @@ impl Target {
                             annotations: lower_annotations(&field.annotations)?,
                             named: field.named,
                             bit_width: field.bit_width,
-                            ty: self.lower(&field.ty, depth + 1)?,
+                            ty: self.lower(&field.ty, depth + 1, compiler)?,
                         })
                     })
                     .collect::<Result<_, LayoutError>>()?;
@@ -186,7 +248,7 @@ impl Target {
                 })
             }
             TypeVariant::Array { element, length } => abi::TypeVariant::Array(abi::Array {
-                element_type: Box::new(self.lower(element, depth + 1)?),
+                element_type: Box::new(self.lower(element, depth + 1, compiler)?),
                 num_elements: *length,
             }),
             TypeVariant::Enum(values) => {
@@ -200,7 +262,8 @@ impl Target {
                 } else {
                     i128::from(u64::MAX)
                 };
-                if matches!(self, Self::X86_64AppleDarwin | Self::Aarch64AppleDarwin)
+                if compiler == Compiler::Clang
+                    && self != Self::X86_64PcWindowsMsvc
                     && (minimum < i128::from(i64::MIN) || maximum > maximum_64)
                 {
                     // Clang only offers a lossy, diagnosed recovery for larger enum ranges.
@@ -223,7 +286,7 @@ impl Target {
                 required_alignment_bits: layout.required_alignment_bits,
             }),
             TypeVariant::Typedef(inner) => {
-                abi::TypeVariant::Typedef(Box::new(self.lower(inner, depth + 1)?))
+                abi::TypeVariant::Typedef(Box::new(self.lower(inner, depth + 1, compiler)?))
             }
         };
         Ok(abi::Type {
@@ -518,6 +581,12 @@ pub struct FieldLayout {
 /// A target selection or object layout failure.
 #[derive(Debug, Error)]
 pub enum LayoutError {
+    #[error("unsupported C language mode `{0}`; expected c11 or gnu11")]
+    UnsupportedLanguageModeName(String),
+    #[error("unsupported compiler `{0}`; expected gcc or clang")]
+    UnsupportedCompilerName(String),
+    #[error("compiler `{compiler}` is unsupported for target `{target}`")]
+    UnsupportedCompiler { target: Target, compiler: Compiler },
     #[error("unsupported target `{0}`")]
     UnsupportedTarget(String),
     #[error("void has no object layout")]

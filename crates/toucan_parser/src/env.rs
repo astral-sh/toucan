@@ -13,7 +13,11 @@ pub enum Symbol {
 pub struct Env {
     pub symbols: Vec<HashMap<String, Symbol>>,
     pub extensions_gnu: bool,
+    pub gnu_keywords: bool,
     pub extensions_clang: bool,
+    pub extensions_msvc: bool,
+    pub clang_calling_conventions: bool,
+    pub gnu_float128_typedef: bool,
     pub reserved: HashSet<&'static str>,
     // Parameter scopes are normally discarded at the end of their declarators.
     // A definition temporarily saves them until its declarator identifies which
@@ -28,7 +32,11 @@ impl Env {
         Env {
             definition_scopes: None,
             extensions_gnu: false,
+            gnu_keywords: false,
             extensions_clang: false,
+            extensions_msvc: false,
+            clang_calling_conventions: false,
+            gnu_float128_typedef: false,
             symbols: vec![HashMap::default()],
             reserved,
         }
@@ -43,7 +51,11 @@ impl Env {
         Env {
             definition_scopes: None,
             extensions_gnu: true,
+            gnu_keywords: true,
             extensions_clang: false,
+            extensions_msvc: false,
+            clang_calling_conventions: false,
+            gnu_float128_typedef: true,
             symbols: vec![symbols],
             reserved,
         }
@@ -56,12 +68,59 @@ impl Env {
         reserved.extend(strings::RESERVED_C11.iter());
         reserved.extend(strings::RESERVED_GNU.iter());
         reserved.extend(strings::RESERVED_CLANG.iter());
+        reserved.extend(strings::RESERVED_CLANG_CALLING_CONVENTIONS.iter());
         Env {
             definition_scopes: None,
             extensions_gnu: true,
+            gnu_keywords: true,
             extensions_clang: true,
+            extensions_msvc: false,
+            clang_calling_conventions: true,
+            gnu_float128_typedef: false,
             symbols: vec![symbols],
             reserved,
+        }
+    }
+
+    pub fn with_gnu_and_clang_extensions() -> Env {
+        let mut env = Self::with_clang();
+        env.gnu_float128_typedef = true;
+        env.reserved.remove("__float128");
+        env.clang_calling_conventions = false;
+        for name in strings::RESERVED_CLANG_CALLING_CONVENTIONS {
+            env.reserved.remove(name);
+        }
+        env
+    }
+
+    pub fn set_gnu_keywords(&mut self, enabled: bool) {
+        self.gnu_keywords = enabled && self.extensions_gnu;
+        for name in ["asm", "typeof"] {
+            if self.gnu_keywords {
+                self.reserved.insert(name);
+            } else {
+                self.reserved.remove(name);
+            }
+        }
+    }
+
+    pub fn set_msvc_extensions(&mut self, enabled: bool) {
+        if !self.clang_calling_conventions && self.extensions_msvc != enabled {
+            for name in strings::RESERVED_CLANG_CALLING_CONVENTIONS {
+                if enabled {
+                    self.reserved.insert(name);
+                } else {
+                    self.reserved.remove(name);
+                }
+            }
+        }
+        self.extensions_msvc = enabled;
+        for name in strings::RESERVED_MSVC {
+            if enabled {
+                self.reserved.insert(name);
+            } else {
+                self.reserved.remove(name);
+            }
         }
     }
 
@@ -86,7 +145,12 @@ impl Env {
 
     pub fn finish_function_definition(&mut self, declarator: Option<&Node<Declarator>>) {
         let scopes = self.definition_scopes.take().unwrap_or_default();
-        let function = declarator.and_then(|declarator| function_parameters(&declarator.node));
+        let function = declarator
+            .and_then(|declarator| definition_function(&declarator.node))
+            .and_then(|derived| match derived {
+                DerivedDeclarator::Function(function) => Some(function),
+                _ => None,
+            });
         if let Some(function) = function {
             if let Some((_, symbols)) = scopes
                 .into_iter()
@@ -106,7 +170,16 @@ impl Env {
                 return *symbol == Symbol::Typename;
             }
         }
-        false
+        (self.gnu_float128_typedef && ident == "__float128")
+            || self.extensions_gnu
+                && matches!(
+                    ident,
+                    "__Float32x4_t"
+                        | "__Float64x2_t"
+                        | "__SVFloat32_t"
+                        | "__SVFloat64_t"
+                        | "__SVBool_t"
+                )
     }
 
     pub fn handle_declarator(&mut self, d: &Node<Declarator>, sym: Symbol) {
@@ -129,9 +202,11 @@ impl Env {
     }
 }
 
-fn function_parameters(declarator: &Declarator) -> Option<&Node<FunctionDeclarator>> {
+// The outer identifier-list function has no prototype scope to restore. It must
+// still stop the search before a returned callback's parameter list.
+fn definition_function(declarator: &Declarator) -> Option<&DerivedDeclarator> {
     if let DeclaratorKind::Declarator(ref inner) = declarator.kind.node {
-        if let Some(function) = function_parameters(&inner.node) {
+        if let Some(function) = definition_function(&inner.node) {
             return Some(function);
         }
     }
@@ -139,7 +214,8 @@ fn function_parameters(declarator: &Declarator) -> Option<&Node<FunctionDeclarat
         .derived
         .iter()
         .find_map(|derived| match &derived.node {
-            DerivedDeclarator::Function(function) => Some(function),
+            function @ DerivedDeclarator::Function(_)
+            | function @ DerivedDeclarator::KRFunction(_) => Some(function),
             _ => None,
         })
 }

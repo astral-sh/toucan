@@ -78,7 +78,10 @@ fn typedef_identity_and_scalar_conversion_follow_the_compiler_profile() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         for source in CLANG_PROFILE {
             check(source, target, !gnu);
@@ -110,13 +113,22 @@ fn retained_conversions_reference_source_fields_and_expose_parameter_abi() {
         let origin = unit.record_origin(record).unwrap();
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         assert_eq!(record != origin, gnu);
+        let carrier = unit.parameter_abi_type(&alias).unwrap();
         assert_eq!(
-            unit.parameter_abi_type(&alias).unwrap().kind,
-            TypeKind::Integer(toucan_semantic::IntegerKind::Int)
+            unit.resolve(carrier).unwrap().kind,
+            if target == Target::X86_64PcWindowsMsvc {
+                TypeKind::Record(record)
+            } else {
+                TypeKind::Integer(toucan_semantic::IntegerKind::Int)
+            }
         );
+
         let mut count = 0;
         for (_, expression) in code.expressions() {
             if let ExprKind::Call { arguments, .. } = expression.kind() {
@@ -233,8 +245,8 @@ fn constraints_match_native_gcc_and_five_clang_profiles() {
                 }
                 let output = command.arg(&input).output().unwrap();
                 assert_eq!(
-                    output.status.success(),
-                    accepted,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(accepted),
                     "{compiler} {target:?}: {source}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );
@@ -314,7 +326,10 @@ fn member_type_alignment_is_distinct_from_field_and_union_alignment() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         check(
             "typedef int I __attribute__((aligned(16))); typedef union {int first; I second;} U __attribute__((transparent_union));",
@@ -344,7 +359,10 @@ fn typeof_aliases_preserve_known_identities_and_diagnose_missing_origins() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::Aarch64UnknownLinuxGnu
+                | Target::Aarch64UnknownLinuxMusl
         );
         for operand in ["U", "u"] {
             check(

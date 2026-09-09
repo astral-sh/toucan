@@ -1,0 +1,48 @@
+name: Csmith conformance
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "scripts/audit_csmith.py"
+      - "scripts/tests/test_csmith_audit.py"
+      - "corpus/conformance/csmith/**"
+      - ".github/workflows/csmith.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: csmith-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-linux:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: stable
+      - run: python3 -m unittest discover -s scripts/tests -p test_csmith_audit.py -v
+      - run: cargo build --locked -p toucan_cli
+      - run: cargo build --locked -p toucan --example audit_csmith
+      - name: Check pinned sources and native CRC control
+        run: |
+          python3 scripts/audit_csmith.py \
+            --output "$RUNNER_TEMP/csmith" \
+            --toucan target/debug/toucan \
+            --runner target/debug/examples/audit_csmith \
+            --runtime-count 1
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: csmith-linux-evidence
+          path: ${{ runner.temp }}/csmith
+          if-no-files-found: ignore

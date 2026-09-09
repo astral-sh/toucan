@@ -190,8 +190,9 @@ fn initializer_constraints_match_c_compilers() {
                 .write_all(source.as_bytes())
                 .unwrap();
             let output = child.wait_with_output().unwrap();
-            assert!(
-                !output.status.success(),
+            assert_eq!(
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(false),
                 "{compiler} accepted: {source}\n{}",
                 String::from_utf8_lossy(&output.stderr)
             );

@@ -53,19 +53,38 @@ impl TranslationUnit {
         }
     }
 
-    /// Returns the C ABI carrier for an already-adjusted function parameter.
-    /// A transparent union uses its first member; its storage and return types
-    /// keep the ordinary union layout. This does not apply to variadic arguments.
+    /// Returns the supported carrier type for an adjusted fixed parameter.
+    /// GNU and most Clang transparent unions use their first member. MSVC keeps
+    /// ordinary union passing. AArch64 transparent unions with tail padding need
+    /// an expanded ABI that this query diagnoses instead of returning one type.
+    /// Storage, returns, and variadic arguments keep their ordinary union types.
+    /// This type does not impose initialized-byte or Rust scalar-validity rules.
     pub fn parameter_abi_type<'a>(&'a self, ty: &'a Type) -> Result<&'a Type, Error> {
         let Some(id) = self.transparent_union(ty)? else {
             return Ok(ty);
         };
-        self.records[id]
+        let first = self.records[id]
             .fields
             .as_ref()
             .and_then(|fields| fields.first())
             .map(|field| &field.ty)
-            .ok_or_else(|| Error::new(0, "transparent_union requires a complete nonempty union"))
+            .ok_or_else(|| Error::new(0, "transparent_union requires a complete nonempty union"))?;
+        if self.target == toucan_target::Target::X86_64PcWindowsMsvc {
+            return Ok(ty);
+        }
+        if matches!(
+            self.target,
+            toucan_target::Target::Aarch64UnknownLinuxGnu
+                | toucan_target::Target::Aarch64UnknownLinuxMusl
+                | toucan_target::Target::Aarch64AppleDarwin
+        ) && self.layout(ty)?.size_bits != self.layout(first)?.size_bits
+        {
+            return Err(Error::new(
+                0,
+                "AArch64 transparent_union padding ABI cannot be represented by one parameter type",
+            ));
+        }
+        Ok(first)
     }
 }
 
@@ -74,18 +93,14 @@ use crate::analyze::{Analyzer, Attributes};
 
 impl Analyzer {
     fn transparent_clang_profile(&self) -> bool {
-        !matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        )
+        self.unit.compiler != toucan_target::Compiler::Gnu
     }
 
     // Clang compares the member type's natural or increased alignment. A
     // typedef alignment decrease changes storage alignment but not this check.
     fn transparent_member_alignment(&self, ty: &Type) -> Result<u64, Error> {
         let mut natural = self.unit.resolve(ty)?.clone();
-        natural.alignment = None;
+        natural.alignment = crate::TypeAlignment::default();
         Ok(self.unit.alignment(ty)?.max(self.unit.alignment(&natural)?))
     }
 
@@ -298,11 +313,14 @@ impl Analyzer {
             {
                 return Ok(false);
             }
-            return match self.composite_pointer(to, from, offset) {
-                Ok(_) => Ok(true),
-                Err(error) if error.message == "incompatible pointer types" => Ok(false),
-                Err(error) => Err(error),
-            };
+            self.check_composite_pointer_alignment(to, from, offset)?;
+            let to = self.unqualified(to)?;
+            let from = self.unqualified(from)?;
+            if matches!(to.kind, TypeKind::Void) || matches!(from.kind, TypeKind::Void) {
+                return Ok(true);
+            }
+            self.check_noescape_conversion(&to, &from, offset)?;
+            return self.compatible(&to, &from);
         }
         self.compatible(&destination, source)
     }
@@ -357,22 +375,6 @@ impl Analyzer {
         Ok(false)
     }
 
-    pub(crate) fn composite_parameter_type(
-        &self,
-        left: &Type,
-        right: &Type,
-        depth: usize,
-    ) -> Result<Type, Error> {
-        match (
-            self.unit.transparent_union(left)?,
-            self.unit.transparent_union(right)?,
-        ) {
-            (Some(_), None) => Ok(right.clone()),
-            (None, Some(_)) => Ok(left.clone()),
-            _ => self.composite_type(left, right, depth),
-        }
-    }
-
     /// A written union definition combined with a scalar-member prototype can
     /// use different ABIs in GCC and Clang. Keep that case explicit until the
     /// definition ABI and the composite callable type can be retained separately.
@@ -418,8 +420,9 @@ fn variant_type_bytes(ty: &Type, depth: usize) -> Result<usize, Error> {
     let mut bytes = std::mem::size_of::<Type>();
     match &ty.kind {
         TypeKind::Pointer(inner)
+        | TypeKind::Atomic(inner)
         | TypeKind::Array { element: inner, .. }
-        | TypeKind::VariableArray { element: inner } => {
+        | TypeKind::VariableArray { element: inner, .. } => {
             bytes = bytes.saturating_add(variant_type_bytes(inner, depth + 1)?);
         }
         TypeKind::Typedef(name) => bytes = bytes.saturating_add(name.len()),

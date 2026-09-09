@@ -4,6 +4,8 @@ use std::process::{Command, Stdio};
 use toucan_semantic::{analyze, evaluate_integer};
 use toucan_target::Target;
 
+const FUNCTION_VA_ARG: &str = "void f(__builtin_va_list a) { __builtin_va_arg(a, int(void)); }";
+
 const VALID: &[&str] = &[
     "int f(int n, ...) { __builtin_va_list a; __builtin_va_start(a, n); int x = __builtin_va_arg(a, int); __builtin_va_end(a); return x; }",
     "void f(int n, ...) { __builtin_va_list a, b; __builtin_va_start(a, n); __builtin_va_copy(b, a); __builtin_va_end(a); __builtin_va_end(b); }",
@@ -11,6 +13,7 @@ const VALID: &[&str] = &[
     "double f(__builtin_va_list a) { return __builtin_va_arg(a, double); }",
     "struct S { int x; }; struct S f(__builtin_va_list a) { return __builtin_va_arg(a, struct S); }",
     "int *f(__builtin_va_list a) { return __builtin_va_arg(a, int *); }",
+    "typedef int (*F)(void); F f(__builtin_va_list a) { return __builtin_va_arg(a, F); }",
     "void f(__builtin_va_list *a) { __builtin_va_end(*a); }",
     "void f(int different, ...); void f(int actual, ...) { __builtin_va_list a; __builtin_va_start(a, actual); __builtin_va_end(a); }",
     "long f(int x, long y) { return __builtin_expect(x, y); }",
@@ -33,7 +36,7 @@ const INVALID: &[&str] = &[
     "int f(int a) { return __builtin_va_arg(a, int); }",
     "void f(__builtin_va_list a) { __builtin_va_arg(a, void); }",
     "struct S; void f(__builtin_va_list a) { __builtin_va_arg(a, struct S); }",
-    "void f(__builtin_va_list a) { __builtin_va_arg(a, int(void)); }",
+    FUNCTION_VA_ARG,
     "void f(__builtin_va_list a) { __builtin_va_arg(a, int) = 1; }",
     "long f(void) { return __builtin_expect(1); }",
     "long f(void) { return __builtin_expect(1, 2, 3); }",
@@ -126,7 +129,12 @@ fn ordinary_declarations_shadow_call_intrinsics() {
     assert!(analyze(source, Target::X86_64UnknownLinuxGnu).is_err());
 }
 
-fn compile(compiler: &str, target: Option<Target>, source: &str) -> std::process::Output {
+fn compile(
+    compiler: &str,
+    target: Option<Target>,
+    source: &str,
+    generate_code: bool,
+) -> std::process::Output {
     let directory = tempfile::tempdir().unwrap();
     let mut command = Command::new(compiler);
     if let Some(target) = target {
@@ -138,7 +146,7 @@ fn compile(compiler: &str, target: Option<Target>, source: &str) -> std::process
             "-pedantic-errors",
             "-Wno-unused-value",
             "-Werror=varargs",
-            "-c",
+            if generate_code { "-c" } else { "-fsyntax-only" },
             "-x",
             "c",
             "-",
@@ -163,10 +171,15 @@ fn intrinsics_match_native_gcc_and_five_clang_targets() {
         for target in targets {
             for (cases, accepted) in [(VALID, true), (INVALID, false)] {
                 for source in cases {
-                    let output = compile(compiler, target, source);
+                    // Clang diagnoses the function type before code generation,
+                    // where the recorded Apple build crashes on this invalid AST.
+                    // Other cases retain object generation: GCC defers some
+                    // va_start diagnostics until lowering the body.
+                    let generate_code = compiler != "clang" || *source != FUNCTION_VA_ARG;
+                    let output = compile(compiler, target, source, generate_code);
                     assert_eq!(
-                        output.status.success(),
-                        accepted,
+                        toucan_test_support::compiler_acceptance(&output),
+                        Ok(accepted),
                         "{compiler} {target:?}: {source}: {}",
                         String::from_utf8_lossy(&output.stderr)
                     );

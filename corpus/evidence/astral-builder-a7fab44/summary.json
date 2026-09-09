@@ -1,0 +1,151 @@
+{
+  "recorded_at": "2026-09-08T13:45:52.190602+00:00",
+  "status": "passed",
+  "frontend_commit": "a7fab4498892126ebde2efe70d4d3c6aa8c56a94",
+  "target": "x86_64-unknown-linux-gnu",
+  "driver_sha256": "0c31c09ee232a06b49c350a138a1f7a3aec39d0219c7044d0a5653204374905c",
+  "test_source_sha256": "af709a61ca13beb703659f383908c0ab7427a52988e02abce330ebb1d48f0b91",
+  "driver_regressions": {
+    "passed": 6,
+    "log_sha256": "8f4455e2e0fbff8d8e759b1c8558e43d19f37af3295c1b35899555b413a71567"
+  },
+  "command": [
+    "taskset",
+    "-c",
+    "3",
+    "env",
+    "CARGO_HOME=/home/dev-user/.cache/toucan/cargo",
+    "CARGO_BUILD_JOBS=4",
+    "python3",
+    "scripts/verify_astral_builder.py",
+    "--cache",
+    "/home/dev-user/.cache/toucan/project-consumers",
+    "--output",
+    "/home/dev-user/.cache/toucan/astral-builder-a7fab44-final",
+    "--zstd-source",
+    "/home/dev-user/.cache/toucan/astral-builder-a7fab44-run03/zstd-sys",
+    "--offline",
+    "--build-timeout",
+    "3600"
+  ],
+  "source_policy": [
+    "Pinned ty/uv archive contents checked in full; project manifests/C/Rust sources unchanged; only temporary Cargo.lock resolution changes, then exact entry inventories restored.",
+    "Pinned zstd-sys C/Rust/build.rs sources unchanged; Cargo.toml aliases bindgen to toucan_bindgen and activates bindgen through std.",
+    "No existing locked package version or dependency edge changes; only additional frontend packages and zstd-sys\u2192toucan_bindgen edge.",
+    "The final entry-point run reuses the prepared source only after validating its complete inventory against the pinned package and exact manifest edits."
+  ],
+  "scope_limits": [
+    "Native x86_64 Linux only.",
+    "Selected ty_vendored/uv-extract suites and recorded CLI scenarios, not full workspaces.",
+    "This is functionality and build-integration evidence, not a throughput benchmark."
+  ],
+  "cold_run": {
+    "report_sha256": "957fccdd6c53550ff2045abd7e0b10ab1e655b3a66a50ae25ab5cb7f1a63d89c",
+    "status": "passed",
+    "note": "The initial cold run used fixed binary paths, which match its Cargo-selected paths on this host. Final acceptance uses the independently reviewed artifact selector and target checks from the runner entry point. Both final binary hashes match the cold-run copies."
+  },
+  "projects": {
+    "ty": {
+      "revision": "e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+      "archive_sha256": "babff09f8302fb18bc0ba465983801acccb2035777f8ff43b1da1f25a9c23e5b",
+      "source_files": 11118,
+      "source_inventory_restored": true,
+      "original_locked_packages": 557,
+      "additional_packages": [
+        "rustc_apfloat@0.2.3+llvm-462a31f5a5ab",
+        "toucan@0.0.1",
+        "toucan_bindgen@0.0.1",
+        "toucan_bindings@0.0.1",
+        "toucan_layout@0.0.1",
+        "toucan_parser@0.0.1",
+        "toucan_preprocessor@0.0.1",
+        "toucan_semantic@0.0.1",
+        "toucan_source@0.0.1",
+        "toucan_target@0.0.1"
+      ],
+      "library_tests": {
+        "upstream": [
+          {
+            "package": "ty_vendored",
+            "passed": 2,
+            "ignored": 0
+          }
+        ],
+        "builder": [
+          {
+            "package": "ty_vendored",
+            "passed": 2,
+            "ignored": 0
+          }
+        ]
+      },
+      "binary_sha256": {
+        "upstream": "3a337173f06fabc2cb1e76eea6ff155e38ca07fad6e81e4b653a64e710e45f55",
+        "builder": "7193c34ddaedf3b5358da17648eb148727eed99731c4e131d183932e782d7d9f"
+      },
+      "runtime": "identical exact diagnostics"
+    },
+    "uv": {
+      "revision": "d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+      "archive_sha256": "9ef2613de29543b8e1975837ed1483d245db4fefaaa9f79507fc87a0dfc63af0",
+      "source_files": 1738,
+      "source_inventory_restored": true,
+      "original_locked_packages": 750,
+      "additional_packages": [
+        "rustc_apfloat@0.2.3+llvm-462a31f5a5ab",
+        "shlex@2.0.1",
+        "toucan@0.0.1",
+        "toucan_bindgen@0.0.1",
+        "toucan_bindings@0.0.1",
+        "toucan_layout@0.0.1",
+        "toucan_parser@0.0.1",
+        "toucan_preprocessor@0.0.1",
+        "toucan_semantic@0.0.1",
+        "toucan_source@0.0.1",
+        "toucan_target@0.0.1"
+      ],
+      "library_tests": {
+        "upstream": [
+          {
+            "package": "uv-extract",
+            "passed": 19,
+            "ignored": 0
+          }
+        ],
+        "builder": [
+          {
+            "package": "uv-extract",
+            "passed": 19,
+            "ignored": 0
+          }
+        ]
+      },
+      "binary_sha256": {
+        "upstream": "40239c411ee81b737df51aa849440dcf95348c5f39972204d2be3f5dc7f02f29",
+        "builder": "25bf6acbd82fbe253f2b623f01d957874b1cd973a85f8d899299bacdfe98fda2"
+      },
+      "runtime": "identical installed wheel bytes and expected truncated-frame EOF rejection"
+    }
+  },
+  "artifacts": {
+    "corpus/evidence/astral-builder-a7fab44/dep-info/d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2.d": "d2afc6afa1369badee3d5e4afc05d66ea0a02e04395b5c1798a7ef289d3c75b2",
+    "corpus/evidence/astral-builder-a7fab44/dep-info/47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c.d": "47077728c14ce615eed25395a195bdbab72ef1eb1b81fe073b906978df0ebb0c",
+    "corpus/evidence/astral-builder-a7fab44/dep-info/4ac8db4e438c725771f6886ec2f4777513d08b0a858c678b36f5e160b474667b.d": "4ac8db4e438c725771f6886ec2f4777513d08b0a858c678b36f5e160b474667b",
+    "corpus/evidence/astral-builder-a7fab44/bindings/21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5.rs": "21eba09478ef9cc36081c26fbefdf63614cdc1826679dbdcf8b4d9d5f4ffbee5",
+    "corpus/evidence/astral-builder-a7fab44/dep-info/3e115cf09f5e26628c62299add5db46331b52465cfbaf1ea4b7469265e151e5b.d": "3e115cf09f5e26628c62299add5db46331b52465cfbaf1ea4b7469265e151e5b",
+    "corpus/evidence/astral-builder-a7fab44/logs/882f2d566999cd1d1d0cbb4dbc540e38939115a29a5abab75d38c7eafc17e95a.stderr": "882f2d566999cd1d1d0cbb4dbc540e38939115a29a5abab75d38c7eafc17e95a",
+    "corpus/evidence/astral-builder-a7fab44/logs/f00f25dd22a7ca75a7303e0da76981c8b1dd59631c49589c4e7deada4ab634c3.stderr": "f00f25dd22a7ca75a7303e0da76981c8b1dd59631c49589c4e7deada4ab634c3",
+    "corpus/evidence/astral-builder-a7fab44/logs/74f47302990c4e926ccc4b83a29d3a60750e5b82d2a131111d9fa93c85d9adda.stderr": "74f47302990c4e926ccc4b83a29d3a60750e5b82d2a131111d9fa93c85d9adda",
+    "corpus/evidence/astral-builder-a7fab44/logs/168f3a8bdf27d7d9af81f1e33ea9495fb9c082522ac85504b2944795d0d9c372.stderr": "168f3a8bdf27d7d9af81f1e33ea9495fb9c082522ac85504b2944795d0d9c372",
+    "corpus/evidence/astral-builder-a7fab44/logs/c7abfa6e011293b437d3ecd4f9b21d2ba3f7dc0fcdabf7cf3e7d7b316c7efa00.stderr": "c7abfa6e011293b437d3ecd4f9b21d2ba3f7dc0fcdabf7cf3e7d7b316c7efa00",
+    "corpus/evidence/astral-builder-a7fab44/dep-info/9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135.d": "9169a7a4cc1c8bbc7e8a814576aab2eae017c746ef60a3d94f07b52b1d32a135",
+    "corpus/evidence/astral-builder-a7fab44/dep-info/3bc114a62c992f7fb1a3b1a248a538cf4f9f712530c2816e39398839c6c6cc10.d": "3bc114a62c992f7fb1a3b1a248a538cf4f9f712530c2816e39398839c6c6cc10",
+    "corpus/evidence/astral-builder-a7fab44/logs/0674b29b50c3dec56646820dd880f72135797e8fbae612e62ca8370ee4ddce1c.stderr": "0674b29b50c3dec56646820dd880f72135797e8fbae612e62ca8370ee4ddce1c",
+    "corpus/evidence/astral-builder-a7fab44/logs/4e2b2ae92e6d0f683723537fb89d0ed87913cf3ed0cad443753ee00dc32972c7.stderr": "4e2b2ae92e6d0f683723537fb89d0ed87913cf3ed0cad443753ee00dc32972c7",
+    "corpus/evidence/astral-builder-a7fab44/logs/223364fdcea9bd2bcf4886c525b5b79337cce55d2c90e3ab0f2331af0b3a61bf.stderr": "223364fdcea9bd2bcf4886c525b5b79337cce55d2c90e3ab0f2331af0b3a61bf",
+    "corpus/evidence/astral-builder-a7fab44/logs/50d7c5226c6686d9fd7d2627bd23839dc13ee8383fe9823565b691ccfacf358d.stderr": "50d7c5226c6686d9fd7d2627bd23839dc13ee8383fe9823565b691ccfacf358d",
+    "corpus/evidence/astral-builder-a7fab44/logs/df35beb3572f7df55fcbf85fdedca225dd86ad457956d09f3e4de0c632ef4bb6.stderr": "df35beb3572f7df55fcbf85fdedca225dd86ad457956d09f3e4de0c632ef4bb6",
+    "corpus/evidence/astral-builder-a7fab44/report.json": "59082cb1c1d2c580cf3c25081cd671f5badfe00028e3909d750b036ec2012116",
+    "corpus/evidence/astral-builder-a7fab44/sources.json": "8a1046e76f116786fa61b84582b068441438240136e53fb4df17bba606f514a0"
+  }
+}

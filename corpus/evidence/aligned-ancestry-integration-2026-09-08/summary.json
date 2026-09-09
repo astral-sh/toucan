@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "reported_test_counts": {
+    "native": {
+      "passed": 26,
+      "failed": 0,
+      "ignored": 0
+    },
+    "workspace": {
+      "passed": 702,
+      "failed": 0,
+      "ignored": 184
+    }
+  },
+  "checked_seed_pairs": 1738,
+  "accepted": 1241,
+  "matching_diagnostics": 497,
+  "original_header_artifacts_equal": 4,
+  "executed_musl_abi_binding_artifacts_equal": 4,
+  "source_manifest_sha256": "3369c7b25523af0389f4ed8db98d75d813e02aa3f8690db75b472bf1b15890bb",
+  "scope": "Combined with musl profiles, semantic feature queries, and vector constants. Focused native suites cover ancestry, aligned typedefs, integer elementwise operations and owner-independent vector snapshots. Native execution here is x86-64 GNU Linux; the four musl ABI binding outputs match prior executed artifacts."
+}

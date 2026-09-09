@@ -118,7 +118,10 @@ fn enumerator_types_change_only_after_the_definition() {
         APPLE,
         Target::Aarch64AppleDarwin,
     ] {
-        let gnu = matches!(target, GNU | Target::Aarch64UnknownLinuxGnu);
+        let gnu = matches!(
+            target,
+            GNU | Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+        );
         for case in CASES {
             let unit = analyze(case.source, target).unwrap();
             let expected = if gnu {
@@ -325,8 +328,8 @@ fn enum_completeness_matches_c_compilers() {
                 .unwrap();
             let output = child.wait_with_output().unwrap();
             assert_eq!(
-                output.status.success(),
-                *accepted,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(*accepted),
                 "{compiler}: {source}\n{}",
                 String::from_utf8_lossy(&output.stderr)
             );

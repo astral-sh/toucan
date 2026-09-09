@@ -87,7 +87,10 @@ fn diagnostic_attributes_validate_arguments_and_supported_attachments() {
         for source in CONFLICTS {
             let accepted = matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+                Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
+                    | Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
             );
             for retain_code in [false, true] {
                 let result = analyze_with_options(
@@ -195,8 +198,8 @@ fn diagnostic_attributes_match_checking_phase_and_record_codegen_boundary() {
                 .output()
                 .unwrap();
             assert_eq!(
-                output.status.success(),
-                gnu,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(gnu),
                 "{compiler}: {source}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
@@ -244,8 +247,8 @@ fn diagnostic_attributes_match_checking_phase_and_record_codegen_boundary() {
                     .output()
                     .unwrap();
                 assert_eq!(
-                    output.status.success(),
-                    !rejected,
+                    toucan_test_support::compiler_acceptance(&output),
+                    Ok(!rejected),
                     "{compiler} {optimization}: {body}: {}",
                     String::from_utf8_lossy(&output.stderr)
                 );
@@ -294,8 +297,8 @@ fn diagnostic_attributes_match_clang_target_constraints() {
                 .output()
                 .unwrap();
             assert_eq!(
-                output.status.success(),
-                accepted,
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted),
                 "{target}: {source}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );

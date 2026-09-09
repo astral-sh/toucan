@@ -4,30 +4,75 @@
 //! constructs return diagnostics; function bodies are checked even when a binding
 //! consumer omits their definitions from its generated API.
 
+mod alignment_names;
+mod alignof;
 mod analyze;
+mod arm;
+mod array_identity;
 mod asm;
+mod atomic;
+mod atomic_type;
+mod attributes;
+mod auto_type;
 mod builtins;
+mod c11_atomic;
 pub mod checked;
+mod complex;
 mod constant_query;
+mod elementwise;
+mod enums;
 mod expression;
+mod features;
 mod floating;
 mod fortified;
 mod initializer;
 mod integer;
+mod introspection;
 mod ir;
 mod literals;
+mod narrow_float;
+mod noescape;
+mod nontemporal;
+mod noreturn;
+mod object_alignment;
+mod object_extent;
 mod object_size;
+mod old_style;
+mod overflow;
+mod parameters;
 mod parser_extensions;
+mod returns_twice;
 mod statement;
+mod sync;
+mod target_features;
+mod target_names;
 mod transparent_union;
+mod type_alignment;
 mod variadic_pack;
+mod vector;
+mod vector_constant;
 mod weak;
+mod wide_float;
+mod x86;
 
-pub use analyze::{analyze, analyze_with_options, evaluate_arithmetic, evaluate_integer};
+pub use analyze::{
+    analyze, analyze_with_options, analyze_with_profile, evaluate_arithmetic, evaluate_integer,
+    evaluate_vector,
+};
+pub use arm::Aarch64Pcs;
+pub use array_identity::VariableArrayId;
+pub use attributes::has_attribute;
+pub use features::has_builtin;
 pub use ir::*;
 pub use literals::{
-    DecodedString, StringEncoding, decode_character_literal, decode_string_literals,
+    DecodedString, StringEncoding, decode_character_literal, decode_character_literal_with_profile,
+    decode_string_literals,
 };
+pub use noescape::{ParameterContracts, ParameterContractsId};
+pub use object_alignment::DeclarationAlignment;
+pub use target_features::{FunctionOptions, FunctionTarget, X86TargetOption};
+pub use type_alignment::{AlignmentOrigin, AlignmentOriginId, AlignmentOriginKind, TypeAlignment};
+pub use vector_constant::{VectorConstant, VectorConstantType, VectorElement};
 
 /// A source-positioned syntax, semantic, or unsupported-feature diagnostic.
 #[derive(Clone, Debug, thiserror::Error, serde::Serialize)]
@@ -44,6 +89,16 @@ impl Error {
             offset,
         }
     }
+}
+
+/// Runs related analysis and constant-evaluation calls on one parser stack.
+///
+/// This amortizes worker creation for tools evaluating many macros. Each parse
+/// keeps independent limits and lexical state; nested sessions reuse the stack.
+/// The worker is joined before return, and panics propagate to the caller.
+pub fn with_parser_stack<T: Send>(operation: impl FnOnce() -> T + Send) -> Result<T, Error> {
+    lang_c::driver::with_parser_stack(operation)
+        .map_err(|error| Error::new(0, format!("unable to create parser worker thread: {error}")))
 }
 
 /// Controls optional semantic retention. The default checks all supported C code

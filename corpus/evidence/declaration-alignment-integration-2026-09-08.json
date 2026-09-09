@@ -1,0 +1,52 @@
+{
+  "schema_version": 1,
+  "integration_base": "5310fbd",
+  "frozen_patch_sha256": "c43e7df020cd6104c0338a2a0f4938178252717129d62ce47f8bb4195a7dff85",
+  "correction": "Preserve the first linked Clang alignment after compatible redeclarations in the same block. Both same-block and separate-block histories now preserve8 while GNU merges32.",
+  "native_probes": [
+    {
+      "name": "same-scope-gcc",
+      "source": "void a(void){extern int x __attribute__((aligned(8))); extern int x __attribute__((aligned(32)));} extern int x;_Static_assert(__alignof__(x)==32,\"alignment\");",
+      "source_sha256": "3a65e79f1b33fb404e081ddcea46cfe1b5af4d9c9435a879fa33dcc5677c503a",
+      "command": [
+        "gcc",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/old-style-alignment-integration/same-scope-gcc.c"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "compiler_version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+    },
+    {
+      "name": "same-scope-clang",
+      "source": "void a(void){extern int x __attribute__((aligned(8))); extern int x __attribute__((aligned(32)));} extern int x;_Static_assert(__alignof__(x)==8,\"alignment\");",
+      "source_sha256": "a343e11296552821c09565534f433560cd5c02425f3a81a9e360abada2db0284",
+      "command": [
+        "clang",
+        "-std=gnu11",
+        "-fsyntax-only",
+        "/home/dev-user/.cache/toucan/old-style-alignment-integration/same-scope-clang.c"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "compiler_version": "Ubuntu clang version 18.1.3 (1ubuntu1)"
+    }
+  ],
+  "focused_tests": {
+    "passed": 13,
+    "failed": 0,
+    "ignored": 0
+  },
+  "rust_1_64": "Generated storage tests passed with the explicit Rust1.64 compiler at C O0/O2 and Rust opt0/3.",
+  "quota_test": "optional_alignment_payload_is_charged_once_before_allocation: passed",
+  "validation": {
+    "workspace_clippy": "all targets and all features, warnings denied",
+    "logs": {
+      "tests": "beff69b770e3c632fdf53e639d6c0e1f545007ad22d5d52ff788355cd024c8a5",
+      "clippy": "7beea54f0d643e760a22a825d8a184412bd783b3322f78527dab598b65e50e5a",
+      "msrv": "14d1f8bbfc24ac10fcf2d425ec7dbe04111a2ec21db8da3772856f52ff235392",
+      "quota": "3aad7fe2434cd6c2a0572a7517d208cbdc82350064c922f1fc25fb58f19b7bcb"
+    }
+  }
+}

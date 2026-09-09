@@ -1,0 +1,17 @@
+enum __attribute__((packed)) Byte { BYTE_ZERO=0, BYTE_ONE=1, BYTE_TWO=2, BYTE_THREE=3, BYTE_MID=127, BYTE_NEXT=128, BYTE_LAST=199, BYTE_MAX=255 };
+enum __attribute__((packed)) SignedByte { SIGNED_MIN=-128, SIGNED_NEXT=-127, SIGNED_MAX=127 };
+enum __attribute__((packed)) Word { WORD_ZERO=0, WORD_PREVIOUS=65534, WORD_MAX=65535 };
+enum __attribute__((packed)) SignedWord { SWORD_MIN=-32768, SWORD_NEXT=-32767, SWORD_MAX=32767 };
+struct Packet { char tag; enum Byte byte; enum SignedByte signed_byte; enum Word word; enum Byte values[3]; };
+union Value { enum Byte byte; enum Word word; };
+enum Byte byte_echo(enum Byte);
+enum SignedByte signed_next(enum SignedByte);
+enum Word word_previous(enum Word);
+enum SignedWord signed_word_next(enum SignedWord);
+struct Packet packet_update(struct Packet);
+union Value union_previous(union Value);
+enum Byte invoke(enum Byte (*callback)(enum Byte),enum Byte);
+int sum_many(enum Byte,enum Byte,enum Byte,enum Byte,enum Byte,enum Byte,enum Byte,enum Byte,enum Byte,enum Byte,enum Byte,enum Byte);
+int promoted(int,...);
+int check_callbacks(int(*)(enum Byte),int(*)(enum SignedByte),int(*)(enum Word),int(*)(enum SignedWord));
+int check_named_callbacks(int(*)(enum Byte),int(*)(enum SignedByte),int(*)(enum Word),int(*)(enum SignedWord));

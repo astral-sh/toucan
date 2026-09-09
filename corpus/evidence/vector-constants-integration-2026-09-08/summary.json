@@ -1,0 +1,22 @@
+{
+  "status": "passed",
+  "reported_test_counts": {
+    "native": {
+      "passed": 13,
+      "failed": 0,
+      "ignored": 0
+    },
+    "workspace": {
+      "passed": 694,
+      "failed": 0,
+      "ignored": 183
+    }
+  },
+  "checked_seed_pairs": 1716,
+  "accepted": 1227,
+  "matching_diagnostics": 489,
+  "original_header_artifacts_equal": 4,
+  "executed_musl_abi_binding_artifacts_equal": 4,
+  "source_manifest_sha256": "4f3203798b2c4c19026728c45cc4d019e08db1100596980ea8ff08c6f6a3644b",
+  "limitations": "Native execution here is x86-64 GNU Linux. Existing musl ABI executions belong to the earlier recorded layer; their binding bytes match. Apple Clang additional numeric vector static conversions remain a separately documented profile gap."
+}

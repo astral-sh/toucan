@@ -12,17 +12,25 @@ output types, and validation for unsupported inputs.
 | --- | --- | --- | --- | --- |
 | `x86_64-unknown-linux-gnu` | signed | 64 bits | signed, 32 bits | 16 / 16 bytes |
 | `aarch64-unknown-linux-gnu` | unsigned | 64 bits | unsigned, 32 bits | 16 / 16 bytes |
+| `x86_64-unknown-linux-musl` | signed | 64 bits | signed, 32 bits | 16 / 16 bytes |
+| `aarch64-unknown-linux-musl` | unsigned | 64 bits | unsigned, 32 bits | 16 / 16 bytes |
 | `x86_64-apple-darwin` | signed | 64 bits | signed, 32 bits | 16 / 16 bytes |
 | `aarch64-apple-darwin` | signed | 64 bits | signed, 32 bits | 8 / 8 bytes |
 | `x86_64-pc-windows-msvc` | signed | 32 bits | unsigned, 16 bits | 8 / 8 bytes |
 
 All supported profiles have eight-bit bytes, little-endian storage, and 64-bit pointers.
+`CompilerProfile` selects GCC or Clang independently of these physical properties.
+The defaults are GCC on Linux and Clang on Darwin/Windows; Clang is also available
+on both Linux targets. Windows uses the Microsoft layout route.
+`CompilerProfile::new(target, compiler)` rejects unsupported combinations.
 Target selection never falls back to the build host. Compiler options that change the ABI,
 including `-fshort-enums`, `-fpack-struct`, and `-funsigned-char`, are not part of these profiles.
 
 ## Layouts
 
-`Target::layout` accepts a `Type` containing scalars, structs, unions, arrays, enumerations,
+`Target::layout` uses the target default; `CompilerProfile::layout` uses an explicit
+compiler through the entire nested type. Both accept a `Type` containing scalars,
+structs, unions, arrays, enumerations,
 and typedefs. Records support bitfields, zero-width barriers, GNU packing/alignment attributes,
 and `#pragma pack`. Annotations use **bits**: `PragmaPack(16)` means `#pragma pack(2)`.
 
@@ -39,7 +47,9 @@ bitfield widths, and size overflow.
 `long double` uses the explicit profile above because `repc` does not expose a corresponding
 scalar type. Its object layout does not imply that Rust can pass or return that value by value.
 
-`Target::predefined_macros` supplies a deterministic subset of compiler macros for C11 header
+`Target::predefined_macros` uses the target default. The corresponding profile method
+supplies compiler-specific markers and integer macros. Both provide a deterministic
+subset of compiler macros for C11 header
 processing. These describe the selected target and the frontend's compatibility profile; they
 do not query an installed compiler. Feature queries and source-dependent macros belong to the
 preprocessor.
@@ -53,7 +63,7 @@ cargo clippy -p toucan_target --all-targets -- -D warnings
 ```
 
 The compiler probes require Clang and a native C compiler (`CC` or `cc`). They compare C scalar
-and record sizes, alignments, and field offsets across all five targets using compile-time
+and record sizes, alignments, and field offsets across all seven targets using compile-time
 assertions without a target sysroot. A separate native probe sets ordinary and packed bitfields,
 then checks the resulting object bytes against the computed bit offsets. It runs on supported
 Linux and macOS hosts. Cross-compilation does not establish native execution on another OS.

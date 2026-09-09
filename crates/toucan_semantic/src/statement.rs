@@ -2,7 +2,7 @@ use std::collections::{BTreeMap, HashSet};
 
 use lang_c::{ast, span::Node};
 
-use crate::analyze::{Analyzer, LexicalScope, Tag};
+use crate::analyze::{Analyzer, BlockExtern, LexicalScope, Tag, storage_specifiers};
 use crate::checked::statement::ControlKind;
 use crate::checked::{
     EntityKind, LocalDeclaration, OccurrenceKind, ScopeId, ScopeKind, Storage, declarator_name_span,
@@ -20,9 +20,15 @@ pub(crate) struct FunctionScope {
     pub(crate) constants: Vec<(String, IntegerValue)>,
     pub(crate) parameters: Vec<Parameter>,
     pub(crate) register: HashSet<String>,
+    #[allow(clippy::box_collection)]
+    pub(crate) alignments:
+        Option<Box<std::collections::HashMap<String, crate::DeclarationAlignment>>>,
+    pub(crate) old_style: Option<crate::old_style::Signature>,
 }
 
 pub(crate) struct FunctionContext {
+    pub(crate) old_style: Option<crate::old_style::Signature>,
+    pub(crate) target_options: crate::FunctionOptions,
     signature: FunctionType,
     parameter_scope: usize,
     statement_expressions: BTreeMap<(usize, usize), ExpressionInfo>,
@@ -91,11 +97,7 @@ impl Analyzer {
     }
 
     fn gnu_statement_expressions(&self) -> bool {
-        matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        )
+        self.unit.compiler == toucan_target::Compiler::Gnu
     }
 
     /// Checks the block in the enclosing function's control-flow environment.
@@ -222,7 +224,9 @@ impl Analyzer {
             }
         }
         self.unit.declarations.iter().any(|declaration| {
-            declaration.name == name && declaration.kind != DeclarationKind::Typedef
+            declaration.name == name
+                && declaration.kind != DeclarationKind::Typedef
+                && !declaration.is_thread_local
         })
     }
 
@@ -295,12 +299,7 @@ impl Analyzer {
         &mut self,
         definition: &Node<ast::FunctionDefinition>,
     ) -> Result<(), Error> {
-        if !definition.node.declarations.is_empty() {
-            return Err(Error::new(
-                definition.span.start,
-                "K&R function definitions are unsupported",
-            ));
-        }
+        crate::old_style::validate_definition_shape(definition)?;
         let name = declarator_name(&definition.node.declarator)
             .ok_or_else(|| Error::new(definition.span.start, "function definition has no name"))?;
         let declaration = Node::new(
@@ -321,7 +320,18 @@ impl Analyzer {
         if let Some(checked) = &mut self.checked {
             checked.definition = checked.find(OccurrenceKind::Function, definition)?;
         }
-        let result = self.declaration(&declaration, true);
+        let previous_index = self
+            .unit
+            .declarations
+            .iter()
+            .position(|declaration| declaration.name == name);
+        let definition_options =
+            self.definition_target_options(definition, &name, previous_index)?;
+        let previous_options = self
+            .definition_options
+            .replace((definition_options, previous_index));
+        let result = self.declaration_with_definition(&declaration, true, Some(definition));
+        self.definition_options = previous_options;
         if let Some(checked) = &mut self.checked {
             checked.definition = None;
         }
@@ -340,6 +350,16 @@ impl Analyzer {
                 "definition does not declare a function",
             ));
         };
+        let mut sve_definition = self.unit.is_sizeless(&function.return_type)?;
+        for parameter in &function.parameters {
+            sve_definition |= self.unit.is_sizeless(&parameter.ty)?;
+        }
+        if sve_definition {
+            return Err(Error::new(
+                definition.span.start,
+                "SVE value definitions require unsupported target-feature configuration",
+            ));
+        }
         if !matches!(
             self.unit.resolve(&function.return_type)?.kind,
             TypeKind::Void
@@ -351,12 +371,26 @@ impl Analyzer {
             ));
         }
         self.variably_modified_parents.clear();
-        let parameters = self.function_scope.take();
+        let mut parameters = self.function_scope.take();
         let mut signature = *function;
         if let Some(parameters) = &parameters {
             signature.parameters = parameters.parameters.clone();
+            if !signature.prototype
+                && let Some(old_style) = &parameters.old_style
+            {
+                // An identifier-list body has entry promises despite calls through
+                // its nonprototype declaration having no fixed-parameter contract.
+                signature.parameter_contracts = old_style.parameter_contracts;
+            }
         }
+        let target_options = self
+            .function_options
+            .get(&name)
+            .cloned()
+            .unwrap_or_default();
         self.current_function = Some(FunctionContext {
+            old_style: parameters.as_mut().and_then(|scope| scope.old_style.take()),
+            target_options,
             signature,
             parameter_scope: self.lexical_scopes.len(),
             statement_expressions: BTreeMap::new(),
@@ -394,6 +428,11 @@ impl Analyzer {
                     scope.constants.push((name.clone(), previous));
                     scope.names.insert(name, None);
                 }
+                analyzer
+                    .lexical_scopes
+                    .last_mut()
+                    .expect("function body scope")
+                    .alignments = parameters.alignments;
                 for parameter in parameters.parameters {
                     if matches!(analyzer.unit.resolve(&parameter.ty)?.kind, TypeKind::Void)
                         && parameter.name.is_none()
@@ -573,29 +612,13 @@ impl Analyzer {
         declaration: &Node<ast::Declaration>,
         for_initializer: bool,
     ) -> Result<(), Error> {
-        let storage: Vec<_> = declaration
-            .node
-            .specifiers
-            .iter()
-            .filter_map(|specifier| {
-                if let ast::DeclarationSpecifier::StorageClass(storage) = &specifier.node {
-                    Some(&storage.node)
-                } else {
-                    None
-                }
-            })
-            .collect();
-        if storage.len() > 1 {
+        let specifiers = storage_specifiers(&declaration.node.specifiers, self.unit.compiler)?;
+        let storage = specifiers.class.as_ref();
+        let thread_local = specifiers.thread_local;
+        if thread_local && storage.is_none() && !declaration.node.declarators.is_empty() {
             return Err(Error::new(
                 declaration.span.start,
-                "multiple storage classes in block declaration",
-            ));
-        }
-        let storage = storage.first().copied();
-        if storage == Some(&ast::StorageClassSpecifier::ThreadLocal) {
-            return Err(Error::new(
-                declaration.span.start,
-                "block thread-local objects are unsupported",
+                "block thread-local storage requires static or extern",
             ));
         }
         if for_initializer
@@ -639,24 +662,51 @@ impl Analyzer {
                 }
             }
         }
-        let (base, attributes) = self.specifiers(&declaration.node.specifiers)?;
-        if declaration.node.declarators.is_empty() {
-            attributes.require_function_diagnostics(false)?;
+        let mut auto = self.auto_declaration(declaration)?;
+        let explicit = if auto.is_none() {
+            Some(self.specifiers(&declaration.node.specifiers)?)
+        } else {
+            None
+        };
+        if declaration.node.declarators.is_empty()
+            && let Some((_, attributes)) = &explicit
+        {
+            attributes.require_function_attributes(false)?;
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
         }
         for item in &declaration.node.declarators {
+            let inferred = auto
+                .as_mut()
+                .map(|group| self.auto_item(declaration, item, group))
+                .transpose()?;
+            let (base, attributes) = match &inferred {
+                Some((base, attributes, _)) => (base, attributes),
+                None => {
+                    let (base, attributes) =
+                        explicit.as_ref().expect("explicit declaration specifiers");
+                    (base, attributes)
+                }
+            };
+            let inference = inferred.as_ref().map(|(_, _, inference)| inference);
             let (name, mut ty, extra) =
-                self.declarator(base.clone(), &item.node.declarator, &attributes)?;
+                self.declarator(base.clone(), &item.node.declarator, attributes)?;
+            extra.check_nodebug_subject()?;
+            if let Some(inference) = inference {
+                self.check_auto_declarator(inference, &item.node.declarator, &ty)?;
+            }
             if is_typedef {
                 self.align_typedef(
                     &mut ty,
                     &declaration.node.specifiers,
-                    &attributes,
+                    attributes,
                     &extra,
                     item.span.start,
+                    name.as_deref().ok_or_else(|| {
+                        Error::new(item.span.start, "typedef declaration has no name")
+                    })?,
                 )?;
-                self.apply_transparent_typedef(&mut ty, &attributes, &extra)?;
+                self.apply_transparent_typedef(&mut ty, attributes, &extra)?;
             } else {
                 extra.require_no_transparent_union()?;
             }
@@ -664,11 +714,76 @@ impl Analyzer {
                 name.ok_or_else(|| Error::new(item.span.start, "local declaration has no name"))?;
             let variably_modified = self.unit.is_variably_modified(&ty)?;
             let function = matches!(self.unit.resolve(&ty)?.kind, TypeKind::Function(_));
+            if !is_typedef && !function && self.unit.is_sizeless(&ty)? {
+                return Err(Error::new(
+                    item.span.start,
+                    if is_static || is_extern {
+                        "objects with static or thread storage cannot have sizeless SVE type"
+                    } else {
+                        "SVE value definitions require unsupported target-feature configuration"
+                    },
+                ));
+            }
             if (!is_typedef && !function) || variably_modified {
                 self.require_no_fallthrough()?;
             }
-            extra.require_function_diagnostics(function && !is_typedef)?;
+            if thread_local && (function || is_typedef) {
+                return Err(Error::new(
+                    item.span.start,
+                    "thread-local storage requires an object declaration",
+                ));
+            }
+            extra.require_function_attributes(function && !is_typedef)?;
+            let previous_file = if (function && !is_typedef) || is_extern {
+                self.unit
+                    .declarations
+                    .iter()
+                    .position(|declaration| declaration.name == name)
+            } else {
+                None
+            };
+            let noreturn = function
+                && !is_typedef
+                && self.declaration_noreturn(
+                    &name,
+                    &ty,
+                    extra.noreturn.is_some(),
+                    previous_file,
+                )?;
+            if noreturn {
+                let global = self.unit.compiler == toucan_target::Compiler::Gnu;
+                self.record_noreturn(&name, true, global, item.span.start)?;
+                if global && let Some(index) = previous_file {
+                    self.unit.declarations[index].noreturn = true;
+                }
+            }
+            let options_affect_entity = self.unit.compiler == toucan_target::Compiler::Gnu
+                || (previous_file.is_none() && !self.block_externs.contains_key(&name));
+            let function_options = if function && !is_typedef {
+                Some(self.check_function_options(&name, &extra, previous_file)?)
+            } else {
+                None
+            };
             self.check_diagnostic_attributes(&name, &extra.diagnostic_attributes)?;
+            let returns_twice = if function && !is_typedef {
+                self.check_returns_twice(&name, &extra)?
+            } else {
+                false
+            };
+            if returns_twice
+                && matches!(&self.unit.resolve(&ty)?.kind, TypeKind::Function(f) if f.noreturn)
+            {
+                return Err(Error::new(
+                    item.span.start,
+                    "combining returns_twice and noreturn is unsupported",
+                ));
+            }
+            if extra.returns_twice.is_some() && extra.link_name.is_some() {
+                return Err(Error::new(
+                    item.span.start,
+                    "assembly labels on block returns_twice declarations are unsupported",
+                ));
+            }
             if extra.weak.is_some() && extra.link_name.is_some() {
                 return Err(Error::new(
                     item.span.start,
@@ -692,10 +807,10 @@ impl Analyzer {
                     "variably modified identifiers cannot have linkage",
                 ));
             }
-            if is_static && self.unit.is_variable_length_array(&ty)? {
+            if (is_static || thread_local) && self.unit.is_variable_length_array(&ty)? {
                 return Err(Error::new(
                     item.span.start,
-                    "variable-length arrays cannot have static storage duration",
+                    "variable-length arrays cannot have static or thread storage duration",
                 ));
             }
             if function
@@ -721,11 +836,8 @@ impl Analyzer {
                     if variably_modified || !self.same_type(previous, &ty, 0)? {
                         return Err(Error::new(item.span.start, "conflicting block typedef"));
                     }
-                    let alignment = self
-                        .unit
-                        .typedef_alignment(previous)?
-                        .max(self.unit.typedef_alignment(&ty)?);
-                    ty = self.composite_type(previous, &ty, 0)?;
+                    let alignment = ty.alignment;
+                    ty = crate::noescape::composite_type!(self, previous, &ty, 0)?;
                     ty.alignment = alignment;
                     if let Some(checked) = &mut self.checked {
                         checked.local_declaration(
@@ -790,19 +902,54 @@ impl Analyzer {
                     "local object cannot have void type",
                 ));
             }
+            let written_alignment = self.check_declaration_alignment(
+                &ty,
+                attributes,
+                &extra,
+                if function {
+                    crate::object_alignment::AlignmentSubject::Function
+                } else {
+                    crate::object_alignment::AlignmentSubject::Object { register }
+                },
+                item.span.start,
+            )?;
+            let mut alignment = written_alignment;
             let linked = is_extern || function;
             if function
-                && let Some(previous) = self.block_externs.get(&name).or_else(|| {
-                    self.unit
-                        .declarations
-                        .iter()
-                        .find(|declaration| declaration.name == name)
-                        .map(|declaration| &declaration.ty)
-                })
+                && let Some(previous) = self
+                    .block_externs
+                    .get(&name)
+                    .map(|previous| &previous.ty)
+                    .or_else(|| previous_file.map(|index| &self.unit.declarations[index].ty))
             {
                 ty = self.inherit_calling_convention(ty, previous)?;
             }
+            if function && let Some(index) = previous_file {
+                self.check_old_style_redeclaration(index, &ty, item.span.start)?;
+            }
+            let internal_linkage = linked
+                && previous_file.is_some_and(|index| {
+                    let declaration = &self.unit.declarations[index];
+                    declaration.kind != DeclarationKind::Typedef && declaration.is_static
+                });
             if linked {
+                let previous = self.visible_linked_alignment(&name).or_else(|| {
+                    self.block_externs
+                        .get(&name)
+                        .map(|previous| previous.alignment)
+                });
+                if let Some(previous) = previous {
+                    let defined = previous_file
+                        .is_some_and(|index| self.unit.declarations[index].is_definition);
+                    alignment = self.merge_declaration_alignment(
+                        &ty,
+                        previous,
+                        written_alignment,
+                        defined,
+                        false,
+                        item.span.start,
+                    )?;
+                }
                 if item.node.initializer.is_some() {
                     return Err(Error::new(
                         item.span.start,
@@ -810,27 +957,85 @@ impl Analyzer {
                     ));
                 }
                 if let Some(previous) = self.block_externs.get(&name)
-                    && !self.compatible(previous, &ty)?
+                    && (!self.compatible(&previous.ty, &ty)?
+                        || previous.thread_local != thread_local)
                 {
                     return Err(Error::new(
                         item.span.start,
                         "conflicting block extern declarations",
                     ));
                 }
-                if let Some(previous) = self
-                    .unit
-                    .declarations
-                    .iter()
-                    .find(|declaration| declaration.name == name)
+                if let Some(previous) = previous_file.map(|index| &self.unit.declarations[index])
                     && previous.kind != DeclarationKind::Typedef
-                    && !self.compatible(&previous.ty, &ty)?
+                    && (!self.compatible(&previous.ty, &ty)?
+                        || previous.is_thread_local != thread_local)
                 {
                     return Err(Error::new(
                         item.span.start,
                         "block extern conflicts with a file declaration",
                     ));
                 }
-                self.block_externs.insert(name.clone(), ty.clone());
+                // Clang merges parameter promises with visible declarations only.
+                // A same-linkage declaration in an exited block is not a type source.
+                if !self.unit.parameter_contracts.is_empty()
+                    || self.has_type_noreturn
+                    || !self.unit.alignment_origins.is_empty()
+                {
+                    let scope = self
+                        .lexical_scopes
+                        .iter()
+                        .rev()
+                        .find(|scope| scope.names.contains_key(&name));
+                    let previous = match scope {
+                        Some(scope) => scope.names[&name].map(|index| &scope.parameters[index].ty),
+                        None => previous_file.map(|index| &self.unit.declarations[index].ty),
+                    };
+                    if let Some(previous) = previous
+                        && self.compatible(previous, &ty)?
+                    {
+                        let mut composite =
+                            crate::noescape::composite_type!(self, &ty, previous, 0)?;
+                        if function {
+                            self.object_alignment_sugar(&mut composite, previous)?;
+                        }
+                        ty = composite;
+                    }
+                }
+                if self.unit.compiler == toucan_target::Compiler::Gnu
+                    && let Some(index) = previous_file
+                {
+                    self.unit.declarations[index].alignment = alignment;
+                }
+                // Clang inherits from the first linked block declaration when
+                // no declaration is visible. Later attributes remain lexical.
+                let inherited_alignment = if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.block_externs
+                        .get(&name)
+                        .map_or(alignment, |previous| previous.alignment)
+                } else {
+                    alignment
+                };
+                let inherited_noreturn = if self.unit.compiler == toucan_target::Compiler::Clang {
+                    self.block_externs
+                        .get(&name)
+                        .map(|previous| previous.noreturn)
+                        .or_else(|| {
+                            previous_file.map(|index| self.unit.declarations[index].noreturn)
+                        })
+                        .unwrap_or(noreturn)
+                } else {
+                    noreturn
+                };
+                self.block_externs.insert(
+                    name.clone(),
+                    BlockExtern {
+                        noreturn: inherited_noreturn,
+                        alignment: inherited_alignment,
+                        ty: ty.clone(),
+                        thread_local,
+                        is_static: internal_linkage,
+                    },
+                );
             }
             let existing = self
                 .lexical_scopes
@@ -851,7 +1056,10 @@ impl Analyzer {
                         .contains(&name)
                     && self.compatible(previous, &ty)?
                 {
-                    let composite = self.composite_type(previous, &ty, 0)?;
+                    let mut composite = crate::noescape::composite_type!(self, previous, &ty, 0)?;
+                    if !function {
+                        self.object_alignment_sugar(&mut composite, &ty)?;
+                    }
                     if let Some(checked) = &mut self.checked {
                         let site = checked.local_declaration(
                             item,
@@ -867,6 +1075,8 @@ impl Analyzer {
                                 },
                                 storage: if function {
                                     Storage::None
+                                } else if thread_local {
+                                    Storage::Thread
                                 } else {
                                     Storage::Static
                                 },
@@ -877,27 +1087,82 @@ impl Analyzer {
                             },
                         )?;
                         if let Some(site) = site {
+                            checked.attach_alignment(site, written_alignment, alignment)?;
+                            if linked && let Some(index) = previous_file {
+                                checked.attach_entity_alignment(
+                                    site,
+                                    self.unit.declarations[index].alignment,
+                                );
+                            }
                             checked
                                 .attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
+                            checked.attach_returns_twice(
+                                site,
+                                returns_twice,
+                                extra.returns_twice,
+                            )?;
+                            checked.attach_function_options(
+                                site,
+                                function_options.as_ref(),
+                                (&extra.target_attributes, &extra.minimum_vector_width),
+                                extra.always_inline,
+                                extra.no_inline,
+                                options_affect_entity,
+                            )?;
+                            checked.attach_noreturn(site, noreturn, extra.noreturn)?;
                             checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                         }
                     }
+                    self.retain_local_alignment(&name, alignment);
                     self.lexical_scopes
                         .last_mut()
                         .expect("block scope")
                         .parameters[index]
                         .ty = composite.clone();
-                    self.block_externs.insert(name, composite);
+                    let inherited_alignment =
+                        if self.unit.compiler == toucan_target::Compiler::Clang {
+                            self.block_externs
+                                .get(&name)
+                                .map_or(alignment, |previous| previous.alignment)
+                        } else {
+                            alignment
+                        };
+                    let inherited_noreturn = self
+                        .block_externs
+                        .get(&name)
+                        .is_some_and(|prior| prior.noreturn);
+                    self.block_externs.insert(
+                        name,
+                        BlockExtern {
+                            noreturn: inherited_noreturn,
+                            alignment: inherited_alignment,
+                            ty: composite,
+                            thread_local,
+                            is_static: internal_linkage,
+                        },
+                    );
                     continue;
                 }
             }
+            let prechecked_initializer = if inference.is_some() {
+                item.node
+                    .initializer
+                    .as_ref()
+                    .map(|initializer| {
+                        self.check_object_initializer(&ty, initializer, is_static || thread_local)
+                    })
+                    .transpose()?
+            } else {
+                None
+            };
             self.bind_local(
                 &name,
                 ty.clone(),
-                is_static || linked,
+                (is_static || linked) && !thread_local,
                 register,
                 item.span.start,
             )?;
+            self.retain_local_alignment(&name, alignment);
             if variably_modified {
                 self.declare_variably_modified();
             }
@@ -923,6 +1188,8 @@ impl Analyzer {
                         },
                         storage: if function {
                             Storage::None
+                        } else if thread_local {
+                            Storage::Thread
                         } else if is_static || linked {
                             Storage::Static
                         } else {
@@ -938,8 +1205,12 @@ impl Analyzer {
                 None
             };
             if let Some(initializer) = &item.node.initializer {
-                let (completed, storage) =
-                    self.check_object_initializer(&ty, initializer, is_static)?;
+                let (completed, storage) = match prechecked_initializer {
+                    Some(result) => result,
+                    None => {
+                        self.check_object_initializer(&ty, initializer, is_static || thread_local)?
+                    }
+                };
                 ty = completed;
                 let scope = self.lexical_scopes.last_mut().expect("block scope");
                 if let Some(storage) = storage {
@@ -955,7 +1226,24 @@ impl Analyzer {
                 ));
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
+                if let Some(inference) = &inference {
+                    checked.retain_type_inference(site, inference)?;
+                }
+                checked.attach_alignment(site, written_alignment, alignment)?;
+                if linked && let Some(index) = previous_file {
+                    checked.attach_entity_alignment(site, self.unit.declarations[index].alignment);
+                }
                 checked.attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
+                checked.attach_returns_twice(site, returns_twice, extra.returns_twice)?;
+                checked.attach_function_options(
+                    site,
+                    function_options.as_ref(),
+                    (&extra.target_attributes, &extra.minimum_vector_width),
+                    extra.always_inline,
+                    extra.no_inline,
+                    options_affect_entity,
+                )?;
+                checked.attach_noreturn(site, noreturn, extra.noreturn)?;
                 checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                 let allocation = self
                     .lexical_scopes
@@ -971,10 +1259,15 @@ impl Analyzer {
     }
 
     pub(crate) fn validate_block_externs(&self) -> Result<(), Error> {
-        for declaration in &self.unit.declarations {
+        for (index, declaration) in self.unit.declarations.iter().enumerate() {
+            if let Some(previous) = self.block_externs.get(&declaration.name) {
+                self.check_old_style_redeclaration(index, &previous.ty, 0)?;
+            }
             if let Some(previous) = self.block_externs.get(&declaration.name)
                 && declaration.kind != DeclarationKind::Typedef
-                && !self.compatible(previous, &declaration.ty)?
+                && (!self.compatible(&previous.ty, &declaration.ty)?
+                    || previous.thread_local != declaration.is_thread_local
+                    || previous.is_static != declaration.is_static)
             {
                 return Err(Error::new(
                     0,
@@ -1151,11 +1444,27 @@ impl Analyzer {
             }
             ast::Statement::If(selection) => self.with_statement(statement.span, |analyzer| {
                 analyzer.scalar_condition(&selection.node.condition)?;
+                let checkpoint = analyzer.sve_feature_checkpoint();
+                let labels = analyzer.sve_feature_labels;
                 analyzer.substatement(&selection.node.then_statement)?;
+                if analyzer.sve_feature_checkpoint() > checkpoint
+                    && labels == analyzer.sve_feature_labels
+                    && analyzer.sve_constant_truth(&selection.node.condition) == Some(false)
+                {
+                    analyzer.discard_sve_feature_uses(checkpoint);
+                }
                 let mut then_fallthrough =
                     std::mem::take(&mut analyzer.function_context_mut().fallthrough);
                 if let Some(statement) = &selection.node.else_statement {
+                    let checkpoint = analyzer.sve_feature_checkpoint();
+                    let labels = analyzer.sve_feature_labels;
                     analyzer.substatement(statement)?;
+                    if analyzer.sve_feature_checkpoint() > checkpoint
+                        && labels == analyzer.sve_feature_labels
+                        && analyzer.sve_constant_truth(&selection.node.condition) == Some(true)
+                    {
+                        analyzer.discard_sve_feature_uses(checkpoint);
+                    }
                 }
                 then_fallthrough.append(&mut analyzer.function_context_mut().fallthrough);
                 analyzer.function_context_mut().fallthrough = then_fallthrough;
@@ -1233,6 +1542,7 @@ impl Analyzer {
                 result
             }),
             ast::Statement::Labeled(labeled) => {
+                self.sve_feature_labels += 1;
                 match &labeled.node.label.node {
                     ast::Label::Identifier(identifier) => {
                         let scope = self.jump_scope();

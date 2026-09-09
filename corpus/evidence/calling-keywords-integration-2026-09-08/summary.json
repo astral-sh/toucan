@@ -1,0 +1,38 @@
+{
+  "status": "passed",
+  "reported_test_counts": {
+    "parser": {
+      "passed": 2,
+      "failed": 0,
+      "ignored": 0
+    },
+    "native": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    },
+    "rust164": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    },
+    "workspace": {
+      "passed": 718,
+      "failed": 0,
+      "ignored": 188
+    }
+  },
+  "checked_seed_pairs": 1782,
+  "accepted": 1251,
+  "matching_diagnostics": 531,
+  "native_clang_placement_comparisons": 630,
+  "parser_regeneration_byte_identical": true,
+  "parser_guards": 531,
+  "parser_rules": 239,
+  "parser_loops": 81,
+  "original_header_artifacts_equal": 4,
+  "executed_musl_abi_binding_artifacts_equal": 4,
+  "native_callback_executables": 8,
+  "source_manifest_sha256": "e4b2f78feaad8f100eeaecdb011c4697cbf0d1f09b52b6eb005e250f723cb469",
+  "scope": "Calling keyword integration with musl, typedef ancestry, and comment policies. Native x64 Linux C/Rust callback calls use System V and Microsoft conventions with current Rust and actual Rust1.64. Windows runtime and SDK checks remain separate."
+}

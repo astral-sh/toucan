@@ -14,10 +14,7 @@ pub(crate) struct ObjectSizeSignature {
 
 impl Analyzer {
     pub(crate) fn object_size_signature(&self, name: &str) -> Option<ObjectSizeSignature> {
-        if !matches!(
-            name,
-            "__builtin_object_size" | "__builtin_dynamic_object_size"
-        ) {
+        if !is_object_size_builtin(name) {
             return None;
         }
         let mut pointee = Type::new(TypeKind::Void);
@@ -38,11 +35,7 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
         destination: &Type,
     ) -> Result<(), Error> {
-        let gnu = matches!(
-            self.unit.target,
-            toucan_target::Target::X86_64UnknownLinuxGnu
-                | toucan_target::Target::Aarch64UnknownLinuxGnu
-        );
+        let gnu = self.unit.compiler == toucan_target::Compiler::Gnu;
         let offset = expression.span.start;
         if !gnu && !self.is_integer_constant_expression(expression, 0)? {
             return Err(Error::new(
@@ -68,7 +61,7 @@ impl Analyzer {
         Ok(())
     }
 
-    fn object_size_mode_value(
+    pub(crate) fn object_size_mode_value(
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<ArithmeticValue, Error> {
@@ -92,4 +85,11 @@ impl Analyzer {
         self.leave_expression();
         result
     }
+}
+
+pub(crate) fn is_object_size_builtin(name: &str) -> bool {
+    matches!(
+        name,
+        "__builtin_object_size" | "__builtin_dynamic_object_size"
+    )
 }

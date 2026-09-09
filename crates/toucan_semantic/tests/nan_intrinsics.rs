@@ -327,8 +327,8 @@ fn nan_signatures_match_compilers() {
                     }
                     let output = compiler_input(&mut command, &source);
                     assert_eq!(
-                        output.status.success(),
-                        accepted,
+                        toucan_test_support::compiler_acceptance(&output),
+                        Ok(accepted),
                         "{compiler} {target:?}: {source}: {}",
                         String::from_utf8_lossy(&output.stderr)
                     );
@@ -353,6 +353,7 @@ fn nan_object_bytes_match_native_compilers() {
     for (index, (ty, expression)) in expressions().iter().enumerate() {
         let value = floating(expression, target);
         let bytes = match value.format() {
+            FloatingFormat::Binary16 | FloatingFormat::BFloat16 => 2,
             FloatingFormat::Binary32 => 4,
             FloatingFormat::Binary64 => 8,
             FloatingFormat::X87 => 10,

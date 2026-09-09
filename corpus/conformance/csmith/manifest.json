@@ -1,0 +1,86 @@
+{
+  "schema_version": 1,
+  "generator": {
+    "name": "Csmith",
+    "version": "2.3.0",
+    "upstream_tag": "csmith-2.3.0",
+    "url": "https://github.com/csmith-project/csmith/tree/csmith-2.3.0",
+    "packages": [
+      {
+        "file": "csmith_2.3.0-7.1build1_amd64.deb",
+        "url": "https://archive.ubuntu.com/ubuntu/pool/universe/c/csmith/csmith_2.3.0-7.1build1_amd64.deb",
+        "sha256": "a33a381b840a6077dca00cec160b5594e4baed02f05ce16a1da7b5021a5562b8"
+      },
+      {
+        "file": "libcsmith-dev_2.3.0-7.1build1_amd64.deb",
+        "url": "https://archive.ubuntu.com/ubuntu/pool/universe/c/csmith/libcsmith-dev_2.3.0-7.1build1_amd64.deb",
+        "sha256": "a8eb1b98d02fdedbc0aa25325d15b48fbab74be942de7e8ca5acb024b173acb6"
+      }
+    ],
+    "options": [
+      "--no-packed-struct",
+      "--match-exact-qualifiers",
+      "--strict-volatile-rule",
+      "--max-funcs",
+      "5",
+      "--max-block-depth",
+      "3",
+      "--max-block-size",
+      "3",
+      "--max-expr-complexity",
+      "6",
+      "--max-array-dim",
+      "3",
+      "--max-array-len-per-dim",
+      "4"
+    ],
+    "platform": {
+      "integer_bytes": 4,
+      "pointer_bytes": 8
+    }
+  },
+  "headers": [
+    {
+      "path": "runtime/csmith.h",
+      "sha256": "fde8b6d94e2a9a3f39a15f71d6568700751491a2c4f3859825125841c2aead3f"
+    },
+    {
+      "path": "runtime/random_inc.h",
+      "sha256": "9ef11c27ca09318ae50341f76c1469e060ac20b81651a48b3ffbc2504d68deb5"
+    },
+    {
+      "path": "runtime/platform_generic.h",
+      "sha256": "c6c1fe0072d29142ba8dc26c3fc11c7bedaea935bb9787b850fbb590836236d4"
+    },
+    {
+      "path": "runtime/safe_math.h",
+      "sha256": "9d842b239f43babfd6129c2e3672f8c572686a2b7bd846524f0b89ad1d0c9d46"
+    }
+  ],
+  "cases": [
+    {
+      "seed": 2026090809,
+      "path": "2026090809.c",
+      "sha256": "116b02f3f6832a25cde7167184d8f5e647f2df3d07914ae30f3d4f854f3cf687",
+      "purpose": "Two-dimensional volatile-array address initializer; native CRC control."
+    },
+    {
+      "seed": 2026090854,
+      "path": "2026090854.c",
+      "sha256": "e226d2c60c8e4bb2a0e1c884a9f8bb5060373db813d5f3b7c233dac399f7df1b",
+      "purpose": "Three-dimensional array address initializer."
+    },
+    {
+      "seed": 2026090841,
+      "path": "2026090841.c",
+      "sha256": "eca77c230888c1307c0efcd0c259679f29fb68436431a52b0c8956f362ea0980",
+      "purpose": "Array of pointers to qualified records."
+    },
+    {
+      "seed": 2026090803,
+      "path": "2026090803.c",
+      "sha256": "6ca7087bda3a6adc19bd59bfdaa7a2ce08c2eb35a3cd0937a6a6b98331620216",
+      "purpose": "Small scalar and control-flow input."
+    }
+  ]
+}

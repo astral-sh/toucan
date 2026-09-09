@@ -15,7 +15,10 @@ fn options() -> AnalysisOptions {
 fn gnu(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu | Target::Aarch64UnknownLinuxGnu
+        Target::X86_64UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxMusl
+            | Target::Aarch64UnknownLinuxGnu
+            | Target::Aarch64UnknownLinuxMusl
     )
 }
 
@@ -281,7 +284,7 @@ fn object_size_modes_and_outer_queries_suppress_nested_effects() {
                     panic!()
                 };
                 let suppression = if gnu(target) {
-                    Some(QuerySuppression::GnuProfile)
+                    Some(QuerySuppression::ObjectSizeFrontendFold)
                 } else if mode == 3 {
                     Some(QuerySuppression::MinimumSubobjectSize)
                 } else {
@@ -333,7 +336,7 @@ fn constant_context_roots_remain_distinct_from_runtime_fallbacks() {
         let code = analysis.checked().unwrap();
         assert!(
             code.initializers()
-                .any(|(_, initializer)| initializer.static_storage())
+                .any(|(_, initializer)| initializer.requires_constant())
         );
         // A fallback is a conditional compiler policy, not a runtime root. The
         // static initializer, enumerator and assertion remain their owning sites.
