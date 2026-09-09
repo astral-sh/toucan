@@ -16,6 +16,7 @@ impl Options {
         &self,
         unit: &toucan_semantic::TranslationUnit,
     ) -> Result<(), Error> {
+        let mut comparison = toucan_semantic::ObjectTypeComparison::new(unit);
         for (name, object, additional) in self
             .object_bindings
             .iter()
@@ -108,10 +109,7 @@ impl Options {
                     )));
                 }
             }
-            let first = unit.resolve(object.ty())?;
-            let last = unit.resolve(&declaration.ty)?;
-            let completed_array = matches!((&first.kind, &last.kind), (TypeKind::Array { element: a, length: None }, TypeKind::Array { element: b, .. }) if a == b && first.qualifiers == last.qualifiers);
-            if first != last && !completed_array {
+            if !comparison.matches_declaration(object.ty(), &declaration.ty)? {
                 return Err(Error(format!(
                     "object occurrence `{name}` has a different declaration type"
                 )));

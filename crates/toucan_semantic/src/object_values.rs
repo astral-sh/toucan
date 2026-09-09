@@ -44,6 +44,10 @@ impl ObjectOccurrence {
         self.offset
     }
     /// Object type visible at this declaration, including completed initializer bounds.
+    ///
+    /// Compatible typedef spelling is preserved when the written type carries the same
+    /// bounds and prototype information. Otherwise this retains the completed declaration
+    /// type. The type's names and IDs belong to the same analysis as this occurrence.
     pub fn ty(&self) -> &Type {
         &self.ty
     }
@@ -86,14 +90,25 @@ impl ObjectValues {
 pub(crate) struct Builder {
     entries: Vec<ObjectOccurrence>,
     bytes: usize,
+    comparisons: usize,
 }
 impl Builder {
     pub(crate) fn new() -> Self {
         Self {
             entries: Vec::new(),
             bytes: 0,
+            comparisons: crate::object_types::COMPARISON_LIMIT,
         }
     }
+    /// Charge the optional pre-composite copy even when completion later discards it.
+    pub(crate) fn copy_written_type(&mut self, ty: &Type, offset: usize) -> Result<Type, Error> {
+        if self.entries.len() >= MAX_OCCURRENCES {
+            return Err(Error::new(offset, "object-value occurrence limit exceeded"));
+        }
+        charge_type(ty, &mut self.bytes, 0, offset)?;
+        Ok(ty.clone())
+    }
+
     fn charge(&mut self, ty: &Type, name: &str, offset: usize) -> Result<(), Error> {
         if self.entries.len() >= MAX_OCCURRENCES {
             return Err(Error::new(offset, "object-value occurrence limit exceeded"));
@@ -169,13 +184,33 @@ impl Analyzer {
         index: usize,
         offset: usize,
         initializer: Option<&Node<ast::Initializer>>,
+        written: Option<Type>,
     ) -> Result<(), Error> {
         let declaration = &self.unit.declarations[index];
-        self.object_values
+        let builder = self
+            .object_values
             .as_mut()
-            .expect("object retention enabled")
-            .charge(&declaration.ty, &declaration.name, offset)?;
-        let ty = declaration.ty.clone();
+            .expect("object retention enabled");
+        let ty = if let Some(written) = written {
+            let mut comparison =
+                crate::ObjectTypeComparison::with_remaining(&self.unit, builder.comparisons);
+            let matches = comparison.same_type(&written, &declaration.ty);
+            builder.comparisons = comparison.remaining();
+            drop(comparison);
+            if matches.map_err(|mut error| {
+                error.offset = offset;
+                error
+            })? {
+                builder.charge(&written, &declaration.name, offset)?;
+                written
+            } else {
+                builder.charge(&declaration.ty, &declaration.name, offset)?;
+                declaration.ty.clone()
+            }
+        } else {
+            builder.charge(&declaration.ty, &declaration.name, offset)?;
+            declaration.ty.clone()
+        };
         let name = declaration.name.clone();
         let internal = declaration.is_static;
         let thread_local = declaration.is_thread_local;

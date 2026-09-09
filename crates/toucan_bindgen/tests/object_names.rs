@@ -67,6 +67,32 @@ fn selected_names_keep_their_written_values_and_share_the_c_symbol() {
 }
 
 #[test]
+fn selected_redeclarations_keep_written_scalar_and_qualified_array_aliases() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("input.h");
+    for declarations in [
+        "typedef int First; typedef int Second; extern First shared; Second shared=7;",
+        "typedef const int First[4]; typedef int Second[4]; extern First shared; const Second shared={1,2};",
+    ] {
+        std::fs::write(&path, declarations).unwrap();
+        for (pattern, first, second) in [
+            ("shared_0", true, false),
+            ("shared_1", false, true),
+            ("shared_.*", true, true),
+        ] {
+            let bindings = builder(&path, false)
+                .allowlist_var(pattern)
+                .generate()
+                .unwrap();
+            assert!(bindings.report().skipped_declarations.is_empty());
+            let source = bindings.to_string();
+            assert_eq!(source.contains("pub type First ="), first, "{source}");
+            assert_eq!(source.contains("pub type Second ="), second, "{source}");
+        }
+    }
+}
+
+#[test]
 fn repeated_generated_names_use_the_first_selected_occurrence() {
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("input.h");

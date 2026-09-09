@@ -18,6 +18,8 @@ fn retention_limit(error: &Error) -> bool {
             | "object-value occurrence limit exceeded"
             | "object-value metadata exceeds the 64 MiB limit"
             | "object-value type nesting exceeds the 128-level limit"
+            | "object-type comparison reference limit exceeded"
+            | "object-type comparison nesting limit exceeded"
             | "documentation declaration limit exceeded"
             | "parameter-type dependency reference limit exceeded"
             | "parameter-type dependency storage limit exceeded"

@@ -1738,6 +1738,14 @@ impl Analyzer {
                     item.span.start,
                 )?;
             }
+            let written_object_type = if kind == DeclarationKind::Variable
+                && let Some(values) = &mut self.object_values
+                && previous_index.is_some_and(|index| self.unit.declarations[index].ty != ty)
+            {
+                Some(values.copy_written_type(&ty, item.span.start)?)
+            } else {
+                None
+            };
             let (dependency_prototype, dependency_previous_prototype) = if self
                 .parameter_type_dependencies
                 .is_some()
@@ -2001,6 +2009,7 @@ impl Analyzer {
                         .unwrap_or(item.span)
                         .start,
                     item.node.initializer.as_ref(),
+                    written_object_type,
                 )?;
             }
             if let Some(initializer) = &item.node.initializer {
