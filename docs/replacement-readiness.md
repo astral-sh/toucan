@@ -21,7 +21,9 @@ source also matches seven pinned zstd/AWS enums and 100 C discriminants; see the
 [schema-3 evidence](../corpus/evidence/binding-rustified-enums-schema3-2026-09-09.json.gz).
 The [Builder benchmark](../benchmarks/evidence/builder-callback-final/README.md)
 measures generation on these four projects. It does not measure application build
-time or establish speed on other headers.
+time or establish speed on other headers. A separate [peak resident memory run](../benchmarks/evidence/builder-peak-rss-callbacks/README.md)
+measures the same frozen binary and requests in fresh Linux processes, including
+loaded libraries; it does not measure the memory of a full application build.
 
 ## Gates for a general drop-in release
 
