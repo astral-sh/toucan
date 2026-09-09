@@ -362,6 +362,93 @@ fn atomic_layouts_match_the_target_compiler_profiles() {
     }
 }
 
+#[test]
+#[ignore = "requires Clang i686 cross-target support and native GCC on x86 Linux"]
+fn i686_atomic_layouts_match_clang_and_gcc() {
+    use std::process::Command;
+
+    let target = Target::I686UnknownLinuxGnu;
+    let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
+    for compiler in [Compiler::Clang, Compiler::Gnu] {
+        if compiler == Compiler::Gnu
+            && !cfg!(all(
+                target_os = "linux",
+                any(target_arch = "x86", target_arch = "x86_64")
+            ))
+        {
+            continue;
+        }
+        let profile = CompilerProfile::new(target, compiler).unwrap();
+        let mut source = String::new();
+        for (index, ty) in [
+            "long double",
+            "double _Complex",
+            "struct { char value[3]; }",
+            "struct { char value[8]; }",
+            "struct { char value[9]; }",
+            "struct { char value[12]; }",
+            "struct { char value[15]; }",
+            "struct { char value[16]; }",
+            "struct { char value[17]; }",
+        ]
+        .iter()
+        .enumerate()
+        {
+            let declaration = format!(
+                "typedef _Atomic({ty}) A{index}; struct H{index} {{ char prefix; A{index} value; }};"
+            );
+            let unit = analyze_with_profile(&declaration, profile, &AnalysisOptions::default())
+                .unwrap()
+                .into_unit();
+            let atomic = unit.layout(&unit.typedefs[&format!("A{index}")]).unwrap();
+            let record = unit
+                .records
+                .iter()
+                .position(|record| record.name.as_deref() == Some(&format!("H{index}")))
+                .unwrap();
+            let host = unit
+                .layout(&toucan_semantic::Type::new(TypeKind::Record(record)))
+                .unwrap();
+            source.push_str(&declaration);
+            source.push_str(&format!(
+                "_Static_assert(sizeof(A{index}) == {}, \"size\"); \
+                 _Static_assert(_Alignof(A{index}) == {}, \"alignment\"); \
+                 _Static_assert(__builtin_offsetof(struct H{index}, value) == {}, \"offset\");",
+                atomic.size_bytes(),
+                atomic.alignment_bytes(),
+                host.fields[1].as_ref().unwrap().offset_bits / 8
+            ));
+        }
+        analyze_with_profile(&source, profile, &AnalysisOptions::default()).unwrap();
+        let output = match compiler {
+            Compiler::Clang => compiler_input(
+                Command::new("clang").args([
+                    "-target",
+                    target.triple(),
+                    "-std=gnu11",
+                    "-S",
+                    "-emit-llvm",
+                    "-o",
+                    "/dev/null",
+                    "-x",
+                    "c",
+                    "-",
+                ]),
+                &source,
+            ),
+            Compiler::Gnu => compiler_input(
+                Command::new(&gcc).args(["-m32", "-std=gnu11", "-fsyntax-only", "-x", "c", "-"]),
+                &source,
+            ),
+        };
+        assert!(
+            output.status.success(),
+            "{compiler}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
 const NATIVE_OPERATIONS: &str = r#"
 struct Three { unsigned char values[3]; };
 int load(_Atomic(int)*p){return *p;}

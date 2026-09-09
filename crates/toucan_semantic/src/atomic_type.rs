@@ -110,22 +110,14 @@ pub(crate) fn atomic_layout(
         )
     } else if size == 0 {
         (8, inner.alignment_bits)
-    } else if size <= 128 {
+    } else if size <= 64 || (target != toucan_target::Target::I686UnknownLinuxGnu && size <= 128) {
         let size = size
             .checked_next_power_of_two()
             .ok_or_else(|| Error::new(0, "atomic storage size overflows"))?;
-        // Clang's i386 ABI promotes one-to-eight-byte atomics, but a
-        // 16-byte aggregate retains its field alignment rather than gaining
-        // x86-64's 16-byte alignment.
-        (
-            size,
-            if target == toucan_target::Target::I686UnknownLinuxGnu && size > 64 {
-                inner.alignment_bits
-            } else {
-                size
-            },
-        )
+        (size, size)
     } else {
+        // Clang's i386 ABI promotes atomic storage only through eight bytes.
+        // Larger values retain their underlying size and field alignment.
         (size, inner.alignment_bits)
     };
     inner.size_bits = size;
