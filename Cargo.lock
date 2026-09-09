@@ -599,6 +599,7 @@ name = "toucan_preprocessor"
 version = "0.0.1"
 dependencies = [
  "char_str",
+ "memchr",
  "toucan_test_support",
  "winapi-util",
 ]

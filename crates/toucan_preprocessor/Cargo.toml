@@ -9,6 +9,7 @@ description = "A bounded C preprocessor without compiler subprocesses"
 
 [dependencies]
 char_str.workspace = true
+memchr.workspace = true
 
 [target.'cfg(windows)'.dependencies]
 winapi-util = "0.1.11"

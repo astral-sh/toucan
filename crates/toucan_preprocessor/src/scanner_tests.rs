@@ -156,13 +156,6 @@ fn scanner_preserves_text_offsets_and_comment_ranges() {
         "name", " ", "\n", "\r\n", "\\", "??", "??/", "??=", "??<", "??>", "//", "/*", "*/",
         "//**/", "\"", "'", "\\\"", "\\'", "é", "🦜", "\0",
     ];
-    let modes = [
-        LineComments::Enabled,
-        LineComments::GnuC90,
-        LineComments::GnuC90Preprocessing,
-        LineComments::ClangC90,
-        LineComments::ClangC90Preprocessing,
-    ];
     let mut state = 0xa563_c198_2635_346du64;
     for case in 0..4096 {
         let mut source = String::new();
@@ -172,52 +165,84 @@ fn scanner_preserves_text_offsets_and_comment_ranges() {
             state ^= state << 17;
             source.push_str(atoms[state as usize % atoms.len()]);
         }
-        for mode in modes {
-            for trigraphs in [false, true] {
-                let mut actual_comments = Vec::new();
-                let actual = normalize_with_comments(
-                    &source,
-                    trigraphs,
-                    &mut CommentState::new(mode),
-                    |range, line, end_line, column| {
-                        actual_comments.push((range, line, end_line, column));
-                        Ok(())
-                    },
-                );
-                let mut expected_comments = Vec::new();
-                let expected = original_normalize(
-                    &source,
-                    trigraphs,
-                    &mut CommentState::new(mode),
-                    |range, line, end_line, column| {
-                        expected_comments.push((range, line, end_line, column));
-                        Ok(())
-                    },
-                );
-                assert_eq!(
-                    actual_comments, expected_comments,
-                    "{source:?} {mode:?} {trigraphs}"
-                );
-                match (actual, expected) {
-                    (Ok(actual), Ok(expected)) => {
+        compare_scanners(&source);
+    }
+}
+
+#[test]
+fn scanner_preserves_long_runs_at_vector_boundaries() {
+    let text = "é🦜".repeat(37);
+    for alignment in 0..64 {
+        let prefix = "x".repeat(alignment);
+        for tail in [0, 1, 15, 16, 31, 32, 63, 64, 127] {
+            let suffix = "y".repeat(tail);
+            for source in [
+                format!("{prefix}??/\r\n{text}??=\n{suffix}"),
+                format!("{prefix}/*{text}\n{text}*/{suffix}"),
+                format!("{prefix}//{text}\r\n{suffix}"),
+                format!("{prefix}\"{text}\\\"{text}\"{suffix}"),
+                format!("{prefix}'{text}\\'{text}'{suffix}"),
+                format!("{prefix}/*{text}{suffix}"),
+            ] {
+                compare_scanners(&source);
+            }
+        }
+    }
+}
+
+fn compare_scanners(source: &str) {
+    let modes = [
+        LineComments::Enabled,
+        LineComments::GnuC90,
+        LineComments::GnuC90Preprocessing,
+        LineComments::ClangC90,
+        LineComments::ClangC90Preprocessing,
+    ];
+    for mode in modes {
+        for trigraphs in [false, true] {
+            let mut actual_comments = Vec::new();
+            let actual = normalize_with_comments(
+                source,
+                trigraphs,
+                &mut CommentState::new(mode),
+                |range, line, end_line, column| {
+                    actual_comments.push((range, line, end_line, column));
+                    Ok(())
+                },
+            );
+            let mut expected_comments = Vec::new();
+            let expected = original_normalize(
+                source,
+                trigraphs,
+                &mut CommentState::new(mode),
+                |range, line, end_line, column| {
+                    expected_comments.push((range, line, end_line, column));
+                    Ok(())
+                },
+            );
+            assert_eq!(
+                actual_comments, expected_comments,
+                "{source:?} {mode:?} {trigraphs}"
+            );
+            match (actual, expected) {
+                (Ok(actual), Ok(expected)) => {
+                    assert_eq!(
+                        actual.source, expected.source,
+                        "{source:?} {mode:?} {trigraphs}"
+                    );
+                    assert_eq!(actual.source_offsets, expected.source_offsets);
+                    assert_eq!(actual.line_starts, expected.line_starts);
+                    for offset in 0..=actual.source.len() {
                         assert_eq!(
-                            actual.source, expected.source,
-                            "{source:?} {mode:?} {trigraphs}"
+                            actual.original_offset(offset),
+                            expected.original_offset(offset)
                         );
-                        assert_eq!(actual.source_offsets, expected.source_offsets);
-                        assert_eq!(actual.line_starts, expected.line_starts);
-                        for offset in 0..=actual.source.len() {
-                            assert_eq!(
-                                actual.original_offset(offset),
-                                expected.original_offset(offset)
-                            );
-                            assert_eq!(actual.line_at(offset), expected.line_at(offset));
-                            assert_eq!(actual.column_at(offset), expected.column_at(offset));
-                        }
+                        assert_eq!(actual.line_at(offset), expected.line_at(offset));
+                        assert_eq!(actual.column_at(offset), expected.column_at(offset));
                     }
-                    (Err(actual), Err(expected)) => assert_eq!(actual, expected),
-                    _ => panic!("scanner acceptance changed for {source:?} {mode:?} {trigraphs}"),
                 }
+                (Err(actual), Err(expected)) => assert_eq!(actual, expected),
+                _ => panic!("scanner acceptance changed for {source:?} {mode:?} {trigraphs}"),
             }
         }
     }
