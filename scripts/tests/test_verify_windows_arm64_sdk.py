@@ -1,6 +1,7 @@
 """SDK evidence must retain failures and enforce the selected native inputs."""
 
 import json
+import os
 import sys
 import tempfile
 import time
@@ -43,6 +44,27 @@ class SdkInputs(unittest.TestCase):
             header.write_text("typedef short T;\n")
             with self.assertRaisesRegex(RuntimeError, "SDK input changed"):
                 sdk.record_inputs([header], inputs)
+
+    def test_dependency_report_requires_the_selected_file(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            selected = root / "sdk" / "shared" / "basetsd.h"
+            selected.parent.mkdir(parents=True)
+            selected.write_text("typedef long long INT_PTR;\n")
+            unrelated = root / "other" / "shared" / "basetsd.h"
+            unrelated.parent.mkdir(parents=True)
+            unrelated.write_text(selected.read_text())
+            alias = root / "alias" / "basetsd.h"
+            alias.parent.mkdir()
+            os.link(selected, alias)
+
+            self.assertTrue(sdk.contains_selected_header([alias], selected))
+            self.assertFalse(sdk.contains_selected_header([unrelated], selected))
+            self.assertFalse(sdk.contains_selected_header([], selected))
+            if sys.platform == "win32":
+                extended = Path("\\\\?\\" + str(selected.with_name("BASEtsd.h")))
+                self.assertNotEqual(extended, selected)
+                self.assertTrue(sdk.contains_selected_header([extended], selected))
 
     def test_coff_and_pe_machine_fields(self):
         with tempfile.TemporaryDirectory() as temporary:

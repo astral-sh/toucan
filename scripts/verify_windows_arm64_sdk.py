@@ -164,6 +164,11 @@ def record_inputs(paths: list[Path], inputs: dict[str, str]) -> None:
         inputs[str(path)] = actual
 
 
+def contains_selected_header(dependencies: list[Path], selected: Path) -> bool:
+    """Match file identity across Windows extended-length and ordinary paths."""
+    return any(path.is_file() and path.samefile(selected) for path in dependencies)
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--toucan", type=Path, required=True)
@@ -230,7 +235,7 @@ def main() -> int:
                 if stages["msvc"]["status"] == "passed":
                     dependencies = json.loads(dependency_file.read_text(encoding="utf-8-sig"))["Data"]["Includes"]
                     native_paths = [Path(path).resolve(strict=True) for path in dependencies]
-                    if primary not in native_paths:
+                    if not contains_selected_header(native_paths, primary):
                         raise RuntimeError("MSVC dependency report omitted the selected SDK header")
                     record_inputs(native_paths, evidence["input_sha256"])
                 stages["preprocess"] = runner.run([toucan, "preprocess", source, *common, *includes, "--output", directory / "preprocessed.i"], f"{name}-preprocess")
@@ -246,7 +251,7 @@ def main() -> int:
                 if (metadata["target"], metadata["compiler"], metadata["language_mode"]) != (TARGET, "clang", "c11"):
                     raise RuntimeError("unexpected Toucan target or compiler profile")
                 paths = [Path(path).resolve() for path in metadata["dependencies"]]
-                if primary not in paths:
+                if not contains_selected_header(paths, primary):
                     raise RuntimeError("Toucan dependency report omitted the selected SDK header")
                 row["non_file_dependencies"] = [str(path) for path in paths if not path.is_file()]
                 record_inputs([path for path in paths if path.is_file()], evidence["input_sha256"])
