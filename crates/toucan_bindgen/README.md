@@ -214,3 +214,31 @@ Direct 128-bit integer object constants retain complete values on Rust 1.64,
 independently of the Rust 1.78 requirement for C 128-bit storage and call types.
 See [128-bit constants](../../docs/int128-object-bindings.md) for native validation
 and the documented difference from bindgen's truncated values.
+
+## Name allowlists
+
+`allowlist_type`, `allowlist_function`, and `allowlist_var` accept Rust regular
+expressions anchored to the entire name. Repeated patterns and all file/name
+categories select their union. A nonmatching pattern selects no roots; invalid
+expressions fail generation. Required types are included recursively.
+
+Type patterns match typedefs and lexical tag names such as `Outer_Inner`.
+Function patterns match functions only, even when a C tag shares that spelling.
+Variable patterns match objects and written object macros. An enumerator of an
+anonymous top-level enum without a typedef selects that whole enum; enumerators
+of named, nested, or typedef-named enums do not independently select it.
+
+Function and external-object patterns match each occurrence's
+`generated_name_override` result. File/name selection happens before choosing
+the first selected occurrence's name and object initializer. Selecting multiple
+distinct generated names for one object currently produces an explicit
+unsupported-projection diagnostic. Macro patterns
+match original C names and keep the ordered evaluation context, including values
+from excluded definitions.
+
+Selected static function prototypes and blocklisted functions still contribute
+their referenced types. Inline definitions excluded by the adapter do not
+become name roots. Reached blocklisted type definitions can contribute their
+own type dependencies while their definitions remain caller-supplied. This
+behavior uses the core's opt-in `BindingSelection::retain_type_dependencies`;
+ordinary core and file-only selection retain their existing policies.

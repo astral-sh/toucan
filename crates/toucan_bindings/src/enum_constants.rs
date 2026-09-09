@@ -20,7 +20,8 @@ pub enum EnumConstantStyle {
 
 pub(super) struct Constant {
     name: Option<String>,
-    rust_enum: Option<usize>,
+    rust_enum: bool,
+    owner: usize,
 }
 
 #[derive(Default)]
@@ -103,7 +104,8 @@ impl<'a> Emitter<'a> {
                         &variant.name,
                         Constant {
                             name,
-                            rust_enum: scoped.then_some(id),
+                            rust_enum: scoped,
+                            owner: id,
                         },
                     )
                     .is_some()
@@ -121,7 +123,22 @@ impl<'a> Emitter<'a> {
         name: &str,
         macros: &BTreeMap<String, Option<MacroValue>>,
     ) -> Result<Option<String>, Error> {
-        if !self.options.includes_constant(name) || self.blocked_enumerator(name) {
+        if !self.options.includes_constant(name)
+            && !(self
+                .options
+                .selection
+                .as_ref()
+                .is_some_and(|roots| roots.retain_type_dependencies)
+                && self.options.enum_constant_style == EnumConstantStyle::Bindgen
+                && self
+                    .enum_constant_names
+                    .values
+                    .get(name)
+                    .is_some_and(|constant| self.enums.contains(&constant.owner)))
+        {
+            return Ok(None);
+        }
+        if self.blocked_enumerator(name) {
             return Ok(None);
         }
         if let Some(constant) = self.enum_constant_names.values.get(name) {
@@ -150,7 +167,7 @@ impl<'a> Emitter<'a> {
         self.enum_constant_names
             .values
             .get(name)
-            .and_then(|constant| constant.rust_enum)
+            .and_then(|constant| constant.rust_enum.then_some(constant.owner))
     }
 }
 

@@ -85,6 +85,9 @@ pub struct Builder {
     arguments: Vec<String>,
     options: BindingOptions,
     allowlist_files: Vec<String>,
+    allowlist_types: Vec<String>,
+    allowlist_functions: Vec<String>,
+    allowlist_vars: Vec<String>,
     callbacks: Vec<Rc<dyn callbacks::ParseCallbacks>>,
     formatting: formatting::Options,
     macro_type_variation: MacroTypeVariation,
@@ -111,6 +114,9 @@ impl Default for Builder {
                 ..BindingOptions::default()
             },
             allowlist_files: Vec::new(),
+            allowlist_types: Vec::new(),
+            allowlist_functions: Vec::new(),
+            allowlist_vars: Vec::new(),
             callbacks: Vec::new(),
             error: None,
             formatting: formatting::Options::default(),
@@ -175,6 +181,29 @@ impl Builder {
     /// are included; logical `#line` filenames do not change file selection.
     pub fn allowlist_file(mut self, pattern: impl AsRef<str>) -> Self {
         self.allowlist_files.push(pattern.as_ref().into());
+        self
+    }
+
+    /// Select types by fully anchored Rust regular expressions. Nested tags use
+    /// their lexical names (for example, `Outer_Inner`); dependencies are included.
+    /// All file and name allowlists are combined by union.
+    pub fn allowlist_type(mut self, pattern: impl AsRef<str>) -> Self {
+        self.allowlist_types.push(pattern.as_ref().into());
+        self
+    }
+
+    /// Select functions by fully anchored Rust regular expressions matched after
+    /// `generated_name_override`. Dependencies are included.
+    pub fn allowlist_function(mut self, pattern: impl AsRef<str>) -> Self {
+        self.allowlist_functions.push(pattern.as_ref().into());
+        self
+    }
+
+    /// Select variables and macros by fully anchored Rust regular expressions.
+    /// External objects match after `generated_name_override`. An enumerator of
+    /// an anonymous top-level enum without a typedef selects its whole enum.
+    pub fn allowlist_var(mut self, pattern: impl AsRef<str>) -> Self {
+        self.allowlist_vars.push(pattern.as_ref().into());
         self
     }
 
@@ -351,7 +380,12 @@ impl Builder {
         if self.headers.is_empty() {
             return Err(configuration("at least one header is required"));
         }
-        let files = selection::file_patterns(&self.allowlist_files)?;
+        let patterns = selection::Patterns::new(
+            &self.allowlist_files,
+            &self.allowlist_types,
+            &self.allowlist_functions,
+            &self.allowlist_vars,
+        )?;
         let (mut config, comments) = arguments::configuration(&self.arguments)?;
         config.analysis.retain_documentation_origins = self.generate_comments;
         config.preprocessor.documentation =
@@ -361,8 +395,10 @@ impl Builder {
                 });
         config.analysis.retain_object_values = true;
         config.analysis.retain_parameter_type_dependencies = true;
-        config.analysis.retain_declaration_origins = files.is_some() || !self.callbacks.is_empty();
-        config.preprocessor.record_file_origins = files.is_some();
+        config.analysis.retain_declaration_origins =
+            patterns.is_restricted() || !self.callbacks.is_empty();
+        config.preprocessor.record_file_origins =
+            patterns.files.is_some() || patterns.types.is_some();
         config.preprocessor.record_macro_definitions = true;
         config.preprocessor.macro_redefinition_policy =
             toucan::MacroRedefinitionPolicy::RecordAndReplace;
@@ -379,22 +415,32 @@ impl Builder {
         let compilation = toucan::parse_files(&paths, &config)?;
         self.options.emit_function_definitions = true;
         self.options.exclude_inline_functions = true;
-        if config.analysis.retain_declaration_origins {
-            selection::apply(
+        let occurrences = if config.analysis.retain_declaration_origins {
+            Some(selection::apply(
                 &compilation,
-                files.as_ref(),
+                &patterns,
                 &self.callbacks,
                 &mut self.options,
-            )?;
-        }
-        parameter_dependencies::apply(&compilation, files.as_ref(), &mut self.options)?;
-        objects::select(&compilation, files.as_ref(), &mut self.options)?;
+            )?)
+        } else {
+            None
+        };
+        parameter_dependencies::apply(
+            &compilation,
+            patterns.files.as_ref(),
+            patterns
+                .has_names()
+                .then_some(occurrences.as_ref())
+                .flatten(),
+            &mut self.options,
+        )?;
+        objects::select(&compilation, occurrences.as_ref(), &mut self.options)?;
         if self.generate_comments {
             documentation::apply(&compilation, comments, &mut self.options)?;
         }
         let macros = macro_compat::evaluate(
             &compilation,
-            files.as_ref(),
+            &patterns,
             !self.callbacks.is_empty(),
             &mut self.options,
             self.macro_type_variation,

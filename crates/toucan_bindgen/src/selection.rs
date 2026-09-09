@@ -10,21 +10,67 @@ use toucan::{BindingOptions, BindingSelection, Compilation};
 use crate::callbacks::{ItemInfo, ItemKind, ParseCallbacks};
 use crate::{BindgenError, configuration};
 
-pub(crate) fn file_patterns(patterns: &[String]) -> Result<Option<RegexSet>, BindgenError> {
+#[derive(Default)]
+pub(crate) struct Patterns {
+    pub(crate) files: Option<RegexSet>,
+    pub(crate) types: Option<RegexSet>,
+    pub(crate) functions: Option<RegexSet>,
+    pub(crate) vars: Option<RegexSet>,
+}
+
+impl Patterns {
+    pub(crate) fn new(
+        files: &[String],
+        types: &[String],
+        functions: &[String],
+        vars: &[String],
+    ) -> Result<Self, BindgenError> {
+        Ok(Self {
+            files: patterns(files, "file")?,
+            types: patterns(types, "type")?,
+            functions: patterns(functions, "function")?,
+            vars: patterns(vars, "var")?,
+        })
+    }
+
+    pub(crate) fn is_restricted(&self) -> bool {
+        self.files.is_some() || self.has_names()
+    }
+
+    pub(crate) fn has_names(&self) -> bool {
+        self.types.is_some() || self.functions.is_some() || self.vars.is_some()
+    }
+
+    pub(crate) fn matches_file(&self, path: &std::path::Path) -> bool {
+        self.files.as_ref().is_some_and(|patterns| {
+            // The facade's compiler aliases are not written header declarations.
+            path != std::path::Path::new("<builtin>/integer-types.h")
+                && patterns.is_match(path.to_string_lossy().as_ref())
+        })
+    }
+
+    pub(crate) fn matches_var(&self, name: &str) -> bool {
+        self.vars
+            .as_ref()
+            .is_some_and(|patterns| patterns.is_match(name))
+    }
+}
+
+fn patterns(patterns: &[String], kind: &str) -> Result<Option<RegexSet>, BindgenError> {
     if patterns.is_empty() {
         return Ok(None);
     }
     RegexSet::new(patterns.iter().map(|pattern| format!("^(?:{pattern})$")))
         .map(Some)
-        .map_err(|error| configuration(format!("invalid allowlist_file pattern: {error}")))
+        .map_err(|error| configuration(format!("invalid allowlist_{kind} pattern: {error}")))
 }
 
 pub(crate) fn apply(
     compilation: &Compilation,
-    files: Option<&RegexSet>,
+    patterns: &Patterns,
     callbacks: &[Rc<dyn ParseCallbacks>],
     options: &mut BindingOptions,
-) -> Result<(), BindgenError> {
+) -> Result<BTreeSet<usize>, BindgenError> {
     let Some(origins) = compilation.declaration_origins() else {
         return Err(configuration(
             "declaration origins were not captured for selection",
@@ -32,18 +78,35 @@ pub(crate) fn apply(
     };
     let physical = compilation.preprocessed().file_origins();
     let matches_file = |offset| -> bool {
-        files.is_none_or(|patterns| {
-            physical
+        !patterns.is_restricted()
+            || physical
                 .and_then(|catalog| catalog.source_name(offset))
-                .is_some_and(|path| {
-                    // This facade prelude supplies compiler builtin aliases; it
-                    // is not a header supplied by the build script or its includes.
-                    path != std::path::Path::new("<builtin>/integer-types.h")
-                        && patterns.is_match(path.to_string_lossy().as_ref())
-                })
-        })
+                .is_some_and(|path| patterns.matches_file(path))
     };
-    let mut selection = files.map(|_| Box::<BindingSelection>::default());
+    let mut selection = patterns
+        .is_restricted()
+        .then(Box::<BindingSelection>::default);
+    if (patterns.types.is_some() || patterns.vars.is_some())
+        && let Some(selection) = &mut selection
+    {
+        selection
+            .extend_tags(
+                compilation.unit(),
+                options,
+                |name| {
+                    patterns
+                        .types
+                        .as_ref()
+                        .is_some_and(|patterns| patterns.is_match(name))
+                },
+                |name| patterns.matches_var(name),
+            )
+            .map_err(|error| configuration(error.to_string()))?;
+    }
+    if let Some(selection) = &mut selection {
+        selection.retain_type_dependencies = patterns.has_names();
+    }
+    let mut occurrences = BTreeSet::new();
     let mut generated = BTreeSet::new();
     let mut records = BTreeSet::new();
     let mut enums = BTreeSet::new();
@@ -98,7 +161,45 @@ pub(crate) fn apply(
                         declaration.name
                     )));
                 }
+                let name = renamed.as_deref().unwrap_or(&declaration.name);
+                let selected = selected
+                    || match declaration.kind {
+                        DeclarationKind::Function if kind.is_some() => patterns
+                            .functions
+                            .as_ref()
+                            .is_some_and(|patterns| patterns.is_match(name)),
+                        DeclarationKind::Variable => patterns.matches_var(name),
+                        DeclarationKind::Typedef => {
+                            patterns
+                                .types
+                                .as_ref()
+                                .is_some_and(|patterns| patterns.is_match(name))
+                                && physical
+                                    .and_then(|catalog| {
+                                        catalog.source_name(origin.source().range().start)
+                                    })
+                                    .is_none_or(|path| {
+                                        path != std::path::Path::new("<builtin>/integer-types.h")
+                                    })
+                        }
+                        _ => false,
+                    };
                 if selected && (kind.is_some() || declaration.kind != DeclarationKind::Function) {
+                    if patterns.has_names()
+                        && declaration.kind == DeclarationKind::Variable
+                        && generated.contains(&index)
+                        && options
+                            .generated_names
+                            .get(&declaration.name)
+                            .unwrap_or(&declaration.name)
+                            != name
+                    {
+                        return Err(configuration(format!(
+                            "object `{}` has multiple selected generated names; separate object projections are unsupported",
+                            declaration.name
+                        )));
+                    }
+                    occurrences.insert(origin.source().range().start);
                     if let Some(selection) = &mut selection {
                         selection.declarations.insert(index);
                     }
@@ -144,6 +245,11 @@ pub(crate) fn apply(
             _ => return Err(configuration("unsupported declaration-origin category")),
         }
     }
+    // Semantic compiler helper types have no written declaration cursor.
+    if let Some(selection) = &mut selection {
+        selection.records.retain(|id| records.contains(id));
+        selection.enums.retain(|id| enums.contains(id));
+    }
     // Bindgen applies function blocklists to the callback-adjusted item name.
     // Translate those policies back to C symbols for the core emitter.
     if !callbacks.is_empty() && !options.blocklist_functions.is_empty() {
@@ -167,5 +273,5 @@ pub(crate) fn apply(
             .collect();
     }
     options.selection = selection;
-    Ok(())
+    Ok(occurrences)
 }

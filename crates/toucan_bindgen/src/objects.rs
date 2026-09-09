@@ -1,23 +1,19 @@
 //! Choose the first written object in the selected headers.
 use crate::{BindgenError, configuration};
-use regex::RegexSet;
+use std::collections::BTreeSet;
 use toucan::{BindingOptions, Compilation};
 
 pub(crate) fn select(
     compilation: &Compilation,
-    files: Option<&RegexSet>,
+    selected_occurrences: Option<&BTreeSet<usize>>,
     options: &mut BindingOptions,
 ) -> Result<(), BindgenError> {
     let objects = compilation
         .object_values()
         .ok_or_else(|| configuration("object values were not captured"))?;
-    let physical = compilation.preprocessed().file_origins();
     for object in objects.entries() {
-        let selected = files.is_none_or(|patterns| {
-            physical
-                .and_then(|catalog| catalog.source_name(object.offset()))
-                .is_some_and(|path| patterns.is_match(path.to_string_lossy().as_ref()))
-        });
+        let selected =
+            selected_occurrences.is_none_or(|offsets| offsets.contains(&object.offset()));
         if selected && !options.object_bindings.contains_key(object.name()) {
             options
                 .object_bindings

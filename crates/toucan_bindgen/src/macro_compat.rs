@@ -2,7 +2,6 @@
 
 use std::collections::BTreeMap;
 
-use regex::RegexSet;
 use toucan::{BindingOptions, Compilation, MacroValue, SkippedMacro};
 
 use crate::macro_projection::{self, MacroTypeVariation};
@@ -17,7 +16,7 @@ pub(crate) struct MacroBindings {
 /// Match the first successfully parsed definition's header after context updates.
 pub(crate) fn evaluate(
     compilation: &Compilation,
-    files: Option<&RegexSet>,
+    patterns: &crate::selection::Patterns,
     callbacks_present: bool,
     options: &mut BindingOptions,
     variation: MacroTypeVariation,
@@ -40,9 +39,9 @@ pub(crate) fn evaluate(
     }
     for definition in definitions {
         let name = definition.name();
-        let selected = files.is_none_or(|files| {
-            files.is_match(definition.accessed_path().to_string_lossy().as_ref())
-        });
+        let selected = !patterns.is_restricted()
+            || patterns.matches_file(definition.accessed_path())
+            || patterns.matches_var(name);
         let function_like = callbacks_present
             && preprocessed
                 .macros

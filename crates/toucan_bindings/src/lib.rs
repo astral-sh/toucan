@@ -526,14 +526,19 @@ pub fn generate_with_macros(
             continue;
         }
         if declaration.kind == DeclarationKind::Typedef && options.blocks_type(&declaration.name) {
-            emitter.register_external(
-                &Type::new(TypeKind::Typedef(declaration.name.clone())),
-                false,
-                false,
-            )?;
+            let ty = Type::new(TypeKind::Typedef(declaration.name.clone()));
+            emitter.register_external(&ty, false, false)?;
+            emitter.collect_external_dependencies(&ty, 0)?;
             continue;
         }
         if declaration.kind == DeclarationKind::Function && options.blocks_function(declaration) {
+            if options
+                .selection
+                .as_ref()
+                .is_some_and(|roots| roots.retain_type_dependencies)
+            {
+                emitter.collect(&declaration.ty)?;
+            }
             blocked_functions.push(declaration.name.clone());
             continue;
         }
@@ -566,6 +571,14 @@ pub fn generate_with_macros(
                 && !options.emit_function_definitions
                 && declaration.dll_storage_class != Some(toucan_semantic::DllStorageClass::Import))
         {
+            if declaration.kind == DeclarationKind::Function
+                && options
+                    .selection
+                    .as_ref()
+                    .is_some_and(|roots| roots.retain_type_dependencies)
+            {
+                emitter.collect(&declaration.ty)?;
+            }
             skipped.push(declaration.name.clone());
             continue;
         }
@@ -588,7 +601,6 @@ pub fn generate_with_macros(
         }
         selected.push(declaration);
     }
-    emitter.validate_generated_collisions(&selected, macros)?;
     let mut dll_symbols = BTreeMap::new();
     for declaration in &selected {
         if declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
@@ -615,6 +627,8 @@ pub fn generate_with_macros(
             let ty = Type::new(TypeKind::Record(id));
             if !emitter.register_external(&ty, false, false)? {
                 emitter.collect(&ty)?;
+            } else {
+                emitter.collect_external_dependencies(&ty, 0)?;
             }
         }
     }
@@ -638,6 +652,7 @@ pub fn generate_with_macros(
             emitter.collect_use_at(&Type::new(TypeKind::Typedef(name.clone())), 0, false)?;
         }
     }
+    emitter.validate_generated_collisions(&selected, macros)?;
     emitter.prepare_atomic_records()?;
     emitter.prepare_external_records()?;
     emitter.prepare_derive_records()?;
@@ -1196,7 +1211,7 @@ impl Emitter<'_> {
             ));
         }
         if self.register_external(ty, true, layout_required)? {
-            return Ok(());
+            return self.collect_external_dependencies(ty, depth);
         }
         let atomic = self.unit.atomic_value(ty)?.is_some();
         if atomic {

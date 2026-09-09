@@ -14,6 +14,10 @@ use crate::{Error, Options};
 /// also matches. Every indexed root is validated before generation.
 #[derive(Debug, Default, Clone)]
 pub struct BindingSelection {
+    /// Keep referenced types when a selected symbol is omitted or a reached
+    /// type definition is blocklisted. Disabled by default; roots and ABI
+    /// validation are otherwise unchanged.
+    pub retain_type_dependencies: bool,
     /// Indices into `TranslationUnit::declarations`.
     pub declarations: BTreeSet<usize>,
     /// File-scope record IDs.
@@ -29,6 +33,57 @@ pub struct BindingSelection {
 }
 
 impl BindingSelection {
+    /// Add file-scope tags matched by their emitted lexical names, before Rust
+    /// keyword escaping. Anonymous enums without a typedef or enclosing record
+    /// may also be selected by any of their original enumerator names.
+    ///
+    /// Dependencies are collected during generation. Typedefs, functions,
+    /// objects, and macros are separate root categories.
+    pub fn extend_tags(
+        &mut self,
+        unit: &TranslationUnit,
+        options: &Options,
+        mut matches_type: impl FnMut(&str) -> bool,
+        mut matches_anonymous_variant: impl FnMut(&str) -> bool,
+    ) -> Result<(), Error> {
+        let names = crate::lexical_names::Names::new(unit, options)?;
+        for (id, record) in unit.records.iter().enumerate() {
+            if record.scope == Scope::File
+                && !crate::tag_discovery::hidden_record(unit, options, id)
+                && names
+                    .record(id)
+                    .or(record.name.as_deref())
+                    .is_some_and(&mut matches_type)
+            {
+                self.records.insert(id);
+            }
+        }
+        for (id, enumeration) in unit.enums.iter().enumerate() {
+            if enumeration.scope != Scope::File
+                || crate::tag_discovery::hidden_enum(unit, options, id)
+            {
+                continue;
+            }
+            let anonymous = enumeration.name.is_none()
+                && names.enum_parent(unit, id).is_none()
+                && crate::lexical_names::Names::typedef_name(
+                    unit,
+                    unit.lexical_tags.enums.get(&id),
+                )
+                .is_none();
+            if names.enum_name(unit, id).is_some_and(&mut matches_type)
+                || (anonymous
+                    && enumeration
+                        .variants
+                        .iter()
+                        .any(|variant| matches_anonymous_variant(&variant.name)))
+            {
+                self.enums.insert(id);
+            }
+        }
+        Ok(())
+    }
+
     pub(crate) fn validate(&self, unit: &TranslationUnit) -> Result<(), Error> {
         for &id in &self.declarations {
             if id >= unit.declarations.len() {
