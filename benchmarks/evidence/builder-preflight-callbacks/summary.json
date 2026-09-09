@@ -1,0 +1,714 @@
+{
+  "schema_version": 1,
+  "analyzer_schema_version": 3,
+  "scope": "Untimed final Builder preflight at7db2b850 including nullable function typedefs, cycle/work guards, and schema3 enum analysis. Current-Rust FFI/selected C layouts+constants; actualRust1.64/current generated-module compilation.",
+  "commit": "7db2b85027108be1515ad76263720e665cba2ab9",
+  "source": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09",
+  "review": "Passed with the existing SQLite callback, libgit2 typedef, and native sentinel differences retained.",
+  "binary": {
+    "path": "/home/dev-user/.cache/toucan/callback-final-builder-preflight-target-2026-09-09/release/toucan-inprocess-benchmark",
+    "sha256": "2620b57f63f505d547318ffa43328de819db950c2212f78125ab2f532bb53c26"
+  },
+  "analyzer": {
+    "path": "/home/dev-user/.cache/toucan/callback-final-builder-preflight-target-2026-09-09/release/toucan-binding-compare",
+    "sha256": "f0f98c95eccef9ac43927b86ca3034f8c67a2b6637156ef710efb758c0323b14"
+  },
+  "libclang": {
+    "path": "/usr/lib/llvm-18/lib/libclang.so.1",
+    "resolved_path": "/usr/lib/x86_64-linux-gnu/libclang-18.so.18",
+    "sha256": "d7c54213dbeb95deb5bfee76cf3e32e425cbaf8ccbd2900345414fb57476458b"
+  },
+  "projects": {
+    "zlib": {
+      "structural_api_equivalent": true,
+      "export_counts": {
+        "toucan": {
+          "functions": {
+            "linker_groups": 81,
+            "public_rust_names": 81,
+            "multiple_export_groups": {}
+          },
+          "globals": {
+            "linker_groups": 0,
+            "public_rust_names": 0,
+            "multiple_export_groups": {}
+          }
+        },
+        "bindgen": {
+          "functions": {
+            "linker_groups": 81,
+            "public_rust_names": 81,
+            "multiple_export_groups": {}
+          },
+          "globals": {
+            "linker_groups": 0,
+            "public_rust_names": 0,
+            "multiple_export_groups": {}
+          }
+        }
+      },
+      "comparisons": {
+        "functions": {
+          "common": 81,
+          "equal": 81,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "globals": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "constants": {
+          "common": 39,
+          "equal": 39,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "aliases": {
+          "common": 26,
+          "equal": 26,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "record_shapes": {
+          "common": 5,
+          "equal": 5,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "enum_shapes": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "enum_constants": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_records": {
+          "common": 4,
+          "equal": 4,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_fields": {
+          "common": 34,
+          "equal": 34,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_constants": {
+          "common": 39,
+          "equal": 39,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_enums": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_variants": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        }
+      },
+      "independent_c_records": 2,
+      "independent_c_field_offsets": 27,
+      "native_value_differences": {
+        "toucan-builder": {
+          "gcc": {},
+          "clang": {}
+        },
+        "bindgen": {
+          "gcc": {},
+          "clang": {}
+        }
+      },
+      "skipped_declarations": [],
+      "skipped_macro_count": 23,
+      "header_roots": 2,
+      "input_inventory_equal": true,
+      "repeated_output_stable": true
+    },
+    "sqlite": {
+      "structural_api_equivalent": false,
+      "export_counts": {
+        "toucan": {
+          "functions": {
+            "linker_groups": 291,
+            "public_rust_names": 291,
+            "multiple_export_groups": {}
+          },
+          "globals": {
+            "linker_groups": 3,
+            "public_rust_names": 3,
+            "multiple_export_groups": {}
+          }
+        },
+        "bindgen": {
+          "functions": {
+            "linker_groups": 291,
+            "public_rust_names": 291,
+            "multiple_export_groups": {}
+          },
+          "globals": {
+            "linker_groups": 3,
+            "public_rust_names": 3,
+            "multiple_export_groups": {}
+          }
+        }
+      },
+      "comparisons": {
+        "functions": {
+          "common": 291,
+          "equal": 291,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "globals": {
+          "common": 3,
+          "equal": 3,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "constants": {
+          "common": 471,
+          "equal": 471,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "aliases": {
+          "common": 12,
+          "equal": 12,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "record_shapes": {
+          "common": 35,
+          "equal": 34,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": [
+            "sqlite3_vfs"
+          ]
+        },
+        "enum_shapes": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "enum_constants": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_records": {
+          "common": 23,
+          "equal": 23,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_fields": {
+          "common": 192,
+          "equal": 192,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_constants": {
+          "common": 471,
+          "equal": 471,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_enums": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_variants": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        }
+      },
+      "independent_c_records": 4,
+      "independent_c_field_offsets": 26,
+      "native_value_differences": {
+        "toucan-builder": {
+          "gcc": {},
+          "clang": {}
+        },
+        "bindgen": {
+          "gcc": {},
+          "clang": {}
+        }
+      },
+      "skipped_declarations": [],
+      "skipped_macro_count": 14,
+      "header_roots": 1,
+      "input_inventory_equal": true,
+      "repeated_output_stable": true
+    },
+    "zstd": {
+      "structural_api_equivalent": true,
+      "export_counts": {
+        "toucan": {
+          "functions": {
+            "linker_groups": 68,
+            "public_rust_names": 68,
+            "multiple_export_groups": {}
+          },
+          "globals": {
+            "linker_groups": 0,
+            "public_rust_names": 0,
+            "multiple_export_groups": {}
+          }
+        },
+        "bindgen": {
+          "functions": {
+            "linker_groups": 68,
+            "public_rust_names": 68,
+            "multiple_export_groups": {}
+          },
+          "globals": {
+            "linker_groups": 0,
+            "public_rust_names": 0,
+            "multiple_export_groups": {}
+          }
+        }
+      },
+      "comparisons": {
+        "functions": {
+          "common": 68,
+          "equal": 68,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "globals": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "constants": {
+          "common": 110,
+          "equal": 110,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "aliases": {
+          "common": 14,
+          "equal": 14,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "record_shapes": {
+          "common": 7,
+          "equal": 7,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "enum_shapes": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "enum_constants": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_records": {
+          "common": 3,
+          "equal": 3,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_fields": {
+          "common": 9,
+          "equal": 9,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_constants": {
+          "common": 110,
+          "equal": 110,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_enums": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_variants": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        }
+      },
+      "independent_c_records": 3,
+      "independent_c_field_offsets": 9,
+      "native_value_differences": {
+        "toucan-builder": {
+          "gcc": {
+            "constant.ZSTD_CONTENTSIZE_ERROR": {
+              "c": "18446744073709551614",
+              "rust": "-2"
+            },
+            "constant.ZSTD_CONTENTSIZE_UNKNOWN": {
+              "c": "18446744073709551615",
+              "rust": "-1"
+            }
+          },
+          "clang": {
+            "constant.ZSTD_CONTENTSIZE_ERROR": {
+              "c": "18446744073709551614",
+              "rust": "-2"
+            },
+            "constant.ZSTD_CONTENTSIZE_UNKNOWN": {
+              "c": "18446744073709551615",
+              "rust": "-1"
+            }
+          }
+        },
+        "bindgen": {
+          "gcc": {
+            "constant.ZSTD_CONTENTSIZE_ERROR": {
+              "c": "18446744073709551614",
+              "rust": "-2"
+            },
+            "constant.ZSTD_CONTENTSIZE_UNKNOWN": {
+              "c": "18446744073709551615",
+              "rust": "-1"
+            }
+          },
+          "clang": {
+            "constant.ZSTD_CONTENTSIZE_ERROR": {
+              "c": "18446744073709551614",
+              "rust": "-2"
+            },
+            "constant.ZSTD_CONTENTSIZE_UNKNOWN": {
+              "c": "18446744073709551615",
+              "rust": "-1"
+            }
+          }
+        }
+      },
+      "skipped_declarations": [],
+      "skipped_macro_count": 15,
+      "header_roots": 2,
+      "input_inventory_equal": true,
+      "repeated_output_stable": true
+    },
+    "libgit2": {
+      "structural_api_equivalent": false,
+      "export_counts": {
+        "toucan": {
+          "functions": {
+            "linker_groups": 848,
+            "public_rust_names": 848,
+            "multiple_export_groups": {}
+          },
+          "globals": {
+            "linker_groups": 0,
+            "public_rust_names": 0,
+            "multiple_export_groups": {}
+          }
+        },
+        "bindgen": {
+          "functions": {
+            "linker_groups": 848,
+            "public_rust_names": 848,
+            "multiple_export_groups": {}
+          },
+          "globals": {
+            "linker_groups": 0,
+            "public_rust_names": 0,
+            "multiple_export_groups": {}
+          }
+        }
+      },
+      "comparisons": {
+        "functions": {
+          "common": 848,
+          "equal": 848,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "globals": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "constants": {
+          "common": 673,
+          "equal": 673,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "aliases": {
+          "common": 160,
+          "equal": 160,
+          "toucan_only": [
+            "__int32_t",
+            "__int64_t",
+            "__uint16_t",
+            "__uint32_t",
+            "__uint64_t",
+            "int32_t",
+            "int64_t",
+            "uint16_t",
+            "uint32_t",
+            "uint64_t"
+          ],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "record_shapes": {
+          "common": 141,
+          "equal": 141,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "enum_shapes": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "enum_constants": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_records": {
+          "common": 85,
+          "equal": 85,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_fields": {
+          "common": 432,
+          "equal": 432,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_constants": {
+          "common": 673,
+          "equal": 673,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_enums": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        },
+        "native_variants": {
+          "common": 0,
+          "equal": 0,
+          "toucan_only": [],
+          "bindgen_only": [],
+          "different_names": []
+        }
+      },
+      "independent_c_records": 8,
+      "independent_c_field_offsets": 26,
+      "native_value_differences": {
+        "toucan-builder": {
+          "gcc": {
+            "constant.GIT_REBASE_NO_OPERATION": {
+              "c": "18446744073709551615",
+              "rust": "-1"
+            }
+          },
+          "clang": {
+            "constant.GIT_REBASE_NO_OPERATION": {
+              "c": "18446744073709551615",
+              "rust": "-1"
+            }
+          }
+        },
+        "bindgen": {
+          "gcc": {
+            "constant.GIT_REBASE_NO_OPERATION": {
+              "c": "18446744073709551615",
+              "rust": "-1"
+            }
+          },
+          "clang": {
+            "constant.GIT_REBASE_NO_OPERATION": {
+              "c": "18446744073709551615",
+              "rust": "-1"
+            }
+          }
+        }
+      },
+      "skipped_declarations": [],
+      "skipped_macro_count": 225,
+      "header_roots": 68,
+      "input_inventory_equal": true,
+      "repeated_output_stable": true
+    }
+  },
+  "totals": {
+    "functions_linker_groups_per_generator": 1288,
+    "functions_public_rust_names_per_generator": 1288,
+    "globals_linker_groups_per_generator": 3,
+    "globals_public_rust_names_per_generator": 3,
+    "matching_constants": 1293,
+    "matching_aliases": 212,
+    "shared_record_shapes": 188,
+    "matching_record_shapes": 187,
+    "matching_complete_rust_record_layouts": 115,
+    "matching_rust_field_offsets": 667,
+    "rustified_enums": 0,
+    "rustified_enum_variants": 0,
+    "toucan_additional_aliases": 10,
+    "independent_c_records_per_generator_and_compiler": 17,
+    "independent_c_field_offsets_per_generator_and_compiler": 88,
+    "ffi_executions_current_rust": 8,
+    "c_probe_executions": 16,
+    "generated_module_compilations_current_and_rust164": 16,
+    "successful_logged_commands": 109,
+    "physical_public_header_roots": 73
+  },
+  "driver": {
+    "path": "/home/dev-user/.cache/toucan/callback-final-builder-preflight-plan-2026-09-09/preflight.py",
+    "sha256": "f59957103781f7d43f21f05ede6ddadb6053f6ec1685de69dfbba85db9fdca2a",
+    "original": "/home/dev-user/.cache/toucan/builder-alias-preflight-plan/preflight.py",
+    "changes": [],
+    "failed_commands": []
+  },
+  "baseline_43867b9": {
+    "report_path": "/home/dev-user/.cache/toucan/selection-builder-preflight-2026-09-09/report.json",
+    "report_sha256": "8a195ba85c879291ed9b3ea6d338d16eb20235e029c7cd3ced9ef6ff538373c6",
+    "projects": {
+      "zlib": {
+        "request_and_header_hashes_identical": true,
+        "generated_bytes_unchanged": {
+          "toucan-builder": true,
+          "bindgen": true
+        }
+      },
+      "sqlite": {
+        "request_and_header_hashes_identical": true,
+        "generated_bytes_unchanged": {
+          "toucan-builder": true,
+          "bindgen": true
+        }
+      },
+      "zstd": {
+        "request_and_header_hashes_identical": true,
+        "generated_bytes_unchanged": {
+          "toucan-builder": true,
+          "bindgen": true
+        }
+      },
+      "libgit2": {
+        "request_and_header_hashes_identical": true,
+        "generated_bytes_unchanged": {
+          "toucan-builder": true,
+          "bindgen": true
+        }
+      }
+    },
+    "all_eight_outputs_byte_identical": true
+  },
+  "source_integrity": {
+    "commit": "7db2b85027108be1515ad76263720e665cba2ab9",
+    "tree": "bd60fc965fd8b788df4be0ab5605c1f29fbdd506",
+    "files": 2389,
+    "all_git_blobs_verified_before_and_after": true,
+    "exact_file_set_before_and_after": true,
+    "original_capture_unchanged": true
+  },
+  "remaining_differences": {
+    "sqlite": "Only sqlite3_vfs.xDlSym: Toucan returns a zero-argument callback; bindgen repeats the three lookup arguments. The existing C type oracle establishes the C signature; no new callback-specific oracle execution is claimed here.",
+    "libgit2": [
+      "__int32_t",
+      "__int64_t",
+      "__uint16_t",
+      "__uint32_t",
+      "__uint64_t",
+      "int32_t",
+      "int64_t",
+      "uint16_t",
+      "uint32_t",
+      "uint64_t"
+    ],
+    "native_sentinels": "Both generators retain signed i32 -2/-1 for ZSTD_CONTENTSIZE_ERROR, ZSTD_CONTENTSIZE_UNKNOWN and GIT_REBASE_NO_OPERATION. GCC/Clang expose the native unsigned64 C values. Raw values and C expression size/sign are preserved without coercion."
+  },
+  "limitations": [
+    "One pinned Linuxx86_64 Builder configuration with comments/default derives and Rust1.64 output. No timing was taken. Previous timings remain scoped to43867b9.",
+    "This configuration uses constant-style enums, so schema3 rustified enum/variant inventories are empty. The separate schema3 native enum evidence covers pinned zstd/AWS rustified forms.",
+    "The115layouts/667offsets compare Rust representations. Independent GCC/Clang probes cover17selectedrecords/88offsets per generator/compiler plus emitted constants.",
+    "Comparison preserves all linker-group exports and compares normalized types/record identities/keyword fields. It does not establish trait/derive-generated API, documentation, bitfield-accessor, arbitrary-application, or other-target equality."
+  ]
+}

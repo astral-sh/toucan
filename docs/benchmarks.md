@@ -2,17 +2,17 @@
 
 ## Builder API comparison
 
-The [September 9 Builder capture](../benchmarks/evidence/builder-selection/README.md)
-compares the actual Builder APIs on the same public-header roots and output
-policy, including comments and default derives. The measured `43867b9` library
-code matches validated `00ec563` and published `b371cd0`:
+The [September 9 callback Builder capture](../benchmarks/evidence/builder-callback-final/README.md)
+compares the actual Builder APIs on identical public-header roots and output
+policies, including comments and default derives. It measures validated and
+published `7db2b850`, including nullable function typedefs and generation work limits:
 
 | Project | Toucan Builder | bindgen | Median paired speedup |
 | --- | ---: | ---: | ---: |
-| zlib 1.3.1 | 22.04 ms | 116.35 ms | 5.29× |
-| SQLite 3.45.1 | 25.91 ms | 153.45 ms | 5.98× |
-| zstd 1.5.7 | 8.85 ms | 106.08 ms | 11.87× |
-| libgit2 1.9.1 | 192.22 ms | 262.30 ms | 1.36× |
+| zlib 1.3.1 | 22.05 ms | 118.03 ms | 5.34× |
+| SQLite 3.45.1 | 26.07 ms | 156.25 ms | 5.98× |
+| zstd 1.5.7 | 9.02 ms | 104.85 ms | 11.62× |
+| libgit2 1.9.1 | 194.20 ms | 263.32 ms | 1.36× |
 
 Times are medians of seven process medians; speedups are medians of seven matched
 pair ratios. Each process records its first call separately and measures ten
@@ -20,15 +20,14 @@ subsequent calls, for 560 measured generations on CPU 3 of a shared Linux host.
 All output, input, binary, libclang and source hashes pass. The evidence retains
 raw samples, pair ranges, first-call costs, commands and toolchain identities.
 
-The [preflight](../benchmarks/evidence/builder-preflight-selection/README.md)
+The [preflight](../benchmarks/evidence/builder-preflight-callbacks/README.md)
 validates shared signatures, constants, layouts and native FFI calls. Structural
-API equality holds for zlib and zstd after the array-parameter alias fix. SQLite's
-returned callback, ten extra libgit2 aliases and three signed sentinel values
-remain documented differences. These timings precede nullable callback typedef
-changes and measure generation only. The [earlier Builder capture](../benchmarks/evidence/builder-acfb815/README.md)
-remains separate evidence; these shared-host runs do not establish a statistically
-significant revision change. The older core-route results below use a different
-workload.
+API equality holds for zlib and zstd. SQLite's returned callback, ten extra
+libgit2 aliases and three signed sentinel values remain documented differences.
+These timings measure generation only. The [earlier selection capture](../benchmarks/evidence/builder-selection/README.md)
+and [initial Builder capture](../benchmarks/evidence/builder-acfb815/README.md)
+remain separate evidence; these shared-host runs do not establish a statistically
+significant revision change. The older core-route results below use a different workload.
 
 ## Subprocess harness
 
