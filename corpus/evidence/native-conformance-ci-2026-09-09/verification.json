@@ -1,0 +1,27 @@
+{
+  "status": "pass",
+  "profiles": {
+    "gcc": {
+      "sources": 220,
+      "strict_positive": 211,
+      "legacy_accepted": 219,
+      "native_accepted": 219,
+      "native_files": 265,
+      "native_headers": 45
+    },
+    "clang": {
+      "sources": 220,
+      "strict_positive": 211,
+      "legacy_accepted": 219,
+      "native_accepted": 219,
+      "native_files": 273,
+      "native_headers": 53
+    }
+  },
+  "verified": {
+    "commands": 10170,
+    "streams": 20340,
+    "native_requests": 880,
+    "native_configuration_controls": 2
+  }
+}

@@ -191,6 +191,12 @@ It retains source/header hashes and diagnostics without redistributing downloade
 upstream sources or preprocessed files. The driver keeps compiler/Toucan macro
 differences visible; these results do not imply identical preprocessing output.
 
+The [CI confirmation](../evidence/native-conformance-ci-2026-09-09/README.md)
+repeats both profiles with Rust 1.96.0 release builds. Each route again accepts
+all 211 pedantic-positive cases. The tested merge tree exactly matches PR head
+`ca892441`; the supplement preserves build provenance and independently checked
+reports without changing the local evidence above.
+
 The [compiler-profile refresh](../evidence/conformance-profiles-440db13/summary.json)
 at `440db13` checks all 220 sources separately with GCC-preprocessed/GNU-profile
 and Clang-preprocessed/Clang-profile inputs. Each passes all 211 pedantic-positive

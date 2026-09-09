@@ -1,0 +1,111 @@
+{
+  "status": "passed",
+  "observed_at": "2026-09-09T19:26:43.655660+00:00",
+  "run_id": 34394052399,
+  "run_url": "https://github.com/astral-sh/toucan/actions/runs/34394052399",
+  "pull_request": 340,
+  "head_commit": "ca8924413da6fc01e44192f548bef0a18050ffd0",
+  "actual_tested_commit": "97dc7dc9d17bb348a7e7ecebae083c30e8974ef5",
+  "head_tree": "3f5faf4b300c44260bd15be8f2d93bf20d95d662",
+  "tested_tree": "3f5faf4b300c44260bd15be8f2d93bf20d95d662",
+  "tested_tree_equals_head": true,
+  "merge_metadata_file": "/tmp/toucan-native-conformance-ci-34394052399/build-review/merge.json",
+  "merge_metadata_sha256": "d60382ca2f41b1e4d72d99dc0c819d97dd8f4698af37592b0a7910d6c0db3452",
+  "merge_metadata_url": "https://api.github.com/repos/astral-sh/toucan/git/commits/97dc7dc9d17bb348a7e7ecebae083c30e8974ef5",
+  "head_file_sha256": {
+    ".github/workflows/conformance.yml": "2c8ae7ae8483edf99000f49bb3e48faa73c9ab923eba27e201a9857474edf24a",
+    "scripts/audit_c_testsuite.py": "fed0ebfa288b752db7aa739ea244533bc42e3c3f1dc32520832938e78ca2832c",
+    "crates/toucan/examples/audit_translation_unit.rs": "407a2002b0810cdcd68206fc4415af75d7c0d9302118b6555f2dfab13e8bf537",
+    "tools/binding_compare/tests/test_c_testsuite.py": "19a67f19de85c996df90cde310ebd456e98a7f063b3f1dd1db56e2d36bb5c626",
+    "corpus/conformance/c-testsuite.json": "67dd399dd843bebe100613ef6a818d1efc2e67fca65442abc530460950468cd6"
+  },
+  "profiles": {
+    "gcc": {
+      "job_id": 102609230133,
+      "job_url": "https://github.com/astral-sh/toucan/actions/runs/34394052399/job/102609230133",
+      "runner_labels": [
+        "ubuntu-24.04"
+      ],
+      "actual_checkout_commit": "97dc7dc9d17bb348a7e7ecebae083c30e8974ef5",
+      "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+      "llvm": "22.1.2",
+      "build_command": "cargo build --locked --release -p toucan_cli -p toucan --bin toucan --example audit_translation_unit --no-default-features",
+      "release_build_status": "passed",
+      "compiled_workspace_packages": [
+        "toucan",
+        "toucan_bindgen",
+        "toucan_bindings",
+        "toucan_cli",
+        "toucan_layout",
+        "toucan_parser",
+        "toucan_preprocessor",
+        "toucan_semantic",
+        "toucan_source",
+        "toucan_target",
+        "toucan_test_support"
+      ],
+      "gate_tests_passed": 14,
+      "strict_gate_status": "passed",
+      "strict_acceptance_per_route": 211,
+      "exploratory_difference": [
+        "00144.c"
+      ],
+      "recorded_cli_sha256": "7fa6f3f9e012507b1c813619e65a5b48ca6ef53cd75ec1cda1e78cf4a0d0cd00",
+      "recorded_probe_sha256": "9ef0001c90a97a117ab1ce32cc8f1cd28076457288995fb8125a00440e583154",
+      "report_sha256": "4ce5c66ee50a01c7aa187b2d3005768c1ebb80c53f801eb7a5c785c89481ebbc"
+    },
+    "clang": {
+      "job_id": 102609230405,
+      "job_url": "https://github.com/astral-sh/toucan/actions/runs/34394052399/job/102609230405",
+      "runner_labels": [
+        "ubuntu-24.04"
+      ],
+      "actual_checkout_commit": "97dc7dc9d17bb348a7e7ecebae083c30e8974ef5",
+      "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+      "llvm": "22.1.2",
+      "build_command": "cargo build --locked --release -p toucan_cli -p toucan --bin toucan --example audit_translation_unit --no-default-features",
+      "release_build_status": "passed",
+      "compiled_workspace_packages": [
+        "toucan",
+        "toucan_bindgen",
+        "toucan_bindings",
+        "toucan_cli",
+        "toucan_layout",
+        "toucan_parser",
+        "toucan_preprocessor",
+        "toucan_semantic",
+        "toucan_source",
+        "toucan_target",
+        "toucan_test_support"
+      ],
+      "gate_tests_passed": 14,
+      "strict_gate_status": "passed",
+      "strict_acceptance_per_route": 211,
+      "exploratory_difference": [
+        "00144.c"
+      ],
+      "recorded_cli_sha256": "7fa6f3f9e012507b1c813619e65a5b48ca6ef53cd75ec1cda1e78cf4a0d0cd00",
+      "recorded_probe_sha256": "9ef0001c90a97a117ab1ce32cc8f1cd28076457288995fb8125a00440e583154",
+      "report_sha256": "d7596fe7e04f1b0f79a3c0bf131999e5e4fca428e0ec258c9473bace53363056"
+    }
+  },
+  "log_file_sha256": {
+    "Pedantic C11 acceptance (gcc)/2_Run actions_checkout@11d5960a326750d5838078e36cf38b85af677262.txt": "4a145448e66bd18dbc9db80fd00b8d85545a10fbd8abf905a02f1ee2711a9117",
+    "Pedantic C11 acceptance (gcc)/3_Run dtolnay_rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0.txt": "87b9040bf18360e669c6e0684a5967cc234d68e4a5e59611f353b1853b6b23ed",
+    "Pedantic C11 acceptance (gcc)/5_Test the acceptance gate.txt": "63d9cb657519f2e89de7963d009a1e1d66a22a785cecc0e14bae8b765c401b98",
+    "Pedantic C11 acceptance (gcc)/6_Build the frontend.txt": "01bc1203dba60a97a8d484fbabfbb4f74c82b28d4bb7a0c98f8bbbda65b8b70f",
+    "Pedantic C11 acceptance (gcc)/7_Require acceptance of pedantic-positive cases.txt": "9bec3291e3c0fe0cc38ec22bc614650c2d220b6aa47abba895b0c157fd8baa8b",
+    "Pedantic C11 acceptance (clang)/2_Run actions_checkout@11d5960a326750d5838078e36cf38b85af677262.txt": "5742c0983ebe30d4ffd963003bebe5726bf86a097aee9a65a6701325bd781356",
+    "Pedantic C11 acceptance (clang)/3_Run dtolnay_rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0.txt": "a0f26fa0da0387fcd77c5206e7d0fc89a2040739379a8464187598f27b24a280",
+    "Pedantic C11 acceptance (clang)/5_Test the acceptance gate.txt": "7b75a225724578d961b0374e4654abd3c37f6a3c6d36b3abe4ec4938e0fa51af",
+    "Pedantic C11 acceptance (clang)/6_Build the frontend.txt": "7ff19ec243a6bf82b9a0fb96119ad7b9c03d3f046a0b2aa15dbf892297387f80",
+    "Pedantic C11 acceptance (clang)/7_Require acceptance of pedantic-positive cases.txt": "04589ce5f3bcb0dc6b82e6f3a1d11178c2c53a0c8422dab9c3a7cfc49327b013"
+  },
+  "logs_zip_sha256": "dafe9ac02e1825bc1add944339c93f16ac1cf118620795b696792f7d424d4cb8",
+  "limitations": [
+    "Build-to-source attribution uses successful CI checkout/build logs, exact Git tree identity and recorded driver/probe source hashes. No compiler-artifact JSON, complete post-build source inventory or executable bytes were uploaded for independent reconstruction.",
+    "CLI and probe hashes match between both jobs, but reviewer did not obtain or execute those binaries.",
+    "This supplement checks stable build provenance and gate outcomes; case protocols and input dependencies are audited separately."
+  ],
+  "compiler_builds_or_git_writes_by_reviewer": false
+}

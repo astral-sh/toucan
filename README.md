@@ -229,7 +229,8 @@ record separate performance and malformed-input checks.
 
 The [conformance guide](docs/conformance.md) describes the scope of language,
 preprocessor, ABI, and consumer checks. The external C suite now exercises both
-compiler-preprocessed input and original source through Toucan's preprocessor.
+compiler-preprocessed input and original source through Toucan's preprocessor;
+both routes pass the [Rust 1.96 CI gate](corpus/evidence/native-conformance-ci-2026-09-09/README.md).
 
 The [combined Builder validation](corpus/evidence/native-callbacks-2026-09-09/README.md)
 checks the combined Builder and analysis changes: 1,268 workspace tests and
