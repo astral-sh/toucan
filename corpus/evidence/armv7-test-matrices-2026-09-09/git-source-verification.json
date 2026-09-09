@@ -1,0 +1,9 @@
+{
+  "status": "passed",
+  "head": "6c66ec7266165c1be28e372edb2bfdccee252a01",
+  "source_file_count": 630,
+  "source_inventory_sha256": "01e417b44051cd6a064246ccac9af6af041fc1d47745ee3eb6e07d14a2980760",
+  "readme_sha256": "4754ba5058ba59a663afc58f1bc418e98590f99615d8afb47d148a094481f628",
+  "method": "Read all 630 Git blobs with git cat-file --batch; SHA-256 compared with final local inventory. README verified separately with git show. No compiler executed.",
+  "note": "Published Git source identity only; local tests ran on base 7146565cbfe11241416cd9e53ed142448c705fe7 plus the captured uncommitted patch."
+}

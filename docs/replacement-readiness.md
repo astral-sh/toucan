@@ -64,8 +64,10 @@ preprocessor audits check, alongside ABI, consumer, and malformed-input testing.
    fail at target selection. Add and validate each required ABI and header
    environment before switching that distribution, or explicitly limit adoption
    to validated targets and configurations and retain the existing generator elsewhere.
-2. **Current-source platform and consumer validation.** The published combined
-   source passed Linux x64/ARM corpus and Windows packaging; the latest paired
+2. **Current-source platform and consumer validation.** The [ARMv7 test corrections
+   at `6c66ec7`](../corpus/evidence/armv7-test-matrices-2026-09-09/README.md) pass all
+   seven workflows, including both full Linux native suites, both corpus jobs,
+   and Linux/Windows all-features tests and packaging. The latest paired
    application checks ran on Linux x64. The [Apple Silicon run at `ac3312d`](../corpus/evidence/macos-arm64-ac3312d-2026-09-09/README.md)
    passes workspace tests, package checks, native C/Rust comparisons, all four
    zstd profiles, and the SQLite consumer. It does not cover subsequent commits

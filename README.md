@@ -232,6 +232,11 @@ preprocessor, ABI, and consumer checks. The external C suite now exercises both
 compiler-preprocessed input and original source through Toucan's preprocessor;
 both routes pass the [Rust 1.96 CI gate](corpus/evidence/native-conformance-ci-2026-09-09/README.md).
 
+The [ARMv7 test corrections](corpus/evidence/armv7-test-matrices-2026-09-09/README.md)
+pass all seven CI workflows at `6c66ec7`, including full native suites with
+ignored tests enabled on Linux x86-64 and AArch64, and all-features tests and
+package checks on Linux and Windows.
+
 The [combined Builder validation](corpus/evidence/native-callbacks-2026-09-09/README.md)
 checks the combined Builder and analysis changes: 1,268 workspace tests and
 Rustdoc pass on Linux; recorded GitHub jobs also pass on Linux x64/ARM and Windows.

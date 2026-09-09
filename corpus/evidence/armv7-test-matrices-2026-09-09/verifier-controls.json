@@ -1,0 +1,27 @@
+{
+  "status": "passed",
+  "method": "Portable verifier run against three temporary package copies with updated container hashes, so semantic consistency checks, rather than file integrity alone, reject altered outcomes. No compilers, Git changes, or network calls.",
+  "results": [
+    {
+      "control": "workspace-exit",
+      "exit_code": 1,
+      "expected_diagnostic": "workspace command failed",
+      "actual_last_line": "RuntimeError: workspace command failed",
+      "passed": true
+    },
+    {
+      "control": "compiler-exit",
+      "exit_code": 1,
+      "expected_diagnostic": "reject-__int128_t",
+      "actual_last_line": "RuntimeError: reject-__int128_t",
+      "passed": true
+    },
+    {
+      "control": "source-changed",
+      "exit_code": 1,
+      "expected_diagnostic": "source changed during workspace test",
+      "actual_last_line": "RuntimeError: source changed during workspace test",
+      "passed": true
+    }
+  ]
+}
