@@ -16,15 +16,24 @@ fn volatile_bitfields_require_explicit_unsupported_diagnostics() {
             "V bits:3;",
             "volatile unsigned :3;",
         ] {
-            let source = format!("typedef volatile unsigned V; {kind} S {{ {declaration} }};");
-            let unit = analyze(&source, Target::X86_64UnknownLinuxGnu).unwrap();
-            let error = generate(&unit, &Options::default()).unwrap_err();
-            assert!(
-                error
-                    .to_string()
-                    .contains(&format!("volatile {kind} bitfield")),
-                "{source}: {error}"
-            );
+            for prefix in [
+                "",
+                "unsigned lead:1;",
+                "unsigned :1;",
+                "unsigned :0;",
+                "unsigned lead:8; unsigned :0;",
+            ] {
+                let source =
+                    format!("typedef volatile unsigned V; {kind} S {{ {prefix} {declaration} }};");
+                let unit = analyze(&source, Target::X86_64UnknownLinuxGnu).unwrap();
+                let error = generate(&unit, &Options::default()).unwrap_err();
+                assert!(
+                    error
+                        .to_string()
+                        .contains(&format!("volatile {kind} bitfield")),
+                    "{source}: {error}"
+                );
+            }
         }
     }
 }

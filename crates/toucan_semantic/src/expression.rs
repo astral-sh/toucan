@@ -1020,7 +1020,8 @@ impl Analyzer {
                         self.integer_type(&right_value, offset)?;
                         left_value.clone()
                     }
-                } else if operator == Op::Plus
+                } else if !assignment
+                    && operator == Op::Plus
                     && let TypeKind::Pointer(pointee) = &right_value.kind
                 {
                     self.require_complete_object(pointee, offset)?;
@@ -1434,8 +1435,9 @@ impl Analyzer {
         } else {
             self.integer_type(&expression.ty, offset)?
         };
-        if self.unit.compiler == toucan_target::Compiler::Clang
-            && let Some(width) = expression.bitfield
+        // Both compiler families promote narrow bitfields regardless of the
+        // rank of the declared storage type.
+        if let Some(width) = expression.bitfield
             && width <= 32
         {
             Ok(if width < 32 || integer.signed {
@@ -1448,8 +1450,6 @@ impl Analyzer {
                     rank: 3,
                 }
             })
-        } else if expression.bitfield.is_some_and(|width| width < 32) && integer.rank <= 3 {
-            Ok(IntegerValue::int(0))
         } else {
             Ok(promote(integer))
         }

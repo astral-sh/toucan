@@ -2200,9 +2200,15 @@ impl Emitter<'_> {
             .collect::<Result<BTreeSet<_>, _>>()?;
         let mut accessor_names = BTreeMap::new();
         for (index, field) in fields.iter().enumerate() {
-            if field.bit_width.is_some()
-                && let Some(name) = &field.name
-            {
+            if field.bit_width.is_none() {
+                continue;
+            }
+            if self.has_qualifier(&field.ty, |ty| ty.qualifiers.is_volatile)? {
+                return Err(Error(format!(
+                    "`{name}` has a volatile {kind} bitfield; access width and ordering are unsupported"
+                )));
+            }
+            if let Some(name) = &field.name {
                 let getter = names.identifier(name)?;
                 let mut setter = format!("set_{name}");
                 while !used_methods.insert(setter.clone()) {
@@ -2219,11 +2225,6 @@ impl Emitter<'_> {
                 )));
             }
             if let Some(width) = field.bit_width {
-                if self.has_qualifier(&field.ty, |ty| ty.qualifiers.is_volatile)? {
-                    return Err(Error(format!(
-                        "`{name}` has a volatile {kind} bitfield; access width and ordering are unsupported"
-                    )));
-                }
                 if let Some(storage) = &union_storage {
                     if let Some((getter, setter)) = accessor_names.get(&index) {
                         let member = layout.fields[index]
