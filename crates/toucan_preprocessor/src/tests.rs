@@ -1200,6 +1200,43 @@ fn msvc_sdk_warning_and_editor_pragmas_leave_declarations_untouched() {
 }
 
 #[test]
+fn msvc_warning_pragmas_expand_runtime_header_warning_lists() {
+    let config = Config {
+        allow_filesystem: false,
+        virtual_headers: BTreeMap::from([(
+            "vcruntime.h".into(),
+            "#define _VCRUNTIME_DISABLED_WARNINGS 4005 4068 4141\n".into(),
+        )]),
+        ..Config::default()
+    };
+    let source = concat!(
+        "#include <vcruntime.h>\n",
+        "#define EXTRA_WARNING 4996\n",
+        "#define WARNINGS _VCRUNTIME_DISABLED_WARNINGS EXTRA_WARNING\n",
+        "#pragma warning(push)\n",
+        "#pragma warning(disable: WARNINGS)\n",
+        "#define WARN_WITH(x) 4100 x\n",
+        "#pragma warning(disable: WARN_WITH(4300))\n",
+        "_Pragma(\"warning(default: WARNINGS)\")\n",
+        "#pragma warning(pop)\n",
+        "int from_sdk;\n",
+    );
+    let result = Preprocessor::new(config)
+        .preprocess_str(Path::new("sdk.h"), source)
+        .unwrap();
+    assert_eq!(result.source, "int from_sdk ;\n");
+    assert!(result.dependencies.is_empty());
+    let error = Preprocessor::new(Config::default())
+        .preprocess_str(
+            Path::new("sdk.h"),
+            "#define BAD unknown_warning\n#pragma warning(disable: BAD)\n",
+        )
+        .unwrap_err();
+    assert!(error.message.contains("unsupported pragma"), "{error}");
+    assert_eq!((error.path.as_path(), error.line), (Path::new("sdk.h"), 2));
+}
+
+#[test]
 fn malformed_msvc_warning_pragmas_and_other_unknown_pragmas_still_fail() {
     for pragma in [
         "warning",

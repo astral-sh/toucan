@@ -1259,7 +1259,14 @@ impl Preprocessor {
                 }
             }
             Some("message") => {}
-            Some("warning") if msvc_warning_pragma(&tokens[1..]) => {}
+            Some("warning") => {
+                // MSVC expands pragma arguments: its runtime headers use a
+                // macro expanding to a list of warning numbers here.
+                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
+                if !msvc_warning_pragma(&expanded) {
+                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
+                }
+            }
             // These delimit regions in the Visual Studio editor and do not
             // affect the preprocessed translation unit.
             Some("region" | "endregion") => {}
