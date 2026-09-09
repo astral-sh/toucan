@@ -905,6 +905,7 @@ pointer0 -> DerivedDeclarator =
 
 pointer_qualifier -> PointerQualifier =
     s:node<calling_convention_keyword> { PointerQualifier::Extension(vec![s]) } /
+    w:msvc_pointer_width { PointerQualifier::MsvcPointerWidth(w) } /
     q:type_qualifier { PointerQualifier::TypeQualifier(q) } /
     e:gnu<attribute_specifier> { PointerQualifier::Extension(e) }
 
@@ -1294,6 +1295,10 @@ msvc_guard = {? if env.extensions_msvc { Ok(()) } else { Err("Microsoft extensio
 
 msvc_integer_width -> u8 =
     "_" "_"? "int" width:("8" { 8 } / "16" { 16 } / "32" { 32 } / "64" { 64 }) { width }
+
+msvc_pointer_width -> u8 =
+    msvc<K<"__ptr32">> { 32 } /
+    msvc<K<"__ptr64">> { 64 }
 
 declarator_prefix_extensions -> Vec<Node<Extension>> =
     attrs:list0<gnu<attribute_specifier> / (a:node<calling_convention_keyword> { vec![a] })> {

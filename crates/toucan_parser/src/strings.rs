@@ -112,6 +112,8 @@ pub const RESERVED_MSVC: &[&str] = &[
     "__int32",
     "_int64",
     "__int64",
+    "__ptr32",
+    "__ptr64",
     "_cdecl",
     "_stdcall",
     "_fastcall",

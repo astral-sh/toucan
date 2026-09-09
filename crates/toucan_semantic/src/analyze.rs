@@ -2189,8 +2189,12 @@ impl Analyzer {
                 for (a, b) in a.parameters.iter().zip(&b.parameters) {
                     let mut a = self.unit.resolve(&a.ty)?.clone();
                     let mut b = self.unit.resolve(&b.ty)?.clone();
-                    a.qualifiers = Qualifiers::default();
-                    b.qualifiers = Qualifiers::default();
+                    a.qualifiers.is_const = false;
+                    a.qualifiers.is_volatile = false;
+                    a.qualifiers.is_restrict = false;
+                    b.qualifiers.is_const = false;
+                    b.qualifiers.is_volatile = false;
+                    b.qualifiers.is_restrict = false;
                     if !self.same_type_at::<EXACT, false>(&a, &b, depth + 1)? {
                         return Ok(false);
                     }
@@ -2338,9 +2342,13 @@ impl Analyzer {
                     // Top-level parameter qualifiers do not participate in the
                     // function type, but pointee qualifiers still do.
                     let mut a = self.unit.resolve(&a.ty)?.clone();
-                    a.qualifiers = Qualifiers::default();
+                    a.qualifiers.is_const = false;
+                    a.qualifiers.is_volatile = false;
+                    a.qualifiers.is_restrict = false;
                     let mut b = self.unit.resolve(&b.ty)?.clone();
-                    b.qualifiers = Qualifiers::default();
+                    b.qualifiers.is_const = false;
+                    b.qualifiers.is_volatile = false;
+                    b.qualifiers.is_restrict = false;
                     if !self.compatible_parameter_at(&a, &b, depth + 1)? {
                         return Ok(false);
                     }
@@ -3595,10 +3603,32 @@ impl Analyzer {
                 ast::DerivedDeclarator::Pointer(qualifiers) => {
                     let mut pointer = ty.pointer();
                     let mut atomic = false;
+                    let mut pointer_width = None;
                     for qualifier in qualifiers {
                         match &qualifier.node {
                             ast::PointerQualifier::TypeQualifier(qualifier) => {
                                 add_qualifier(&mut pointer.qualifiers, &mut atomic, qualifier)?
+                            }
+                            ast::PointerQualifier::MsvcPointerWidth(width) => {
+                                if let Some(previous) = pointer_width.replace(*width) {
+                                    return Err(Error::new(
+                                        qualifier.span.start,
+                                        if previous == *width {
+                                            "duplicate pointer width qualifier"
+                                        } else {
+                                            "conflicting pointer width qualifiers"
+                                        },
+                                    ));
+                                }
+                                if *width == 32 {
+                                    if self.unit.target != Target::Aarch64PcWindowsMsvc {
+                                        return Err(Error::new(
+                                            qualifier.span.start,
+                                            "__ptr32 pointer ABI is unsupported on this target",
+                                        ));
+                                    }
+                                    pointer.qualifiers.is_msvc_ptr32 = true;
+                                }
                             }
                             ast::PointerQualifier::Extension(extensions) => {
                                 let mut attributes = Attributes {

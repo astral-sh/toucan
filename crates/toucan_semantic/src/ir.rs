@@ -72,6 +72,9 @@ pub struct Qualifiers {
     pub is_const: bool,
     pub is_volatile: bool,
     pub is_restrict: bool,
+    /// Microsoft `__ptr32` retains distinct pointer identity on Windows ARM64.
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_msvc_ptr32: bool,
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
@@ -661,6 +664,7 @@ impl TranslationUnit {
             result.is_const |= ty.qualifiers.is_const;
             result.is_volatile |= ty.qualifiers.is_volatile;
             result.is_restrict |= ty.qualifiers.is_restrict;
+            result.is_msvc_ptr32 |= ty.qualifiers.is_msvc_ptr32;
             let TypeKind::Typedef(name) = &ty.kind else {
                 return Ok(result);
             };
@@ -824,6 +828,12 @@ impl TranslationUnit {
             ));
         }
         let resolved = ty;
+        if resolved.qualifiers.is_msvc_ptr32 && self.target != Target::Aarch64PcWindowsMsvc {
+            return Err(Error::new(
+                0,
+                "__ptr32 pointer ABI is unsupported on this target",
+            ));
+        }
         if !expand_record && let TypeKind::Record(id) = resolved.kind {
             if !cache.contains_key(&id) {
                 // Shared record definitions form a graph. Expanding every edge

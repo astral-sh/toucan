@@ -14416,9 +14416,9 @@ fn __parse_pointer_qualifier<'input>(__input: &'input str, __state: &mut ParseSt
             Failed if __state.budget.failure.is_some() => return Failed,
             Failed => {
                 let __choice_res = {
-                    let __seq_res = __parse_type_qualifier(__input, __state, __pos, env);
+                    let __seq_res = __parse_msvc_pointer_width(__input, __state, __pos, env);
                     match __seq_res {
-                        Matched(__pos, q) => Matched(__pos, { PointerQualifier::TypeQualifier(q) }),
+                        Matched(__pos, w) => Matched(__pos, { PointerQualifier::MsvcPointerWidth(w) }),
                         Failed => Failed,
                     }
                 };
@@ -14426,30 +14426,43 @@ fn __parse_pointer_qualifier<'input>(__input: &'input str, __state: &mut ParseSt
                     Matched(__pos, __value) => Matched(__pos, __value),
                     Failed if __state.budget.failure.is_some() => return Failed,
                     Failed => {
-                        let __seq_res = {
-                            let __seq_res = {
-                                __state.suppress_fail += 1;
-                                let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
-                                __state.suppress_fail -= 1;
-                                match __assert_res {
-                                    Matched(_, __value) => Matched(__pos, __value),
-                                    Failed => Failed,
-                                }
-                            };
+                        let __choice_res = {
+                            let __seq_res = __parse_type_qualifier(__input, __state, __pos, env);
                             match __seq_res {
-                                Matched(__pos, _) => {
-                                    let __seq_res = __parse_attribute_specifier(__input, __state, __pos, env);
-                                    match __seq_res {
-                                        Matched(__pos, e) => Matched(__pos, { e }),
-                                        Failed => Failed,
-                                    }
-                                }
+                                Matched(__pos, q) => Matched(__pos, { PointerQualifier::TypeQualifier(q) }),
                                 Failed => Failed,
                             }
                         };
-                        match __seq_res {
-                            Matched(__pos, e) => Matched(__pos, { PointerQualifier::Extension(e) }),
-                            Failed => Failed,
+                        match __choice_res {
+                            Matched(__pos, __value) => Matched(__pos, __value),
+                            Failed if __state.budget.failure.is_some() => return Failed,
+                            Failed => {
+                                let __seq_res = {
+                                    let __seq_res = {
+                                        __state.suppress_fail += 1;
+                                        let __assert_res = __parse_gnu_guard(__input, __state, __pos, env);
+                                        __state.suppress_fail -= 1;
+                                        match __assert_res {
+                                            Matched(_, __value) => Matched(__pos, __value),
+                                            Failed => Failed,
+                                        }
+                                    };
+                                    match __seq_res {
+                                        Matched(__pos, _) => {
+                                            let __seq_res = __parse_attribute_specifier(__input, __state, __pos, env);
+                                            match __seq_res {
+                                                Matched(__pos, e) => Matched(__pos, { e }),
+                                                Failed => Failed,
+                                            }
+                                        }
+                                        Failed => Failed,
+                                    }
+                                };
+                                match __seq_res {
+                                    Matched(__pos, e) => Matched(__pos, { PointerQualifier::Extension(e) }),
+                                    Failed => Failed,
+                                }
+                            }
                         }
                     }
                 }
@@ -19617,6 +19630,145 @@ fn __parse_msvc_integer_width<'input>(__input: &'input str, __state: &mut ParseS
                 }
             }
             Failed => Failed,
+        }
+    }
+
+    })();
+    let end = match &result { Matched(end, _) => Some(*end), Failed => None };
+    __state.budget.leave(__pos, end);
+    if __state.budget.failure.is_some() { Failed } else { result }
+}
+
+fn __parse_msvc_pointer_width<'input>(__input: &'input str, __state: &mut ParseState<'input>, __pos: usize, env: &mut Env) -> RuleResult<u8> {
+    #![allow(non_snake_case, unused)]
+    if !__state.budget.enter(__pos) { return Failed; }
+    let result = (|| {
+    {
+        let __choice_res = {
+            let __seq_res = {
+                let __seq_res = {
+                    __state.suppress_fail += 1;
+                    let __assert_res = __parse_msvc_guard(__input, __state, __pos, env);
+                    __state.suppress_fail -= 1;
+                    match __assert_res {
+                        Matched(_, __value) => Matched(__pos, __value),
+                        Failed => Failed,
+                    }
+                };
+                match __seq_res {
+                    Matched(__pos, _) => {
+                        let __seq_res = {
+                            __state.suppress_fail += 1;
+                            let res = {
+                                let __seq_res = slice_eq(__input, __state, __pos, "__ptr32");
+                                match __seq_res {
+                                    Matched(__pos, e) => {
+                                        let __seq_res = {
+                                            __state.suppress_fail += 1;
+                                            let __assert_res = if __input.len() > __pos {
+                                                let (__ch, __next) = char_range_at(__input, __pos);
+                                                match __ch {
+                                                    '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
+                                                    _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
+                                                }
+                                            } else {
+                                                __state.mark_failure(__pos, "[_a-zA-Z0-9]")
+                                            };
+                                            __state.suppress_fail -= 1;
+                                            match __assert_res {
+                                                Failed if __state.budget.failure.is_some() => return Failed,
+                                                Failed => Matched(__pos, ()),
+                                                Matched(..) => Failed,
+                                            }
+                                        };
+                                        match __seq_res {
+                                            Matched(__pos, _) => Matched(__pos, { e }),
+                                            Failed => Failed,
+                                        }
+                                    }
+                                    Failed => Failed,
+                                }
+                            };
+                            __state.suppress_fail -= 1;
+                            res
+                        };
+                        match __seq_res {
+                            Matched(__pos, e) => Matched(__pos, { e }),
+                            Failed => Failed,
+                        }
+                    }
+                    Failed => Failed,
+                }
+            };
+            match __seq_res {
+                Matched(__pos, _) => Matched(__pos, { 32 }),
+                Failed => Failed,
+            }
+        };
+        match __choice_res {
+            Matched(__pos, __value) => Matched(__pos, __value),
+            Failed if __state.budget.failure.is_some() => return Failed,
+            Failed => {
+                let __seq_res = {
+                    let __seq_res = {
+                        __state.suppress_fail += 1;
+                        let __assert_res = __parse_msvc_guard(__input, __state, __pos, env);
+                        __state.suppress_fail -= 1;
+                        match __assert_res {
+                            Matched(_, __value) => Matched(__pos, __value),
+                            Failed => Failed,
+                        }
+                    };
+                    match __seq_res {
+                        Matched(__pos, _) => {
+                            let __seq_res = {
+                                __state.suppress_fail += 1;
+                                let res = {
+                                    let __seq_res = slice_eq(__input, __state, __pos, "__ptr64");
+                                    match __seq_res {
+                                        Matched(__pos, e) => {
+                                            let __seq_res = {
+                                                __state.suppress_fail += 1;
+                                                let __assert_res = if __input.len() > __pos {
+                                                    let (__ch, __next) = char_range_at(__input, __pos);
+                                                    match __ch {
+                                                        '_' | 'a'...'z' | 'A'...'Z' | '0'...'9' => Matched(__next, ()),
+                                                        _ => __state.mark_failure(__pos, "[_a-zA-Z0-9]"),
+                                                    }
+                                                } else {
+                                                    __state.mark_failure(__pos, "[_a-zA-Z0-9]")
+                                                };
+                                                __state.suppress_fail -= 1;
+                                                match __assert_res {
+                                                    Failed if __state.budget.failure.is_some() => return Failed,
+                                                    Failed => Matched(__pos, ()),
+                                                    Matched(..) => Failed,
+                                                }
+                                            };
+                                            match __seq_res {
+                                                Matched(__pos, _) => Matched(__pos, { e }),
+                                                Failed => Failed,
+                                            }
+                                        }
+                                        Failed => Failed,
+                                    }
+                                };
+                                __state.suppress_fail -= 1;
+                                res
+                            };
+                            match __seq_res {
+                                Matched(__pos, e) => Matched(__pos, { e }),
+                                Failed => Failed,
+                            }
+                        }
+                        Failed => Failed,
+                    }
+                };
+                match __seq_res {
+                    Matched(__pos, _) => Matched(__pos, { 64 }),
+                    Failed => Failed,
+                }
+            }
         }
     }
 

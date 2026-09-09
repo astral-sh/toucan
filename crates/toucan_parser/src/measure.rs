@@ -391,7 +391,7 @@ structure!(FunctionDeclarator {
     parameters,
     ellipsis
 });
-enumeration!(PointerQualifier { TypeQualifier(v0), Extension(v0) });
+enumeration!(PointerQualifier { TypeQualifier(v0), Extension(v0), MsvcPointerWidth(v0) });
 enumeration!(ArraySize { Unknown, VariableUnknown, VariableExpression(v0), StaticExpression(v0) });
 structure!(ParameterDeclaration {
     specifiers,

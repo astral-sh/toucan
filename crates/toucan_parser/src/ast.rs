@@ -969,6 +969,8 @@ pub struct FunctionDeclarator {
 pub enum PointerQualifier {
     TypeQualifier(Node<TypeQualifier>),
     Extension(Vec<Node<Extension>>),
+    /// Microsoft `__ptr32` or `__ptr64`, retaining the written pointer width.
+    MsvcPointerWidth(u8),
 }
 
 /// Size of an array in a declaration
