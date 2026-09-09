@@ -1,6 +1,6 @@
 use toucan_semantic::checked::{BoundEvaluation, ExprKind, TypeStep};
 use toucan_semantic::{Analysis, AnalysisOptions, Error, TypeKind, analyze_with_profile};
-use toucan_target::{Compiler, CompilerProfile};
+use toucan_target::{Compiler, CompilerProfile, Target};
 
 const VALID: &[&str] = &[
     "enum __attribute__((packed)) E{A=0,B=255};enum E e;__auto_type *p=&e,*q=&e;_Static_assert(__builtin_types_compatible_p(typeof(*p),enum E),\"enum\");",
@@ -90,11 +90,21 @@ fn clang_patterns_and_groups_preserve_gnu_constraints() {
     for profile in CompilerProfile::ALL {
         for source in VALID {
             let result = parity(source, profile);
+            let unsupported_bfloat =
+                profile.target() == Target::I686UnknownLinuxGnu && source.contains("__bf16");
             assert_eq!(
                 result.is_ok(),
-                profile.compiler() == Compiler::Clang,
+                profile.compiler() == Compiler::Clang && !unsupported_bfloat,
                 "{profile:?}: {source}: {result:?}"
             );
+            if unsupported_bfloat {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("__bf16 is unavailable")
+                );
+            }
         }
         for source in INVALID {
             assert!(parity(source, profile).is_err(), "{profile:?}: {source}");

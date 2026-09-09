@@ -8,13 +8,69 @@ fn profiles() -> impl Iterator<Item = CompilerProfile> {
     CompilerProfile::ALL.into_iter().filter(|profile| {
         matches!(
             profile.target(),
-            Target::I686UnknownLinuxGnu
-                | Target::X86_64UnknownLinuxGnu
+            Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin
                 | Target::X86_64PcWindowsMsvc
         )
     })
+}
+
+#[test]
+fn i686_intrinsics_require_enabled_function_features() {
+    for compiler in [Compiler::Gnu, Compiler::Clang] {
+        let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap();
+        let baseline = check("void f(void){__builtin_ia32_emms();}", profile).unwrap_err();
+        assert!(
+            baseline.message.contains(if compiler == Compiler::Clang {
+                "requires MMX"
+            } else {
+                "requires enabled target features"
+            }),
+            "{profile:?}: {baseline}"
+        );
+        check(
+            "__attribute__((target(\"mmx\"))) void f(void){__builtin_ia32_emms();}",
+            profile,
+        )
+        .unwrap();
+        check(
+            "typedef double V __attribute__((vector_size(16))); __attribute__((target(\"sse2\"))) V f(V v){return __builtin_ia32_sqrtpd(v);}",
+            profile,
+        )
+        .unwrap();
+        for options in ["no-mmx,sse2", "sse2,no-mmx"] {
+            let source = format!(
+                "__attribute__((target(\"{options}\"))) void f(void){{__builtin_ia32_emms();}}"
+            );
+            assert!(check(&source, profile).is_err(), "{profile:?}: {source}");
+        }
+        let missing_sse2 = check(
+            "typedef double V __attribute__((vector_size(16))); __attribute__((target(\"mmx\"))) V f(V v){return __builtin_ia32_sqrtpd(v);}",
+            profile,
+        )
+        .unwrap_err();
+        assert!(
+            missing_sse2
+                .message
+                .contains(if compiler == Compiler::Clang {
+                    "requires SSE2"
+                } else {
+                    "requires enabled target features"
+                })
+        );
+    }
+    let clang = CompilerProfile::new(Target::I686UnknownLinuxGnu, Compiler::Clang).unwrap();
+    let callee = "__attribute__((target(\"mmx\"),always_inline)) inline int g(int x){return x;}";
+    let caller = format!("{callee} int f(int x){{return g(x);}}");
+    assert!(
+        check(&caller, clang)
+            .unwrap_err()
+            .message
+            .contains("always_inline function")
+    );
+    let enabled = format!("{callee} __attribute__((target(\"mmx\"))) int f(int x){{return g(x);}}");
+    check(&enabled, clang).unwrap();
 }
 fn check(source: &str, profile: CompilerProfile) -> Result<Analysis, toucan_semantic::Error> {
     let plain = analyze_with_profile(source, profile, &Default::default());
@@ -569,7 +625,10 @@ fn function_targets_match_compiler_codegen() {
     let directory = tempfile::tempdir().unwrap();
     let input = directory.path().join("targets.c");
     let output = directory.path().join("targets.s");
-    for profile in profiles() {
+    for profile in profiles().chain(
+        [Compiler::Gnu, Compiler::Clang]
+            .map(|compiler| CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap()),
+    ) {
         let mut command = if profile.compiler() == Compiler::Clang {
             let mut command = std::process::Command::new("clang");
             command.args(["-target", profile.target().triple()]);
