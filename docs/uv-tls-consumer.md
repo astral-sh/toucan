@@ -119,3 +119,21 @@ This Linux x86-64 capture uses the frozen documentation-emission source, before
 the later const-read, default-Debug, enum-alignment, and forward-tag documentation
 fixes. The paired result establishes that source's consumer behavior; later
 integration checks must identify their own source and selected executables.
+
+## Callback compatibility refresh
+
+The [frozen `7db2b85` pair](../corpus/evidence/uv-tls-builder-7db2b85/summary.json)
+repeats the generated-binding builds and all six HTTPS cases after the later
+callback, target parsing, and work limit changes. Both executables install
+identical fixture bytes
+and import the module under TLS 1.2 and TLS 1.3. Both reject the unrelated CA and
+wrong hostname before an HTTP request reaches the fixture handler.
+
+Both builds preserve all 750 original locked packages and dependency edges.
+Cargo and dep-info audits verify the actual uv executable, AWS-LC provider chain,
+and consumed generated bindings. The Toucan build selects all nine frontend
+crates from the frozen snapshot. All 2,389 snapshot files retain their exact
+SHA256 hashes with no added, changed, or deleted files. Fresh source and output
+copies use the separate existing reference and candidate target caches, with the
+runner adaptation preserved in the capture. This native Linux consumer check
+does not measure performance or establish another target or full API equality.
