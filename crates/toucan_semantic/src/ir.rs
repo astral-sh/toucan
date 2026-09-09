@@ -32,6 +32,9 @@ pub struct TranslationUnit {
     /// Lexical record containment and source ordering, independent of C scope.
     #[serde(skip_serializing_if = "crate::TagLexicalOrigins::is_empty")]
     pub lexical_tags: crate::TagLexicalOrigins,
+    /// Sparse header-cursor discovery facts for enum-expression descendants.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag_discovery: Option<Box<crate::TagDiscoveries>>,
     pub enums: Vec<Enum>,
     pub typedefs: BTreeMap<String, Type>,
     pub constants: BTreeMap<String, IntegerValue>,

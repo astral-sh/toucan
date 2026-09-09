@@ -144,6 +144,21 @@ fn analyze_on_parser_stack(
         analyzer.finish_inline_targets()?;
         analyzer.finish_inline_definitions()?;
         analyzer.finish_dll_inline_definitions();
+        if analyzer.needs_tag_discovery {
+            // Keep the ordinary analysis path free to drop each parsed declaration.
+            // Only this rare compatibility case needs a second, bounded syntax walk.
+            let syntax = parse(
+                &source,
+                0,
+                profile.target(),
+                profile.compiler(),
+                profile.language_mode(),
+            )?;
+            analyzer.unit.tag_discovery =
+                crate::tag_discovery::discover(&analyzer.unit, &syntax.unit, |offset| {
+                    syntax.offsets.original_offset(offset)
+                })?;
+        }
         let checked = analyzer
             .checked
             .take()
@@ -996,6 +1011,8 @@ pub(crate) struct Analyzer {
     pub(crate) tags: HashMap<String, TagBinding>,
     pub(crate) lexical_scopes: Vec<LexicalScope>,
     pub(crate) lexical_record: Option<usize>,
+    pub(crate) in_enum_expression: bool,
+    pub(crate) needs_tag_discovery: bool,
     defining_enums: HashSet<usize>,
     tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
@@ -1043,6 +1060,7 @@ impl Analyzer {
             records: Vec::new(),
             record_origins: BTreeMap::new(),
             lexical_tags: crate::TagLexicalOrigins::default(),
+            tag_discovery: None,
             enums: Vec::new(),
             typedefs: BTreeMap::new(),
             constants: BTreeMap::new(),
@@ -1093,6 +1111,8 @@ impl Analyzer {
             tags,
             lexical_scopes: Vec::new(),
             lexical_record: None,
+            in_enum_expression: false,
+            needs_tag_discovery: false,
             defining_enums: HashSet::new(),
             tentative_definitions: BTreeMap::new(),
             packs: Vec::new(),
@@ -4456,7 +4476,10 @@ impl Analyzer {
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
             let value = if let Some(expression) = &enumerator.node.expression {
-                self.eval(expression)?
+                let previous = std::mem::replace(&mut self.in_enum_expression, true);
+                let value = self.eval(expression);
+                self.in_enum_expression = previous;
+                value?
             } else if let Some(previous) = previous {
                 self.integer_add_one(previous, enumerator.span.start)?
             } else {

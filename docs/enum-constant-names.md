@@ -91,9 +91,45 @@ settings each on current Rust and actual Rust 1.64. The binding fuzz harness now
 varies lexical enum naming and name prefixes while retaining its default pass;
 this addition is not a new sanitizer-run claim.
 
-One separate cursor-visibility difference remains: for
-`enum Outer { COUNT = sizeof(enum Inner { VALUE = 1 }) };`, bindgen does not
-emit the inner tag or enumerator, while Toucan retains them as valid file-scope C
-declarations. General Rust type/variant keyword escaping and macro-history output
-remain separate policies. These comparisons do not claim full textual or public
-API equality.
+## Discovery beneath enum cursors
+
+For `enum Outer { COUNT = sizeof(enum Inner { VALUE = 1 }) };`, the Builder
+omits `Inner` and `VALUE`, matching bindgen's cursor traversal. The semantic unit
+still retains their C type identity, constants, scope, and layout. The core's
+default integer output still exposes them.
+
+A later declaration can expose the hidden type. For example, adding
+`struct Owner { enum Inner field; };` exposes `Owner_Inner` and
+`Owner_Inner_VALUE`; `rustified_enum("Owner_Inner")` selects that Rust enum.
+Pointer, array, and function type wrappers instead discover their referenced
+tags in the module naming context. A `sizeof` query on an existing type does
+not expose it. Discovery follows reachable record contents, so references inside
+another hidden record wait until that record is reached. The first visible use
+also supplies file-allowlist provenance and anonymous helper ordering.
+
+`TranslationUnit::tag_discovery` retains these sparse binding facts separately
+from actual lexical owners. Ordinary units retain no occurrence graph and use
+no second parse. Units containing tag definitions under enum cursors receive
+one additional bounded parse and graph walk after type checking. The graph
+limits events and type traversal to one million entries or steps, and nesting
+to 128 levels; invalid public IDs and naming owners produce generation errors.
+
+The [discovery capture](../corpus/evidence/enum-cursor-discovery-2026-09-09.json.gz)
+contains pinned bindgen comparisons, generated Rust compilation, and native
+C/Rust layout and call checks. General Rust type/variant keyword escaping and
+static constant object projection remain separate policies. Alignment attributes
+on enum tags remain explicitly unsupported. A tag defined in a
+standalone record's trailing alignment attribute still lacks the record prefix;
+this adjacent naming limitation is recorded separately from enum discovery.
+On x86-64 Linux this layer adds one eight-byte optional pointer to the unit;
+record and enum sizes remain unchanged. Ninety-seven ordinary allocation
+controls keep their call counts, with eight additional requested bytes only
+where the semantic unit is allocated. The same nine real header routes, with
+origins enabled and disabled, retain identical allocation counts and request
+eight more bytes. None activates discovery. All preprocessed files and the eight
+core-default binding outputs remain byte-identical to the lexical-name baseline.
+No timing comparison or AWS-LC consumer result is claimed here.
+
+These comparisons do not claim full textual or public API equality.
+
+The [combined-source checks](../corpus/evidence/enum-discovery-root-integration-2026-09-09.json.gz) include Microsoft anonymous-member admission and Clang qualifier normalization. All 131 earlier nested-name and selector cases match. Of 101 additional cases, 96 public-name sets match; the remaining five cover object constants, the record-attribute prefix, and two unsupported aligned-enum declarations. All 230 accepted generated modules compile with Rust 1.64 and 1.98.1. Native C/Rust calls and layouts pass with both Rust versions, and workspace Clippy passes.

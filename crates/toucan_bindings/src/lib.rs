@@ -14,6 +14,7 @@ mod external;
 mod lexical_names;
 mod renaming;
 mod selection;
+mod tag_discovery;
 
 pub use selection::BindingSelection;
 
@@ -584,7 +585,10 @@ pub fn generate_with_macros(
         }
     }
     for (id, record) in unit.records.iter().enumerate() {
-        if record.scope == Scope::File && options.includes_record(id, record.name.as_deref()) {
+        if record.scope == Scope::File
+            && options.includes_record(id, record.name.as_deref())
+            && !tag_discovery::hidden_record(unit, options, id)
+        {
             let ty = Type::new(TypeKind::Record(id));
             if !emitter.register_external(&ty, false, false)? {
                 emitter.collect(&ty)?;
@@ -593,8 +597,10 @@ pub fn generate_with_macros(
     }
     for (id, enumeration) in unit.enums.iter().enumerate() {
         if enumeration.scope == Scope::File
+            && !tag_discovery::hidden_enum(unit, options, id)
             && (options.includes_enum(id, enumeration.name.as_deref())
-                || (emitter.is_rustified_enum(id)
+                || ((emitter.is_rustified_enum(id)
+                    || options.enum_constant_style == EnumConstantStyle::Bindgen)
                     && enumeration
                         .variants
                         .iter()
@@ -1240,6 +1246,11 @@ impl Emitter<'_> {
     }
 
     fn record_name(&self, id: usize) -> Result<String, Error> {
+        if tag_discovery::hidden_record(self.unit, self.options, id) {
+            return Err(Error(
+                "a declaration references a record marked hidden by tag discovery".into(),
+            ));
+        }
         if let Some(name) = self.lexical_names.record(id) {
             return Ok(enum_constants::name_part(name)?.into_owned());
         }
@@ -1269,6 +1280,11 @@ impl Emitter<'_> {
     }
 
     fn enum_name(&self, id: usize) -> Result<String, Error> {
+        if tag_discovery::hidden_enum(self.unit, self.options, id) {
+            return Err(Error(
+                "a declaration references an enum marked hidden by tag discovery".into(),
+            ));
+        }
         if let Some(name) = self.lexical_names.enumeration(id) {
             return Ok(enum_constants::name_part(name)?.into_owned());
         }

@@ -26,7 +26,8 @@ impl Names {
         if options.enum_constant_style != EnumConstantStyle::Bindgen {
             return Ok(Self::default());
         }
-        let origins = &unit.lexical_tags;
+        let origins = crate::tag_discovery::origins(unit)?;
+        let origins = origins.as_ref();
         if origins.records.len().saturating_add(origins.enums.len()) > 1_000_000 {
             return Err(Error(
                 "lexical tag names exceed the 1000000-entry limit".into(),
@@ -70,6 +71,7 @@ impl Names {
         let mut builder = Builder {
             unit,
             options,
+            origins,
             names: Self::default(),
             ordinals,
             active: BTreeSet::new(),
@@ -108,7 +110,10 @@ impl Names {
         unit: &'a TranslationUnit,
         id: usize,
     ) -> Option<&'a str> {
-        let owner = parent(unit.lexical_tags.enums.get(&id)?)?;
+        let owner = match crate::tag_discovery::enum_owner(unit, id) {
+            Some(owner) => owner?,
+            None => parent(unit.lexical_tags.enums.get(&id)?)?,
+        };
         self.record(owner).or(unit.records[owner].name.as_deref())
     }
 
@@ -213,6 +218,7 @@ fn validate_origin(
 struct Builder<'a> {
     unit: &'a TranslationUnit,
     options: &'a Options,
+    origins: &'a toucan_semantic::TagLexicalOrigins,
     names: Names,
     ordinals: BTreeMap<Tag, usize>,
     active: BTreeSet<usize>,
@@ -281,7 +287,7 @@ impl Builder<'_> {
         if record.scope != Scope::File {
             return Err(Error("file-scope tag has a non-file lexical owner".into()));
         }
-        let Some(origin) = self.unit.lexical_tags.records.get(&id) else {
+        let Some(origin) = self.origins.records.get(&id) else {
             return record
                 .name
                 .clone()

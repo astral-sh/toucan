@@ -48,7 +48,26 @@ pub(crate) fn apply(
     let mut records = BTreeSet::new();
     let mut enums = BTreeSet::new();
     for origin in origins.entries() {
-        let selected = matches_file(origin.source().range().start);
+        let discovery =
+            compilation
+                .unit()
+                .tag_discovery
+                .as_ref()
+                .and_then(|facts| match origin.target() {
+                    DeclarationTarget::Record(id) => facts.records.get(&id),
+                    DeclarationTarget::Enum(id)
+                    | DeclarationTarget::Enumerator {
+                        enumeration: id, ..
+                    } => facts.enums.get(&id),
+                    _ => None,
+                });
+        let selected = match discovery {
+            Some(toucan::semantic::TagDiscovery::Hidden) => continue,
+            Some(toucan::semantic::TagDiscovery::Discovered { offset, .. }) => {
+                matches_file(*offset)
+            }
+            None => matches_file(origin.source().range().start),
+        };
         match origin.target() {
             DeclarationTarget::Declaration(index) => {
                 let declaration = &compilation.unit().declarations[index];

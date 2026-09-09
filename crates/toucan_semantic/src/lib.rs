@@ -21,6 +21,8 @@ mod c11_atomic;
 pub mod checked;
 mod declaration_origins;
 pub use declaration_origins::{DeclarationOrigin, DeclarationOrigins, DeclarationTarget};
+mod tag_discovery;
+pub use tag_discovery::{TagDiscoveries, TagDiscovery};
 mod lexical_tags;
 pub use lexical_tags::{TagLexicalOrigin, TagLexicalOrigins};
 mod complex;
