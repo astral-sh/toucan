@@ -68,9 +68,9 @@ It does not measure allocation counts or peak memory on non-Linux hosts. Report
 regressions and workload differences, and retain raw JSON when publishing numbers.
 Production performance claims require a larger corpus and equivalent-output review.
 
-To compare the optional CLI allocator, build with `--features performance-allocator`
-and record it as a separate binary/configuration. Library consumers choose their
-own process allocator.
+To compare the default CLI allocator with the system allocator, build a separate
+binary with `--no-default-features` and record that configuration. Library consumers
+choose their own process allocator.
 
 ## Recorded Linux results
 
@@ -243,7 +243,7 @@ and [exact capture script](../benchmarks/evidence/2026-09-08-allocators-f78baa8/
 are retained. The capture script records the original workspace paths.
 
 These results support offering jemalloc for the larger header workloads, with a
-small increase in memory. The default remains the system allocator; library users
+small increase in memory. The default was the system allocator; library users
 choose their process allocator. This was a shared host with concurrent verification
 work, warm caches, and uncontrolled CPU frequency. These measurements predate the
 later atomic/MMX and parser changes and do not measure macOS or Windows allocators.

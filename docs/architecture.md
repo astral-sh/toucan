@@ -119,9 +119,10 @@ because their required access width and ordering are unsupported.
 
 Library crates forbid unsafe Rust and do not set a global allocator, print, exit, or
 launch compiler processes. Generated bindings necessarily expose unsafe FFI calls.
-The CLI's optional `performance-allocator` feature uses jemalloc on supported Unix
-platforms and mimalloc on Windows. The default CLI build uses the system allocator;
-libraries use whichever allocator their embedding application selects.
+The CLI enables `performance-allocator` by default, using mimalloc v2 on Windows
+and jemalloc on non-Windows x86-64, ARM64, and PowerPC64 hosts, except FreeBSD and
+OpenBSD. Other hosts and `--no-default-features` builds use the system allocator.
+Libraries use whichever allocator their embedding application selects.
 
 Preprocessing bounds source bytes, include depth, tokens, expansion depth, and output.
 Filesystem access can be disabled for an in-memory embedding. Syntax and semantic
