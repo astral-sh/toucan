@@ -14,4 +14,8 @@ Reference behavior includes unsupported or incorrect outputs: a 100-bit integer 
 
 `ObjectOccurrence::string_literal` retains direct ordinary/UTF-8 initializer bytes through the literal's final implicit NUL, including embedded NULs and subsequent bytes. Its C array type retains the declared bound independently. Parenthesized or computed expressions and wide encodings have no byte-literal entry. See [string object bindings](string-object-bindings.md) for the separate logical C-string projection, bounded native checks, and unterminated-array diagnostic.
 
+## Earlier const definitions
+
+The Clang analyzer can use [completed file const scalars](const-object-initializers.md) in later static initializers and constant-query builtins. This transient value table is separate from the optional written-occurrence catalog and from C integer-constant-expression lookup. Captured occurrences preserve their original order and destination values.
+
 The [combined-source validation](../corpus/evidence/object-values-root-integration-2026-09-09.json.gz) passes the occurrence, destination-conversion, and resource-limit tests plus workspace Clippy. This capture layer does not change Builder output; arithmetic constant emission is a subsequent layer.

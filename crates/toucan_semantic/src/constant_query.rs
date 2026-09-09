@@ -15,10 +15,15 @@ impl Analyzer {
         // statement scopes are also established before speculative evaluation.
         self.builtin_call_type(call)?;
         let checkpoint = self.sve_feature_checkpoint();
-        let known = self.known_constant_operand(&call.node.arguments[0])?;
+        // Clang knows completed const scalar definitions in this builtin even
+        // outside an initializer. Keep this consistent with cached choose-expr
+        // decisions without making object identifiers ordinary integer ICEs.
+        let previous = std::mem::replace(&mut self.allow_const_object_reads, true);
+        let known = self.known_constant_operand(&call.node.arguments[0]);
+        self.allow_const_object_reads = previous;
         // This second pass determines constant knowledge, not execution.
         self.discard_sve_feature_uses(checkpoint);
-        Ok(IntegerValue::int(i128::from(known)))
+        Ok(IntegerValue::int(i128::from(known?)))
     }
 
     pub(crate) fn known_constant_operand(
@@ -48,7 +53,9 @@ impl Analyzer {
             | ast::Expression::AlignOf(_)
             | ast::Expression::OffsetOf(_) => {}
             ast::Expression::Identifier(identifier) => {
-                if !self.unit.constants.contains_key(&identifier.node.name) {
+                if !self.unit.constants.contains_key(&identifier.node.name)
+                    && self.const_object_value(&identifier.node.name).is_none()
+                {
                     return Ok(false);
                 }
             }

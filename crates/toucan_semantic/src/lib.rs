@@ -30,6 +30,7 @@ pub use tag_discovery::{TagDiscoveries, TagDiscovery};
 mod lexical_tags;
 pub use lexical_tags::{TagLexicalOrigin, TagLexicalOrigins};
 mod complex;
+mod const_objects;
 mod constant_query;
 mod declspec;
 mod dll_storage;

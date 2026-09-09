@@ -372,7 +372,7 @@ impl Analyzer {
                                     | TypeKind::Complex(_)
                             )
                         {
-                            let value = self.eval_arithmetic(expression)?;
+                            let value = self.eval_initializer_arithmetic(expression)?;
                             self.convert_arithmetic(value, ty, offset)?;
                         }
                     }
@@ -983,7 +983,9 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
     ) -> Result<ConstantKind, Error> {
         self.enter_expression(expression.span.start)?;
+        let previous = std::mem::replace(&mut self.allow_const_object_reads, true);
         let result = self.static_initializer_inner(expression);
+        self.allow_const_object_reads = previous;
         self.leave_expression();
         result
     }
@@ -1037,7 +1039,7 @@ impl Analyzer {
                         .builtin_name(call)
                         .is_some_and(|name| self.complex_unary_builtin(name).is_some()) =>
             {
-                self.eval_arithmetic(expression)?;
+                self.eval_initializer_arithmetic(expression)?;
                 Ok(ConstantKind::Arithmetic)
             }
             ast::Expression::SizeOfTy(_)
@@ -1070,7 +1072,9 @@ impl Analyzer {
             ast::Expression::StringLiteral(_) => Ok(ConstantKind::Address),
             ast::Expression::Member(_) => self.static_designator(expression),
             ast::Expression::Identifier(identifier) => {
-                if self.unit.constants.contains_key(&identifier.node.name) {
+                if self.unit.constants.contains_key(&identifier.node.name)
+                    || self.const_object_value(&identifier.node.name).is_some()
+                {
                     return Ok(ConstantKind::Arithmetic);
                 }
                 let ty = self.expression_type(expression)?;
@@ -1151,7 +1155,7 @@ impl Analyzer {
                     return Err(invalid());
                 }
                 let left = self.static_initializer(&binary.node.lhs)?;
-                if let Ok(value) = self.eval_arithmetic(&binary.node.lhs)
+                if let Ok(value) = self.eval_initializer_arithmetic(&binary.node.lhs)
                     && ((binary.node.operator.node == Op::LogicalAnd && !value.truth())
                         || (binary.node.operator.node == Op::LogicalOr && value.truth()))
                 {
@@ -1159,7 +1163,7 @@ impl Analyzer {
                 }
                 let right = self.static_initializer(&binary.node.rhs)?;
                 if left == ConstantKind::Arithmetic && right == ConstantKind::Arithmetic {
-                    self.eval_arithmetic(expression)?;
+                    self.eval_initializer_arithmetic(expression)?;
                     Ok(ConstantKind::Arithmetic)
                 } else if left == ConstantKind::Address
                     && right == ConstantKind::Arithmetic
@@ -1210,7 +1214,7 @@ impl Analyzer {
         let condition = &conditional.condition;
         let condition_ty = self.value_expression_type(condition)?;
         if !matches!(self.unit.resolve(&condition_ty)?.kind, TypeKind::Pointer(_)) {
-            return Ok(if self.eval_arithmetic(condition)?.truth() {
+            return Ok(if self.eval_initializer_arithmetic(condition)?.truth() {
                 match &conditional.then_expression {
                     Some(value) => ConstantBranch::Selected(value),
                     None => ConstantBranch::Reused(None),
@@ -1577,11 +1581,27 @@ impl Analyzer {
         ty: &Type,
         initializer: &Node<ast::Initializer>,
     ) -> Result<Option<crate::ArithmeticConstant>, Error> {
+        self.scalar_initializer_value(ty, initializer, false)?
+            .map(|value| value.into_constant(self.unit.target, initializer.span.start))
+            .transpose()
+    }
+
+    /// Evaluate one scalar initializer with the same destination conversion used
+    /// by its declaration. Enum objects can seed Clang initializer reads without
+    /// changing the separate binding projection's enum policy.
+    pub(crate) fn scalar_initializer_value(
+        &mut self,
+        ty: &Type,
+        initializer: &Node<ast::Initializer>,
+        include_enums: bool,
+    ) -> Result<Option<crate::floating::ArithmeticValue>, Error> {
         let destination = self.unit.atomic_value(ty)?.unwrap_or(ty).clone();
         if !matches!(
             self.unit.resolve(&destination)?.kind,
             TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Float(_)
-        ) {
+        ) && !(include_enums
+            && matches!(self.unit.resolve(&destination)?.kind, TypeKind::Enum(_)))
+        {
             return Ok(None);
         }
         let mut initializer = initializer;
@@ -1591,12 +1611,10 @@ impl Analyzer {
                     if self.static_initializer(expression)? != ConstantKind::Arithmetic {
                         return Ok(None);
                     }
-                    let value = self.eval_arithmetic(expression)?;
+                    let value = self.eval_initializer_arithmetic(expression)?;
                     let value =
                         self.convert_arithmetic(value, &destination, initializer.span.start)?;
-                    return value
-                        .into_constant(self.unit.target, initializer.span.start)
-                        .map(Some);
+                    return Ok(Some(value));
                 }
                 ast::Initializer::List(items) => {
                     if items.is_empty() || self.empty_initializer_items(items) {
@@ -1608,9 +1626,7 @@ impl Analyzer {
                         });
                         let value =
                             self.convert_arithmetic(zero, &destination, initializer.span.start)?;
-                        return value
-                            .into_constant(self.unit.target, initializer.span.start)
-                            .map(Some);
+                        return Ok(Some(value));
                     }
                     let [item] = items.as_slice() else {
                         return Ok(None);

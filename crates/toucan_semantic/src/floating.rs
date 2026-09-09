@@ -210,6 +210,13 @@ impl Analyzer {
         use ast::UnaryOperator as Unary;
         let offset = expression.span.start;
         match &expression.node {
+            ast::Expression::Identifier(identifier) => {
+                if let Some(value) = self.const_object_value(&identifier.node.name) {
+                    Ok(value)
+                } else {
+                    self.eval(expression).map(ArithmeticValue::Integer)
+                }
+            }
             ast::Expression::Call(call) => {
                 let name = self.builtin_name(call);
                 if let Some(kind) = name.and_then(|name| self.infinity_builtin_kind(name)) {

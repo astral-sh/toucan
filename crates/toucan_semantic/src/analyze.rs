@@ -1006,6 +1006,8 @@ struct DeclaratorContext<'a> {
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) const_objects: Option<Box<crate::const_objects::Values>>,
+    pub(crate) allow_const_object_reads: bool,
     pub(crate) object_values: Option<Box<crate::object_values::Builder>>,
     pub(crate) inline_registry: Option<Box<crate::inline::Registry>>,
     pub(crate) dll_registry: Option<Box<crate::dll_storage::Registry>>,
@@ -1119,6 +1121,8 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            const_objects: None,
+            allow_const_object_reads: false,
             object_values: None,
             inline_registry: None,
             dll_registry: None,
@@ -1941,6 +1945,11 @@ impl Analyzer {
                         .start,
                     item.node.initializer.as_ref(),
                 )?;
+            }
+            if let Some(initializer) = &item.node.initializer {
+                // The current initializer must not see its own completed value
+                // during optional capture (for example, constant_p(object)).
+                self.note_const_object(declaration_index, initializer)?;
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
                 if let Some(inference) = &inference {

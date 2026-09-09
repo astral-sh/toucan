@@ -240,3 +240,45 @@ fn integer_128_constants_preserve_full_values_without_weakening_c_abi_checks() {
         );
     }
 }
+
+#[test]
+fn earlier_const_values_follow_selected_occurrences_and_name_callbacks() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("root.h");
+    std::fs::write(
+        dir.path().join("first.h"),
+        "extern const int object; static const int first=7;\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.path().join("second.h"),
+        "const int object=first+1; static const int internal=object*2;\n",
+    )
+    .unwrap();
+    std::fs::write(&path, "#include \"first.h\"\n#include \"second.h\"\n").unwrap();
+    let all = builder(&path)
+        .parse_callbacks(Box::new(Rename))
+        .generate()
+        .unwrap()
+        .to_string();
+    assert!(all.contains("pub static renamed_object:"), "{all}");
+    assert!(
+        all.contains("pub const internal: ::core::ffi::c_int = 16;"),
+        "{all}"
+    );
+    let selected = builder(&path)
+        .allowlist_file(r".*[/\\]second\.h")
+        .parse_callbacks(Box::new(Rename))
+        .generate()
+        .unwrap()
+        .to_string();
+    assert!(
+        selected.contains("pub const renamed_object: ::core::ffi::c_int = 8;"),
+        "{selected}"
+    );
+    assert!(
+        selected.contains("pub const internal: ::core::ffi::c_int = 16;"),
+        "{selected}"
+    );
+    assert!(!selected.contains("pub const first:"), "{selected}");
+}
