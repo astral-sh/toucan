@@ -138,13 +138,8 @@ impl<'unit> Emitter<'unit> {
         match value {
             ArithmeticConstant::Integer(value) => {
                 crate::validate_integer(value)?;
-                if value.bits > 64 {
-                    return Err(Error(format!(
-                        "object constant `{}` exceeds bindgen's 64-bit integer projection; a C wrapper is required",
-                        declaration.name
-                    )));
-                }
-                if !value.signed
+                if value.bits == 64
+                    && !value.signed
                     && value.value > i64::MAX as u128
                     && !object.integer_literal_fallback()
                 {
@@ -219,7 +214,25 @@ impl<'unit> Emitter<'unit> {
                 return Ok(());
             }
         };
-        let ty = self.ty(self.object_type(declaration)?)?;
+        let declared_type = self.object_type(declaration)?;
+        // A numeric constant has no C storage or calling ABI. Older Rust targets
+        // can represent its complete bits even when their C i128 ABI differs.
+        // Aliases and every actual C storage/call use retain their ordinary gates.
+        let ty = match (&declared_type.kind, value) {
+            (
+                TypeKind::Integer(
+                    toucan_semantic::IntegerKind::Int128
+                    | toucan_semantic::IntegerKind::UnsignedInt128,
+                ),
+                ArithmeticConstant::Integer(integer),
+            ) if integer.bits == 128 => {
+                format!(
+                    "::core::primitive::{}128",
+                    if integer.signed { 'i' } else { 'u' }
+                )
+            }
+            _ => self.ty(declared_type)?,
+        };
         match value {
             ArithmeticConstant::Integer(value) => {
                 let literal = if value.rank == 0 {

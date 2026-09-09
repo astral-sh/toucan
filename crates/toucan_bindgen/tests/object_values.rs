@@ -93,7 +93,7 @@ fn unsupported_reference_values_are_diagnostics_and_core_defaults_stay_unchanged
     let dir = tempfile::tempdir().unwrap();
     let path = dir.path().join("object.h");
     for source in [
-        "static const __int128 object=((__int128)1)<<100;",
+        "extern __int128 object;",
         "static const long double object=0.1L;",
     ] {
         std::fs::write(&path, source).unwrap();
@@ -204,4 +204,39 @@ fn string_objects_keep_file_order_and_external_name_callbacks() {
             .to_string()
             .contains("pub const object:")
     );
+}
+
+#[test]
+fn integer_128_constants_preserve_full_values_without_weakening_c_abi_checks() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("integer.h");
+    std::fs::write(&path,"static const __int128 high=((__int128)1)<<100; static const unsigned __int128 all=~(unsigned __int128)0;").unwrap();
+    let source = builder(&path).generate().unwrap().to_string();
+    assert!(
+        source
+            .contains("pub const high: ::core::primitive::i128 = 1267650600228229401496703205376;"),
+        "{source}"
+    );
+    assert!(
+        source.contains(
+            "pub const all: ::core::primitive::u128 = 340282366920938463463374607431768211455;"
+        ),
+        "{source}"
+    );
+    for declaration in [
+        "extern __int128 value;",
+        "__int128 function(__int128);",
+        "struct Record {__int128 value;};",
+        "typedef __int128 Wide; static const Wide value=1;",
+    ] {
+        std::fs::write(&path, declaration).unwrap();
+        assert!(
+            builder(&path)
+                .generate()
+                .unwrap_err()
+                .to_string()
+                .contains("128-bit C ABI types require Rust 1.78"),
+            "{declaration}"
+        );
+    }
 }

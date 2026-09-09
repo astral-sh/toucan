@@ -199,3 +199,8 @@ Direct narrow string object initializers project their terminated C-string prefi
 Captured literal bytes and C array bounds remain available independently. Unterminated
 arrays produce a diagnostic. See [string object bindings](../../docs/string-object-bindings.md)
 for embedded NULs, padding, UTF-8, preserved storage bindings, and bounded byte checks.
+
+Direct 128-bit integer object constants retain complete values on Rust 1.64,
+independently of the Rust 1.78 requirement for C 128-bit storage and call types.
+See [128-bit constants](../../docs/int128-object-bindings.md) for native validation
+and the documented difference from bindgen's truncated values.
