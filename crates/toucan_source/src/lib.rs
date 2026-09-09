@@ -72,6 +72,7 @@ pub struct SourceMap {
 }
 
 impl SourceMap {
+    /// Appends source without reading `path` or merging entries with the same path.
     pub fn add(&mut self, path: impl Into<PathBuf>, text: impl Into<Arc<str>>) -> FileId {
         let id = FileId(self.files.len());
         self.files.push(SourceFile::new(path.into(), text));
@@ -82,6 +83,8 @@ impl SourceMap {
         self.files.get(id.0)
     }
 
+    /// Validates a half-open byte range against the stored file and UTF-8 boundaries.
+    /// Empty ranges, including one at the end of the file, are valid.
     pub fn span(&self, file: FileId, start: usize, end: usize) -> Option<Span> {
         self.file(file)?.text.get(start..end)?;
         Some(Span { file, start, end })

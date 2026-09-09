@@ -55,7 +55,8 @@ impl Config {
     pub fn language_mode(&self) -> LanguageMode {
         self.profile.language_mode()
     }
-    /// Uses GCC on Linux and Clang on Darwin and Windows.
+    /// Uses the target's default compiler profile: GCC on Linux except ARMv7
+    /// hard-float, and Clang on ARMv7, Darwin, and Windows.
     pub fn new(target: Target) -> Self {
         Self::with_profile(CompilerProfile::default_for(target))
     }
@@ -189,6 +190,9 @@ pub enum Error {
     Bindings(#[from] toucan_bindings::Error),
 }
 
+/// Reads, preprocesses, and checks a header using the configured compiler profile.
+/// Quoted includes resolve relative to the accessed header path. Retained analysis
+/// is controlled by [`Config::analysis`].
 pub fn parse_file(path: &Path, config: &Config) -> Result<Compilation, Error> {
     let start = Instant::now();
     let preprocessed = Preprocessor::new(config.preprocessor.clone()).preprocess(path)?;
@@ -203,6 +207,9 @@ pub fn parse_files(paths: &[std::path::PathBuf], config: &Config) -> Result<Comp
     finish(preprocessed, config, start.elapsed())
 }
 
+/// Preprocesses and checks in-memory C source using `path` for diagnostics and
+/// quoted-include lookup. The main file's text comes from `source`; included files
+/// may still be read from disk unless [`PreprocessorConfig::allow_filesystem`] is false.
 pub fn parse_source(path: &Path, source: &str, config: &Config) -> Result<Compilation, Error> {
     let start = Instant::now();
     let preprocessed =
