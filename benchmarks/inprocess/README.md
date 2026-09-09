@@ -42,10 +42,26 @@ CARGO_INCREMENTAL=0 CARGO_TARGET_DIR=/tmp/toucan-final-benchmark-target \
 Use the same rustc and lockfile for any additional Toucan baseline, with a separate
 source/target directory. Record the exact commit, source manifest, build command,
 rustc version, executable hash, linked libraries, loaded libclang path/hash/version,
-and Clang resource directory. The timing executable uses the system allocator;
+and Clang resource directory. The timing executable defaults to the system allocator;
 record allocator linkage and verify no `LD_PRELOAD` or allocator override is active.
 Allocation instrumentation belongs in a separate executable and capture. Rust
 allocation counts do not include libclang's native C++ allocations.
+
+### Allocator comparisons
+
+Build separate executables with `--features allocator-jemalloc` or
+`--features allocator-mimalloc` to compare those allocators with the default system
+allocator. The features are mutually exclusive. Jemalloc requires Unix other than
+OpenBSD; mimalloc uses the same `v2` feature as the Toucan CLI. These options select
+the benchmark executable's Rust allocator; they do not replace libclang's allocator
+or change the allocator used by applications embedding Toucan.
+
+Use the same source revision, compiler, release settings, requests, and lockfile
+for all three executables. Freeze each binary before building the next variant.
+Record and clear `MALLOC_*`, `_RJEM_MALLOC_CONF`, `MIMALLOC_*`, `JEMALLOC_*`,
+`GLIBC_TUNABLES`, `LD_PRELOAD`, and `DYLD_INSERT_LIBRARIES` when measuring allocator
+defaults. Require identical output before timing, and report process memory alongside generation time. Allocation
+counting and allocator timing belong in separate builds.
 
 Start with the existing zlib 1.3.1, SQLite 3.45.1, zstd 1.5.7, and libgit2 1.9.1
 input paths, include order, target, and sysroot recorded in the earlier benchmark

@@ -2,6 +2,8 @@
 use serde::{Deserialize, Serialize};
 use std::{hint::black_box, path::PathBuf, time::Instant};
 
+mod allocator;
+
 #[derive(Clone, Copy, Default, Deserialize, PartialEq, Serialize)]
 #[serde(rename_all = "snake_case")]
 enum Policy {
