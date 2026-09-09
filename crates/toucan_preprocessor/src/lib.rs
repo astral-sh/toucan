@@ -540,6 +540,13 @@ impl Preprocessor {
         )
     }
 
+    fn is_defined(&self, name: &str) -> bool {
+        self.macros.contains_key(name)
+            || is_builtin(name)
+            || name == "__pragma" && self.ms_pragma_active
+            || query_active(self.active_queries, name).is_some()
+    }
+
     /// Register dependencies once and retain only Clang's noncanonical first name.
     fn register_file(
         &mut self,
@@ -958,9 +965,7 @@ impl Preprocessor {
                             .map_err(&fail)?
                     } else {
                         let name = identifier(rest).map_err(&fail)?;
-                        let defined = self.macros.contains_key(name)
-                            || is_builtin(name)
-                            || query_active(self.active_queries, name).is_some();
+                        let defined = self.is_defined(name);
                         if directive.text == "ifdef" {
                             defined
                         } else {
@@ -1649,10 +1654,7 @@ impl Preprocessor {
                 .get(position)
                 .filter(|token| token.kind == Kind::Identifier)
                 .ok_or("defined requires an identifier")?;
-            let defined = self.macros.contains_key(&name.text)
-                || is_builtin(&name.text)
-                || name.text == "__pragma" && self.ms_pragma_active
-                || query_active(self.active_queries, &name.text).is_some();
+            let defined = self.is_defined(&name.text);
             replaced.push(Token::new(Kind::Number, if defined { "1" } else { "0" }));
             position += 1;
             if parenthesized {

@@ -34,8 +34,10 @@ const MS_PRAGMA_SOURCE: &str = concat!(
 
 const MS_PRAGMA_SHADOW_SOURCE: &str = concat!(
     "#if !defined(__pragma)\n#error missing MS builtin\n#endif\n",
+    "#ifndef __pragma\n#error missing MS builtin in ifndef\n#endif\n",
     "#pragma push_macro(\"__pragma\")\n#undef __pragma\n",
     "#if defined(__pragma)\n#error undef did not disable builtin\n#endif\n",
+    "#ifdef __pragma\n#error undef did not disable ifdef\n#endif\n",
     "#define __pragma(x) 42\nint shadowed = __pragma(pack(push, 1));\n",
     "#pragma pop_macro(\"__pragma\")\n",
     "#if !defined(__pragma)\n#error pop did not restore builtin\n#endif\n",
