@@ -15,6 +15,11 @@ use macro_redefinitions::{DefinitionLocation, MacroRedefinitions};
 pub use macro_redefinitions::{MacroRedefinition, MacroRedefinitionPolicy};
 
 mod comments;
+mod documentation;
+pub use documentation::{
+    Documentation, DocumentationLocation, DocumentationMapping, DocumentationOptions,
+    DocumentationOrigin, DocumentationSource, DocumentationSourceId, RawComment,
+};
 mod definitions;
 mod expand;
 mod expression;
@@ -50,6 +55,9 @@ pub struct Config {
     /// Capture successful written definitions in order, including later-undefined macros.
     /// The conservative retained-data estimate is bounded by `max_source_bytes`.
     pub record_macro_definitions: bool,
+    /// Retain raw comments and macro spelling locations only when requested.
+    /// Sources without recognized comments do not allocate a documentation catalog.
+    pub documentation: Option<DocumentationOptions>,
     /// Strict by default. Compatibility replacement retains bounded diagnostics.
     pub macro_redefinition_policy: MacroRedefinitionPolicy,
     /// Optional compiler feature-query operators. Standalone default: disabled.
@@ -102,6 +110,7 @@ impl Default for Config {
         Self {
             record_file_origins: false,
             record_macro_definitions: false,
+            documentation: None,
             macro_redefinition_policy: MacroRedefinitionPolicy::Strict,
             feature_queries: None,
             trigraphs: true,
@@ -164,12 +173,18 @@ pub struct Preprocessed {
     file_origins: Option<Box<FileOrigins>>,
     macro_definitions: Option<Box<MacroDefinitions>>,
     macro_redefinitions: Option<Box<MacroRedefinitions>>,
+    documentation: Option<Box<Documentation>>,
     config: Config,
     active_queries: u8,
     path: PathBuf,
 }
 
 impl Preprocessed {
+    /// Raw comment provenance; absent when capture was disabled or no comments matched.
+    pub fn documentation(&self) -> Option<&Documentation> {
+        self.documentation.as_deref()
+    }
+
     /// Physical file and macro origins when requested through the preprocessor config.
     pub fn file_origins(&self) -> Option<&FileOrigins> {
         self.file_origins.as_deref()
@@ -245,6 +260,7 @@ impl Preprocessed {
             recursion: 0,
             location: None,
             counter: None,
+            documentation: None,
         };
         expansion
             .expand(vec![Token::new(Kind::Identifier, name)])
@@ -318,6 +334,8 @@ pub struct Preprocessor {
     file_origins: Option<Box<FileOrigins>>,
     macro_definitions: Option<Box<MacroDefinitions>>,
     macro_redefinitions: Option<Box<MacroRedefinitions>>,
+    documentation: Option<Box<Documentation>>,
+    documentation_system: bool,
 }
 
 /// Separates the read path, shared file identity, access spelling, and main-file rules.
@@ -409,6 +427,8 @@ impl Preprocessor {
             file_origins: None,
             macro_definitions: None,
             macro_redefinitions: None,
+            documentation: None,
+            documentation_system: false,
         }
     }
 
@@ -552,6 +572,8 @@ impl Preprocessor {
     }
 
     fn reset(&mut self) -> Result<(), Error> {
+        self.documentation = None;
+        self.documentation_system = false;
         self.include_search = None;
         self.include_search = include_search::SearchOrder::resolve(&self.config)?;
         self.macros.clear();
@@ -625,6 +647,9 @@ impl Preprocessor {
     }
 
     fn finish(&mut self, path: &Path, source: String) -> Preprocessed {
+        if let Some(documentation) = &mut self.documentation {
+            documentation.finish();
+        }
         Preprocessed {
             source,
             macros: self.macros.clone(),
@@ -633,6 +658,7 @@ impl Preprocessor {
             file_origins: self.file_origins.take(),
             macro_definitions: self.macro_definitions.take(),
             macro_redefinitions: self.macro_redefinitions.take(),
+            documentation: self.documentation.take(),
             config: self.config.clone(),
             active_queries: self.active_queries,
             path: path.to_owned(),
@@ -745,16 +771,80 @@ impl Preprocessor {
         include_origin: Option<usize>,
         output: &mut String,
     ) -> Result<(), Error> {
+        let previous = self.documentation_system;
+        self.documentation_system |= input.system;
+        let result = self.source_inner(input, source, depth, include_origin, output);
+        self.documentation_system = previous;
+        result
+    }
+
+    fn source_inner(
+        &mut self,
+        input: InputFile<'_>,
+        source: &str,
+        depth: usize,
+        include_origin: Option<usize>,
+        output: &mut String,
+    ) -> Result<(), Error> {
         let path = input.physical;
         self.source_bytes = self.source_bytes.saturating_add(source.len());
         if self.source_bytes > self.config.max_source_bytes {
             return Err(Error::new(input.accessed, 1, "source byte limit exceeded"));
         }
-        let source = normalize(
-            source,
-            self.config.trigraphs,
-            &mut comments::CommentState::new(self.config.line_comments),
-        )
+        let mut documentation_source = None;
+        let mut comment_state = comments::CommentState::new(self.config.line_comments);
+        let source = if let Some(options) = self.config.documentation {
+            let limit = self.config.max_source_bytes;
+            let normalized = token::normalize_with_comments(
+                source,
+                self.config.trigraphs,
+                &mut comment_state,
+                |range, line, end_line, column| {
+                    if !documentation::recognized(&source[range.clone()], options) {
+                        return Ok(());
+                    }
+                    if self.documentation.is_none() {
+                        self.documentation = Some(Documentation::start(limit)?);
+                    }
+                    let docs = self.documentation.as_mut().expect("documentation capture");
+                    let id = match documentation_source {
+                        Some(id) => id,
+                        None => {
+                            let id = docs.add_source(
+                                input.physical,
+                                input.accessed,
+                                source.len(),
+                                self.documentation_system,
+                                limit,
+                            )?;
+                            documentation_source = Some(id);
+                            id
+                        }
+                    };
+                    docs.comment(
+                        id,
+                        source,
+                        documentation::CommentLocation {
+                            range,
+                            line,
+                            end_line,
+                            column,
+                        },
+                        options,
+                        limit,
+                    )
+                },
+            );
+            if let Some(id) = documentation_source {
+                self.documentation
+                    .as_mut()
+                    .expect("source catalog")
+                    .finish_source(id, source);
+            }
+            normalized
+        } else {
+            normalize(source, self.config.trigraphs, &mut comment_state)
+        }
         .map_err(|message| Error::new(input.accessed, 1, message))?;
         let mut conditions: Vec<Conditional> = Vec::new();
         let mut pending = Vec::new();
@@ -777,6 +867,20 @@ impl Preprocessor {
                 token.line =
                     (source.line_at(start + token.offset) as i64 + line_adjustment) as usize;
                 token.column = source.column_at(start + token.offset);
+                if let Some(id) = documentation_source {
+                    token.doc_origin = Some(
+                        self.documentation
+                            .as_mut()
+                            .expect("source catalog")
+                            .location(
+                                id,
+                                source.original_offset(start + token.offset),
+                                source.line_at(start + token.offset),
+                                self.config.max_source_bytes,
+                            )
+                            .map_err(&fail)?,
+                    );
+                }
             }
             self.tokens = self
                 .tokens
@@ -924,6 +1028,9 @@ impl Preprocessor {
                         return Err(fail("cannot undefine a builtin macro".into()));
                     }
                     self.macros.remove(name);
+                    if let Some(docs) = &mut self.documentation {
+                        docs.undefine(name);
+                    }
                     if let Some(origins) = &mut self.file_origins {
                         origins.undefine(name);
                     }
@@ -995,6 +1102,7 @@ impl Preprocessor {
                     let output_start = output.len();
                     self.pragma(
                         input,
+                        tokens[0].doc_origin,
                         SourceLocation {
                             path: Arc::from(logical_path.as_path()),
                             line: logical_line,
@@ -1036,6 +1144,15 @@ impl Preprocessor {
                 }
                 _ if directive.kind == Kind::Number => {
                     let marker = line_marker(&tokens[1..]).map_err(&fail)?;
+                    if self.config.documentation.is_some() {
+                        self.documentation_system = marker.system;
+                        if let (Some(docs), Some(id)) =
+                            (&mut self.documentation, tokens[0].doc_origin)
+                        {
+                            docs.system_origin(id, marker.system, self.config.max_source_bytes)
+                                .map_err(&fail)?;
+                        }
+                    }
                     match marker.transition {
                         1 => {
                             if marker_paths.len() >= self.config.max_include_depth {
@@ -1082,6 +1199,7 @@ impl Preprocessor {
     fn pragma(
         &mut self,
         input: InputFile<'_>,
+        doc_origin: Option<documentation::OriginId>,
         origin: SourceLocation,
         tokens: &[Token],
         output: &mut String,
@@ -1122,7 +1240,24 @@ impl Preprocessor {
             Some("GCC" | "clang")
                 if tokens.get(1).is_some_and(|token| {
                     matches!(token.text.as_str(), "diagnostic" | "system_header")
-                }) => {}
+                }) =>
+            {
+                if self.config.documentation.is_some()
+                    && !input.main
+                    && tokens
+                        .get(1)
+                        .is_some_and(|token| token.text == "system_header")
+                    && (tokens[0].text == "GCC" || self.clang_paths())
+                {
+                    self.documentation_system = true;
+                    if let (Some(docs), Some(id)) = (&mut self.documentation, doc_origin) {
+                        docs.system_origin(id, true, self.config.max_source_bytes)
+                            .map_err(|message| {
+                                Error::at(&origin.path, origin.line, origin.column, message)
+                            })?;
+                    }
+                }
+            }
             Some("message") => {}
             _ => {
                 return Err(Error::at(
@@ -1162,6 +1297,7 @@ impl Preprocessor {
                 .map_err(|message| Error::at(path, token.line, token.column, message))?;
             self.pragma(
                 input,
+                token.doc_origin,
                 SourceLocation {
                     path: Arc::from(path),
                     line: token.line,
@@ -1235,6 +1371,16 @@ impl Preprocessor {
                 }
                 let start = output.len();
                 output.push_str(&token.text);
+                if let Some(docs) = &mut self.documentation {
+                    docs.map(
+                        start..output.len(),
+                        token.doc_origin,
+                        self.config.max_source_bytes,
+                    )
+                    .map_err(|message| {
+                        Error::at(path.as_ref(), token.line, token.column, message)
+                    })?;
+                }
                 self.mappings.push(SourceMapping {
                     generated: start..output.len(),
                     origin: SourceLocation {
@@ -1277,6 +1423,7 @@ impl Preprocessor {
             recursion: 0,
             location: None,
             counter: Some(self.counter),
+            documentation: self.documentation.as_deref_mut(),
         };
         let result = expansion.expand(tokens);
         self.expansion_tokens = expansion.produced;
@@ -1339,6 +1486,7 @@ impl Preprocessor {
                 let output_start = output.len();
                 self.pragma(
                     input,
+                    token.doc_origin,
                     SourceLocation {
                         path: Arc::from(path),
                         line: token.line,
@@ -1634,6 +1782,9 @@ impl Preprocessor {
         if let Some(kind) = FeatureQuery::from_name(&name.text) {
             self.active_queries &= !kind.bit();
         }
+        if let Some(docs) = &mut self.documentation {
+            docs.define(&name.text, replacement, self.config.max_source_bytes)?;
+        }
         self.macros.insert(name.text.clone(), definition);
         Ok(())
     }
@@ -1708,6 +1859,7 @@ struct LineMarker {
     number: usize,
     filename: Option<PathBuf>,
     transition: u8,
+    system: bool,
 }
 
 fn line_marker(tokens: &[Token]) -> Result<LineMarker, String> {
@@ -1730,6 +1882,7 @@ fn line_marker(tokens: &[Token]) -> Result<LineMarker, String> {
         .transpose()?;
     let mut previous = 0;
     let mut transition = 0;
+    let mut system = false;
     for flag in tokens.iter().skip(2) {
         let value = match flag.text.as_str() {
             "1" => 1,
@@ -1744,12 +1897,14 @@ fn line_marker(tokens: &[Token]) -> Result<LineMarker, String> {
         if value <= 2 {
             transition = value;
         }
+        system |= value == 3;
         previous = value;
     }
     Ok(LineMarker {
         number,
         filename,
         transition,
+        system,
     })
 }
 

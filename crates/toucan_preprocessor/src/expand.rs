@@ -15,6 +15,7 @@ pub(crate) struct Expansion<'a> {
     pub location: Option<(usize, usize)>,
     /// None for immutable queries of the final macro environment.
     pub counter: Option<u64>,
+    pub documentation: Option<&'a mut crate::documentation::Documentation>,
 }
 
 impl Expansion<'_> {
@@ -115,6 +116,7 @@ impl Expansion<'_> {
                 replacement.column = token.column;
                 replacement.expanded = true;
                 replacement.space = token.space;
+                replacement.doc_origin = token.doc_origin;
                 self.charge(std::slice::from_ref(&replacement))?;
                 output.push(replacement);
                 self.location = previous_location;
@@ -199,15 +201,22 @@ impl Expansion<'_> {
                 // Only macros suppressed at both ends of a function invocation stay
                 // suppressed when its replacement meets the following input.
                 hidden.retain(|name| closing.hidden.contains(name));
-                self.substitute(definition, &arguments, omitted_variadic)?
+                self.substitute(&token.text, definition, &arguments, omitted_variadic)?
             } else {
                 paste(
-                    replacement_tokens(&definition.replacement, self.config.scope_punctuator)?,
+                    self.replacement_tokens(&token.text, &definition.replacement)?,
                     self.config.scope_punctuator,
                 )?
             };
             self.charge(&replacement)?;
             for replacement in &mut replacement {
+                if let Some(docs) = &mut self.documentation {
+                    replacement.doc_origin = docs.expanded(
+                        token.doc_origin,
+                        replacement.doc_origin,
+                        self.config.max_source_bytes,
+                    )?;
+                }
                 replacement.hidden.extend(hidden.iter().cloned());
                 replacement.hidden.insert(token.text.clone());
                 replacement.depth = replacement.depth.max(token.depth + 1);
@@ -285,6 +294,7 @@ impl Expansion<'_> {
 
     fn substitute(
         &mut self,
+        name: &str,
         definition: &Macro,
         arguments: &[Vec<Token>],
         omitted_variadic: bool,
@@ -299,8 +309,7 @@ impl Expansion<'_> {
             let variadic = arguments.get(parameters.len()).cloned().unwrap_or_default();
             raw.insert(name, variadic);
         }
-        let replacement =
-            replacement_tokens(&definition.replacement, self.config.scope_punctuator)?;
+        let replacement = self.replacement_tokens(name, &definition.replacement)?;
         // Prescan each argument once. Repeated substitution duplicates the result,
         // including _Pragma directives, without incrementing __COUNTER__ again.
         let mut expanded_arguments: BTreeMap<&str, Vec<Token>> = BTreeMap::new();
@@ -373,6 +382,14 @@ impl Expansion<'_> {
             position += 1;
         }
         paste(substituted, self.config.scope_punctuator)
+    }
+
+    fn replacement_tokens(&self, name: &str, text: &str) -> Result<Vec<Token>, String> {
+        let mut tokens = replacement_tokens(text, self.config.scope_punctuator)?;
+        if let Some(docs) = &self.documentation {
+            docs.replacements(name, &mut tokens);
+        }
+        Ok(tokens)
     }
 
     fn charge(&mut self, tokens: &[Token]) -> Result<(), String> {
@@ -497,6 +514,7 @@ fn paste(tokens: Vec<Token>, scope_punctuator: bool) -> Result<Vec<Token>, Strin
             token.depth = left.depth.max(right.depth);
             token.line = left.line;
             token.space = left.space;
+            token.doc_origin = left.doc_origin;
             output.push(token);
         }
     }

@@ -35,6 +35,10 @@ fuzz_target!(|bytes: &[u8]| {
         allow_filesystem: false,
         record_file_origins: true,
         record_macro_definitions: selector & 4 != 0,
+        documentation: match (selector >> 4) & 3 {
+            0 => None,
+            value => Some(toucan::DocumentationOptions {parse_all_comments: value >= 2}),
+        },
         macro_redefinition_policy: if selector & 8 == 0 {
             toucan::MacroRedefinitionPolicy::Strict
         } else {
@@ -103,6 +107,38 @@ fuzz_target!(|bytes: &[u8]| {
                 assert!(!record.name().is_empty());
             }
         }
+        if let Some(docs) = output.documentation() {
+            for (id, source) in docs.sources() {
+                assert!(docs.source(id).is_some());
+                assert_eq!(source.source_len(), data.len());
+                assert_eq!(source.path(), std::path::Path::new("fuzz-input.h"));
+                let mut end = 0;
+                for comment in source.comments() {
+                    assert!(comment.range().start >= end);
+                    assert_eq!(data.get(comment.range().clone()), Some(comment.text()));
+                    assert!(comment.following_barrier() >= comment.range().end);
+                    assert!(comment.following_barrier() <= data.len());
+                    assert!(comment.line() > 0 && comment.end_line() >= comment.line());
+                    assert!(source.is_system_at(comment.range().start).is_some());
+                    end = comment.range().end;
+                }
+            }
+            let mut end = 0;
+            for mapping in docs.mappings() {
+                let range = mapping.generated();
+                assert!(range.start >= end && range.start < range.end);
+                assert!(output.source.get(range.clone()).is_some());
+                let origin = docs.origin(mapping).expect("owned origin");
+                assert_eq!(docs.resolve(range.start), Some(origin));
+                for location in [origin.invocation(), origin.spelling()].into_iter().flatten() {
+                    let source = docs.source(location.source()).expect("owned source");
+                    assert!(location.offset() < source.source_len());
+                    assert!(data.is_char_boundary(location.offset()));
+                    assert!(location.line() > 0);
+                }
+                end = range.end;
+            }
+        }
         if let Some(definitions) = output.macro_definitions() {
             assert!(definitions.len() <= 4096);
             for definition in definitions {
@@ -120,4 +156,5 @@ fuzz_target!(|bytes: &[u8]| {
         .expect("empty source after reset");
     assert_eq!(reset.macro_redefinitions().is_some(), selector & 8 != 0);
     assert!(reset.macro_redefinitions().is_none_or(<[_]>::is_empty));
+    assert!(reset.documentation().is_none());
 });

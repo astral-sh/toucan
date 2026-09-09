@@ -29,6 +29,7 @@ pub(crate) struct Token {
     pub column: usize,
     pub expanded: bool,
     original: Option<&'static str>,
+    pub(crate) doc_origin: Option<crate::documentation::OriginId>,
 }
 
 impl Token {
@@ -45,6 +46,7 @@ impl Token {
             column: 1,
             expanded: false,
             original: None,
+            doc_origin: None,
         }
     }
 
@@ -61,7 +63,7 @@ pub(crate) struct Normalized {
 }
 
 impl Normalized {
-    fn original_offset(&self, offset: usize) -> usize {
+    pub(crate) fn original_offset(&self, offset: usize) -> usize {
         let (generated, original) = self.source_offsets[self
             .source_offsets
             .partition_point(|(start, _)| *start <= offset)
@@ -87,6 +89,16 @@ pub(crate) fn normalize(
     source: &str,
     trigraphs: bool,
     comments: &mut CommentState,
+) -> Result<Normalized, String> {
+    normalize_with_comments(source, trigraphs, comments, |_, _, _, _| Ok(()))
+}
+
+/// Observe physical comment ranges while sharing the ordinary translation phases.
+pub(crate) fn normalize_with_comments(
+    source: &str,
+    trigraphs: bool,
+    comments: &mut CommentState,
+    mut observe: impl FnMut(std::ops::Range<usize>, usize, usize, usize) -> Result<(), String>,
 ) -> Result<Normalized, String> {
     let bytes = source.as_bytes();
     let mut spliced = String::with_capacity(source.len());
@@ -140,8 +152,20 @@ pub(crate) fn normalize(
             }
         }
     }
+    let original = |offset| {
+        let (generated, physical) =
+            source_offsets[source_offsets.partition_point(|(start, _)| *start <= offset) - 1];
+        physical + offset - generated
+    };
+    let text = replace_comments_observed(&spliced, comments, |range| {
+        let range = original(range.start)..original(range.end);
+        let line = line_starts.partition_point(|start| *start <= range.start);
+        let end_line = line_starts.partition_point(|start| *start < range.end);
+        let column = range.start - line_starts[line - 1] + 1;
+        observe(range, line, end_line, column)
+    })?;
     Ok(Normalized {
-        source: replace_comments_with(&spliced, comments)?,
+        source: text,
         source_offsets,
         line_starts,
     })
@@ -162,22 +186,34 @@ pub(crate) fn adjacent_slashes(tokens: &[Token]) -> bool {
 }
 
 fn replace_comments_with(source: &str, comments: &mut CommentState) -> Result<String, String> {
+    replace_comments_observed(source, comments, |_| Ok(()))
+}
+
+fn replace_comments_observed(
+    source: &str,
+    comments: &mut CommentState,
+    mut observe: impl FnMut(std::ops::Range<usize>) -> Result<(), String>,
+) -> Result<String, String> {
     let mut chars = source.chars().peekable();
     let mut output = String::with_capacity(source.len());
     while let Some(c) = chars.next() {
+        let start = output.len();
         match (c, chars.peek().copied()) {
             ('/', Some('/')) if comments.line_comment(chars.clone().nth(1)) => {
                 chars.next();
                 output.push_str("  ");
+                let mut newline = false;
                 for c in chars.by_ref() {
                     if c == '\n' {
                         output.push(c);
+                        newline = true;
                         break;
                     }
                     for _ in 0..c.len_utf8() {
                         output.push(' ');
                     }
                 }
+                observe(start..output.len() - usize::from(newline))?;
             }
             ('/', Some('*')) => {
                 chars.next();
@@ -202,6 +238,7 @@ fn replace_comments_with(source: &str, comments: &mut CommentState) -> Result<St
                 if !closed {
                     return Err("unterminated block comment".into());
                 }
+                observe(start..output.len())?;
             }
             ('"' | '\'', _) => {
                 let quote = c;

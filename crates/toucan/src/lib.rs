@@ -20,6 +20,10 @@ pub use toucan_preprocessor::{
     PredefinedMacroMode, QueryDialect, SourceLocation, SourceMapping,
 };
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
+pub use toucan_preprocessor::{
+    Documentation, DocumentationLocation, DocumentationMapping, DocumentationOptions,
+    DocumentationOrigin, DocumentationSource, DocumentationSourceId, RawComment,
+};
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};
 pub use toucan_semantic::{self as semantic, Analysis, AnalysisOptions, TranslationUnit};
 pub use toucan_source as source;

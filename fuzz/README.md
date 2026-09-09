@@ -27,8 +27,8 @@ GNU (clear) or Clang (set) feature-query argument rules with a small test catalo
 Preprocessing selector version 2 also uses `(sum(input bytes) >> 9) % 5` for
 line-comment handling: enabled, GCC C90 compilation, GCC C90 preprocessing,
 Clang C90 compilation, or Clang C90 preprocessing, in that order. The source
-bytes remain intact. The runner appends block-comment padding to cover all 160
-comment/query/trigraph/scope/macro-history/redefinition combinations for every preprocessing seed. Older
+bytes remain intact. The runner appends block-comment padding to cover all 480
+comment/query/trigraph/scope/macro-history/redefinition/documentation combinations for every preprocessing seed. Older
 preprocessing campaigns always enabled line comments; replay their saved binary
 to preserve that behavior. Its selectors are independent of the semantic targets'
 eight-mode selector. Scope-punctuator tokenization is selected independently by
@@ -39,6 +39,10 @@ checks active in both modes. Version 5 adds `sum(input bytes) & 8` to select
 strict redefinition errors or recorded incompatible replacements. The target
 checks retained redefinition locations and resets the same preprocessor after
 both success and failure. Padding preserves every original source byte.
+Version 6 adds `(sum(input bytes) >> 4) & 3` for documentation capture: zero
+disables capture, one retains documentation markers, and two or three retain all
+comments. The runner covers the three distinct configurations. Source, comment,
+and output-token coordinates are checked when a catalog is produced.
 It has no physical target profile. The campaign runner pads each seed with a comment to cover every compiler
 profile in all eight language modes, including all independent preprocessing settings. The
 reported profile count must match the compiled harness's `CompilerProfile::ALL`.
