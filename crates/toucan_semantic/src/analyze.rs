@@ -2316,6 +2316,14 @@ impl Analyzer {
                     }
                     for parameter in &prototype.parameters {
                         let parameter_type = self.unit.resolve(&parameter.ty)?;
+                        // GCC promotes an atomic parameter's contained value in
+                        // a call without a prototype; Clang preserves its type.
+                        let parameter_type = match &parameter_type.kind {
+                            TypeKind::Atomic(value) if self.gnu_sync_profile() => {
+                                self.unit.resolve(value)?
+                            }
+                            _ => parameter_type,
+                        };
                         if (matches!(parameter_type.kind, TypeKind::Enum(_))
                             && self.integer_type(parameter_type, 0)?.rank < 3)
                             || matches!(
