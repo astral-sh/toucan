@@ -54,6 +54,11 @@ pub struct Options {
     /// An uninitialized internal object remains an extern declaration, whose
     /// symbol may require a separately supplied C wrapper when linked.
     pub object_bindings: BTreeMap<String, toucan_semantic::ObjectOccurrence>,
+    /// Additional explicit Rust object names mapped to their checked occurrences.
+    /// Each occurrence retains its original C declaration and linker identity.
+    /// Internal objects require a materialized scalar or string constant.
+    /// Empty preserves the ordinary one-name emission path.
+    pub additional_objects: BTreeMap<String, toucan_semantic::ObjectOccurrence>,
     /// Emit externally linked functions even when their C definition is present.
     /// The caller must still link the C object providing that definition.
     pub emit_function_definitions: bool,
@@ -476,6 +481,7 @@ pub fn generate_with_macros(
                 .chain(unit.constants.keys().map(String::as_str))
                 .chain(macros.keys().map(String::as_str))
                 .chain(options.generated_names.values().map(String::as_str))
+                .chain(options.additional_objects.keys().map(String::as_str))
                 .chain(
                     unit.records
                         .iter()
@@ -602,7 +608,12 @@ pub fn generate_with_macros(
         selected.push(declaration);
     }
     let mut dll_symbols = BTreeMap::new();
-    for declaration in &selected {
+    for declaration in selected.iter().copied().chain(
+        options
+            .additional_objects
+            .values()
+            .map(|object| &unit.declarations[object.declaration()]),
+    ) {
         if declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
             && let Some(library) = options.dll_import_library(&declaration.name)
         {
@@ -652,6 +663,7 @@ pub fn generate_with_macros(
             emitter.collect_use_at(&Type::new(TypeKind::Typedef(name.clone())), 0, false)?;
         }
     }
+    emitter.prepare_additional_objects()?;
     emitter.validate_generated_collisions(&selected, macros)?;
     emitter.prepare_atomic_records()?;
     emitter.prepare_external_records()?;
@@ -870,6 +882,7 @@ pub fn generate_with_macros(
     } else {
         writeln!(source, "\n{extern_keyword} \"C\" {{\n}}").unwrap();
     }
+    emitter.emit_additional_objects(&mut source)?;
     let mut renamed_macros = BTreeMap::new();
     let mut macro_types = Vec::new();
     for (name, value) in macros {
@@ -1007,7 +1020,7 @@ pub fn generate_with_macros(
     }
     Ok(Bindings {
         source,
-        declarations: selected.len(),
+        declarations: selected.len() + options.additional_objects.len(),
         skipped,
         blocked_functions,
         blocked_types: emitter.external.types.into_values().collect(),

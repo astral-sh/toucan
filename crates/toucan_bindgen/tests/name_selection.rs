@@ -200,17 +200,16 @@ fn selected_object_occurrence_supplies_both_name_and_initializer() {
             "{source}"
         );
     }
-    let error = builder(&path)
+    let bindings = builder(&path)
         .allowlist_file(r".*[/\\]a\.h")
         .allowlist_var("shared_1")
         .parse_callbacks(Box::<Rename>::default())
         .generate()
-        .unwrap_err();
-    assert!(
-        error
-            .to_string()
-            .contains("multiple selected generated names")
-    );
+        .unwrap();
+    assert_eq!(bindings.report().declarations, 2);
+    let source = bindings.to_string();
+    assert!(source.contains("pub static shared_0:"));
+    assert!(source.contains("pub const shared_1:"));
 }
 
 #[test]

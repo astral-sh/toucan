@@ -49,8 +49,9 @@ The remaining rows have explicit qualifications:
 - One bare function typedef preserves Toucan's existing non-null function type;
   bindgen instead wraps that typedef in `Option`. The comparison retains this
   difference rather than erasing callback nullability.
-- Two cases select multiple callback names for a single object. The Builder
-  diagnoses this unsupported projection instead of dropping a native export.
+- Two cases select multiple callback names for a single object. The captured
+  initial layer diagnoses this unsupported projection. The subsequent
+  [multiple-object-name layer](multiple-object-names.md) supports both exports.
 - One selected lexical type-name collision is diagnosed by the Builder. Native
   bindgen emits duplicate Rust definitions that fail Rust compilation.
 

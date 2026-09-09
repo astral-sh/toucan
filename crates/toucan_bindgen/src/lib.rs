@@ -428,10 +428,10 @@ impl Builder {
         parameter_dependencies::apply(
             &compilation,
             patterns.files.as_ref(),
-            patterns
-                .has_names()
-                .then_some(occurrences.as_ref())
-                .flatten(),
+            occurrences
+                .as_ref()
+                .filter(|_| patterns.has_names())
+                .map(|selected| &selected.offsets),
             &mut self.options,
         )?;
         objects::select(&compilation, occurrences.as_ref(), &mut self.options)?;

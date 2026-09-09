@@ -1,6 +1,6 @@
 //! Apply file and callback policies before invoking the binding emitter.
 
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 use std::rc::Rc;
 
 use regex::RegexSet;
@@ -65,12 +65,19 @@ fn patterns(patterns: &[String], kind: &str) -> Result<Option<RegexSet>, Bindgen
         .map_err(|error| configuration(format!("invalid allowlist_{kind} pattern: {error}")))
 }
 
+/// Written roots plus any extra names emitted for a single C object.
+#[derive(Default)]
+pub(crate) struct SelectedOccurrences {
+    pub(crate) offsets: BTreeSet<usize>,
+    pub(crate) additional_names: BTreeMap<usize, String>,
+}
+
 pub(crate) fn apply(
     compilation: &Compilation,
     patterns: &Patterns,
     callbacks: &[Rc<dyn ParseCallbacks>],
     options: &mut BindingOptions,
-) -> Result<BTreeSet<usize>, BindgenError> {
+) -> Result<SelectedOccurrences, BindgenError> {
     let Some(origins) = compilation.declaration_origins() else {
         return Err(configuration(
             "declaration origins were not captured for selection",
@@ -106,7 +113,7 @@ pub(crate) fn apply(
     if let Some(selection) = &mut selection {
         selection.retain_type_dependencies = patterns.has_names();
     }
-    let mut occurrences = BTreeSet::new();
+    let mut occurrences = SelectedOccurrences::default();
     let mut generated = BTreeSet::new();
     let mut records = BTreeSet::new();
     let mut enums = BTreeSet::new();
@@ -185,8 +192,8 @@ pub(crate) fn apply(
                         _ => false,
                     };
                 if selected && (kind.is_some() || declaration.kind != DeclarationKind::Function) {
-                    if patterns.has_names()
-                        && declaration.kind == DeclarationKind::Variable
+                    let offset = origin.source().range().start;
+                    if declaration.kind == DeclarationKind::Variable
                         && generated.contains(&index)
                         && options
                             .generated_names
@@ -194,12 +201,9 @@ pub(crate) fn apply(
                             .unwrap_or(&declaration.name)
                             != name
                     {
-                        return Err(configuration(format!(
-                            "object `{}` has multiple selected generated names; separate object projections are unsupported",
-                            declaration.name
-                        )));
+                        occurrences.additional_names.insert(offset, name.to_owned());
                     }
-                    occurrences.insert(origin.source().range().start);
+                    occurrences.offsets.insert(offset);
                     if let Some(selection) = &mut selection {
                         selection.declarations.insert(index);
                     }

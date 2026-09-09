@@ -155,8 +155,9 @@ without retaining checked expressions, bodies, or initializers.
 `generated_name_override(ItemInfo)`. Callbacks run synchronously on the calling
 thread and may contain `Rc` or `RefCell`; they need not be `Send` or `Sync`.
 Callbacks are tried newest first until one returns a name, before file filtering.
-Compatible redeclarations are visited in source order. The first selected
-occurrence supplies the emitted name, while the original C symbol remains its
+Compatible redeclarations are visited in source order. Functions retain the first
+selected occurrence's name. Objects may expose several selected names, each
+using its first selected occurrence. The original C symbol remains their
 `link_name`. Only functions and externally linked objects use this callback;
 inline function candidates are excluded before invocation, while static function
 prototypes still invoke it. Generated names must be ASCII identifiers, use
@@ -230,9 +231,9 @@ of named, nested, or typedef-named enums do not independently select it.
 
 Function and external-object patterns match each occurrence's
 `generated_name_override` result. File/name selection happens before choosing
-the first selected occurrence's name and object initializer. Selecting multiple
-distinct generated names for one object currently produces an explicit
-unsupported-projection diagnostic. Macro patterns
+the first selected occurrence's name and object initializer for each generated
+object name. Several selected object names can share one C symbol while keeping
+separate checked initializers. Macro patterns
 match original C names and keep the ordered evaluation context, including values
 from excluded definitions.
 
@@ -242,3 +243,6 @@ become name roots. Reached blocklisted type definitions can contribute their
 own type dependencies while their definitions remain caller-supplied. This
 behavior uses the core's opt-in `BindingSelection::retain_type_dependencies`;
 ordinary core and file-only selection retain their existing policies.
+
+See [multiple object names](../../docs/multiple-object-names.md) for the optional
+core projection map and native selection/linkage evidence.

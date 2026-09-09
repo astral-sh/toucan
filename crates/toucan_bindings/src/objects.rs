@@ -2,7 +2,7 @@
 use crate::{Emitter, Error, Options};
 use std::fmt::Write;
 use toucan_semantic::{
-    ArithmeticConstant, Declaration, DeclarationKind, FloatKind, Type, TypeKind,
+    ArithmeticConstant, Declaration, DeclarationKind, FloatKind, ObjectOccurrence, Type, TypeKind,
 };
 
 pub(crate) enum ObjectConstant<'a> {
@@ -16,7 +16,23 @@ impl Options {
         &self,
         unit: &toucan_semantic::TranslationUnit,
     ) -> Result<(), Error> {
-        for (name, object) in &self.object_bindings {
+        for (name, object, additional) in self
+            .object_bindings
+            .iter()
+            .map(|(name, object)| (name, object, false))
+            .chain(
+                self.additional_objects
+                    .iter()
+                    .map(|(name, object)| (name, object, true)),
+            )
+        {
+            if additional {
+                crate::identifier(name).map_err(|_| {
+                    Error(format!(
+                        "generated object name `{name}` must be a nonempty ASCII identifier"
+                    ))
+                })?;
+            }
             if object.profile() != unit.profile()? {
                 return Err(Error(format!(
                     "object occurrence `{name}` has a different compiler profile"
@@ -27,8 +43,8 @@ impl Options {
                     "object occurrence has an invalid declaration index".into(),
                 ));
             };
-            if name != object.name()
-                || name != &declaration.name
+            if (!additional && name != object.name())
+                || object.name() != declaration.name
                 || declaration.kind != DeclarationKind::Variable
             {
                 return Err(Error(format!(
@@ -114,6 +130,13 @@ impl<'unit> Emitter<'unit> {
         let Some(object) = self.options.object_bindings.get(&declaration.name) else {
             return Ok(None);
         };
+        self.object_constant_at(object)
+    }
+
+    fn object_constant_at(
+        &self,
+        object: &'unit ObjectOccurrence,
+    ) -> Result<Option<ObjectConstant<'unit>>, Error> {
         if let Some(bytes) = object.string_literal() {
             let end = bytes
                 .iter()
@@ -127,7 +150,7 @@ impl<'unit> Emitter<'unit> {
             {
                 return Err(Error(format!(
                     "string object `{}` has no terminating NUL within its {length}-byte C array",
-                    declaration.name
+                    object.name()
                 )));
             }
             return Ok(Some(ObjectConstant::String(&bytes[..=end])));
@@ -151,7 +174,7 @@ impl<'unit> Emitter<'unit> {
             {
                 return Err(Error(format!(
                     "object constant `{}` has an unsupported Rust floating representation",
-                    declaration.name
+                    object.name()
                 )));
             }
             ArithmeticConstant::Complex(_) => {
@@ -190,7 +213,24 @@ impl<'unit> Emitter<'unit> {
             return Ok(());
         };
         let name = self.generated_name(&declaration.name)?;
-        self.declaration_doc(&declaration.name, source);
+        self.emit_object_value(
+            &declaration.name,
+            &name,
+            self.object_type(declaration)?,
+            value,
+            source,
+        )
+    }
+
+    fn emit_object_value(
+        &self,
+        c_name: &str,
+        name: &str,
+        declared_type: &Type,
+        value: ObjectConstant<'unit>,
+        source: &mut String,
+    ) -> Result<(), Error> {
+        self.declaration_doc(c_name, source);
         let value = match value {
             ObjectConstant::Arithmetic(value) => value,
             ObjectConstant::String(bytes) => {
@@ -215,7 +255,6 @@ impl<'unit> Emitter<'unit> {
                 return Ok(());
             }
         };
-        let declared_type = self.object_type(declaration)?;
         // A numeric constant has no C storage or calling ABI. Older Rust targets
         // can represent its complete bits even when their C i128 ABI differs.
         // Aliases and every actual C storage/call use retain their ordinary gates.
@@ -252,7 +291,7 @@ impl<'unit> Emitter<'unit> {
                     64
                 };
                 source.push_str(&crate::floating_bits_constant_typed(
-                    &name,
+                    name,
                     &ty,
                     width,
                     value.to_bits(),
@@ -260,6 +299,100 @@ impl<'unit> Emitter<'unit> {
                 ));
             }
             ArithmeticConstant::Complex(_) => unreachable!("validated above"),
+        }
+        Ok(())
+    }
+
+    fn additional_object_type(
+        &self,
+        object: &'unit ObjectOccurrence,
+    ) -> Result<&'unit Type, Error> {
+        let ty = object.ty();
+        if self.object_constant_at(object)?.is_some() {
+            return Ok(self.unit.atomic_value(ty)?.unwrap_or(ty));
+        }
+        Ok(ty)
+    }
+
+    /// Validate every extra occurrence independently of the primary projection.
+    pub(crate) fn prepare_additional_objects(&mut self) -> Result<(), Error> {
+        for object in self.options.additional_objects.values() {
+            let declaration = &self.unit.declarations[object.declaration()];
+            if self.object_constant_at(object)?.is_none() {
+                if object.is_internal() {
+                    return Err(Error(format!(
+                        "internal object `{}` has no external C symbol for an additional Rust binding",
+                        declaration.name
+                    )));
+                }
+                if declaration.symbol_binding == toucan_semantic::SymbolBinding::Weak {
+                    return Err(Error(format!(
+                        "weak symbol `{}` requires unsupported optional-symbol linkage in Rust bindings",
+                        declaration.name
+                    )));
+                }
+                if declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
+                    && self.options.dll_import_library(&declaration.name).is_none()
+                {
+                    return Err(Error(format!(
+                        "dllimport object `{}` requires a matching DLL import library rule for its Rust foreign block",
+                        declaration.name
+                    )));
+                }
+                if object.is_thread_local() {
+                    return Err(Error(format!(
+                        "thread-local object `{}` requires Rust TLS support; expose C accessor functions for stable Rust bindings",
+                        declaration.name
+                    )));
+                }
+                if !declaration.alignment.is_empty()
+                    && self.unit.declaration_alignment(declaration)?
+                        < self.unit.alignment(object.ty())?
+                {
+                    return Err(Error(format!(
+                        "object `{}` has reduced C alignment that Rust extern storage cannot represent",
+                        declaration.name
+                    )));
+                }
+            }
+            self.collect(self.additional_object_type(object)?)?;
+        }
+        Ok(())
+    }
+
+    /// Emit extra names from checked occurrences without cloning C declarations.
+    pub(crate) fn emit_additional_objects(&self, source: &mut String) -> Result<(), Error> {
+        for (name, object) in &self.options.additional_objects {
+            let declaration = &self.unit.declarations[object.declaration()];
+            let name = self.names.identifier(name)?;
+            let ty = self.additional_object_type(object)?;
+            if let Some(value) = self.object_constant_at(object)? {
+                self.emit_object_value(object.name(), &name, ty, value, source)?;
+                continue;
+            }
+            if declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
+                && let Some(library) = self.options.dll_import_library(object.name())
+            {
+                writeln!(source, "\n#[link(name = {library:?}, kind = \"dylib\")]").unwrap();
+            }
+            let keyword = if self.options.rust_target.minor >= 82 {
+                "unsafe extern"
+            } else {
+                "extern"
+            };
+            writeln!(source, "{keyword} \"C\" {{").unwrap();
+            self.declaration_doc(object.name(), source);
+            let symbol = declaration.link_name.as_deref().unwrap_or(object.name());
+            if name != symbol {
+                writeln!(source, "    #[link_name = {symbol:?}]").unwrap();
+            }
+            let mutable = if self.is_const(ty)? { "" } else { "mut " };
+            writeln!(
+                source,
+                "    pub static {mutable}{name}: {};\n}}",
+                self.ty(ty)?
+            )
+            .unwrap();
         }
         Ok(())
     }

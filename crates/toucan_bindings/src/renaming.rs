@@ -50,6 +50,7 @@ impl Emitter<'_> {
         macros: &BTreeMap<String, Option<MacroValue>>,
     ) -> Result<(), Error> {
         if self.options.generated_names.is_empty()
+            && self.options.additional_objects.is_empty()
             && !self.options.prepend_enum_name
             && self.options.enum_constant_style == crate::EnumConstantStyle::Integer
         {
@@ -68,6 +69,9 @@ impl Emitter<'_> {
             if declaration.kind != DeclarationKind::Typedef {
                 insert(self.generated_name(&declaration.name)?, &declaration.name)?;
             }
+        }
+        for (name, object) in &self.options.additional_objects {
+            insert(self.names.identifier(name)?, object.name())?;
         }
         for name in self.unit.constants.keys() {
             if let Some(generated) = self.emitted_constant_name(name, macros)? {
