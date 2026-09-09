@@ -1,6 +1,7 @@
 use std::collections::BTreeSet;
 
 use char_str::CharStr;
+use memchr::{memchr, memchr_iter, memchr2, memchr3, memmem};
 
 use crate::LineComments;
 use crate::comments::CommentState;
@@ -107,20 +108,17 @@ pub(crate) fn normalize_with_comments(
     let mut spliced = String::with_capacity(source.len());
     let mut source_offsets = vec![(0, 0)];
     let mut line_starts = vec![0];
-    line_starts.extend(
-        bytes
-            .iter()
-            .enumerate()
-            .filter_map(|(index, byte)| (*byte == b'\n').then_some(index + 1)),
-    );
+    line_starts.extend(memchr_iter(b'\n', bytes).map(|index| index + 1));
     let mut index = 0;
     let mut copied = 0;
     while index < bytes.len() {
         // UTF-8 continuation bytes cannot contain the ASCII phase-one/two markers.
-        index += bytes[index..]
-            .iter()
-            .position(|byte| *byte == b'\\' || trigraphs && *byte == b'?')
-            .unwrap_or(bytes.len() - index);
+        let next = if trigraphs {
+            memchr2(b'\\', b'?', &bytes[index..])
+        } else {
+            memchr(b'\\', &bytes[index..])
+        };
+        index += next.unwrap_or(bytes.len() - index);
         if index == bytes.len() {
             break;
         }
@@ -208,10 +206,7 @@ fn replace_comments_observed(
     let mut bytes = source.into_bytes();
     let mut index = 0;
     while index < bytes.len() {
-        index += bytes[index..]
-            .iter()
-            .position(|byte| matches!(byte, b'/' | b'"' | b'\''))
-            .unwrap_or(bytes.len() - index);
+        index += memchr3(b'/', b'"', b'\'', &bytes[index..]).unwrap_or(bytes.len() - index);
         let Some(&byte) = bytes.get(index) else {
             break;
         };
@@ -221,16 +216,13 @@ fn replace_comments_observed(
                 if comments.line_comment(bytes.get(index + 2).map(|byte| *byte as char)) =>
             {
                 index += 2;
-                index += bytes[index..]
-                    .iter()
-                    .position(|byte| *byte == b'\n')
-                    .unwrap_or(bytes.len() - index);
+                index += memchr(b'\n', &bytes[index..]).unwrap_or(bytes.len() - index);
                 bytes[start..index].fill(b' ');
                 observe(start..index)?;
             }
             (b'/', Some(b'*')) => {
                 index += 2;
-                let Some(end) = bytes[index..].windows(2).position(|pair| pair == b"*/") else {
+                let Some(end) = memmem::find(&bytes[index..], b"*/") else {
                     return Err("unterminated block comment".into());
                 };
                 index += end + 2;
@@ -242,14 +234,19 @@ fn replace_comments_observed(
             (b'"' | b'\'', _) => {
                 let quote = byte;
                 index += 1;
-                while index < bytes.len() {
+                loop {
+                    let Some(next) = memchr2(quote, b'\\', &bytes[index..]) else {
+                        index = bytes.len();
+                        break;
+                    };
+                    index += next;
                     let byte = bytes[index];
                     index += 1;
                     if byte == b'\\' {
                         // Skipping one byte is enough: any UTF-8 continuation
                         // bytes following it cannot be a quote or backslash.
                         index += usize::from(index < bytes.len());
-                    } else if byte == quote {
+                    } else {
                         break;
                     }
                 }
