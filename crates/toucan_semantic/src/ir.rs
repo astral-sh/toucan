@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::num::NonZeroU32;
 
-use serde::Serialize;
+use serde::{Serialize, Serializer, ser::SerializeStruct};
 use toucan_target::{self as target, Target};
 
 use crate::Error;
@@ -67,17 +67,68 @@ impl Type {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Qualifiers {
     pub is_const: bool,
     pub is_volatile: bool,
     pub is_restrict: bool,
+    /// Keep both Microsoft qualifiers in the fourth byte of every C type.
+    microsoft_flags: u8,
+}
+
+impl Qualifiers {
+    const UNALIGNED: u8 = 1;
+    const MSVC_PTR32: u8 = 2;
+
     /// Microsoft unaligned accesses retain type identity without packing fields.
-    #[serde(skip_serializing_if = "is_false")]
-    pub is_unaligned: bool,
+    pub fn is_unaligned(self) -> bool {
+        self.microsoft_flags & Self::UNALIGNED != 0
+    }
+
+    /// Set the Microsoft unaligned qualifier without changing pointer width.
+    pub fn set_unaligned(&mut self, enabled: bool) {
+        self.set_microsoft_flag(Self::UNALIGNED, enabled);
+    }
+
     /// Microsoft `__ptr32` retains distinct pointer identity on Windows ARM64.
-    #[serde(skip_serializing_if = "is_false")]
-    pub is_msvc_ptr32: bool,
+    pub fn is_msvc_ptr32(self) -> bool {
+        self.microsoft_flags & Self::MSVC_PTR32 != 0
+    }
+
+    /// Set the Microsoft pointer-width qualifier without changing alignment.
+    pub fn set_msvc_ptr32(&mut self, enabled: bool) {
+        self.set_microsoft_flag(Self::MSVC_PTR32, enabled);
+    }
+
+    fn set_microsoft_flag(&mut self, flag: u8, enabled: bool) {
+        if enabled {
+            self.microsoft_flags |= flag;
+        } else {
+            self.microsoft_flags &= !flag;
+        }
+    }
+}
+
+impl Serialize for Qualifiers {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut fields = serializer.serialize_struct(
+            "Qualifiers",
+            3 + usize::from(self.is_unaligned()) + usize::from(self.is_msvc_ptr32()),
+        )?;
+        fields.serialize_field("is_const", &self.is_const)?;
+        fields.serialize_field("is_volatile", &self.is_volatile)?;
+        fields.serialize_field("is_restrict", &self.is_restrict)?;
+        if self.is_unaligned() {
+            fields.serialize_field("is_unaligned", &true)?;
+        }
+        if self.is_msvc_ptr32() {
+            fields.serialize_field("is_msvc_ptr32", &true)?;
+        }
+        fields.end()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
@@ -667,8 +718,8 @@ impl TranslationUnit {
             result.is_const |= ty.qualifiers.is_const;
             result.is_volatile |= ty.qualifiers.is_volatile;
             result.is_restrict |= ty.qualifiers.is_restrict;
-            result.is_unaligned |= ty.qualifiers.is_unaligned;
-            result.is_msvc_ptr32 |= ty.qualifiers.is_msvc_ptr32;
+            result.set_unaligned(result.is_unaligned() || ty.qualifiers.is_unaligned());
+            result.set_msvc_ptr32(result.is_msvc_ptr32() || ty.qualifiers.is_msvc_ptr32());
             let TypeKind::Typedef(name) = &ty.kind else {
                 return Ok(result);
             };
@@ -735,7 +786,7 @@ impl TranslationUnit {
         // layout_type above deliberately leaves field annotations unchanged.
         let mut current = ty;
         for _ in 0..128 {
-            if self.qualifiers(current)?.is_unaligned {
+            if self.qualifiers(current)?.is_unaligned() {
                 layout.alignment_bits = layout.alignment_bits.min(8);
                 break;
             }
@@ -848,7 +899,7 @@ impl TranslationUnit {
             ));
         }
         let resolved = ty;
-        if resolved.qualifiers.is_msvc_ptr32 && self.target != Target::Aarch64PcWindowsMsvc {
+        if resolved.qualifiers.is_msvc_ptr32() && self.target != Target::Aarch64PcWindowsMsvc {
             return Err(Error::new(
                 0,
                 "__ptr32 pointer ABI is unsupported on this target",

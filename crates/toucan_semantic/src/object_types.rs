@@ -245,7 +245,7 @@ fn qualifier_bits(qualifiers: Qualifiers) -> u8 {
     u8::from(qualifiers.is_const)
         | (u8::from(qualifiers.is_volatile) << 1)
         | (u8::from(qualifiers.is_restrict) << 2)
-        | (u8::from(qualifiers.is_unaligned) << 3)
+        | (u8::from(qualifiers.is_unaligned()) << 3)
 }
 
 #[cfg(test)]

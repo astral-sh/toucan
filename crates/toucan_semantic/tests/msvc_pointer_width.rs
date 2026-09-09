@@ -23,8 +23,8 @@ const ARM64_POINTERS: &str = r#"
 #[test]
 fn windows_arm64_pointer_widths_keep_layout_and_type_identity() {
     let unit = analyze(ARM64_POINTERS, Target::Aarch64PcWindowsMsvc).unwrap();
-    assert!(unit.typedefs["P32"].qualifiers.is_msvc_ptr32);
-    assert!(!unit.typedefs["HANDLE64"].qualifiers.is_msvc_ptr32);
+    assert!(unit.typedefs["P32"].qualifiers.is_msvc_ptr32());
+    assert!(!unit.typedefs["HANDLE64"].qualifiers.is_msvc_ptr32());
     assert_eq!(unit.layout(&unit.typedefs["P32"]).unwrap().size_bytes(), 8);
     assert_eq!(
         unit.layout(&unit.typedefs["HANDLE64"])

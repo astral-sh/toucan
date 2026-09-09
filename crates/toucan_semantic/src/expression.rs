@@ -1166,7 +1166,7 @@ impl Analyzer {
                 if (from.is_const && !to.is_const)
                     || (from.is_volatile && !to.is_volatile)
                     || (from.is_restrict && !to.is_restrict)
-                    || (from.is_unaligned && !to.is_unaligned)
+                    || (from.is_unaligned() && !to.is_unaligned())
                 {
                     return Err(Error::new(offset, "pointer assignment discards qualifiers"));
                 }
@@ -1359,13 +1359,11 @@ impl Analyzer {
 
     pub(crate) fn unqualified(&self, ty: &Type) -> Result<Type, Error> {
         let alignment = self.unit.typedef_alignment_metadata(ty)?;
-        let is_msvc_ptr32 = self.unit.qualifiers(ty)?.is_msvc_ptr32;
+        let is_msvc_ptr32 = self.unit.qualifiers(ty)?.is_msvc_ptr32();
         let mut ty = self.unit.resolve(ty)?.clone();
         ty.alignment = alignment;
-        ty.qualifiers = Qualifiers {
-            is_msvc_ptr32,
-            ..Qualifiers::default()
-        };
+        ty.qualifiers = Qualifiers::default();
+        ty.qualifiers.set_msvc_ptr32(is_msvc_ptr32);
         Ok(ty)
     }
 
@@ -1773,11 +1771,11 @@ impl Analyzer {
 }
 
 fn union_qualifiers(left: Qualifiers, right: Qualifiers) -> Qualifiers {
-    Qualifiers {
-        is_const: left.is_const || right.is_const,
-        is_volatile: left.is_volatile || right.is_volatile,
-        is_restrict: left.is_restrict || right.is_restrict,
-        is_unaligned: left.is_unaligned || right.is_unaligned,
-        is_msvc_ptr32: left.is_msvc_ptr32 || right.is_msvc_ptr32,
-    }
+    let mut result = Qualifiers::default();
+    result.is_const = left.is_const || right.is_const;
+    result.is_volatile = left.is_volatile || right.is_volatile;
+    result.is_restrict = left.is_restrict || right.is_restrict;
+    result.set_unaligned(left.is_unaligned() || right.is_unaligned());
+    result.set_msvc_ptr32(left.is_msvc_ptr32() || right.is_msvc_ptr32());
+    result
 }

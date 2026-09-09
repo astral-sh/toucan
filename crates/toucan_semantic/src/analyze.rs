@@ -2192,11 +2192,11 @@ impl Analyzer {
                     a.qualifiers.is_const = false;
                     a.qualifiers.is_volatile = false;
                     a.qualifiers.is_restrict = false;
-                    a.qualifiers.is_unaligned = false;
+                    a.qualifiers.set_unaligned(false);
                     b.qualifiers.is_const = false;
                     b.qualifiers.is_volatile = false;
                     b.qualifiers.is_restrict = false;
-                    b.qualifiers.is_unaligned = false;
+                    b.qualifiers.set_unaligned(false);
                     if !self.same_type_at::<EXACT, false>(&a, &b, depth + 1)? {
                         return Ok(false);
                     }
@@ -2231,7 +2231,7 @@ impl Analyzer {
             result.is_const |= inner.is_const;
             result.is_volatile |= inner.is_volatile;
             result.is_restrict |= inner.is_restrict;
-            result.is_unaligned |= inner.is_unaligned;
+            result.set_unaligned(result.is_unaligned() || inner.is_unaligned());
         }
         Ok(result)
     }
@@ -2348,12 +2348,12 @@ impl Analyzer {
                     a.qualifiers.is_const = false;
                     a.qualifiers.is_volatile = false;
                     a.qualifiers.is_restrict = false;
-                    a.qualifiers.is_unaligned = false;
+                    a.qualifiers.set_unaligned(false);
                     let mut b = self.unit.resolve(&b.ty)?.clone();
                     b.qualifiers.is_const = false;
                     b.qualifiers.is_volatile = false;
                     b.qualifiers.is_restrict = false;
-                    b.qualifiers.is_unaligned = false;
+                    b.qualifiers.set_unaligned(false);
                     if !self.compatible_parameter_at(&a, &b, depth + 1)? {
                         return Ok(false);
                     }
@@ -2709,7 +2709,8 @@ impl Analyzer {
         ty.qualifiers.is_const |= qualifiers.is_const;
         ty.qualifiers.is_volatile |= qualifiers.is_volatile;
         ty.qualifiers.is_restrict |= qualifiers.is_restrict;
-        ty.qualifiers.is_unaligned |= qualifiers.is_unaligned;
+        ty.qualifiers
+            .set_unaligned(ty.qualifiers.is_unaligned() || qualifiers.is_unaligned());
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, types.first().map_or(0, |ty| ty.span.start))?;
         }
@@ -3447,7 +3448,9 @@ impl Analyzer {
                 element.qualifiers.is_const |= qualifiers.is_const;
                 element.qualifiers.is_volatile |= qualifiers.is_volatile;
                 element.qualifiers.is_restrict |= qualifiers.is_restrict;
-                element.qualifiers.is_unaligned |= qualifiers.is_unaligned;
+                element
+                    .qualifiers
+                    .set_unaligned(element.qualifiers.is_unaligned() || qualifiers.is_unaligned());
                 let mut pointer = element.pointer();
                 pointer.qualifiers = array_qualifiers;
                 if array_atomic && self.gnu_sync_profile() {
@@ -3634,7 +3637,7 @@ impl Analyzer {
                                             "__ptr32 pointer ABI is unsupported on this target",
                                         ));
                                     }
-                                    pointer.qualifiers.is_msvc_ptr32 = true;
+                                    pointer.qualifiers.set_msvc_ptr32(true);
                                 }
                             }
                             ast::PointerQualifier::Extension(extensions) => {
@@ -5686,7 +5689,7 @@ fn add_qualifier(
         ast::TypeQualifier::Const => result.is_const = true,
         ast::TypeQualifier::Volatile => result.is_volatile = true,
         ast::TypeQualifier::Restrict => result.is_restrict = true,
-        ast::TypeQualifier::Unaligned => result.is_unaligned = true,
+        ast::TypeQualifier::Unaligned => result.set_unaligned(true),
         ast::TypeQualifier::Atomic => *atomic = true,
         ast::TypeQualifier::Nonnull
         | ast::TypeQualifier::NullUnspecified

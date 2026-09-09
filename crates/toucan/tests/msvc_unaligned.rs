@@ -26,7 +26,7 @@ fn microsoft_unaligned_preserves_pointee_identity_and_record_layout() {
     let TypeKind::Pointer(pointee) = &unit.resolve(loose).unwrap().kind else {
         panic!("Loose must be a pointer");
     };
-    assert!(unit.qualifiers(pointee).unwrap().is_unaligned);
+    assert!(unit.qualifiers(pointee).unwrap().is_unaligned());
     assert_eq!(unit.layout(loose).unwrap().size_bytes(), 8);
     assert_eq!(unit.alignment(loose).unwrap(), 8);
     assert_eq!(
