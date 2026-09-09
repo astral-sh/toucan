@@ -53,7 +53,10 @@ report, native dependency hashes, and the Rust execution results. Physical
 header inputs must remain unchanged. The generator has a two-million-token
 preprocessing limit; hitting it is a failed bounded check, not acceptance.
 
-The workflow is a release gate prepared for native execution. Adding it does
-not establish SDK compatibility. A successful run proves only the recorded
-SDK, target, configurations, and selected type layouts. It does not cover all
-Windows APIs, C++, other SDK versions, or general Windows FFI calls.
+The [native run](https://github.com/astral-sh/toucan/actions/runs/34378135474)
+passed at `8ec8ad7` with installed SDK `10.0.26100.0`. The
+[preserved evidence](../corpus/evidence/windows-arm64-sdk-2026-09-09/README.md)
+records all seven successful stages for each header, unchanged SDK inputs, and
+the hashes of the tested tools and dependencies. This proves the listed header
+configurations and selected layouts for that SDK and target. It does not cover
+all Windows APIs, C++, other SDK versions, or general Windows FFI calls.

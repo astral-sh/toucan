@@ -228,6 +228,11 @@ The macOS validation workflow remains opt-in on pull requests, with Intel also
 opt-in. This validation does not expand the earlier macOS test result to the
 latest source.
 
+More recent bounded native checks include [installed Windows ARM64 SDK headers](corpus/evidence/windows-arm64-sdk-2026-09-09/README.md)
+with generated Rust layouts and an [i686 zstd C/Rust consumer](corpus/evidence/i686-zstd-consumer-2026-09-09/README.md)
+with byte-identical compression outputs. They establish those recorded paths;
+they do not validate every project configuration or the latest macOS source.
+
 ## Development
 
 | Crate | Responsibility |

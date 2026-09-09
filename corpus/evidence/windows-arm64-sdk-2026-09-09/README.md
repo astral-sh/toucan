@@ -1,0 +1,7 @@
+# Native Windows ARM64 SDK headers
+
+At commit [`8ec8ad7`](https://github.com/astral-sh/toucan/commit/8ec8ad7768e650b67e96d56e583760256bf17a8d), [run 34378135474](https://github.com/astral-sh/toucan/actions/runs/34378135474) passed on a native Windows ARM64 runner with installed SDK `10.0.26100.0`. [Artifact 10114907436](https://github.com/astral-sh/toucan/actions/runs/34378135474/artifacts/10114907436) is retained for 30 days. The compressed [evidence](evidence.json.gz) and its [source hash](manifest.json) keep the result reviewable after the artifact expires.
+
+Each generated C probe included an unmodified installed SDK header and passed MSVC and Clang C11 compilation, Toucan preprocessing and declaration/body checking, allowlisted Rust binding generation, native ARM64 Rust compilation, and execution. `basetsd.h` selected six pointer-sized types, `winnt.h` selected four scalar/union types, and `windows.h` selected seven scalar/record types. The binding reports in the uploaded artifact show zero skipped declarations; C and Rust compared sizes and alignments, plus five `windows.h` field offsets. The trace retains SDK version, tool hashes, include order, dependency hashes, commands, output hashes, and exit statuses for each stage.
+
+This validates these three header configurations and selected layouts with the recorded SDK. It does not show that every Windows API, SDK version, or application build works.

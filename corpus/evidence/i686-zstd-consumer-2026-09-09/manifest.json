@@ -1,0 +1,11 @@
+{
+  "schema_version": 1,
+  "github_run": 34378950445,
+  "github_artifact": 10115177732,
+  "source_sha256": "6776ce6938314293103e75ed7361295411885a8dbd5079bc5f1034e88e81b188",
+  "source_bytes": 55271,
+  "status": "passed",
+  "target": "i686-unknown-linux-gnu",
+  "captured_from": "evidence.json",
+  "source_commit": "7b9f483ca2a9cafa45ca7829b762549f85fad8bf"
+}
