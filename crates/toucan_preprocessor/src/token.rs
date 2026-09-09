@@ -25,7 +25,7 @@ pub(crate) struct Token {
     pub space: bool,
     /// First half of a lexically adjacent `::` pair in strict C tokenization.
     pub colon_scope: bool,
-    pub hidden: BTreeSet<String>,
+    pub hidden: BTreeSet<CharStr>,
     pub depth: usize,
     pub line: usize,
     pub offset: usize,
