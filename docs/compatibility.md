@@ -652,6 +652,15 @@ checks the optional object-value and documentation-origin metadata through 43,50
 executions without findings. The capture identifies each tested revision and its
 limits.
 
+The [combined callback validation](../corpus/evidence/native-callbacks-2026-09-09/README.md)
+records 1,268 passing native workspace tests, Rustdoc, three bounded bindings
+AddressSanitizer campaigns, and successful Linux x64/ARM and Windows GitHub jobs.
+It identifies the tested source for each result and records zero macOS allocations.
+The original local test process exit code was unavailable after its tool session
+ended; every planned test binary and doctest group has a passing final result.
+The [latest Builder comparison](../benchmarks/evidence/builder-callback-final/README.md)
+measures the combined source after checking four pinned real-header projects.
+
 Complete the declaration and expression conformance work; extend independent review
 and adversarial testing of the [parser resource limits](parser-limits.md); extend the target/header
 matrix; run sustained fuzzing and independent safety review; validate distribution

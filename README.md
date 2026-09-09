@@ -201,6 +201,13 @@ the tested commits and configurations. See [compatibility](docs/compatibility.md
 for coverage and gaps. [Benchmarks](docs/benchmarks.md) and [fuzzing](fuzz/README.md)
 record separate performance and malformed-input checks.
 
+The [latest native validation](corpus/evidence/native-callbacks-2026-09-09/README.md)
+checks the combined Builder and analysis changes: 1,268 workspace tests and
+Rustdoc pass on Linux; recorded GitHub jobs also pass on Linux x64/ARM and Windows.
+The macOS validation workflow remains opt-in on pull requests, with Intel also
+opt-in. This validation does not expand the earlier macOS test result to the
+latest source.
+
 ## Development
 
 | Crate | Responsibility |
