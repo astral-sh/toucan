@@ -1,0 +1,8 @@
+[package]
+name = "toucan"
+# The experimental AWS-LC adapter must remain an explicit opt-in: installing it
+# as `bindgen` could replace an existing bindgen-cli installation.
+binaries = ["toucan"]
+
+[dist]
+dist = true

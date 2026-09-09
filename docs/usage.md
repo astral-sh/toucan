@@ -1,6 +1,31 @@
 # Command-line usage
 
-Install Toucan from the repository root with Rust 1.96 or later:
+## Installation
+
+After a binary release has been published, install the latest release on macOS
+or Linux:
+
+```sh
+curl --proto '=https' --tlsv1.2 -LsSf https://github.com/astral-sh/toucan/releases/latest/download/toucan-installer.sh | sh
+```
+
+On Windows, run in PowerShell:
+
+```powershell
+powershell -ExecutionPolicy Bypass -c "irm https://github.com/astral-sh/toucan/releases/latest/download/toucan-installer.ps1 | iex"
+```
+
+Alternatively, download an archive and its SHA-256 checksum from
+[GitHub Releases](https://github.com/astral-sh/toucan/releases). Each release
+includes x86-64 and ARM64 builds for macOS, GNU/Linux, and Windows (MSVC).
+For a specific version or prerelease, use the installer linked from that release
+instead of the `latest` URL.
+
+Binary releases install the `toucan` executable and use the system allocator.
+The experimental `bindgen` adapter is installed separately, as described
+[below](#alternative-executables-and-allocators).
+
+To build from source, install from the repository root with Rust 1.96 or later:
 
 ```console
 cargo install --path crates/toucan_cli --bin toucan --locked
