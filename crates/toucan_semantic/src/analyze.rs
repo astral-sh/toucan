@@ -2394,6 +2394,8 @@ impl Analyzer {
                     add_qualifier(&mut qualifiers, &mut atomic, qualifier)?
                 }
                 ast::DeclarationSpecifier::Extension(extensions) => {
+                    let first_record = self.unit.records.len();
+                    let first_enum = self.unit.enums.len();
                     for extension in extensions {
                         if let ast::Extension::Declspec(attribute) = &extension.node {
                             if type_name {
@@ -2435,6 +2437,20 @@ impl Analyzer {
                         } else {
                             self.attributes(std::slice::from_ref(extension), &mut attributes)?;
                         }
+                    }
+                    // Trailing record attributes are evaluated before the
+                    // record is built. Their tag definitions need a cursor
+                    // owner without changing the tags' actual C scope.
+                    if types.last().is_some_and(|ty| {
+                        matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
+                    }) && (self.unit.enums[first_enum..]
+                        .iter()
+                        .any(|enumeration| enumeration.scope == Scope::File)
+                        || self.unit.records[first_record..]
+                            .iter()
+                            .any(|record| record.scope == Scope::File))
+                    {
+                        self.needs_tag_discovery = true;
                     }
                 }
                 ast::DeclarationSpecifier::Function(specifier)

@@ -178,3 +178,91 @@ fn anonymous_member_admission_keeps_following_enum_fields_in_order() {
         }
     }
 }
+
+#[test]
+fn trailing_attribute_enums_have_cursor_owners_without_a_c_record_scope() {
+    use toucan_semantic::{AnalysisOptions, Scope, analyze_with_profile};
+    use toucan_target::{CompilerProfile, LanguageMode};
+
+    for profile in CompilerProfile::ALL {
+        for mode in LanguageMode::ALL {
+            for prefix in ["", "enum Outer {COUNT=sizeof(enum Hidden {HIDDEN=1})};"] {
+                let source = format!(
+                    "{prefix} struct Record {{char field;}} __attribute__((aligned(sizeof(enum Visible {{VALUE=7}}))));\n_Static_assert(sizeof(struct Record)==4,\"size\");\n_Static_assert(__alignof__(struct Record)==4,\"alignment\");\n_Static_assert(sizeof(enum Visible)==4 && VALUE==7,\"file scope\");"
+                );
+                let mut units = Vec::new();
+                for retain_code in [false, true] {
+                    let analysis = analyze_with_profile(
+                        &source,
+                        profile.with_language_mode(mode),
+                        &AnalysisOptions {
+                            retain_code,
+                            ..Default::default()
+                        },
+                    )
+                    .unwrap();
+                    let unit = analysis.unit();
+                    let visible = enumeration(unit, "Visible");
+                    assert_eq!(unit.enums[visible].scope, Scope::File);
+                    assert!(!unit.lexical_tags.enums.contains_key(&visible));
+                    assert!(
+                        matches!(unit.tag_discovery.as_ref().unwrap().enums[&visible],
+                        TagDiscovery::Discovered {record: Some(id), ..} if id == record(unit, "Record"))
+                    );
+                    units.push(serde_json::to_value(unit).unwrap());
+                }
+                assert_eq!(units[0], units[1]);
+            }
+        }
+    }
+}
+
+#[test]
+fn record_attribute_placement_and_prior_declarations_control_discovery() {
+    for source in [
+        "struct __attribute__((aligned(sizeof(enum Visible {VALUE=1})))) Record {char field;};",
+        "__attribute__((aligned(sizeof(enum Visible {VALUE=1})))) struct Record {char field;};",
+        "enum Visible; struct Record {char field;} __attribute__((aligned(sizeof(enum Visible {VALUE=1}))));",
+        "struct Record {char field;}; struct Record __attribute__((aligned(sizeof(enum Visible {VALUE=1}))));",
+    ] {
+        for prefix in ["", "enum Outer {COUNT=sizeof(enum Hidden {HIDDEN=1})};"] {
+            let unit =
+                analyze(&format!("{prefix}{source}"), Target::X86_64UnknownLinuxGnu).unwrap();
+            let visible = enumeration(&unit, "Visible");
+            assert!(!matches!(
+                unit.tag_discovery
+                    .as_ref()
+                    .and_then(|facts| facts.enums.get(&visible)),
+                Some(TagDiscovery::Discovered {
+                    record: Some(_),
+                    ..
+                })
+            ));
+        }
+    }
+    let unit = analyze("enum Outer {COUNT=sizeof(struct __attribute__((aligned(sizeof(enum Visible {VALUE=1})))) Record {char field;})}; struct Record object;", Target::X86_64UnknownLinuxGnu).unwrap();
+    assert!(matches!(
+        unit.tag_discovery.as_ref().unwrap().enums[&enumeration(&unit, "Visible")],
+        TagDiscovery::Hidden
+    ));
+    let unit = analyze(
+        "struct Record {char field;} __attribute__((aligned(4)));",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    assert!(unit.tag_discovery.is_none());
+}
+
+#[test]
+fn record_attribute_children_do_not_need_an_unrelated_enum_to_activate_discovery() {
+    let unit = analyze(
+        "struct Record {char field;} __attribute__((aligned(sizeof(struct Inner {int field;}))));",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    assert!(unit.enums.is_empty());
+    assert!(
+        matches!(unit.tag_discovery.as_ref().unwrap().records[&record(&unit,"Inner")],
+        TagDiscovery::Discovered {record: Some(id), ..} if id == record(&unit,"Record"))
+    );
+}

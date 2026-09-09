@@ -89,11 +89,11 @@ fn discovered_enums_cross_c_calls_and_record_layouts() {
         ("aarch64", "macos") => Target::Aarch64AppleDarwin,
         _ => return,
     };
-    let header = "enum Outer { COUNT=sizeof(enum Inner { VALUE=7 }) }; struct { int ignored; } source; struct Owner { __typeof__(source); enum Inner field; }; enum Inner echo(enum Inner); int read_owner(const struct Owner *);";
+    let header = "enum Outer { COUNT=sizeof(enum Inner { VALUE=7 }) }; struct { int ignored; } source; struct Owner { __typeof__(source); enum Inner field; }; enum Inner echo(enum Inner); int read_owner(const struct Owner *); struct Aligned {char field;} __attribute__((aligned(sizeof(enum Attribute {ATTRIBUTE=3})))); struct Aligned from_attribute(enum Attribute);";
     let unit = analyze(header, target).unwrap();
     let directory = tempfile::tempdir().unwrap();
     let c = directory.path().join("probe.c");
-    std::fs::write(&c,format!("{header}\nenum Inner echo(enum Inner value) {{ return value; }} int read_owner(const struct Owner *value) {{ return value->field; }}")).unwrap();
+    std::fs::write(&c,format!("{header}\n_Static_assert(sizeof(struct Aligned)==4 && _Alignof(struct Aligned)==4,\"aligned record\"); enum Inner echo(enum Inner value) {{ return value; }} int read_owner(const struct Owner *value) {{ return value->field; }} struct Aligned from_attribute(enum Attribute value) {{struct Aligned result={{(char)value}}; return result;}}")).unwrap();
     for rustified_enums in [false, true] {
         let bindings = generate(
             &unit,
@@ -109,8 +109,13 @@ fn discovered_enums_cross_c_calls_and_record_layouts() {
         } else {
             "Owner_Inner_VALUE"
         };
+        let attribute = if rustified_enums {
+            "Aligned_Attribute::ATTRIBUTE"
+        } else {
+            "Aligned_Attribute_ATTRIBUTE"
+        };
         let main = directory.path().join("main.rs");
-        std::fs::write(&main,format!("#![allow(dead_code,non_camel_case_types,non_upper_case_globals)]\n{bindings}\nfn main() {{ let value=Owner {{field:{value}}}; assert_eq!(unsafe{{read_owner(&value)}},7); assert_eq!(unsafe{{echo({value})}},{value}); }}")).unwrap();
+        std::fs::write(&main,format!("#![allow(dead_code,non_camel_case_types,non_upper_case_globals)]\n{bindings}\nfn main() {{ let value=Owner {{field:{value}}}; assert_eq!(unsafe{{read_owner(&value)}},7); assert_eq!(unsafe{{echo({value})}},{value}); assert_eq!(unsafe{{from_attribute({attribute})}}.field,3); assert_eq!(::core::mem::size_of::<Aligned>(),4); assert_eq!(::core::mem::align_of::<Aligned>(),4); }}")).unwrap();
         for compiler in [
             std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into()),
             "clang".into(),
@@ -165,4 +170,69 @@ fn delayed_anonymous_types_follow_discovery_order() {
         "{source}"
     );
     assert!(!source.contains("pub struct Hidden"));
+}
+
+#[test]
+fn trailing_record_attribute_names_match_bindgen_and_drive_enum_selection() {
+    for (source, name, constant) in [
+        (
+            "struct Record {char field;} __attribute__((aligned(sizeof(enum Visible {VALUE=1}))));",
+            "Record_Visible",
+            "Record_Visible_VALUE",
+        ),
+        (
+            "typedef struct {char field;} __attribute__((aligned(sizeof(enum Visible {VALUE=1})))) Alias;",
+            "Alias_Visible",
+            "Alias_Visible_VALUE",
+        ),
+        (
+            "struct Record {char field;} __attribute__((aligned(sizeof(enum {VALUE=1}))));",
+            "Record__bindgen_ty_1",
+            "Record_VALUE",
+        ),
+        (
+            "struct Record {char field;} __attribute__((aligned(sizeof(struct Inner {enum Visible {VALUE=1} field;}))));",
+            "Record_Inner_Visible",
+            "Record_Inner_Visible_VALUE",
+        ),
+    ] {
+        let unit = analyze(source, Target::X86_64UnknownLinuxGnu).unwrap();
+        let output = generate(&unit, &options()).unwrap().source;
+        assert!(output.contains(&format!("pub type {name} =")), "{output}");
+        assert!(
+            output.contains(&format!("pub const {constant}:")),
+            "{output}"
+        );
+        let output = generate(
+            &unit,
+            &Options {
+                rustified_enum_patterns: vec![name.into()],
+                ..options()
+            },
+        )
+        .unwrap()
+        .source;
+        assert!(output.contains(&format!("pub enum {name}")), "{output}");
+        let mut plain = unit.clone();
+        plain.tag_discovery = None;
+        assert_eq!(
+            generate(&unit, &Options::default()).unwrap().source,
+            generate(&plain, &Options::default()).unwrap().source
+        );
+    }
+    let unit = analyze(
+        "struct Record {char field;} __attribute__((aligned(sizeof(enum Visible {VALUE=1}))));",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    let output = generate(
+        &unit,
+        &Options {
+            rustified_enum_patterns: vec!["Visible".into()],
+            ..options()
+        },
+    )
+    .unwrap()
+    .source;
+    assert!(!output.contains("pub enum Record_Visible"));
 }

@@ -108,9 +108,10 @@ another hidden record wait until that record is reached. The first visible use
 also supplies file-allowlist provenance and anonymous helper ordering.
 
 `TranslationUnit::tag_discovery` retains these sparse binding facts separately
-from actual lexical owners. Ordinary units retain no occurrence graph and use
-no second parse. Units containing tag definitions under enum cursors receive
-one additional bounded parse and graph walk after type checking. The graph
+from actual lexical owners. Units containing tag definitions under enum cursors
+or new file-scope tags in trailing record attributes receive one additional
+bounded parse and graph walk after type checking. Other units retain no
+occurrence graph and use no second parse. The graph
 limits events and type traversal to one million entries or steps, and nesting
 to 128 levels; invalid public IDs and naming owners produce generation errors.
 
@@ -118,9 +119,7 @@ The [discovery capture](../corpus/evidence/enum-cursor-discovery-2026-09-09.json
 contains pinned bindgen comparisons, generated Rust compilation, and native
 C/Rust layout and call checks. General Rust type/variant keyword escaping and
 static constant object projection remain separate policies. Alignment attributes
-on enum tags remain explicitly unsupported. A tag defined in a
-standalone record's trailing alignment attribute still lacks the record prefix;
-this adjacent naming limitation is recorded separately from enum discovery.
+on enum tags remain explicitly unsupported.
 On x86-64 Linux this layer adds one eight-byte optional pointer to the unit;
 record and enum sizes remain unchanged. Ninety-seven ordinary allocation
 controls keep their call counts, with eight additional requested bytes only
@@ -132,4 +131,31 @@ No timing comparison or AWS-LC consumer result is claimed here.
 
 These comparisons do not claim full textual or public API equality.
 
+## Tags in trailing record attributes
+
+For `struct Record { char field; }
+__attribute__((aligned(sizeof(enum Visible { VALUE = 1 }))));`, the Builder
+emits `Record_Visible` and `Record_Visible_VALUE`.
+`rustified_enum("Record_Visible")` selects the Rust enum. The same enum in an
+attribute before the record or between `struct` and its tag keeps the global
+`Visible` name. A prior file-level enum declaration also keeps the global name.
+An anonymous record's direct typedef supplies its prefix, and records nested in
+the attribute retain their own children. These rules also apply when no tag is
+hidden beneath an enum cursor elsewhere in the file.
+
+The cursor owner is separate from C scope: `enum Visible` and `VALUE` remain
+available at file scope, and their actual lexical ownership stays unchanged.
+The core's default integer output does not use this naming override. Source
+type checking, layout, and retained code share the same semantic result.
+
+The [record attribute capture](../corpus/evidence/record-attribute-enum-names-2026-09-09.json.gz)
+records pinned bindgen 0.72.1 names with both prefix settings and selective enum
+patterns, GCC/Clang syntax and layout controls, and generated Rust compilation
+and native calls using current Rust and Rust 1.64. A deeply nested interior
+attribute inside a trailing attribute remains rejected by the existing parser;
+the capture records that source rejection separately. This naming change does
+not claim full bindgen output equality or a performance result.
+
 The [combined-source checks](../corpus/evidence/enum-discovery-root-integration-2026-09-09.json.gz) include Microsoft anonymous-member admission and Clang qualifier normalization. All 131 earlier nested-name and selector cases match. Of 101 additional cases, 96 public-name sets match; the remaining five cover object constants, the record-attribute prefix, and two unsupported aligned-enum declarations. All 230 accepted generated modules compile with Rust 1.64 and 1.98.1. Native C/Rust calls and layouts pass with both Rust versions, and workspace Clippy passes.
+
+The [combined record-attribute checks](../corpus/evidence/record-attribute-root-integration-2026-09-09.json.gz) pass 14 focused tests, native C/Rust calls with Rust 1.64 and 1.98.1, and workspace Clippy. The broader discovery comparison now matches 99 of 101 public-name sets; its two remaining cases are explicitly unsupported aligned-enum declarations.

@@ -7,10 +7,10 @@ use serde::Serialize;
 
 use crate::{DeclarationKind, Error, Scope, TranslationUnit, Type, TypeKind};
 
-/// First header-cursor discovery of a tag defined beneath an enum cursor.
+/// First header-cursor discovery when it differs from C lexical containment.
 #[derive(Clone, Debug, Serialize)]
 pub enum TagDiscovery {
-    /// Enum values and attributes do not expose their nested declaration cursors.
+    /// Enum values and enum attributes do not expose nested declaration cursors.
     Hidden,
     /// A declaration type or a visited record exposes this tag.
     Discovered {
@@ -23,8 +23,8 @@ pub enum TagDiscovery {
     },
 }
 
-/// Sparse discovery facts for enum-cursor descendants. These do not change
-/// C lookup, type identity, layout, or constant evaluation.
+/// Sparse facts for enum-cursor descendants and trailing record attributes.
+/// These do not change C lookup, type identity, layout, or constant evaluation.
 #[derive(Clone, Debug, Default, Serialize)]
 pub struct TagDiscoveries {
     pub records: BTreeMap<usize, TagDiscovery>,
@@ -50,6 +50,8 @@ struct Scanner<'a> {
     parent: Option<Tag>,
     events: Vec<Event>,
     definitions: BTreeMap<Tag, Option<Tag>>,
+    in_record_attribute: bool,
+    attribute_tags: BTreeSet<Tag>,
     declarations: BTreeMap<&'a str, &'a Type>,
     named_records: BTreeMap<&'a str, usize>,
     named_enums: BTreeMap<&'a str, usize>,
@@ -187,8 +189,12 @@ impl Scanner<'_> {
         specifiers: &[lang_c::span::Node<ast::DeclarationSpecifier>],
     ) {
         let outer = self.parent;
+        let outer_attribute = self.in_record_attribute;
         let mut trailing_owner = None;
         for specifier in specifiers {
+            self.in_record_attribute = outer_attribute
+                || (matches!(specifier.node, ast::DeclarationSpecifier::Extension(_))
+                    && matches!(trailing_owner, Some(Tag::Record(_))));
             self.parent = if matches!(specifier.node, ast::DeclarationSpecifier::Extension(_)) {
                 trailing_owner.or(outer)
             } else {
@@ -200,12 +206,17 @@ impl Scanner<'_> {
             }
         }
         self.parent = outer;
+        self.in_record_attribute = outer_attribute;
     }
 
     fn specifier_qualifiers(&mut self, specifiers: &[lang_c::span::Node<ast::SpecifierQualifier>]) {
         let outer = self.parent;
+        let outer_attribute = self.in_record_attribute;
         let mut trailing_owner = None;
         for specifier in specifiers {
+            self.in_record_attribute = outer_attribute
+                || (matches!(specifier.node, ast::SpecifierQualifier::Extension(_))
+                    && matches!(trailing_owner, Some(Tag::Record(_))));
             self.parent = if matches!(specifier.node, ast::SpecifierQualifier::Extension(_)) {
                 trailing_owner.or(outer)
             } else {
@@ -217,6 +228,7 @@ impl Scanner<'_> {
             }
         }
         self.parent = outer;
+        self.in_record_attribute = outer_attribute;
     }
 
     fn declaration_type(&mut self, declarator: &ast::Declarator, offset: usize) {
@@ -268,10 +280,12 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
     }
 
     fn visit_struct_type(&mut self, declaration: &'ast ast::StructType, span: &'ast Span) {
+        // Attributes between `struct` and the tag are visited before the
+        // record cursor. Trailing attributes are handled by the specifier list.
+        for extension in &declaration.extensions {
+            self.visit_extension(&extension.node, &extension.span);
+        }
         let Some(declarations) = &declaration.declarations else {
-            for extension in &declaration.extensions {
-                self.visit_extension(&extension.node, &extension.span);
-            }
             return;
         };
         let Some(id) = self.record_id(declaration, span) else {
@@ -280,10 +294,10 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         let tag = Tag::Record(id);
         self.push(tag, span.start);
         self.definitions.insert(tag, self.parent);
-        let previous = self.parent.replace(tag);
-        for extension in &declaration.extensions {
-            self.visit_extension(&extension.node, &extension.span);
+        if self.in_record_attribute && self.error.is_none() {
+            self.attribute_tags.insert(tag);
         }
+        let previous = self.parent.replace(tag);
         let mut field_index = 0;
         for declaration in declarations {
             self.visit_struct_declaration(&declaration.node, &declaration.span);
@@ -346,6 +360,9 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         let tag = Tag::Enum(id);
         self.push(tag, span.start);
         self.definitions.insert(tag, self.parent);
+        if self.in_record_attribute && self.error.is_none() {
+            self.attribute_tags.insert(tag);
+        }
         let previous = self.parent.replace(tag);
         for extension in &declaration.extensions {
             self.visit_extension(&extension.node, &extension.span);
@@ -383,7 +400,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
     }
 }
 
-/// Build a bounded cursor graph only for units containing enum-cursor tags.
+/// Build a bounded cursor graph for enum expressions or trailing record attributes.
 pub(crate) fn discover(
     unit: &TranslationUnit,
     syntax: &ast::TranslationUnit,
@@ -394,6 +411,8 @@ pub(crate) fn discover(
         parent: None,
         events: Vec::new(),
         definitions: BTreeMap::new(),
+        in_record_attribute: false,
+        attribute_tags: BTreeSet::new(),
         error: None,
         declarations: unit
             .declarations
@@ -447,7 +466,7 @@ pub(crate) fn discover(
     if let Some(error) = scanner.error {
         return Err(error);
     }
-    let mut affected = BTreeSet::new();
+    let mut affected = scanner.attribute_tags;
     for &tag in scanner.definitions.keys() {
         let mut parent = scanner.definitions[&tag];
         for depth in 0..128 {
