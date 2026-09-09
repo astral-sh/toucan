@@ -37,30 +37,50 @@ impl<'a> Emitter<'a> {
             return Ok(());
         }
         let mut typedefs = BTreeMap::new();
-        for declaration in &self.unit.declarations {
-            if declaration.kind == DeclarationKind::Typedef
-                && let TypeKind::Enum(id) = self.unit.resolve(&declaration.ty)?.kind
-            {
-                typedefs.entry(id).or_insert(declaration.name.as_str());
+        if self.options.enum_constant_style == EnumConstantStyle::Integer {
+            for declaration in &self.unit.declarations {
+                if declaration.kind == DeclarationKind::Typedef
+                    && let TypeKind::Enum(id) = self.unit.resolve(&declaration.ty)?.kind
+                {
+                    typedefs.entry(id).or_insert(declaration.name.as_str());
+                }
             }
         }
         for (id, enumeration) in self.unit.enums.iter().enumerate() {
             if enumeration.scope != Scope::File {
                 continue;
             }
-            let enum_name = enumeration
-                .name
-                .as_deref()
-                .or_else(|| typedefs.get(&id).copied());
+            let (enum_name, named) =
+                if self.options.enum_constant_style == EnumConstantStyle::Bindgen {
+                    let named = enumeration.name.is_some()
+                        || crate::lexical_names::Names::typedef_name(
+                            self.unit,
+                            self.unit.lexical_tags.enums.get(&id),
+                        )
+                        .is_some();
+                    (
+                        if named {
+                            self.lexical_names.enum_name(self.unit, id)
+                        } else {
+                            self.lexical_names.enum_parent(self.unit, id)
+                        },
+                        named,
+                    )
+                } else {
+                    let name = enumeration
+                        .name
+                        .as_deref()
+                        .or_else(|| typedefs.get(&id).copied());
+                    (name, name.is_some())
+                };
             let scoped = self.options.enum_constant_style == EnumConstantStyle::Bindgen
                 && self.is_rustified_enum(id);
-            let omitted = (scoped && enum_name.is_some())
-                || self.external_key(&Type::new(TypeKind::Enum(id)))?.is_some();
+            let omitted =
+                (scoped && named) || self.external_key(&Type::new(TypeKind::Enum(id)))?.is_some();
             for variant in &enumeration.variants {
                 let name = if omitted {
                     None
-                } else if self.options.prepend_enum_name
-                    && !scoped
+                } else if (self.options.prepend_enum_name || scoped)
                     && let Some(prefix) = enum_name
                 {
                     Some(format!(
@@ -132,7 +152,7 @@ impl<'a> Emitter<'a> {
 }
 
 /// Bindgen escapes each keyword or primitive component before joining it.
-fn name_part(name: &str) -> Result<Cow<'_, str>, Error> {
+pub(super) fn name_part(name: &str) -> Result<Cow<'_, str>, Error> {
     let escaped = identifier(name)?;
     if escaped != name
         || matches!(

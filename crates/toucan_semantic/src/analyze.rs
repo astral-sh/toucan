@@ -995,6 +995,7 @@ pub(crate) struct Analyzer {
     pub(crate) unit: TranslationUnit,
     pub(crate) tags: HashMap<String, TagBinding>,
     pub(crate) lexical_scopes: Vec<LexicalScope>,
+    pub(crate) lexical_record: Option<usize>,
     defining_enums: HashSet<usize>,
     tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
@@ -1041,6 +1042,7 @@ impl Analyzer {
             alignment_origins: Vec::new(),
             records: Vec::new(),
             record_origins: BTreeMap::new(),
+            lexical_tags: crate::TagLexicalOrigins::default(),
             enums: Vec::new(),
             typedefs: BTreeMap::new(),
             constants: BTreeMap::new(),
@@ -1090,6 +1092,7 @@ impl Analyzer {
             unit,
             tags,
             lexical_scopes: Vec::new(),
+            lexical_record: None,
             defining_enums: HashSet::new(),
             tentative_definitions: BTreeMap::new(),
             packs: Vec::new(),
@@ -1123,7 +1126,7 @@ impl Analyzer {
         }
     }
 
-    fn scope(&self) -> Scope {
+    pub(crate) fn scope(&self) -> Scope {
         match self.lexical_scopes.last() {
             Some(scope) if scope.is_block => Scope::Block,
             Some(_) => Scope::Prototype,
@@ -1803,6 +1806,9 @@ impl Analyzer {
                 });
                 index
             };
+            if kind == DeclarationKind::Typedef {
+                self.note_typedef_lexical_tag(declaration_index, &declaration.node.specifiers)?;
+            }
             if noreturn {
                 let name = self.unit.declarations[declaration_index].name.clone();
                 self.record_noreturn(&name, true, true, item.span.start)?;
@@ -2254,6 +2260,9 @@ impl Analyzer {
             declaration.declarators.is_empty(),
         )?;
         let result = self.complete_specifiers(&declaration.specifiers, prepared, None)?;
+        if declaration.declarators.is_empty() {
+            self.note_standalone_lexical_tag(&result.0.kind);
+        }
         if declaration.declarators.is_empty()
             && let Some(origins) = &mut self.declaration_origins
         {
@@ -3928,6 +3937,7 @@ impl Analyzer {
                     || binding.depth == self.lexical_scopes.len()
             });
         let reference = binding.is_some() && declaration.node.declarations.is_none();
+        let introduced = binding.is_none();
         let id = if let Some(binding) = binding {
             let Tag::Record(id) = binding.tag else {
                 return Err(Error::new(
@@ -3968,6 +3978,14 @@ impl Analyzer {
             }
             id
         };
+        self.note_lexical_tag(
+            Tag::Record(id),
+            introduced,
+            declaration.node.declarations.is_some(),
+            self.unit.records[id].fields.is_some(),
+            self.unit.records[id].name.is_none(),
+            declaration.span.start,
+        )?;
         if self.scope() == Scope::File
             && let Some(origins) = &mut self.declaration_origins
         {
@@ -3994,59 +4012,151 @@ impl Analyzer {
                 declaration.node.identifier.as_ref().map(|name| name.span),
             )?;
         }
-        if let Some(declarations) = &declaration.node.declarations {
-            if self.unit.records[id].fields.is_some() {
-                return Err(Error::new(
-                    declaration.span.start,
-                    "record is defined more than once",
-                ));
-            }
-            let mut fields = Vec::new();
-            for declaration in declarations {
-                match &declaration.node {
-                    ast::StructDeclaration::StaticAssert(assertion) => {
-                        self.static_assert(assertion)?
-                    }
-                    ast::StructDeclaration::Field(field) => {
-                        let (base, attributes) =
-                            self.specifier_qualifiers(&field.node.specifiers, false)?;
-                        attributes.require_function_attributes(false)?;
-                        attributes.require_no_weak()?;
-                        attributes.require_no_transparent_union()?;
-                        if field.node.declarators.is_empty() {
-                            // GNU and Clang accept declarations without members,
-                            // including nested tag definitions. Only a directly
-                            // written unnamed record declares an anonymous member.
-                            if !matches!(base.kind, TypeKind::Record(id) if self.unit.records[id].name.is_none())
-                            {
-                                continue;
+        if declaration.node.declarations.is_some() {
+            let previous = self.lexical_record.replace(id);
+            let result = self.complete_record(id, kind, declaration);
+            self.lexical_record = previous;
+            result?;
+        }
+        Ok(id)
+    }
+
+    /// Complete fields while the caller holds the lexical record context.
+    fn complete_record(
+        &mut self,
+        id: usize,
+        kind: RecordKind,
+        declaration: &Node<ast::StructType>,
+    ) -> Result<(), Error> {
+        let declarations = declaration.node.declarations.as_ref().unwrap();
+        if self.unit.records[id].fields.is_some() {
+            return Err(Error::new(
+                declaration.span.start,
+                "record is defined more than once",
+            ));
+        }
+        let mut fields = Vec::new();
+        for declaration in declarations {
+            match &declaration.node {
+                ast::StructDeclaration::StaticAssert(assertion) => self.static_assert(assertion)?,
+                ast::StructDeclaration::Field(field) => {
+                    let (base, attributes) =
+                        self.specifier_qualifiers(&field.node.specifiers, false)?;
+                    attributes.require_function_attributes(false)?;
+                    attributes.require_no_weak()?;
+                    attributes.require_no_transparent_union()?;
+                    if field.node.declarators.is_empty() {
+                        // GNU and Clang accept declarations without members,
+                        // including nested tag definitions. Only a directly
+                        // written unnamed record declares an anonymous member.
+                        if !matches!(base.kind, TypeKind::Record(id) if self.unit.records[id].name.is_none())
+                        {
+                            continue;
+                        }
+                        let field_alignment = self.check_declaration_alignment(
+                            &base,
+                            &attributes,
+                            &Attributes::default(),
+                            crate::object_alignment::AlignmentSubject::Field { bitfield: false },
+                            field.span.start,
+                        )?;
+                        let member = Field {
+                            name: None,
+                            ty: base,
+                            bit_width: None,
+                            alignment: field_alignment
+                                .explicit()
+                                .map(|value| u64::from(value.get())),
+                            packed: attributes.packed,
+                        };
+                        if let Some(checked) = &mut self.checked {
+                            let site = checked.member_declaration(
+                                field,
+                                crate::checked::OccurrenceKind::Field,
+                                id,
+                                fields.len(),
+                                &member,
+                                None,
+                            )?;
+                            if let Some(site) = site {
+                                checked.attach_alignment(site, field_alignment, field_alignment)?;
+                            }
+                        }
+                        fields.push(member);
+                    } else {
+                        for declarator in &field.node.declarators {
+                            let (name, ty, extra) =
+                                if let Some(declarator) = &declarator.node.declarator {
+                                    self.declarator(base.clone(), declarator, &attributes)?
+                                } else {
+                                    (None, base.clone(), Attributes::default())
+                                };
+                            extra.require_function_attributes(false)?;
+                            extra.require_no_weak()?;
+                            extra.require_no_transparent_union()?;
+                            if name.as_ref().is_some_and(|name| {
+                                fields.iter().any(|field| field.name.as_ref() == Some(name))
+                            }) {
+                                return Err(Error::new(
+                                    declarator.span.start,
+                                    "duplicate field name",
+                                ));
+                            }
+                            let bit_width = declarator
+                                .node
+                                .bit_width
+                                .as_ref()
+                                .map(|expression| self.eval(expression)?.as_u64())
+                                .transpose()?;
+                            if let Some(width) = bit_width {
+                                if !matches!(
+                                    self.unit.resolve(&ty)?.kind,
+                                    TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
+                                ) {
+                                    return Err(Error::new(
+                                        declarator.span.start,
+                                        "bitfield requires an integer type",
+                                    ));
+                                }
+                                if width == 0 && name.is_some() {
+                                    return Err(Error::new(
+                                        declarator.span.start,
+                                        "zero-width bitfield must be unnamed",
+                                    ));
+                                }
+                                if width > self.unit.layout(&ty)?.size_bits {
+                                    return Err(Error::new(
+                                        declarator.span.start,
+                                        "bitfield is wider than its type",
+                                    ));
+                                }
                             }
                             let field_alignment = self.check_declaration_alignment(
-                                &base,
+                                &ty,
                                 &attributes,
-                                &Attributes::default(),
+                                &extra,
                                 crate::object_alignment::AlignmentSubject::Field {
-                                    bitfield: false,
+                                    bitfield: bit_width.is_some(),
                                 },
-                                field.span.start,
+                                declarator.span.start,
                             )?;
                             let member = Field {
-                                name: None,
-                                ty: base,
-                                bit_width: None,
+                                name,
+                                ty,
+                                bit_width,
                                 alignment: field_alignment
                                     .explicit()
                                     .map(|value| u64::from(value.get())),
-                                packed: attributes.packed,
+                                packed: extra.packed || attributes.packed,
                             };
                             if let Some(checked) = &mut self.checked {
                                 let site = checked.member_declaration(
-                                    field,
-                                    crate::checked::OccurrenceKind::Field,
+                                    declarator,
+                                    crate::checked::OccurrenceKind::StructDeclarator,
                                     id,
                                     fields.len(),
                                     &member,
-                                    None,
+                                    crate::checked::references::member_name_span(declarator),
                                 )?;
                                 if let Some(site) = site {
                                     checked.attach_alignment(
@@ -4057,141 +4167,56 @@ impl Analyzer {
                                 }
                             }
                             fields.push(member);
-                        } else {
-                            for declarator in &field.node.declarators {
-                                let (name, ty, extra) =
-                                    if let Some(declarator) = &declarator.node.declarator {
-                                        self.declarator(base.clone(), declarator, &attributes)?
-                                    } else {
-                                        (None, base.clone(), Attributes::default())
-                                    };
-                                extra.require_function_attributes(false)?;
-                                extra.require_no_weak()?;
-                                extra.require_no_transparent_union()?;
-                                if name.as_ref().is_some_and(|name| {
-                                    fields.iter().any(|field| field.name.as_ref() == Some(name))
-                                }) {
-                                    return Err(Error::new(
-                                        declarator.span.start,
-                                        "duplicate field name",
-                                    ));
-                                }
-                                let bit_width = declarator
-                                    .node
-                                    .bit_width
-                                    .as_ref()
-                                    .map(|expression| self.eval(expression)?.as_u64())
-                                    .transpose()?;
-                                if let Some(width) = bit_width {
-                                    if !matches!(
-                                        self.unit.resolve(&ty)?.kind,
-                                        TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
-                                    ) {
-                                        return Err(Error::new(
-                                            declarator.span.start,
-                                            "bitfield requires an integer type",
-                                        ));
-                                    }
-                                    if width == 0 && name.is_some() {
-                                        return Err(Error::new(
-                                            declarator.span.start,
-                                            "zero-width bitfield must be unnamed",
-                                        ));
-                                    }
-                                    if width > self.unit.layout(&ty)?.size_bits {
-                                        return Err(Error::new(
-                                            declarator.span.start,
-                                            "bitfield is wider than its type",
-                                        ));
-                                    }
-                                }
-                                let field_alignment = self.check_declaration_alignment(
-                                    &ty,
-                                    &attributes,
-                                    &extra,
-                                    crate::object_alignment::AlignmentSubject::Field {
-                                        bitfield: bit_width.is_some(),
-                                    },
-                                    declarator.span.start,
-                                )?;
-                                let member = Field {
-                                    name,
-                                    ty,
-                                    bit_width,
-                                    alignment: field_alignment
-                                        .explicit()
-                                        .map(|value| u64::from(value.get())),
-                                    packed: extra.packed || attributes.packed,
-                                };
-                                if let Some(checked) = &mut self.checked {
-                                    let site = checked.member_declaration(
-                                        declarator,
-                                        crate::checked::OccurrenceKind::StructDeclarator,
-                                        id,
-                                        fields.len(),
-                                        &member,
-                                        crate::checked::references::member_name_span(declarator),
-                                    )?;
-                                    if let Some(site) = site {
-                                        checked.attach_alignment(
-                                            site,
-                                            field_alignment,
-                                            field_alignment,
-                                        )?;
-                                    }
-                                }
-                                fields.push(member);
-                            }
                         }
                     }
                 }
             }
-            let mut member_names = HashSet::new();
-            let mut has_named_member = false;
-            for (index, field) in fields.iter().enumerate() {
-                if self.unit.is_variably_modified(&field.ty)? {
-                    return Err(Error::new(
-                        declaration.span.start,
-                        "record members cannot have variably modified type",
-                    ));
-                }
-                if matches!(
-                    self.unit.resolve(&field.ty)?.kind,
-                    TypeKind::Array { length: None, .. }
-                ) {
-                    if kind == RecordKind::Union || index + 1 != fields.len() || !has_named_member {
-                        return Err(Error::new(
-                            declaration.span.start,
-                            "flexible array must be the final member after a named member",
-                        ));
-                    }
-                } else if !self.is_complete_object(&field.ty, 0)? {
-                    return Err(Error::new(
-                        declaration.span.start,
-                        "field must have complete object type",
-                    ));
-                }
-                self.check_member_names(
-                    std::slice::from_ref(field),
-                    &mut member_names,
-                    declaration.span.start,
-                    0,
-                )?;
-                // GCC also counts anonymous records containing only unnamed bitfields.
-                has_named_member |= !member_names.is_empty()
-                    || (self.unit.compiler == toucan_target::Compiler::Gnu
-                        && field.name.is_none()
-                        && field.bit_width.is_none());
-            }
-            self.unit.records[id].pack = self
-                .packs
-                .iter()
-                .take_while(|(offset, _)| *offset <= declaration.span.start)
-                .last()
-                .and_then(|(_, pack)| *pack);
-            self.unit.records[id].fields = Some(fields);
         }
-        Ok(id)
+        let mut member_names = HashSet::new();
+        let mut has_named_member = false;
+        for (index, field) in fields.iter().enumerate() {
+            if self.unit.is_variably_modified(&field.ty)? {
+                return Err(Error::new(
+                    declaration.span.start,
+                    "record members cannot have variably modified type",
+                ));
+            }
+            if matches!(
+                self.unit.resolve(&field.ty)?.kind,
+                TypeKind::Array { length: None, .. }
+            ) {
+                if kind == RecordKind::Union || index + 1 != fields.len() || !has_named_member {
+                    return Err(Error::new(
+                        declaration.span.start,
+                        "flexible array must be the final member after a named member",
+                    ));
+                }
+            } else if !self.is_complete_object(&field.ty, 0)? {
+                return Err(Error::new(
+                    declaration.span.start,
+                    "field must have complete object type",
+                ));
+            }
+            self.check_member_names(
+                std::slice::from_ref(field),
+                &mut member_names,
+                declaration.span.start,
+                0,
+            )?;
+            // GCC also counts anonymous records containing only unnamed bitfields.
+            has_named_member |= !member_names.is_empty()
+                || (self.unit.compiler == toucan_target::Compiler::Gnu
+                    && field.name.is_none()
+                    && field.bit_width.is_none());
+        }
+        self.unit.records[id].pack = self
+            .packs
+            .iter()
+            .take_while(|(offset, _)| *offset <= declaration.span.start)
+            .last()
+            .and_then(|(_, pack)| *pack);
+        self.unit.records[id].fields = Some(fields);
+        Ok(())
     }
 
     /// Anonymous members share their containing record's member namespace.
@@ -4310,6 +4335,7 @@ impl Analyzer {
                     || binding.depth == self.lexical_scopes.len()
             });
         let reference = binding.is_some() && declaration.node.enumerators.is_empty();
+        let introduced = binding.is_none();
         let id = if let Some(binding) = binding {
             let Tag::Enum(id) = binding.tag else {
                 return Err(Error::new(
@@ -4335,6 +4361,14 @@ impl Analyzer {
             }
             id
         };
+        self.note_lexical_tag(
+            Tag::Enum(id),
+            introduced,
+            !declaration.node.enumerators.is_empty(),
+            self.unit.enums[id].complete,
+            self.unit.enums[id].name.is_none(),
+            declaration.span.start,
+        )?;
         if self.scope() == Scope::File
             && let Some(origins) = &mut self.declaration_origins
         {

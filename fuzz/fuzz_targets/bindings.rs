@@ -41,6 +41,12 @@ fuzz_target!(|bytes: &[u8]| {
         let _ = compilation.bindings(&toucan::BindingOptions {
             emit_function_definitions: selector & 1 != 0,
             exclude_inline_functions: selector & 2 != 0,
+            enum_constant_style: if selector & 4 != 0 {
+                toucan::EnumConstantStyle::Bindgen
+            } else {
+                toucan::EnumConstantStyle::Integer
+            },
+            prepend_enum_name: selector & 8 != 0,
             rustified_enums: true,
             derives: toucan::DeriveOptions {
                 copy: derives & 1 != 0,

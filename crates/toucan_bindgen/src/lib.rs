@@ -217,9 +217,9 @@ impl Builder {
 
     /// Emit named Rust enum variants for an exact C name or trailing `.*` prefix.
     ///
-    /// Named enums match their tag; anonymous enums match their first typedef,
-    /// or their enumerators when no typedef names them. Other typedef aliases
-    /// and generated nested Rust names do not select an enum.
+    /// Named enums match their lexical record-qualified name; anonymous enums
+    /// match a direct typedef, their generated helper name, or their original
+    /// enumerators when no typedef names them. Later aliases do not select an enum.
     pub fn rustified_enum(mut self, pattern: impl AsRef<str>) -> Self {
         match identifier_pattern(pattern.as_ref()) {
             Ok(pattern) if pattern == "*" => self.options.rustified_enums = true,

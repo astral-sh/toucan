@@ -29,6 +29,9 @@ pub struct TranslationUnit {
     /// Field declaration identities belong to the source record.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub record_origins: BTreeMap<usize, usize>,
+    /// Lexical record containment and source ordering, independent of C scope.
+    #[serde(skip_serializing_if = "crate::TagLexicalOrigins::is_empty")]
+    pub lexical_tags: crate::TagLexicalOrigins,
     pub enums: Vec<Enum>,
     pub typedefs: BTreeMap<String, Type>,
     pub constants: BTreeMap<String, IntegerValue>,

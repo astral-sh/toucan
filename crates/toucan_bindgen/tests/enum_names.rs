@@ -38,5 +38,5 @@ fn enum_prefix_setting_changes_names_and_preserves_scoped_variants() {
     let scoped = builder.rustified_enum(".*").generate().unwrap().to_string();
     assert!(!scoped.contains("pub const Named_A:"));
     assert!(!scoped.contains("pub const A:"));
-    assert!(scoped.contains("pub const FREE: __toucan_enum_2 = __toucan_enum_2::FREE;"));
+    assert!(scoped.contains("pub const FREE: _bindgen_ty_1 = _bindgen_ty_1::FREE;"));
 }

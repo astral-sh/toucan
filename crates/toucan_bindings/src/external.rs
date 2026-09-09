@@ -87,6 +87,16 @@ impl Emitter<'_> {
         // The first typedef gives an anonymous definition its public name.
         // Later aliases refer to that same external definition, not a new type.
         if anonymous {
+            if self.options.enum_constant_style == crate::EnumConstantStyle::Bindgen {
+                let origin = match ty.kind {
+                    TypeKind::Record(id) => self.unit.lexical_tags.records.get(&id),
+                    TypeKind::Enum(id) => self.unit.lexical_tags.enums.get(&id),
+                    _ => None,
+                };
+                return Ok(crate::lexical_names::Names::typedef_name(self.unit, origin)
+                    .filter(|name| self.options.blocks_type(name))
+                    .map(|name| Key::Typedef(name.to_owned())));
+            }
             for declaration in &self.unit.declarations {
                 if declaration.kind == DeclarationKind::Typedef
                     && self.unit.resolve(&declaration.ty)?.kind == ty.kind

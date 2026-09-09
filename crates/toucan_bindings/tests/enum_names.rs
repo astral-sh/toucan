@@ -79,12 +79,12 @@ fn scoped_rust_enums_keep_only_anonymous_typed_globals() {
     assert!(
         result
             .source
-            .contains("pub const FREE: __toucan_enum_2 = __toucan_enum_2::FREE;")
+            .contains("pub const FREE: _bindgen_ty_1 = _bindgen_ty_1::FREE;")
     );
     assert!(
         result
             .source
-            .contains("pub const SAME: __toucan_enum_2 = __toucan_enum_2::SAME;")
+            .contains("pub const SAME: _bindgen_ty_1 = _bindgen_ty_1::SAME;")
     );
     assert_eq!(result.enum_constants.len(), 1);
     let core = generate(

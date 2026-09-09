@@ -48,6 +48,10 @@ Copy, Debug, Default, and Eq with bits 0, 1, 2, and 3, respectively. This does n
 consume or rewrite source bytes. Ordinary campaign padding still covers the
 compiler/language pairs; the focused derive-storage replay additionally covers
 all 1,408 compiler/language/trait combinations for that fixture.
+The second generation also uses enum selector version 1: byte-sum bit 2 selects
+bindgen enum naming and bit 3 selects enum-name prefixes. This exercises lexical
+record ownership, shared anonymous numbering, and Rust-name collisions. The
+default generation remains active for every accepted input.
 Older archived sources retain their recorded selector contracts. The `checked`
 target compares analysis with and without retained code. Successful results must have
 identical declarations; invalid inputs must produce the same diagnostic, except
