@@ -247,13 +247,15 @@ def parse_probe(output: str) -> dict:
     return result
 
 
-def native_probe(source: Path, output: Path, target: str, rustc: str) -> dict:
+def native_probe(
+    source: Path, output: Path, target: str, rustc: str, edition: str
+) -> dict:
     # Explicit target is required even on the host: this also exercises the
     # generated target guard. Executing a foreign-architecture binary will fail.
     run(
         [
             rustc,
-            "--edition=2024",
+            f"--edition={edition}",
             "--crate-name",
             "binding_probe",
             "--target",
@@ -317,6 +319,12 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--analyzer", type=Path)
     parser.add_argument("--rustc", default="rustc")
+    parser.add_argument(
+        "--edition",
+        choices=("2015", "2018", "2021", "2024"),
+        default="2024",
+        help="Rust edition for the native probe including the generated bindings",
+    )
     parser.add_argument("--require-equivalent", action="store_true")
     parser.add_argument("--skip-native-probes", action="store_true")
     args = parser.parse_args()
@@ -370,7 +378,11 @@ def main() -> int:
             )
             if not args.skip_native_probes:
                 probes[tool] = native_probe(
-                    probe_path, directory / f"{tool}-probe", args.target, args.rustc
+                    probe_path,
+                    directory / f"{tool}-probe",
+                    args.target,
+                    args.rustc,
+                    args.edition,
                 )
         pairs, conflicts = record_pairs(apis["toucan"], apis["bindgen"])
         a, b, field_renames = normalize(apis["toucan"], apis["bindgen"], pairs)
@@ -410,6 +422,7 @@ def main() -> int:
             "target": args.target,
             "platform": platform.platform(),
             "rustc": run([args.rustc, "--version"]).strip(),
+            "rust_edition": args.edition,
             "commands": commands,
             "input_sha256": before_hashes,
             "inputs_unchanged": before_hashes

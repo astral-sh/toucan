@@ -102,9 +102,11 @@ Compare the generated files through the existing structural and native tool:
 python3 scripts/compare_bindings.py \
   --toucan-bindings zlib-toucan.rs --bindgen-bindings zlib-bindgen.rs \
   --target x86_64-unknown-linux-gnu --analyzer /path/to/toucan-binding-compare \
-  --output zlib-comparison.json
+  --edition 2021 --output zlib-comparison.json
 ```
 
+Rust 2021 admits the plain extern blocks required by the requested Rust 1.64
+output target. The comparison tool otherwise defaults to Rust 2024.
 Use explicit files, not `--benchmark-record`: the latter applies the legacy
 macro/enum policy. Compile generated modules with current Rust and actual Rust
 1.64, preserving their target guards. Reuse the project's C layout/value/FFI
