@@ -83,36 +83,23 @@ fn test_get_location_for_offset() {
     t(T, 114, "ook", 2, &[("foo", 17)]);
 }
 
-macro_rules! otry {
-    ($e:expr) => {
-        match $e {
-            Some(v) => v,
-            None => return None,
-        }
-    };
-}
-
-fn strip_prefix<'a>(s: &'a str, p: &str) -> Option<&'a str> {
-    s.strip_prefix(p)
-}
-
 // https://gcc.gnu.org/onlinedocs/cpp/Preprocessor-Output.html
 fn parse_line_directive(s: &str) -> Option<(Location<'_>, u32)> {
-    let s = otry!(strip_prefix(s, "# "));
-    let n = otry!(s.find(" "));
-    let line = otry!(s[..n].parse::<usize>().ok());
+    let s = s.strip_prefix("# ")?;
+    let n = s.find(' ')?;
+    let line = s[..n].parse::<usize>().ok()?;
 
-    let s = otry!(strip_prefix(&s[n..], " \""));
+    let s = s[n..].strip_prefix(" \"")?;
     let mut n = 0;
     while n < s.len() {
-        n += otry!(s[n..].find(&['"', '\\'][..]));
+        n += s[n..].find(&['"', '\\'][..])?;
         if s[n..].starts_with('"') {
             break;
         }
-        n += otry!(s[n..].char_indices().nth(2).map(|p| p.0));
+        n += s[n..].char_indices().nth(2)?.0;
     }
     let file = &s[..n];
-    let s = otry!(strip_prefix(&s[n..], "\""));
+    let s = s[n..].strip_prefix('"')?;
 
     let flags = s.bytes().filter(|&c| (b'1'..=b'4').contains(&c));
     let flags = flags.fold(0, |a, f| a | 1 << (f - b'1'));
