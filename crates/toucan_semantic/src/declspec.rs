@@ -12,6 +12,9 @@ use crate::analyze::{Analyzer, Attributes};
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 enum DeclspecAttribute {
     Align,
+    Allocator,
+    IntrinType,
+    NoInitAll,
     NoReturn,
     NoInline,
     Deprecated,
@@ -23,6 +26,9 @@ impl DeclspecAttribute {
     fn from_name(name: &str) -> Option<Self> {
         Some(match name {
             "align" => Self::Align,
+            "allocator" => Self::Allocator,
+            "intrin_type" => Self::IntrinType,
+            "no_init_all" => Self::NoInitAll,
             "noreturn" => Self::NoReturn,
             "noinline" => Self::NoInline,
             "deprecated" => Self::Deprecated,
@@ -48,6 +54,7 @@ pub fn has_declspec_attribute(profile: CompilerProfile, name: &str) -> u64 {
                 DeclspecAttribute::from_name(name),
                 Some(
                     DeclspecAttribute::Align
+                        | DeclspecAttribute::Allocator
                         | DeclspecAttribute::NoReturn
                         | DeclspecAttribute::NoInline
                         | DeclspecAttribute::DllImport
@@ -149,6 +156,22 @@ impl Analyzer {
                     return Err(Error::new(
                         span.start,
                         "__declspec(deprecated) accepts at most one string literal",
+                    ));
+                }
+            }
+            Some(
+                DeclspecAttribute::Allocator
+                | DeclspecAttribute::IntrinType
+                | DeclspecAttribute::NoInitAll,
+            ) => {
+                // Allocator marks call sites for heap profiling; no_init_all
+                // controls compiler-inserted initialization. Clang ignores
+                // intrin_type on the SDK's aligned ARM64 intrinsic unions.
+                // None changes these declarations' C ABI or record layout.
+                if !attribute.arguments.is_empty() {
+                    return Err(Error::new(
+                        span.start,
+                        format!("__declspec({name}) takes no arguments"),
                     ));
                 }
             }

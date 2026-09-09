@@ -313,6 +313,7 @@ impl Analyzer {
             if (from_qualifiers.is_const && !to_qualifiers.is_const)
                 || (from_qualifiers.is_volatile && !to_qualifiers.is_volatile)
                 || (from_qualifiers.is_restrict && !to_qualifiers.is_restrict)
+                || (from_qualifiers.is_unaligned && !to_qualifiers.is_unaligned)
             {
                 return Ok(false);
             }

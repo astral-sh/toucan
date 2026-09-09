@@ -89,8 +89,9 @@ def instrument(source):
         r"\1Failed if __state.budget.failure.is_some() => return Failed,\1\2",
         source,
     )
-    # The Microsoft pointer-width rule adds four terminal-failure branches.
-    require(guarded == 561, guarded)
+    # Include terminal-failure branches for Microsoft pointer widths,
+    # force-inline, and unaligned type qualifiers.
+    require(guarded == 566, guarded)
 
     def wrap(body, indent):
         prefix = f"""{indent}if !__state.budget.enter(__pos) {{ return Failed; }}

@@ -372,6 +372,7 @@ enumeration!(TypeQualifier {
     Const,
     Restrict,
     Volatile,
+    Unaligned,
     Nonnull,
     NullUnspecified,
     Nullable,

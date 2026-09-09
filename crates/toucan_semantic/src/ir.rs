@@ -72,6 +72,9 @@ pub struct Qualifiers {
     pub is_const: bool,
     pub is_volatile: bool,
     pub is_restrict: bool,
+    /// Microsoft unaligned accesses retain type identity without packing fields.
+    #[serde(skip_serializing_if = "is_false")]
+    pub is_unaligned: bool,
     /// Microsoft `__ptr32` retains distinct pointer identity on Windows ARM64.
     #[serde(skip_serializing_if = "is_false")]
     pub is_msvc_ptr32: bool,
@@ -664,6 +667,7 @@ impl TranslationUnit {
             result.is_const |= ty.qualifiers.is_const;
             result.is_volatile |= ty.qualifiers.is_volatile;
             result.is_restrict |= ty.qualifiers.is_restrict;
+            result.is_unaligned |= ty.qualifiers.is_unaligned;
             result.is_msvc_ptr32 |= ty.qualifiers.is_msvc_ptr32;
             let TypeKind::Typedef(name) = &ty.kind else {
                 return Ok(result);
@@ -724,6 +728,22 @@ impl TranslationUnit {
                     TypeKind::Array { element, .. } => current = element,
                     _ => break,
                 }
+            }
+        }
+        // `__unaligned` lowers the alignment required for an object or
+        // pointee. A field of that type still uses its natural record layout;
+        // layout_type above deliberately leaves field annotations unchanged.
+        let mut current = ty;
+        for _ in 0..128 {
+            if self.qualifiers(current)?.is_unaligned {
+                layout.alignment_bits = layout.alignment_bits.min(8);
+                break;
+            }
+            match &self.resolve(current)?.kind {
+                TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
+                    current = element;
+                }
+                _ => break,
             }
         }
         Ok(layout)

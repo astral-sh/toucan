@@ -1,10 +1,42 @@
 extern crate toucan_parser;
 
-use toucan_parser::ast::{Extension, PointerQualifier, TypeSpecifier};
+use toucan_parser::ast::{Extension, FunctionSpecifier, PointerQualifier, TypeSpecifier};
 use toucan_parser::driver::{parse_preprocessed, parse_preprocessed_with_limits, Config, Flavor};
 use toucan_parser::limits::{ParseLimits, ResourceKind};
 use toucan_parser::span::Span;
 use toucan_parser::visit::{self, Visit};
+
+#[derive(Default)]
+struct InlineSpecifiers(Vec<Span>);
+
+impl<'ast> Visit<'ast> for InlineSpecifiers {
+    fn visit_function_specifier(&mut self, value: &'ast FunctionSpecifier, span: &'ast Span) {
+        if *value == FunctionSpecifier::Inline {
+            self.0.push(*span);
+        }
+    }
+}
+
+#[test]
+fn microsoft_forceinline_is_an_inline_specifier_only_in_ms_mode() {
+    let source = "__forceinline int __cdecl __ascii_tolower(int const c) { return c + 1; }";
+    let config = Config {
+        extensions_msvc: true,
+        ..Config::with_clang()
+    };
+    let parsed = parse_preprocessed(&config, source.into()).unwrap();
+    let mut specifiers = InlineSpecifiers::default();
+    specifiers.visit_translation_unit(&parsed.unit);
+    assert_eq!(
+        specifiers
+            .0
+            .iter()
+            .map(|span| &source[span.start..span.end])
+            .collect::<Vec<_>>(),
+        ["__forceinline"]
+    );
+    assert!(parse_preprocessed(&Config::with_clang(), source.into()).is_err());
+}
 
 #[derive(Default)]
 struct Widths(Vec<(u8, Span)>);

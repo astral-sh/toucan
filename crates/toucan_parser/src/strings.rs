@@ -104,6 +104,9 @@ pub const RESERVED_GNU: &[&str] = &[
 pub const RESERVED_MSVC: &[&str] = &[
     "_declspec",
     "__declspec",
+    "__forceinline",
+    "_unaligned",
+    "__unaligned",
     "_int8",
     "__int8",
     "_int16",

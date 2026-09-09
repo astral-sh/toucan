@@ -1166,6 +1166,7 @@ impl Analyzer {
                 if (from.is_const && !to.is_const)
                     || (from.is_volatile && !to.is_volatile)
                     || (from.is_restrict && !to.is_restrict)
+                    || (from.is_unaligned && !to.is_unaligned)
                 {
                     return Err(Error::new(offset, "pointer assignment discards qualifiers"));
                 }
@@ -1776,6 +1777,7 @@ fn union_qualifiers(left: Qualifiers, right: Qualifiers) -> Qualifiers {
         is_const: left.is_const || right.is_const,
         is_volatile: left.is_volatile || right.is_volatile,
         is_restrict: left.is_restrict || right.is_restrict,
+        is_unaligned: left.is_unaligned || right.is_unaligned,
         is_msvc_ptr32: left.is_msvc_ptr32 || right.is_msvc_ptr32,
     }
 }

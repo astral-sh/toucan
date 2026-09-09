@@ -293,6 +293,7 @@ impl Analyzer {
                     element.qualifiers.is_const |= outer.is_const;
                     element.qualifiers.is_volatile |= outer.is_volatile;
                     element.qualifiers.is_restrict |= outer.is_restrict;
+                    element.qualifiers.is_unaligned |= outer.is_unaligned;
                     (element, TypeStep::Element)
                 }
                 (ast::DerivedDeclarator::Function(_), TypeKind::Function(function))
@@ -323,6 +324,7 @@ impl Analyzer {
                     ast::TypeQualifier::Const => written.is_const = true,
                     ast::TypeQualifier::Volatile => written.is_volatile = true,
                     ast::TypeQualifier::Restrict => written.is_restrict = true,
+                    ast::TypeQualifier::Unaligned => written.is_unaligned = true,
                     _ => {}
                 }
             }
@@ -381,6 +383,7 @@ impl Analyzer {
         ty.qualifiers.is_const &= !written.is_const;
         ty.qualifiers.is_volatile &= !written.is_volatile;
         ty.qualifiers.is_restrict &= !written.is_restrict;
+        ty.qualifiers.is_unaligned &= !written.is_unaligned;
         changed |= previous != ty.qualifiers;
         if let TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } =
             &mut ty.kind

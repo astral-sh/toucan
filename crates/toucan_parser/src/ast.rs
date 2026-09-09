@@ -848,6 +848,8 @@ pub enum TypeQualifier {
     ///
     /// `__volatile`, `__volatile__` (GNU extension)
     Volatile,
+    /// Pointer to data that may be unaligned (Microsoft extension).
+    Unaligned,
     /// '_Nonnull' (Clang extension)
     ///
     /// [Clang extension](https://clang.llvm.org/docs/AttributeReference.html)
@@ -874,6 +876,8 @@ pub enum FunctionSpecifier {
     /// `inline`
     ///
     /// `__inline`, `__inline__` (GNU extension)
+    ///
+    /// `__forceinline` (Microsoft extension)
     Inline,
     /// `_Noreturn`
     Noreturn,

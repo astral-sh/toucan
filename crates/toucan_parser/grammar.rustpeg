@@ -792,6 +792,7 @@ type_qualifier0 -> TypeQualifier =
     K<"const"    / gnu<"__const">> { TypeQualifier::Const } /
     (c99<K<"restrict">> / K<gnu<"__restrict" "__"?>>) { TypeQualifier::Restrict } /
     K<"volatile" / gnu<"__volatile" "__"?>> { TypeQualifier::Volatile } /
+    msvc<K<"__unaligned" / "_unaligned">> { TypeQualifier::Unaligned } /
     clang<K<"_Nonnull">> { TypeQualifier::Nonnull } /
     clang<K<"_Null_unspecified">> { TypeQualifier::NullUnspecified } /
     clang<K<"_Nullable">> { TypeQualifier::Nullable } /
@@ -805,7 +806,7 @@ type_qualifier0 -> TypeQualifier =
 function_specifier -> Node<FunctionSpecifier> = node<function_specifier0>
 
 function_specifier0 -> FunctionSpecifier =
-    (&inline_guard K<"inline"> / K<gnu<"__inline" "__"?>>) { FunctionSpecifier::Inline } /
+    (&inline_guard K<"inline"> / K<gnu<"__inline" "__"?>> / msvc<K<"__forceinline">>) { FunctionSpecifier::Inline } /
     K<"_Noreturn"> { FunctionSpecifier::Noreturn }
 
 ////

@@ -185,6 +185,85 @@ fn native_clang_declspec_oracle() {
     }
 }
 
+const SDK_ANNOTATIONS: &str = r#"
+    __declspec(allocator) unsigned short *allocate(int);
+    typedef union __declspec(intrin_type) __declspec(align(16)) Intrinsic {
+        unsigned char bytes[16];
+    } Intrinsic;
+    typedef struct __declspec(align(16)) __declspec(no_init_all) Context {
+        unsigned char state;
+        unsigned long code;
+    } Context;
+    _Static_assert(sizeof(Intrinsic)==16 && _Alignof(Intrinsic)==16, "intrinsic layout");
+    _Static_assert(sizeof(Context)==16 && _Alignof(Context)==16, "context layout");
+"#;
+
+#[test]
+fn windows_sdk_declspec_hints_keep_explicit_alignment_and_pointer_return() {
+    let profile = CompilerProfile::default_for(Target::Aarch64PcWindowsMsvc);
+    compare_modes(SDK_ANNOTATIONS, profile, true);
+    let analysis =
+        toucan::semantic::analyze_with_profile(SDK_ANNOTATIONS, profile, &Default::default())
+            .unwrap();
+    let unit = analysis.unit();
+    let factory = unit
+        .declarations
+        .iter()
+        .find(|declaration| declaration.name == "allocate")
+        .unwrap();
+    let toucan::semantic::TypeKind::Function(function) = &factory.ty.kind else {
+        panic!("allocator must remain a function");
+    };
+    assert!(matches!(
+        function.return_type.kind,
+        toucan::semantic::TypeKind::Pointer(_)
+    ));
+    for name in ["Intrinsic", "Context"] {
+        let layout = unit
+            .layout(&toucan::semantic::Type::new(
+                toucan::semantic::TypeKind::Typedef(name.into()),
+            ))
+            .unwrap();
+        assert_eq!(
+            (layout.size_bytes(), layout.alignment_bytes()),
+            (16, 16),
+            "{name}"
+        );
+    }
+    assert!(
+        toucan::semantic::analyze_with_profile(
+            "__declspec(allocator(1)) void *allocate(int);",
+            profile,
+            &Default::default(),
+        )
+        .is_err()
+    );
+}
+
+#[test]
+#[ignore = "requires Clang with the Windows ARM64 target"]
+fn windows_sdk_declspec_clang_arm64_oracle() {
+    let file = tempfile::NamedTempFile::new().unwrap();
+    std::fs::write(file.path(), SDK_ANNOTATIONS).unwrap();
+    let output = Command::new("clang")
+        .args([
+            "--target=aarch64-pc-windows-msvc",
+            "-fms-extensions",
+            "-std=c11",
+            "-fsyntax-only",
+            "-x",
+            "c",
+        ])
+        .arg(file.path())
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}
+
 const API: &str = r#"
 struct __declspec(align(16)) Pair { unsigned long long a, b; };
 __declspec(noreturn) typedef void (*Stop)(int);
@@ -237,9 +316,11 @@ fn declspec_queries_and_unsupported_attributes_keep_their_boundaries() {
     for profile in CompilerProfile::ALL {
         for name in [
             "align",
+            "allocator",
             "noreturn",
             "noinline",
             "__align__",
+            "__allocator__",
             "__noreturn__",
             "__noinline__",
             "dllimport",
@@ -257,6 +338,8 @@ fn declspec_queries_and_unsupported_attributes_keep_their_boundaries() {
             "__align",
             "align__",
             "deprecated",
+            "intrin_type",
+            "no_init_all",
             "thread",
             "unknown",
         ] {
