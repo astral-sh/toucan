@@ -43,7 +43,10 @@ toucan bindgen <zstd-1.5.7/lib/zstd.h> --target i686-unknown-linux-gnu --compile
 This proves cross-target compilation and selected layouts, not the complete
 zstd ABI or running i686 FFI. There is no i686 glibc sysroot or installed Rust
 i686 standard library in this test environment. glibc-dependent headers,
-cross-built Rust bindings, and native FFI are still untested.
+cross-built Rust bindings, and native FFI were not tested in this cross-target
+probe. Later [native i686 evidence](../i686-native-af0d174-2026-09-09/README.md)
+checks Rust metadata from these zstd bindings and 32-bit C/Rust calls on a
+GitHub Ubuntu runner with the necessary development files.
 Nondefault i686 `stdcall`, `fastcall`, and `thiscall` attributes fail
 explicitly. Clang i686 accepts a 64-bit enum aligned to eight bytes whereas
 its natural alignment is four; Toucan rejects that layout until the Rust

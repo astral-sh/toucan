@@ -34,8 +34,10 @@ loaded libraries; it does not measure the memory of a full application build.
    both macOS architectures, and x86-64 and ARM64 Windows MSVC. The pinned
    [uv platform policy](https://github.com/astral-sh/uv/blob/d28a3ee3d0f7122b0da64b0226d2e173e7d23747/docs/reference/policies/platforms.md)
    also ships Linux ARMv7, PPC64LE, RISC-V64, and s390x. i686 has
-   [cross-target C layout evidence](../corpus/evidence/i686-target-2026-09-09/README.md),
-   but native 32-bit C/Rust FFI has not been checked yet.
+   [cross-target C layout evidence](../corpus/evidence/i686-target-2026-09-09/README.md)
+   and [native 32-bit C/Rust FFI evidence](../corpus/evidence/i686-native-af0d174-2026-09-09/README.md)
+   for GCC and Clang at O0/O2 on Ubuntu 24.04. Full i686 consumer builds,
+   arbitrary glibc headers, and other distribution environments still need checks.
    Enabling source generation unconditionally across those distributions would
    fail at target selection. Add and validate each required ABI and header
    environment before switching that distribution, or explicitly limit adoption
