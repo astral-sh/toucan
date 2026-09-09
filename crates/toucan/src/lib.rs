@@ -11,8 +11,8 @@ use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
 pub use toucan_bindings::{
-    BindingSelection, Bindings, DeriveOptions, EnumConstantStyle, MacroType, MacroValue,
-    Options as BindingOptions, RustTarget,
+    BindingSelection, Bindings, DeriveOptions, Documentation as BindingDocumentation,
+    EnumConstantStyle, MacroType, MacroValue, Options as BindingOptions, RustTarget,
 };
 pub use toucan_preprocessor::{
     CommandLineMacroNormalizer, FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude,
@@ -209,8 +209,10 @@ fn finish(
     preprocessing: Duration,
 ) -> Result<Compilation, Error> {
     let start = Instant::now();
+    let mut analysis_options = config.analysis;
+    analysis_options.retain_documentation_origins &= preprocessed.documentation().is_some();
     let analysis =
-        semantic::analyze_with_profile(&preprocessed.source, config.profile, &config.analysis)
+        semantic::analyze_with_profile(&preprocessed.source, config.profile, &analysis_options)
             .map_err(|error| SemanticError {
                 origin: preprocessed.resolve_location(error.offset).cloned(),
                 error,
@@ -344,6 +346,11 @@ impl Compilation {
     /// Checked scalar values for written file object occurrences, when requested.
     pub fn object_values(&self) -> Option<&semantic::ObjectValues> {
         self.analysis.object_values()
+    }
+    /// Optional declaration and field coordinates used for comment attachment.
+    /// The facade skips this catalog when preprocessing retained no comments.
+    pub fn documentation_origins(&self) -> Option<&semantic::DocumentationDeclarations> {
+        self.analysis.documentation_origins()
     }
     /// Resolves the token origins intersecting a retained source span.
     ///

@@ -402,6 +402,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
             let (source, metadata) = compilation.bindings(&BindingOptions {
                 selection: None,
                 object_bindings: Default::default(),
+                documentation: None,
                 generated_names: Default::default(),
                 emit_function_definitions: false,
                 exclude_inline_functions: false,

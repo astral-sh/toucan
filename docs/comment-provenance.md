@@ -20,7 +20,9 @@ The recorded ranges index the original physical text. Delimiters, line splices,
 and separators inside adjacent comment groups remain intact.
 
 Output token mappings expose an invocation location and, for macro replacements,
-a physical spelling location. This supports Clang's invocation-first lookup with
+a physical spelling location. `DocumentationOrigin::is_macro()` also distinguishes
+configured macro expansions, which have no physical replacement spelling, from
+direct tokens. This supports Clang's invocation-first lookup with
 a declaration-begin spelling fallback. A full declaration supplied as a macro
 argument can therefore carry a comment, while a comment on a name-only argument
 does not become a declaration comment. Public `Macro` and `MacroDefinition`
@@ -59,9 +61,10 @@ The private token origin ID fits existing token padding.
 Focused tests cover raw groups, escaped markers, physical versus logical lines,
 macro locations, region propagation, reset, and budget failures. A parser-backed
 prototype matches all 18 saved bindgen 0.72.1/libclang 18 macro-comment attachment
-probes. This layer supplies provenance; declaration/field attachment and Rust
-`#[doc]` emission are separate adapter work. In particular, macro constants do
-not acquire Rust documentation here.
+probes. This layer supplies provenance; the adapter's
+[documentation emission](documentation-emission.md) adds declaration and field
+attachment and Rust `#[doc]` output. Macro constants do not acquire Rust
+documentation through either API.
 
 Nine real header routes were run with capture disabled and enabled, with unchanged
 preprocessed source, semantic units, and eight requested binding outputs. Inputs

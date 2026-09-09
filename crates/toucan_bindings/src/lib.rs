@@ -8,6 +8,8 @@
 mod atomic;
 mod complex;
 mod derives;
+mod documentation;
+pub use documentation::Documentation;
 mod enum_constants;
 mod enumeration;
 mod external;
@@ -33,6 +35,8 @@ use toucan_semantic::{
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
+    /// Optional item documentation keyed by C identity, independent of selection.
+    pub documentation: Option<Box<Documentation>>,
     /// Exact names or prefixes ending in `*`. Empty selects all unless explicit roots are supplied.
     pub allowlist: Vec<String>,
     /// Owner-local roots selected independently of C identifier spelling.
@@ -451,6 +455,9 @@ pub fn generate_with_macros(
         }
     }
     let lexical_names = lexical_names::Names::new(unit, options)?;
+    if let Some(documentation) = &options.documentation {
+        documentation.validate(unit)?;
+    }
     let mut emitter = Emitter {
         unit,
         options,
@@ -685,6 +692,7 @@ pub fn generate_with_macros(
             emitter.ty(ty)?
         };
         if rust_name != rust_type {
+            emitter.declaration_doc(name, &mut source);
             writeln!(source, "pub type {rust_name} = {rust_type};").unwrap();
         }
     }
@@ -732,6 +740,7 @@ pub fn generate_with_macros(
             continue;
         }
         if let Some(rust_name) = emitter.emitted_constant_name(name, macros)? {
+            emitter.enumerator_doc(name, &mut source);
             if let Some(id) = emitter.rust_enum_constant(name) {
                 let enum_name = emitter.enum_name(id)?;
                 let variant_name = emitter.names.identifier(name)?;
@@ -793,6 +802,7 @@ pub fn generate_with_macros(
             }
             active_block = Some(block);
         }
+        emitter.declaration_doc(&declaration.name, &mut source);
         match declaration.kind {
             DeclarationKind::Typedef => {}
             DeclarationKind::Function => {
@@ -1360,6 +1370,7 @@ impl Emitter<'_> {
     /// Emit the selected enum representation, retaining aliases for repeated values.
     fn enumeration(&self, id: usize, source: &mut String) -> Result<(), Error> {
         let name = self.enum_name(id)?;
+        self.enum_doc(id, source);
         if !self.is_rustified_enum(id) {
             writeln!(source, "pub type {name} = {};", self.enum_type(id)?).unwrap();
             return Ok(());
@@ -1405,6 +1416,7 @@ impl Emitter<'_> {
                 } else {
                     value.value.to_string()
                 };
+                self.enumerator_doc(&variant.name, source);
                 writeln!(source, "    {rust_name} = {literal},").unwrap();
             }
         }
@@ -1954,6 +1966,7 @@ impl Emitter<'_> {
     }
 
     fn record(&self, id: usize, source: &mut String) -> Result<(), Error> {
+        self.record_doc(id, source)?;
         let record = &self.unit.records[id];
         let name = self.record_name(id)?;
         let Some(fields) = &record.fields else {
@@ -2198,6 +2211,9 @@ impl Emitter<'_> {
                 } else {
                     field_type
                 };
+            if field.name.is_some() {
+                self.field_doc(id, index, source)?;
+            }
             writeln!(source, "    pub {field_name}: {field_type},").unwrap();
             index += 1;
         }

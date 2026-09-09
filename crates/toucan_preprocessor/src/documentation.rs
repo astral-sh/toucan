@@ -23,7 +23,7 @@ pub struct DocumentationOptions {
 }
 
 /// A physical source read in one documentation catalog.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
+#[derive(Clone, Copy, Debug, Eq, PartialEq, Ord, PartialOrd, Hash)]
 pub struct DocumentationSourceId(u32);
 
 /// Physical coordinates, before diagnostic line remapping or macro expansion.
@@ -130,10 +130,16 @@ pub(crate) struct OriginId(NonZeroU32);
 /// The macro invocation and physical replacement spelling of an output token.
 #[derive(Clone, Copy, Debug, Default, Eq, PartialEq)]
 pub struct DocumentationOrigin {
+    macro_expansion: bool,
     invocation: Option<DocumentationLocation>,
     spelling: Option<DocumentationLocation>,
 }
 impl DocumentationOrigin {
+    /// Whether this token came from macro expansion, including configured macros
+    /// without a physical replacement spelling.
+    pub fn is_macro(self) -> bool {
+        self.macro_expansion
+    }
     pub fn invocation(self) -> Option<DocumentationLocation> {
         self.invocation
     }
@@ -336,6 +342,7 @@ impl Documentation {
         };
         self.push_origin(
             DocumentationOrigin {
+                macro_expansion: false,
                 invocation: Some(location),
                 spelling: None,
             },
@@ -373,6 +380,7 @@ impl Documentation {
         });
         self.push_origin(
             DocumentationOrigin {
+                macro_expansion: true,
                 invocation: call,
                 spelling,
             },

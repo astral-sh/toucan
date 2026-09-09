@@ -236,3 +236,42 @@ fn expanded_system_pragma_affects_nested_reads_and_restores_the_parent() {
         ]
     );
 }
+
+#[test]
+fn configured_macro_origins_remain_distinct_without_spelling_locations() {
+    let mut config = Config {
+        documentation: Some(DocumentationOptions::default()),
+        ..Config::default()
+    };
+    config
+        .defines
+        .insert("DECL".into(), "struct Owner { int field; };".into());
+    let expanded = Preprocessor::new(config)
+        .preprocess_str(Path::new("input.h"), "/** OWNER */\nDECL\n")
+        .unwrap();
+    let origin = expanded
+        .documentation()
+        .unwrap()
+        .resolve(expanded.source.find("field").unwrap())
+        .unwrap();
+    assert!(origin.is_macro());
+    assert!(origin.invocation().is_some());
+    assert!(origin.spelling().is_none());
+    let direct = Preprocessor::new(Config {
+        documentation: Some(DocumentationOptions::default()),
+        ..Config::default()
+    })
+    .preprocess_str(
+        Path::new("input.h"),
+        "/** OWNER */ struct Owner { int field; }; ",
+    )
+    .unwrap();
+    assert!(
+        !direct
+            .documentation()
+            .unwrap()
+            .resolve(direct.source.find("field").unwrap())
+            .unwrap()
+            .is_macro()
+    );
+}

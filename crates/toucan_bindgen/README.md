@@ -62,6 +62,14 @@ comparison and supported formatter names.
 `parsed`: it does not load libclang or report the emulated Clang semantic profile
 as an installed compiler version.
 
+`generate_comments(true)` is the default. It attaches C documentation comments to
+generated declarations, named fields, and enum variants as escaped Rust `#[doc]`
+attributes. `generate_comments(false)` disables capture and emission. The arguments
+`-fparse-all-comments` and `-fretain-comments-from-system-headers` additionally
+enable ordinary comments and system-header comments. See
+[documentation emission](../../docs/documentation-emission.md) for macro locations,
+redeclarations, selection, and the native comparison.
+
 The `derive_copy`, `derive_debug`, `derive_default`, `derive_eq`, and
 `derive_partialeq` options request traits where the emitted storage supports them.
 Defaults require a valid zero representation; a nonzero Rust enum inside a struct

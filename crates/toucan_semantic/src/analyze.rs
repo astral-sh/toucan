@@ -44,20 +44,23 @@ pub fn analyze_with_profile(
     profile: CompilerProfile,
     options: &crate::AnalysisOptions,
 ) -> Result<crate::Analysis, Error> {
-    let (unit, checked, declaration_origins, object_values) = crate::with_parser_stack(|| {
-        analyze_on_parser_stack(
-            source,
-            profile,
-            options.retain_code.then_some(options.limits),
-            options.retain_declaration_origins,
-            options.retain_object_values,
-        )
-    })??;
+    let (unit, checked, declaration_origins, object_values, documentation_origins) =
+        crate::with_parser_stack(|| {
+            analyze_on_parser_stack(
+                source,
+                profile,
+                options.retain_code.then_some(options.limits),
+                options.retain_declaration_origins,
+                options.retain_object_values,
+                options.retain_documentation_origins,
+            )
+        })??;
     Ok(crate::Analysis {
         unit,
         checked,
         declaration_origins,
         object_values,
+        documentation_origins,
     })
 }
 
@@ -73,8 +76,9 @@ pub(crate) fn analyze_inner(
             retention,
             false,
             false,
+            false,
         )
-        .map(|(unit, checked, _, _)| (unit, checked))
+        .map(|(unit, checked, _, _, _)| (unit, checked))
     })?
 }
 
@@ -83,6 +87,7 @@ type AnalysisParts = (
     Option<CheckedCode>,
     Option<Box<crate::DeclarationOrigins>>,
     Option<Box<crate::ObjectValues>>,
+    Option<Box<crate::DocumentationDeclarations>>,
 );
 
 fn analyze_on_parser_stack(
@@ -91,6 +96,7 @@ fn analyze_on_parser_stack(
     retention: Option<CodeLimits>,
     retain_declaration_origins: bool,
     retain_object_values: bool,
+    retain_documentation_origins: bool,
 ) -> Result<AnalysisParts, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
@@ -112,6 +118,8 @@ fn analyze_on_parser_stack(
         retain_declaration_origins.then(|| Box::new(crate::declaration_origins::Builder::new()));
     analyzer.object_values =
         retain_object_values.then(|| Box::new(crate::object_values::Builder::new()));
+    analyzer.documentation_origins = retain_documentation_origins
+        .then(|| Box::new(crate::documentation_origins::Builder::new()));
     analyzer.prepare_dll_storage(&source);
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
@@ -180,7 +188,18 @@ fn analyze_on_parser_stack(
             .object_values
             .take()
             .map(|values| Box::new(values.finish(&parsed.offsets)));
-        Ok((analyzer.unit, checked, declaration_origins, object_values))
+        let documentation_origins = analyzer
+            .documentation_origins
+            .take()
+            .map(|builder| builder.finish(&parsed.offsets, source.len()).map(Box::new))
+            .transpose()?;
+        Ok((
+            analyzer.unit,
+            checked,
+            declaration_origins,
+            object_values,
+            documentation_origins,
+        ))
     })();
     result.map_err(|mut error: Error| {
         error.offset = parsed.offsets.original_offset(error.offset);
@@ -1019,6 +1038,7 @@ pub(crate) struct Analyzer {
     pub(crate) diagnostic_kinds: HashMap<String, u8>,
     pub(crate) checked: Option<Box<CodeBuilder>>,
     declaration_origins: Option<Box<crate::declaration_origins::Builder>>,
+    documentation_origins: Option<Box<crate::documentation_origins::Builder>>,
     pub(crate) unit: TranslationUnit,
     pub(crate) tags: HashMap<String, TagBinding>,
     pub(crate) lexical_scopes: Vec<LexicalScope>,
@@ -1120,6 +1140,7 @@ impl Analyzer {
             diagnostic_kinds: HashMap::new(),
             checked: None,
             declaration_origins: None,
+            documentation_origins: None,
             unit,
             tags,
             lexical_scopes: Vec::new(),
@@ -1869,6 +1890,16 @@ impl Analyzer {
                     origin_inline,
                 )?;
             }
+            if let Some(origins) = &mut self.documentation_origins {
+                origins.push(
+                    crate::DocumentationTarget::Declaration(declaration_index),
+                    declaration.span.start,
+                    declarator_name_span(&item.node.declarator)
+                        .unwrap_or(item.span)
+                        .start,
+                    false,
+                )?;
+            }
             let checked_site = if let Some(checked) = &mut self.checked {
                 checked.file_declaration(
                     item,
@@ -2306,7 +2337,7 @@ impl Analyzer {
             self.note_standalone_lexical_tag(&result.0.kind);
         }
         if declaration.declarators.is_empty()
-            && let Some(origins) = &mut self.declaration_origins
+            && (self.declaration_origins.is_some() || self.documentation_origins.is_some())
         {
             for specifier in &declaration.specifiers {
                 if let ast::DeclarationSpecifier::TypeSpecifier(ty) = &specifier.node {
@@ -2320,7 +2351,12 @@ impl Analyzer {
                         _ => None,
                     };
                     if let Some(identifier) = identifier {
-                        origins.standalone_tag(identifier.span);
+                        if let Some(origins) = &mut self.declaration_origins {
+                            origins.standalone_tag(identifier.span);
+                        }
+                        if let Some(origins) = &mut self.documentation_origins {
+                            origins.standalone_tag(identifier.span.start);
+                        }
                     }
                 }
             }
@@ -4045,6 +4081,20 @@ impl Analyzer {
             declaration.span.start,
         )?;
         if self.scope() == Scope::File
+            && let Some(origins) = &mut self.documentation_origins
+        {
+            origins.push(
+                crate::DocumentationTarget::Record(id),
+                declaration.span.start,
+                declaration
+                    .node
+                    .identifier
+                    .as_ref()
+                    .map_or(declaration.span.start, |name| name.span.start),
+                reference,
+            )?;
+        }
+        if self.scope() == Scope::File
             && let Some(origins) = &mut self.declaration_origins
         {
             origins.push(
@@ -4072,7 +4122,15 @@ impl Analyzer {
         }
         if declaration.node.declarations.is_some() {
             let previous = self.lexical_record.replace(id);
+            let previous_doc = self.documentation_parent(
+                declaration
+                    .node
+                    .identifier
+                    .as_ref()
+                    .map_or(declaration.span.start, |name| name.span.start),
+            );
             let result = self.complete_record(id, kind, declaration);
+            self.restore_documentation_parent(previous_doc);
             self.lexical_record = previous;
             result?;
         }
@@ -4172,6 +4230,19 @@ impl Analyzer {
                                 .map(|value| u64::from(value.get())),
                             packed: attributes.packed,
                         };
+                        if self.unit.records[id].scope == Scope::File
+                            && let Some(origins) = &mut self.documentation_origins
+                        {
+                            origins.push(
+                                crate::DocumentationTarget::Field {
+                                    record: id,
+                                    field: fields.len(),
+                                },
+                                field.span.start,
+                                field.span.start,
+                                false,
+                            )?;
+                        }
                         if let Some(checked) = &mut self.checked {
                             let site = checked.member_declaration(
                                 field,
@@ -4252,6 +4323,21 @@ impl Analyzer {
                                     .map(|value| u64::from(value.get())),
                                 packed: extra.packed || attributes.packed,
                             };
+                            if self.unit.records[id].scope == Scope::File
+                                && let Some(origins) = &mut self.documentation_origins
+                            {
+                                origins.push(
+                                    crate::DocumentationTarget::Field {
+                                        record: id,
+                                        field: fields.len(),
+                                    },
+                                    field.span.start,
+                                    crate::checked::references::member_name_span(declarator)
+                                        .unwrap_or(declarator.span)
+                                        .start,
+                                    false,
+                                )?;
+                            }
                             if let Some(checked) = &mut self.checked {
                                 let site = checked.member_declaration(
                                     declarator,
@@ -4473,6 +4559,20 @@ impl Analyzer {
             declaration.span.start,
         )?;
         if self.scope() == Scope::File
+            && let Some(origins) = &mut self.documentation_origins
+        {
+            origins.push(
+                crate::DocumentationTarget::Enum(id),
+                declaration.span.start,
+                declaration
+                    .node
+                    .identifier
+                    .as_ref()
+                    .map_or(declaration.span.start, |name| name.span.start),
+                reference,
+            )?;
+        }
+        if self.scope() == Scope::File
             && let Some(origins) = &mut self.declaration_origins
         {
             origins.push(
@@ -4506,6 +4606,32 @@ impl Analyzer {
                 "enum is defined more than once",
             ));
         }
+        let previous_doc = self.documentation_parent(
+            declaration
+                .node
+                .identifier
+                .as_ref()
+                .map_or(declaration.span.start, |name| name.span.start),
+        );
+        let result = self.complete_enum(id, declaration);
+        self.restore_documentation_parent(previous_doc);
+        result?;
+        Ok(id)
+    }
+
+    fn documentation_parent(&mut self, name: usize) -> Option<usize> {
+        self.documentation_origins
+            .as_mut()
+            .and_then(|origins| origins.parent_name.replace(name))
+    }
+
+    fn restore_documentation_parent(&mut self, previous: Option<usize>) {
+        if let Some(origins) = &mut self.documentation_origins {
+            origins.parent_name = previous;
+        }
+    }
+
+    fn complete_enum(&mut self, id: usize, declaration: &Node<ast::EnumType>) -> Result<(), Error> {
         let mut previous: Option<IntegerValue> = None;
         for enumerator in &declaration.node.enumerators {
             let mut attributes = Attributes::default();
@@ -4567,6 +4693,19 @@ impl Analyzer {
                     false,
                 )?;
             }
+            if self.scope() == Scope::File
+                && let Some(origins) = &mut self.documentation_origins
+            {
+                origins.push(
+                    crate::DocumentationTarget::Enumerator {
+                        enumeration: id,
+                        variant: self.unit.enums[id].variants.len(),
+                    },
+                    enumerator.span.start,
+                    enumerator.node.identifier.span.start,
+                    false,
+                )?;
+            }
             if let Some(checked) = &mut self.checked {
                 checked.enumerator(
                     enumerator,
@@ -4585,7 +4724,7 @@ impl Analyzer {
             self.finish_enum(id, declaration.span.start)?;
             self.defining_enums.remove(&id);
         }
-        Ok(id)
+        Ok(())
     }
 
     /// Clang lets a later unannotated declaration inherit an established ABI.

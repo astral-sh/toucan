@@ -166,6 +166,7 @@ fn written_sites_retain_messages_redeclarations_and_original_spans() {
                 payload_bytes: 2048,
                 ..Default::default()
             },
+            ..AnalysisOptions::default()
         },
     )
     .unwrap_err();

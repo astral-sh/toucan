@@ -8,6 +8,7 @@
 
 mod arguments;
 pub mod callbacks;
+mod documentation;
 mod formatting;
 mod macro_compat;
 mod macro_projection;
@@ -87,6 +88,7 @@ pub struct Builder {
     formatting: formatting::Options,
     macro_type_variation: MacroTypeVariation,
     fit_macro_constants: bool,
+    generate_comments: bool,
     error: Option<String>,
 }
 
@@ -109,6 +111,7 @@ impl Default for Builder {
             formatting: formatting::Options::default(),
             macro_type_variation: MacroTypeVariation::default(),
             fit_macro_constants: false,
+            generate_comments: true,
         }
     }
 }
@@ -328,6 +331,13 @@ impl Builder {
         self.error.get_or_insert_with(|| message.into());
     }
 
+    /// Emit declaration, field, and enumerator documentation. Defaults to true.
+    /// Macro constant documentation is not currently projected.
+    pub fn generate_comments(mut self, enabled: bool) -> Self {
+        self.generate_comments = enabled;
+        self
+    }
+
     /// Preprocess all headers together and generate bindings using the selected target.
     pub fn generate(mut self) -> Result<Bindings, BindgenError> {
         if let Some(error) = self.error {
@@ -337,7 +347,13 @@ impl Builder {
             return Err(configuration("at least one header is required"));
         }
         let files = selection::file_patterns(&self.allowlist_files)?;
-        let mut config = arguments::configuration(&self.arguments)?;
+        let (mut config, comments) = arguments::configuration(&self.arguments)?;
+        config.analysis.retain_documentation_origins = self.generate_comments;
+        config.preprocessor.documentation =
+            self.generate_comments
+                .then_some(toucan::DocumentationOptions {
+                    parse_all_comments: comments.parse_all_comments,
+                });
         config.analysis.retain_object_values = true;
         config.analysis.retain_declaration_origins = files.is_some() || !self.callbacks.is_empty();
         config.preprocessor.record_file_origins = files.is_some();
@@ -366,6 +382,9 @@ impl Builder {
             )?;
         }
         objects::select(&compilation, files.as_ref(), &mut self.options)?;
+        if self.generate_comments {
+            documentation::apply(&compilation, comments, &mut self.options)?;
+        }
         let macros = macro_compat::evaluate(
             &compilation,
             files.as_ref(),

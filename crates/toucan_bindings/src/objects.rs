@@ -190,6 +190,7 @@ impl<'unit> Emitter<'unit> {
             return Ok(());
         };
         let name = self.generated_name(&declaration.name)?;
+        self.declaration_doc(&declaration.name, source);
         let value = match value {
             ObjectConstant::Arithmetic(value) => value,
             ObjectConstant::String(bytes) => {

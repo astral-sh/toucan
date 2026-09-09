@@ -14,7 +14,9 @@ fn environment(name: &str) -> Result<Option<String>, BindgenError> {
     }
 }
 
-pub(super) fn configuration(arguments: &[String]) -> Result<Config, BindgenError> {
+pub(super) fn configuration(
+    arguments: &[String],
+) -> Result<(Config, crate::documentation::Options), BindgenError> {
     let cargo_target = environment("TARGET")?;
     let mut arguments = arguments.to_vec();
     let mut extra = None;
@@ -39,7 +41,7 @@ pub(super) fn configuration(arguments: &[String]) -> Result<Config, BindgenError
                 .ok_or_else(|| error(format!("invalid shell quoting in {name}")))?,
         );
     }
-    let mut config = from_arguments(&arguments, cargo_target.as_deref())?;
+    let (mut config, comments) = from_arguments_and_comments(&arguments, cargo_target.as_deref())?;
     if let Some(timestamp) = environment("SOURCE_DATE_EPOCH")? {
         config.preprocessor.timestamp = timestamp
             .parse()
@@ -52,14 +54,23 @@ pub(super) fn configuration(arguments: &[String]) -> Result<Config, BindgenError
         config.preprocessor.timestamp = toucan::PreprocessingTimestamp::from_unix_seconds(seconds)
             .map_err(|error| crate::configuration(error.to_string()))?;
     }
-    Ok(config)
+    Ok((config, comments))
 }
 
 /// Resolve the target before applying arguments so predefined macros match it.
+#[cfg(test)]
 pub(super) fn from_arguments(
     arguments: &[String],
     cargo_target: Option<&str>,
 ) -> Result<Config, BindgenError> {
+    from_arguments_and_comments(arguments, cargo_target).map(|(config, _)| config)
+}
+
+fn from_arguments_and_comments(
+    arguments: &[String],
+    cargo_target: Option<&str>,
+) -> Result<(Config, crate::documentation::Options), BindgenError> {
+    let mut comments = crate::documentation::Options::default();
     let mut target = cargo_target.map(str::to_owned);
     let mut mode = LanguageMode::Gnu11;
     let mut trigraph_override = None;
@@ -161,6 +172,10 @@ pub(super) fn from_arguments(
                     "language `{language}` is unsupported; expected c"
                 )));
             }
+        } else if argument == "-fparse-all-comments" {
+            comments.parse_all_comments = true;
+        } else if argument == "-fretain-comments-from-system-headers" {
+            comments.retain_system_comments = true;
         } else if argument.starts_with("-std=")
             || matches!(
                 argument.as_str(),
@@ -196,7 +211,7 @@ pub(super) fn from_arguments(
         }
         config.preprocessor.system_include_dirs.push(include);
     }
-    Ok(config)
+    Ok((config, comments))
 }
 
 fn apply_short(
@@ -244,6 +259,26 @@ fn apply_short(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn comment_flags_are_not_read_from_include_operands() {
+        for (arguments, parse_all, retain_system) in [
+            (vec!["-fparse-all-comments"], true, false),
+            (vec!["-fretain-comments-from-system-headers"], false, true),
+            (vec!["-I", "-fparse-all-comments"], false, false),
+            (
+                vec!["-isystem", "-fretain-comments-from-system-headers"],
+                false,
+                false,
+            ),
+        ] {
+            let arguments = arguments.into_iter().map(str::to_owned).collect::<Vec<_>>();
+            let (_, comments) =
+                from_arguments_and_comments(&arguments, Some("x86_64-unknown-linux-gnu")).unwrap();
+            assert_eq!(comments.parse_all_comments, parse_all);
+            assert_eq!(comments.retain_system_comments, retain_system);
+        }
+    }
 
     #[test]
     fn c90_definitions_follow_argument_order_before_undefinition() {

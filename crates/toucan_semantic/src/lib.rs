@@ -20,7 +20,11 @@ mod builtins;
 mod c11_atomic;
 pub mod checked;
 mod declaration_origins;
+mod documentation_origins;
 pub use declaration_origins::{DeclarationOrigin, DeclarationOrigins, DeclarationTarget};
+pub use documentation_origins::{
+    DocumentationDeclaration, DocumentationDeclarations, DocumentationTarget,
+};
 mod tag_discovery;
 pub use tag_discovery::{TagDiscoveries, TagDiscovery};
 mod lexical_tags;
@@ -132,6 +136,8 @@ pub struct AnalysisOptions {
     pub retain_declaration_origins: bool,
     /// Retain file object occurrences and checked scalar initializer values.
     pub retain_object_values: bool,
+    /// Retain declaration starts, member locations, and containing declaration locations.
+    pub retain_documentation_origins: bool,
     /// Resource limits applied only when `retain_code` is enabled.
     pub limits: checked::Limits,
 }
@@ -161,6 +167,8 @@ pub struct Analysis {
     declaration_origins: Option<Box<DeclarationOrigins>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     object_values: Option<Box<ObjectValues>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    documentation_origins: Option<Box<DocumentationDeclarations>>,
 }
 
 impl Analysis {
@@ -179,6 +187,10 @@ impl Analysis {
     /// File object occurrences, captured without retaining expressions or bodies.
     pub fn object_values(&self) -> Option<&ObjectValues> {
         self.object_values.as_deref()
+    }
+    /// Returns documentation attachment coordinates when requested.
+    pub fn documentation_origins(&self) -> Option<&DocumentationDeclarations> {
+        self.documentation_origins.as_deref()
     }
     /// Discards optional metadata, returning the owned declaration representation.
     pub fn into_unit(self) -> TranslationUnit {
