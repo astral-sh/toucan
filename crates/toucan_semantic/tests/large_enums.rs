@@ -294,7 +294,9 @@ fn windows_sdk_enum_clang_cross_target_oracle() {
                 )
                 .unwrap();
                 let output = compile(probe.path());
-                if !output.status.success() {
+                if !toucan_test_support::compiler_acceptance(&output)
+                    .expect("Clang Windows enum probe must finish normally")
+                {
                     let stderr = String::from_utf8_lossy(&output.stderr);
                     assert!(
                         stderr.contains(

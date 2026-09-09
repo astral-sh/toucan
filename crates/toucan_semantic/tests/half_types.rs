@@ -5,7 +5,7 @@ use toucan_semantic::{
 use toucan_target::{Compiler, CompilerProfile, Target};
 
 fn supports_narrow_types(profile: CompilerProfile) -> bool {
-    // Both Clang targeting i686 and GCC -m32 reject _Float16 and __bf16.
+    // The Linux Clang and GCC -m32 profiles reject _Float16 and __bf16.
     profile.target() != Target::I686UnknownLinuxGnu
 }
 
@@ -334,7 +334,10 @@ fn declarations_and_constraints_match_compiler_profiles() {
             .output()
             .unwrap();
         if !supports_narrow_types(profile) {
-            if profile.compiler() == Compiler::Clang && apple_clang_accepts_i686_narrow {
+            if profile.compiler() == Compiler::Clang
+                && profile.target() == Target::I686UnknownLinuxGnu
+                && apple_clang_accepts_i686_narrow
+            {
                 continue;
             }
             let errors = String::from_utf8_lossy(&result.stderr);

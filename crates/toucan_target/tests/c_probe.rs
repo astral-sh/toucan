@@ -418,14 +418,16 @@ fn apple_clang_models_gnu_i686_alignment(directory: &std::path::Path) -> bool {
         .arg(source)
         .output()
         .expect("clang must be available for the i686 GNU ABI probe");
-    if !output.status.success() {
+    let accepted = toucan_test_support::compiler_acceptance(&output)
+        .expect("Clang i686 GNU ABI probe must finish normally");
+    if !accepted {
         let stderr = String::from_utf8_lossy(&output.stderr);
         assert!(
             stderr.contains("static assertion failed") && stderr.contains(MARKER),
             "unexpected clang i686 GNU ABI probe failure: {stderr}"
         );
     }
-    output.status.success()
+    accepted
 }
 
 // GCC's -m32 selects the host x86 multilib ABI; a native AArch64 GCC cannot use it.

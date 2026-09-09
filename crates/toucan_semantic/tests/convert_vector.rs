@@ -353,6 +353,11 @@ fn compiler_type_constraints_and_native_numeric_conversions() {
                 if without_half.contains("H4") {
                     continue;
                 }
+                assert_eq!(
+                    check(&without_half, profile).is_ok(),
+                    clang,
+                    "{name}: {profile:?} without unused half typedef"
+                );
                 without_half
             } else {
                 source.to_owned()
