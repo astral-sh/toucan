@@ -25,7 +25,21 @@ impl Expansion<'_> {
             return Err("macro argument expansion depth limit exceeded".into());
         }
         self.recursion += 1;
-        let result = self.expand_inner::<false>(&mut tokens.into());
+        let result = self.expand_inner::<false, false>(&mut tokens.into());
+        self.recursion -= 1;
+        result
+    }
+
+    /// Stop before expanding tokens that follow a pragma changing macro state.
+    pub(crate) fn expand_until_pragma(
+        &mut self,
+        pending: &mut VecDeque<Token>,
+    ) -> Result<Vec<Token>, String> {
+        if self.recursion >= self.config.max_expansion_depth {
+            return Err("macro argument expansion depth limit exceeded".into());
+        }
+        self.recursion += 1;
+        let result = self.expand_inner::<false, true>(pending);
         self.recursion -= 1;
         result
     }
@@ -36,7 +50,7 @@ impl Expansion<'_> {
             return Err("macro argument expansion depth limit exceeded".into());
         }
         self.recursion += 1;
-        let result = self.expand_inner::<true>(pending);
+        let result = self.expand_inner::<true, false>(pending);
         self.recursion -= 1;
         result.map(|tokens| {
             let mut tokens = tokens.into_iter();
@@ -48,7 +62,7 @@ impl Expansion<'_> {
         })
     }
 
-    fn expand_inner<const FIRST: bool>(
+    fn expand_inner<const FIRST: bool, const STOP_ON_PRAGMA: bool>(
         &mut self,
         pending: &mut VecDeque<Token>,
     ) -> Result<Vec<Token>, String> {
@@ -58,7 +72,11 @@ impl Expansion<'_> {
                 break;
             };
             if token.kind != Kind::Identifier || token.hidden.contains(&token.text) {
+                let pragma = token.kind == Kind::Pragma;
                 output.push(token);
+                if STOP_ON_PRAGMA && pragma {
+                    break;
+                }
                 continue;
             }
             if token.text == "_Pragma" {
@@ -88,6 +106,9 @@ impl Expansion<'_> {
                 directive.text = crate::token::render(&payload);
                 output.push(directive);
                 self.location = previous_location;
+                if STOP_ON_PRAGMA {
+                    break;
+                }
                 continue;
             }
             if matches!(
@@ -166,6 +187,18 @@ impl Expansion<'_> {
                 self.charge(std::slice::from_ref(&replacement))?;
                 output.push(replacement);
                 self.location = parent_location;
+                if STOP_ON_PRAGMA {
+                    // Feature queries can emit deferred pragmas before their
+                    // result. Preserve those tokens and stop before rescanning
+                    // the following input under the old macro environment.
+                    if let Some(index) = output.iter().position(|token| token.kind == Kind::Pragma)
+                    {
+                        for token in output.drain(index + 1..).rev() {
+                            pending.push_front(token);
+                        }
+                        break;
+                    }
+                }
                 continue;
             }
             let Some(definition) = self.macros.get(&token.text) else {

@@ -1286,6 +1286,81 @@ fn push_and_pop_macro_restore_nested_definitions_and_absence_across_headers() {
 }
 
 #[test]
+fn pragma_pop_macro_changes_the_following_macro_expansion() {
+    let source = concat!(
+        "#define A 1\n",
+        "#pragma push_macro(\"A\")\n",
+        "#undef A\n#define A 2\n",
+        "#define RESTORE _Pragma(\"pop_macro(\\\"A\\\")\") A\n",
+        "RESTORE\nA\n",
+    );
+    assert_eq!(preprocess(source), "1 1\n");
+
+    // Repeated pragma barriers must still share the cumulative expansion budget.
+    let source = concat!(
+        "#define A 1\n",
+        "#define PUSH _Pragma(\"push_macro(\\\"A\\\")\")\n",
+        "#define FOUR PUSH PUSH PUSH PUSH\n",
+        "#define SIXTEEN FOUR FOUR FOUR FOUR\n",
+        "SIXTEEN\n",
+    );
+    let error = Preprocessor::new(Config {
+        max_tokens: 40,
+        ..Config::default()
+    })
+    .preprocess_str(Path::new("budget.h"), source)
+    .unwrap_err();
+    assert!(error.message.contains("token limit"), "{error}");
+}
+
+#[test]
+#[ignore = "requires Clang for a native _Pragma and pop_macro oracle"]
+fn pragma_pop_macro_expansion_matches_clang() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let source = concat!(
+        "#define A 1\n",
+        "#pragma push_macro(\"A\")\n",
+        "#undef A\n#define A 2\n",
+        "#define RESTORE _Pragma(\"pop_macro(\\\"A\\\")\") A\n",
+        "RESTORE\nA\n",
+    );
+    let actual = crate::token::render(&crate::token::lex(&preprocess(source)).unwrap());
+    for target in [None, Some("x86_64-pc-windows-msvc")] {
+        let mut compiler = Command::new("clang");
+        if let Some(target) = target {
+            compiler
+                .arg(format!("--target={target}"))
+                .arg("-fms-extensions");
+        }
+        let mut child = compiler
+            .args(["-E", "-P", "-std=gnu11", "-x", "c", "-"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("Clang is required for this differential test");
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(source.as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "Clang {target:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let expected = crate::token::render(
+            &crate::token::lex(&String::from_utf8(output.stdout).unwrap()).unwrap(),
+        );
+        assert_eq!(actual, expected, "Clang {target:?}");
+    }
+}
+
+#[test]
 fn macro_stack_pragmas_check_syntax_and_limit_retained_state() {
     for source in [
         "#pragma push_macro(NAME)\n",

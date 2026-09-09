@@ -31,7 +31,7 @@ mod token;
 #[cfg(test)]
 mod tests;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::fs;
 use std::io::Read;
@@ -1422,14 +1422,24 @@ impl Preprocessor {
         let output_start = output.len();
         let line = pending[0].line;
         let column = pending[0].column;
-        let tokens = self.expand_at(path, std::mem::take(pending))?;
-        let mut start = 0;
-        for (index, token) in tokens.iter().enumerate() {
-            if token.kind != Kind::Pragma {
-                continue;
+        let mut pending: VecDeque<_> = std::mem::take(pending).into();
+        let mut had_pragma = false;
+        loop {
+            let fallback = pending
+                .front()
+                .map_or((line, column), |token| (token.line, token.column));
+            let mut tokens = self.expand_with(path, fallback, |expansion| {
+                expansion.expand_until_pragma(&mut pending)
+            })?;
+            if tokens.last().is_none_or(|token| token.kind != Kind::Pragma) {
+                if !tokens.is_empty() || !had_pragma {
+                    self.output_tokens(path, line, column, &tokens, output)?;
+                }
+                break;
             }
-            if start != index {
-                self.output_tokens(path, line, column, &tokens[start..index], output)?;
+            let token = tokens.pop().expect("final expansion token is a pragma");
+            if !tokens.is_empty() {
+                self.output_tokens(path, line, column, &tokens, output)?;
             }
             let payload = lex_with_scope(&token.text, self.config.scope_punctuator)
                 .map_err(|message| Error::at(path, token.line, token.column, message))?;
@@ -1449,10 +1459,7 @@ impl Preprocessor {
                 &payload,
                 output,
             )?;
-            start = index + 1;
-        }
-        if start < tokens.len() || tokens.is_empty() {
-            self.output_tokens(path, line, column, &tokens[start..], output)?;
+            had_pragma = true;
         }
         if let Some(origins) = &mut self.file_origins {
             origins.append(
@@ -1551,6 +1558,15 @@ impl Preprocessor {
         let fallback = tokens
             .first()
             .map_or((1, 1), |token| (token.line, token.column));
+        self.expand_with(path, fallback, |expansion| expansion.expand(tokens))
+    }
+
+    fn expand_with<T>(
+        &mut self,
+        path: &Path,
+        fallback: (usize, usize),
+        expand: impl FnOnce(&mut Expansion<'_>) -> Result<T, String>,
+    ) -> Result<T, Error> {
         let mut expansion = Expansion {
             macros: &self.macros,
             active_queries: self.active_queries,
@@ -1563,7 +1579,7 @@ impl Preprocessor {
             counter: Some(self.counter),
             documentation: self.documentation.as_deref_mut(),
         };
-        let result = expansion.expand(tokens);
+        let result = expand(&mut expansion);
         self.expansion_tokens = expansion.produced;
         self.expansion_bytes = expansion.produced_bytes;
         self.counter = expansion.counter.expect("translation unit counter");
