@@ -26,7 +26,7 @@ impl Expansion<'_> {
             return Err("macro argument expansion depth limit exceeded".into());
         }
         self.recursion += 1;
-        let result = self.expand_inner::<false, false>(&mut tokens.into());
+        let result = self.expand_inner::<false, false, false>(&mut tokens.into());
         self.recursion -= 1;
         result
     }
@@ -40,7 +40,21 @@ impl Expansion<'_> {
             return Err("macro argument expansion depth limit exceeded".into());
         }
         self.recursion += 1;
-        let result = self.expand_inner::<false, true>(pending);
+        let result = self.expand_inner::<false, true, false>(pending);
+        self.recursion -= 1;
+        result
+    }
+
+    /// Yield condition operators so they observe preceding pragma effects.
+    pub(crate) fn expand_condition(
+        &mut self,
+        pending: &mut VecDeque<Token>,
+    ) -> Result<Vec<Token>, String> {
+        if self.recursion >= self.config.max_expansion_depth {
+            return Err("macro argument expansion depth limit exceeded".into());
+        }
+        self.recursion += 1;
+        let result = self.expand_inner::<false, true, true>(pending);
         self.recursion -= 1;
         result
     }
@@ -51,7 +65,7 @@ impl Expansion<'_> {
             return Err("macro argument expansion depth limit exceeded".into());
         }
         self.recursion += 1;
-        let result = self.expand_inner::<true, false>(pending);
+        let result = self.expand_inner::<true, false, false>(pending);
         self.recursion -= 1;
         result.map(|tokens| {
             let mut tokens = tokens.into_iter();
@@ -63,7 +77,7 @@ impl Expansion<'_> {
         })
     }
 
-    fn expand_inner<const FIRST: bool, const STOP_ON_PRAGMA: bool>(
+    fn expand_inner<const FIRST: bool, const STOP_ON_PRAGMA: bool, const CONDITION: bool>(
         &mut self,
         pending: &mut VecDeque<Token>,
     ) -> Result<Vec<Token>, String> {
@@ -79,6 +93,15 @@ impl Expansion<'_> {
                     break;
                 }
                 continue;
+            }
+            if CONDITION
+                && matches!(
+                    token.text.as_str(),
+                    "defined" | "__has_include" | "__has_include_next"
+                )
+            {
+                output.push(token);
+                break;
             }
             if token.text == "_Pragma" {
                 let previous_location = self.location;
