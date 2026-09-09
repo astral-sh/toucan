@@ -7,13 +7,16 @@ the combined-source baseline `7db2b850`. The remaining gates apply to the
 eventual release revision.
 
 The proposed [uv and ty opt-in integration](opt-in-rollout.md) is scoped to native
-Linux x86-64. It records the feature patches, current evidence, source-distribution
-requirements, and clean application builds still needed before offering the feature.
+Linux x86-64. Its [clean application gate](../corpus/evidence/astral-optin-2026-09-09/README.md)
+passes complete uv and ty builds, selected library tests, and runtime comparisons
+without libclang. Public dependency distribution and upstream integration remain
+open before offering the feature.
 
 ## Pinned consumer paths
 
 | Path | Result on the frozen source | Boundary |
 | --- | --- | --- |
+| `ty` and `uv` with `toucan-zstd` | [Clean feature-enabled application builds](../corpus/evidence/astral-optin-2026-09-09/README.md) pass without libclang, consume fresh bindings in all selected zstd-sys instances, and match the upstream default builds' library tests and runtime checks. | Native x86-64 Linux at `131ec7a`, with prepared feature patches and a hash-verified local frontend dependency. The public dependency release and full upstream workspace suites remain open. |
 | `ty` and `uv` through `zstd-sys` | [Unchanged build scripts and selected frontend artifacts](../corpus/evidence/astral-builder-7db2b85/summary.json); two ty vendored tests and 19 uv extraction tests pass, with matching CLI and wheel behavior. | Native x86-64 Linux zstd generation. This is not the full workspace suite. |
 | `zstd-sys`, `zstd-safe`, and `zstd` on i686 | [Native ELF32 consumer comparison](../corpus/evidence/i686-zstd-consumer-2026-09-09/README.md) passes independent GCC/Clang layouts, four generated Rust layout tests, and byte-identical bulk, streaming, and dictionary artifacts. | Native i686 GNU Linux with default features at `7b9f483`; the unchanged build script consumes two replaced binding files. This does not validate full ty or uv builds. |
 | `aws-lc-sys` and `aws-lc-rs` crypto | [Paired reference and Toucan builds](../corpus/evidence/aws-lc-builder-7db2b85/summary.json) pass 41 deterministic runtime comparisons, six C/Rust layouts, and generated layout tests. | Native x86-64 Linux crypto-only generation; optional profiles are tracked separately. |

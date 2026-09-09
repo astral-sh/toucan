@@ -4,8 +4,9 @@ These patches add an experimental `toucan-zstd` feature to the pinned ty and uv
 workspaces. The feature generates zstd bindings with Toucan on native
 `x86_64-unknown-linux-gnu`. Default builds keep their existing bindings.
 
-This directory contains a proposed integration and a reproducible fixture. It is
-not an upstream zstd release or a completed clean build of feature-enabled ty/uv.
+This directory contains a proposed integration and a reproducible fixture.
+[Clean builds of feature-enabled ty and uv](../../evidence/astral-optin-2026-09-09/README.md)
+pass the selected application checks. The patches are not an upstream zstd release.
 
 ## Patches
 
@@ -109,7 +110,7 @@ the selected default Ruff CLI graph contains no zstd, bindgen, or Toucan
 dependency; this integration affects ty within the Ruff workspace. These graph checks
 cannot establish whole-project Rust compilation or runtime acceptance.
 
-## Recorded result and remaining gate
+## Recorded results
 
 The bounded smoke passed all four cases. Both actual workspace graphs resolve
 with Toucan and no active bindgen/clang-sys dependency; their default graphs
@@ -123,8 +124,11 @@ The corrected pin audit requires all nine frontend crates to resolve under one
 fetched checkout, checks its actual Git HEAD, and verifies their source hashes.
 The earlier failed audit is retained alongside the successful one.
 
-Before adopting this feature, run the actual ty and uv builds in a fresh Linux
-image without libclang, audit the consumed bindings in both ty graphs, and repeat
-the selected library and application checks. The existing smoke used a machine
-with libclang installed. AWS-LC/TLS generation remains a separate feature and
-acceptance gate.
+The later [application gate](../../evidence/astral-optin-2026-09-09/README.md)
+builds actual ty and uv binaries in fresh Linux images without libclang. It
+audits consumed bindings in both ty graphs and passes the selected library and
+application comparisons against untouched upstream defaults. This gate uses
+the hash-verified local frontend source; the original smoke used a machine with
+libclang installed. See the [rollout notes](../../../docs/opt-in-rollout.md) for
+the remaining public dependency and upstream integration work. AWS-LC/TLS
+generation remains a separate feature and acceptance gate.

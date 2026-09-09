@@ -36,31 +36,39 @@ normal/build dependency graph contains neither zstd nor bindgen. This first
 integration therefore needs no Ruff CLI selector; the relevant consumer in that
 repository is ty. Other Ruff targets and dependency profiles need their own audit.
 
-## Evidence and remaining acceptance
+## Application acceptance
 
 The earlier [paired uv and ty builds](astral-consumers.md#run-the-unchanged-bindgen-build-script)
 prove the selected zstd consumer paths using a manifest substitution. The new
 [opt-in evidence](../corpus/evidence/zstd-optin-2026-09-09/README.md) covers actual
 feature selection, fresh generated binding inputs, matching compression and
-dictionary artifacts, and a build/runtime dependency fixture. The patched
-uv and ty dependency graphs also resolve. These are separate results: the
-complete uv and ty binaries have not yet been rebuilt with the new features.
+dictionary artifacts, and a build/runtime dependency fixture.
 
-Before offering the feature, run fresh builds of both pinned applications in an
-environment without libclang. Verify the selected dependency graph and the
-generated files actually consumed by each build, then repeat the two
-`ty_vendored` tests, 19 `uv-extract` tests, ty diagnostics, uv wheel installation,
-and truncated-response rejection. Run the corresponding project CI with the
-feature enabled and retain the exact source and lockfile revisions.
+The [clean application run at `131ec7a`](../corpus/evidence/astral-optin-2026-09-09/README.md)
+builds both complete pinned applications with the new feature and compares them
+with their untouched upstream defaults. Both jobs passed in fresh Linux images
+without libclang, using stable Rust 1.98.1:
+
+| Application | Consumed Toucan output | Matching checks |
+| --- | --- | --- |
+| uv | Fresh zstd-sys bindings | 19 extraction tests, installed wheel contents and imports, and rejection of a truncated response |
+| ty | Fresh zstd-sys bindings in both build and runtime instances | Two vendored-library tests and valid/invalid Python diagnostics |
+
+The retained evidence identifies the original application revisions, source
+inventories, lockfile changes, Cargo features, compiler artifacts, and consumed
+binding files. These are full application builds with selected tests and runtime
+checks; the complete upstream workspace suites were not run.
 
 The branch-scoped [Linux acceptance workflow](../.github/workflows/astral-optin.yml)
 runs [verify_astral_optin.py](../scripts/verify_astral_optin.py) in a pinned Ubuntu
 container with a native C toolchain and no libclang. It compares the untouched
 upstream default build with the patched feature build, verifies source and lock
 inventories, and audits both ty dependency instances. The gate has one bounded
-job per application and no macOS runner. Its first full execution is pending;
-local checks cover preparation, real Cargo artifact inspection, rejection of the
-wrong generator feature, and rejection of a host with libclang installed.
+job per application and no macOS runner. The successful run validates the
+prepared patches against that exact source. Changes to the frontend, patches,
+application revisions, or selected profiles need another acceptance run.
+
+## Landing the opt-in
 
 The trial pins Toucan through Git. The repository is private, so this requires
 repository access. A public integration needs published Toucan crates or a
@@ -68,6 +76,14 @@ public dependency source before it can land; an optional private Git dependency
 can still prevent Cargo from resolving a default build. The opt-in generator
 requires Rust 1.96 on the build host, which both pinned workspaces already use.
 Compatibility with zstd's older default build toolchains remains a separate gate.
+
+The clean application gate substitutes a hash-verified local Toucan source for
+the private Git dependency. The separate Git audit verifies package discovery
+and source identity at the trial pin; it does not establish public installation.
+Before landing upstream, replace that dependency with the intended accessible
+release, validate zstd's default toolchains, and run the corresponding project
+CI with the final manifests and lockfiles. The Linux application gate above has
+passed; dependency distribution and upstream integration remain open.
 
 ## Subsequent integrations
 

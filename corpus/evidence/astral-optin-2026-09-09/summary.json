@@ -1,0 +1,59 @@
+{
+  "status": "passed",
+  "run_id": 34389234082,
+  "run_url": "https://github.com/astral-sh/toucan/actions/runs/34389234082",
+  "tested_commit": "131ec7a3a5aaa9b14a68b1a5d64b667faa889a89",
+  "target": "x86_64-unknown-linux-gnu",
+  "libclang_absent_before_and_after": true,
+  "projects": {
+    "uv": {
+      "revision": "d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+      "command_records_verified": 14,
+      "original_source_paths_verified": 1738,
+      "original_locked_packages_and_edges_preserved": 750,
+      "library_tests_per_build": 19,
+      "generated_binding_instances_per_build": 1,
+      "frontend_crates_per_build": 9,
+      "frontend_source_files_verified": 630,
+      "binary_sha256": {
+        "upstream": "119625686aa672a1cf9947f4982a8b328865a5aef630ef3b675dd7946e5290eb",
+        "toucan": "dc88687543a58e8c905264a9b9c14cca4159f3da1dae21a6dddb7896fd7cb90c"
+      },
+      "runtime": {
+        "installed_files": {
+          "toucan_consumer_probe/__init__.py": "94b882363df5755799f970a566e95be6d3cb0e34673efca79c142922c5489972",
+          "toucan_consumer_probe/data.bin": "120c518a83325c66464701a6ee080302f332bc768ea3f60473b209f1bfb091df",
+          "toucan_consumer_probe-1.0.0.dist-info/METADATA": "4d7c66b0c7158a524f1eef397daf5daaaf6bae8aaa255dd0e60a3ee0db42a41b",
+          "toucan_consumer_probe-1.0.0.dist-info/WHEEL": "8f347e3b5103e1b6cf9df83d9f6f9dfcec9a97e078ab3e7216e4eddff75e5a24"
+        },
+        "wheel_sha256": "23814de6e20b910903ad084f034b7dfaca670c2586ab7b3f0b05be0d18a52c7e",
+        "zstd_wheel_sha256": "ba7a5d12ba5068ac326d80bd0a8860130114bf85cf1f6e162fe27f48291c5161",
+        "imports_match": true,
+        "truncated_frame_rejected_without_installation": true
+      }
+    },
+    "ty": {
+      "revision": "e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+      "command_records_verified": 14,
+      "original_source_paths_verified": 11118,
+      "original_locked_packages_and_edges_preserved": 557,
+      "library_tests_per_build": 2,
+      "generated_binding_instances_per_build": 2,
+      "frontend_crates_per_build": 9,
+      "frontend_source_files_verified": 630,
+      "binary_sha256": {
+        "upstream": "67a905cffb5c2a2d02e9070612c6b4a7515cca543ec20fd9482e14c0b3ab5fd9",
+        "toucan": "fcb1aae7115ffac61b0802feabf8adb08b5012f16ea493e7ef081dd56f297806"
+      },
+      "runtime": {
+        "valid_invalid_diagnostics_match": true
+      }
+    }
+  },
+  "toolchain": {
+    "ci_selection": "stable",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+    "cargo": "cargo 1.98.1 (797e8a9bc 2026-08-05)",
+    "cc": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+  }
+}
