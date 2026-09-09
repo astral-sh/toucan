@@ -383,13 +383,15 @@ impl Expansion<'_> {
         omitted_variadic: bool,
     ) -> Result<Vec<Token>, String> {
         let parameters = definition.parameters.as_ref().expect("function macro");
-        let mut raw: BTreeMap<&str, Vec<Token>> = parameters
+        let mut raw: BTreeMap<&str, &[Token]> = parameters
             .iter()
             .zip(arguments)
-            .map(|(name, tokens)| (name.as_str(), tokens.clone()))
+            .map(|(name, tokens)| (name.as_str(), tokens.as_slice()))
             .collect();
         if let Some(name) = &definition.variadic_parameter {
-            let variadic = arguments.get(parameters.len()).cloned().unwrap_or_default();
+            let variadic = arguments
+                .get(parameters.len())
+                .map_or(&[][..], Vec::as_slice);
             raw.insert(name, variadic);
         }
         let replacement = self.replacement_tokens(name, &definition.replacement)?;
@@ -429,7 +431,7 @@ impl Expansion<'_> {
                     let expanded = if let Some(expanded) = expanded_arguments.get(name) {
                         expanded.clone()
                     } else {
-                        let expanded = self.expand(raw[name].clone())?;
+                        let expanded = self.expand(raw[name].to_vec())?;
                         expanded_arguments.insert(name, expanded.clone());
                         expanded
                     };
@@ -443,11 +445,11 @@ impl Expansion<'_> {
                         .get(position + 1)
                         .is_some_and(|token| token.text == "##");
                 let mut argument = if pasted {
-                    argument.clone()
+                    argument.to_vec()
                 } else if let Some(expanded) = expanded_arguments.get(token.text.as_str()) {
                     expanded.clone()
                 } else {
-                    let expanded = self.expand(argument.clone())?;
+                    let expanded = self.expand(argument.to_vec())?;
                     expanded_arguments.insert(token.text.as_str(), expanded.clone());
                     expanded
                 };
