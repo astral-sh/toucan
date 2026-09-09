@@ -48,6 +48,36 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             }
         }
     }
+    if let Some(dependencies) = analysis.parameter_type_dependencies() {
+        use toucan::semantic::DeclarationTarget;
+        for occurrence in dependencies.occurrences() {
+            source_span(source, occurrence.source());
+            source_span(source, occurrence.owner_source());
+            assert!(!occurrence.typedefs().is_empty());
+            for name in occurrence.typedefs() {
+                assert!(unit.typedefs.contains_key(name));
+            }
+            match occurrence.owner() {
+                DeclarationTarget::Declaration(id) => assert!(id < unit.declarations.len()),
+                DeclarationTarget::Record(id) => assert!(id < unit.records.len()),
+                _ => panic!("new parameter-type dependency owner needs invariant coverage"),
+            }
+        }
+        for (&record, names) in dependencies.records() {
+            assert!(record < unit.records.len());
+            assert!(!names.is_empty());
+            for name in names {
+                assert!(unit.typedefs.contains_key(name));
+            }
+        }
+        for (owner, names) in dependencies.typedefs() {
+            assert!(unit.typedefs.contains_key(owner));
+            assert!(!names.is_empty());
+            for name in names {
+                assert!(unit.typedefs.contains_key(name));
+            }
+        }
+    }
     if let Some(origins) = analysis.declaration_origins() {
         use toucan::semantic::DeclarationTarget;
         let mut previous = 0;

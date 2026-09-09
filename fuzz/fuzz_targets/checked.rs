@@ -19,6 +19,10 @@ fn retention_limit(error: &Error) -> bool {
             | "object-value metadata exceeds the 64 MiB limit"
             | "object-value type nesting exceeds the 128-level limit"
             | "documentation declaration limit exceeded"
+            | "parameter-type dependency reference limit exceeded"
+            | "parameter-type dependency storage limit exceeded"
+            | "parameter-type dependency nesting limit exceeded"
+            | "parameter-type occurrence limit exceeded"
     )
 }
 
@@ -50,6 +54,7 @@ fuzz_target!(|bytes: &[u8]| {
         retain_declaration_origins: true,
         retain_object_values: true,
         retain_documentation_origins: true,
+        retain_parameter_type_dependencies: true,
         ..AnalysisOptions::default()
     };
     match (
@@ -61,6 +66,7 @@ fuzz_target!(|bytes: &[u8]| {
             assert!(analysis.checked().is_some());
             assert!(analysis.object_values().is_some());
             assert!(analysis.documentation_origins().is_some());
+            assert!(analysis.parameter_type_dependencies().is_some());
             assert!(
                 format!("{unit:?}") == format!("{:?}", analysis.unit()),
                 "declaration IR changed for {profile:?}"

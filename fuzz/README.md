@@ -67,6 +67,12 @@ documentation targets must address existing declarations, records, enum variants
 or fields. The optional metadata retains its separate occurrence, byte, and nesting
 limits. These checks cover direct semantic input, not preprocessor comment capture
 or the builder's documentation attachment and emission.
+The checked target also retains source parameter-type dependencies and validates
+their declaration identities, typedef names, and occurrence spans. Array aliases,
+redeclared callbacks, shadowed names, `typeof`, and expression-only type operands
+have seed coverage. The [deterministic capture](../corpus/evidence/parameter-expression-dependencies-2026-09-09.json.gz)
+checks catalog equality with and without retained code across 440 settings; it
+does not measure mutation-fuzzing coverage.
 All targets reject invalid UTF-8, so saved reproducer
 bytes are exactly the source used for preprocessing, analysis, binding generation,
 and target selection.
