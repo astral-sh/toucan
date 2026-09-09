@@ -3,7 +3,6 @@
 
 use lang_c::{ast, span::Node};
 use serde::Serialize;
-use toucan_target::Target;
 
 use crate::analyze::Analyzer;
 use crate::checked::{Conversion, UseContext};
@@ -286,13 +285,11 @@ impl Analyzer {
                     && matches!(value.kind, TypeKind::Pointer(_))
                     && !self.gnu_sync_profile()
                 {
-                    Type::new(TypeKind::Integer(
-                        if self.unit.target == Target::X86_64PcWindowsMsvc {
-                            IntegerKind::LongLong
-                        } else {
-                            IntegerKind::Long
-                        },
-                    ))
+                    Type::new(TypeKind::Integer(if self.unit.target.is_windows() {
+                        IntegerKind::LongLong
+                    } else {
+                        IntegerKind::Long
+                    }))
                 } else {
                     value.clone()
                 },

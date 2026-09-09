@@ -141,7 +141,7 @@ fn atomic_alignment_and_names_are_checked_before_output() {
             target,
             &Options::default(),
         );
-        if target == Target::X86_64PcWindowsMsvc {
+        if target.is_windows() {
             // The Microsoft ABI keeps four-byte field alignment despite this
             // one-byte type alignment; one Rust type cannot express both.
             assert!(low.unwrap_err().0.contains("alignment"));

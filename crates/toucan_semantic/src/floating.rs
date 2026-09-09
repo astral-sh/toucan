@@ -119,7 +119,9 @@ impl Format {
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin => Self::X87,
                 Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => Self::Binary128,
-                Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc => Self::Binary64,
+                Target::Aarch64AppleDarwin
+                | Target::X86_64PcWindowsMsvc
+                | Target::Aarch64PcWindowsMsvc => Self::Binary64,
             },
             FloatKind::Extended { .. } => {
                 return Err(Error::new(

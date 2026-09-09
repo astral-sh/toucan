@@ -385,7 +385,7 @@ impl History {
         if body.internal {
             return FunctionDefinitionKind::Internal;
         }
-        if target == Target::X86_64PcWindowsMsvc && body.inlined && !body.gnu_inline {
+        if target.is_windows() && body.inlined && !body.gnu_inline {
             return if self.any_extern {
                 FunctionDefinitionKind::MicrosoftExternInline
             } else {

@@ -213,13 +213,11 @@ impl Analyzer {
                 if matches!(op, A::FetchAdd | A::FetchSub)
                     && matches!(value.kind, TypeKind::Pointer(_))
                 {
-                    Type::new(TypeKind::Integer(
-                        if self.unit.target == Target::X86_64PcWindowsMsvc {
-                            IntegerKind::LongLong
-                        } else {
-                            IntegerKind::Long
-                        },
-                    ))
+                    Type::new(TypeKind::Integer(if self.unit.target.is_windows() {
+                        IntegerKind::LongLong
+                    } else {
+                        IntegerKind::Long
+                    }))
                 } else {
                     value
                 },

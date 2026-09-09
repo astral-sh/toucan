@@ -1351,7 +1351,7 @@ mod tests {
         let source = "int f(int x) {int y; __asm__ volatile(\"\" : \"=r\"(y) : \"0\"(x) : \"cc\"); __asm__(\"\" : \"+rm\"(x) : \"m\"(y) : \"memory\"); __asm__(\"nop\"); return x;}";
         for target in Target::ALL
             .into_iter()
-            .filter(|target| *target != Target::X86_64PcWindowsMsvc)
+            .filter(|target| !target.is_windows())
         {
             let code = checked(source, target);
             let assemblies: Vec<_> = code

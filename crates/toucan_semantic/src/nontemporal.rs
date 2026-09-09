@@ -77,7 +77,7 @@ impl Analyzer {
                 "non-temporal address must point to an integer, floating, pointer, or fixed-vector object",
             ));
         }
-        if self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+        if self.unit.target.is_windows()
             && let TypeKind::Enum(id) = value.kind
             && !self.unit.enums[id].complete
         {

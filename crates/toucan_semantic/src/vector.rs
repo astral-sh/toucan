@@ -312,7 +312,9 @@ impl Analyzer {
                 Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin => 64,
-                Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc => 53,
+                Target::Aarch64AppleDarwin
+                | Target::X86_64PcWindowsMsvc
+                | Target::Aarch64PcWindowsMsvc => 53,
             },
             FloatKind::FLOAT128 => 113,
             FloatKind::FLOAT16 => 11,

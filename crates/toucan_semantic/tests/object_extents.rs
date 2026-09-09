@@ -57,11 +57,7 @@ fn direct_object_extents_and_target_string_widths_are_known() {
                 }
             }
         }
-        let wide = if target == Target::X86_64PcWindowsMsvc {
-            8
-        } else {
-            16
-        };
+        let wide = if target.is_windows() { 8 } else { 16 };
         assert_eq!(
             evaluate_integer(&unit, "__builtin_object_size(L\"abc\",0)")
                 .unwrap()

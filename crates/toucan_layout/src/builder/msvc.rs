@@ -147,9 +147,9 @@ impl<'a> RecordLayoutBuilder<'a> {
         //      alignment to that value. All other N activate the default.
         // arm: By default, the maximum field alignment is 8. N={1,2,4,8,16} set the maximum field
         //      alignment to that value. All other N activate the default.
-        // arm64: By default, the maximum field alignment is 8. N={1,2,4,8} set the maximum field
-        //        alignment to that value. N=16 disables the maximum field alignment. All other N
-        //        activate the default.
+        // arm64: Clang's Microsoft target leaves the default field alignment uncapped
+        //        (including for __int128). N={1,2,4,8} sets a maximum and N=16
+        //        restores the default. Clang 18 cross-target record probes cover both.
         //
         // See test case 0020.
         use Target::*;
@@ -161,7 +161,7 @@ impl<'a> RecordLayoutBuilder<'a> {
             (Some(64), _) => pack_value,
             (Some(128), Thumbv7aPcWindowsMsvc) => pack_value,
             (Some(128), _) => None,
-            (_, Thumbv7aPcWindowsMsvc) | (_, Aarch64PcWindowsMsvc) => Some(64),
+            (_, Thumbv7aPcWindowsMsvc) => Some(64),
             _ => None,
         };
         // The required alignment can be increased by adding a __declspec(align)

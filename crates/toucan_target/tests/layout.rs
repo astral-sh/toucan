@@ -68,6 +68,28 @@ fn data_models_are_explicit() {
 }
 
 #[test]
+fn arm64_windows_model_has_its_own_predefines_and_alignment_rules() {
+    let target = Target::parse("aarch64-pc-windows-msvc").unwrap();
+    let macros = target.predefined_macros();
+    assert_eq!(macros["_M_ARM64"], "1");
+    assert_eq!(macros["__SIZEOF_INT128__"], "16");
+    assert_eq!(macros["_WIN64"], "1");
+    assert!(!macros.contains_key("_M_X64"));
+    assert!(!macros.contains_key("_M_AMD64"));
+    assert!(!macros.contains_key("__LP64__"));
+    assert_eq!((target.long_width(), target.wchar_width()), (32, 16));
+    assert!(target.is_aarch64() && target.is_windows() && !target.is_x86_64());
+    let mut ty = record(vec![field(B::Char), field(B::Int128)]);
+    let natural = target.layout(&ty).unwrap();
+    assert_eq!((natural.size_bytes(), natural.alignment_bytes()), (32, 16));
+    assert_eq!(natural.fields[1].unwrap().offset_bits, 128);
+    ty.annotations.push(Annotation::PragmaPack(64));
+    let packed = target.layout(&ty).unwrap();
+    assert_eq!((packed.size_bytes(), packed.alignment_bytes()), (24, 8));
+    assert_eq!(packed.fields[1].unwrap().offset_bits, 64);
+}
+
+#[test]
 fn packing_changes_offsets_and_alignment() {
     let mut ty = record(vec![field(B::Char), field(B::Int), field(B::Double)]);
     for target in Target::ALL {
@@ -186,7 +208,7 @@ fn opaque_children_preserve_packing_and_required_alignment() {
 fn enum_layouts_cover_signed_and_unsigned_boundaries() {
     for target in Target::ALL
         .into_iter()
-        .filter(|target| *target != Target::X86_64PcWindowsMsvc)
+        .filter(|target| !target.is_windows())
     {
         for (minimum, maximum, packed, bits) in [
             (0, i128::from(u32::MAX), false, 32),

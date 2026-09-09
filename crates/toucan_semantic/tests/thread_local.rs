@@ -83,7 +83,7 @@ fn thread_storage_constraints_preserve_analysis_parity() {
             .iter()
             .map(|s| (*s, true))
             .chain(INVALID.iter().map(|s| (*s, false)))
-            .chain([(LATER_STATIC, target == Target::X86_64PcWindowsMsvc)])
+            .chain([(LATER_STATIC, target.is_windows())])
         {
             let plain = analyze(source, target);
             let retained = analyze_with_options(
@@ -298,7 +298,7 @@ fn thread_storage_matches_gcc_and_clang_on_five_targets() {
             &clang,
             Some(target),
             LATER_STATIC,
-            target == Target::X86_64PcWindowsMsvc,
+            target.is_windows(),
             false,
         );
     }

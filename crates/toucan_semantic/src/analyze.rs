@@ -523,7 +523,7 @@ fn parse(
                 driver::Standard::C17
             }
         },
-        extensions_msvc: target == Target::X86_64PcWindowsMsvc,
+        extensions_msvc: target.is_windows(),
         flavor: match compiler {
             Compiler::Gnu => driver::Flavor::GnuC11WithClangExtensions,
             Compiler::Clang => driver::Flavor::ClangC11,
@@ -1559,7 +1559,7 @@ impl Analyzer {
             // or function declaration is written `static`, in every C mode.
             if is_static
                 && kind != DeclarationKind::Typedef
-                && self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+                && self.unit.target.is_windows()
                 && (previous_index.is_some_and(|index| {
                     let previous = &self.unit.declarations[index];
                     previous.kind == kind && !previous.is_static
@@ -5004,7 +5004,15 @@ impl Analyzer {
                         "aarch64_vector_pcs cannot apply to an SVE function type on the GNU profile",
                     ));
                 }
-                function.calling_convention = convention;
+                // Clang accepts ms_abi on Windows ARM64, where it is the
+                // default C ABI. Rust has no win64 ABI for that architecture.
+                function.calling_convention = if self.unit.target == Target::Aarch64PcWindowsMsvc
+                    && convention == CallingConvention::Win64
+                {
+                    CallingConvention::C
+                } else {
+                    convention
+                };
             }
             TypeKind::Pointer(element) => {
                 if !clang && !matches!(self.unit.resolve(element)?.kind, TypeKind::Function(_)) {
@@ -5067,7 +5075,7 @@ impl Analyzer {
                 // GCC ignores tag alignment. Clang preserves it independently
                 // of integer size, so an ordinary Rust integer is suitable
                 // only when the attribute leaves all storage rules unchanged.
-                if self.unit.target == Target::X86_64PcWindowsMsvc {
+                if self.unit.target.is_windows() {
                     return Err(Error::new(
                         offset,
                         "alignment attributes on Microsoft enum tags are unsupported",
@@ -5409,6 +5417,11 @@ impl Analyzer {
                             }
                             let convention = match name {
                                 "ms_abi" => Some(CallingConvention::Win64),
+                                // Clang accepts and ignores the x86-64 System V
+                                // ABI attribute on Windows ARM64.
+                                "sysv_abi" if self.unit.target == Target::Aarch64PcWindowsMsvc => {
+                                    None
+                                }
                                 "sysv_abi" => Some(CallingConvention::SysV64),
                                 // GNU ignores these x86-32 conventions on its
                                 // 64-bit targets. Clang retains explicit cdecl.
@@ -5423,9 +5436,7 @@ impl Analyzer {
                                 {
                                     Some(CallingConvention::SysV64)
                                 }
-                                "cdecl"
-                                    if matches!(self.unit.target, Target::X86_64PcWindowsMsvc) =>
-                                {
+                                "cdecl" if self.unit.target.is_windows() => {
                                     Some(CallingConvention::Win64)
                                 }
                                 _ => None,
@@ -5906,10 +5917,10 @@ pub(crate) fn anonymous_record_specifier(
             ast::TypeSpecifier::Struct(record) if record.node.identifier.is_none() => {
                 Some(AnonymousRecordSpecifier::Direct)
             }
-            ast::TypeSpecifier::Struct(_) if target == Target::X86_64PcWindowsMsvc => {
+            ast::TypeSpecifier::Struct(_) if target.is_windows() => {
                 Some(AnonymousRecordSpecifier::MicrosoftTag)
             }
-            ast::TypeSpecifier::TypedefName(name) if target == Target::X86_64PcWindowsMsvc => {
+            ast::TypeSpecifier::TypedefName(name) if target.is_windows() => {
                 Some(AnonymousRecordSpecifier::MicrosoftTypedef(&name.node.name))
             }
             _ => None,

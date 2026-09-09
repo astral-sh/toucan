@@ -323,6 +323,7 @@ impl CallingConvention {
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin,
             ) => Ok(self),
+            (Self::Win64, Target::Aarch64PcWindowsMsvc) => Ok(Self::C),
             _ => Err(Error::new(
                 0,
                 "explicit calling convention is unsupported on this target",
@@ -707,7 +708,7 @@ impl TranslationUnit {
             .map_err(|e| Error::new(0, e.to_string()))?;
         // clang-cl honors a GNU typedef's decreased pointer alignment even though
         // the Microsoft field-layout rules retain the natural field alignment.
-        if self.target == Target::X86_64PcWindowsMsvc {
+        if self.target.is_windows() {
             let mut current = ty;
             for _ in 0..128 {
                 if let Some(alignment) = self.typedef_alignment(current)? {

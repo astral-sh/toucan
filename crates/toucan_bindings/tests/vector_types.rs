@@ -35,7 +35,7 @@ fn vector_storage_helpers_preserve_names_and_alignment() {
         assert!(source.contains("pub type V = __toucan_vector_16_align_16;"));
         assert!(source.contains("pub type D = __toucan_vector_16_align_16;"));
         let unaligned = analyze(UNALIGNED, target).unwrap();
-        if target == Target::X86_64PcWindowsMsvc {
+        if target.is_windows() {
             assert!(
                 generate(&unaligned, &options())
                     .unwrap_err()

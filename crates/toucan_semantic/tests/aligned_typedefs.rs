@@ -40,7 +40,7 @@ fn typedef_layouts_and_c_alignment_queries_preserve_record_identity() {
             assert_eq!(layout.size_bytes(), size, "{target:?} {name}");
             assert_eq!(unit.alignment(&ty).unwrap(), alignment, "{target:?} {name}");
         }
-        for (name, size, align, x, z) in if target == Target::X86_64PcWindowsMsvc {
+        for (name, size, align, x, z) in if target.is_windows() {
             [
                 ("S", 8, 4, 4, 4),
                 ("F1", 12, 4, 4, 8),

@@ -58,7 +58,7 @@ impl TryFrom<ProfileFields> for CompilerProfile {
 impl CompilerProfile {
     /// Supported profiles. The original seven entries retain their order; musl
     /// profiles follow them. Fuzz campaign manifests record the selector count.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 12] = [
         Self::default_for(Target::X86_64UnknownLinuxGnu),
         Self::default_for(Target::Aarch64UnknownLinuxGnu),
         Self::default_for(Target::X86_64AppleDarwin),
@@ -86,6 +86,7 @@ impl CompilerProfile {
             compiler: Compiler::Clang,
             language_mode: LanguageMode::Gnu11,
         },
+        Self::default_for(Target::Aarch64PcWindowsMsvc),
     ];
     /// Rejects compiler/target pairs whose semantics and ABI have not been validated.
     pub fn new(target: Target, compiler: Compiler) -> Result<Self, LayoutError> {
@@ -130,7 +131,7 @@ impl CompilerProfile {
     /// Trigraph default before an explicit preprocessing override. Clang's Microsoft
     /// compatibility mode leaves trigraphs disabled in both ISO standard modes.
     pub const fn default_trigraphs(self) -> bool {
-        !self.language_mode.is_gnu() && !matches!(self.target, Target::X86_64PcWindowsMsvc)
+        !self.language_mode.is_gnu() && !self.target.is_windows()
     }
     /// Computes a scalar layout under this validated profile.
     pub fn builtin_layout(self, builtin: BuiltinType) -> Result<Layout, LayoutError> {
@@ -142,9 +143,7 @@ impl CompilerProfile {
         let target = self.target.abi_target();
         let compiler = match self.compiler {
             Compiler::Gnu => repc::Compiler::Gcc,
-            Compiler::Clang if self.target == Target::X86_64PcWindowsMsvc => {
-                repc::system_compiler(target)
-            }
+            Compiler::Clang if self.target.is_windows() => repc::system_compiler(target),
             Compiler::Clang => repc::Compiler::Clang,
         };
         Ok(Layout::from_abi(&repc::compute_layout_with_compiler(

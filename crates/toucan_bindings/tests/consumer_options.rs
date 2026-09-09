@@ -239,7 +239,7 @@ fn independent_binding_files_share_a_module_without_helper_collisions() {
                  unsigned low:3; unsigned high:5; enum {{ {prefix}_off, {prefix}_on }} state;\n\
                  union {{ int integer; float floating; }}; }} {prefix}_Item;\n\
              typedef {prefix}_Item {prefix}_Alias;\n",
-            size_type = if target == Target::X86_64PcWindowsMsvc {
+            size_type = if target.is_windows() {
                 "unsigned long long"
             } else {
                 "unsigned long"
@@ -322,7 +322,7 @@ fn independent_binding_files_share_a_module_without_helper_collisions() {
 #[test]
 fn normalized_size_t_discards_only_unused_alias_dependencies() {
     for target in Target::ALL {
-        let integer = if target == Target::X86_64PcWindowsMsvc {
+        let integer = if target.is_windows() {
             "unsigned long long"
         } else {
             "unsigned long"

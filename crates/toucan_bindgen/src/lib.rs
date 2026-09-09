@@ -630,6 +630,11 @@ fn host_target() -> Option<Target> {
             target_os = "windows",
             target_env = "msvc"
         )),
+        Target::Aarch64PcWindowsMsvc => cfg!(all(
+            target_arch = "aarch64",
+            target_os = "windows",
+            target_env = "msvc"
+        )),
     })
 }
 

@@ -29,7 +29,7 @@ impl CompilerProfile {
         let mut define = |name: &str, value: &str| {
             macros.insert(name.to_owned(), value.to_owned());
         };
-        if standard && target != Target::X86_64PcWindowsMsvc {
+        if standard && !target.is_windows() {
             define("__STRICT_ANSI__", "1");
         }
         match self.language_mode() {
@@ -45,7 +45,7 @@ impl CompilerProfile {
             define("__STDC_UTF_16__", "1");
             define("__STDC_UTF_32__", "1");
         }
-        if target != Target::X86_64PcWindowsMsvc {
+        if !target.is_windows() {
             define(
                 if !self.language_mode().is_c90() {
                     "__GNUC_STDC_INLINE__"
@@ -56,7 +56,7 @@ impl CompilerProfile {
             );
         }
         // Clang's Microsoft C profile omits __STDC__, including ISO language modes.
-        if target != Target::X86_64PcWindowsMsvc {
+        if !target.is_windows() {
             define("__STDC__", "1");
         }
         for (name, value) in [
@@ -106,7 +106,7 @@ impl CompilerProfile {
             define(name, value);
         }
 
-        let windows = matches!(target, Target::X86_64PcWindowsMsvc);
+        let windows = target.is_windows();
         let apple = matches!(
             target,
             Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin
@@ -116,8 +116,6 @@ impl CompilerProfile {
             for (name, value) in [
                 ("_WIN32", "1"),
                 ("_WIN64", "1"),
-                ("_M_X64", "100"),
-                ("_M_AMD64", "100"),
                 ("_MSC_VER", "1930"),
                 ("_MSC_FULL_VER", "193000000"),
                 ("__SIZEOF_LONG__", "4"),
@@ -125,6 +123,13 @@ impl CompilerProfile {
                 ("__LONG_MAX__", "2147483647L"),
             ] {
                 define(name, value);
+            }
+            if aarch64 {
+                define("_M_ARM64", "1");
+                define("__SIZEOF_INT128__", "16");
+            } else {
+                define("_M_X64", "100");
+                define("_M_AMD64", "100");
             }
         } else {
             let (major, minor, patch) = match compiler {
@@ -207,7 +212,9 @@ impl CompilerProfile {
             define("__CHAR_UNSIGNED__", "1");
         }
         let (wchar_ty, wchar_width, wchar_size, wchar_max) = match target {
-            Target::X86_64PcWindowsMsvc => ("unsigned short", "16", "2", "65535"),
+            Target::X86_64PcWindowsMsvc | Target::Aarch64PcWindowsMsvc => {
+                ("unsigned short", "16", "2", "65535")
+            }
             Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
                 ("unsigned int", "32", "4", "4294967295U")
             }
@@ -314,7 +321,7 @@ impl CompilerProfile {
 
         let (long_double_size, mantissa, max_exponent, biggest_alignment) = match target {
             Target::Aarch64AppleDarwin => ("8", "53", "1024", "8"),
-            Target::X86_64PcWindowsMsvc => ("8", "53", "1024", "16"),
+            Target::X86_64PcWindowsMsvc | Target::Aarch64PcWindowsMsvc => ("8", "53", "1024", "16"),
             Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
                 ("16", "113", "16384", "16")
             }

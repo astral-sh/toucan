@@ -296,6 +296,11 @@ fn host_target() -> Result<Target> {
                 target_os = "windows",
                 target_env = "msvc"
             )),
+            "aarch64-pc-windows-msvc" => cfg!(all(
+                target_arch = "aarch64",
+                target_os = "windows",
+                target_env = "msvc"
+            )),
             _ => false,
         })
         .context("the host target is unsupported; supply --target explicitly")

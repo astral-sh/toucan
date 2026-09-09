@@ -803,7 +803,7 @@ fn target_index(target: Target) -> usize {
         Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => 1,
         Target::X86_64AppleDarwin => 2,
         Target::Aarch64AppleDarwin => 3,
-        Target::X86_64PcWindowsMsvc => 4,
+        Target::X86_64PcWindowsMsvc | Target::Aarch64PcWindowsMsvc => 4,
     }
 }
 #[test]

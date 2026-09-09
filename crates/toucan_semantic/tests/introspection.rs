@@ -110,11 +110,7 @@ fn assertions(gnu: bool, msvc: bool) -> String {
 #[test]
 fn compatibility_queries_and_selections_check_all_targets() {
     for target in Target::ALL {
-        analyze(
-            &assertions(gnu(target), target == Target::X86_64PcWindowsMsvc),
-            target,
-        )
-        .unwrap();
+        analyze(&assertions(gnu(target), target.is_windows()), target).unwrap();
         let unit = analyze(PREAMBLE, target).unwrap();
         let value = evaluate_integer(
             &unit,
@@ -401,11 +397,7 @@ fn target_type_compatibility_matches_clang() {
     let temp = tempfile::tempdir().unwrap();
     for target in Target::ALL {
         let path = temp.path().join("types.c");
-        std::fs::write(
-            &path,
-            assertions(false, target == Target::X86_64PcWindowsMsvc),
-        )
-        .unwrap();
+        std::fs::write(&path, assertions(false, target.is_windows())).unwrap();
         let output = Command::new("clang")
             .args([
                 "-target",

@@ -60,6 +60,19 @@ fn fixtures() -> Vec<(&'static str, &'static str, Type, Vec<&'static str>)> {
             vec!["c", "i", "u"],
         ),
         (
+            "pack8_int128",
+            "#pragma pack(push, 8)\nstruct pack8_int128 { char c; __int128 i; unsigned __int128 u; };\n#pragma pack(pop)",
+            record(
+                vec![
+                    field(B::Char, None),
+                    field(B::Int128, None),
+                    field(B::UnsignedInt128, None),
+                ],
+                vec![Annotation::PragmaPack(64)],
+            ),
+            vec!["c", "i", "u"],
+        ),
+        (
             "int128_bits",
             "struct int128_bits { unsigned __int128 a:65; unsigned __int128 b:12; char c; };",
             record(
@@ -202,9 +215,7 @@ fn enum_assertions(target: Target, source: &mut String) {
         ("packed_unsigned_byte", vec![0, 255], true),
     ] {
         // MSVC diagnoses enumerators outside the range of int instead of widening them.
-        if target == Target::X86_64PcWindowsMsvc
-            && values.iter().any(|&value| i32::try_from(value).is_err())
-        {
+        if target.is_windows() && values.iter().any(|&value| i32::try_from(value).is_err()) {
             continue;
         }
         let attribute = if packed {

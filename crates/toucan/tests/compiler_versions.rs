@@ -1,5 +1,5 @@
 use std::path::Path;
-use toucan::{Compiler, CompilerProfile, Config, LanguageMode, Target};
+use toucan::{Compiler, CompilerProfile, Config, LanguageMode};
 
 #[test]
 fn preprocessed_version_branches_and_caller_overrides_are_consistent() {
@@ -7,7 +7,7 @@ fn preprocessed_version_branches_and_caller_overrides_are_consistent() {
         .into_iter()
         .flat_map(|p| LanguageMode::ALL.map(|m| p.with_language_mode(m)))
     {
-        let windows = profile.target() == Target::X86_64PcWindowsMsvc;
+        let windows = profile.target().is_windows();
         let mut config = Config::with_profile(profile);
         let source = r#"
 #ifdef __GNUC__

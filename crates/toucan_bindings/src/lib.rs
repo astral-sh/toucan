@@ -694,6 +694,7 @@ fn generate_with_work_budget(
         "x86_64-apple-darwin" => ("x86_64", "macos", ""),
         "aarch64-apple-darwin" => ("aarch64", "macos", ""),
         "x86_64-pc-windows-msvc" => ("x86_64", "windows", ", target_env = \"msvc\""),
+        "aarch64-pc-windows-msvc" => ("aarch64", "windows", ", target_env = \"msvc\""),
         "x86_64-unknown-linux-musl" => ("x86_64", "linux", ", target_env = \"musl\""),
         "aarch64-unknown-linux-musl" => ("aarch64", "linux", ", target_env = \"musl\""),
         triple => return Err(Error(format!("binding target `{triple}` is unsupported"))),
@@ -2606,11 +2607,7 @@ mod tests {
             ).unwrap();
             let original = unit.constants.clone();
             let bindings = generate(&unit, &Options::default()).unwrap();
-            let positive_type = if target == Target::X86_64PcWindowsMsvc {
-                "i32"
-            } else {
-                "u32"
-            };
+            let positive_type = if target.is_windows() { "i32" } else { "u32" };
             assert!(bindings.source.contains(&format!(
                 "pub const POSITIVE: ::core::primitive::{positive_type} = 3;"
             )));

@@ -62,11 +62,10 @@ fn parameters_project_raw_carriers_without_changing_union_storage() {
                         .source
                         .contains("fn byte(arg0: ::core::primitive::u8)")
                 );
-                assert!(
-                    bindings
-                        .source
-                        .contains("fn enumeration(arg0: ::core::primitive::u32)")
-                );
+                let enum_type = if target.is_windows() { "i32" } else { "u32" };
+                assert!(bindings.source.contains(&format!(
+                    "fn enumeration(arg0: ::core::primitive::{enum_type})"
+                )));
             }
             assert!(
                 bindings
@@ -147,9 +146,13 @@ fn increased_union_alignment_follows_the_target_call_abi() {
         Target::X86_64AppleDarwin,
         Target::Aarch64AppleDarwin,
         Target::X86_64PcWindowsMsvc,
+        Target::Aarch64PcWindowsMsvc,
     ] {
         let unit=analyze("typedef union __attribute__((aligned(16))) {int first;unsigned bits;} U __attribute__((transparent_union)); int f(U,int);",target).unwrap();
-        if target == Target::Aarch64AppleDarwin {
+        if matches!(
+            target,
+            Target::Aarch64AppleDarwin | Target::Aarch64PcWindowsMsvc
+        ) {
             assert!(
                 generate(&unit, &Options::default())
                     .unwrap_err()

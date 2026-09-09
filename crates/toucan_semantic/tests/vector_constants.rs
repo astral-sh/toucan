@@ -394,9 +394,9 @@ fn extended_lanes_round_in_their_target_format() {
                 FloatingFormat::Binary128,
                 (0x3fffu128 << 112) | (1u128 << 111),
             ),
-            Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc => {
-                (FloatingFormat::Binary64, 0x3ff8000000000000)
-            }
+            Target::Aarch64AppleDarwin
+            | Target::X86_64PcWindowsMsvc
+            | Target::Aarch64PcWindowsMsvc => (FloatingFormat::Binary64, 0x3ff8000000000000),
         };
         assert_eq!(lane.format(), format);
         assert_eq!(lane.to_bits(), expected);

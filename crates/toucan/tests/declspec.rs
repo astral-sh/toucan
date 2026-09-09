@@ -123,13 +123,9 @@ fn compare_modes(source: &str, profile: CompilerProfile, accepted: bool) {
 fn declspec_preserves_microsoft_spelling_placement_and_constraints() {
     for profile in CompilerProfile::ALL {
         for &(source, accepted) in CASES {
-            compare_modes(
-                source,
-                profile,
-                accepted && profile.target() == Target::X86_64PcWindowsMsvc,
-            );
+            compare_modes(source, profile, accepted && profile.target().is_windows());
         }
-        if profile.target() != Target::X86_64PcWindowsMsvc {
+        if !profile.target().is_windows() {
             compare_modes(
                 "int __declspec; typedef int _declspec; _declspec f(_declspec x){return x+__declspec;}",
                 profile,
@@ -253,7 +249,7 @@ fn declspec_queries_and_unsupported_attributes_keep_their_boundaries() {
         ] {
             assert_eq!(
                 toucan::semantic::has_declspec_attribute(profile, name),
-                u64::from(profile.target() == Target::X86_64PcWindowsMsvc)
+                u64::from(profile.target().is_windows())
             );
         }
         for name in [

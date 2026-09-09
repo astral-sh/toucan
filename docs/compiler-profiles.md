@@ -24,6 +24,7 @@ by the GNU profile cannot be used with a Clang-built library; see
 | x86_64-apple-darwin | Clang | — |
 | aarch64-apple-darwin | Clang | — |
 | x86_64-pc-windows-msvc | Clang with the Microsoft ABI | — |
+| aarch64-pc-windows-msvc | Clang with the Microsoft ABI | — |
 
 Musl targets select their own libc environment and generated Rust guards. Use
 [the musl validation guide](musl.md) for sysroot setup and the distinction between

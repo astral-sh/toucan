@@ -241,7 +241,7 @@ fn literal_types_check_initializers_on_every_target() {
                 "{target}: accepted {source}"
             );
         }
-        if target != Target::X86_64PcWindowsMsvc {
+        if !target.is_windows() {
             analyze(r#"enum E { X }; enum E a[] = U"x";"#, target).unwrap();
         }
     }

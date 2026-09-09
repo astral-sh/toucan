@@ -4,7 +4,7 @@ use lang_c::{
     ast,
     span::{Node, Span},
 };
-use toucan_target::{CompilerProfile, Target};
+use toucan_target::CompilerProfile;
 
 use crate::Error;
 use crate::analyze::{Analyzer, Attributes};
@@ -43,7 +43,7 @@ pub fn has_declspec_attribute(profile: CompilerProfile, name: &str) -> u64 {
         .and_then(|name| name.strip_suffix("__"))
         .unwrap_or(name);
     u64::from(
-        profile.target() == Target::X86_64PcWindowsMsvc
+        profile.target().is_windows()
             && matches!(
                 DeclspecAttribute::from_name(name),
                 Some(

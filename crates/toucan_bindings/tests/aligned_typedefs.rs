@@ -59,7 +59,7 @@ fn redundant_linux_int128_aliases_and_unselected_changed_aliases_are_usable() {
 #[test]
 fn normalized_size_t_checks_the_discarded_alias_layout() {
     for target in Target::ALL {
-        let integer = if target == Target::X86_64PcWindowsMsvc {
+        let integer = if target.is_windows() {
             "unsigned long long"
         } else {
             "unsigned long"
@@ -79,7 +79,7 @@ fn normalized_size_t_checks_the_discarded_alias_layout() {
                 },
             );
             // MSVC explicit alignment also changes the required alignment under packing.
-            if alignment == 8 && target != Target::X86_64PcWindowsMsvc {
+            if alignment == 8 && !target.is_windows() {
                 let bindings = result.unwrap();
                 assert!(bindings.source.contains("arg0: ::core::primitive::usize"));
                 assert!(!bindings.source.contains("pub type internal"));

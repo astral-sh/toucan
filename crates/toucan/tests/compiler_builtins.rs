@@ -8,7 +8,7 @@ fn compiler_integer_types_are_available_to_system_headers() {
     for target in Target::ALL {
         let mut config = Config::new(target);
         config.preprocessor.allow_filesystem = false;
-        if target == Target::X86_64PcWindowsMsvc {
+        if target.is_windows() {
             let result = toucan::parse_source(Path::new("empty.h"), "", &config).unwrap();
             assert!(!result.unit().typedefs.contains_key("__int128_t"));
             assert!(!result.unit().typedefs.contains_key("__uint128_t"));

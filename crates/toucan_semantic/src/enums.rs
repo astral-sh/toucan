@@ -1,7 +1,6 @@
 //! Compatible enum integers remain distinct from enumerator expression types.
 
 use crate::{Error, IntegerKind, TranslationUnit, Type, TypeKind};
-use toucan_target::Target;
 
 impl TranslationUnit {
     /// Returns the complete enum's compatible C integer type.
@@ -17,7 +16,7 @@ impl TranslationUnit {
         // Layout selects a representation from the values and tag attributes;
         // it does not call this query or Analyzer::integer_type.
         let layout = self.layout(&Type::new(TypeKind::Enum(id)))?;
-        let signed = self.target == Target::X86_64PcWindowsMsvc
+        let signed = self.target.is_windows()
             || enumeration
                 .variants
                 .iter()

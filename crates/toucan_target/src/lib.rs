@@ -30,6 +30,8 @@ pub enum Target {
     Aarch64AppleDarwin,
     /// The Microsoft x64 ABI.
     X86_64PcWindowsMsvc,
+    /// The Microsoft ARM64 ABI.
+    Aarch64PcWindowsMsvc,
     /// The System V AMD64 ABI with musl Linux headers.
     X86_64UnknownLinuxMusl,
     /// The AArch64 ELF ABI with musl Linux headers.
@@ -38,7 +40,7 @@ pub enum Target {
 
 impl Target {
     /// All supported targets, in a stable order.
-    pub const ALL: [Self; 7] = [
+    pub const ALL: [Self; 8] = [
         Self::X86_64UnknownLinuxGnu,
         Self::Aarch64UnknownLinuxGnu,
         Self::X86_64AppleDarwin,
@@ -46,6 +48,7 @@ impl Target {
         Self::X86_64PcWindowsMsvc,
         Self::X86_64UnknownLinuxMusl,
         Self::Aarch64UnknownLinuxMusl,
+        Self::Aarch64PcWindowsMsvc,
     ];
 
     /// Parses a canonical target triple. Unknown triples are rejected.
@@ -64,6 +67,7 @@ impl Target {
             Self::X86_64AppleDarwin => "x86_64-apple-darwin",
             Self::Aarch64AppleDarwin => "aarch64-apple-darwin",
             Self::X86_64PcWindowsMsvc => "x86_64-pc-windows-msvc",
+            Self::Aarch64PcWindowsMsvc => "aarch64-pc-windows-msvc",
             Self::X86_64UnknownLinuxMusl => "x86_64-unknown-linux-musl",
             Self::Aarch64UnknownLinuxMusl => "aarch64-unknown-linux-musl",
         }
@@ -92,8 +96,16 @@ impl Target {
     pub const fn is_aarch64(self) -> bool {
         matches!(
             self,
-            Self::Aarch64UnknownLinuxGnu | Self::Aarch64UnknownLinuxMusl | Self::Aarch64AppleDarwin
+            Self::Aarch64UnknownLinuxGnu
+                | Self::Aarch64UnknownLinuxMusl
+                | Self::Aarch64AppleDarwin
+                | Self::Aarch64PcWindowsMsvc
         )
+    }
+
+    /// Whether the target uses the Microsoft C ABI and Windows headers.
+    pub const fn is_windows(self) -> bool {
+        matches!(self, Self::X86_64PcWindowsMsvc | Self::Aarch64PcWindowsMsvc)
     }
 
     /// Whether the target uses the x86-64 instruction set.
@@ -117,7 +129,8 @@ impl Target {
             | Self::Aarch64UnknownLinuxMusl
             | Self::X86_64AppleDarwin
             | Self::Aarch64AppleDarwin
-            | Self::X86_64PcWindowsMsvc => 16,
+            | Self::X86_64PcWindowsMsvc
+            | Self::Aarch64PcWindowsMsvc => 16,
         }
     }
 
@@ -136,20 +149,12 @@ impl Target {
 
     /// Returns the width of `long`, in bits.
     pub const fn long_width(self) -> u64 {
-        if matches!(self, Self::X86_64PcWindowsMsvc) {
-            32
-        } else {
-            64
-        }
+        if self.is_windows() { 32 } else { 64 }
     }
 
     /// Returns the width of `wchar_t`, in bits.
     pub const fn wchar_width(self) -> u64 {
-        if matches!(self, Self::X86_64PcWindowsMsvc) {
-            16
-        } else {
-            32
-        }
+        if self.is_windows() { 16 } else { 32 }
     }
 
     /// Returns whether `wchar_t` is signed in this profile.
@@ -157,6 +162,7 @@ impl Target {
         !matches!(
             self,
             Self::X86_64PcWindowsMsvc
+                | Self::Aarch64PcWindowsMsvc
                 | Self::Aarch64UnknownLinuxGnu
                 | Self::Aarch64UnknownLinuxMusl
         )
@@ -185,6 +191,7 @@ impl Target {
             Self::X86_64AppleDarwin => repc::Target::X86_64AppleMacosx,
             Self::Aarch64AppleDarwin => repc::Target::Aarch64AppleMacosx,
             Self::X86_64PcWindowsMsvc => repc::Target::X86_64PcWindowsMsvc,
+            Self::Aarch64PcWindowsMsvc => repc::Target::Aarch64PcWindowsMsvc,
         }
     }
 
@@ -204,7 +211,12 @@ impl Target {
                 if !annotations.is_empty() {
                     return Err(LayoutError::AnnotatedLongDouble);
                 }
-                let bits = if matches!(self, Self::Aarch64AppleDarwin | Self::X86_64PcWindowsMsvc) {
+                let bits = if matches!(
+                    self,
+                    Self::Aarch64AppleDarwin
+                        | Self::X86_64PcWindowsMsvc
+                        | Self::Aarch64PcWindowsMsvc
+                ) {
                     64
                 } else {
                     128
@@ -263,7 +275,7 @@ impl Target {
                     i128::from(u64::MAX)
                 };
                 if compiler == Compiler::Clang
-                    && self != Self::X86_64PcWindowsMsvc
+                    && !self.is_windows()
                     && (minimum < i128::from(i64::MIN) || maximum > maximum_64)
                 {
                     // Clang only offers a lossy, diagnosed recovery for larger enum ranges.

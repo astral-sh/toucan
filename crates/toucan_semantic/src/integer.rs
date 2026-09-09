@@ -626,7 +626,7 @@ impl Analyzer {
                 // Clang's MS mode recovers an oversized explicitly signed LL
                 // literal by wrapping its value. Preserve the existing rejection
                 // instead of giving that recovery an unsigned type.
-                && !(self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+                && !(self.unit.target.is_windows()
                     && minimum_rank == 5);
             if (literal.suffix.unsigned || radix != 10 || c90_unsigned)
                 && value <= IntegerValue::mask(bits)

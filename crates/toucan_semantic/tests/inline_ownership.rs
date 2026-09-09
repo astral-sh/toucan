@@ -18,7 +18,7 @@ fn cases() -> Vec<Case> {
 }
 
 fn expected(case: &Case, profile: CompilerProfile) -> Option<&str> {
-    let family = if profile.target() == Target::X86_64PcWindowsMsvc {
+    let family = if profile.target().is_windows() {
         "msvc"
     } else if profile.compiler() == Compiler::Gnu {
         "gcc"

@@ -85,7 +85,7 @@ fn microsoft_single_underscore_aliases_follow_the_extension_mode() {
                 toucan::semantic::analyze_with_profile(&source, profile, &Default::default());
             assert_eq!(
                 result.is_ok(),
-                profile.target() == Target::X86_64PcWindowsMsvc,
+                profile.target().is_windows(),
                 "{source}: {result:?}"
             );
         }

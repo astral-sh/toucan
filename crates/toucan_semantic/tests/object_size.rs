@@ -83,7 +83,7 @@ fn object_size_queries_check_parameters_modes_and_target_result_type() {
                     gnu_target(target)
                 );
             }
-            let size_type = if target == Target::X86_64PcWindowsMsvc {
+            let size_type = if target.is_windows() {
                 "unsigned long long"
             } else {
                 "unsigned long"

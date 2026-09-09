@@ -29,14 +29,14 @@ loaded libraries; it does not measure the memory of a full application build.
 ## Gates for a general drop-in release
 
 1. **Target coverage.** [`Target::parse`](../crates/toucan_target/src/lib.rs) accepts
-   seven 64-bit triples: x86-64 and AArch64 Linux with GNU or musl libc, both
-   macOS architectures, and x86-64 Windows MSVC. The pinned
+   eight 64-bit triples: x86-64 and AArch64 Linux with GNU or musl libc, both
+   macOS architectures, and x86-64 and ARM64 Windows MSVC. The pinned
    [uv platform policy](https://github.com/astral-sh/uv/blob/d28a3ee3d0f7122b0da64b0226d2e173e7d23747/docs/reference/policies/platforms.md)
-   also ships Windows ARM64 and Linux ARMv7, i686, PPC64LE, RISC-V64, and s390x.
+   also ships Linux ARMv7, i686, PPC64LE, RISC-V64, and s390x.
    Enabling source generation unconditionally across those distributions would
    fail at target selection. Add and validate each required ABI and header
    environment before switching that distribution, or explicitly limit adoption
-   to the seven supported targets and retain the existing generator elsewhere.
+   to the eight supported targets and retain the existing generator elsewhere.
 2. **Current-source platform and consumer validation.** The published combined
    source passed Linux x64/ARM corpus and Windows packaging; the latest paired
    application checks ran on Linux x64. Earlier macOS C/FFI evidence covers an
@@ -44,7 +44,8 @@ loaded libraries; it does not measure the memory of a full application build.
    and selected consumer builds before a macOS switch; request Intel separately
    if distributing generation on Intel Macs. Windows DLL calls have bounded
    [native evidence](../corpus/evidence/windows-dll-native-f57e9fa/summary.json),
-   while Windows SDK headers and full consumer builds need their own checks.
+   while Windows ARM64 DLL calls and both Windows SDK headers and full consumer
+   builds need their own checks.
    The [macOS workflow](../.github/workflows/macos.yml) keeps Intel opt-in, and
    the latest GitHub audit records zero macOS allocations.
 3. **Optional generator profiles.** The recorded AWS crypto and `all-bindings`

@@ -365,8 +365,10 @@ appropriate. An explicit convention matching the platform default uses Rust's C 
 
 The x86-32 `cdecl`, `stdcall`, `fastcall`, and `thiscall` attributes have the platform
 ABI on the supported 64-bit targets. Other conventions remain unsupported. The
-`ms_abi` and `sysv_abi` attributes are currently rejected on AArch64; in particular,
-Clang's AArch64 `ms_abi` changes the convention and cannot safely be discarded.
+`ms_abi` and `sysv_abi` attributes are currently rejected on AArch64 Linux and
+macOS; in particular, Clang's AArch64 `ms_abi` changes the convention and cannot
+safely be discarded. Windows ARM64 uses its native C convention for `ms_abi` and
+ignores `sysv_abi`, matching the Clang Windows ARM64 profile.
 
 Clang IR probes cover all five targets. Native x86-64 GCC/Clang tests call C from
 Rust and Rust callbacks from C with mixed register/stack arguments and aggregate
@@ -387,6 +389,7 @@ compiler ABI is used; flags such as `-fshort-enums` are not implied.
 | `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
 | `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
 | `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | [Native DLL calls passed](../corpus/evidence/windows-dll-native-f57e9fa/summary.json); Windows SDK headers and full consumers remain unvalidated |
+| `aarch64-pc-windows-msvc` | Implemented; Clang cross-target layout and ABI probes | Native Windows SDK headers, DLL calls, and full consumers remain unvalidated |
 | `x86_64-unknown-linux-musl` | Implemented; GCC and Clang probes | [Native ABI and zstd Builder checks passed](../corpus/evidence/musl-native-019012e/summary.json) |
 | `aarch64-unknown-linux-musl` | Implemented; GCC and Clang probes | [Native ABI and zstd Builder checks passed](../corpus/evidence/musl-native-019012e/summary.json) |
 

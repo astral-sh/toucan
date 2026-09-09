@@ -84,7 +84,7 @@ impl Config {
             defines: profile.predefined_macros(),
             ..PreprocessorConfig::default()
         };
-        if target != Target::X86_64PcWindowsMsvc {
+        if !target.is_windows() {
             preprocessor.forced_includes.push(ForcedInclude {
                 path: "<builtin>/integer-types.h".into(),
                 source: include_str!("../resources/integer-types.h").into(),

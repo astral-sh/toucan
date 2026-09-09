@@ -17,6 +17,7 @@ output types, and validation for unsupported inputs.
 | `x86_64-apple-darwin` | signed | 64 bits | signed, 32 bits | 16 / 16 bytes |
 | `aarch64-apple-darwin` | signed | 64 bits | signed, 32 bits | 8 / 8 bytes |
 | `x86_64-pc-windows-msvc` | signed | 32 bits | unsigned, 16 bits | 8 / 8 bytes |
+| `aarch64-pc-windows-msvc` | signed | 32 bits | unsigned, 16 bits | 8 / 8 bytes |
 
 All supported profiles have eight-bit bytes, little-endian storage, and 64-bit pointers.
 `CompilerProfile` selects GCC or Clang independently of these physical properties.
@@ -63,7 +64,7 @@ cargo clippy -p toucan_target --all-targets -- -D warnings
 ```
 
 The compiler probes require Clang and a native C compiler (`CC` or `cc`). They compare C scalar
-and record sizes, alignments, and field offsets across all seven targets using compile-time
+and record sizes, alignments, and field offsets across supported targets using compile-time
 assertions without a target sysroot. A separate native probe sets ordinary and packed bitfields,
 then checks the resulting object bytes against the computed bit offsets. It runs on supported
 Linux and macOS hosts. Cross-compilation does not establish native execution on another OS.

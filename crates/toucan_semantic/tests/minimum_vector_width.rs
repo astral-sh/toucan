@@ -162,7 +162,7 @@ fn argument_bits_and_subjects_follow_clang_without_affecting_gnu() {
         );
         assert_eq!(
             a.is_ok(),
-            profile.compiler() == Compiler::Gnu || profile.target() == Target::X86_64PcWindowsMsvc
+            profile.compiler() == Compiler::Gnu || profile.target().is_windows()
         );
     }
 }
@@ -298,7 +298,7 @@ fn native_arguments_subjects_and_hint_lowering() {
             .arg(&input)
             .arg("-o")
             .arg(&output);
-        let extra = if profile.target() == Target::X86_64PcWindowsMsvc {
+        let extra = if profile.target().is_windows() {
             Some(u32::MAX)
         } else {
             None
