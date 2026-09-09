@@ -389,7 +389,7 @@ compiler ABI is used; flags such as `-fshort-enums` are not implied.
 | `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
 | `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
 | `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | [Native DLL calls passed](../corpus/evidence/windows-dll-native-f57e9fa/summary.json); Windows SDK headers and full consumers remain unvalidated |
-| `aarch64-pc-windows-msvc` | Implemented; Clang cross-target layout and ABI probes | Native Windows SDK headers, DLL calls, and full consumers remain unvalidated |
+| `aarch64-pc-windows-msvc` | Implemented; Clang cross-target layout and ABI probes | [Native Windows SDK C layouts and generated Rust/MSVC DLL calls passed](../corpus/evidence/windows-arm64-native-4ce552f/summary.json); Toucan parsing Windows SDK headers and full consumers remain unvalidated |
 | `x86_64-unknown-linux-musl` | Implemented; GCC and Clang probes | [Native ABI and zstd Builder checks passed](../corpus/evidence/musl-native-019012e/summary.json) |
 | `aarch64-unknown-linux-musl` | Implemented; GCC and Clang probes | [Native ABI and zstd Builder checks passed](../corpus/evidence/musl-native-019012e/summary.json) |
 

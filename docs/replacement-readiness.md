@@ -42,10 +42,12 @@ loaded libraries; it does not measure the memory of a full application build.
    application checks ran on Linux x64. Earlier macOS C/FFI evidence covers an
    older source. Run Apple Silicon validation of the intended integration head
    and selected consumer builds before a macOS switch; request Intel separately
-   if distributing generation on Intel Macs. Windows DLL calls have bounded
-   [native evidence](../corpus/evidence/windows-dll-native-f57e9fa/summary.json),
-   while Windows ARM64 DLL calls and both Windows SDK headers and full consumer
-   builds need their own checks.
+   if distributing generation on Intel Macs. Windows x86-64 DLL calls have
+   bounded [native evidence](../corpus/evidence/windows-dll-native-f57e9fa/summary.json);
+   [Windows ARM64 SDK C layouts and DLL calls](../corpus/evidence/windows-arm64-native-4ce552f/README.md)
+   also pass. Toucan parsing full Windows SDK headers and full consumer builds
+   still need checks. The ARM64 native fixture does not include `<windows.h>`
+   in the header processed by Toucan.
    The [macOS workflow](../.github/workflows/macos.yml) keeps Intel opt-in, and
    the latest GitHub audit records zero macOS allocations.
 3. **Optional generator profiles.** The recorded AWS crypto and `all-bindings`
