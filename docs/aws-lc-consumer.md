@@ -12,6 +12,12 @@ binding generation. It retains `prebuilt-nasm`; it does not enable SSL,
 the upstream builder. The Rust wrapper requires Rust 1.71; the harness records
 the actual compiler used and does not infer an older compiler result.
 
+The separate [`AWS_LC_SYS_EXTERNAL_BINDGEN=1` path](external-bindgen-cli.md)
+has [native Linux x86-64 crypto-only evidence](../corpus/evidence/aws-lc-external-cli-317756d/README.md)
+from an unchanged upstream build script and all 98 generated layout tests.
+The paired consumer runs below use the Cargo Builder adapter; they do not
+exercise the standalone executable.
+
 ## Run
 
 Fetch the fixture's locked dependencies, then use fresh evidence and build

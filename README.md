@@ -18,12 +18,19 @@ features and remaining gaps.
 Build from this checkout with Rust 1.96 or later:
 
 ```console
-cargo install --path crates/toucan_cli --locked
+cargo install --path crates/toucan_cli --bin toucan --locked
 ```
 
 The frontend does not require libclang or invoke a C compiler. Target system headers
 and compiler resource headers may still be needed to parse an application's headers.
 Linking and using the generated bindings requires the corresponding C library.
+
+For an executable named `bindgen` that accepts the pinned AWS-LC external
+binding-generator command, [install the separate CLI](docs/external-bindgen-cli.md):
+
+```console
+cargo install --path crates/toucan_cli --bin bindgen --locked
+```
 
 ## Generate bindings
 

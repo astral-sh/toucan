@@ -29,12 +29,13 @@ pub use derives::DeriveOptions;
 pub use enum_constants::EnumConstantStyle;
 pub use external::{ExternalType, ExternalTypeKind};
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 use toucan_semantic::{
-    CallingConvention, DeclarationKind, FloatKind, FloatingValue, FunctionType, IntegerKind,
-    IntegerValue, RecordKind, Scope, TranslationUnit, Type, TypeKind,
+    CallingConvention, Declaration, DeclarationKind, FloatKind, FloatingValue, FunctionType,
+    IntegerKind, IntegerValue, RecordKind, Scope, TranslationUnit, Type, TypeKind,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -51,6 +52,10 @@ pub struct Options {
     /// Rust names for functions and external objects, keyed by original C spelling.
     /// Native symbol names remain unchanged. Selected value-name collisions are errors.
     pub generated_names: BTreeMap<String, String>,
+    /// Prefix externally linked function and object symbols without changing
+    /// their Rust names. This overrides an explicit C asm link name, matching
+    /// bindgen's `--prefix-link-name` callback behavior.
+    pub link_name_prefix: Option<String>,
     /// Selected written object occurrences, keyed by their original C names.
     /// Enables literal projection and preserves the selected occurrence's type.
     /// Internal objects without a materialized constant are skipped and reported.
@@ -183,6 +188,18 @@ pub enum MacroType {
 }
 
 impl Options {
+    pub(crate) fn link_name<'a>(&self, declaration: &'a Declaration) -> Cow<'a, str> {
+        if let Some(prefix) = &self.link_name_prefix {
+            format!("{prefix}{}", declaration.name).into()
+        } else {
+            declaration
+                .link_name
+                .as_deref()
+                .unwrap_or(&declaration.name)
+                .into()
+        }
+    }
+
     pub fn includes(&self, name: &str) -> bool {
         self.selects_all()
             || self
@@ -868,8 +885,8 @@ fn generate_with_work_budget(
                     return Err(Error(format!("`{name}` is not a function")));
                 };
                 emitter.check_function(function)?;
-                let link_name = declaration.link_name.as_ref().unwrap_or(&declaration.name);
-                if name != *link_name {
+                let link_name = options.link_name(declaration);
+                if name != link_name {
                     writeln!(source, "    #[link_name = {link_name:?}]").unwrap();
                 }
                 writeln!(source, "    pub fn {name}{};", emitter.signature(function)?).unwrap();
@@ -883,8 +900,8 @@ fn generate_with_work_budget(
                         declaration.name,
                     )));
                 }
-                let link_name = declaration.link_name.as_ref().unwrap_or(&declaration.name);
-                if name != *link_name {
+                let link_name = options.link_name(declaration);
+                if name != link_name {
                     writeln!(source, "    #[link_name = {link_name:?}]").unwrap();
                 }
                 let mutable = if emitter.is_const(emitter.object_type(declaration)?)? {

@@ -21,6 +21,25 @@ fn rust_symbol_renames_preserve_original_and_explicit_link_names() {
 }
 
 #[test]
+fn prefix_link_names_uses_original_c_names_for_functions_and_objects() {
+    let unit = analyze(
+        "int c_function(void) __asm__(\"native_call\"); extern const int c_value;",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    let options = Options {
+        generated_names: [("c_function".into(), "rust_function".into())].into(),
+        link_name_prefix: Some("aws_lc_0_44_0_".into()),
+        ..Default::default()
+    };
+    let output = generate(&unit, &options).unwrap().source;
+    assert!(output.contains("#[link_name = \"aws_lc_0_44_0_c_function\"]"));
+    assert!(output.contains("pub fn rust_function("));
+    assert!(output.contains("#[link_name = \"aws_lc_0_44_0_c_value\"]"));
+    assert!(output.contains("pub static c_value:"));
+}
+
+#[test]
 fn generated_names_reject_collisions_and_invalid_requests() {
     let unit = analyze(
         "int left(void); int right(void); enum E{VALUE=1}; typedef int Alias;",

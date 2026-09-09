@@ -417,6 +417,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 additional_objects: Default::default(),
                 documentation: None,
                 generated_names: Default::default(),
+                link_name_prefix: None,
                 emit_function_definitions: false,
                 exclude_inline_functions: false,
                 nullable_function_typedefs: false,

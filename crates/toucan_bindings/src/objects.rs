@@ -380,7 +380,7 @@ impl<'unit> Emitter<'unit> {
             };
             writeln!(source, "{keyword} \"C\" {{").unwrap();
             self.declaration_doc(object.name(), source);
-            let symbol = declaration.link_name.as_deref().unwrap_or(object.name());
+            let symbol = self.options.link_name(declaration);
             if name != symbol {
                 writeln!(source, "    #[link_name = {symbol:?}]").unwrap();
             }

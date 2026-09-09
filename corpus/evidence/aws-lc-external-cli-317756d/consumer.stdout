@@ -1,0 +1,9 @@
+SHA256: 2 known answers and 10 streaming lengths; HMAC: known answer and 3 rejections
+AEAD: 3 algorithms, 27 round trips and 108 authentication/input rejections
+Ed25519: known answer and 4 rejections; P256: signature round trip and 2 rejections
+layout SHA_CTX 96 4
+layout SHA256_CTX 112 4
+layout SHA512_CTX 216 8
+layout EVP_AEAD_CTX 584 8
+layout CBS 16 8
+layout CBB 48 8

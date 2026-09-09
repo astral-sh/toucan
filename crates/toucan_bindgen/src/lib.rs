@@ -279,6 +279,18 @@ impl Builder {
         self
     }
 
+    /// Prefix the native symbols of generated functions and objects.
+    /// The Rust declaration names are unchanged.
+    pub fn prefix_link_name(mut self, prefix: impl Into<String>) -> Self {
+        let prefix = prefix.into();
+        if prefix.is_empty() || prefix.contains('\0') {
+            self.fail("link name prefix cannot be empty or contain NUL");
+        } else {
+            self.options.link_name_prefix = Some(prefix);
+        }
+        self
+    }
+
     /// Choose the Rust language version used by generated declarations.
     pub fn rust_target(mut self, target: RustTarget) -> Self {
         self.options.rust_target = target.0;
