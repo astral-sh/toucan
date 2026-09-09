@@ -96,7 +96,26 @@ The [frozen upstream reference](../corpus/evidence/uv-tls-reference-2026-09-08/f
 passes all six cases with uv's shipped crypto bindings. The dependency audit
 confirms the compiled AWS-LC provider and selected wrapper versions. The adjacent
 archive preserves the source and Cargo audit, public test certificates, TLS
-observations, and installed-file hashes. Generated bindgen and Toucan uv builds
-remain separate required checks.
+observations, and installed-file hashes. This baseline remains separate from the
+generated-binding pair below.
 
-The [generated-bindgen reference](../corpus/evidence/uv-tls-generated-reference-2026-09-09/freeze.json) also passes all six cases. Its isolated uv build preserves all 750 original locked packages and dependency edges, and the Cargo audit verifies consumption of freshly generated AWS-LC bindings. The tested sys manifest changes only the exact `prebuilt-nasm` feature, leaving `disable-prebuilt-nasm` intact. This build uses Rust 1.98.1 with development debug information disabled; it is a functionality check, not a timing comparison. The Toucan generated-binding build remains pending.
+The [generated-bindgen reference](../corpus/evidence/uv-tls-generated-reference-2026-09-09/freeze.json) also passes all six cases. Its isolated uv build preserves all 750 original locked packages and dependency edges, and the Cargo audit verifies consumption of freshly generated AWS-LC bindings. The tested sys manifest changes only the exact `prebuilt-nasm` feature, leaving `disable-prebuilt-nasm` intact. This build uses Rust 1.98.1 with development debug information disabled; it is a functionality check, not a timing comparison.
+
+## Recorded generated-binding pair
+
+The [paired result](../corpus/evidence/uv-tls-generated-pair-2026-09-09/freeze.json)
+passes all six cases with Toucan-generated AWS-LC bindings. Both builds preserve
+the 750 existing locked packages and their dependency edges. Their Cargo audits
+verify the selected uv executable, compiled TLS dependency chain, AWS-LC provider,
+and the exact generated bindings consumed by the sys crate.
+
+For each TLS version, both executables install the same four fixture files and
+import the Python module successfully. Both reject the unrelated CA and wrong
+hostname before sending any HTTP request or installing the package. The archive
+preserves Cargo output, resolved locks, generated bindings, source hashes, public
+test certificates, and the complete audit results.
+
+This Linux x86-64 capture uses the frozen documentation-emission source, before
+the later const-read, default-Debug, enum-alignment, and forward-tag documentation
+fixes. The paired result establishes that source's consumer behavior; later
+integration checks must identify their own source and selected executables.
