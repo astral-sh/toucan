@@ -523,7 +523,7 @@ fn parse(
                 driver::Standard::C17
             }
         },
-        extensions_msvc: target == Target::X86_64PcWindowsMsvc,
+        extensions_msvc: target.is_windows(),
         flavor: match compiler {
             Compiler::Gnu => driver::Flavor::GnuC11WithClangExtensions,
             Compiler::Clang => driver::Flavor::ClangC11,
@@ -1559,7 +1559,7 @@ impl Analyzer {
             // or function declaration is written `static`, in every C mode.
             if is_static
                 && kind != DeclarationKind::Typedef
-                && self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+                && self.unit.target.is_windows()
                 && (previous_index.is_some_and(|index| {
                     let previous = &self.unit.declarations[index];
                     previous.kind == kind && !previous.is_static
@@ -2189,8 +2189,14 @@ impl Analyzer {
                 for (a, b) in a.parameters.iter().zip(&b.parameters) {
                     let mut a = self.unit.resolve(&a.ty)?.clone();
                     let mut b = self.unit.resolve(&b.ty)?.clone();
-                    a.qualifiers = Qualifiers::default();
-                    b.qualifiers = Qualifiers::default();
+                    a.qualifiers.is_const = false;
+                    a.qualifiers.is_volatile = false;
+                    a.qualifiers.is_restrict = false;
+                    a.qualifiers.set_unaligned(false);
+                    b.qualifiers.is_const = false;
+                    b.qualifiers.is_volatile = false;
+                    b.qualifiers.is_restrict = false;
+                    b.qualifiers.set_unaligned(false);
                     if !self.same_type_at::<EXACT, false>(&a, &b, depth + 1)? {
                         return Ok(false);
                     }
@@ -2225,6 +2231,7 @@ impl Analyzer {
             result.is_const |= inner.is_const;
             result.is_volatile |= inner.is_volatile;
             result.is_restrict |= inner.is_restrict;
+            result.set_unaligned(result.is_unaligned() || inner.is_unaligned());
         }
         Ok(result)
     }
@@ -2338,9 +2345,15 @@ impl Analyzer {
                     // Top-level parameter qualifiers do not participate in the
                     // function type, but pointee qualifiers still do.
                     let mut a = self.unit.resolve(&a.ty)?.clone();
-                    a.qualifiers = Qualifiers::default();
+                    a.qualifiers.is_const = false;
+                    a.qualifiers.is_volatile = false;
+                    a.qualifiers.is_restrict = false;
+                    a.qualifiers.set_unaligned(false);
                     let mut b = self.unit.resolve(&b.ty)?.clone();
-                    b.qualifiers = Qualifiers::default();
+                    b.qualifiers.is_const = false;
+                    b.qualifiers.is_volatile = false;
+                    b.qualifiers.is_restrict = false;
+                    b.qualifiers.set_unaligned(false);
                     if !self.compatible_parameter_at(&a, &b, depth + 1)? {
                         return Ok(false);
                     }
@@ -2696,6 +2709,8 @@ impl Analyzer {
         ty.qualifiers.is_const |= qualifiers.is_const;
         ty.qualifiers.is_volatile |= qualifiers.is_volatile;
         ty.qualifiers.is_restrict |= qualifiers.is_restrict;
+        ty.qualifiers
+            .set_unaligned(ty.qualifiers.is_unaligned() || qualifiers.is_unaligned());
         if let Some(mode) = &attributes.mode {
             ty = self.machine_mode(ty, mode, types.first().map_or(0, |ty| ty.span.start))?;
         }
@@ -2816,6 +2831,19 @@ impl Analyzer {
             .any(|ty| matches!(ty.node, ast::TypeSpecifier::MsvcInteger(16)));
         for ty in types {
             if self.int128_specifiers.contains(&ty.span.start) {
+                if matches!(
+                    self.unit.target,
+                    Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+                ) {
+                    return Err(Error::new(
+                        ty.span.start,
+                        if self.unit.target.is_armv7() {
+                            "__int128 is unavailable on ARMv7 GNU Linux"
+                        } else {
+                            "__int128 is unavailable on i686 GNU Linux"
+                        },
+                    ));
+                }
                 if std::mem::replace(&mut int128, true) {
                     return Err(Error::new(
                         ty.span.start,
@@ -2934,11 +2962,20 @@ impl Analyzer {
                             let inner = self.type_name(&name.node)?;
                             self.atomic_type(inner, true, ty.span.start)?.kind
                         }
-                        ast::TypeSpecifier::BFloat16 => TypeKind::Float(FloatKind::BFloat16),
+                        ast::TypeSpecifier::BFloat16 => {
+                            if self.unit.target == toucan_target::Target::I686UnknownLinuxGnu {
+                                return Err(Error::new(
+                                    ty.span.start,
+                                    "__bf16 is unavailable on i686 GNU Linux",
+                                ));
+                            }
+                            TypeKind::Float(FloatKind::BFloat16)
+                        }
                         ast::TypeSpecifier::Float128 => {
                             if !matches!(
                                 self.unit.target,
-                                toucan_target::Target::X86_64UnknownLinuxGnu
+                                toucan_target::Target::I686UnknownLinuxGnu
+                                    | toucan_target::Target::X86_64UnknownLinuxGnu
                                     | toucan_target::Target::X86_64UnknownLinuxMusl
                             ) {
                                 return Err(Error::new(
@@ -2950,6 +2987,15 @@ impl Analyzer {
                             TypeKind::Float(FloatKind::FLOAT128)
                         }
                         ast::TypeSpecifier::TS18661Float(float) => {
+                            if self.unit.target == toucan_target::Target::I686UnknownLinuxGnu
+                                && float.format == ast::TS18661FloatFormat::BinaryInterchange
+                                && float.width == 16
+                            {
+                                return Err(Error::new(
+                                    ty.span.start,
+                                    "_Float16 is unavailable on i686 GNU Linux",
+                                ));
+                            }
                             if matches!(
                                 float.format,
                                 ast::TS18661FloatFormat::BinaryInterchange
@@ -3409,6 +3455,9 @@ impl Analyzer {
                 element.qualifiers.is_const |= qualifiers.is_const;
                 element.qualifiers.is_volatile |= qualifiers.is_volatile;
                 element.qualifiers.is_restrict |= qualifiers.is_restrict;
+                element
+                    .qualifiers
+                    .set_unaligned(element.qualifiers.is_unaligned() || qualifiers.is_unaligned());
                 let mut pointer = element.pointer();
                 pointer.qualifiers = array_qualifiers;
                 if array_atomic && self.gnu_sync_profile() {
@@ -3571,10 +3620,35 @@ impl Analyzer {
                 ast::DerivedDeclarator::Pointer(qualifiers) => {
                     let mut pointer = ty.pointer();
                     let mut atomic = false;
+                    let mut pointer_width = None;
                     for qualifier in qualifiers {
                         match &qualifier.node {
                             ast::PointerQualifier::TypeQualifier(qualifier) => {
                                 add_qualifier(&mut pointer.qualifiers, &mut atomic, qualifier)?
+                            }
+                            ast::PointerQualifier::MsvcPointerWidth(width) => {
+                                if let Some(previous) = pointer_width.replace(*width) {
+                                    return Err(Error::new(
+                                        qualifier.span.start,
+                                        if previous == *width {
+                                            "duplicate pointer width qualifier"
+                                        } else {
+                                            "conflicting pointer width qualifiers"
+                                        },
+                                    ));
+                                }
+                                if *width == 32 {
+                                    if !matches!(
+                                        self.unit.target,
+                                        Target::Aarch64PcWindowsMsvc | Target::X86_64PcWindowsMsvc
+                                    ) {
+                                        return Err(Error::new(
+                                            qualifier.span.start,
+                                            "__ptr32 pointer ABI is unsupported on this target",
+                                        ));
+                                    }
+                                    pointer.qualifiers.set_msvc_ptr32(true);
+                                }
                             }
                             ast::PointerQualifier::Extension(extensions) => {
                                 let mut attributes = Attributes {
@@ -5004,7 +5078,15 @@ impl Analyzer {
                         "aarch64_vector_pcs cannot apply to an SVE function type on the GNU profile",
                     ));
                 }
-                function.calling_convention = convention;
+                // Clang accepts ms_abi on Windows ARM64, where it is the
+                // default C ABI. Rust has no win64 ABI for that architecture.
+                function.calling_convention = if self.unit.target == Target::Aarch64PcWindowsMsvc
+                    && convention == CallingConvention::Win64
+                {
+                    CallingConvention::C
+                } else {
+                    convention
+                };
             }
             TypeKind::Pointer(element) => {
                 if !clang && !matches!(self.unit.resolve(element)?.kind, TypeKind::Function(_)) {
@@ -5067,7 +5149,7 @@ impl Analyzer {
                 // GCC ignores tag alignment. Clang preserves it independently
                 // of integer size, so an ordinary Rust integer is suitable
                 // only when the attribute leaves all storage rules unchanged.
-                if self.unit.target == Target::X86_64PcWindowsMsvc {
+                if self.unit.target.is_windows() {
                     return Err(Error::new(
                         offset,
                         "alignment attributes on Microsoft enum tags are unsupported",
@@ -5129,6 +5211,15 @@ impl Analyzer {
                 ast::Extension::Attribute(attribute)
                 | ast::Extension::CallingConvention(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
+                    if self.unit.target.is_armv7() && name == "pcs" {
+                        // `pcs("aapcs")` changes the default hard-float
+                        // argument ABI to base AAPCS. Silently ignoring it
+                        // would emit an incompatible Rust function signature.
+                        return Err(Error::new(
+                            extension.span.start,
+                            "ARMv7 pcs calling convention is unsupported",
+                        ));
+                    }
                     if matches!(extension.node, ast::Extension::CallingConvention(_)) {
                         match name {
                             "pascal" => continue,
@@ -5401,14 +5492,39 @@ impl Analyzer {
                         | Some(crate::attributes::Attribute::Thiscall)
                         | Some(crate::attributes::Attribute::MsAbi)
                         | Some(crate::attributes::Attribute::SysvAbi) => {
+                            if self.unit.target == Target::I686UnknownLinuxGnu
+                                && matches!(name, "stdcall" | "fastcall" | "thiscall")
+                            {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    format!(
+                                        "{name} calling convention is unsupported on i686 GNU Linux"
+                                    ),
+                                ));
+                            }
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(
                                     extension.span.start,
                                     "calling convention attributes take no arguments",
                                 ));
                             }
+                            if self.unit.target.is_armv7() {
+                                // Clang accepts these x86 spellings on ARMv7
+                                // but ignores them and uses the default PCS.
+                                continue;
+                            }
                             let convention = match name {
                                 "ms_abi" => Some(CallingConvention::Win64),
+                                // On i686 GNU Linux, sysv_abi names the default
+                                // C ABI. Clang also ignores it on Windows ARM64.
+                                "sysv_abi"
+                                    if matches!(
+                                        self.unit.target,
+                                        Target::I686UnknownLinuxGnu | Target::Aarch64PcWindowsMsvc
+                                    ) =>
+                                {
+                                    None
+                                }
                                 "sysv_abi" => Some(CallingConvention::SysV64),
                                 // GNU ignores these x86-32 conventions on its
                                 // 64-bit targets. Clang retains explicit cdecl.
@@ -5423,9 +5539,7 @@ impl Analyzer {
                                 {
                                     Some(CallingConvention::SysV64)
                                 }
-                                "cdecl"
-                                    if matches!(self.unit.target, Target::X86_64PcWindowsMsvc) =>
-                                {
+                                "cdecl" if self.unit.target.is_windows() => {
                                     Some(CallingConvention::Win64)
                                 }
                                 _ => None,
@@ -5599,6 +5713,7 @@ fn add_qualifier(
         ast::TypeQualifier::Const => result.is_const = true,
         ast::TypeQualifier::Volatile => result.is_volatile = true,
         ast::TypeQualifier::Restrict => result.is_restrict = true,
+        ast::TypeQualifier::Unaligned => result.set_unaligned(true),
         ast::TypeQualifier::Atomic => *atomic = true,
         ast::TypeQualifier::Nonnull
         | ast::TypeQualifier::NullUnspecified
@@ -5906,10 +6021,10 @@ pub(crate) fn anonymous_record_specifier(
             ast::TypeSpecifier::Struct(record) if record.node.identifier.is_none() => {
                 Some(AnonymousRecordSpecifier::Direct)
             }
-            ast::TypeSpecifier::Struct(_) if target == Target::X86_64PcWindowsMsvc => {
+            ast::TypeSpecifier::Struct(_) if target.is_windows() => {
                 Some(AnonymousRecordSpecifier::MicrosoftTag)
             }
-            ast::TypeSpecifier::TypedefName(name) if target == Target::X86_64PcWindowsMsvc => {
+            ast::TypeSpecifier::TypedefName(name) if target.is_windows() => {
                 Some(AnonymousRecordSpecifier::MicrosoftTypedef(&name.node.name))
             }
             _ => None,

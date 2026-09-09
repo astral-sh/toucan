@@ -29,6 +29,9 @@ int run(void) {
     if(u[0]!=1||u[1]!=0||u[2]!=100) return 14;
     u=__builtin_elementwise_max(x,y);
     if(u[0]!=255||u[1]!=1||u[2]!=200) return 15;
+    // __SIZEOF_INT128__ is absent on the Clang i686 target; keep all other
+    // scalar and vector cases active there.
+#if defined(__SIZEOF_INT128__)
     unsigned __int128 umax=(unsigned __int128)-1;
     __int128 imax=(__int128)(umax>>1), imin=-imax-1;
     if(__builtin_elementwise_add_sat(umax,(unsigned __int128)1)!=umax) return 16;
@@ -36,6 +39,7 @@ int run(void) {
     if(__builtin_elementwise_add_sat(imax,(__int128)1)!=imax) return 18;
     if(__builtin_elementwise_sub_sat(imin,(__int128)1)!=imin) return 19;
     if(__builtin_elementwise_min(imax,imin)!=imin||__builtin_elementwise_max(imax,imin)!=imax) return 20;
+#endif
     if(__builtin_constant_p(__builtin_elementwise_add_sat(left(),right()))||calls!=2) return 21;
     return 0;
 }

@@ -82,7 +82,10 @@ fn decimal_types_follow_c90_candidate_order_and_preserve_large_values() {
             let large = evaluate_integer(unit, "9223372036854775808").unwrap();
             assert_eq!(large.as_u64().unwrap(), 1u64 << 63);
             assert!(!large.signed);
-            let expected = if profile.target() == Target::X86_64PcWindowsMsvc {
+            let expected = if profile.target().is_windows()
+                || profile.target() == Target::I686UnknownLinuxGnu
+                || profile.target().is_armv7()
+            {
                 "unsigned long long"
             } else {
                 "unsigned long"
@@ -160,10 +163,7 @@ fn implicit_functions_keep_scope_linkage_and_default_promotions() {
             }
             let source = "int f(void){return missing(1);} static int missing(int x){return x;}";
             let result = parity(source, profile);
-            assert_eq!(
-                result.is_ok(),
-                profile.target() == Target::X86_64PcWindowsMsvc
-            );
+            assert_eq!(result.is_ok(), profile.target().is_windows());
             if let Ok(analysis) = result {
                 assert!(
                     !analysis

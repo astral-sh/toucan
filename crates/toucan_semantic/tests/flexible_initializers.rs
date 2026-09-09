@@ -108,7 +108,8 @@ fn allocation_extent_does_not_complete_the_declared_flexible_type() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::Aarch64UnknownLinuxGnu
                 | Target::Aarch64UnknownLinuxMusl

@@ -18,16 +18,25 @@ by the GNU profile cannot be used with a Clang-built library; see
 | Physical target | Default | Other supported compiler |
 | --- | --- | --- |
 | x86_64-unknown-linux-gnu | GCC | Clang |
+| i686-unknown-linux-gnu | GCC | Clang |
 | aarch64-unknown-linux-gnu | GCC | Clang |
+| armv7-unknown-linux-gnueabihf | Clang | — |
 | x86_64-unknown-linux-musl | GCC | Clang |
 | aarch64-unknown-linux-musl | GCC | Clang |
 | x86_64-apple-darwin | Clang | — |
 | aarch64-apple-darwin | Clang | — |
 | x86_64-pc-windows-msvc | Clang with the Microsoft ABI | — |
+| aarch64-pc-windows-msvc | Clang with the Microsoft ABI | — |
 
 Musl targets select their own libc environment and generated Rust guards. Use
 [the musl validation guide](musl.md) for sysroot setup and the distinction between
 native x86-64 and emulated AArch64 runtime evidence.
+
+ARMv7 selects the GNU Linux hard-float ABI with Clang semantics. Its GCC profile
+and explicit `pcs` calling-convention overrides are rejected. Generate with
+`--rust-target 1.78` or newer so Rust can check `target_abi = "eabihf"`; older
+Rust output targets fail for ARMv7. Compiler layout probes pass, while the
+[ARMv7 execution gate](../corpus/armv7/README.md) requires separate QEMU validation.
 
 Unsupported pairs fail before input preprocessing. Compiler selection does not
 change the operating system, scalar widths, signedness of plain `char` or

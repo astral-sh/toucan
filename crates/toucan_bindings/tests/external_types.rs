@@ -13,7 +13,9 @@ fn generate(
         analysis.unit(),
         &Options {
             blocklist_types: blocked.iter().map(|name| (*name).into()).collect(),
-            rust_target: if old_rust {
+            rust_target: if old_rust && profile.target().is_armv7() {
+                RustTarget::stable(78).unwrap()
+            } else if old_rust {
                 RustTarget::RUST_1_64
             } else {
                 RustTarget::default()
@@ -21,6 +23,17 @@ fn generate(
             ..Default::default()
         },
     )
+}
+
+fn rejects_unavailable_int128(source: &str, profile: CompilerProfile) -> bool {
+    if (profile.target() != Target::I686UnknownLinuxGnu && !profile.target().is_armv7())
+        || !source.contains("__int128")
+    {
+        return false;
+    }
+    let error = analyze_with_profile(source, profile, &AnalysisOptions::default()).unwrap_err();
+    assert!(error.message.contains("__int128 is unavailable"), "{error}");
+    true
 }
 
 #[test]
@@ -224,6 +237,9 @@ fn external_substitution_cannot_hide_unsupported_call_abis() {
                 "field-level alignment",
             ),
         ] {
+            if rejects_unavailable_int128(source, profile) {
+                continue;
+            }
             if source.starts_with("enum E") && profile.compiler() == toucan_target::Compiler::Clang
             {
                 assert!(
@@ -420,6 +436,9 @@ fn opaque_pointer_uses_skip_layout_but_later_value_uses_upgrade_aliases() {
             "typedef unsigned __int128 Wide; typedef Wide Alias; void f(Alias *);",
             "typedef struct {unsigned __int128 value;} Wide; struct R {Wide *p;}; void f(struct R);",
         ] {
+            if rejects_unavailable_int128(source, profile) {
+                continue;
+            }
             let output = generate(source, &["Wide"], profile, true)
                 .unwrap_or_else(|error| panic!("{profile:?} {source}: {error}"));
             let wide = output
@@ -437,6 +456,9 @@ fn opaque_pointer_uses_skip_layout_but_later_value_uses_upgrade_aliases() {
             "typedef unsigned __int128 Wide; extern Wide value;",
             "struct Inner {unsigned __int128 value;}; typedef struct {struct Inner *p; struct Inner value;} Wide; extern Wide object;",
         ] {
+            if rejects_unavailable_int128(source, profile) {
+                continue;
+            }
             let error = generate(source, &["Wide"], profile, true).unwrap_err();
             assert!(
                 error.to_string().contains("128-bit C ABI"),

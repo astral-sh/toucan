@@ -1,10 +1,42 @@
 extern crate toucan_parser;
 
-use toucan_parser::ast::{Extension, TypeSpecifier};
+use toucan_parser::ast::{Extension, FunctionSpecifier, PointerQualifier, TypeSpecifier};
 use toucan_parser::driver::{parse_preprocessed, parse_preprocessed_with_limits, Config, Flavor};
 use toucan_parser::limits::{ParseLimits, ResourceKind};
 use toucan_parser::span::Span;
 use toucan_parser::visit::{self, Visit};
+
+#[derive(Default)]
+struct InlineSpecifiers(Vec<Span>);
+
+impl<'ast> Visit<'ast> for InlineSpecifiers {
+    fn visit_function_specifier(&mut self, value: &'ast FunctionSpecifier, span: &'ast Span) {
+        if *value == FunctionSpecifier::Inline {
+            self.0.push(*span);
+        }
+    }
+}
+
+#[test]
+fn microsoft_forceinline_is_an_inline_specifier_only_in_ms_mode() {
+    let source = "__forceinline int __cdecl __ascii_tolower(int const c) { return c + 1; }";
+    let config = Config {
+        extensions_msvc: true,
+        ..Config::with_clang()
+    };
+    let parsed = parse_preprocessed(&config, source.into()).unwrap();
+    let mut specifiers = InlineSpecifiers::default();
+    specifiers.visit_translation_unit(&parsed.unit);
+    assert_eq!(
+        specifiers
+            .0
+            .iter()
+            .map(|span| &source[span.start..span.end])
+            .collect::<Vec<_>>(),
+        ["__forceinline"]
+    );
+    assert!(parse_preprocessed(&Config::with_clang(), source.into()).is_err());
+}
 
 #[derive(Default)]
 struct Widths(Vec<(u8, Span)>);
@@ -52,6 +84,62 @@ fn microsoft_widths_preserve_spans_and_resource_limits() {
             .unwrap()
             .statistics,
         parsed.statistics
+    );
+    assert!(parse_preprocessed(&Config::with_clang(), source.into()).is_err());
+}
+
+#[derive(Default)]
+struct PointerWidths(Vec<(u8, Span)>);
+
+impl<'ast> Visit<'ast> for PointerWidths {
+    fn visit_pointer_qualifier(&mut self, value: &'ast PointerQualifier, span: &'ast Span) {
+        if let PointerQualifier::MsvcPointerWidth(width) = value {
+            self.0.push((*width, *span));
+        }
+        visit::visit_pointer_qualifier(self, value, span);
+    }
+}
+
+#[test]
+fn microsoft_pointer_widths_keep_their_spelling_and_work_limits() {
+    let source = "typedef void * __ptr64 HANDLE64; typedef void * __ptr32 P32; void * __ptr32 to32(void *p) { return (void * __ptr32)p; }";
+    let config = Config {
+        extensions_msvc: true,
+        ..Config::with_clang()
+    };
+    let parsed = parse_preprocessed(&config, source.into()).unwrap();
+    let mut widths = PointerWidths::default();
+    widths.visit_translation_unit(&parsed.unit);
+    assert_eq!(
+        widths
+            .0
+            .iter()
+            .map(|(width, span)| (*width, &source[span.start..span.end]))
+            .collect::<Vec<_>>(),
+        [
+            (64, "__ptr64"),
+            (32, "__ptr32"),
+            (32, "__ptr32"),
+            (32, "__ptr32"),
+        ]
+    );
+    assert_eq!(
+        parse_preprocessed(&config, source.into())
+            .unwrap()
+            .statistics,
+        parsed.statistics
+    );
+    let limits = ParseLimits {
+        max_work: parsed.statistics.work - 1,
+        ..Default::default()
+    };
+    assert_eq!(
+        parse_preprocessed_with_limits(&config, source.into(), limits)
+            .unwrap_err()
+            .resource
+            .unwrap()
+            .kind,
+        ResourceKind::Work
     );
     assert!(parse_preprocessed(&Config::with_clang(), source.into()).is_err());
 }

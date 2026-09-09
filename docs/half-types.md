@@ -1,10 +1,11 @@
 # Half and bfloat types
 
-Toucan checks `_Float16` and `__bf16` declarations on all seven compiler profiles.
-They are distinct C types with two-byte size and alignment. Arrays, records,
-atomic storage and vectors preserve that identity; fixed vectors remain limited
-to 16 bytes. `_Float16` uses IEEE binary16 (11 significant bits), while `__bf16`
-uses bfloat16 (8 significant bits and the exponent range of binary32).
+Toucan checks `_Float16` and `__bf16` declarations on supported targets other
+than i686 GNU Linux. They are distinct C types with two-byte size and alignment.
+Arrays, records, atomic storage and vectors preserve that identity; fixed
+vectors remain limited to 16 bytes. `_Float16` uses IEEE binary16 (11
+significant bits), while `__bf16` uses bfloat16 (8 significant bits and the
+exponent range of binary32).
 
 `FloatKind::FLOAT16` names the existing
 `Extended { format: BinaryInterchange, width: 16 }` representation.
@@ -53,8 +54,10 @@ to cast; it is never silently emitted as `u16` or `f32`.
 
 ARM `__fp16`, GCC's `bf16` literal suffix, other extended floating formats, and
 full GNU excess-precision constant evaluation remain separate work. The source
-`f16` suffix is parsed; evaluation is subject to the GNU limit above. No optional
-instruction set or compiler evaluation flag is implicitly enabled.
+`f16` suffix is parsed; GCC and Clang reject it on i686 GNU Linux, where Toucan
+also rejects it in expressions and macro values. Elsewhere evaluation is subject
+to the GNU limit above. No optional instruction set or compiler evaluation flag
+is implicitly enabled.
 
 The [half-type evidence](../corpus/evidence/half-types-2026-09-08.json) records
 compiler constraints, native object-byte comparisons, Rust boundary checks,

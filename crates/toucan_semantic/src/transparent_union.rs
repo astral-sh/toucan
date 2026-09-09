@@ -57,6 +57,8 @@ impl TranslationUnit {
     /// GNU and most Clang transparent unions use their first member. MSVC keeps
     /// ordinary union passing. AArch64 transparent unions with tail padding need
     /// an expanded ABI that this query diagnoses instead of returning one type.
+    /// Clang passes a 16-byte, 16-aligned Windows ARM64 union with a four-byte
+    /// first member in two ABI arguments; a scalar Rust parameter would be wrong.
     /// Storage, returns, and variadic arguments keep their ordinary union types.
     /// This type does not impose initialized-byte or Rust scalar-validity rules.
     pub fn parameter_abi_type<'a>(&'a self, ty: &'a Type) -> Result<&'a Type, Error> {
@@ -77,6 +79,7 @@ impl TranslationUnit {
             toucan_target::Target::Aarch64UnknownLinuxGnu
                 | toucan_target::Target::Aarch64UnknownLinuxMusl
                 | toucan_target::Target::Aarch64AppleDarwin
+                | toucan_target::Target::Aarch64PcWindowsMsvc
         ) && self.layout(ty)?.size_bits != self.layout(first)?.size_bits
         {
             return Err(Error::new(
@@ -310,6 +313,7 @@ impl Analyzer {
             if (from_qualifiers.is_const && !to_qualifiers.is_const)
                 || (from_qualifiers.is_volatile && !to_qualifiers.is_volatile)
                 || (from_qualifiers.is_restrict && !to_qualifiers.is_restrict)
+                || (from_qualifiers.is_unaligned() && !to_qualifiers.is_unaligned())
             {
                 return Ok(false);
             }

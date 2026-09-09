@@ -14,6 +14,7 @@ thiserror.workspace = true
 
 [dev-dependencies]
 tempfile.workspace = true
+toucan_test_support = { path = "../toucan_test_support" }
 
 [lints]
 workspace = true

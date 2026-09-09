@@ -77,7 +77,7 @@ fn microsoft_integer_keywords_follow_the_target_and_preserve_retained_types() {
                 );
                 assert_eq!(
                     plain.is_ok(),
-                    valid && profile.target() == Target::X86_64PcWindowsMsvc,
+                    valid && profile.target().is_windows(),
                     "{profile:?}: {source}: {plain:?}"
                 );
                 match (plain, retained) {
@@ -93,7 +93,7 @@ fn microsoft_integer_keywords_follow_the_target_and_preserve_retained_types() {
                 }
             }
         }
-        if profile.target() != Target::X86_64PcWindowsMsvc {
+        if !profile.target().is_windows() {
             toucan::semantic::analyze_with_profile(
                 "int __int8; typedef int __int64; __int64 f(__int64 x){return x+__int8;}",
                 profile,

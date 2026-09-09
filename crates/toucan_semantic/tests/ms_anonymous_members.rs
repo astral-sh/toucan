@@ -67,11 +67,7 @@ const CASES: &[(&str, &str, u64, u64)] = &[
 
 fn source(case: (&str, &str, u64, u64), target: Target) -> String {
     let (prefix, member, windows, other) = case;
-    let size = if target == Target::X86_64PcWindowsMsvc {
-        windows
-    } else {
-        other
-    };
+    let size = if target.is_windows() { windows } else { other };
     let mut source = format!(
         "{prefix} struct Owner {{ {member} int field; }};\n\
          _Static_assert(sizeof(struct Owner)=={size},\"size\");\n\
@@ -149,7 +145,7 @@ fn admitted_members_keep_completeness_and_promoted_name_constraints() {
         for &(source, windows) in CONSTRAINTS {
             assert_eq!(
                 parity(source, profile).is_ok(),
-                windows || profile.target() != Target::X86_64PcWindowsMsvc,
+                windows || !profile.target().is_windows(),
                 "{profile:?}: {source}",
             );
         }
@@ -263,13 +259,9 @@ fn native_clang_member_layout_and_constraint_oracle() {
             }
         }
         for &(source, windows) in CONSTRAINTS {
-            native(
-                source,
-                profile,
-                windows || target != Target::X86_64PcWindowsMsvc,
-            );
+            native(source, profile, windows || !target.is_windows());
         }
-        if target == Target::X86_64PcWindowsMsvc {
+        if target.is_windows() {
             native(RETAINED, profile, true);
             native(STORAGE, profile, true);
         }

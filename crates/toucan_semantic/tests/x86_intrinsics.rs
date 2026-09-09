@@ -3,8 +3,9 @@ use toucan_semantic::checked::{
 };
 use toucan_semantic::{
     Analysis, AnalysisOptions, IntegerKind, Type, TypeKind, analyze, analyze_with_options,
+    analyze_with_profile,
 };
-use toucan_target::Target;
+use toucan_target::{Compiler, CompilerProfile, Target};
 
 const INTRINSICS: &[X86Intrinsic] = &[
     X86Intrinsic::Emms,
@@ -142,6 +143,9 @@ fn signature_source(profile: Target) -> String {
         } else {
             &parameters
         };
+        if profile == Target::I686UnknownLinuxGnu {
+            source.push_str("__attribute__((target(\"sse2\"))) ");
+        }
         source.push_str(&format!("void f{index}({parameters}){{"));
         if matches!(signature.result().kind, TypeKind::Void) {
             source.push_str(&format!("{call};"));
@@ -160,7 +164,17 @@ fn exact_mmx_signatures_and_retained_operands() {
     for target in Target::ALL {
         if X86Intrinsic::Emms.signature(target).is_none() {
             let err = check("void f(void){__builtin_ia32_emms();}", target).unwrap_err();
-            assert!(err.message.contains("x86-64 target"));
+            let message = if matches!(
+                target,
+                Target::Aarch64PcWindowsMsvc
+                    | Target::I686UnknownLinuxGnu
+                    | Target::Armv7UnknownLinuxGnueabihf
+            ) {
+                "unavailable in the selected compiler profile"
+            } else {
+                "x86-64 target"
+            };
+            assert!(err.message.contains(message), "{target:?}: {}", err.message);
             continue;
         }
         let analysis = check(&signature_source(target), target).unwrap();
@@ -251,6 +265,114 @@ fn immediate_checks_preserve_compiler_stage_and_parameter_conversion() {
         .unwrap();
     }
 }
+
+#[test]
+fn i686_immediate_constraints_keep_the_compilers_different_stages() {
+    for compiler in [Compiler::Gnu, Compiler::Clang] {
+        let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap();
+        let immediate = X86Intrinsic::VecExtV2si.immediate_constraints_with_profile(profile)[0];
+        assert_eq!(
+            (
+                immediate.argument(),
+                immediate.minimum(),
+                immediate.maximum()
+            ),
+            (1, 0, 1)
+        );
+        assert_eq!(
+            immediate.stage(),
+            if compiler == Compiler::Clang {
+                ImmediateStage::Frontend
+            } else {
+                ImmediateStage::AfterInlining
+            }
+        );
+        for (expression, accepted) in [("1", true), ("n", compiler == Compiler::Gnu)] {
+            let source = format!(
+                "{TYPES}__attribute__((target(\"mmx\"))) int f(V2I v,int n){{return __builtin_ia32_vec_ext_v2si(v,{expression});}}"
+            );
+            assert_eq!(
+                analyze_with_profile(&source, profile, &AnalysisOptions::default()).is_ok(),
+                accepted,
+                "{profile:?}: {expression}"
+            );
+        }
+        let conditional =
+            X86Intrinsic::Prefetch.conditional_immediate_constraints_with_profile(profile);
+        assert_eq!(conditional.len(), usize::from(compiler == Compiler::Gnu));
+    }
+}
+
+#[test]
+#[ignore = "requires Clang i686 backend and native x86 GNU GCC"]
+fn i686_immediates_match_clang_frontend_and_gcc_lowering() {
+    for (expression, accepted) in [("1", true), ("n", false)] {
+        let source = format!(
+            "{TYPES}__attribute__((target(\"mmx\"))) int f(V2I v,int n){{return __builtin_ia32_vec_ext_v2si(v,{expression});}}"
+        );
+        let clang = compiler_input(
+            std::process::Command::new("clang").args([
+                "--target=i686-unknown-linux-gnu",
+                "-mmmx",
+                "-std=gnu11",
+                "-fsyntax-only",
+                "-x",
+                "c",
+                "-",
+            ]),
+            &source,
+        );
+        assert_eq!(
+            toucan_test_support::compiler_acceptance(&clang),
+            Ok(accepted),
+            "Clang {expression}: {}",
+            String::from_utf8_lossy(&clang.stderr)
+        );
+        if cfg!(all(
+            target_os = "linux",
+            any(target_arch = "x86", target_arch = "x86_64")
+        )) {
+            let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
+            let syntax = compiler_input(
+                std::process::Command::new(&gcc).args([
+                    "-m32",
+                    "-mmmx",
+                    "-std=gnu11",
+                    "-fsyntax-only",
+                    "-x",
+                    "c",
+                    "-",
+                ]),
+                &source,
+            );
+            assert!(
+                syntax.status.success(),
+                "{}",
+                String::from_utf8_lossy(&syntax.stderr)
+            );
+            let lowering = compiler_input(
+                std::process::Command::new(&gcc).args([
+                    "-m32",
+                    "-mmmx",
+                    "-std=gnu11",
+                    "-S",
+                    "-o",
+                    "/dev/null",
+                    "-x",
+                    "c",
+                    "-",
+                ]),
+                &source,
+            );
+            assert_eq!(
+                toucan_test_support::compiler_acceptance(&lowering),
+                Ok(accepted),
+                "GCC {expression}: {}",
+                String::from_utf8_lossy(&lowering.stderr)
+            );
+        }
+    }
+}
 #[test]
 fn intrinsic_conversions_and_invalid_calls_are_explicit() {
     let source = format!(
@@ -328,38 +450,47 @@ fn mmx_signatures_match_compiler_descriptors() {
     );
     let architecture = Command::new(&gcc).arg("-dumpmachine").output().unwrap();
     if String::from_utf8_lossy(&architecture.stdout).starts_with("x86_64") {
-        let mut source = signature_source(Target::X86_64UnknownLinuxGnu);
-        for intrinsic in INTRINSICS {
-            let signature = intrinsic.signature(Target::X86_64UnknownLinuxGnu).unwrap();
-            let parameters = signature
-                .parameters()
-                .iter()
-                .map(spelling)
-                .collect::<Vec<_>>()
-                .join(",");
-            let parameters = if parameters.is_empty() {
-                "void"
-            } else {
-                &parameters
-            };
-            source.push_str(&format!("_Static_assert(__builtin_types_compatible_p(__typeof__({}),{}({parameters})),\"formal signature\");\n",intrinsic.name(),spelling(signature.result())));
+        for (target, flag) in [
+            (Target::X86_64UnknownLinuxGnu, None),
+            (Target::I686UnknownLinuxGnu, Some("-m32")),
+        ] {
+            let mut source = signature_source(target);
+            for intrinsic in INTRINSICS {
+                let signature = intrinsic.signature(target).unwrap();
+                let parameters = signature
+                    .parameters()
+                    .iter()
+                    .map(spelling)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let parameters = if parameters.is_empty() {
+                    "void"
+                } else {
+                    &parameters
+                };
+                source.push_str(&format!("_Static_assert(__builtin_types_compatible_p(__typeof__({}),{}({parameters})),\"formal signature\");\n",intrinsic.name(),spelling(signature.result())));
+            }
+            let mut command = Command::new(&gcc);
+            if let Some(flag) = flag {
+                command.args([flag, "-msse2"]);
+            }
+            let output = compiler_input(
+                command.args([
+                    "-std=gnu11",
+                    "-pedantic-errors",
+                    "-fsyntax-only",
+                    "-x",
+                    "c",
+                    "-",
+                ]),
+                &source,
+            );
+            assert!(
+                output.status.success(),
+                "{target}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
-        let output = compiler_input(
-            Command::new(&gcc).args([
-                "-std=gnu11",
-                "-pedantic-errors",
-                "-fsyntax-only",
-                "-x",
-                "c",
-                "-",
-            ]),
-            &source,
-        );
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
     }
     for target in Target::ALL {
         let supported = X86Intrinsic::Emms.signature(target).is_some();

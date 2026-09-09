@@ -29,7 +29,7 @@ fn standard_versions_select_header_branches_without_changing_the_abi() {
                     .preprocessor
                     .defines
                     .contains_key("__GNUC_STDC_INLINE__"),
-                profile.target() != Target::X86_64PcWindowsMsvc
+                !profile.target().is_windows()
             );
             assert!(
                 !config

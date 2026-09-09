@@ -177,6 +177,12 @@ def main():
         "binding_derive_selector_version": 1 if args.target == "bindings" else None,
         "binding_function_selector_version": 1 if args.target == "bindings" else None,
         "binding_enum_selector_version": 1 if args.target == "bindings" else None,
+        "binding_nullable_function_typedefs": {
+            "first_generation": False,
+            "second_generation": True,
+        }
+        if args.target == "bindings"
+        else None,
         "binding_enum_selector": "sum(input bytes) & 12: bit2=bindgen enum names, bit3=prepend enum name; second generation"
         if args.target == "bindings"
         else None,

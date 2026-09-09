@@ -8,7 +8,11 @@ fn bindings(profile: CompilerProfile, rustified_enums: bool) -> String {
         analysis.unit(),
         &Options {
             rustified_enums,
-            rust_target: RustTarget::RUST_1_64,
+            rust_target: if profile.target().is_armv7() {
+                RustTarget::stable(78).unwrap()
+            } else {
+                RustTarget::RUST_1_64
+            },
             ..Default::default()
         },
     )
@@ -18,7 +22,7 @@ fn bindings(profile: CompilerProfile, rustified_enums: bool) -> String {
 #[test]
 fn packed_enums_use_compatible_primitives_and_rust_enum_representations() {
     for profile in CompilerProfile::ALL {
-        let microsoft = profile.target() == Target::X86_64PcWindowsMsvc;
+        let microsoft = profile.target().is_windows();
         for rustified in [false, true] {
             let source = bindings(profile, rustified);
             for (name, kind) in [
@@ -55,9 +59,7 @@ fn packed_atomic_enum_storage_and_call_guards_use_the_new_width() {
                     ..Default::default()
                 },
             );
-            if profile.compiler() == Compiler::Clang
-                && profile.target() != Target::X86_64PcWindowsMsvc
-            {
+            if profile.compiler() == Compiler::Clang && !profile.target().is_windows() {
                 assert!(
                     output
                         .unwrap_err()
@@ -66,13 +68,11 @@ fn packed_atomic_enum_storage_and_call_guards_use_the_new_width() {
                 );
             } else {
                 let source = output.unwrap().source;
-                assert!(
-                    source.contains(if profile.target() == Target::X86_64PcWindowsMsvc {
-                        "AtomicI32"
-                    } else {
-                        "AtomicI8"
-                    })
-                );
+                assert!(source.contains(if profile.target().is_windows() {
+                    "AtomicI32"
+                } else {
+                    "AtomicI8"
+                }));
             }
             let output = generate(
                 analysis.unit(),

@@ -154,11 +154,7 @@ fn anonymous_member_admission_keeps_following_enum_fields_in_order() {
                 let owner = record(unit, "Owner");
                 assert_eq!(
                     unit.records[owner].fields.as_ref().unwrap().len(),
-                    if direct || target == Target::X86_64PcWindowsMsvc {
-                        2
-                    } else {
-                        1
-                    }
+                    if direct || target.is_windows() { 2 } else { 1 }
                 );
                 let TagDiscovery::Discovered {
                     record: Some(naming_record),
@@ -273,7 +269,7 @@ fn trailing_enum_attributes_hide_tags_without_changing_c_scope() {
     use toucan_target::CompilerProfile;
 
     for profile in CompilerProfile::ALL {
-        if profile.target() == Target::X86_64PcWindowsMsvc {
+        if profile.target().is_windows() {
             continue;
         }
         for (source, hidden) in [

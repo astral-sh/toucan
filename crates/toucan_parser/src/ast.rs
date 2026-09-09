@@ -848,6 +848,8 @@ pub enum TypeQualifier {
     ///
     /// `__volatile`, `__volatile__` (GNU extension)
     Volatile,
+    /// Pointer to data that may be unaligned (Microsoft extension).
+    Unaligned,
     /// '_Nonnull' (Clang extension)
     ///
     /// [Clang extension](https://clang.llvm.org/docs/AttributeReference.html)
@@ -874,6 +876,8 @@ pub enum FunctionSpecifier {
     /// `inline`
     ///
     /// `__inline`, `__inline__` (GNU extension)
+    ///
+    /// `__forceinline` (Microsoft extension)
     Inline,
     /// `_Noreturn`
     Noreturn,
@@ -969,6 +973,8 @@ pub struct FunctionDeclarator {
 pub enum PointerQualifier {
     TypeQualifier(Node<TypeQualifier>),
     Extension(Vec<Node<Extension>>),
+    /// Microsoft `__ptr32` or `__ptr64`, retaining the written pointer width.
+    MsvcPointerWidth(u8),
 }
 
 /// Size of an array in a declaration

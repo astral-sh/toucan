@@ -5,6 +5,7 @@
 //! value, field-level alignment, and long double. Incomplete records and records
 //! containing bitfields are available behind pointers.
 
+mod alias_dependencies;
 mod atomic;
 mod complex;
 mod derives;
@@ -19,6 +20,7 @@ mod renaming;
 mod selection;
 mod tag_discovery;
 mod type_dependencies;
+mod work_budget;
 pub use type_dependencies::TypeDependencies;
 
 pub use selection::BindingSelection;
@@ -27,12 +29,13 @@ pub use derives::DeriveOptions;
 pub use enum_constants::EnumConstantStyle;
 pub use external::{ExternalType, ExternalTypeKind};
 
+use std::borrow::Cow;
 use std::collections::{BTreeMap, BTreeSet};
 use std::fmt::Write;
 
 use toucan_semantic::{
-    CallingConvention, DeclarationKind, FloatKind, FloatingValue, FunctionType, IntegerKind,
-    IntegerValue, RecordKind, Scope, TranslationUnit, Type, TypeKind,
+    CallingConvention, Declaration, DeclarationKind, FloatKind, FloatingValue, FunctionType,
+    IntegerKind, IntegerValue, RecordKind, Scope, TranslationUnit, Type, TypeKind,
 };
 
 #[derive(Debug, Default, Clone)]
@@ -49,6 +52,13 @@ pub struct Options {
     /// Rust names for functions and external objects, keyed by original C spelling.
     /// Native symbol names remain unchanged. Selected value-name collisions are errors.
     pub generated_names: BTreeMap<String, String>,
+    /// Prefix externally linked function and object symbols without changing
+    /// their Rust names. This overrides an explicit C asm link name, matching
+    /// bindgen's `--prefix-link-name` callback behavior.
+    pub link_name_prefix: Option<String>,
+    /// Native linker symbols for specific C declarations, taking precedence over
+    /// `link_name_prefix` when a library intentionally leaves a symbol unprefixed.
+    pub link_name_overrides: BTreeMap<String, String>,
     /// Selected written object occurrences, keyed by their original C names.
     /// Enables literal projection and preserves the selected occurrence's type.
     /// Internal objects without a materialized constant are skipped and reported.
@@ -64,6 +74,10 @@ pub struct Options {
     /// Exclude functions whose file declarations are all inline, or that have an
     /// inline body, including a replaced GNU body. This is independent of linkage.
     pub exclude_inline_functions: bool,
+    /// Project C function typedefs as nullable Rust callbacks, as bindgen does.
+    /// Function pointers still have one nullable layer; C function types are unchanged.
+    /// Defaults to false. The Builder adapter enables this compatibility policy.
+    pub nullable_function_typedefs: bool,
     /// Emit Rust enums with named variants instead of integer aliases. Values
     /// outside the declared variants are invalid Rust enum values.
     pub rustified_enums: bool,
@@ -109,6 +123,7 @@ pub struct Options {
     /// Wide string macros retain typed code-unit arrays.
     pub generate_cstr: bool,
     /// Minimum Rust version for generated declarations. Defaults to Rust 1.96.
+    /// ARMv7 hard-float requires Rust 1.78 or newer to guard the target ABI.
     /// Caller-provided raw lines are outside this contract.
     pub rust_target: RustTarget,
     /// Omit generated runtime field-offset tests on Rust releases before 1.77.
@@ -177,6 +192,20 @@ pub enum MacroType {
 }
 
 impl Options {
+    pub(crate) fn link_name<'a>(&self, declaration: &'a Declaration) -> Cow<'a, str> {
+        if let Some(symbol) = self.link_name_overrides.get(&declaration.name) {
+            symbol.clone().into()
+        } else if let Some(prefix) = &self.link_name_prefix {
+            format!("{prefix}{}", declaration.name).into()
+        } else {
+            declaration
+                .link_name
+                .as_deref()
+                .unwrap_or(&declaration.name)
+                .into()
+        }
+    }
+
     pub fn includes(&self, name: &str) -> bool {
         self.selects_all()
             || self
@@ -375,6 +404,20 @@ pub fn generate_with_macros(
     options: &Options,
     macros: &BTreeMap<String, Option<MacroValue>>,
 ) -> Result<Bindings, Error> {
+    generate_with_work_budget(unit, options, macros, &work_budget::WorkBudget::default())
+}
+
+fn generate_with_work_budget(
+    unit: &TranslationUnit,
+    options: &Options,
+    macros: &BTreeMap<String, Option<MacroValue>>,
+    work_budget: &work_budget::WorkBudget,
+) -> Result<Bindings, Error> {
+    if unit.target.is_armv7() && options.rust_target.minor < 78 {
+        return Err(Error(
+            "ARMv7 hard-float bindings require Rust 1.78 or newer for cfg(target_abi)".into(),
+        ));
+    }
     unit.validate_function_options()?;
     unit.validate_parameter_contracts()?;
     if let Some(dependencies) = &options.type_dependencies {
@@ -471,6 +514,7 @@ pub fn generate_with_macros(
     }
     let mut emitter = Emitter {
         unit,
+        work_budget,
         options,
         names: Names::new(
             unit.declarations
@@ -662,6 +706,7 @@ pub fn generate_with_macros(
         }
     }
     emitter.prepare_additional_objects()?;
+    emitter.validate_alias_dependencies()?;
     emitter.validate_generated_collisions(&selected, macros)?;
     emitter.prepare_atomic_records()?;
     emitter.prepare_external_records()?;
@@ -673,10 +718,17 @@ pub fn generate_with_macros(
     );
     let (arch, os, environment) = match unit.target.triple() {
         "x86_64-unknown-linux-gnu" => ("x86_64", "linux", ", target_env = \"gnu\""),
+        "i686-unknown-linux-gnu" => ("x86", "linux", ", target_env = \"gnu\""),
+        "armv7-unknown-linux-gnueabihf" => (
+            "arm",
+            "linux",
+            ", target_env = \"gnu\", target_abi = \"eabihf\"",
+        ),
         "aarch64-unknown-linux-gnu" => ("aarch64", "linux", ", target_env = \"gnu\""),
         "x86_64-apple-darwin" => ("x86_64", "macos", ""),
         "aarch64-apple-darwin" => ("aarch64", "macos", ""),
         "x86_64-pc-windows-msvc" => ("x86_64", "windows", ", target_env = \"msvc\""),
+        "aarch64-pc-windows-msvc" => ("aarch64", "windows", ", target_env = \"msvc\""),
         "x86_64-unknown-linux-musl" => ("x86_64", "linux", ", target_env = \"musl\""),
         "aarch64-unknown-linux-musl" => ("aarch64", "linux", ", target_env = \"musl\""),
         triple => return Err(Error(format!("binding target `{triple}` is unsupported"))),
@@ -713,13 +765,20 @@ pub fn generate_with_macros(
                 continue;
             }
             rust_type
+        } else if options.nullable_function_typedefs && matches!(ty.kind, TypeKind::Typedef(_)) {
+            emitter.ty(ty)?
         } else if let TypeKind::Function(function) = &unit.resolve(ty)?.kind {
             emitter.check_function(function)?;
-            format!(
+            let function = format!(
                 "unsafe extern \"{}\" fn{}",
                 emitter.abi(function)?,
                 emitter.signature(function)?
-            )
+            );
+            if options.nullable_function_typedefs {
+                format!("::core::option::Option<{function}>")
+            } else {
+                function
+            }
         } else {
             emitter.ty(ty)?
         };
@@ -842,8 +901,8 @@ pub fn generate_with_macros(
                     return Err(Error(format!("`{name}` is not a function")));
                 };
                 emitter.check_function(function)?;
-                let link_name = declaration.link_name.as_ref().unwrap_or(&declaration.name);
-                if name != *link_name {
+                let link_name = options.link_name(declaration);
+                if name != link_name {
                     writeln!(source, "    #[link_name = {link_name:?}]").unwrap();
                 }
                 writeln!(source, "    pub fn {name}{};", emitter.signature(function)?).unwrap();
@@ -857,8 +916,8 @@ pub fn generate_with_macros(
                         declaration.name,
                     )));
                 }
-                let link_name = declaration.link_name.as_ref().unwrap_or(&declaration.name);
-                if name != *link_name {
+                let link_name = options.link_name(declaration);
+                if name != link_name {
                     writeln!(source, "    #[link_name = {link_name:?}]").unwrap();
                 }
                 let mutable = if emitter.is_const(emitter.object_type(declaration)?)? {
@@ -958,6 +1017,9 @@ pub fn generate_with_macros(
                     IntegerKind::UnsignedShort => ("u16", u32::from(u16::MAX), false),
                     IntegerKind::UnsignedInt => ("u32", u32::MAX, false),
                     IntegerKind::Int => ("i32", u32::MAX, true),
+                    // GCC uses `long int` for i686 wchar_t; its 32-bit code
+                    // units have the same Rust representation as signed int.
+                    IntegerKind::Long if unit.target.long_width() == 32 => ("i32", u32::MAX, true),
                     _ => {
                         return Err(Error(format!(
                             "wide string macro `{c_name}` has an unsupported element type"
@@ -1179,6 +1241,7 @@ fn convert_enum_constant(
 
 struct Emitter<'a> {
     unit: &'a TranslationUnit,
+    work_budget: &'a work_budget::WorkBudget,
     options: &'a Options,
     names: Names,
     records: BTreeSet<usize>,
@@ -1221,6 +1284,7 @@ impl Emitter<'_> {
                 "type nesting exceeds the binding limit of 256".into(),
             ));
         }
+        self.check_pointer_width(ty)?;
         if self.register_external(ty, true, layout_required)? {
             return self.collect_external_dependencies(ty, depth);
         }
@@ -1630,6 +1694,18 @@ impl Emitter<'_> {
         }
     }
 
+    /// Rust pointers cannot represent the four-byte Microsoft x64 pointer ABI.
+    fn check_pointer_width(&self, ty: &Type) -> Result<(), Error> {
+        if self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+            && self.unit.qualifiers(ty)?.is_msvc_ptr32()
+        {
+            return Err(Error(
+                "Windows x64 __ptr32 pointers have no supported Rust ABI representation".into(),
+            ));
+        }
+        Ok(())
+    }
+
     fn check_128_bit_abi(&self) -> Result<(), Error> {
         if self.options.rust_target.minor < 78 {
             return Err(Error(
@@ -1644,7 +1720,8 @@ impl Emitter<'_> {
     }
 
     fn ty_at(&self, ty: &Type, depth: usize) -> Result<String, Error> {
-        check_depth(depth)?;
+        self.work_budget.charge(depth)?;
+        self.check_pointer_width(ty)?;
         if let Some(name) = self.external_name(ty)? {
             return Ok(name);
         }
@@ -1726,11 +1803,17 @@ impl Emitter<'_> {
             TypeKind::Pointer(pointee) => {
                 if let TypeKind::Function(function) = &self.unit.resolve(pointee)?.kind {
                     self.check_function_at(function, depth + 1)?;
-                    format!(
-                        "::core::option::Option<unsafe extern \"{}\" fn{}>",
-                        self.abi(function)?,
-                        self.signature_at(function, depth + 1)?
-                    )
+                    if self.options.nullable_function_typedefs
+                        && matches!(pointee.kind, TypeKind::Typedef(_))
+                    {
+                        self.ty_at(pointee, depth + 1)?
+                    } else {
+                        format!(
+                            "::core::option::Option<unsafe extern \"{}\" fn{}>",
+                            self.abi(function)?,
+                            self.signature_at(function, depth + 1)?
+                        )
+                    }
                 } else {
                     format!(
                         "*{} {}",
@@ -1761,11 +1844,13 @@ impl Emitter<'_> {
             TypeKind::Record(id) => self.record_name(*id)?,
             TypeKind::Enum(id) => self.enum_name(*id)?,
             TypeKind::Typedef(name) => {
-                // A C function typedef denotes the function, not a nullable pointer.
+                // The core preserves C function identity; Builder aliases represent callbacks.
                 if self.options.size_t_is_usize && name == "size_t" && !self.options.includes_typedef(name)
                 {
                     self.size_t_type(ty)?
-                } else if let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind {
+                } else if !self.options.nullable_function_typedefs
+                    && let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind
+                {
                     self.check_function_at(function, depth + 1)?;
                     format!(
                         "unsafe extern \"{}\" fn{}",
@@ -1840,7 +1925,7 @@ impl Emitter<'_> {
     }
 
     fn signature_at(&self, function: &FunctionType, depth: usize) -> Result<String, Error> {
-        check_depth(depth)?;
+        self.work_budget.charge(depth)?;
         let no_escape = function
             .parameter_contracts
             .map(|id| {
@@ -1901,7 +1986,7 @@ impl Emitter<'_> {
     }
 
     fn check_function_at(&self, function: &FunctionType, depth: usize) -> Result<(), Error> {
-        check_depth(depth)?;
+        self.work_budget.charge(depth)?;
         self.abi(function)?;
         if !function.prototype {
             return Err(Error("C function declaration without a prototype cannot be represented by a Rust function signature".into()));
@@ -1929,7 +2014,7 @@ impl Emitter<'_> {
         active: &mut BTreeSet<usize>,
         depth: usize,
     ) -> Result<(), Error> {
-        check_depth(depth)?;
+        self.work_budget.charge(depth)?;
         match &self.unit.resolve(ty)?.kind {
             TypeKind::Atomic(_) => return Err(Error("records containing atomic storage cannot cross an FFI call by value; expose C pointer accessors".into())),
             TypeKind::Record(id) => {
@@ -2573,11 +2658,7 @@ mod tests {
             ).unwrap();
             let original = unit.constants.clone();
             let bindings = generate(&unit, &Options::default()).unwrap();
-            let positive_type = if target == Target::X86_64PcWindowsMsvc {
-                "i32"
-            } else {
-                "u32"
-            };
+            let positive_type = if target.is_windows() { "i32" } else { "u32" };
             assert!(bindings.source.contains(&format!(
                 "pub const POSITIVE: ::core::primitive::{positive_type} = 3;"
             )));
@@ -2692,8 +2773,21 @@ mod tests {
                 calling_convention: toucan_semantic::CallingConvention::C,
             }))),
         );
-        let error = generate(&unit, &Options::default()).unwrap_err();
-        assert!(error.0.contains("type nesting"));
+        for nullable_function_typedefs in [false, true] {
+            let error = generate(
+                &unit,
+                &Options {
+                    nullable_function_typedefs,
+                    ..Default::default()
+                },
+            )
+            .unwrap_err();
+            assert!(error.0.contains(if nullable_function_typedefs {
+                "cyclic Rust type alias"
+            } else {
+                "type nesting"
+            }));
+        }
     }
 
     #[test]

@@ -1,8 +1,42 @@
 //! Shared test helpers for distinguishing compiler diagnostics from tool failures.
 
 use std::fmt;
+use std::io::Write;
 use std::path::Path;
-use std::process::{Command, Output};
+use std::process::{Command, Output, Stdio};
+
+/// Checks whether the installed Clang accepts a C feature for its i686 Linux target.
+///
+/// Apple Clang can expose extensions on this cross target that Clang targeting
+/// native i686 Linux rejects. Oracle tests use this probe only to exclude those
+/// toolchain-specific cases; Toucan's profile expectations remain independent.
+pub fn clang_accepts_i686(source: &str) -> bool {
+    let mut child = Command::new("clang")
+        .args([
+            "-target",
+            "i686-unknown-linux-gnu",
+            "-std=gnu11",
+            "-fsyntax-only",
+            "-x",
+            "c",
+            "-",
+        ])
+        .stdin(Stdio::piped())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped())
+        .spawn()
+        .expect("start Clang i686 capability probe");
+    child
+        .stdin
+        .take()
+        .unwrap()
+        .write_all(source.as_bytes())
+        .expect("write Clang i686 capability probe");
+    let output = child
+        .wait_with_output()
+        .expect("finish Clang i686 capability probe");
+    compiler_acceptance(&output).expect("Clang i686 capability probe must finish normally")
+}
 
 /// Adds a compiled C fixture through Rust's native static-library link path.
 ///

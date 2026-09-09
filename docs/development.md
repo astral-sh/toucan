@@ -67,10 +67,14 @@ Linux and Windows package checks. Each PR in a stack has a distinct ref, so
 per-ref concurrency does not prevent duplicate macOS work across the stack.
 
 The separate `macOS validation` workflow runs Apple Silicon tests, packages, and
-the corpus on relevant pushes to `main`, or when explicitly requested. Add the
-`run-macos` label to the current integration PR to validate that revision. To
-request another revision, remove and reapply the label. Once the workflow is on
-the default branch, it can also be dispatched against a selected branch.
+the corpus on relevant pushes to `main`. After it reaches the default branch,
+add the `run-macos` label to an integration PR to validate that revision. To
+request another revision, remove and reapply the label. It can also be dispatched
+against a selected branch. Before the workflow reaches the default branch,
+push the dedicated `charlie/codex-toucan-macos-arm64-validation` integration
+branch instead. Its [branch-scoped workflow](../.github/workflows/macos-arm64-integration.yml)
+calls the same macOS jobs with Intel disabled. It only runs when that branch is
+pushed, after the proposed source is in the stack.
 
 Intel Macs are an opt-in compatibility target. Use the `run-macos-intel` label or
 enable the dispatch's `intel` input to include them. Routine PR and `main` runs do

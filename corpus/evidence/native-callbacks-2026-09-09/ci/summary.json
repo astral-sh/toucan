@@ -1,0 +1,512 @@
+{
+  "schema_version": 1,
+  "scope": "Read-only GitHub Actions audit of exact published7db2b850 plus its workspace-identical implementation parentec019da; no rerun, dispatch, label or repository mutation.",
+  "captured_at_utc": "2026-09-09T12:27:20.461984+00:00",
+  "status": "passed",
+  "commits": {
+    "implementation": "ec019da09675f0e27073fa74fc0a89b9ad25849e",
+    "combined": "7db2b85027108be1515ad76263720e665cba2ab9"
+  },
+  "source_equivalence": {
+    "identical_git_blobs": 624,
+    "workspace_crates_cargo_workflows_identical": true,
+    "workflow_files": 8,
+    "combined_changed_paths": [
+      "corpus/evidence/binding-rustified-enums-schema3-2026-09-09.json.gz",
+      "docs/enum-selection.md",
+      "scripts/compare_bindings.py",
+      "tools/binding_compare/README.md",
+      "tools/binding_compare/src/enumeration.rs",
+      "tools/binding_compare/src/main.rs",
+      "tools/binding_compare/tests/test_comparison.py"
+    ],
+    "qualification": "Parent workspace/CI validates byte-identical crate sources, Cargo manifests/lock and workflow definitions. Combined head separately changes analyzer/tool/script/docs/evidence, so its own corpus workflow supplies additional direct validation; parent CI is not claimed to test changed schema3 code."
+  },
+  "runs": {
+    "34349065932": {
+      "name": "Upstream corpus",
+      "head_sha": "ec019da09675f0e27073fa74fc0a89b9ad25849e",
+      "head_branch": "charlie/codex-toucan-binding-work-budget",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065932",
+      "run_attempt": 1
+    },
+    "34349065986": {
+      "name": "CI",
+      "head_sha": "ec019da09675f0e27073fa74fc0a89b9ad25849e",
+      "head_branch": "charlie/codex-toucan-binding-work-budget",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065986",
+      "run_attempt": 1
+    },
+    "34349065907": {
+      "name": "Csmith conformance",
+      "head_sha": "ec019da09675f0e27073fa74fc0a89b9ad25849e",
+      "head_branch": "charlie/codex-toucan-binding-work-budget",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065907",
+      "run_attempt": 1
+    },
+    "34349065891": {
+      "name": "Windows DLL consumers",
+      "head_sha": "ec019da09675f0e27073fa74fc0a89b9ad25849e",
+      "head_branch": "charlie/codex-toucan-binding-work-budget",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065891",
+      "run_attempt": 1
+    },
+    "34349065903": {
+      "name": "C acceptance conformance",
+      "head_sha": "ec019da09675f0e27073fa74fc0a89b9ad25849e",
+      "head_branch": "charlie/codex-toucan-binding-work-budget",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065903",
+      "run_attempt": 1
+    },
+    "34349065867": {
+      "name": "Musl ABI and consumers",
+      "head_sha": "ec019da09675f0e27073fa74fc0a89b9ad25849e",
+      "head_branch": "charlie/codex-toucan-binding-work-budget",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065867",
+      "run_attempt": 1
+    },
+    "34349065934": {
+      "name": "Fuzz tests",
+      "head_sha": "ec019da09675f0e27073fa74fc0a89b9ad25849e",
+      "head_branch": "charlie/codex-toucan-binding-work-budget",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065934",
+      "run_attempt": 1
+    },
+    "34349071817": {
+      "name": "Upstream corpus",
+      "head_sha": "7db2b85027108be1515ad76263720e665cba2ab9",
+      "head_branch": "charlie/codex-toucan-rustified-enum-analysis",
+      "status": "completed",
+      "conclusion": "success",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349071817",
+      "run_attempt": 1
+    }
+  },
+  "jobs": [
+    {
+      "id": 102457564089,
+      "name": "Native corpus (aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04-arm"
+      ],
+      "runner_id": 1002364716,
+      "runner_name": "GitHub Actions 1002364716",
+      "started_at": "2026-09-09T12:05:50Z",
+      "completed_at": "2026-09-09T12:22:20Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065932/job/102457564089",
+      "run_id": "34349065932"
+    },
+    {
+      "id": 102457564452,
+      "name": "Native corpus (x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364717,
+      "runner_name": "GitHub Actions 1002364717",
+      "started_at": "2026-09-09T12:05:48Z",
+      "completed_at": "2026-09-09T12:24:08Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065932/job/102457564452",
+      "run_id": "34349065932"
+    },
+    {
+      "id": 102457564652,
+      "name": "Rust 1.96",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364719,
+      "runner_name": "GitHub Actions 1002364719",
+      "started_at": "2026-09-09T12:05:48Z",
+      "completed_at": "2026-09-09T12:06:41Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065986/job/102457564652",
+      "run_id": "34349065986"
+    },
+    {
+      "id": 102457564829,
+      "name": "Packages and allocators (windows-2025)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "windows-2025"
+      ],
+      "runner_id": 1002364723,
+      "runner_name": "GitHub Actions 1002364723",
+      "started_at": "2026-09-09T12:05:48Z",
+      "completed_at": "2026-09-09T12:15:48Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065986/job/102457564829",
+      "run_id": "34349065986"
+    },
+    {
+      "id": 102457564880,
+      "name": "Test (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364720,
+      "runner_name": "GitHub Actions 1002364720",
+      "started_at": "2026-09-09T12:05:48Z",
+      "completed_at": "2026-09-09T12:25:30Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065986/job/102457564880",
+      "run_id": "34349065986"
+    },
+    {
+      "id": 102457565000,
+      "name": "Packages and allocators (ubuntu-24.04)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364722,
+      "runner_name": "GitHub Actions 1002364722",
+      "started_at": "2026-09-09T12:05:48Z",
+      "completed_at": "2026-09-09T12:10:58Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065986/job/102457565000",
+      "run_id": "34349065986"
+    },
+    {
+      "id": 102457565130,
+      "name": "Lint",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364721,
+      "runner_name": "GitHub Actions 1002364721",
+      "started_at": "2026-09-09T12:05:48Z",
+      "completed_at": "2026-09-09T12:07:56Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065986/job/102457565130",
+      "run_id": "34349065986"
+    },
+    {
+      "id": 102457565237,
+      "name": "Test (ubuntu-24.04-arm)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04-arm"
+      ],
+      "runner_id": 1002364726,
+      "runner_name": "GitHub Actions 1002364726",
+      "started_at": "2026-09-09T12:05:51Z",
+      "completed_at": "2026-09-09T12:18:55Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065986/job/102457565237",
+      "run_id": "34349065986"
+    },
+    {
+      "id": 102457564200,
+      "name": "native-linux",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364715,
+      "runner_name": "GitHub Actions 1002364715",
+      "started_at": "2026-09-09T12:05:47Z",
+      "completed_at": "2026-09-09T12:07:14Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065907/job/102457564200",
+      "run_id": "34349065907"
+    },
+    {
+      "id": 102457564590,
+      "name": "C DLLs and Rust consumers (x86_64 Windows)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "windows-2025"
+      ],
+      "runner_id": 1002364724,
+      "runner_name": "GitHub Actions 1002364724",
+      "started_at": "2026-09-09T12:05:48Z",
+      "completed_at": "2026-09-09T12:08:12Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065891/job/102457564590",
+      "run_id": "34349065891"
+    },
+    {
+      "id": 102457563680,
+      "name": "Pedantic C11 acceptance (gcc)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364712,
+      "runner_name": "GitHub Actions 1002364712",
+      "started_at": "2026-09-09T12:05:47Z",
+      "completed_at": "2026-09-09T12:08:11Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065903/job/102457563680",
+      "run_id": "34349065903"
+    },
+    {
+      "id": 102457563971,
+      "name": "Pedantic C11 acceptance (clang)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364713,
+      "runner_name": "GitHub Actions 1002364713",
+      "started_at": "2026-09-09T12:05:47Z",
+      "completed_at": "2026-09-09T12:08:45Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065903/job/102457563971",
+      "run_id": "34349065903"
+    },
+    {
+      "id": 102457564011,
+      "name": "native (ubuntu-24.04, x86_64-unknown-linux-musl, x86_64)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364714,
+      "runner_name": "GitHub Actions 1002364714",
+      "started_at": "2026-09-09T12:05:47Z",
+      "completed_at": "2026-09-09T12:10:20Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065867/job/102457564011",
+      "run_id": "34349065867"
+    },
+    {
+      "id": 102457564255,
+      "name": "native (ubuntu-24.04-arm, aarch64-unknown-linux-musl, aarch64)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04-arm"
+      ],
+      "runner_id": 1002364725,
+      "runner_name": "GitHub Actions 1002364725",
+      "started_at": "2026-09-09T12:05:51Z",
+      "completed_at": "2026-09-09T12:09:04Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065867/job/102457564255",
+      "run_id": "34349065867"
+    },
+    {
+      "id": 102457564305,
+      "name": "smoke",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364718,
+      "runner_name": "GitHub Actions 1002364718",
+      "started_at": "2026-09-09T12:05:48Z",
+      "completed_at": "2026-09-09T12:12:38Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065934/job/102457564305",
+      "run_id": "34349065934"
+    },
+    {
+      "id": 102457566073,
+      "name": "campaign",
+      "status": "completed",
+      "conclusion": "skipped",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": null,
+      "runner_name": null,
+      "started_at": "2026-09-09T12:05:45Z",
+      "completed_at": "2026-09-09T12:05:44Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349065934/job/102457566073",
+      "run_id": "34349065934"
+    },
+    {
+      "id": 102457583432,
+      "name": "Native corpus (aarch64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04-arm"
+      ],
+      "runner_id": 1002364728,
+      "runner_name": "GitHub Actions 1002364728",
+      "started_at": "2026-09-09T12:05:54Z",
+      "completed_at": "2026-09-09T12:23:28Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349071817/job/102457583432",
+      "run_id": "34349071817"
+    },
+    {
+      "id": 102457583756,
+      "name": "Native corpus (x86_64-unknown-linux-gnu)",
+      "status": "completed",
+      "conclusion": "success",
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "runner_id": 1002364727,
+      "runner_name": "GitHub Actions 1002364727",
+      "started_at": "2026-09-09T12:05:52Z",
+      "completed_at": "2026-09-09T12:23:21Z",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34349071817/job/102457583756",
+      "run_id": "34349071817"
+    }
+  ],
+  "counts": {
+    "successful_workflows": 8,
+    "successful_jobs": 17,
+    "intentionally_skipped_jobs": 1,
+    "allocated_jobs": 17,
+    "macos_allocations": 0,
+    "artifact_metadata_entries": 11
+  },
+  "runner_labels": {
+    "ubuntu-24.04-arm": 4,
+    "ubuntu-24.04": 11,
+    "windows-2025": 2
+  },
+  "pr_labels": {
+    "301": [],
+    "302": []
+  },
+  "artifacts": [
+    {
+      "id": 10103592484,
+      "name": "corpus-x86_64-unknown-linux-gnu",
+      "size_in_bytes": 7032523,
+      "expired": false,
+      "digest": "sha256:fc12357cf3c2d85fb622f47f8303d18abad862cb8d15a7b52bfffbbe6a814cdb",
+      "run_id": "34349065932"
+    },
+    {
+      "id": 10103521513,
+      "name": "corpus-aarch64-unknown-linux-gnu",
+      "size_in_bytes": 6814892,
+      "expired": false,
+      "digest": "sha256:f379ed3929247f016e36cb41cf903327d47a5233ab694596e17f7c36dbd6eff0",
+      "run_id": "34349065932"
+    },
+    {
+      "id": 10102948035,
+      "name": "csmith-linux-evidence",
+      "size_in_bytes": 591947,
+      "expired": false,
+      "digest": "sha256:fd7412a5cf575d080853365fd720fd95e9b9a0b1d635f01cdf2ba915063217a4",
+      "run_id": "34349065907"
+    },
+    {
+      "id": 10102982967,
+      "name": "windows-dll-x86_64-1",
+      "size_in_bytes": 4312155,
+      "expired": false,
+      "digest": "sha256:404240de85ac05dec1f8cda6d4619d76c41c83dff2e0abd16fbc9c24ce3c3d1e",
+      "run_id": "34349065891"
+    },
+    {
+      "id": 10103004654,
+      "name": "c-testsuite-conformance-clang",
+      "size_in_bytes": 2563097,
+      "expired": false,
+      "digest": "sha256:e3672d9ca983b3425b3b40b59202b42cfdf91693b438a72c764861c19a902afa",
+      "run_id": "34349065903"
+    },
+    {
+      "id": 10102983359,
+      "name": "c-testsuite-conformance-gcc",
+      "size_in_bytes": 2562174,
+      "expired": false,
+      "digest": "sha256:34c23ee2de8be601410230742b2247ddebf76988d32af80c871120d435a2d014",
+      "run_id": "34349065903"
+    },
+    {
+      "id": 10103064054,
+      "name": "musl-x86_64",
+      "size_in_bytes": 463711,
+      "expired": false,
+      "digest": "sha256:adda4d32de7d053d9c3ebcb71ab957ef101f6f9592097b173a44b090fac05d96",
+      "run_id": "34349065867"
+    },
+    {
+      "id": 10103016919,
+      "name": "musl-aarch64",
+      "size_in_bytes": 465624,
+      "expired": false,
+      "digest": "sha256:cd5e2d27e14ad76357822f5b2b95451476ccd4b84cdac2a8594ae60c9a42e25b",
+      "run_id": "34349065867"
+    },
+    {
+      "id": 10103150241,
+      "name": "fuzz-evidence",
+      "size_in_bytes": 219606,
+      "expired": false,
+      "digest": "sha256:3e8017db8332023006b234599a9a3fd1b7e1c3edeab35e30149075b3c85d25e2",
+      "run_id": "34349065934"
+    },
+    {
+      "id": 10103566516,
+      "name": "corpus-aarch64-unknown-linux-gnu",
+      "size_in_bytes": 6815861,
+      "expired": false,
+      "digest": "sha256:918d1ed77dec839b35a544068573257b0bcf129ae4034530b7bfeaab5dec5e7b",
+      "run_id": "34349071817"
+    },
+    {
+      "id": 10103561593,
+      "name": "corpus-x86_64-unknown-linux-gnu",
+      "size_in_bytes": 7033626,
+      "expired": false,
+      "digest": "sha256:6c7a101d1ff10d7c9e74c3e314b5f3acb0803038dad691864d4a6153e375a274",
+      "run_id": "34349071817"
+    }
+  ],
+  "linux_arm_fixture": {
+    "job_id": 102457565237,
+    "lines": [
+      "2026-09-09T12:09:22.8873828Z      Running tests/name_selection.rs (target/debug/deps/name_selection-517e9af3188d0c7c)",
+      "2026-09-09T12:09:23.0010950Z test selected_bindings_compile_as_rust ... ok"
+    ],
+    "job_url": "https://github.com/astral-sh/toucan/actions/runs/34349065986/job/102457565237",
+    "log": {
+      "path": "/home/dev-user/.cache/toucan/callback-final-ci-audit-2026-09-09/linux-arm-job-102457565237-raw.log",
+      "bytes": 285728,
+      "sha256": "bea1063d2c708a30224ff6f7fe302db8f60f4e89448273d98574293b9dc591ff"
+    }
+  },
+  "read_errors": [
+    {
+      "command": [
+        "/home/dev-user/.local/bin/gh-auto",
+        "api",
+        "repos/astral-sh/toucan/actions/jobs/102457565237/logs"
+      ],
+      "exit_code": 1,
+      "stderr": "the response contains terminal escape sequences; pass --allow-escape-sequences to output it anyway\n",
+      "log_path": "/home/dev-user/.cache/toucan/callback-final-ci-audit-2026-09-09/linux-arm-job-102457565237.log",
+      "bytes": 0,
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+    }
+  ],
+  "limitations": [
+    "The scheduled/manual fuzz campaign did not run for this pull-request event; its job is explicitly skipped.",
+    "Zero macOS allocations applies to these exact-head runs; it does not describe other historical runs or future explicitly requested macOS validation.",
+    "CI jobs report success; artifact metadata is saved without downloading all artifact payloads. The LinuxARM joblog is captured and contains the exact fixture pass.",
+    "The parent workflow validates identical workspace code and workflows. Changed schema3 analyzer/tests/scripts are exercised by the combined head own corpus workflow on Linuxx64/ARM, which builds/tests the analyzer and invokes comparison.",
+    "Intermediate pending snapshots and the initial terminal-escape log-fetch refusal are preserved; final run/job metadata is completed/success. No CI failure or rerun occurred."
+  ]
+}

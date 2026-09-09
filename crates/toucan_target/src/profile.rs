@@ -32,8 +32,9 @@ impl FromStr for Compiler {
     }
 }
 
-/// A validated target, compiler family, and C language mode. GCC is supported on Linux;
-/// Clang is supported on all supported targets, using the Microsoft ABI on Windows.
+/// A validated target, compiler family, and C language mode. GCC is supported on
+/// validated Linux targets; ARMv7 hard-float currently supports Clang only.
+/// Clang uses the Microsoft ABI on Windows.
 #[derive(Clone, Copy, Debug, Eq, Hash, PartialEq, Serialize, Deserialize)]
 #[serde(try_from = "ProfileFields")]
 pub struct CompilerProfile {
@@ -58,7 +59,7 @@ impl TryFrom<ProfileFields> for CompilerProfile {
 impl CompilerProfile {
     /// Supported profiles. The original seven entries retain their order; musl
     /// profiles follow them. Fuzz campaign manifests record the selector count.
-    pub const ALL: [Self; 11] = [
+    pub const ALL: [Self; 15] = [
         Self::default_for(Target::X86_64UnknownLinuxGnu),
         Self::default_for(Target::Aarch64UnknownLinuxGnu),
         Self::default_for(Target::X86_64AppleDarwin),
@@ -86,10 +87,20 @@ impl CompilerProfile {
             compiler: Compiler::Clang,
             language_mode: LanguageMode::Gnu11,
         },
+        Self::default_for(Target::Aarch64PcWindowsMsvc),
+        Self::default_for(Target::I686UnknownLinuxGnu),
+        Self {
+            target: Target::I686UnknownLinuxGnu,
+            compiler: Compiler::Clang,
+            language_mode: LanguageMode::Gnu11,
+        },
+        Self::default_for(Target::Armv7UnknownLinuxGnueabihf),
     ];
     /// Rejects compiler/target pairs whose semantics and ABI have not been validated.
     pub fn new(target: Target, compiler: Compiler) -> Result<Self, LayoutError> {
-        if compiler == Compiler::Gnu && !target.is_linux() {
+        if compiler == Compiler::Gnu
+            && (!target.is_linux() || target == Target::Armv7UnknownLinuxGnueabihf)
+        {
             return Err(LayoutError::UnsupportedCompiler { target, compiler });
         }
         Ok(Self {
@@ -98,12 +109,12 @@ impl CompilerProfile {
             language_mode: LanguageMode::Gnu11,
         })
     }
-    /// Preserves the original target defaults: GCC on Linux, Clang elsewhere.
+    /// GCC is the Linux default where its target semantics are validated.
     pub const fn default_for(target: Target) -> Self {
         Self {
             target,
             language_mode: LanguageMode::Gnu11,
-            compiler: if target.is_linux() {
+            compiler: if target.is_linux() && !target.is_armv7() {
                 Compiler::Gnu
             } else {
                 Compiler::Clang
@@ -130,7 +141,7 @@ impl CompilerProfile {
     /// Trigraph default before an explicit preprocessing override. Clang's Microsoft
     /// compatibility mode leaves trigraphs disabled in both ISO standard modes.
     pub const fn default_trigraphs(self) -> bool {
-        !self.language_mode.is_gnu() && !matches!(self.target, Target::X86_64PcWindowsMsvc)
+        !self.language_mode.is_gnu() && !self.target.is_windows()
     }
     /// Computes a scalar layout under this validated profile.
     pub fn builtin_layout(self, builtin: BuiltinType) -> Result<Layout, LayoutError> {
@@ -142,9 +153,7 @@ impl CompilerProfile {
         let target = self.target.abi_target();
         let compiler = match self.compiler {
             Compiler::Gnu => repc::Compiler::Gcc,
-            Compiler::Clang if self.target == Target::X86_64PcWindowsMsvc => {
-                repc::system_compiler(target)
-            }
+            Compiler::Clang if self.target.is_windows() => repc::system_compiler(target),
             Compiler::Clang => repc::Compiler::Clang,
         };
         Ok(Layout::from_abi(&repc::compute_layout_with_compiler(

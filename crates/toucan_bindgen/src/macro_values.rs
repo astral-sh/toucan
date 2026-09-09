@@ -5,7 +5,9 @@
 
 use std::collections::BTreeMap;
 
-use toucan::{CompilerProfile, LanguageMode, Target};
+#[cfg(test)]
+use toucan::Target;
+use toucan::{CompilerProfile, LanguageMode};
 use toucan_preprocessor::Macro;
 
 #[derive(Clone, Debug, PartialEq)]
@@ -608,7 +610,7 @@ fn binary(token: Token<'_>, left: Value, right: Value) -> Result<Value, Error> {
 fn is_keyword(name: &str, profile: CompilerProfile) -> bool {
     let mode = profile.language_mode();
     let c99 = !matches!(mode, LanguageMode::C90 | LanguageMode::Gnu90);
-    let microsoft = profile.target() == Target::X86_64PcWindowsMsvc;
+    let microsoft = profile.target().is_windows();
     match name {
         "asm" | "typeof" => mode.is_gnu(),
         "inline" => c99 || mode.is_gnu(),

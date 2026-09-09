@@ -1,6 +1,29 @@
 use toucan_bindgen::{Builder, RustTarget};
 
 #[test]
+fn i686_target_generates_32_bit_bindings_with_a_target_guard() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("i686.h");
+    std::fs::write(
+        &header,
+        "#include <stddef.h>\nstruct Record { char c; double d; long n; };\nsize_t bytes(struct Record *);\n",
+    )
+    .unwrap();
+    let bindings = Builder::default()
+        .header(header.to_str().unwrap())
+        .clang_arg("--target=i686-unknown-linux-gnu")
+        .generate()
+        .unwrap()
+        .to_string();
+    assert!(
+        bindings.contains("target_arch = \"x86\", target_os = \"linux\", target_env = \"gnu\""),
+        "{bindings}"
+    );
+    assert!(bindings.contains("pub fn bytes("), "{bindings}");
+    assert!(bindings.contains("pub struct Record"), "{bindings}");
+}
+
+#[test]
 fn ordered_headers_include_paths_and_options_generate_one_module() {
     let dir = tempfile::tempdir().unwrap();
     std::fs::write(dir.path().join("first.h"), "#include <stddef.h>\n#if INPUT != 7\n#error missing configured input\n#endif\n#define VALUE 7\ntypedef enum Mode { MODE_A, MODE_B } Mode;\nstruct Record { char tag; long value; };\n").unwrap();

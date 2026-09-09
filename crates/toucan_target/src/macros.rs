@@ -25,11 +25,15 @@ impl CompilerProfile {
         let target = self.target();
         let compiler = self.compiler();
         let standard = !self.language_mode().is_gnu();
+        let i686 = target == Target::I686UnknownLinuxGnu;
+        let armv7 = target.is_armv7();
+        let ilp32 = i686 || armv7;
+        let (pointer_bytes, pointer_bits) = if ilp32 { ("4", "32") } else { ("8", "64") };
         let mut macros = BTreeMap::new();
         let mut define = |name: &str, value: &str| {
             macros.insert(name.to_owned(), value.to_owned());
         };
-        if standard && target != Target::X86_64PcWindowsMsvc {
+        if standard && !target.is_windows() {
             define("__STRICT_ANSI__", "1");
         }
         match self.language_mode() {
@@ -45,7 +49,7 @@ impl CompilerProfile {
             define("__STDC_UTF_16__", "1");
             define("__STDC_UTF_32__", "1");
         }
-        if target != Target::X86_64PcWindowsMsvc {
+        if !target.is_windows() {
             define(
                 if !self.language_mode().is_c90() {
                     "__GNUC_STDC_INLINE__"
@@ -56,7 +60,7 @@ impl CompilerProfile {
             );
         }
         // Clang's Microsoft C profile omits __STDC__, including ISO language modes.
-        if target != Target::X86_64PcWindowsMsvc {
+        if !target.is_windows() {
             define("__STDC__", "1");
         }
         for (name, value) in [
@@ -79,18 +83,18 @@ impl CompilerProfile {
             ("__SIZEOF_LONG_LONG__", "8"),
             ("__SIZEOF_FLOAT__", "4"),
             ("__SIZEOF_DOUBLE__", "8"),
-            ("__SIZEOF_POINTER__", "8"),
-            ("__SIZEOF_SIZE_T__", "8"),
-            ("__SIZEOF_PTRDIFF_T__", "8"),
+            ("__SIZEOF_POINTER__", pointer_bytes),
+            ("__SIZEOF_SIZE_T__", pointer_bytes),
+            ("__SIZEOF_PTRDIFF_T__", pointer_bytes),
             ("__SIZEOF_WINT_T__", "4"),
-            ("__POINTER_WIDTH__", "64"),
+            ("__POINTER_WIDTH__", pointer_bits),
             ("__SCHAR_WIDTH__", "8"),
             ("__SHRT_WIDTH__", "16"),
             ("__INT_WIDTH__", "32"),
             ("__LLONG_WIDTH__", "64"),
-            ("__SIZE_WIDTH__", "64"),
-            ("__PTRDIFF_WIDTH__", "64"),
-            ("__INTPTR_WIDTH__", "64"),
+            ("__SIZE_WIDTH__", pointer_bits),
+            ("__PTRDIFF_WIDTH__", pointer_bits),
+            ("__INTPTR_WIDTH__", pointer_bits),
             ("__INTMAX_WIDTH__", "64"),
             ("__ORDER_LITTLE_ENDIAN__", "1234"),
             ("__ORDER_BIG_ENDIAN__", "4321"),
@@ -106,7 +110,7 @@ impl CompilerProfile {
             define(name, value);
         }
 
-        let windows = matches!(target, Target::X86_64PcWindowsMsvc);
+        let windows = target.is_windows();
         let apple = matches!(
             target,
             Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin
@@ -116,8 +120,6 @@ impl CompilerProfile {
             for (name, value) in [
                 ("_WIN32", "1"),
                 ("_WIN64", "1"),
-                ("_M_X64", "100"),
-                ("_M_AMD64", "100"),
                 ("_MSC_VER", "1930"),
                 ("_MSC_FULL_VER", "193000000"),
                 ("__SIZEOF_LONG__", "4"),
@@ -125,6 +127,13 @@ impl CompilerProfile {
                 ("__LONG_MAX__", "2147483647L"),
             ] {
                 define(name, value);
+            }
+            if aarch64 {
+                define("_M_ARM64", "1");
+                define("__SIZEOF_INT128__", "16");
+            } else {
+                define("_M_X64", "100");
+                define("_M_AMD64", "100");
             }
         } else {
             let (major, minor, patch) = match compiler {
@@ -135,14 +144,30 @@ impl CompilerProfile {
                 ("__GNUC__", major),
                 ("__GNUC_MINOR__", minor),
                 ("__GNUC_PATCHLEVEL__", patch),
-                ("__LP64__", "1"),
-                ("_LP64", "1"),
-                ("__SIZEOF_LONG__", "8"),
-                ("__LONG_WIDTH__", "64"),
-                ("__LONG_MAX__", "9223372036854775807L"),
-                ("__SIZEOF_INT128__", "16"),
             ] {
                 define(name, value);
+            }
+            if ilp32 {
+                for (name, value) in [
+                    ("__ILP32__", "1"),
+                    ("_ILP32", "1"),
+                    ("__SIZEOF_LONG__", "4"),
+                    ("__LONG_WIDTH__", "32"),
+                    ("__LONG_MAX__", "2147483647L"),
+                ] {
+                    define(name, value);
+                }
+            } else {
+                for (name, value) in [
+                    ("__LP64__", "1"),
+                    ("_LP64", "1"),
+                    ("__SIZEOF_LONG__", "8"),
+                    ("__LONG_WIDTH__", "64"),
+                    ("__LONG_MAX__", "9223372036854775807L"),
+                    ("__SIZEOF_INT128__", "16"),
+                ] {
+                    define(name, value);
+                }
             }
         }
         if apple {
@@ -198,6 +223,30 @@ impl CompilerProfile {
             if apple {
                 define("__arm64__", "1");
             }
+        } else if armv7 {
+            for (name, value) in [
+                ("__arm__", "1"),
+                ("__arm", "1"),
+                ("__ARMEL__", "1"),
+                ("__ARM_32BIT_STATE", "1"),
+                ("__ARM_ARCH", "7"),
+                ("__ARM_ARCH_7A__", "1"),
+                ("__ARM_ARCH_PROFILE", "'A'"),
+                ("__ARM_EABI__", "1"),
+                ("__ARM_PCS", "1"),
+                ("__ARM_PCS_VFP", "1"),
+                ("__ARM_FP", "0xc"),
+                ("__VFP_FP__", "1"),
+            ] {
+                define(name, value);
+            }
+        } else if i686 {
+            for name in ["__i386__", "__i386", "__i686__", "__i686"] {
+                define(name, "1");
+            }
+            if !standard {
+                define("i386", "1");
+            }
         } else if !windows {
             for name in ["__x86_64__", "__x86_64", "__amd64__", "__amd64"] {
                 define(name, "1");
@@ -207,9 +256,14 @@ impl CompilerProfile {
             define("__CHAR_UNSIGNED__", "1");
         }
         let (wchar_ty, wchar_width, wchar_size, wchar_max) = match target {
-            Target::X86_64PcWindowsMsvc => ("unsigned short", "16", "2", "65535"),
-            Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
-                ("unsigned int", "32", "4", "4294967295U")
+            Target::X86_64PcWindowsMsvc | Target::Aarch64PcWindowsMsvc => {
+                ("unsigned short", "16", "2", "65535")
+            }
+            Target::Aarch64UnknownLinuxGnu
+            | Target::Aarch64UnknownLinuxMusl
+            | Target::Armv7UnknownLinuxGnueabihf => ("unsigned int", "32", "4", "4294967295U"),
+            Target::I686UnknownLinuxGnu if compiler == Compiler::Gnu => {
+                ("long int", "32", "4", "2147483647L")
             }
             _ => ("int", "32", "4", "2147483647"),
         };
@@ -228,6 +282,8 @@ impl CompilerProfile {
                 "9223372036854775807LL",
                 "18446744073709551615ULL",
             )
+        } else if ilp32 {
+            ("int", "unsigned int", "2147483647", "4294967295U")
         } else {
             (
                 "long int",
@@ -249,7 +305,7 @@ impl CompilerProfile {
             define(name, unsigned_max);
         }
 
-        let (signed64, unsigned64, max64, umax64) = if windows || apple {
+        let (signed64, unsigned64, max64, umax64) = if windows || apple || ilp32 {
             (
                 "long long int",
                 "long long unsigned int",
@@ -274,12 +330,18 @@ impl CompilerProfile {
             (64, signed64, unsigned64, max64, umax64),
         ] {
             for modifier in ["", "_LEAST", "_FAST"] {
-                // GNU LP64 chooses long for fast16/32; Clang uses the narrow
-                // integer types even on LP64. These are compiler-profile facts.
+                // GNU chooses pointer-width integers for fast16/32; Clang
+                // uses the narrow integer types. These are compiler-profile facts.
                 let (signed, unsigned, maximum, unsigned_maximum, actual_width) =
                     if modifier == "_FAST" && compiler == Compiler::Gnu && matches!(width, 16 | 32)
                     {
-                        (signed_ptr, unsigned_ptr, signed_max, unsigned_max, 64)
+                        (
+                            signed_ptr,
+                            unsigned_ptr,
+                            signed_max,
+                            unsigned_max,
+                            target.pointer_width(),
+                        )
                     } else {
                         (signed, unsigned, maximum, unsigned_maximum, width)
                     };
@@ -314,7 +376,9 @@ impl CompilerProfile {
 
         let (long_double_size, mantissa, max_exponent, biggest_alignment) = match target {
             Target::Aarch64AppleDarwin => ("8", "53", "1024", "8"),
-            Target::X86_64PcWindowsMsvc => ("8", "53", "1024", "16"),
+            Target::X86_64PcWindowsMsvc | Target::Aarch64PcWindowsMsvc => ("8", "53", "1024", "16"),
+            Target::I686UnknownLinuxGnu => ("12", "64", "16384", "16"),
+            Target::Armv7UnknownLinuxGnueabihf => ("8", "53", "1024", "8"),
             Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
                 ("16", "113", "16384", "16")
             }

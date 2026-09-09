@@ -11,6 +11,34 @@ unsigned read_bits(const struct Bits *value);
 "#;
 
 #[test]
+fn armv7_hard_float_bindings_keep_the_exact_rust_target_guard() {
+    let target = Target::Armv7UnknownLinuxGnueabihf;
+    let unit = analyze_with_profile(
+        "typedef struct { float x; float y; } Pair; Pair fold(Pair input, float scale);",
+        CompilerProfile::default_for(target),
+        &AnalysisOptions::default(),
+    )
+    .unwrap()
+    .into_unit();
+    let source = toucan_bindings::generate(&unit, &toucan_bindings::Options::default())
+        .unwrap()
+        .source;
+    assert!(source.contains("target_arch = \"arm\", target_os = \"linux\", target_env = \"gnu\", target_abi = \"eabihf\""));
+    assert!(source.contains("pub fn fold("));
+    assert!(source.contains("unsafe extern \"C\""));
+    assert!(!source.contains("extern \"win64\""));
+    let error = toucan_bindings::generate(
+        &unit,
+        &toucan_bindings::Options {
+            rust_target: "1.64".parse().unwrap(),
+            ..Default::default()
+        },
+    )
+    .unwrap_err();
+    assert!(error.to_string().contains("require Rust 1.78 or newer"));
+}
+
+#[test]
 #[ignore = "requires native Linux GCC/Clang and rustc; supports TOUCAN_TEST_RUST_TOOLCHAIN"]
 fn generated_bitfield_accessors_match_both_linux_compilers() {
     let target = match (std::env::consts::OS, std::env::consts::ARCH) {

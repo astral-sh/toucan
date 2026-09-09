@@ -33,7 +33,8 @@ records 110 pinned bindgen 0.72.1/libclang 18.1.3 decisions on Linux x86-64 and
 Windows x86-64, in GNU90/GNU11. Each is replayed with and without callbacks.
 Weak ordinary definitions retain Toucan's explicit optional-symbol ABI error;
 the remaining selected functions and callback sequences match the reference.
-The regression fixture also runs across all seven supported targets.
+The regression fixture also runs across the supported targets; the originally
+recorded evidence covers seven targets and predates Windows ARM64.
 
 Generated ordinary-body, late-inline, and callback declarations pass 32 native
 C/Rust executions: both generators, GCC 13/Clang 18, C O0/O2, current Rust/actual

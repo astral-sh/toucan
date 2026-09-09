@@ -1,5 +1,7 @@
-use toucan_semantic::{Analysis, AnalysisOptions, TypeKind, analyze, analyze_with_options};
-use toucan_target::Target;
+use toucan_semantic::{
+    Analysis, AnalysisOptions, TypeKind, analyze, analyze_with_options, analyze_with_profile,
+};
+use toucan_target::{Compiler, CompilerProfile, Target};
 fn check(source: &str, target: Target) -> Result<Analysis, toucan_semantic::Error> {
     let ordinary = analyze(source, target);
     let retained = analyze_with_options(
@@ -27,7 +29,8 @@ fn check(source: &str, target: Target) -> Result<Analysis, toucan_semantic::Erro
 fn gnu(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu
+        Target::I686UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxGnu
             | Target::X86_64UnknownLinuxMusl
             | Target::Aarch64UnknownLinuxGnu
             | Target::Aarch64UnknownLinuxMusl
@@ -276,12 +279,42 @@ fn atomic_layouts_match_the_target_compiler_profiles() {
         if gnu(target) && !cfg!(target_os = "linux") {
             continue;
         }
+        let cross_i686 = target == Target::I686UnknownLinuxGnu
+            && !cfg!(any(target_arch = "x86", target_arch = "x86_64"));
         let mut source = String::new();
         for (index, ty) in types.iter().enumerate() {
+            if matches!(
+                target,
+                Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+            ) && ty == "__int128"
+            {
+                let diagnostic = if target.is_armv7() {
+                    "__int128 is unavailable on ARMv7 GNU Linux"
+                } else {
+                    "__int128 is unavailable on i686 GNU Linux"
+                };
+                assert!(
+                    check("typedef __int128 Unsupported;", target)
+                        .unwrap_err()
+                        .message
+                        .contains(diagnostic)
+                );
+                continue;
+            }
             let declaration = format!(
                 "typedef _Atomic({ty}) A{index}; struct H{index}{{char prefix;A{index} value;}};"
             );
-            let unit = analyze(&declaration, target).unwrap();
+            let unit = if cross_i686 {
+                analyze_with_profile(
+                    &declaration,
+                    CompilerProfile::new(target, Compiler::Clang).unwrap(),
+                    &AnalysisOptions::default(),
+                )
+                .unwrap()
+                .into_unit()
+            } else {
+                analyze(&declaration, target).unwrap()
+            };
             let atomic = unit.layout(&unit.typedefs[&format!("A{index}")]).unwrap();
             let host = unit
                 .records
@@ -294,10 +327,23 @@ fn atomic_layouts_match_the_target_compiler_profiles() {
             source.push_str(&declaration);
             source.push_str(&format!("_Static_assert(sizeof(A{index})=={},\"size\");_Static_assert(_Alignof(A{index})=={},\"alignment\");_Static_assert(__builtin_offsetof(struct H{index},value)=={},\"field offset\");",atomic.size_bytes(),atomic.alignment_bytes(),host.fields[1].as_ref().unwrap().offset_bits/8));
         }
-        check(&source, target).unwrap();
-        let output = if gnu(target) {
+        if cross_i686 {
+            analyze_with_profile(
+                &source,
+                CompilerProfile::new(target, Compiler::Clang).unwrap(),
+                &AnalysisOptions::default(),
+            )
+            .unwrap();
+        } else {
+            check(&source, target).unwrap();
+        }
+        let output = if gnu(target) && !cross_i686 {
+            let mut command = Command::new(&gcc);
+            if target == Target::I686UnknownLinuxGnu {
+                command.arg("-m32");
+            }
             compiler_input(
-                Command::new(&gcc).args(["-std=gnu11", "-fsyntax-only", "-x", "c", "-"]),
+                command.args(["-std=gnu11", "-fsyntax-only", "-x", "c", "-"]),
                 &source,
             )
         } else {
@@ -320,6 +366,93 @@ fn atomic_layouts_match_the_target_compiler_profiles() {
         assert!(
             output.status.success(),
             "{target:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires Clang i686 cross-target support and native GCC on x86 Linux"]
+fn i686_atomic_layouts_match_clang_and_gcc() {
+    use std::process::Command;
+
+    let target = Target::I686UnknownLinuxGnu;
+    let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
+    for compiler in [Compiler::Clang, Compiler::Gnu] {
+        if compiler == Compiler::Gnu
+            && !cfg!(all(
+                target_os = "linux",
+                any(target_arch = "x86", target_arch = "x86_64")
+            ))
+        {
+            continue;
+        }
+        let profile = CompilerProfile::new(target, compiler).unwrap();
+        let mut source = String::new();
+        for (index, ty) in [
+            "long double",
+            "double _Complex",
+            "struct { char value[3]; }",
+            "struct { char value[8]; }",
+            "struct { char value[9]; }",
+            "struct { char value[12]; }",
+            "struct { char value[15]; }",
+            "struct { char value[16]; }",
+            "struct { char value[17]; }",
+        ]
+        .iter()
+        .enumerate()
+        {
+            let declaration = format!(
+                "typedef _Atomic({ty}) A{index}; struct H{index} {{ char prefix; A{index} value; }};"
+            );
+            let unit = analyze_with_profile(&declaration, profile, &AnalysisOptions::default())
+                .unwrap()
+                .into_unit();
+            let atomic = unit.layout(&unit.typedefs[&format!("A{index}")]).unwrap();
+            let record = unit
+                .records
+                .iter()
+                .position(|record| record.name.as_deref() == Some(&format!("H{index}")))
+                .unwrap();
+            let host = unit
+                .layout(&toucan_semantic::Type::new(TypeKind::Record(record)))
+                .unwrap();
+            source.push_str(&declaration);
+            source.push_str(&format!(
+                "_Static_assert(sizeof(A{index}) == {}, \"size\"); \
+                 _Static_assert(_Alignof(A{index}) == {}, \"alignment\"); \
+                 _Static_assert(__builtin_offsetof(struct H{index}, value) == {}, \"offset\");",
+                atomic.size_bytes(),
+                atomic.alignment_bytes(),
+                host.fields[1].as_ref().unwrap().offset_bits / 8
+            ));
+        }
+        analyze_with_profile(&source, profile, &AnalysisOptions::default()).unwrap();
+        let output = match compiler {
+            Compiler::Clang => compiler_input(
+                Command::new("clang").args([
+                    "-target",
+                    target.triple(),
+                    "-std=gnu11",
+                    "-S",
+                    "-emit-llvm",
+                    "-o",
+                    "/dev/null",
+                    "-x",
+                    "c",
+                    "-",
+                ]),
+                &source,
+            ),
+            Compiler::Gnu => compiler_input(
+                Command::new(&gcc).args(["-m32", "-std=gnu11", "-fsyntax-only", "-x", "c", "-"]),
+                &source,
+            ),
+        };
+        assert!(
+            output.status.success(),
+            "{compiler}: {}",
             String::from_utf8_lossy(&output.stderr)
         );
     }

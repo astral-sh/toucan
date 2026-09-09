@@ -1,0 +1,72 @@
+name: i686 GNU native acceptance
+
+on:
+  push:
+    branches:
+      - charlie/codex-toucan-i686-native-acceptance
+
+permissions:
+  contents: read
+
+concurrency:
+  group: i686-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: GCC and Clang C/Rust i686 ABI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - name: Record inputs and install i686 linkers, glibc, and Rust std
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p results/i686
+          git rev-parse HEAD | tee results/i686/commit.txt
+          uname -a | tee results/i686/runner.txt
+          sudo apt-get update -qq 2>&1 | tee results/i686/apt-update.log
+          sudo apt-get install -y --no-install-recommends gcc-multilib libc6-dev-i386 clang binutils 2>&1 | tee results/i686/apt-install.log
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: stable
+          targets: i686-unknown-linux-gnu
+      - name: Build the host frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustup target list --installed | tee results/i686/rust-targets.txt
+          grep -Fx i686-unknown-linux-gnu results/i686/rust-targets.txt
+          cargo build --locked -p toucan_cli 2>&1 | tee results/i686/frontend-build.log
+      - name: Compare native i686 C probes with 32-bit Rust FFI
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_i686_native.py \
+            --toucan target/debug/toucan --output results/i686/native \
+            2>&1 | tee results/i686/acceptance.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          result = json.loads(Path("results/i686/native/evidence.json").read_text())
+          native = [run for run in result["runs"] if run["kind"] == "native-ffi"]
+          elf = [run for run in result["runs"] if run["kind"] == "elf32-i386"]
+          assert result["status"] == "passed" and result["native_execution"]
+          assert {(run["compiler"], run["optimization"]) for run in native} == {
+              ("gcc", 0), ("gcc", 2), ("clang", 0), ("clang", 2)
+          }
+          assert len(elf) == 10 and len(result["zstd_metadata_sha256"]) == 2
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: i686-native-${{ github.run_attempt }}
+          path: results/i686/
+          retention-days: 14
+          if-no-files-found: error

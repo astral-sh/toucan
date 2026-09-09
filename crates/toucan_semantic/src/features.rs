@@ -1,5 +1,5 @@
 //! Supported builtin names share the dispatch and signature classifiers.
-use toucan_target::{Compiler, CompilerProfile};
+use toucan_target::{Compiler, CompilerProfile, Target};
 
 /// Whether the profile advertises an implemented form through `__has_builtin`.
 ///
@@ -8,7 +8,12 @@ use toucan_target::{Compiler, CompilerProfile};
 pub fn has_builtin(profile: CompilerProfile, name: &str) -> bool {
     use crate::builtins;
     if let Some(intrinsic) = crate::x86::X86Intrinsic::from_name(name) {
-        return intrinsic.is_available(profile);
+        // i686's default CPU does not advertise MMX, SSE, or SSE2. Clang may
+        // still accept those builtin spellings during syntax checking, but
+        // __has_builtin is evaluated before per-function target attributes.
+        return intrinsic.is_available(profile)
+            && (profile.target() != Target::I686UnknownLinuxGnu
+                || intrinsic.required_features().is_empty());
     }
     if let Some(intrinsic) = crate::overflow::OverflowIntrinsic::from_name(name) {
         return !intrinsic.is_predicate() || profile.compiler() == Compiler::Gnu;

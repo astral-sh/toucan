@@ -138,6 +138,7 @@ def run(command: list[str], directory: Path, stem: str, timeout: float) -> dict:
         "stderr": str(stderr),
         "exit_code": None,
         "timeout": False,
+        "environment_overrides": {"LC_ALL": "C", "SOURCE_DATE_EPOCH": "0"},
     }
     started = time.monotonic()
     try:
@@ -149,6 +150,7 @@ def run(command: list[str], directory: Path, stem: str, timeout: float) -> dict:
                 stdout=out,
                 stderr=err,
                 start_new_session=os.name == "posix",
+                env={**os.environ, **record["environment_overrides"]},
             )
             try:
                 record["exit_code"] = process.wait(timeout=timeout)
@@ -229,6 +231,299 @@ def toucan_command(args: argparse.Namespace, source: Path) -> list[str]:
         args.compiler,
         str(source),
     ]
+
+
+def native_definitions(args: argparse.Namespace) -> list[tuple[str, str | None]]:
+    """Mirror only source-selection flags whose meaning the existing probe preserves."""
+    flags = [*args.cc_arg, *getattr(args, f"{args.compiler}_arg")]
+    definitions = []
+    index = 0
+    while index < len(flags):
+        flag = flags[index]
+        option = flag[:2]
+        if option not in ["-I", "-D", "-U"]:
+            raise RuntimeError(
+                f"native-source route cannot translate compiler argument: {flag}"
+            )
+        value = flag[2:]
+        if not value:
+            index += 1
+            if index == len(flags):
+                raise RuntimeError(
+                    f"missing value for native-source compiler argument: {flag}"
+                )
+            value = flags[index]
+        if not value or "\n" in value or "\r" in value:
+            raise RuntimeError(f"invalid native-source compiler argument: {flag}")
+        if option == "-I":
+            if not Path(value).is_absolute() or not Path(value).is_dir():
+                raise RuntimeError(
+                    "native-source -I arguments must name existing absolute directories"
+                )
+        elif option == "-D":
+            name, separator, replacement = value.partition("=")
+            definitions.append((name, replacement if separator else "1"))
+        else:
+            definitions.append((value, None))
+        index += 1
+    return definitions
+
+
+def compiler_include_dirs(diagnostics: str) -> list[str]:
+    """Preserve the driver's resolved search order; do not guess framework semantics."""
+    paths = []
+    section = None
+    complete = False
+    for line in diagnostics.splitlines():
+        line = line.strip()
+        if line == '#include "..." search starts here:':
+            section = "quote"
+        elif line == "#include <...> search starts here:":
+            section = "angle"
+        elif line == "End of search list.":
+            complete = section == "angle"
+            break
+        elif section and line:
+            if (
+                section == "quote"
+                or not Path(line).is_absolute()
+                or not Path(line).is_dir()
+            ):
+                raise RuntimeError(
+                    f"native-source route cannot preserve compiler include entry: {line}"
+                )
+            paths.append(line)
+    if not complete or not paths:
+        raise RuntimeError(
+            "compiler did not report a supported nonempty include search list"
+        )
+    return paths
+
+
+def compiler_definitions(source: str) -> dict[str, str]:
+    definitions = {}
+    for line in source.splitlines():
+        if not line.startswith("#define "):
+            raise RuntimeError("unexpected compiler macro dump line")
+        fields = line[len("#define ") :].split(maxsplit=1)
+        if not fields or fields[0] in definitions:
+            raise RuntimeError("missing or duplicate compiler predefined macro")
+        definitions[fields[0]] = fields[1] if len(fields) > 1 else ""
+    if not definitions:
+        raise RuntimeError("compiler macro dump is empty")
+    return definitions
+
+
+def macro_differences(compiler: dict, toucan: dict) -> dict:
+    return {
+        "compiler_only": {
+            name: compiler[name] for name in sorted(compiler.keys() - toucan.keys())
+        },
+        "toucan_only": {
+            name: toucan[name] for name in sorted(toucan.keys() - compiler.keys())
+        },
+        "different": {
+            name: {"compiler": compiler[name], "toucan": toucan[name]}
+            for name in sorted(compiler.keys() & toucan.keys())
+            if compiler[name] != toucan[name]
+        },
+    }
+
+
+def probe_request(
+    args: argparse.Namespace, source: Path, output: Path, operation: str
+) -> dict:
+    return {
+        "operation": operation,
+        "input": str(source),
+        "target": args.target,
+        "compiler": args.compiler,
+        "language_mode": args.dialect,
+        "include_dirs": args.native_configuration["include_dirs"],
+        "definitions": args.native_configuration["definitions"],
+        "retain_code": False,
+        "max_preprocessing_tokens": 2_000_000,
+        "retention_nodes": 1_000_000,
+        "retention_edges": 4_000_000,
+        "retention_payload_bytes": 128 * 1024 * 1024,
+        "output": str(output),
+    }
+
+
+def run_probe(
+    args: argparse.Namespace, source: Path, directory: Path, operation: str
+) -> tuple[dict, dict, Path]:
+    stem = f"native-{operation}"
+    output = directory / (
+        "native.i" if operation == "preprocess" else "native-declarations.txt"
+    )
+    request = directory / f"{stem}-request.json"
+    write_json(request, probe_request(args, source, output, operation))
+    command = run([args.native_probe, str(request)], directory, stem, args.timeout)
+    command["request_sha256"] = digest(request)
+    try:
+        result = json.loads(Path(command["stdout"]).read_text())
+        expected = {"preprocessed": 0, "accepted": 0, "rejected": 1, "tool_error": 2}
+        status = result.get("status")
+        if status not in expected or command["exit_code"] != expected[status]:
+            raise ValueError("probe status and exit code disagree")
+        if status in ["preprocessed", "accepted"]:
+            if status != ("preprocessed" if operation == "preprocess" else "accepted"):
+                raise ValueError("probe returned the wrong operation result")
+            dependencies = result.get("dependencies")
+            if not isinstance(dependencies, list) or not all(
+                isinstance(path, str) for path in dependencies
+            ):
+                raise ValueError("probe did not report header dependencies")
+            if (
+                len(dependencies) > 65_536
+                or not output.is_file()
+                or output.stat().st_size > 256 * 1024 * 1024
+            ):
+                raise ValueError(
+                    "probe output or dependency count exceeds audit limits"
+                )
+            command["output"] = {
+                "path": str(output),
+                "sha256": digest(output),
+                "bytes": output.stat().st_size,
+            }
+        if status == "rejected" and result.get("stage") not in [
+            "preprocessing",
+            "analysis",
+        ]:
+            raise ValueError("probe rejection has no recognized stage")
+    except (OSError, ValueError, AttributeError, TypeError) as error:
+        command["protocol_error"] = str(error)
+        result = {"status": "tool_error", "diagnostic": str(error)}
+    return command, result, output
+
+
+def dependency_hashes(dependencies: list[str], directory: Path) -> dict[str, str]:
+    result = {}
+    for value in dependencies:
+        path = Path(value)
+        if not path.is_absolute():
+            path = directory / path
+        result[str(path.resolve(strict=True))] = digest(path)
+    return result
+
+
+def configure_native(args: argparse.Namespace, source: Path) -> dict:
+    if args.target != native_target():
+        raise RuntimeError(
+            "native-source audit currently requires the native host target"
+        )
+    definitions = native_definitions(args)
+    cc = getattr(args, args.compiler)
+    flags = compiler_flags(args, args.compiler, args.dialect)
+    search = run(
+        [cc, *flags, "-E", "-v", "-x", "c", str(source)],
+        args.output,
+        "native-include-search",
+        args.timeout,
+    )
+    if not accepted(search) or tool_failure(search):
+        raise RuntimeError(
+            "compiler include search discovery failed; see native-include-search.stderr"
+        )
+    include_dirs = compiler_include_dirs(Path(search["stderr"]).read_text())
+    dump = run(
+        [cc, *flags, "-dM", "-E", "-x", "c", str(source)],
+        args.output,
+        "native-compiler-definitions",
+        args.timeout,
+    )
+    if not accepted(dump) or tool_failure(dump):
+        raise RuntimeError("compiler predefined-macro discovery failed")
+    macros = compiler_definitions(Path(dump["stdout"]).read_text())
+    args.native_configuration = {
+        "include_dirs": include_dirs,
+        "definitions": definitions,
+    }
+    command, result, _ = run_probe(args, source, args.output, "preprocess")
+    if (
+        not accepted(command)
+        or tool_failure(command)
+        or result["status"] != "preprocessed"
+    ):
+        raise RuntimeError("native-source probe configuration control failed")
+    if not isinstance(result.get("definitions"), dict) or not isinstance(
+        result.get("embedded_headers"), dict
+    ):
+        raise TypeError(
+            "native-source probe did not report its macro and resource-header configuration"
+        )
+    return {
+        "target": args.target,
+        "compiler": args.compiler,
+        "language_mode": args.dialect,
+        "include_dirs": include_dirs,
+        "definitions": definitions,
+        "include_search_command": search,
+        "compiler_definitions_command": dump,
+        "compiler_definitions": macros,
+        "probe_control": command,
+        "probe_configuration": result,
+        "macro_differences": macro_differences(macros, result["definitions"]),
+        "timestamp": {
+            "unix_seconds": 0,
+            "compiler_and_cli_environment": {"LC_ALL": "C", "SOURCE_DATE_EPOCH": "0"},
+            "probe": "PreprocessingTimestamp::UNIX_EPOCH library default",
+        },
+        "policy": "Toucan keeps its shipped target/compiler/language profile and feature queries. Driver include paths and ordered caller -D/-U options are shared; compiler builtin macro values are recorded, not installed into Toucan. All include entries use the probe's include_dirs; system-header warning metadata is not reproduced.",
+    }
+
+
+def audit_native(source: Path, args: argparse.Namespace, directory: Path) -> dict:
+    """Require original-source analysis and keep preprocessing failures distinct."""
+    result = {"status": "tool_failure", "source_before": digest(source)}
+    try:
+        preprocess, prepared, _ = run_probe(args, source, directory, "preprocess")
+        result.update(preprocess=preprocess, preprocessing_result=prepared)
+        if tool_failure(preprocess) or prepared["status"] == "tool_error":
+            return result
+        if prepared["status"] == "rejected":
+            result["status"] = "preprocessing_rejected"
+            return result
+        result["dependencies_before"] = dependency_hashes(
+            prepared["dependencies"], directory
+        )
+        if (
+            prepared["definitions"]
+            != args.native_configuration["probe_configuration"]["definitions"]
+        ):
+            raise ValueError("probe macro configuration changed between cases")
+        analysis, checked, _ = run_probe(args, source, directory, "analyze")
+        result.update(analysis=analysis, analysis_result=checked)
+        paths = set(prepared["dependencies"]) | set(checked.get("dependencies", []))
+        result["dependencies_after"] = dependency_hashes(sorted(paths), directory)
+        changed = [
+            path
+            for path, value in result["dependencies_before"].items()
+            if result["dependencies_after"].get(path) != value
+        ]
+        result["source_after"] = digest(source)
+        if result["source_before"] != result["source_after"]:
+            changed.append(str(source))
+        result["changed_dependencies"] = sorted(set(changed))
+        if changed:
+            result["status"] = "input_changed"
+        elif tool_failure(analysis) or checked["status"] == "tool_error":
+            result["status"] = "tool_failure"
+        elif checked["status"] == "rejected":
+            result["status"] = f"{checked['stage']}_rejected"
+        elif set(result["dependencies_before"]) != set(
+            dependency_hashes(checked["dependencies"], directory)
+        ):
+            raise ValueError(
+                "native analysis read a different dependency set from preprocessing"
+            )
+        else:
+            result["status"] = "accepted"
+    except (OSError, ValueError, KeyError, TypeError) as error:
+        result.update(status="tool_failure", diagnostic=str(error))
+    return result
 
 
 def audit(source: Path, args: argparse.Namespace, manifest: dict) -> dict:
@@ -322,6 +617,13 @@ def audit(source: Path, args: argparse.Namespace, manifest: dict) -> dict:
     result["oracle_pipeline_failure"] = accepted(
         result["compilers"][cc][args.dialect]
     ) and not accepted(result.get("preprocessed_oracle", {"exit_code": None}))
+    if args.native_source:
+        result["native_source"] = audit_native(source, args, directory)
+        if result["source_sha256"] != result["native_source"]["source_before"]:
+            result["native_source"]["status"] = "input_changed"
+        result["native_source"]["difference"] = (
+            result["eligible"] and result["native_source"]["status"] != "accepted"
+        )
     write_json(directory / "result.json", result)
     return result
 
@@ -331,7 +633,7 @@ def summarize(cases: list[dict], changed_tools: list[str]) -> dict:
     strict = [
         case for case in cases if case["eligible"] and case["both_accept"]["strict_c11"]
     ]
-    return {
+    summary = {
         "source_count": len(cases),
         "both_accept": {
             mode: sum(case["both_accept"][mode] for case in cases) for mode in MODES
@@ -351,6 +653,48 @@ def summarize(cases: list[dict], changed_tools: list[str]) -> dict:
         ],
         "changed_tools": changed_tools,
     }
+    native = [case for case in cases if "native_source" in case]
+    if native:
+        summary["native_source"] = {
+            "checked": len(native),
+            "accepted": sum(
+                case["native_source"]["status"] == "accepted" for case in native
+            ),
+            "eligible_count": sum(case["eligible"] for case in native),
+            "strict_eligible_count": sum(
+                case["eligible"] and case["both_accept"]["strict_c11"]
+                for case in native
+            ),
+            "strict_accepted": sum(
+                case["eligible"]
+                and case["both_accept"]["strict_c11"]
+                and case["native_source"]["status"] == "accepted"
+                for case in native
+            ),
+            "differences": [
+                case["name"] for case in native if case["native_source"]["difference"]
+            ],
+            "strict_differences": [
+                case["name"]
+                for case in native
+                if case["native_source"]["difference"]
+                and case["both_accept"]["strict_c11"]
+            ],
+            **{
+                status: [
+                    case["name"]
+                    for case in native
+                    if case["native_source"]["status"] == status
+                ]
+                for status in [
+                    "preprocessing_rejected",
+                    "analysis_rejected",
+                    "tool_failure",
+                    "input_changed",
+                ]
+            },
+        }
+    return summary
 
 
 def audit_failed(
@@ -360,13 +704,55 @@ def audit_failed(
     fail_on_strict_difference: bool = False,
 ) -> bool:
     """Keep infrastructure failures fatal under either acceptance policy."""
+    native = summary.get("native_source", {})
     return bool(
-        summary["tool_failures"]
+        native.get("tool_failure")
+        or native.get("input_changed")
+        or (fail_on_difference and native.get("differences"))
+        or (fail_on_strict_difference and native.get("strict_differences"))
+        or summary["tool_failures"]
         or summary["oracle_pipeline_failures"]
         or summary["changed_tools"]
         or (fail_on_difference and summary["differences"])
         or (fail_on_strict_difference and summary["strict_differences"])
     )
+
+
+def verify_native_inputs(cases: list[dict], output: Path) -> tuple[dict, list[str]]:
+    """Recheck every source/read header and keep case sidecars synchronized."""
+    dependency_values = {}
+    changed_dependencies = set()
+    for case in cases:
+        inputs = {
+            **case["native_source"].get("dependencies_before", {}),
+            case["source"]: case["source_sha256"],
+        }
+        for path, value in inputs.items():
+            if path in dependency_values and dependency_values[path] != value:
+                changed_dependencies.add(path)
+            dependency_values[path] = value
+    for path, value in dependency_values.items():
+        try:
+            if digest(Path(path)) != value:
+                changed_dependencies.add(path)
+        except OSError:
+            changed_dependencies.add(path)
+    if changed_dependencies:
+        for case in cases:
+            inputs = set(case["native_source"].get("dependencies_before", {})) | {
+                case["source"]
+            }
+            changed = changed_dependencies.intersection(inputs)
+            if changed:
+                case["native_source"]["status"] = "input_changed"
+                case["native_source"]["difference"] = case["eligible"]
+                case["native_source"]["changed_dependencies"] = sorted(
+                    set(case["native_source"].get("changed_dependencies", [])) | changed
+                )
+                write_json(
+                    output / "cases" / Path(case["name"]).stem / "result.json", case
+                )
+    return dependency_values, sorted(changed_dependencies)
 
 
 def arguments() -> argparse.Namespace:
@@ -414,6 +800,16 @@ def arguments() -> argparse.Namespace:
         choices=[mode for mode in MODES if mode != "strict_c11"],
         default="c11",
         help="dialect for preprocessing and the acceptance comparison",
+    )
+    parser.add_argument(
+        "--native-source",
+        action="store_true",
+        help="also require original-source acceptance through Toucan's native preprocessor (native host only)",
+    )
+    parser.add_argument(
+        "--native-probe",
+        default=str(ROOT / "target/release/examples/audit_translation_unit"),
+        help="existing audit_translation_unit example used by --native-source",
     )
     parser.add_argument(
         "--cache",
@@ -551,8 +947,23 @@ def main() -> int:
             f"Toucan cannot check the valid C control; see {toucan_control['stderr']}"
         )
     tools["toucan"]["configuration_control"] = toucan_control
+    native_configuration = None
+    if args.native_source:
+        args.native_probe = executable(args.native_probe)
+        probe_source = ROOT / "crates/toucan/examples/audit_translation_unit.rs"
+        tools["native_probe"] = {
+            "path": args.native_probe,
+            "sha256": digest(Path(args.native_probe)),
+            "protocol_source": {
+                "path": str(probe_source),
+                "sha256": digest(probe_source),
+            },
+            "provenance_note": "The protocol source identifies the checked-out example. Build provenance must independently connect the executable to its source tree.",
+        }
+        args.native_configuration = configure_native(args, probe)
+        native_configuration = args.native_configuration
     report = {
-        "schema_version": 1,
+        "schema_version": 2 if args.native_source else 1,
         "started_utc": timestamp.isoformat(),
         "manifest": manifest,
         "manifest_sha256": digest(MANIFEST),
@@ -580,6 +991,7 @@ def main() -> int:
                 "timeout",
                 "fail_on_difference",
                 "fail_on_strict_difference",
+                "native_source",
             ]
         },
         "environment": {
@@ -595,7 +1007,13 @@ def main() -> int:
             ]
             if name in os.environ
         },
-        "method": "Original sources are classified with GCC and Clang in each supported language mode and in pedantic C11. The chosen compiler's -E -P output is validated by that same compiler before the Toucan acceptance comparison, which selects the matching GNU or Clang compiler profile. Sources are never linked or executed; this is not an ABI, runtime, or Toucan preprocessing conformance test.",
+        "native_source_configuration": native_configuration,
+        "method": "Original sources are classified with GCC and Clang in each supported language mode and in pedantic C11. The chosen compiler's -E -P output is validated by that same compiler before the Toucan acceptance comparison, which selects the matching GNU or Clang compiler profile. Sources are never linked or executed; this is not an ABI, runtime, or invalid-source rejection conformance test."
+        + (
+            " The additional native-source route preprocesses and analyzes the untouched original source using Toucan's shipped profile and the captured compiler include search; it does not require identical macro environments or identical preprocessed text."
+            if args.native_source
+            else " Toucan's native preprocessing is not exercised by this route."
+        ),
         "clang_strict_warning_exceptions": CLANG_C11_WARNINGS,
         "cases": [],
     }
@@ -606,11 +1024,17 @@ def main() -> int:
             report["cases"].append(result)
             if len(report["cases"]) % 25 == 0:
                 print(f"Checked {len(report['cases'])}/{len(selected)}", flush=True)
+    if args.native_source:
+        report["native_dependency_hashes"], report["changed_native_dependencies"] = (
+            verify_native_inputs(report["cases"], args.output)
+        )
     changed_tools = [
         name
         for name in tools
         if digest(Path(tools[name]["path"])) != tools[name]["sha256"]
     ]
+    if digest(Path(__file__)) != report["runner_sha256"]:
+        changed_tools.append("audit_driver")
     report["summary"] = summarize(report["cases"], changed_tools)
     report["seconds"] = time.monotonic() - started
     write_json(args.output / "evidence.json", report)
@@ -628,5 +1052,5 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         raise SystemExit(main())
-    except (OSError, ValueError, RuntimeError, tarfile.TarError) as error:
+    except (OSError, ValueError, TypeError, RuntimeError, tarfile.TarError) as error:
         raise SystemExit(f"audit failed: {error}") from error

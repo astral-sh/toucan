@@ -135,7 +135,10 @@ fn argument_bits_and_subjects_follow_clang_without_affecting_gnu() {
             let a = check(&source, profile);
             assert_eq!(
                 a.is_ok(),
-                profile.compiler() == Compiler::Gnu || expected.is_some(),
+                (profile.compiler() == Compiler::Gnu || expected.is_some())
+                    && !((profile.target() == Target::I686UnknownLinuxGnu
+                        || profile.target().is_armv7())
+                        && value.contains("__int128")),
                 "{profile:?} {source}: {a:?}"
             );
             if let Ok(a) = a {
@@ -162,7 +165,10 @@ fn argument_bits_and_subjects_follow_clang_without_affecting_gnu() {
         );
         assert_eq!(
             a.is_ok(),
-            profile.compiler() == Compiler::Gnu || profile.target() == Target::X86_64PcWindowsMsvc
+            profile.compiler() == Compiler::Gnu
+                || profile.target().is_windows()
+                || profile.target() == Target::I686UnknownLinuxGnu
+                || profile.target().is_armv7()
         );
     }
 }
@@ -298,7 +304,10 @@ fn native_arguments_subjects_and_hint_lowering() {
             .arg(&input)
             .arg("-o")
             .arg(&output);
-        let extra = if profile.target() == Target::X86_64PcWindowsMsvc {
+        let extra = if profile.target().is_windows()
+            || profile.target() == Target::I686UnknownLinuxGnu
+            || profile.target().is_armv7()
+        {
             Some(u32::MAX)
         } else {
             None
@@ -310,7 +319,10 @@ fn native_arguments_subjects_and_hint_lowering() {
             let result = cc.output().unwrap();
             assert_eq!(
                 toucan_test_support::compiler_acceptance(&result).unwrap(),
-                !clang || expected.is_some(),
+                (!clang || expected.is_some())
+                    && !((profile.target() == Target::I686UnknownLinuxGnu
+                        || profile.target().is_armv7())
+                        && expression.contains("__int128")),
                 "{profile:?} {source}: {}",
                 String::from_utf8_lossy(&result.stderr)
             );

@@ -191,7 +191,8 @@ fn symlink_parents_and_queries_follow_the_compiler_access_name() {
     }
 }
 
-#[cfg(unix)]
+// The macOS runner rejects the invalid UTF-8 directory name before preprocessing.
+#[cfg(target_os = "linux")]
 #[test]
 fn non_utf8_header_names_keep_literal_parent_components() {
     use std::os::unix::ffi::OsStrExt;

@@ -1,0 +1,360 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 3404,
+      "sha256": "660a310a4700b45b8026054e2a921ffcd2798fda9f6166f6ea5baf78028e563e"
+    },
+    "capture.json.gz": {
+      "bytes": 2675466,
+      "sha256": "b56e47de2ed8871950aef98a98ba005b04b8a495053c5b42cd66712d5652a5c8"
+    },
+    "summary.json": {
+      "bytes": 18108,
+      "sha256": "cabe187a20cef199f58ee70830cd7d08ea4427e41eedd4a39f66c4b6c190bb9d"
+    }
+  },
+  "original_input_artifacts": {
+    "timing/evidence.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/evidence.json",
+      "bytes": 249393,
+      "sha256": "ef86f31945c0310a9d6665254c5dbc79133aa5b929831712aa5753c4dcbce481"
+    },
+    "timing/libgit2.reference-bindgen-0.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-bindgen-0.rs",
+      "bytes": 703191,
+      "sha256": "2abd7082ae44b09bbc8abced90ad234c5fe15128c53ce9ae3e55f1493dd18f0b"
+    },
+    "timing/libgit2.reference-bindgen-1.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-bindgen-1.rs",
+      "bytes": 703191,
+      "sha256": "2abd7082ae44b09bbc8abced90ad234c5fe15128c53ce9ae3e55f1493dd18f0b"
+    },
+    "timing/libgit2.reference-bindgen-2.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-bindgen-2.rs",
+      "bytes": 703191,
+      "sha256": "2abd7082ae44b09bbc8abced90ad234c5fe15128c53ce9ae3e55f1493dd18f0b"
+    },
+    "timing/libgit2.reference-bindgen-3.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-bindgen-3.rs",
+      "bytes": 703191,
+      "sha256": "2abd7082ae44b09bbc8abced90ad234c5fe15128c53ce9ae3e55f1493dd18f0b"
+    },
+    "timing/libgit2.reference-bindgen-4.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-bindgen-4.rs",
+      "bytes": 703191,
+      "sha256": "2abd7082ae44b09bbc8abced90ad234c5fe15128c53ce9ae3e55f1493dd18f0b"
+    },
+    "timing/libgit2.reference-bindgen-5.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-bindgen-5.rs",
+      "bytes": 703191,
+      "sha256": "2abd7082ae44b09bbc8abced90ad234c5fe15128c53ce9ae3e55f1493dd18f0b"
+    },
+    "timing/libgit2.reference-bindgen-6.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-bindgen-6.rs",
+      "bytes": 703191,
+      "sha256": "2abd7082ae44b09bbc8abced90ad234c5fe15128c53ce9ae3e55f1493dd18f0b"
+    },
+    "timing/libgit2.reference-toucan-builder-0.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-toucan-builder-0.rs",
+      "bytes": 687621,
+      "sha256": "5c07a740c3cde936c6e264a1b12e4bea7dc4fe5470d192f6d1864b257ae5d6b5"
+    },
+    "timing/libgit2.reference-toucan-builder-1.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-toucan-builder-1.rs",
+      "bytes": 687621,
+      "sha256": "5c07a740c3cde936c6e264a1b12e4bea7dc4fe5470d192f6d1864b257ae5d6b5"
+    },
+    "timing/libgit2.reference-toucan-builder-2.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-toucan-builder-2.rs",
+      "bytes": 687621,
+      "sha256": "5c07a740c3cde936c6e264a1b12e4bea7dc4fe5470d192f6d1864b257ae5d6b5"
+    },
+    "timing/libgit2.reference-toucan-builder-3.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-toucan-builder-3.rs",
+      "bytes": 687621,
+      "sha256": "5c07a740c3cde936c6e264a1b12e4bea7dc4fe5470d192f6d1864b257ae5d6b5"
+    },
+    "timing/libgit2.reference-toucan-builder-4.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-toucan-builder-4.rs",
+      "bytes": 687621,
+      "sha256": "5c07a740c3cde936c6e264a1b12e4bea7dc4fe5470d192f6d1864b257ae5d6b5"
+    },
+    "timing/libgit2.reference-toucan-builder-5.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-toucan-builder-5.rs",
+      "bytes": 687621,
+      "sha256": "5c07a740c3cde936c6e264a1b12e4bea7dc4fe5470d192f6d1864b257ae5d6b5"
+    },
+    "timing/libgit2.reference-toucan-builder-6.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference-toucan-builder-6.rs",
+      "bytes": 687621,
+      "sha256": "5c07a740c3cde936c6e264a1b12e4bea7dc4fe5470d192f6d1864b257ae5d6b5"
+    },
+    "timing/libgit2.reference.reference.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference.reference.json",
+      "bytes": 106010,
+      "sha256": "3aebe5ec7539baf9181400bb33444a82fda3ba52cc26b03e062ef7fbecf8f0e3"
+    },
+    "timing/libgit2.reference.request.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/libgit2.reference.request.json",
+      "bytes": 7346,
+      "sha256": "8590551f9630425194e3c4483906e4ef320bb958b216567d0a097abe378d556a"
+    },
+    "timing/sqlite.reference-bindgen-0.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-bindgen-0.rs",
+      "bytes": 100615,
+      "sha256": "709a92e13f72649b1c841d9a15076f3ca845d636f0b01f449a10dc1fcbbf7a5a"
+    },
+    "timing/sqlite.reference-bindgen-1.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-bindgen-1.rs",
+      "bytes": 100615,
+      "sha256": "709a92e13f72649b1c841d9a15076f3ca845d636f0b01f449a10dc1fcbbf7a5a"
+    },
+    "timing/sqlite.reference-bindgen-2.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-bindgen-2.rs",
+      "bytes": 100615,
+      "sha256": "709a92e13f72649b1c841d9a15076f3ca845d636f0b01f449a10dc1fcbbf7a5a"
+    },
+    "timing/sqlite.reference-bindgen-3.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-bindgen-3.rs",
+      "bytes": 100615,
+      "sha256": "709a92e13f72649b1c841d9a15076f3ca845d636f0b01f449a10dc1fcbbf7a5a"
+    },
+    "timing/sqlite.reference-bindgen-4.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-bindgen-4.rs",
+      "bytes": 100615,
+      "sha256": "709a92e13f72649b1c841d9a15076f3ca845d636f0b01f449a10dc1fcbbf7a5a"
+    },
+    "timing/sqlite.reference-bindgen-5.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-bindgen-5.rs",
+      "bytes": 100615,
+      "sha256": "709a92e13f72649b1c841d9a15076f3ca845d636f0b01f449a10dc1fcbbf7a5a"
+    },
+    "timing/sqlite.reference-bindgen-6.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-bindgen-6.rs",
+      "bytes": 100615,
+      "sha256": "709a92e13f72649b1c841d9a15076f3ca845d636f0b01f449a10dc1fcbbf7a5a"
+    },
+    "timing/sqlite.reference-toucan-builder-0.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-toucan-builder-0.rs",
+      "bytes": 99343,
+      "sha256": "77102ed4bc1526be75aa0f551decf71d597d78e608ec6b22e15451e69f5d2831"
+    },
+    "timing/sqlite.reference-toucan-builder-1.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-toucan-builder-1.rs",
+      "bytes": 99343,
+      "sha256": "77102ed4bc1526be75aa0f551decf71d597d78e608ec6b22e15451e69f5d2831"
+    },
+    "timing/sqlite.reference-toucan-builder-2.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-toucan-builder-2.rs",
+      "bytes": 99343,
+      "sha256": "77102ed4bc1526be75aa0f551decf71d597d78e608ec6b22e15451e69f5d2831"
+    },
+    "timing/sqlite.reference-toucan-builder-3.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-toucan-builder-3.rs",
+      "bytes": 99343,
+      "sha256": "77102ed4bc1526be75aa0f551decf71d597d78e608ec6b22e15451e69f5d2831"
+    },
+    "timing/sqlite.reference-toucan-builder-4.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-toucan-builder-4.rs",
+      "bytes": 99343,
+      "sha256": "77102ed4bc1526be75aa0f551decf71d597d78e608ec6b22e15451e69f5d2831"
+    },
+    "timing/sqlite.reference-toucan-builder-5.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-toucan-builder-5.rs",
+      "bytes": 99343,
+      "sha256": "77102ed4bc1526be75aa0f551decf71d597d78e608ec6b22e15451e69f5d2831"
+    },
+    "timing/sqlite.reference-toucan-builder-6.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference-toucan-builder-6.rs",
+      "bytes": 99343,
+      "sha256": "77102ed4bc1526be75aa0f551decf71d597d78e608ec6b22e15451e69f5d2831"
+    },
+    "timing/sqlite.reference.reference.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference.reference.json",
+      "bytes": 7271,
+      "sha256": "04c2df2e799804f485cec724f4ab3174e144d8f21074441deeeb354fad907588"
+    },
+    "timing/sqlite.reference.request.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/sqlite.reference.request.json",
+      "bytes": 413,
+      "sha256": "38c25f9ececf6f39146fca48390b556e534282ef2ac69bf5022b88058ea06ab8"
+    },
+    "timing/zlib.reference-bindgen-0.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-bindgen-0.rs",
+      "bytes": 13775,
+      "sha256": "a0b3f8fb6328e641ea378d9b832cb2d64a5d474b14e2ce5ef245a78e7d4b4870"
+    },
+    "timing/zlib.reference-bindgen-1.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-bindgen-1.rs",
+      "bytes": 13775,
+      "sha256": "a0b3f8fb6328e641ea378d9b832cb2d64a5d474b14e2ce5ef245a78e7d4b4870"
+    },
+    "timing/zlib.reference-bindgen-2.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-bindgen-2.rs",
+      "bytes": 13775,
+      "sha256": "a0b3f8fb6328e641ea378d9b832cb2d64a5d474b14e2ce5ef245a78e7d4b4870"
+    },
+    "timing/zlib.reference-bindgen-3.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-bindgen-3.rs",
+      "bytes": 13775,
+      "sha256": "a0b3f8fb6328e641ea378d9b832cb2d64a5d474b14e2ce5ef245a78e7d4b4870"
+    },
+    "timing/zlib.reference-bindgen-4.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-bindgen-4.rs",
+      "bytes": 13775,
+      "sha256": "a0b3f8fb6328e641ea378d9b832cb2d64a5d474b14e2ce5ef245a78e7d4b4870"
+    },
+    "timing/zlib.reference-bindgen-5.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-bindgen-5.rs",
+      "bytes": 13775,
+      "sha256": "a0b3f8fb6328e641ea378d9b832cb2d64a5d474b14e2ce5ef245a78e7d4b4870"
+    },
+    "timing/zlib.reference-bindgen-6.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-bindgen-6.rs",
+      "bytes": 13775,
+      "sha256": "a0b3f8fb6328e641ea378d9b832cb2d64a5d474b14e2ce5ef245a78e7d4b4870"
+    },
+    "timing/zlib.reference-toucan-builder-0.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-toucan-builder-0.rs",
+      "bytes": 12811,
+      "sha256": "c3c08d3c5651d41b9c151f1365f767151c3cd802e0a5babcf24720ca38e68f49"
+    },
+    "timing/zlib.reference-toucan-builder-1.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-toucan-builder-1.rs",
+      "bytes": 12811,
+      "sha256": "c3c08d3c5651d41b9c151f1365f767151c3cd802e0a5babcf24720ca38e68f49"
+    },
+    "timing/zlib.reference-toucan-builder-2.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-toucan-builder-2.rs",
+      "bytes": 12811,
+      "sha256": "c3c08d3c5651d41b9c151f1365f767151c3cd802e0a5babcf24720ca38e68f49"
+    },
+    "timing/zlib.reference-toucan-builder-3.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-toucan-builder-3.rs",
+      "bytes": 12811,
+      "sha256": "c3c08d3c5651d41b9c151f1365f767151c3cd802e0a5babcf24720ca38e68f49"
+    },
+    "timing/zlib.reference-toucan-builder-4.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-toucan-builder-4.rs",
+      "bytes": 12811,
+      "sha256": "c3c08d3c5651d41b9c151f1365f767151c3cd802e0a5babcf24720ca38e68f49"
+    },
+    "timing/zlib.reference-toucan-builder-5.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-toucan-builder-5.rs",
+      "bytes": 12811,
+      "sha256": "c3c08d3c5651d41b9c151f1365f767151c3cd802e0a5babcf24720ca38e68f49"
+    },
+    "timing/zlib.reference-toucan-builder-6.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference-toucan-builder-6.rs",
+      "bytes": 12811,
+      "sha256": "c3c08d3c5651d41b9c151f1365f767151c3cd802e0a5babcf24720ca38e68f49"
+    },
+    "timing/zlib.reference.reference.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference.reference.json",
+      "bytes": 14944,
+      "sha256": "a8695c8e4418e2032cbad2d41dd232546010e7b6af6e4d2c32b33f3a552d7ad9"
+    },
+    "timing/zlib.reference.request.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zlib.reference.request.json",
+      "bytes": 555,
+      "sha256": "8f9869216049c51c1ed2b6e1350c928e04a268f80e500cd41a073a7074081059"
+    },
+    "timing/zstd.reference-bindgen-0.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-bindgen-0.rs",
+      "bytes": 43440,
+      "sha256": "45e0a2d0ff007554e396f298a2c5ec04829b571ffeef5003d410e14d5d7cb2a6"
+    },
+    "timing/zstd.reference-bindgen-1.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-bindgen-1.rs",
+      "bytes": 43440,
+      "sha256": "45e0a2d0ff007554e396f298a2c5ec04829b571ffeef5003d410e14d5d7cb2a6"
+    },
+    "timing/zstd.reference-bindgen-2.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-bindgen-2.rs",
+      "bytes": 43440,
+      "sha256": "45e0a2d0ff007554e396f298a2c5ec04829b571ffeef5003d410e14d5d7cb2a6"
+    },
+    "timing/zstd.reference-bindgen-3.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-bindgen-3.rs",
+      "bytes": 43440,
+      "sha256": "45e0a2d0ff007554e396f298a2c5ec04829b571ffeef5003d410e14d5d7cb2a6"
+    },
+    "timing/zstd.reference-bindgen-4.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-bindgen-4.rs",
+      "bytes": 43440,
+      "sha256": "45e0a2d0ff007554e396f298a2c5ec04829b571ffeef5003d410e14d5d7cb2a6"
+    },
+    "timing/zstd.reference-bindgen-5.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-bindgen-5.rs",
+      "bytes": 43440,
+      "sha256": "45e0a2d0ff007554e396f298a2c5ec04829b571ffeef5003d410e14d5d7cb2a6"
+    },
+    "timing/zstd.reference-bindgen-6.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-bindgen-6.rs",
+      "bytes": 43440,
+      "sha256": "45e0a2d0ff007554e396f298a2c5ec04829b571ffeef5003d410e14d5d7cb2a6"
+    },
+    "timing/zstd.reference-toucan-builder-0.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-toucan-builder-0.rs",
+      "bytes": 44649,
+      "sha256": "98efc3aef8b039fbed4da46b6c0eff79284bc40fd3a7716d04cfd044da4eb720"
+    },
+    "timing/zstd.reference-toucan-builder-1.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-toucan-builder-1.rs",
+      "bytes": 44649,
+      "sha256": "98efc3aef8b039fbed4da46b6c0eff79284bc40fd3a7716d04cfd044da4eb720"
+    },
+    "timing/zstd.reference-toucan-builder-2.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-toucan-builder-2.rs",
+      "bytes": 44649,
+      "sha256": "98efc3aef8b039fbed4da46b6c0eff79284bc40fd3a7716d04cfd044da4eb720"
+    },
+    "timing/zstd.reference-toucan-builder-3.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-toucan-builder-3.rs",
+      "bytes": 44649,
+      "sha256": "98efc3aef8b039fbed4da46b6c0eff79284bc40fd3a7716d04cfd044da4eb720"
+    },
+    "timing/zstd.reference-toucan-builder-4.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-toucan-builder-4.rs",
+      "bytes": 44649,
+      "sha256": "98efc3aef8b039fbed4da46b6c0eff79284bc40fd3a7716d04cfd044da4eb720"
+    },
+    "timing/zstd.reference-toucan-builder-5.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-toucan-builder-5.rs",
+      "bytes": 44649,
+      "sha256": "98efc3aef8b039fbed4da46b6c0eff79284bc40fd3a7716d04cfd044da4eb720"
+    },
+    "timing/zstd.reference-toucan-builder-6.rs": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference-toucan-builder-6.rs",
+      "bytes": 44649,
+      "sha256": "98efc3aef8b039fbed4da46b6c0eff79284bc40fd3a7716d04cfd044da4eb720"
+    },
+    "timing/zstd.reference.reference.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference.reference.json",
+      "bytes": 9649,
+      "sha256": "ff85e5f72585609a487c25cd11332d18b4fd1bff1413bc79be2839a3b2660f9d"
+    },
+    "timing/zstd.reference.request.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-2026-09-09/zstd.reference.request.json",
+      "bytes": 537,
+      "sha256": "218f18685d85edf720e22cfadf2833b7186d7286f2e5a62699fca0982e4bde30"
+    },
+    "audit/before.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-audit-2026-09-09/before.json",
+      "bytes": 3440,
+      "sha256": "f4a71fd20d69e38fff13f54e07880e29bce038019644e44b6f6a9305eb755957"
+    },
+    "audit/evidence.json": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-audit-2026-09-09/evidence.json",
+      "bytes": 4850,
+      "sha256": "3f43c4498229423d74610c58e99a745a7c68b5082929e025f65c2f645917a342"
+    },
+    "audit/run.log": {
+      "path": "/home/dev-user/.cache/toucan/builder-timing-selection-audit-2026-09-09/run.log",
+      "bytes": 291,
+      "sha256": "1aa04bf91539e19dc664a6bd07e7676c2a6d03d9eea10b3fb8e91f428d13d1f0"
+    }
+  },
+  "original_artifacts_unchanged": true,
+  "new_timing_executions_during_review": 0
+}

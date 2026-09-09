@@ -15,6 +15,63 @@ fn profiles() -> impl Iterator<Item = CompilerProfile> {
         )
     })
 }
+
+#[test]
+fn i686_intrinsics_require_enabled_function_features() {
+    for compiler in [Compiler::Gnu, Compiler::Clang] {
+        let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap();
+        let baseline = check("void f(void){__builtin_ia32_emms();}", profile).unwrap_err();
+        assert!(
+            baseline.message.contains(if compiler == Compiler::Clang {
+                "requires MMX"
+            } else {
+                "requires enabled target features"
+            }),
+            "{profile:?}: {baseline}"
+        );
+        check(
+            "__attribute__((target(\"mmx\"))) void f(void){__builtin_ia32_emms();}",
+            profile,
+        )
+        .unwrap();
+        check(
+            "typedef double V __attribute__((vector_size(16))); __attribute__((target(\"sse2\"))) V f(V v){return __builtin_ia32_sqrtpd(v);}",
+            profile,
+        )
+        .unwrap();
+        for options in ["no-mmx,sse2", "sse2,no-mmx"] {
+            let source = format!(
+                "__attribute__((target(\"{options}\"))) void f(void){{__builtin_ia32_emms();}}"
+            );
+            assert!(check(&source, profile).is_err(), "{profile:?}: {source}");
+        }
+        let missing_sse2 = check(
+            "typedef double V __attribute__((vector_size(16))); __attribute__((target(\"mmx\"))) V f(V v){return __builtin_ia32_sqrtpd(v);}",
+            profile,
+        )
+        .unwrap_err();
+        assert!(
+            missing_sse2
+                .message
+                .contains(if compiler == Compiler::Clang {
+                    "requires SSE2"
+                } else {
+                    "requires enabled target features"
+                })
+        );
+    }
+    let clang = CompilerProfile::new(Target::I686UnknownLinuxGnu, Compiler::Clang).unwrap();
+    let callee = "__attribute__((target(\"mmx\"),always_inline)) inline int g(int x){return x;}";
+    let caller = format!("{callee} int f(int x){{return g(x);}}");
+    assert!(
+        check(&caller, clang)
+            .unwrap_err()
+            .message
+            .contains("always_inline function")
+    );
+    let enabled = format!("{callee} __attribute__((target(\"mmx\"))) int f(int x){{return g(x);}}");
+    check(&enabled, clang).unwrap();
+}
 fn check(source: &str, profile: CompilerProfile) -> Result<Analysis, toucan_semantic::Error> {
     let plain = analyze_with_profile(source, profile, &Default::default());
     let retained = analyze_with_profile(
@@ -568,7 +625,10 @@ fn function_targets_match_compiler_codegen() {
     let directory = tempfile::tempdir().unwrap();
     let input = directory.path().join("targets.c");
     let output = directory.path().join("targets.s");
-    for profile in profiles() {
+    for profile in profiles().chain(
+        [Compiler::Gnu, Compiler::Clang]
+            .map(|compiler| CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap()),
+    ) {
         let mut command = if profile.compiler() == Compiler::Clang {
             let mut command = std::process::Command::new("clang");
             command.args(["-target", profile.target().triple()]);
@@ -578,12 +638,44 @@ fn function_targets_match_compiler_codegen() {
         } else {
             continue;
         };
+        if profile.target() == Target::I686UnknownLinuxGnu {
+            // i686's baseline CPU lacks MMX. Use the same enabled ISA as the
+            // x86-64 cases while testing target-attribute overrides.
+            if profile.compiler() == Compiler::Gnu {
+                command.arg("-m32");
+            }
+            command.arg("-mmmx");
+        }
         command
             .args(["-std=gnu11", "-O0", "-S"])
             .arg(&input)
             .arg("-o")
             .arg(&output);
-        for &(source, gnu, clang) in NATIVE_CASES {
+        let i686_cases: &[(&str, bool, bool)] = &[
+            (
+                r#"__attribute__((target("mmx"))) void f(void){__builtin_ia32_emms();}"#,
+                true,
+                true,
+            ),
+            (
+                r#"__attribute__((target("no-mmx"))) void f(void){__builtin_ia32_emms();}"#,
+                false,
+                false,
+            ),
+            (
+                r#"__attribute__((target("no-mmx"))) void f(void){(void)sizeof((__builtin_ia32_emms(),0));}"#,
+                true,
+                true,
+            ),
+        ];
+        let cases = if profile.target() == Target::I686UnknownLinuxGnu {
+            // A narrower codegen oracle exercises enabled, disabled and
+            // unevaluated MMX; the x86-64 matrix assumes mandatory baseline MMX.
+            i686_cases
+        } else {
+            NATIVE_CASES
+        };
+        for &(source, gnu, clang) in cases {
             std::fs::write(&input, source).unwrap();
             let result = command.output().unwrap();
             assert_eq!(

@@ -145,7 +145,27 @@ impl Analyzer {
                         "evaluated SVE values require unsupported target-feature configuration",
                     ));
                 }
-                crate::target_features::FeatureUse::X86 { offset, intrinsic } => {
+                crate::target_features::FeatureUse::X86 {
+                    offset,
+                    intrinsic,
+                    feature,
+                } => {
+                    if self.unit.target == Target::I686UnknownLinuxGnu {
+                        let feature = match feature {
+                            crate::x86::X86Feature::Mmx => "MMX",
+                            crate::x86::X86Feature::Sse => "SSE",
+                            crate::x86::X86Feature::Sse2 => "SSE2",
+                            crate::x86::X86Feature::Lzcnt => "LZCNT",
+                            crate::x86::X86Feature::Bmi => "BMI",
+                            crate::x86::X86Feature::Bmi2 => "BMI2",
+                        };
+                        return Err(Error::new(
+                            *offset,
+                            format!(
+                                "evaluated {intrinsic} requires {feature}, unavailable in the i686 target configuration"
+                            ),
+                        ));
+                    }
                     return Err(Error::new(
                         *offset,
                         format!(
@@ -162,7 +182,7 @@ impl Analyzer {
                     if *declaration_time
                         || self.function_options.get(callee).is_some_and(|options| {
                             options.always_inline()
-                                && options.x86_features() & !caller_features != 0
+                                && options.x86_features(self.unit.target) & !caller_features != 0
                         })
                     {
                         return Err(Error::new(

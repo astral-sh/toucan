@@ -5,6 +5,9 @@
 //! compiler, loads libclang, or discovers a compiler installation. Supply target
 //! headers with include arguments and a sysroot. Cargo's `TARGET` selects the ABI
 //! unless an explicit `--target` argument overrides it.
+//! ARMv7 hard-float bindings require
+//! `.rust_target(RustTarget::stable(78, 0)?)` or newer so their generated
+//! `target_abi = "eabihf"` guard excludes ARM soft-float Rust targets.
 
 mod arguments;
 pub mod callbacks;
@@ -72,6 +75,42 @@ impl RustTarget {
     }
 }
 
+impl std::str::FromStr for RustTarget {
+    type Err = io::Error;
+
+    /// Parse a stable `1.minor` or `1.minor.patch` target.
+    ///
+    /// Patch releases share language features. Rust versions before 1.64,
+    /// minor versions above 65535, and nightly targets are unsupported.
+    fn from_str(input: &str) -> Result<Self, Self::Err> {
+        let invalid = |reason: &str| {
+            io::Error::new(
+                io::ErrorKind::InvalidInput,
+                format!("\"{input}\" is not a valid Rust target, {reason}"),
+            )
+        };
+        if input == "nightly" {
+            return Err(invalid("nightly Rust targets are not supported by Toucan"));
+        }
+        let (major, tail) = input.split_once('.').ok_or_else(|| {
+            invalid("accepted stable targets are of the form \"1.64\" or \"1.64.0\".")
+        })?;
+        if major != "1" {
+            return Err(invalid(
+                "The largest major version of Rust released is \"1\"",
+            ));
+        }
+        let (minor, patch) = tail.split_once('.').unwrap_or((tail, "0"));
+        let minor = minor
+            .parse::<u64>()
+            .map_err(|_| invalid("the minor version number must be an unsigned 64-bit integer"))?;
+        let patch = patch
+            .parse::<u64>()
+            .map_err(|_| invalid("the patch version number must be an unsigned 64-bit integer"))?;
+        Self::stable(minor, patch).map_err(|error| invalid(&error.to_string()))
+    }
+}
+
 impl Default for RustTarget {
     fn default() -> Self {
         Self(toucan::RustTarget::RUST_1_64)
@@ -105,6 +144,7 @@ impl Default for Builder {
                 prepend_enum_name: true,
                 enum_constant_style: toucan::EnumConstantStyle::Bindgen,
                 size_t_is_usize: true,
+                nullable_function_typedefs: true,
                 macro_type: MacroType::Unsigned,
                 rust_target: RustTarget::default().0,
                 derives: toucan::DeriveOptions {
@@ -239,6 +279,37 @@ impl Builder {
     /// Map a compatible C size_t to Rust usize.
     pub fn size_t_is_usize(mut self, enabled: bool) -> Self {
         self.options.size_t_is_usize = enabled;
+        self
+    }
+
+    /// Prefix the native symbols of generated functions and objects.
+    /// The Rust declaration names are unchanged.
+    pub fn prefix_link_name(mut self, prefix: impl Into<String>) -> Self {
+        let prefix = prefix.into();
+        if prefix.is_empty() || prefix.contains('\0') {
+            self.fail("link name prefix cannot be empty or contain NUL");
+        } else {
+            self.options.link_name_prefix = Some(prefix);
+        }
+        self
+    }
+
+    /// Name a native symbol that deliberately differs from a requested prefix.
+    pub fn link_name_override(
+        mut self,
+        c_name: impl Into<String>,
+        native_symbol: impl Into<String>,
+    ) -> Self {
+        let (c_name, native_symbol) = (c_name.into(), native_symbol.into());
+        if c_name.is_empty() || native_symbol.is_empty() || native_symbol.contains('\0') {
+            self.fail(
+                "link name override must have a C name and a nonempty native symbol without NUL",
+            );
+        } else {
+            self.options
+                .link_name_overrides
+                .insert(c_name, native_symbol);
+        }
         self
     }
 
@@ -571,6 +642,17 @@ fn host_target() -> Option<Target> {
             target_os = "linux",
             target_env = "gnu"
         )),
+        Target::I686UnknownLinuxGnu => cfg!(all(
+            target_arch = "x86",
+            target_os = "linux",
+            target_env = "gnu"
+        )),
+        Target::Armv7UnknownLinuxGnueabihf => cfg!(all(
+            target_arch = "arm",
+            target_os = "linux",
+            target_env = "gnu",
+            target_abi = "eabihf"
+        )),
         Target::Aarch64UnknownLinuxGnu => cfg!(all(
             target_arch = "aarch64",
             target_os = "linux",
@@ -590,6 +672,11 @@ fn host_target() -> Option<Target> {
         Target::Aarch64AppleDarwin => cfg!(all(target_arch = "aarch64", target_os = "macos")),
         Target::X86_64PcWindowsMsvc => cfg!(all(
             target_arch = "x86_64",
+            target_os = "windows",
+            target_env = "msvc"
+        )),
+        Target::Aarch64PcWindowsMsvc => cfg!(all(
+            target_arch = "aarch64",
             target_os = "windows",
             target_env = "msvc"
         )),

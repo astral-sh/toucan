@@ -144,7 +144,7 @@ impl Analyzer {
 
     /// Keep non-Microsoft and ordinary Microsoft analysis free of this registry.
     pub(crate) fn prepare_dll_storage(&mut self, source: &str) {
-        if self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+        if self.unit.target.is_windows()
             && (source.contains("dllimport") || source.contains("dllexport"))
         {
             let mut registry = Registry::default();

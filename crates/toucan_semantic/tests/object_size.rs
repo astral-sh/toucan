@@ -43,7 +43,8 @@ fn options() -> AnalysisOptions {
 fn gnu_target(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu
+        Target::I686UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxGnu
             | Target::X86_64UnknownLinuxMusl
             | Target::Aarch64UnknownLinuxGnu
             | Target::Aarch64UnknownLinuxMusl
@@ -83,7 +84,9 @@ fn object_size_queries_check_parameters_modes_and_target_result_type() {
                     gnu_target(target)
                 );
             }
-            let size_type = if target == Target::X86_64PcWindowsMsvc {
+            let size_type = if target == Target::I686UnknownLinuxGnu || target.is_armv7() {
+                "unsigned int"
+            } else if target.is_windows() {
                 "unsigned long long"
             } else {
                 "unsigned long"

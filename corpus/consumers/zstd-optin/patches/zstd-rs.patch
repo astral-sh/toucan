@@ -1,0 +1,129 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -32,6 +32,7 @@
+ default = ["legacy", "arrays", "zdict_builder"]
+ 
+ bindgen = ["zstd-safe/bindgen"]
++toucan = ["zstd-safe/toucan"]
+ debug = ["zstd-safe/debug"]
+ legacy = ["zstd-safe/legacy"]
+ pkg-config = ["zstd-safe/pkg-config"]
+--- a/zstd-safe/Cargo.toml
++++ b/zstd-safe/Cargo.toml
+@@ -23,6 +23,7 @@
+ default = ["legacy", "arrays", "zdict_builder"]
+ 
+ bindgen = ["zstd-sys/bindgen"]
++toucan = ["zstd-sys/toucan"]
+ debug = ["zstd-sys/debug"]
+ experimental = ["zstd-sys/experimental"]
+ legacy = ["zstd-sys/legacy"]
+--- a/zstd-safe/zstd-sys/Cargo.toml
++++ b/zstd-safe/zstd-sys/Cargo.toml
+@@ -57,6 +57,12 @@
+ default-features = false
+ features = ["runtime"]
+ 
++[build-dependencies.toucan_bindgen]
++# Experimental: native Linux x86-64 generation requires Rust 1.96 on the build host.
++git = "https://github.com/astral-sh/toucan"
++rev = "85bf1ad6dcbc5840ade11bf8798785b6da13260a"
++optional = true
++
+ [build-dependencies.pkg-config]
+ version = "0.3.28"
+ 
+@@ -66,6 +72,8 @@
+ 
+ [features]
+ default = ["legacy", "zdict_builder", "bindgen"]
++
++toucan = ["dep:toucan_bindgen"] # Generate with Toucan; takes precedence over bindgen.
+ 
+ debug = [] # Enable zstd debug logs
+ experimental = [] # Expose experimental ZSTD API
+--- a/zstd-safe/zstd-sys/build.rs
++++ b/zstd-safe/zstd-sys/build.rs
+@@ -2,9 +2,23 @@
+ use std::path::{Path, PathBuf};
+ use std::{env, fmt, fs};
+ 
+-#[cfg(feature = "bindgen")]
++#[cfg(feature = "toucan")]
++use toucan_bindgen as bindgen;
++
++#[cfg(any(feature = "bindgen", feature = "toucan"))]
+ fn generate_bindings(defs: Vec<&str>, headerpaths: Vec<PathBuf>) {
+     use bindgen::RustTarget;
++
++    #[cfg(feature = "toucan")]
++    {
++        let host = env::var("HOST").expect("Cargo build host");
++        let target = env::var("TARGET").expect("Cargo build target");
++        assert!(
++            host == "x86_64-unknown-linux-gnu" && target == host,
++            "the experimental toucan feature currently supports native x86_64-unknown-linux-gnu builds; host={host}, target={target}"
++        );
++        println!("cargo:warning=Generating zstd bindings with Toucan");
++    }
+ 
+     let bindings = bindgen::Builder::default().header("zstd.h");
+ 
+@@ -49,7 +63,7 @@
+         .expect("Could not write bindings");
+ }
+ 
+-#[cfg(not(feature = "bindgen"))]
++#[cfg(not(any(feature = "bindgen", feature = "toucan")))]
+ fn generate_bindings(_: Vec<&str>, _: Vec<PathBuf>) {}
+ 
+ fn pkg_config() -> (Vec<&'static str>, Vec<PathBuf>) {
+--- a/zstd-safe/zstd-sys/src/lib.rs
++++ b/zstd-safe/zstd-sys/src/lib.rs
+@@ -12,30 +12,39 @@
+ #[cfg(target_arch = "wasm32")]
+ mod wasm_shim;
+ 
+-// If running bindgen, we'll end up with the correct bindings anyway.
+-#[cfg(feature = "bindgen")]
++// If generating bindings, we'll end up with the correct bindings anyway.
++#[cfg(any(feature = "bindgen", feature = "toucan"))]
+ include!(concat!(env!("OUT_DIR"), "/bindings.rs"));
+ 
+ // The bindings used depend on a few feature flags.
+-#[cfg(all(not(feature = "experimental"), not(feature = "bindgen")))]
++#[cfg(all(
++    not(feature = "experimental"),
++    not(any(feature = "bindgen", feature = "toucan"))
++))]
+ include!("bindings_zstd.rs");
+ 
+ #[cfg(all(
+     not(feature = "experimental"),
+     feature = "zdict_builder",
+-    not(feature = "bindgen")
++    not(any(feature = "bindgen", feature = "toucan"))
+ ))]
+ include!("bindings_zdict.rs");
+ 
+-#[cfg(all(feature = "experimental", not(feature = "bindgen")))]
++#[cfg(all(
++    feature = "experimental",
++    not(any(feature = "bindgen", feature = "toucan"))
++))]
+ include!("bindings_zstd_experimental.rs");
+ 
+ #[cfg(all(
+     feature = "experimental",
+     feature = "zdict_builder",
+-    not(feature = "bindgen")
++    not(any(feature = "bindgen", feature = "toucan"))
+ ))]
+ include!("bindings_zdict_experimental.rs");
+ 
+-#[cfg(all(feature = "seekable", not(feature = "bindgen")))]
++#[cfg(all(
++    feature = "seekable",
++    not(any(feature = "bindgen", feature = "toucan"))
++))]
+ include!("bindings_zstd_seekable.rs");

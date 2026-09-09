@@ -1,5 +1,6 @@
 [package]
 name = "toucan_cli"
+default-run = "toucan"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
@@ -12,6 +13,11 @@ name = "toucan"
 path = "src/main.rs"
 doc = false
 
+[[bin]]
+name = "bindgen"
+path = "src/bindgen.rs"
+doc = false
+
 [features]
 performance-allocator = ["dep:tikv-jemallocator", "dep:mimalloc"]
 
@@ -21,6 +27,7 @@ clap.workspace = true
 serde.workspace = true
 serde_json.workspace = true
 toucan = { version = "0.0.1", path = "../toucan" }
+toucan_bindgen = { version = "0.0.1", path = "../toucan_bindgen" }
 
 [dev-dependencies]
 tempfile.workspace = true

@@ -1,0 +1,1212 @@
+{
+  "api_comparison": {
+    "accepted_differences": 262,
+    "equal_common_functions": 1284,
+    "evidence_sha256": "bdbecf30f6ace1daf6a710d1c0b8087916b927aa6dc576e2aab91677a2b8f804",
+    "exact_equivalence": false,
+    "projects": [
+      {
+        "accepted_difference_reasons": {
+          "C macro expression type differs from bindgen's inferred Rust constant type": 4,
+          "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen": 4,
+          "additional Toucan constant checked against C; not exact API equivalence": 94,
+          "bitfield helper storage; C/Rust setter and getter FFI checked": 2,
+          "helper alias outside the selected public API": 89,
+          "typedef represented by the corresponding named Rust record": 48
+        },
+        "accepted_differences": 241,
+        "comparison_sha256": "351c3853858c1a2aba44b5d2e509771d922adc91fb374bf7a77b2bf24b0a86c5",
+        "counts": {
+          "aliases": {
+            "common": 160,
+            "equal": 160
+          },
+          "constants": {
+            "common": 667,
+            "equal": 661
+          },
+          "enum_constants": {
+            "common": 0,
+            "equal": 0
+          },
+          "enum_shapes": {
+            "common": 0,
+            "equal": 0
+          },
+          "functions": {
+            "common": 844,
+            "equal": 844
+          },
+          "globals": {
+            "common": 0,
+            "equal": 0
+          },
+          "native_constants": {
+            "common": 667,
+            "equal": 665
+          },
+          "native_enums": {
+            "common": 0,
+            "equal": 0
+          },
+          "native_fields": {
+            "common": 432,
+            "equal": 432
+          },
+          "native_records": {
+            "common": 85,
+            "equal": 85
+          },
+          "native_variants": {
+            "common": 0,
+            "equal": 0
+          },
+          "record_shapes": {
+            "common": 141,
+            "equal": 141
+          }
+        },
+        "exact_equivalence": false,
+        "name": "libgit2",
+        "unexpected_differences": 0
+      },
+      {
+        "accepted_difference_reasons": {
+          "C xDlSym returns void (*)(void); bindgen repeats the lookup parameters": 1
+        },
+        "accepted_differences": 1,
+        "comparison_sha256": "10ca6e6dbbac1682c003f67c8ff485ff129a6522d687f9946f7caaf9b5024dd7",
+        "counts": {
+          "aliases": {
+            "common": 11,
+            "equal": 11
+          },
+          "constants": {
+            "common": 463,
+            "equal": 463
+          },
+          "enum_constants": {
+            "common": 0,
+            "equal": 0
+          },
+          "enum_shapes": {
+            "common": 0,
+            "equal": 0
+          },
+          "functions": {
+            "common": 291,
+            "equal": 291
+          },
+          "globals": {
+            "common": 3,
+            "equal": 3
+          },
+          "native_constants": {
+            "common": 463,
+            "equal": 463
+          },
+          "native_enums": {
+            "common": 0,
+            "equal": 0
+          },
+          "native_fields": {
+            "common": 157,
+            "equal": 157
+          },
+          "native_records": {
+            "common": 18,
+            "equal": 18
+          },
+          "native_variants": {
+            "common": 0,
+            "equal": 0
+          },
+          "record_shapes": {
+            "common": 28,
+            "equal": 27
+          }
+        },
+        "exact_equivalence": false,
+        "name": "sqlite",
+        "unexpected_differences": 0
+      },
+      {
+        "accepted_difference_reasons": {
+          "helper alias outside the selected public API": 1
+        },
+        "accepted_differences": 1,
+        "comparison_sha256": "eb0d412158aab85e80cc3e08bd69d9868dad568182a57dc958473b3889e14956",
+        "counts": {
+          "aliases": {
+            "common": 25,
+            "equal": 25
+          },
+          "constants": {
+            "common": 37,
+            "equal": 37
+          },
+          "enum_constants": {
+            "common": 0,
+            "equal": 0
+          },
+          "enum_shapes": {
+            "common": 0,
+            "equal": 0
+          },
+          "functions": {
+            "common": 81,
+            "equal": 81
+          },
+          "globals": {
+            "common": 0,
+            "equal": 0
+          },
+          "native_constants": {
+            "common": 37,
+            "equal": 37
+          },
+          "native_enums": {
+            "common": 0,
+            "equal": 0
+          },
+          "native_fields": {
+            "common": 30,
+            "equal": 30
+          },
+          "native_records": {
+            "common": 3,
+            "equal": 3
+          },
+          "native_variants": {
+            "common": 0,
+            "equal": 0
+          },
+          "record_shapes": {
+            "common": 4,
+            "equal": 4
+          }
+        },
+        "exact_equivalence": false,
+        "name": "zlib",
+        "unexpected_differences": 0
+      },
+      {
+        "accepted_difference_reasons": {
+          "C macro expression type differs from bindgen's inferred Rust constant type": 3,
+          "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen": 4,
+          "additional Toucan constant checked against C; not exact API equivalence": 4,
+          "helper alias outside the selected public API": 7,
+          "typedef represented by the corresponding named Rust record": 1
+        },
+        "accepted_differences": 19,
+        "comparison_sha256": "c26fe463ae436b7c1b65e67bd0844d2edc3a2bc6aafd96d25a45ca81c48b8484",
+        "counts": {
+          "aliases": {
+            "common": 14,
+            "equal": 14
+          },
+          "constants": {
+            "common": 110,
+            "equal": 105
+          },
+          "enum_constants": {
+            "common": 0,
+            "equal": 0
+          },
+          "enum_shapes": {
+            "common": 0,
+            "equal": 0
+          },
+          "functions": {
+            "common": 68,
+            "equal": 68
+          },
+          "globals": {
+            "common": 0,
+            "equal": 0
+          },
+          "native_constants": {
+            "common": 110,
+            "equal": 108
+          },
+          "native_enums": {
+            "common": 0,
+            "equal": 0
+          },
+          "native_fields": {
+            "common": 9,
+            "equal": 9
+          },
+          "native_records": {
+            "common": 3,
+            "equal": 3
+          },
+          "native_variants": {
+            "common": 0,
+            "equal": 0
+          },
+          "record_shapes": {
+            "common": 7,
+            "equal": 7
+          }
+        },
+        "exact_equivalence": false,
+        "name": "zstd",
+        "unexpected_differences": 0
+      }
+    ],
+    "status": "passed",
+    "unexpected_differences": 0
+  },
+  "artifact": {
+    "created_at": "2026-09-09T18:10:11Z",
+    "digest": "sha256:3baf1599f7d4ee677af47e92271c9f57c0fa8b59b0f8bb0bbb3fbf7883121d2d",
+    "expires_at": "2026-09-23T18:10:08Z",
+    "id": 10118205818,
+    "name": "corpus-aarch64-apple-darwin",
+    "size_in_bytes": 2160650
+  },
+  "complete_record_layouts": {
+    "comparisons": 846,
+    "evidence_sha256": "3436c6f1bfbf5c8a0ab85ee23e73558e729e06c6d3ced2d5399d1f66e621823d",
+    "field_offsets": 628,
+    "projects": [
+      {
+        "comparisons": 602,
+        "name": "libgit2",
+        "offset_count": 432,
+        "record_count": 85
+      },
+      {
+        "comparisons": 193,
+        "name": "sqlite",
+        "offset_count": 157,
+        "record_count": 18
+      },
+      {
+        "comparisons": 36,
+        "name": "zlib",
+        "offset_count": 30,
+        "record_count": 3
+      },
+      {
+        "comparisons": 15,
+        "name": "zstd",
+        "offset_count": 9,
+        "record_count": 3
+      }
+    ],
+    "records": 109,
+    "status": "passed"
+  },
+  "environment": {
+    "cc": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+    "host": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+    "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+    "sysroot": "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+    "target": "aarch64-apple-darwin",
+    "toucan_sha256": "02f9c03a4a2fb2b7e010300e0e7760027e485fa84505dafd8ab6e4d5ad525a78"
+  },
+  "executed_job_count": 3,
+  "intel_runner_jobs": 0,
+  "jobs": [
+    {
+      "conclusion": "success",
+      "id": 102575789770,
+      "labels": [
+        "macos-15"
+      ],
+      "name": "tests / Packages and allocators (macos-15)",
+      "runner_id": 1002369539,
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run cargo test --workspace --all-features --locked"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run cargo package --workspace --all-features --locked"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job"
+        }
+      ]
+    },
+    {
+      "conclusion": "success",
+      "id": 102575789981,
+      "labels": [
+        "macos-15"
+      ],
+      "name": "tests / Test (macos-15)",
+      "runner_id": 1002369538,
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0"
+        },
+        {
+          "conclusion": "success",
+          "name": "Select native C compiler oracles"
+        },
+        {
+          "conclusion": "success",
+          "name": "Check native parameter-entry oracles"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run cargo test --workspace --no-fail-fast -- --include-ignored"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run cargo doc --workspace --no-deps"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job"
+        }
+      ]
+    },
+    {
+      "conclusion": "skipped",
+      "id": 102575791677,
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "name": "tests / Rust 1.96",
+      "runner_id": null,
+      "steps": []
+    },
+    {
+      "conclusion": "skipped",
+      "id": 102575791936,
+      "labels": [
+        "ubuntu-24.04"
+      ],
+      "name": "tests / Lint",
+      "runner_id": null,
+      "steps": []
+    },
+    {
+      "conclusion": "success",
+      "id": 102583366089,
+      "labels": [
+        "macos-15"
+      ],
+      "name": "corpus / Native corpus (aarch64-apple-darwin)",
+      "runner_id": 1002370022,
+      "steps": [
+        {
+          "conclusion": "success",
+          "name": "Set up job"
+        },
+        {
+          "conclusion": "success",
+          "name": "Check out the source"
+        },
+        {
+          "conclusion": "success",
+          "name": "Install Rust"
+        },
+        {
+          "conclusion": "success",
+          "name": "Install native build prerequisites"
+        },
+        {
+          "conclusion": "success",
+          "name": "Select Python 3.12 or newer"
+        },
+        {
+          "conclusion": "success",
+          "name": "Build the release frontend"
+        },
+        {
+          "conclusion": "success",
+          "name": "Prepare the four pinned libraries"
+        },
+        {
+          "conclusion": "skipped",
+          "name": "Check complete C translation units"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run native C and Rust probes"
+        },
+        {
+          "conclusion": "success",
+          "name": "Install the reference frontend"
+        },
+        {
+          "conclusion": "success",
+          "name": "Build and test the API comparison tool"
+        },
+        {
+          "conclusion": "success",
+          "name": "Compare APIs and all complete C record layouts"
+        },
+        {
+          "conclusion": "success",
+          "name": "Compile and run the real zstd Rust consumer"
+        },
+        {
+          "conclusion": "success",
+          "name": "Run zstd's unchanged binding build script"
+        },
+        {
+          "conclusion": "success",
+          "name": "Compile and run the real SQLite Rust consumer"
+        },
+        {
+          "conclusion": "success",
+          "name": "Check generated bindings and the consumer with Rust 1.64"
+        },
+        {
+          "conclusion": "success",
+          "name": "Upload native evidence and build logs"
+        },
+        {
+          "conclusion": "success",
+          "name": "Post Check out the source"
+        },
+        {
+          "conclusion": "success",
+          "name": "Complete job"
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "The API gate accepts 262 named and justified differences. exact_equivalence is false; this is not a claim of identical generated Rust APIs.",
+    "The complete-C-translation-unit step was skipped in this macOS workflow. Header/body features exercised by workspace tests do not establish full real-project translation-unit coverage on macOS.",
+    "Rust 1.96 and lint jobs were skipped as Ubuntu-only jobs in this invocation; the native corpus frontend and consumers used Rust 1.96.0, and explicit generated-code compatibility tests used Rust 1.64.0.",
+    "Workspace test counts include nested harness executions and are not unique test counts. The all-features pass left 257 tests ignored; the separate include-ignored pass reported zero ignored tests.",
+    "No Intel macOS runner was used. Cross-target cases inside Apple Silicon tests do not constitute native Intel coverage.",
+    "No full uv or ty application build, end-user execution, or macOS performance benchmark is established by this artifact.",
+    "Tool executable, sysroot/header, and upstream source hashes in the artifact are runner-recorded. The tool executables and complete sysroot/source trees are not included for local rehashing."
+  ],
+  "native_corpus": {
+    "comparisons": 5444,
+    "evidence_sha256": "e6e4ea114695273b7cfc2fa4a2b1f48ad0837eb5d3ad9e9eff2b0722a9bc02b7",
+    "projects": [
+      {
+        "archive_sha256": "4a7944d8439cccac187ef0ff4085556f198d85225eef55686b3dfb3413e0d0f1",
+        "bindings_sha256": "bba12dd60bcc810be00deb49055d1de3b06f661f4b828386b881bc4a5442ec41",
+        "commit": "0060d9cf5666f015b1067129bd874c6cc4c9c7ac",
+        "comparisons": 3342,
+        "coverage": {
+          "anonymous_enum_projections": 0,
+          "enum_constants": 582,
+          "ffi_fixture": "/Users/runner/work/toucan/toucan/corpus/ffi/libgit2.rs",
+          "field_offsets": 26,
+          "integer_constants": 711,
+          "records": 8,
+          "string_constants": 3
+        },
+        "header_sha256": "04b93d6a4dac32d661a56c3ca222ba62e8896f8148774ed52565d631ebf8d0e0",
+        "library_sha256": {
+          "/Users/runner/work/toucan/toucan/corpus/cache/build/libgit2/libgit2.a": "81a57c0ae88e1dc828b2f068175d34a267d50b41ee54fd284df3c0378f5270f3"
+        },
+        "name": "libgit2",
+        "version": "1.9.1"
+      },
+      {
+        "archive_sha256": "c05d9dc99e90c35f021ebf0b6b0a36d44714088ba77f84022eb22784d6123c7e",
+        "bindings_sha256": "9d80e2b99ab6941c814cb76147c36ee0001349f28f30f668d437aa4987cb4bb7",
+        "commit": "189e44dfecdc7868bb860dfb5d98eab371318c37",
+        "comparisons": 1419,
+        "coverage": {
+          "anonymous_enum_projections": 0,
+          "enum_constants": 0,
+          "ffi_fixture": "/Users/runner/work/toucan/toucan/corpus/ffi/sqlite.rs",
+          "field_offsets": 26,
+          "integer_constants": 461,
+          "records": 4,
+          "string_constants": 2
+        },
+        "header_sha256": "41e066ccd4f89e938f136ceb48c996c54dc381b59fe566dea48864c3750b779e",
+        "library_sha256": {
+          "/Users/runner/work/toucan/toucan/corpus/cache/build/sqlite/libsqlite3.a": "d6fa3bd8b1afc35c20da295b08b3d113cfddd61b8a9bafae6fd28ffc375ec887"
+        },
+        "name": "sqlite",
+        "version": "3.45.1"
+      },
+      {
+        "archive_sha256": "2c547ae1e001c09db5d0a9d0e157f75dc55151757923cc611a08630391af81bc",
+        "bindings_sha256": "fe46ad825b33318317185169fd5e1b4f13d0a51fd56fd499db5c2278b8f3509f",
+        "commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+        "comparisons": 140,
+        "coverage": {
+          "anonymous_enum_projections": 0,
+          "enum_constants": 0,
+          "ffi_fixture": "/Users/runner/work/toucan/toucan/corpus/ffi/zlib.rs",
+          "field_offsets": 27,
+          "integer_constants": 36,
+          "records": 2,
+          "string_constants": 1
+        },
+        "header_sha256": "8a5579af72ea4f427ff00a4150f0ccb3fc5c1e4379f726e101133b1ab9fc600c",
+        "library_sha256": {
+          "/Users/runner/work/toucan/toucan/corpus/cache/build/zlib/libz.a": "aa390ca3ba92b94c7665e55c734df0fd3ac57b5cd9869b4ac101a21274d3eddf"
+        },
+        "name": "zlib",
+        "version": "1.3.1"
+      },
+      {
+        "archive_sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+        "bindings_sha256": "0c2b5c52f0917feaf9e385abeb65f0fdc3dc6bb048040d3931a0a89ff42243b1",
+        "commit": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "comparisons": 543,
+        "coverage": {
+          "anonymous_enum_projections": 0,
+          "enum_constants": 97,
+          "ffi_fixture": "/Users/runner/work/toucan/toucan/corpus/ffi/zstd.rs",
+          "field_offsets": 9,
+          "integer_constants": 111,
+          "records": 3,
+          "string_constants": 1
+        },
+        "header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+        "library_sha256": {
+          "/Users/runner/work/toucan/toucan/corpus/cache/sources/zstd-1.5.7/lib/libzstd.a": "944cae164d0a1b12690fd3b35b65376e85ae63e2923d747bf886dcb866a7824e"
+        },
+        "name": "zstd",
+        "version": "1.5.7"
+      }
+    ],
+    "status": "passed"
+  },
+  "package_verification": {
+    "command": "cargo package --workspace --all-features --locked",
+    "package_count": 11,
+    "packages": [
+      {
+        "name": "toucan_parser",
+        "version": "0.0.1"
+      },
+      {
+        "name": "toucan_layout",
+        "version": "0.0.1"
+      },
+      {
+        "name": "toucan_target",
+        "version": "0.0.1"
+      },
+      {
+        "name": "toucan_test_support",
+        "version": "0.0.1"
+      },
+      {
+        "name": "toucan_semantic",
+        "version": "0.0.1"
+      },
+      {
+        "name": "toucan_bindings",
+        "version": "0.0.1"
+      },
+      {
+        "name": "toucan_preprocessor",
+        "version": "0.0.1"
+      },
+      {
+        "name": "toucan_source",
+        "version": "0.0.1"
+      },
+      {
+        "name": "toucan",
+        "version": "0.0.1"
+      },
+      {
+        "name": "toucan_bindgen",
+        "version": "0.0.1"
+      },
+      {
+        "name": "toucan_cli",
+        "version": "0.0.1"
+      }
+    ],
+    "status": "passed"
+  },
+  "run": {
+    "conclusion": "success",
+    "created_at": "2026-09-09T17:37:43Z",
+    "head_branch": "charlie/codex-toucan-macos-arm64-validation",
+    "head_sha": "ac3312d204258db2d2f50cf41e1e56ccefc9ec22",
+    "html_url": "https://github.com/astral-sh/toucan/actions/runs/34384065196",
+    "id": 34384065196,
+    "run_attempt": 1,
+    "status": "completed",
+    "updated_at": "2026-09-09T18:10:18Z"
+  },
+  "runner_images": [
+    {
+      "image": "macos-15-arm64",
+      "job": "corpus _ Native corpus (aarch64-apple-darwin)",
+      "versions": [
+        "20260828.587",
+        "20260907.0337.1"
+      ]
+    },
+    {
+      "image": "macos-15-arm64",
+      "job": "tests _ Packages and allocators (macos-15)",
+      "versions": [
+        "20260828.587",
+        "20260829.0321.1"
+      ]
+    },
+    {
+      "image": "macos-15-arm64",
+      "job": "tests _ Test (macos-15)",
+      "versions": [
+        "20260828.587",
+        "20260829.0321.1"
+      ]
+    }
+  ],
+  "rust_1_64_layouts": {
+    "evidence_sha256": "78109470642aa813bb1be966c7645a961622d4e89bbbfef9b1cbec79f1e57ea2",
+    "field_offset_assertions": 628,
+    "layout_tests": 109,
+    "projects": [
+      {
+        "bindings_sha256": "9dc74685aa3a35b174467a81239247dd602d44a6bff62bb2f515d14814ab9ed2",
+        "commit": "0060d9cf5666f015b1067129bd874c6cc4c9c7ac",
+        "field_offset_assertions": 432,
+        "header_sha256": "04b93d6a4dac32d661a56c3ca222ba62e8896f8148774ed52565d631ebf8d0e0",
+        "layout_tests": 85,
+        "name": "libgit2",
+        "report_sha256": "e8828d5da87122c4de3b13e0aa1e2949900b1a50f94ce3cb6540cc2931e0237a",
+        "status": "passed",
+        "version": "1.9.1"
+      },
+      {
+        "bindings_sha256": "1d43eafed1f1574bc9037b572e3b2d30abf532bdd3850769d3e7fe5e2a23c32c",
+        "commit": "189e44dfecdc7868bb860dfb5d98eab371318c37",
+        "field_offset_assertions": 157,
+        "header_sha256": "41e066ccd4f89e938f136ceb48c996c54dc381b59fe566dea48864c3750b779e",
+        "layout_tests": 18,
+        "name": "sqlite",
+        "report_sha256": "c1e800e0c83b229276893699ef604c260431ff23a0f0e498d927b578d982f5b4",
+        "status": "passed",
+        "version": "3.45.1"
+      },
+      {
+        "bindings_sha256": "29e358bed30d3792f4658d3f27d2630e23cc2d39b5a7a3507abd8f9951a84d84",
+        "commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+        "field_offset_assertions": 30,
+        "header_sha256": "8a5579af72ea4f427ff00a4150f0ccb3fc5c1e4379f726e101133b1ab9fc600c",
+        "layout_tests": 3,
+        "name": "zlib",
+        "report_sha256": "7059e24e2612bf2325021427725a70e760e144583bcc3822ea5cded57ff6c47e",
+        "status": "passed",
+        "version": "1.3.1"
+      },
+      {
+        "bindings_sha256": "6f783591369d921d1bb79d67663f9588c10abe124c1c5ff9315f6fe34cd5ade6",
+        "commit": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+        "field_offset_assertions": 9,
+        "header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+        "layout_tests": 3,
+        "name": "zstd",
+        "report_sha256": "8aa2fb69592d56ac978a854a2a31b4fe7a6702e506b6c6aad009baf0733adf1c",
+        "status": "passed",
+        "version": "1.5.7"
+      }
+    ],
+    "rustc": "rustc 1.64.0 (a55dd71d5 2022-09-19)\nbinary: rustc\ncommit-hash: a55dd71d5fb0ec5a6a3a9e8c27b2127ba491ce52\ncommit-date: 2022-09-19\nhost: aarch64-apple-darwin\nrelease: 1.64.0\nLLVM version: 14.0.6",
+    "status": "passed"
+  },
+  "schema_version": 1,
+  "scope": "Native Apple Silicon validation of exactly ac3312d204258db2d2f50cf41e1e56ccefc9ec22. Does not validate later Windows/ARM changes or later integration heads.",
+  "sqlite_consumer": {
+    "bindings_sha256": "8cf25291cd669f9ef79acd980f14718695e1c0f83107e77d0f32cef20f97d47a",
+    "c_probe": {
+      "comparisons": 1551,
+      "coverage": {
+        "anonymous_enum_projections": 0,
+        "enum_constants": 0,
+        "ffi_fixture": null,
+        "field_offsets": 26,
+        "integer_constants": 491,
+        "records": 4,
+        "string_constants": 5
+      }
+    },
+    "consumer_lock_sha256": "080fb95dc7fa6c62c68c4e12ff93b7d3dbbf140c60525dcb3002569da1d40cc3",
+    "fixture_lock_sha256": "ea9bab4f91ccccc2973344696f26cb318a6b307683bd57164e65dec246ffe723",
+    "integration_change": "replace libsqlite3-sys bundled binding input; all bindings are unmodified Toucan output including explicit upstream callback overrides",
+    "result": "SQLite 3.53.2: 32 rows, prepared parameters, scalar/trace/extension callbacks, 8192 serialized bytes restored",
+    "status": "passed",
+    "tested_build_script_sha256": "269acf1864de5046ac5b77814926d41fe24108b0d027f635812a1db3c965f81f",
+    "tested_c_sha256": "0a409f1633283fa31a9126b11fbfd64a1991c5d30defad07e5745d4667f5e23d",
+    "tested_rust_sha256": "f61d8e306e11357479e20999f7b7adc5f3dbaea40cd17361853574001cf79360",
+    "upstream_build_script_sha256": "269acf1864de5046ac5b77814926d41fe24108b0d027f635812a1db3c965f81f",
+    "upstream_c_sha256": "0a409f1633283fa31a9126b11fbfd64a1991c5d30defad07e5745d4667f5e23d",
+    "upstream_rust_sha256": "f61d8e306e11357479e20999f7b7adc5f3dbaea40cd17361853574001cf79360"
+  },
+  "test_results": {
+    "all_features": {
+      "counting_method": "Sum of Rust test-harness result lines in this one step log. Includes nested worker/generated-test executions; not a unique-test count.",
+      "failed": 0,
+      "filtered_out": 80,
+      "ignored": 257,
+      "log": "tests _ Packages and allocators (macos-15)/4_Run cargo test --workspace --all-features --locked.txt",
+      "measured": 0,
+      "passed": 1082,
+      "result_lines": 295
+    },
+    "parameter_entry_oracles": {
+      "counting_method": "Sum of Rust test-harness result lines in this one step log. Includes nested worker/generated-test executions; not a unique-test count.",
+      "failed": 0,
+      "filtered_out": 0,
+      "ignored": 0,
+      "log": "tests _ Test (macos-15)/5_Check native parameter-entry oracles.txt",
+      "measured": 0,
+      "passed": 9,
+      "result_lines": 1
+    },
+    "workspace_include_ignored": {
+      "counting_method": "Sum of Rust test-harness result lines in this one step log. Includes nested worker/generated-test executions; not a unique-test count.",
+      "failed": 0,
+      "filtered_out": 80,
+      "ignored": 0,
+      "log": "tests _ Test (macos-15)/6_Run cargo test --workspace --no-fail-fast -- --include-ignored.txt",
+      "measured": 0,
+      "passed": 1346,
+      "result_lines": 296
+    }
+  },
+  "tool_sha256": {
+    "analyzer": "37cf4e061e556982c81910ed75ad260b02b067a616cdf83afbe85157fd3b41cc",
+    "bindgen": "a31458ad8c1fb64343b915659c99ff9c5747e3bcc28cfa01d7b32812cc9c21b2",
+    "toucan": "02f9c03a4a2fb2b7e010300e0e7760027e485fa84505dafd8ab6e4d5ad525a78"
+  },
+  "zstd_consumers": {
+    "zstd-consumer": [
+      {
+        "changed_upstream_files": [
+          "src/bindings_zdict.rs",
+          "src/bindings_zstd.rs"
+        ],
+        "consumed_bindings": [
+          {
+            "path": "/Users/runner/work/toucan/toucan/corpus/results/zstd-consumer/default/zstd_sys-604351e3ecdd059b.d",
+            "sha256": "c9c1b6958350afa19f215420d9696c6e1a65293e43947bae63717563e4b9e594"
+          }
+        ],
+        "consumer_lock_sha256": "e606bc94936d5f62239ccf395e12491521bff3497d7417d052b8916819b60e8b",
+        "evidence_sha256": "c50ebe634290264e9a6772983d09d6f739b5694f979071f778628f3a1d4410eb",
+        "fixture_lock_sha256": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+        "generated_bindings": {
+          "src/bindings_zdict.rs": {
+            "report_sha256": "0a56181b9a87fe9d15c500cea9eb89574be2764bd6293ad297d10d4c03238400",
+            "sha256": "487158f3de7036597cfdbc5d610a0e9f17967354c7688b1c0170b1fcb62ff4dc"
+          },
+          "src/bindings_zstd.rs": {
+            "report_sha256": "b074e15badb3dd2e899eafee0424bf978fcad36a5689070f8b6490e080f12efc",
+            "sha256": "7a0e1fc3a79d1f70a84a92cea803123412bfcaccd64ee3fe73b9466358a386ab"
+          }
+        },
+        "generated_layout_tests_passed": 4,
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "profile": "default",
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+        "status": "passed"
+      },
+      {
+        "changed_upstream_files": [
+          "src/bindings_zdict_experimental.rs",
+          "src/bindings_zstd_experimental.rs"
+        ],
+        "consumed_bindings": [
+          {
+            "path": "/Users/runner/work/toucan/toucan/corpus/results/zstd-consumer/experimental/zstd_sys-4254985d562bf295.d",
+            "sha256": "abd311d523887f2f59a48419e9ce41cd13a76a003783ac6669746c3713e626ca"
+          }
+        ],
+        "consumer_lock_sha256": "e606bc94936d5f62239ccf395e12491521bff3497d7417d052b8916819b60e8b",
+        "evidence_sha256": "11a8cb65c83d5d5e266c78fa4e42644788f4fd76d49a7f27f943eec77c0a27f3",
+        "fixture_lock_sha256": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+        "generated_bindings": {
+          "src/bindings_zdict_experimental.rs": {
+            "report_sha256": "6b577e6402141caa390735f0ce16e52151198c5ca692470b65720a6c25c9465a",
+            "sha256": "bece0f741aa25200edaa2cd77e9b20f749a5899bbe8980115288353142ac1909"
+          },
+          "src/bindings_zstd_experimental.rs": {
+            "report_sha256": "2fafebb8c3168ffbe6245e76ebc85127db0e20e8a0a456fc9f15b7c52c7820db",
+            "sha256": "13607b184bdf648a3ffd6e703e61832cb6a72695f39a4268e714613b255f298f"
+          }
+        },
+        "generated_layout_tests_passed": 14,
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "cover.dict": "09250e48d1703a48ef0c49c0d0799f1c3a14c966b6f84af3edc95b881580ee3b",
+          "cover.zst": "2702a59799e637db5cf3fcaeead75a47ec409fd27eae76bfb06568b60aa4d05a",
+          "magicless.zst": "5eabc8d960e984e311506b2fef2b038839bb026be9a7ed9587676ebc50d1081a",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "profile": "experimental",
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nexperimental magicless: 10205 bytes, fingerprint 7e84c87064fefd9a\ndictionary: 2048 bytes, frame 10241 bytes, fingerprint 1a81c281c0a78643",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+        "status": "passed"
+      },
+      {
+        "changed_upstream_files": [
+          "src/bindings_zdict_experimental.rs",
+          "src/bindings_zstd_experimental.rs"
+        ],
+        "consumed_bindings": [
+          {
+            "path": "/Users/runner/work/toucan/toucan/corpus/results/zstd-consumer/experimental-zstdmt/zstd_sys-38f24ab2ebd1abce.d",
+            "sha256": "a7cb81c73930a3bbdca377b046dd258bcbef481d47275b7d5ff45af4d0366b74"
+          }
+        ],
+        "consumer_lock_sha256": "e606bc94936d5f62239ccf395e12491521bff3497d7417d052b8916819b60e8b",
+        "evidence_sha256": "b98ec1e4051ced9a5b6c52903af8f2114b3c5c211d50233a2e5781fbdb53c2fe",
+        "fixture_lock_sha256": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+        "generated_bindings": {
+          "src/bindings_zdict_experimental.rs": {
+            "report_sha256": "e9d8d634da280c184db225c99cac4ef17b1e581566a478ee7ba4204ed281052c",
+            "sha256": "bece0f741aa25200edaa2cd77e9b20f749a5899bbe8980115288353142ac1909"
+          },
+          "src/bindings_zstd_experimental.rs": {
+            "report_sha256": "bdcb3f4f40f550678b63aca312b8b34d8210eba3a3fa74a90993bd395e8b49de",
+            "sha256": "13607b184bdf648a3ffd6e703e61832cb6a72695f39a4268e714613b255f298f"
+          }
+        },
+        "generated_layout_tests_passed": 14,
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "cover.dict": "09250e48d1703a48ef0c49c0d0799f1c3a14c966b6f84af3edc95b881580ee3b",
+          "cover.zst": "2702a59799e637db5cf3fcaeead75a47ec409fd27eae76bfb06568b60aa4d05a",
+          "magicless.zst": "5eabc8d960e984e311506b2fef2b038839bb026be9a7ed9587676ebc50d1081a",
+          "shared-pool.zst": "0b650b767f651e9b96e8d0dcad4f19308b3a50ea1bcb8ef09d7be63355d2d0eb",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "threaded.zst": "1ec211dc7daba518c019b96eae15ab5476ca5f92ff556adec201a28964910e1f",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "profile": "experimental-zstdmt",
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nexperimental magicless: 10205 bytes, fingerprint 7e84c87064fefd9a\ndictionary: 2048 bytes, frame 10241 bytes, fingerprint 1a81c281c0a78643\nthreaded: 5963168 bytes, frame 10526 bytes, fingerprint 904827859d7c6675\nshared pool: 6 jobs, frame 10522 bytes, fingerprint 759f0594c26484e1",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+        "status": "passed"
+      },
+      {
+        "changed_upstream_files": [
+          "src/bindings_zdict.rs",
+          "src/bindings_zstd.rs"
+        ],
+        "consumed_bindings": [
+          {
+            "path": "/Users/runner/work/toucan/toucan/corpus/results/zstd-consumer/zstdmt/zstd_sys-c9a1191168a4999a.d",
+            "sha256": "842960d57bde81b58b0013035f1c4e8b826f3c01f1b6fe7b17b44df5003a5d61"
+          }
+        ],
+        "consumer_lock_sha256": "e606bc94936d5f62239ccf395e12491521bff3497d7417d052b8916819b60e8b",
+        "evidence_sha256": "29476b1a8028bcad45ec54a6dc07bd9e2c7c5e654e3dfc9356afc3b92404a6b2",
+        "fixture_lock_sha256": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+        "generated_bindings": {
+          "src/bindings_zdict.rs": {
+            "report_sha256": "281d3403237ed9fa7c17cdf3766f85b5f76242153bad271afbf3bfe5f86fe5e4",
+            "sha256": "487158f3de7036597cfdbc5d610a0e9f17967354c7688b1c0170b1fcb62ff4dc"
+          },
+          "src/bindings_zstd.rs": {
+            "report_sha256": "524834a524ec3c333dfd1675e326c63963943beb1dbda7234b945e3a6add2970",
+            "sha256": "7a0e1fc3a79d1f70a84a92cea803123412bfcaccd64ee3fe73b9466358a386ab"
+          }
+        },
+        "generated_layout_tests_passed": 4,
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "threaded.zst": "1ec211dc7daba518c019b96eae15ab5476ca5f92ff556adec201a28964910e1f",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "profile": "zstdmt",
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nthreaded: 5963168 bytes, frame 10526 bytes, fingerprint 904827859d7c6675",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+        "status": "passed"
+      }
+    ],
+    "zstd-consumer-msrv": [
+      {
+        "changed_upstream_files": [
+          "src/bindings_zdict.rs",
+          "src/bindings_zstd.rs"
+        ],
+        "consumed_bindings": [
+          {
+            "path": "/Users/runner/work/toucan/toucan/corpus/results/zstd-consumer-msrv/default/zstd_sys-45bb51abf6f1a883.d",
+            "sha256": "db317a1788812ecffffccb493bbc6f6147aa21ae513c727f64914367a79b6a79"
+          }
+        ],
+        "consumer_lock_sha256": "e606bc94936d5f62239ccf395e12491521bff3497d7417d052b8916819b60e8b",
+        "evidence_sha256": "1cfcd5dd3ac76516ede06328521acaf8adafe91e976b14e96af509dc27f327bd",
+        "fixture_lock_sha256": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+        "generated_bindings": {
+          "src/bindings_zdict.rs": {
+            "report_sha256": "bfa1f0607a319828f177278df8e0e416e1eba9e09b4634710e1c1508a2996da8",
+            "sha256": "487158f3de7036597cfdbc5d610a0e9f17967354c7688b1c0170b1fcb62ff4dc"
+          },
+          "src/bindings_zstd.rs": {
+            "report_sha256": "7adc1b8fe3649871815572db45c54d7706f6e2b0dde21fab8a5a8b1858cfd0ff",
+            "sha256": "7a0e1fc3a79d1f70a84a92cea803123412bfcaccd64ee3fe73b9466358a386ab"
+          }
+        },
+        "generated_layout_tests_passed": 4,
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "profile": "default",
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed",
+        "rustc": "rustc 1.64.0 (a55dd71d5 2022-09-19)",
+        "status": "passed"
+      },
+      {
+        "changed_upstream_files": [
+          "src/bindings_zdict_experimental.rs",
+          "src/bindings_zstd_experimental.rs"
+        ],
+        "consumed_bindings": [
+          {
+            "path": "/Users/runner/work/toucan/toucan/corpus/results/zstd-consumer-msrv/experimental/zstd_sys-6f7f19681fa5835e.d",
+            "sha256": "bb880c75fa7966b4ed9d2404ef6c84d0c26b66c01bbc5174f6dbefa1d86797c0"
+          }
+        ],
+        "consumer_lock_sha256": "e606bc94936d5f62239ccf395e12491521bff3497d7417d052b8916819b60e8b",
+        "evidence_sha256": "6e2e01b5fe6fde49141a202f231b2e91344474941f778dd500d7d2b5b8cae0b5",
+        "fixture_lock_sha256": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+        "generated_bindings": {
+          "src/bindings_zdict_experimental.rs": {
+            "report_sha256": "0c737b5047f38d35adc48969c7c42b3fad6b455bf55d9c4bcea8f2269a5ae7f8",
+            "sha256": "bece0f741aa25200edaa2cd77e9b20f749a5899bbe8980115288353142ac1909"
+          },
+          "src/bindings_zstd_experimental.rs": {
+            "report_sha256": "1576380cb1b226f374546ec709691260648ff673924161732829cee618d4d96f",
+            "sha256": "13607b184bdf648a3ffd6e703e61832cb6a72695f39a4268e714613b255f298f"
+          }
+        },
+        "generated_layout_tests_passed": 14,
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "cover.dict": "09250e48d1703a48ef0c49c0d0799f1c3a14c966b6f84af3edc95b881580ee3b",
+          "cover.zst": "2702a59799e637db5cf3fcaeead75a47ec409fd27eae76bfb06568b60aa4d05a",
+          "magicless.zst": "5eabc8d960e984e311506b2fef2b038839bb026be9a7ed9587676ebc50d1081a",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "profile": "experimental",
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nexperimental magicless: 10205 bytes, fingerprint 7e84c87064fefd9a\ndictionary: 2048 bytes, frame 10241 bytes, fingerprint 1a81c281c0a78643",
+        "rustc": "rustc 1.64.0 (a55dd71d5 2022-09-19)",
+        "status": "passed"
+      },
+      {
+        "changed_upstream_files": [
+          "src/bindings_zdict_experimental.rs",
+          "src/bindings_zstd_experimental.rs"
+        ],
+        "consumed_bindings": [
+          {
+            "path": "/Users/runner/work/toucan/toucan/corpus/results/zstd-consumer-msrv/experimental-zstdmt/zstd_sys-738c94813a27481f.d",
+            "sha256": "e08fa669e65172b1a52fa24a920b97cfe4751418599b76e80e1d998d79459948"
+          }
+        ],
+        "consumer_lock_sha256": "e606bc94936d5f62239ccf395e12491521bff3497d7417d052b8916819b60e8b",
+        "evidence_sha256": "343423da7c0c5ea6c4075b9bde841e2651ecca7a58565ffa78473ca717f759de",
+        "fixture_lock_sha256": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+        "generated_bindings": {
+          "src/bindings_zdict_experimental.rs": {
+            "report_sha256": "d28303c20af14dd8558d13fa76cafc358e40e7f72087fd84663496315662b6f8",
+            "sha256": "bece0f741aa25200edaa2cd77e9b20f749a5899bbe8980115288353142ac1909"
+          },
+          "src/bindings_zstd_experimental.rs": {
+            "report_sha256": "9fefd5126a0de175d643a351e34019a49f78f08fde446d511a478dc84f3391bb",
+            "sha256": "13607b184bdf648a3ffd6e703e61832cb6a72695f39a4268e714613b255f298f"
+          }
+        },
+        "generated_layout_tests_passed": 14,
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "cover.dict": "09250e48d1703a48ef0c49c0d0799f1c3a14c966b6f84af3edc95b881580ee3b",
+          "cover.zst": "2702a59799e637db5cf3fcaeead75a47ec409fd27eae76bfb06568b60aa4d05a",
+          "magicless.zst": "5eabc8d960e984e311506b2fef2b038839bb026be9a7ed9587676ebc50d1081a",
+          "shared-pool.zst": "0b650b767f651e9b96e8d0dcad4f19308b3a50ea1bcb8ef09d7be63355d2d0eb",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "threaded.zst": "1ec211dc7daba518c019b96eae15ab5476ca5f92ff556adec201a28964910e1f",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "profile": "experimental-zstdmt",
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nexperimental magicless: 10205 bytes, fingerprint 7e84c87064fefd9a\ndictionary: 2048 bytes, frame 10241 bytes, fingerprint 1a81c281c0a78643\nthreaded: 5963168 bytes, frame 10526 bytes, fingerprint 904827859d7c6675\nshared pool: 6 jobs, frame 10522 bytes, fingerprint 759f0594c26484e1",
+        "rustc": "rustc 1.64.0 (a55dd71d5 2022-09-19)",
+        "status": "passed"
+      },
+      {
+        "changed_upstream_files": [
+          "src/bindings_zdict.rs",
+          "src/bindings_zstd.rs"
+        ],
+        "consumed_bindings": [
+          {
+            "path": "/Users/runner/work/toucan/toucan/corpus/results/zstd-consumer-msrv/zstdmt/zstd_sys-089413f4d0a86053.d",
+            "sha256": "aac90f587ada7ccbcc5023bb69c34e939b3d520b7482935e09e00ed202514892"
+          }
+        ],
+        "consumer_lock_sha256": "e606bc94936d5f62239ccf395e12491521bff3497d7417d052b8916819b60e8b",
+        "evidence_sha256": "ec6553895cbd0a8d22ab608e1abe30b036a3fcc933dff8baf94e17870d881d68",
+        "fixture_lock_sha256": "57b9742b20e8996a7a0f15248f630d6188120f6c29cd14730b7fcf9c820bf79a",
+        "generated_bindings": {
+          "src/bindings_zdict.rs": {
+            "report_sha256": "46a7d1758d0bcdfbb532fc314dbfc8ec47032eac39674ac001c6f78d595451d6",
+            "sha256": "487158f3de7036597cfdbc5d610a0e9f17967354c7688b1c0170b1fcb62ff4dc"
+          },
+          "src/bindings_zstd.rs": {
+            "report_sha256": "5db914bce5d1d7e7ec504c330840b56560166a56d8af20be213f5f47ea6153d9",
+            "sha256": "7a0e1fc3a79d1f70a84a92cea803123412bfcaccd64ee3fe73b9466358a386ab"
+          }
+        },
+        "generated_layout_tests_passed": 4,
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "threaded.zst": "1ec211dc7daba518c019b96eae15ab5476ca5f92ff556adec201a28964910e1f",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "profile": "zstdmt",
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nthreaded: 5963168 bytes, frame 10526 bytes, fingerprint 904827859d7c6675",
+        "rustc": "rustc 1.64.0 (a55dd71d5 2022-09-19)",
+        "status": "passed"
+      }
+    ]
+  },
+  "zstd_unchanged_build_script": {
+    "build_script_sha256": "d92ade96b5f7c04496b1e928c564fcf52bb7d59439f56262407da77c5628458d",
+    "builder_lock_sha256": "5e5d920f7589878b2ab58308d699bd236fb66be46226fecea5bbf59f87338d64",
+    "changed_upstream_files": [
+      "Cargo.toml"
+    ],
+    "consumed_bindings": [
+      {
+        "bindings": "/Users/runner/work/toucan/toucan/corpus/results/bindgen-builder/zstd-sys-2f9a6fcc27927dc0/bindings.rs",
+        "bindings_sha256": "f29350f5a3e110a9e7f65bb4a7970b0c7f2c5aad1902f8f33ceea83c17516d25",
+        "dep_info": "/Users/runner/work/toucan/toucan/corpus/results/bindgen-builder/zstd-sys-2f9a6fcc27927dc0/zstd_sys-00d6d0ee14859691.d",
+        "dep_info_sha256": "67d0d2d12323a026a4b0d61e88c9b0a3f44e41c4b87683b307e06d44b51a5882"
+      },
+      {
+        "bindings": "/Users/runner/work/toucan/toucan/corpus/results/bindgen-builder/zstd-sys-443581226b3ed674/bindings.rs",
+        "bindings_sha256": "f29350f5a3e110a9e7f65bb4a7970b0c7f2c5aad1902f8f33ceea83c17516d25",
+        "dep_info": "/Users/runner/work/toucan/toucan/corpus/results/bindgen-builder/zstd-sys-443581226b3ed674/zstd_sys-32a709bd6af9692f.d",
+        "dep_info_sha256": "963b846dbcaf8b7afa8389b43449d26e58c7cef27d23846bb02be5c0b8cece83"
+      },
+      {
+        "bindings": "/Users/runner/work/toucan/toucan/corpus/results/bindgen-builder/zstd-sys-00482451b33edc42/bindings.rs",
+        "bindings_sha256": "bbc9b9c7a4529534ed37fd4da67df401bfb9c99ff6d4d030858bda6c989d7507",
+        "dep_info": "/Users/runner/work/toucan/toucan/corpus/results/bindgen-builder/zstd-sys-00482451b33edc42/zstd_sys-33dd2d81e105eca9.d",
+        "dep_info_sha256": "72245a55099db5bdc1f86482f8f7393487d4f120baf133dd4e133e8d30fe47c3"
+      },
+      {
+        "bindings": "/Users/runner/work/toucan/toucan/corpus/results/bindgen-builder/zstd-sys-d9dd2607ace393bc/bindings.rs",
+        "bindings_sha256": "bbc9b9c7a4529534ed37fd4da67df401bfb9c99ff6d4d030858bda6c989d7507",
+        "dep_info": "/Users/runner/work/toucan/toucan/corpus/results/bindgen-builder/zstd-sys-d9dd2607ace393bc/zstd_sys-61c4b5f72e674c99.d",
+        "dep_info_sha256": "9386ad9d4c8680e7fc550863da64693046fb3d93eac3e5795566b1fd7ce25e6f"
+      }
+    ],
+    "evidence_sha256": "1f9ada5b3f94c7d1d6f764a99aa5afa588ec8dd78164de1b7e20cfef7af4ebda",
+    "execution": "native",
+    "profiles": {
+      "default": {
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\n",
+        "status": "passed"
+      },
+      "experimental": {
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "cover.dict": "09250e48d1703a48ef0c49c0d0799f1c3a14c966b6f84af3edc95b881580ee3b",
+          "cover.zst": "2702a59799e637db5cf3fcaeead75a47ec409fd27eae76bfb06568b60aa4d05a",
+          "magicless.zst": "5eabc8d960e984e311506b2fef2b038839bb026be9a7ed9587676ebc50d1081a",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nexperimental magicless: 10205 bytes, fingerprint 7e84c87064fefd9a\ndictionary: 2048 bytes, frame 10241 bytes, fingerprint 1a81c281c0a78643\n",
+        "status": "passed"
+      },
+      "experimental-zstdmt": {
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "cover.dict": "09250e48d1703a48ef0c49c0d0799f1c3a14c966b6f84af3edc95b881580ee3b",
+          "cover.zst": "2702a59799e637db5cf3fcaeead75a47ec409fd27eae76bfb06568b60aa4d05a",
+          "magicless.zst": "5eabc8d960e984e311506b2fef2b038839bb026be9a7ed9587676ebc50d1081a",
+          "shared-pool.zst": "0b650b767f651e9b96e8d0dcad4f19308b3a50ea1bcb8ef09d7be63355d2d0eb",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "threaded.zst": "1ec211dc7daba518c019b96eae15ab5476ca5f92ff556adec201a28964910e1f",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nexperimental magicless: 10205 bytes, fingerprint 7e84c87064fefd9a\ndictionary: 2048 bytes, frame 10241 bytes, fingerprint 1a81c281c0a78643\nthreaded: 5963168 bytes, frame 10526 bytes, fingerprint 904827859d7c6675\nshared pool: 6 jobs, frame 10522 bytes, fingerprint 759f0594c26484e1\n",
+        "status": "passed"
+      },
+      "zstdmt": {
+        "identical_runtime_artifacts": {
+          "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+          "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+          "threaded.zst": "1ec211dc7daba518c019b96eae15ab5476ca5f92ff556adec201a28964910e1f",
+          "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+          "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+        },
+        "result": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\nthreaded: 5963168 bytes, frame 10526 bytes, fingerprint 904827859d7c6675\n",
+        "status": "passed"
+      }
+    },
+    "status": "passed"
+  }
+}

@@ -391,6 +391,7 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             TypeQualifier::Const => "Const",
             TypeQualifier::Restrict => "Restrict",
             TypeQualifier::Volatile => "Volatile",
+            TypeQualifier::Unaligned => "Unaligned",
             TypeQualifier::Nonnull => "Nonnull",
             TypeQualifier::NullUnspecified => "NullUnspecified",
             TypeQualifier::Nullable => "Nullable",

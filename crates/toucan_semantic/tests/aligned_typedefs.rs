@@ -26,21 +26,21 @@ fn typedef_layouts_and_c_alignment_queries_preserve_record_identity() {
     for target in Target::ALL {
         let unit = analyze(SOURCE, target).unwrap();
         for (name, size, alignment) in [
-            ("Maximum", 4, 16),
+            ("Maximum", 4, if target.is_armv7() { 8 } else { 16 }),
             ("I1", 4, 1),
             ("I16", 4, 16),
             ("I2", 4, 2),
             ("Chain", 4, 1),
             ("Arr", 12, 16),
             ("S1", 8, 1),
-            ("P16", 8, 16),
+            ("P16", target.pointer_width() / 8, 16),
         ] {
             let ty = Type::new(TypeKind::Typedef(name.into()));
             let layout = unit.layout(&ty).unwrap();
             assert_eq!(layout.size_bytes(), size, "{target:?} {name}");
             assert_eq!(unit.alignment(&ty).unwrap(), alignment, "{target:?} {name}");
         }
-        for (name, size, align, x, z) in if target == Target::X86_64PcWindowsMsvc {
+        for (name, size, align, x, z) in if target.is_windows() {
             [
                 ("S", 8, 4, 4, 4),
                 ("F1", 12, 4, 4, 8),

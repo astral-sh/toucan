@@ -3,7 +3,7 @@ use toucan_semantic::{
     analyze_with_profile,
     checked::{Builtin, Conversion, ExprKind, ImmediateStage, UseContext},
 };
-use toucan_target::{Compiler, CompilerProfile, LanguageMode};
+use toucan_target::{Compiler, CompilerProfile, LanguageMode, Target};
 
 fn profiles() -> impl Iterator<Item = CompilerProfile> {
     CompilerProfile::ALL
@@ -87,6 +87,16 @@ fn optional_hints_keep_compiler_checking_stage() {
             "void f(void(*p)(void)){__builtin_prefetch(p);}",
             "void f(int n,int(*p)[n]){__builtin_prefetch(p++);}",
         ] {
+            if (profile.target() == Target::I686UnknownLinuxGnu || profile.target().is_armv7())
+                && source.contains("__int128")
+            {
+                let error = check(source, profile).unwrap_err();
+                assert!(
+                    error.message.contains("__int128 is unavailable"),
+                    "{profile:?}: {error}"
+                );
+                continue;
+            }
             check(source, profile).unwrap();
         }
         for source in [

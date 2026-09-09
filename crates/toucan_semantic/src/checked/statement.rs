@@ -1305,7 +1305,8 @@ mod tests {
                 .unwrap();
             let gnu = matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu
+                Target::I686UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxGnu
                     | Target::X86_64UnknownLinuxMusl
                     | Target::Aarch64UnknownLinuxGnu
                     | Target::Aarch64UnknownLinuxMusl
@@ -1351,8 +1352,24 @@ mod tests {
         let source = "int f(int x) {int y; __asm__ volatile(\"\" : \"=r\"(y) : \"0\"(x) : \"cc\"); __asm__(\"\" : \"+rm\"(x) : \"m\"(y) : \"memory\"); __asm__(\"nop\"); return x;}";
         for target in Target::ALL
             .into_iter()
-            .filter(|target| *target != Target::X86_64PcWindowsMsvc)
+            .filter(|target| !target.is_windows())
         {
+            if target.is_armv7() {
+                for source in [source, "void f(void) { __asm__(\"nop\"); }"] {
+                    let plain = crate::analyze(source, target).unwrap_err();
+                    let retained =
+                        analyze_inner(source, target, Some(Limits::default())).unwrap_err();
+                    assert_eq!(
+                        plain.message,
+                        "GNU inline assembly is unsupported for this target"
+                    );
+                    assert_eq!(
+                        (plain.offset, plain.message),
+                        (retained.offset, retained.message)
+                    );
+                }
+                continue;
+            }
             let code = checked(source, target);
             let assemblies: Vec<_> = code
                 .statements

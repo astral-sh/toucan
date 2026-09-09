@@ -117,12 +117,21 @@ fn options() -> BindingOptions {
     }
 }
 
+fn options_for_target(target: Target) -> BindingOptions {
+    let mut options = options();
+    if target == Target::Armv7UnknownLinuxGnueabihf {
+        // The hard-float ABI guard uses cfg(target_abi), stabilized in Rust 1.78.
+        options.rust_target = RustTarget::stable(78).unwrap();
+    }
+    options
+}
+
 #[test]
 fn strings_preserve_target_types_and_all_code_units() {
     for target in Target::ALL {
         let cases = cases(target);
         let compilation = parse(&header(&cases), target);
-        let (source, report) = compilation.bindings(&options()).unwrap();
+        let (source, report) = compilation.bindings(&options_for_target(target)).unwrap();
         assert_eq!(report.string_macros, cases.len());
         assert_eq!(report.integer_macros, 0);
         assert!(
@@ -229,6 +238,33 @@ fn public_wide_macro_values_cannot_truncate_or_claim_another_element_type() {
         .into();
         assert!(toucan_bindings::generate_with_macros(&unit, &options(), &macros).is_err());
     }
+}
+
+#[test]
+fn i686_gcc_wide_long_macros_keep_signed_code_units() {
+    use toucan::semantic::IntegerKind;
+    use toucan_bindings::MacroValue;
+
+    let macros = [(
+        "M_WIDE_LONG".into(),
+        Some(MacroValue::WideString {
+            element_type: IntegerKind::Long,
+            code_units: vec![u32::MAX],
+        }),
+    )]
+    .into();
+    let i686 = toucan::semantic::analyze("", Target::I686UnknownLinuxGnu).unwrap();
+    let bindings = toucan_bindings::generate_with_macros(&i686, &options(), &macros).unwrap();
+    assert!(
+        bindings
+            .source
+            .contains("pub const M_WIDE_LONG: &[::core::primitive::i32; 2] = &[-1, 0];"),
+        "{}",
+        bindings.source
+    );
+
+    let x86_64 = toucan::semantic::analyze("", Target::X86_64UnknownLinuxGnu).unwrap();
+    assert!(toucan_bindings::generate_with_macros(&x86_64, &options(), &macros).is_err());
 }
 
 fn c_source(cases: &[Case]) -> String {
@@ -374,7 +410,9 @@ fn rust_run(source: &str) {
 fn emitted_arrays_and_cstr_match_native_c_and_compile_as_rust() {
     for target in Target::ALL {
         let cases = cases(target);
-        let (bindings, _) = parse(&header(&cases), target).bindings(&options()).unwrap();
+        let (bindings, _) = parse(&header(&cases), target)
+            .bindings(&options_for_target(target))
+            .unwrap();
         // Constant arrays are portable Rust. Check each target's projection on
         // the host independently of the full bindings' deliberate target guard.
         let mut rust = bindings

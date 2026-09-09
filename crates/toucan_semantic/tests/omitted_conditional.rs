@@ -2,7 +2,7 @@ use toucan_semantic::{
     AnalysisOptions, ArithmeticConstant, analyze_with_profile, evaluate_arithmetic,
     evaluate_integer,
 };
-use toucan_target::{CompilerProfile, LanguageMode};
+use toucan_target::{CompilerProfile, LanguageMode, Target};
 
 #[test]
 fn omitted_conditionals_preserve_integer_and_floating_values() {
@@ -172,7 +172,10 @@ fn static_pointer_conditions_preserve_weak_binding_and_target_width() {
                     "clang"
                 }]
                 .as_bool()
-                .unwrap();
+                .unwrap()
+                    && !((profile.target() == Target::I686UnknownLinuxGnu
+                        || profile.target().is_armv7())
+                        && source.contains("__int128"));
                 let ordinary = analyze_with_profile(source, profile, &Default::default());
                 let retained = analyze_with_profile(
                     source,
@@ -191,7 +194,15 @@ fn static_pointer_conditions_preserve_weak_binding_and_target_width() {
                     (Ok(a), Ok(b)) => {
                         assert_eq!(format!("{:?}", a.unit()), format!("{:?}", b.unit()))
                     }
-                    (Err(a), Err(b)) => assert_eq!((a.offset, a.message), (b.offset, b.message)),
+                    (Err(a), Err(b)) => {
+                        if profile.target().is_armv7() && source.contains("__int128") {
+                            assert!(
+                                a.message
+                                    .contains("__int128 is unavailable on ARMv7 GNU Linux")
+                            );
+                        }
+                        assert_eq!((a.offset, a.message), (b.offset, b.message));
+                    }
                     (a, b) => panic!("{profile:?}: {source}: {a:?} / {b:?}"),
                 }
             }

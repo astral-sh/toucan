@@ -16,6 +16,36 @@ const TIMESTAMPS: &[(u64, &str, &str)] = &[
     (253_402_300_799, "Dec 31 9999", "23:59:59"),
 ];
 
+const MS_PRAGMA_SOURCE: &str = concat!(
+    "#define N 1\n#define PUSH(N) __pragma(pack(push, N))\n",
+    "#define POP __pragma(pack(pop))\n",
+    "#define PAREN (pack(push, 2))\n",
+    "#if 0\n__pragma(pack(push, 4))\n#endif\n",
+    "PUSH(N)\nstruct Packed { char c; int i; };\nPOP\n",
+    "__pragma PAREN\nstruct FromParen { char c; int i; };\n__pragma(pack(pop))\n",
+    "struct Ordinary { char c; int i; };\n",
+    "_Static_assert(sizeof(struct Packed) == 5, \"packed\");\n",
+    "_Static_assert(sizeof(struct FromParen) == 6, \"parenthesized\");\n",
+    "_Static_assert(sizeof(struct Ordinary) == 8, \"restored\");\n",
+    "#define A 1\n#pragma push_macro(\"A\")\n#undef A\n#define A 2\n",
+    "#define RESTORE __pragma(pop_macro(\"A\")) int restored = A;\n",
+    "RESTORE\nint still_restored = A;\n",
+);
+
+const MS_PRAGMA_SHADOW_SOURCE: &str = concat!(
+    "#if !defined(__pragma)\n#error missing MS builtin\n#endif\n",
+    "#ifndef __pragma\n#error missing MS builtin in ifndef\n#endif\n",
+    "#pragma push_macro(\"__pragma\")\n#undef __pragma\n",
+    "#if defined(__pragma)\n#error undef did not disable builtin\n#endif\n",
+    "#ifdef __pragma\n#error undef did not disable ifdef\n#endif\n",
+    "#define __pragma(x) 42\nint shadowed = __pragma(pack(push, 1));\n",
+    "#pragma pop_macro(\"__pragma\")\n",
+    "#if !defined(__pragma)\n#error pop did not restore builtin\n#endif\n",
+    "__pragma(pack(push, 2))\nstruct Restored { char c; int i; };\n",
+    "__pragma(pack(pop))\n",
+    "_Static_assert(sizeof(struct Restored) == 6, \"restored builtin\");\n",
+);
+
 #[test]
 fn date_time_formats_validated_utc_timestamps() {
     for &(seconds, date, time) in TIMESTAMPS {
@@ -1174,6 +1204,370 @@ fn pragma_operators_preserve_order_and_share_pragma_once_identity() {
         (origin.path.as_ref(), origin.line),
         (Path::new("logical.h"), 41)
     );
+}
+
+#[test]
+fn msvc_sdk_warning_and_editor_pragmas_leave_declarations_untouched() {
+    let source = concat!(
+        "#pragma warning ( push )\n",
+        "#pragma warning(push, 4)\n",
+        "#pragma warning(disable: 4668 4005; once: 4385; error: 164)\n",
+        "#pragma warning(suppress: 6273, justification: \"SDK annotation\")\n",
+        "#pragma region Input Buffer SAL 1 compatibility macros\n",
+        "#pragma pack(push, 1)\n",
+        "struct Packed { char first; int second; };\n",
+        "#pragma pack(pop)\n",
+        "#pragma endregion Input Buffer SAL 1 compatibility macros\n",
+        "#pragma warning(pop)\n",
+        "#define DISABLE _Pragma(\"warning(disable: 4996)\")\n",
+        "DISABLE\n",
+        "int after;\n",
+    );
+    assert_eq!(
+        preprocess(source),
+        "#pragma pack ( push , 1 )\nstruct Packed { char first ; int second ; } ;\n#pragma pack ( pop )\nint after ;\n"
+    );
+}
+
+#[test]
+fn msvc_warning_pragmas_expand_runtime_header_warning_lists() {
+    let config = Config {
+        allow_filesystem: false,
+        virtual_headers: BTreeMap::from([(
+            "vcruntime.h".into(),
+            "#define _VCRUNTIME_DISABLED_WARNINGS 4005 4068 4141\n".into(),
+        )]),
+        ..Config::default()
+    };
+    let source = concat!(
+        "#include <vcruntime.h>\n",
+        "#define EXTRA_WARNING 4996\n",
+        "#define WARNINGS _VCRUNTIME_DISABLED_WARNINGS EXTRA_WARNING\n",
+        "#pragma warning(push)\n",
+        "#pragma warning(disable: WARNINGS)\n",
+        "#define WARN_WITH(x) 4100 x\n",
+        "#pragma warning(disable: WARN_WITH(4300))\n",
+        "_Pragma(\"warning(default: WARNINGS)\")\n",
+        "#pragma warning(pop)\n",
+        "int from_sdk;\n",
+    );
+    let result = Preprocessor::new(config)
+        .preprocess_str(Path::new("sdk.h"), source)
+        .unwrap();
+    assert_eq!(result.source, "int from_sdk ;\n");
+    assert!(result.dependencies.is_empty());
+    let error = Preprocessor::new(Config::default())
+        .preprocess_str(
+            Path::new("sdk.h"),
+            "#define BAD unknown_warning\n#pragma warning(disable: BAD)\n",
+        )
+        .unwrap_err();
+    assert!(error.message.contains("unsupported pragma"), "{error}");
+    assert_eq!((error.path.as_path(), error.line), (Path::new("sdk.h"), 2));
+}
+
+#[test]
+fn push_and_pop_macro_restore_nested_definitions_and_absence_across_headers() {
+    let config = Config {
+        allow_filesystem: false,
+        record_file_origins: true,
+        record_macro_definitions: true,
+        virtual_headers: BTreeMap::from([("base.h".into(), "#define VALUE(x) x + 1\n".into())]),
+        ..Config::default()
+    };
+    let mut processor = Preprocessor::new(config);
+    let source = concat!(
+        "#include <base.h>\n",
+        "#pragma push_macro(\"VALUE\")\n",
+        "#undef VALUE\n#define VALUE(x) x * 2\nVALUE(3)\n",
+        "#pragma push_macro(\"VALUE\")\n",
+        "#undef VALUE\n#define VALUE(x) x - 1\nVALUE(3)\n",
+        "#pragma pop_macro(\"VALUE\")\nVALUE(3)\n",
+        "#pragma pop_macro(\"VALUE\")\nVALUE(3)\n",
+        "#pragma push_macro(\"ABSENT\")\n#define ABSENT 7\nABSENT\n",
+        "#pragma pop_macro(\"ABSENT\")\n",
+        "#ifdef ABSENT\n#error absent macro was not restored\n#endif\n",
+    );
+    let result = processor
+        .preprocess_str(Path::new("main.h"), source)
+        .unwrap();
+    assert_eq!(result.source, "3 * 2\n3 - 1\n3 * 2\n3 + 1\n7\n");
+    assert_eq!(result.macros["VALUE"].replacement, "x + 1");
+    assert!(!result.macros.contains_key("ABSENT"));
+    assert_eq!(
+        result
+            .macro_definitions()
+            .unwrap()
+            .iter()
+            .filter(|definition| definition.name() == "VALUE")
+            .count(),
+        3
+    );
+    let origins = result.file_origins().unwrap();
+    assert_eq!(
+        origins.macro_definition("VALUE").unwrap().path.as_ref(),
+        Path::new("<builtin>/base.h")
+    );
+    assert!(origins.macro_definition("ABSENT").is_none());
+    let error = processor
+        .preprocess_str(Path::new("other.h"), "#pragma pop_macro(\"VALUE\")\n")
+        .unwrap_err();
+    assert!(error.message.contains("no matching push_macro"));
+}
+
+#[test]
+fn pragma_pop_macro_changes_the_following_macro_expansion() {
+    let source = concat!(
+        "#define A 1\n",
+        "#pragma push_macro(\"A\")\n",
+        "#undef A\n#define A 2\n",
+        "#define RESTORE _Pragma(\"pop_macro(\\\"A\\\")\") A\n",
+        "RESTORE\nA\n",
+    );
+    assert_eq!(preprocess(source), "1 1\n");
+
+    // Repeated pragma barriers must still share the cumulative expansion budget.
+    let source = concat!(
+        "#define A 1\n",
+        "#define PUSH _Pragma(\"push_macro(\\\"A\\\")\")\n",
+        "#define FOUR PUSH PUSH PUSH PUSH\n",
+        "#define SIXTEEN FOUR FOUR FOUR FOUR\n",
+        "SIXTEEN\n",
+    );
+    let error = Preprocessor::new(Config {
+        max_tokens: 40,
+        ..Config::default()
+    })
+    .preprocess_str(Path::new("budget.h"), source)
+    .unwrap_err();
+    assert!(error.message.contains("token limit"), "{error}");
+}
+
+#[test]
+#[ignore = "requires Clang for a native _Pragma and pop_macro oracle"]
+fn pragma_pop_macro_expansion_matches_clang() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let source = concat!(
+        "#define A 1\n",
+        "#pragma push_macro(\"A\")\n",
+        "#undef A\n#define A 2\n",
+        "#define RESTORE _Pragma(\"pop_macro(\\\"A\\\")\") A\n",
+        "RESTORE\nA\n",
+    );
+    let actual = crate::token::render(&crate::token::lex(&preprocess(source)).unwrap());
+    for target in [None, Some("x86_64-pc-windows-msvc")] {
+        let mut compiler = Command::new("clang");
+        if let Some(target) = target {
+            compiler
+                .arg(format!("--target={target}"))
+                .arg("-fms-extensions");
+        }
+        let mut child = compiler
+            .args(["-E", "-P", "-std=gnu11", "-x", "c", "-"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("Clang is required for this differential test");
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(source.as_bytes())
+            .unwrap();
+        let output = child.wait_with_output().unwrap();
+        assert!(
+            output.status.success(),
+            "Clang {target:?}: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let expected = crate::token::render(
+            &crate::token::lex(&String::from_utf8(output.stdout).unwrap()).unwrap(),
+        );
+        assert_eq!(actual, expected, "Clang {target:?}");
+    }
+}
+
+#[test]
+fn msvc_pragma_operator_orders_pack_and_macro_stack_effects() {
+    let config = Config {
+        ms_extensions: true,
+        ..Config::default()
+    };
+    let mut processor = Preprocessor::new(config);
+    let result = processor
+        .preprocess_str(Path::new("msvc.h"), MS_PRAGMA_SOURCE)
+        .unwrap();
+    let source = &result.source;
+    for (before, after) in [
+        ("#pragma pack ( push , 1 )", "struct Packed"),
+        ("#pragma pack ( pop )", "#pragma pack ( push , 2 )"),
+        ("#pragma pack ( push , 2 )", "struct FromParen"),
+        ("struct FromParen", "struct Ordinary"),
+        ("int restored = 1", "int still_restored = 1"),
+    ] {
+        assert!(source.find(before).unwrap() < source.find(after).unwrap());
+    }
+    assert_eq!(source.matches("#pragma pack ( push").count(), 2);
+    assert!(result.is_defined("__pragma"));
+    assert_eq!(result.macros["A"].replacement, "1");
+
+    let result = processor
+        .preprocess_str(Path::new("shadow.h"), MS_PRAGMA_SHADOW_SOURCE)
+        .unwrap();
+    assert!(result.source.contains("int shadowed = 42 ;"));
+    assert_eq!(result.source.matches("#pragma pack ( push").count(), 1);
+    assert!(result.is_defined("__pragma"));
+    assert!(!result.macros.contains_key("__pragma"));
+    let result = processor
+        .preprocess_str(Path::new("reset.h"), "#if defined(__pragma)\n1\n#endif\n")
+        .unwrap();
+    assert_eq!(result.source, "1\n");
+
+    let ordinary = Preprocessor::new(Config::default())
+        .preprocess_str(
+            Path::new("ordinary.h"),
+            "#if defined(__pragma)\n#error builtin\n#endif\n__pragma(pack(push, 1))\n",
+        )
+        .unwrap();
+    assert!(ordinary.source.contains("__pragma"));
+
+    let error = Preprocessor::new(Config {
+        ms_extensions: true,
+        max_tokens: 40,
+        ..Config::default()
+    })
+    .preprocess_str(
+        Path::new("budget.h"),
+        "#define P __pragma(pack(push, 1))\n#define FOUR P P P P\n#define SIXTEEN FOUR FOUR FOUR FOUR\nSIXTEEN\n",
+    )
+    .unwrap_err();
+    assert!(error.message.contains("token limit"), "{error}");
+    for source in [
+        "__pragma\n",
+        "__pragma pack(push, 1)\n",
+        "__pragma(pack(push, 1)\n",
+    ] {
+        assert!(
+            Preprocessor::new(Config {
+                ms_extensions: true,
+                ..Config::default()
+            })
+            .preprocess_str(Path::new("invalid.h"), source)
+            .is_err(),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires Clang with MS extensions for an ARM64 Windows oracle"]
+fn msvc_pragma_operator_matches_clang_arm64() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let clang = |source: &str, mode: &str| {
+        let mut child = Command::new("clang")
+            .args(["--target=aarch64-pc-windows-msvc", "-fms-extensions", mode])
+            .args((mode == "-E").then_some("-P"))
+            .args(["-std=gnu11", "-x", "c", "-"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("Clang is required for this differential test");
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(source.as_bytes())
+            .unwrap();
+        child.wait_with_output().unwrap()
+    };
+    for source in [MS_PRAGMA_SOURCE, MS_PRAGMA_SHADOW_SOURCE] {
+        let preprocessed = Preprocessor::new(Config {
+            ms_extensions: true,
+            ..Config::default()
+        })
+        .preprocess_str(Path::new("msvc.c"), source)
+        .unwrap();
+        let output = clang(source, "-E");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let spelling = |source| crate::token::render(&crate::token::lex(source).unwrap());
+        assert_eq!(
+            spelling(&preprocessed.source),
+            spelling(&String::from_utf8(output.stdout).unwrap())
+        );
+        for input in [source, preprocessed.source.as_str()] {
+            let output = clang(input, "-fsyntax-only");
+            assert!(
+                output.status.success(),
+                "{input}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+}
+
+#[test]
+fn macro_stack_pragmas_check_syntax_and_limit_retained_state() {
+    for source in [
+        "#pragma push_macro(NAME)\n",
+        "#pragma push_macro(\"not a macro\")\n",
+        "#pragma push_macro(\"X\", \"Y\")\n",
+        "#pragma pop_macro(\"X\")\n",
+    ] {
+        assert!(
+            Preprocessor::new(Config::default())
+                .preprocess_str(Path::new("invalid.h"), source)
+                .is_err(),
+            "{source}"
+        );
+    }
+    let source = format!(
+        "#define NAME 1\n#define SAVE _Pragma(\"push_macro(\\\"NAME\\\")\")\n{}",
+        "SAVE\n#pragma message\n".repeat(100)
+    );
+    let error = Preprocessor::new(Config {
+        max_source_bytes: 4096,
+        ..Config::default()
+    })
+    .preprocess_str(Path::new("limit.h"), &source)
+    .unwrap_err();
+    assert!(error.message.contains("macro stack byte limit"), "{error}");
+}
+
+#[test]
+fn malformed_msvc_warning_pragmas_and_other_unknown_pragmas_still_fail() {
+    for pragma in [
+        "warning",
+        "warning(push, 5)",
+        "warning(pop, 1)",
+        "warning(disable)",
+        "warning(disable: not_a_number)",
+        "warning(disable: 4668;)",
+        "warning(disable: 4668, justification: 1)",
+        "warning(disable: 4668 4005, justification: \"multiple\")",
+        "warning(unknown: 4668)",
+        "warning(push) garbage",
+        "other_abi(push)",
+    ] {
+        let source = format!("#pragma {pragma}\n");
+        let error = Preprocessor::new(Config::default())
+            .preprocess_str(Path::new("sdk.h"), &source)
+            .unwrap_err();
+        assert!(
+            error.message.contains("unsupported pragma"),
+            "{pragma}: {error}"
+        );
+        assert_eq!((error.path.as_path(), error.line), (Path::new("sdk.h"), 1));
+    }
 }
 
 #[test]

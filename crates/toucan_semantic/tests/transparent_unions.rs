@@ -78,7 +78,8 @@ fn typedef_identity_and_scalar_conversion_follow_the_compiler_profile() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::Aarch64UnknownLinuxGnu
                 | Target::Aarch64UnknownLinuxMusl
@@ -113,7 +114,8 @@ fn retained_conversions_reference_source_fields_and_expose_parameter_abi() {
         let origin = unit.record_origin(record).unwrap();
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::Aarch64UnknownLinuxGnu
                 | Target::Aarch64UnknownLinuxMusl
@@ -326,7 +328,8 @@ fn member_type_alignment_is_distinct_from_field_and_union_alignment() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::Aarch64UnknownLinuxGnu
                 | Target::Aarch64UnknownLinuxMusl
@@ -359,7 +362,8 @@ fn typeof_aliases_preserve_known_identities_and_diagnose_missing_origins() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::Aarch64UnknownLinuxGnu
                 | Target::Aarch64UnknownLinuxMusl

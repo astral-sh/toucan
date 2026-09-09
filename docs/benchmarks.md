@@ -1,33 +1,35 @@
 # Benchmarks
 
-## Builder API baseline
+## Builder API comparison
 
-The [September 9 Builder comparison](../benchmarks/evidence/builder-acfb815/README.md)
-measures the actual Builder APIs on the same public-header roots and output policy,
-including comments and default derives. The frozen `acfb815` source produces these
-results against bindgen 0.72.1 with libclang 18.1.3:
+The [September 9 Builder refresh](../benchmarks/evidence/builder-66c8739/README.md)
+compares the actual Builder APIs on identical public-header roots and output
+policies, including comments and default derives. It measures published
+`66c87396` after a fresh production release build and native C/Rust preflight:
 
 | Project | Toucan Builder | bindgen | Median paired speedup |
 | --- | ---: | ---: | ---: |
-| zlib 1.3.1 | 21.82 ms | 116.11 ms | 5.30× |
-| SQLite 3.45.1 | 25.67 ms | 154.34 ms | 6.27× |
-| zstd 1.5.7 | 9.09 ms | 103.56 ms | 11.53× |
-| libgit2 1.9.1 | 192.71 ms | 261.73 ms | 1.37× |
+| zlib 1.3.1 | 22.22 ms | 117.93 ms | 5.30× |
+| SQLite 3.45.1 | 25.36 ms | 154.92 ms | 6.10× |
+| zstd 1.5.7 | 9.12 ms | 101.91 ms | 11.23× |
+| libgit2 1.9.1 | 192.85 ms | 263.19 ms | 1.37× |
 
 Times are medians of seven process medians; speedups are medians of seven matched
-pair ratios. Each process discards its first call and measures ten subsequent
-calls, for 560 measured generations on CPU 3 of a shared Linux host. All output
-and input hashes pass. The evidence preserves raw samples, spread, first-call
-costs, exact commands, and toolchain identities.
+pair ratios. Each process records its first call separately and measures ten
+subsequent calls, for 560 measured generations on CPU 3 of a shared Linux host.
+All output, input, binary, libclang and source hashes pass. The evidence retains
+raw samples, pair ranges, first-call costs, commands and toolchain identities.
 
-The [untimed preflight](../benchmarks/evidence/builder-preflight-acfb815/README.md)
-passes the shared signature, constant, layout, and native FFI checks. Exact API
-equality holds for zstd. Missing array-parameter aliases in zlib and SQLite,
-additional libgit2 aliases, and C-validated callback and sentinel differences
-remain recorded. This baseline precedes the alias fix. It measures generation,
-with the shared-host limits described in the capture; it does not measure complete
-application performance. The older core-route results below use a different
-workload and cannot establish a revision speedup for this Builder route.
+The [preflight](../benchmarks/evidence/builder-66c8739/README.md#validation)
+validates shared signatures, constants, layouts and native FFI calls. Structural
+API equality holds for zlib and zstd. SQLite's returned callback, ten extra
+libgit2 aliases and three signed sentinel values remain documented differences.
+All eight fresh outputs match the previous preflight byte for byte.
+These timings measure generation only. The [earlier callback capture](../benchmarks/evidence/builder-callback-final/README.md),
+[selection capture](../benchmarks/evidence/builder-selection/README.md),
+and [initial Builder capture](../benchmarks/evidence/builder-acfb815/README.md)
+remain separate evidence; these shared-host runs do not establish a statistically
+significant revision change or application speedup. The older core-route results below use a different workload.
 
 ## Subprocess harness
 

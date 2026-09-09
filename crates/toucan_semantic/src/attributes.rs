@@ -119,6 +119,12 @@ pub fn has_attribute(profile: CompilerProfile, name: &str) -> u64 {
                 || profile.target().is_aarch64() && profile.target().is_linux()
         }
         Aarch64SvePcs => profile.compiler() == Compiler::Clang,
+        Cdecl | SysvAbi if profile.target() == toucan_target::Target::I686UnknownLinuxGnu => true,
+        Stdcall | Fastcall | Thiscall | MsAbi
+            if profile.target() == toucan_target::Target::I686UnknownLinuxGnu =>
+        {
+            false
+        }
         Cdecl | Stdcall | Fastcall | Thiscall | MsAbi | SysvAbi => {
             profile.compiler() == Compiler::Clang
                 || profile.target().is_x86_64() && profile.target().is_linux()

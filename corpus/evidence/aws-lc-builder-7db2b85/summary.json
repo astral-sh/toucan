@@ -1,0 +1,1127 @@
+{
+  "recorded_at": "2026-09-09T12:32:58.226341+00:00",
+  "status": "passed",
+  "frontend_commit": "7db2b85027108be1515ad76263720e665cba2ab9",
+  "frontend_tree": "bd60fc965fd8b788df4be0ab5605c1f29fbdd506",
+  "frontend_source": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09",
+  "source_files": 2389,
+  "exact_source_inventory_unchanged": true,
+  "source_inventory_exceptions": [],
+  "target": "x86_64-unknown-linux-gnu",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+  "cc": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin\n",
+  "environment": {
+    "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo",
+    "RUSTUP_TOOLCHAIN": "stable",
+    "CARGO_INCREMENTAL": "0",
+    "CARGO_BUILD_JOBS": "2",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "paired_environment": {
+    "CC": "/usr/bin/clang-18",
+    "CFLAGS": "-I /usr/lib/llvm-18/lib/clang/18/include --sysroot /",
+    "CARGO_INCREMENTAL": "0",
+    "BINDGEN_EXTRA_CLANG_ARGS": "-I /usr/lib/llvm-18/lib/clang/18/include --sysroot /",
+    "LIBCLANG_PATH": "/usr/lib/llvm-18/lib",
+    "CC_ENABLE_DEBUG_OUTPUT": "1",
+    "AWS_LC_SYS_EXTERNAL_BINDGEN": "0"
+  },
+  "generated_rust_target": "1.70",
+  "wrapper_minimum_rust_version": "1.71",
+  "elapsed_validation_seconds": 236.38859868049622,
+  "free_before": 13926793216,
+  "free_after": 13560086528,
+  "frontend_artifacts": [
+    {
+      "log": "/home/dev-user/.cache/toucan/aws-lc-callback-final-2026-09-09/evidence/toucan-build.stdout",
+      "log_sha256": "3b5c72873994a4a6d89915dcd6b83dc6a7186011d8be2eb746f76ac23f9ed489",
+      "all_nine_frontend_crates": true,
+      "libclang_generator_crates_absent": true,
+      "artifacts": [
+        {
+          "name": "toucan_layout",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_layout/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_layout#0.0.1",
+          "fresh": false,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_layout-bc49545d266b9db1.rlib",
+          "rlib_sha256": "0dba81be2a0cc15751ef80e988fd7dce9850ecc709e652f4ddaba8713510374b",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_layout-bc49545d266b9db1.d",
+          "dep_info_sha256": "4a7daf3e56cd8b19a9b8f2db663e020473a50fafdc8a90b3b43524dfb447a3f3",
+          "source_inputs": {
+            "crates/toucan_layout/src/lib.rs": "4685082a5c6d4055f29312a212a5722b3af5fbd4faca0b128402ac20f35e94f7",
+            "crates/toucan_layout/src/builder/mod.rs": "a37255b02c68098ddb56d05896fa5e55bd6184588c622e9a1455d36e1bc6d875",
+            "crates/toucan_layout/src/builder/common.rs": "c1fa587f74a2c61ed99175bb6b327f0e2da6b1f0e2bb968ba669909b2435e987",
+            "crates/toucan_layout/src/builder/msvc.rs": "271454534df329737fd69c6b5a787125a9e42a992afc1989ca88413030264739",
+            "crates/toucan_layout/src/builder/sysv_like/mod.rs": "ec2f10ec5cb75dba9521fc6e71858f9df74da3acc483395c3e707e9d9840364c",
+            "crates/toucan_layout/src/builder/sysv_like/mingw.rs": "135b06f6384152e66d753b5091c820c6519a30eab283b4b8a7eebf751015c2d6",
+            "crates/toucan_layout/src/builder/sysv_like/sysv.rs": "bfd7238eb3820cce9951e197afc3fe663e88f7a1a70f99fc90fc85d62eb081f2",
+            "crates/toucan_layout/src/layout.rs": "83a366fd4e5786afec932ee18b5f74bfdee52c470355f2fc98d5c824d848d078",
+            "crates/toucan_layout/src/result.rs": "53b5fd6340cdbf394609f978f20c09b5e3755b2fa196ba6ff1cf9e3a63ec8a3f",
+            "crates/toucan_layout/src/target.rs": "1dc4b6b6ccc0f24766aa6e1d78b9e686645560c78c2387b2d1b793711dce335c",
+            "crates/toucan_layout/src/util.rs": "12476b43e943ba8eb1bd2976bbde40c07fa16ec7b4ce4d95bdf9ac00dffe2b5a",
+            "crates/toucan_layout/src/visitor.rs": "c3288eb855aad2084e13081479f6078f32c3032645a16c75e5a1d73e3c8e5000"
+          }
+        },
+        {
+          "name": "toucan_target",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_target/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_target#0.0.1",
+          "fresh": false,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_target-1390cd284500061e.rlib",
+          "rlib_sha256": "9632a690178e7abe4fcfa8956e1b42922e01019d8464e8356c9452a7e498c550",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_target-1390cd284500061e.d",
+          "dep_info_sha256": "0008ade37ac5178433ac152513eb554edbf8b9b820f6a07c7833d009f3f47751",
+          "source_inputs": {
+            "crates/toucan_target/src/lib.rs": "2f036b8010133f8e15b08eb4d61ba870be579a5f81d3f8db457a0fdc830bb224",
+            "crates/toucan_target/src/language.rs": "0b7d204823de07c77ad2087c8539d06a9a1d1cc7bcc9197d05aad2037255c44a",
+            "crates/toucan_target/src/macros.rs": "6904a09853299b8300a8ef3ac0a575edcecd553641f0545e89ff62d3817a2a34",
+            "crates/toucan_target/src/profile.rs": "779a2281f07ef5abbd2332559d7f6a919992d7b3e2304e5c0c79369aa407e8a8"
+          }
+        },
+        {
+          "name": "toucan_source",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_source/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_source#0.0.1",
+          "fresh": false,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_source-7c49dd112fda7ab2.rlib",
+          "rlib_sha256": "866f365258edcb82b70c45bc293c157d1d66d2e940506015bca5e7ee3b81bb02",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_source-7c49dd112fda7ab2.d",
+          "dep_info_sha256": "011634fe4557c7c1ddd3c99fd6dd13f7f4e9015e44a33ab419b92c54432fadf6",
+          "source_inputs": {
+            "crates/toucan_source/src/lib.rs": "d51303a95804152678ea0199f6a6d2662528e92a2a815e5bfd52bc45d4518b29"
+          }
+        },
+        {
+          "name": "toucan_preprocessor",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_preprocessor/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_preprocessor#0.0.1",
+          "fresh": false,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_preprocessor-1b3c338ef3e9ec25.rlib",
+          "rlib_sha256": "e1261324b2485d3fbe3b6b440fb8fcf1c1ad73dfa84ced8b51e4f24e292cc28a",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_preprocessor-1b3c338ef3e9ec25.d",
+          "dep_info_sha256": "b950ce45acec39ffa4feef28b009da46787b88b85fe2b9e67717226593a62916",
+          "source_inputs": {
+            "crates/toucan_preprocessor/src/lib.rs": "73c6b21272ffbb1c16c11e05c349a46290d0af7c15ba63e2cc7bb6887686ac9b",
+            "crates/toucan_preprocessor/src/file_identity.rs": "0a9885a3e7930bb3f19e7bdb7837ea80c58df100d593c2017d4b9b781d70f523",
+            "crates/toucan_preprocessor/src/file_origins.rs": "90ec11eeaf085b647ee55e75f0b185b1ff081faa77b5ac20405fa706e12c558a",
+            "crates/toucan_preprocessor/src/include_search.rs": "ea3a8fecd97342222f5c5db59c82623aaebef38feeeead82eb187c8c48327577",
+            "crates/toucan_preprocessor/src/macro_definitions.rs": "7ea5899311f48f3436377dcba4864ea3245ce282565c4b1bd7b296822cb68081",
+            "crates/toucan_preprocessor/src/macro_redefinitions.rs": "0a659f64ad4886c94d5432686fdb1c63bbc317795907b1ea7c93df104acd28fc",
+            "crates/toucan_preprocessor/src/comments.rs": "ebd36b8f75d7536bbde906b3634d400ea58805676d298c9cc26597c59d7c65f7",
+            "crates/toucan_preprocessor/src/documentation.rs": "2051266a00be2a384d52d7b37e99ae8744e7205d48742493f69b4e8b8a6afa8f",
+            "crates/toucan_preprocessor/src/definitions.rs": "cc98cc05604a42ebe598af172d3965593d321ae68bdb4d9ee9d3635145352b47",
+            "crates/toucan_preprocessor/src/expand.rs": "e6b8e18ca911f49420706aecd2e782f4f8a90f5de2584f37db29e5a90674e3fe",
+            "crates/toucan_preprocessor/src/expression.rs": "ad9a4b57e41017f11337b403acb224224261c4c068b26da10d269fc3c141d1b3",
+            "crates/toucan_preprocessor/src/provenance.rs": "b924ad4df444cd1127fc6334654d8921f784710088fa0843ef72de35a3de10a6",
+            "crates/toucan_preprocessor/src/queries.rs": "80ce7424bddcf520c4003a64fa65bcbe55cdf5c33851724ed0317302cc57981e",
+            "crates/toucan_preprocessor/src/timestamp.rs": "5e52c2b812d3fd88263dd35d51c13a9c8d9b35192d5d985e1b9d2a2536d769fe",
+            "crates/toucan_preprocessor/src/token.rs": "36e1b3036202f90b5220e3bac48e4756f1da34d20e6823bfc2b3c6a29cab2bd7"
+          }
+        },
+        {
+          "name": "toucan_parser",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_parser/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_parser#0.0.1",
+          "fresh": false,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_parser-3b7ab7a67dd65164.rlib",
+          "rlib_sha256": "4f68056a92e1309ab7d861aca1c133401bb5959e3db25405c22e6e4b0363d4a2",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_parser-3b7ab7a67dd65164.d",
+          "dep_info_sha256": "bed386d85a398043b3f1cc923cbc7e15ada6731a2ee997a78373121daae52d49",
+          "source_inputs": {
+            "crates/toucan_parser/src/lib.rs": "931a9a9d4cd3b9793dafefaf5e72dbbe23a2ad248ed7d10cb74c35d574c13969",
+            "crates/toucan_parser/src/ast.rs": "007d996f07db86c74d88798a5e50c5c8975ef661044851607000d4879935b5c8",
+            "crates/toucan_parser/src/driver.rs": "13edda8889adb49ed4c91e045ebbe8943f0deba3171f0fe58a2c5ddc41bdd581",
+            "crates/toucan_parser/src/limits.rs": "11463bf3ae7c7714b4c9ad19f7f2ddf836b91880e621a40464c376dd14c06aa2",
+            "crates/toucan_parser/src/loc.rs": "2e6629ee87f17c940ca857d17d1f1b8368c1869323ff5991e6d3482bbe7d598e",
+            "crates/toucan_parser/src/print.rs": "484eeb9f6e255c30a0c14440268aab3735d577b074486a343abd87a60571b874",
+            "crates/toucan_parser/src/span.rs": "55709b3ec6a74577ed4b333f635779daf78471ec4861f30857a1a53955e02052",
+            "crates/toucan_parser/src/visit.rs": "dc39cf7d5de5450d857c4a5e25cdc46d8bc9390db51d0c7e2cdb4d20dd26d064",
+            "crates/toucan_parser/src/astutil.rs": "76b3ea93154ccf1be356a5b8e4dbf1deb6a4e826d995436b33fb3fdb86f66f9b",
+            "crates/toucan_parser/src/env.rs": "0e0e47d2f4bfd3f4ede69d254559bba4fbe2f3d4f65bd9359ab88483047f74d0",
+            "crates/toucan_parser/src/measure.rs": "aab1aa7c9d28fbcb0ef4b2f65f5be9fd764c5e56d906374bd5589081dc54ea53",
+            "crates/toucan_parser/src/parser.rs": "3b07f0f79fdb8dc5f7ba65000e8e66faf73cf36bee54469241ab7d49c2b642b9",
+            "crates/toucan_parser/src/strings.rs": "a8cc3d9da555cb6deedaef5008818eaee733fdcb56b5823ffaf0334d8e035723"
+          }
+        },
+        {
+          "name": "toucan_bindings",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_bindings/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_bindings#0.0.1",
+          "fresh": false,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_bindings-0f7b1a9550c7a268.rlib",
+          "rlib_sha256": "beb51d7f0c122fde27f7778f4687cce8c8f7262234184f95c8a7dd14d0864f7b",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_bindings-0f7b1a9550c7a268.d",
+          "dep_info_sha256": "4340f3523153c27ab712e9ca3f4ec368ef5494e9792cc692168ffff5dd8ebf13",
+          "source_inputs": {
+            "crates/toucan_bindings/src/lib.rs": "ad203f2325c550d662fba1666fc5ff5caa354a3aaaa6419045e52bf10bff83a6",
+            "crates/toucan_bindings/src/alias_dependencies.rs": "56e801c56dfad33d25d7da2e0a4a500ca5dd36a902f5dfa4eada0be6f236c62e",
+            "crates/toucan_bindings/src/atomic.rs": "09e89af8d3aaca83c3753ed605ce546384e89e24036567004fdfcd0a5dafa2ad",
+            "crates/toucan_bindings/src/complex.rs": "3945844f213afdcb4807cc56f4d98c62307a10c48f0fb89669aef16aec1e0dc2",
+            "crates/toucan_bindings/src/derives.rs": "7946f395a3a85e529f46a89a12b472ddfddcea5e1baff2893953e24ca8544e2b",
+            "crates/toucan_bindings/src/documentation.rs": "943b8c14dfbdb5273393aadc3a92990ec90b50229fd013cf0691ae63697b5bb2",
+            "crates/toucan_bindings/src/enum_constants.rs": "2391effe349f964c9649bddf7dd1b15aec50f863024a99805ae2dcd92dd54768",
+            "crates/toucan_bindings/src/enumeration.rs": "ccab8377f0b4687b3666ae624d62b10a857fbf256496203c044497dc08d6f8f5",
+            "crates/toucan_bindings/src/external.rs": "31dfb29dbe206e40b3d07613c0303801ccca17fe4ae7a0bb215dc11e55f47176",
+            "crates/toucan_bindings/src/lexical_names.rs": "a48180e89125dd7901f83c566612567d3a1bf3edca39ac6528aa1d7561dcd085",
+            "crates/toucan_bindings/src/objects.rs": "1fd977f5ac918e04b1e23358217bb1e3a1f27dd4a176ef88fd214598e0692a5f",
+            "crates/toucan_bindings/src/renaming.rs": "cc52f7d2d7ea31e785f2558a5ce2524c97a910a87d77794f228b94b087b1f256",
+            "crates/toucan_bindings/src/selection.rs": "18e9dd2bc5f49b53949865bd9f16ecd9c69c385d4e120c8a62c9b50e5a8eee26",
+            "crates/toucan_bindings/src/tag_discovery.rs": "47774a08fbded71beaab58c75bd5486b5f8c526f5806ffffd05dd7be9511fcc5",
+            "crates/toucan_bindings/src/type_dependencies.rs": "6a588038c729f7e30853163ab02bb1092fa0e94ddf3ff4eba6d326a369540af1",
+            "crates/toucan_bindings/src/work_budget.rs": "a65becfbaca1c7b2ffd6e677725baeea7d6ea25596d757357777dc3088ccdd11"
+          }
+        },
+        {
+          "name": "toucan",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan#0.0.1",
+          "fresh": false,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan-0364cf3583071899.rlib",
+          "rlib_sha256": "367c21fae859bedaca0b55e9f99ba10da574228a8e1ee1e46ab33dda98de2aae",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan-0364cf3583071899.d",
+          "dep_info_sha256": "b5df1c8c80365aa7b7cb3cc7d1f0db407b3dee7579a2e45f823c37f3e70255c7",
+          "source_inputs": {
+            "crates/toucan/src/lib.rs": "127260883ab7e06e46b9bc2b3326a4eec6eaf78e2390fb2b99bb9ca6b9fd67c5",
+            "crates/toucan/src/features.rs": "8baf28580f7cd517011f6cf998aea5eeb5080d2cf7ab82a070ae2fd934e60f15",
+            "crates/toucan/resources/integer-types.h": "f9d8e279304812bf67d6ed901acc4cf8354a3f85e95b839a4b61186d51fe5c4a",
+            "crates/toucan/resources/limits.h": "4c28fe0df157fdb428600bf877ccdb6e6c753a03bc5ec62a86ddd86071af1e04",
+            "crates/toucan/resources/stddef.h": "6dda7522c3e54c6ba4536f2879fc3a9e0cc8f58e4973904480de8116b31c2624",
+            "crates/toucan/resources/stdarg.h": "4923354e95ecdb7a521f7bd30b9433e926d90d14448e2f7b1bed1974144a7aed",
+            "crates/toucan/resources/stdbool.h": "0cf6bbc7c63649e8eb29fc304520281629618b124bd39fc986068aff96577182"
+          }
+        },
+        {
+          "name": "toucan_bindgen",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_bindgen/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_bindgen#0.0.1",
+          "fresh": false,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_bindgen-972615a8c88496b4.rlib",
+          "rlib_sha256": "549c9ff2ebbeb0e7068631c2f9ce0506081d6362e7434ca8baa5579f687424ec",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_bindgen-972615a8c88496b4.d",
+          "dep_info_sha256": "9233b92a4f4335caf5d88030b908395b6e43fff52f5410667d07ab3c3ee044c9",
+          "source_inputs": {
+            "crates/toucan_bindgen/src/lib.rs": "fec861c75b158ecd08c2ed7a8f508ffb1a79001daaacce3cd7fc594435d54979",
+            "crates/toucan_bindgen/src/arguments.rs": "68e404554f08fd40331ef3e1603c8b30d13d38ffe3029a45f79ef3e2ce986c57",
+            "crates/toucan_bindgen/src/callbacks.rs": "fdaf0192a51d5428842ce2c24188bae702110378a5e19ab90145f39483cb6a16",
+            "crates/toucan_bindgen/src/documentation.rs": "96241dd80c1b358f0cc10f70b520d5fff3568c3d0789edd9eaeef614d508b9e7",
+            "crates/toucan_bindgen/src/formatting.rs": "40cb0bf6b17b2ea8b3559a801581fb6ce0941b9a8bca7791bbf69dd8d05c1a73",
+            "crates/toucan_bindgen/src/macro_compat.rs": "a78c744c95ba8f887093ad9cc72adaff452e0ae5ff2a51981c04bc3dbfd0bd40",
+            "crates/toucan_bindgen/src/macro_projection.rs": "f3a57e5827abc96303070c707260a467855e92e1e6db4c79e2f1b28ffaafed35",
+            "crates/toucan_bindgen/src/macro_values.rs": "e26a39020d2379913b0a453163934b3c219525cab288713cab9192f0922c726f",
+            "crates/toucan_bindgen/src/objects.rs": "c35e57dc8f563a76479ed556098d760f7ea8ffcf65690bacef538b483927df62",
+            "crates/toucan_bindgen/src/parameter_dependencies.rs": "0c40890edf6ee7706d5c561eab69a532ef1daa84d555f4180f2bb50556bf5e05",
+            "crates/toucan_bindgen/src/selection.rs": "724a37cb87c1326e533a9f932f6cecc3f2a2aeb810deab7143e849bfc6bc346d"
+          }
+        },
+        {
+          "name": "toucan_semantic",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_semantic/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_semantic#0.0.1",
+          "fresh": false,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_semantic-8fcfe45f7d062c8b.rlib",
+          "rlib_sha256": "d17be1395bad95fbf1b26d37acf8ac8a14f436d33a36aa4aa6f3c82302a4e15d",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_semantic-8fcfe45f7d062c8b.d",
+          "dep_info_sha256": "ab27c0234d8d57ee14b05112f832de772b5127048412af236886d066262bc568",
+          "source_inputs": {
+            "crates/toucan_semantic/src/lib.rs": "672b381f94727bb301709e8e5b326143edc4ed7a3901d67ff814724f9d4627a4",
+            "crates/toucan_semantic/src/alignment_names.rs": "5429d2123c7ae9834799e718f8a59aee2c7d38ac94283ee0ed04bc7fa5185185",
+            "crates/toucan_semantic/src/alignof.rs": "e4fca390368516610c0dfc8628d3ff535e4dbb5bf541d2731e625fc0c3ed40be",
+            "crates/toucan_semantic/src/allocation.rs": "25fce2dcfcb66dc97aeb3c0456d154e7c2928bceb5cd3a5344c585296d1cf823",
+            "crates/toucan_semantic/src/analyze.rs": "df48884168f7de895701f2595207ede3e82293321ea3044e66e06e918790054c",
+            "crates/toucan_semantic/src/arm.rs": "5865cc6a9e45881c8954a00f9f52b649d9026babde6cac94e1323c34f266e788",
+            "crates/toucan_semantic/src/array_identity.rs": "2ba9dbba758c550b93d2266883c4ce8d4786cb39fb6ca79d0298257c2c3ca943",
+            "crates/toucan_semantic/src/asm.rs": "8c0f0cc71edae04b9df33c24869a53fd4e7116a0dbd36a506e69ffe7ab0e7fe6",
+            "crates/toucan_semantic/src/atomic.rs": "8df40632bf5772b60482299d3574158aba79c6f025ffcb187b836b301be28264",
+            "crates/toucan_semantic/src/atomic_type.rs": "cb9a0bcd435fb525e7425ed3d9d9e4b15e8d753c57c773c0ae2f6ee85bb5a906",
+            "crates/toucan_semantic/src/attributes.rs": "7772eb8d556b36379fa7878c6113f2e5fc5be6f0956b41de64e1fd551baa6b9e",
+            "crates/toucan_semantic/src/auto_type.rs": "ad24a6f5c84931c77ccfa55018ced0d94a8f61959fdb9fc857677f1620593b07",
+            "crates/toucan_semantic/src/builtin_function.rs": "f7fbd55987ec99d07a50e74b69f157089ed378e1b1e216bf53b4f8d87088a0bd",
+            "crates/toucan_semantic/src/builtins.rs": "28fff17f2347b953a359e5c216b59e69753faa15f2b8225a5988beb8c43dca9a",
+            "crates/toucan_semantic/src/c11_atomic.rs": "4dbe8611e04149cba0e87f48c21da48bf257f560bba7684da0d4ed13a7933ece",
+            "crates/toucan_semantic/src/checked.rs": "aceca1376e4e5ec99131f95ee1fe16fc40df1624e5de7fb9d71c97e0ae73f694",
+            "crates/toucan_semantic/src/checked/access.rs": "df792320e9543c8608d4c75e3be8517342b40a4fc9aaedbd850cab959849ffa8",
+            "crates/toucan_semantic/src/checked/attributes.rs": "f7f2b3fabde53eafdd391e408568dec0167b376fe007eb4f78ce5c507ee9e61b",
+            "crates/toucan_semantic/src/checked/bounds.rs": "a2b186594f92cc6262cbc4fb10067229caee331a6e1925145ce6367ed9785382",
+            "crates/toucan_semantic/src/checked/dll_storage.rs": "5880dcab9a058965546121bb45a2605975335becebd743f1396fdfab85ca8c4b",
+            "crates/toucan_semantic/src/checked/expression.rs": "7c66fe5a324106535fe724492f4aa2ba9266cdd024f1fa97672baf0f78ed5771",
+            "crates/toucan_semantic/src/checked/inference.rs": "4f12d402387929897560a0ceb3a836e430c0919f84420099df0ddbcc313dd354",
+            "crates/toucan_semantic/src/checked/initializer.rs": "df7190156a0aec752c1b9712b7e5f48093ba82a8103046595b6d09878662fdc1",
+            "crates/toucan_semantic/src/checked/inline.rs": "e646f816da4d176ba47f192e36d6bfa0771cd2297f3b1cb42493d05fb3c2f34d",
+            "crates/toucan_semantic/src/checked/ownership.rs": "8cdf99cf4555fd2b943c183f1569816dc64aee0599d6d8e8e618a6056fa5d4d1",
+            "crates/toucan_semantic/src/checked/query.rs": "c593316c3e90e67e04ec9f90dd0173618f83195edf7dd10de3dc6a0e96e797dc",
+            "crates/toucan_semantic/src/checked/references.rs": "067cbde0f0477e77cafb4b70dbfdea674232414f2fbae0124875dc990710ac86",
+            "crates/toucan_semantic/src/checked/shuffle.rs": "d6b69c9c947bafe63a6f09f9381f382271dc856fdbeeaf34436cb3aa3f6a0097",
+            "crates/toucan_semantic/src/checked/statement.rs": "d7739f71be05b7b6677df50f33ecbf3e1e26e445db617cf8e27978152b35f5a2",
+            "crates/toucan_semantic/src/checked/target.rs": "9f11e75ff4cf13e0a9c9cb68e3105876cae70d561a8e50926efb5551af136bea",
+            "crates/toucan_semantic/src/declaration_origins.rs": "34e6cf3f381ca412f696ea644742de6f30de9824cf09751026142b351593ba1f",
+            "crates/toucan_semantic/src/documentation_origins.rs": "decf0c34a1bfbf156ce6c88cf86a1458eb5358c229571584d3d7869005c3e602",
+            "crates/toucan_semantic/src/parameter_dependencies.rs": "31a6bb25f41f168b50b7c7a63e2b5eac4a3b10e14b2b3eab1d007830eab1cbe2",
+            "crates/toucan_semantic/src/tag_discovery.rs": "6800569bf388055e2ede341f44d576e6c58bf91311f3136e09db3a11c139c43e",
+            "crates/toucan_semantic/src/lexical_tags.rs": "72819d04d57379c66d5a024c3616385d11f411ee005183f9463e2a2df3830b1b",
+            "crates/toucan_semantic/src/complex.rs": "e85841621a67fb53a0b4a5eadf9efdd480d777e93099013200fbd185905e280c",
+            "crates/toucan_semantic/src/const_objects.rs": "1d14b577c297e1787de3ce2134eeb8660e9efcda07c1cd45cbbeb652faeefe31",
+            "crates/toucan_semantic/src/constant_query.rs": "da2d0d45570969ef633253791eb4464001e1458fffc54fbad60ed68de782997f",
+            "crates/toucan_semantic/src/declspec.rs": "1061ec7f3f3ebdb8fd3c9d8f2a5cefbf95a9d9b2868dd578796f677739ad4cfb",
+            "crates/toucan_semantic/src/dll_storage.rs": "a16abcf0905e2b5fdf9ca1f88497010e084075b989924b9fd76e64585fa330d1",
+            "crates/toucan_semantic/src/elementwise.rs": "937f76ddf80b63d78e2d8ff0a4c398b51c9f704bc483a9d7c95ca076e649e3a9",
+            "crates/toucan_semantic/src/enums.rs": "ae6ce98d305f62b14f558dadaa574f74fed99755d83f88271aa83e5623378bc6",
+            "crates/toucan_semantic/src/expression.rs": "b2126ee7cad61c390d60a908229686f32c89d10139fb156b4faa6591c2e92c65",
+            "crates/toucan_semantic/src/features.rs": "a09af0a70af9e76cee22abb07c8ffa42a74b3fb45b5ede569a66caec9828289d",
+            "crates/toucan_semantic/src/floating.rs": "1d91defe4e4e1bf37868193705ddb5f8b76e1478017ced8452643f9686979875",
+            "crates/toucan_semantic/src/fortified.rs": "5eb0ba6df4760f07fb4ca4b27245bf2bfd941c4f233505d2b109d20126cdadad",
+            "crates/toucan_semantic/src/implicit_function.rs": "ee7a70bc1ea4f38aafd65aa8e3e7bda15e533f862364fa1e53ac588914497615",
+            "crates/toucan_semantic/src/initializer.rs": "035c7e000e8ece2555549732c6d54a427ea948893f159bf84c9ab0ebdc05bbac",
+            "crates/toucan_semantic/src/inline.rs": "05064ca725015de284145fdad4cac684c6da8b87adbdece3a4f5f378a1f72cb0",
+            "crates/toucan_semantic/src/integer.rs": "7d102f15e1bdcd908e54a8eb8f7f3bb2818b2e6037bbef061f54c02ecea08fcc",
+            "crates/toucan_semantic/src/introspection.rs": "1cabc903fff9c912a0a3aaa6fef263935d2c84aa171c02595091127e88eccc14",
+            "crates/toucan_semantic/src/ir.rs": "e00359cc85fc895a6e2d530064533d8a5077e8adda439e638571e6350e6e581c",
+            "crates/toucan_semantic/src/literals.rs": "51f1851c89e92efc2a90e31dcb619918766cc141844c0cf960f1b9ef40692341",
+            "crates/toucan_semantic/src/narrow_float.rs": "b88a159f289586b76dc5dec3a538c3de13f25eb2651315bcbf4599457153c37c",
+            "crates/toucan_semantic/src/noescape.rs": "af108b75b3bb435ad92ca9f7556c943afe335fd9d4bf374d396792975e72003e",
+            "crates/toucan_semantic/src/nontemporal.rs": "8533aa188df33f9f0b5e74fc1c55c88113260d092b70ab45be037459e6db79c4",
+            "crates/toucan_semantic/src/noreturn.rs": "668009ea3e890370c4ac2f29178d6cb23314bb0af3e74ba475b5151d66dfe155",
+            "crates/toucan_semantic/src/object_alignment.rs": "7ff34f0f63a8b7b6b8e43709ab37f418c89f455f85bbd4540fcc9c390817c4ea",
+            "crates/toucan_semantic/src/object_extent.rs": "dbbe5f7606601f52a11b4d4f62996e03a935bbbe4622adee3c22eabc8894e918",
+            "crates/toucan_semantic/src/object_size.rs": "76c26fe60124239b146894c7de386b608a6fceed349ec4461d7ca3abcab36832",
+            "crates/toucan_semantic/src/object_types.rs": "3c811797610d37cc66c4dd8505415c056669aa2ceefb674e2f367ac4996c7834",
+            "crates/toucan_semantic/src/object_values.rs": "2dd7b23b9416cb1aaed2d71f1d6e731ae7a3765644e171cd9abce531e03d7f28",
+            "crates/toucan_semantic/src/old_style.rs": "0953bd17ed59f9d1e9eed5b37124b27ef0159d59e6dc4e4e3e779c01834ed92f",
+            "crates/toucan_semantic/src/overflow.rs": "75b7cb9cb000ac3941a1bc8d6a316368ab2420b528c2fd6d4ea19d01817e7b8b",
+            "crates/toucan_semantic/src/parameters.rs": "c29a6e6d2cbf6803db8cabc0b432b722d854f6a84178d32814a2cf705f9a0ce2",
+            "crates/toucan_semantic/src/parser_extensions.rs": "2e2edd79482c0e712bf3c521a113d05cf8d3587d49d3c9436b0371d961d0f4da",
+            "crates/toucan_semantic/src/prefetch.rs": "37aaf1cae5c3c21fe701bb068c4473ae4dff544b1cc1ee50b97e393627b14fbb",
+            "crates/toucan_semantic/src/returns_twice.rs": "027c1b76fce2de57fd365517738c3b50604d932061b7002495befb4300e6f9ae",
+            "crates/toucan_semantic/src/statement.rs": "71078cebf1e1ed3ff7cae4f540cdd9b756c19f5637990a639c1784874d164718",
+            "crates/toucan_semantic/src/sync.rs": "e5fba95c8a41d103c095a032cdac6b84916aa3dbec296310ca73c8df57ac4e9f",
+            "crates/toucan_semantic/src/target_features.rs": "faea5423bed050bab548126d7840cc9e96750f653679d4084908fd6bf4f0ca12",
+            "crates/toucan_semantic/src/target_names.rs": "524d6411a5c6ab268a4676fb5d2b57d7dd3de8913a208c727f124aeb15604063",
+            "crates/toucan_semantic/src/transparent_union.rs": "f618b6b33c353e9315046754ba76b25a05b71bab071cc79c5f3632e0b1388444",
+            "crates/toucan_semantic/src/type_alignment.rs": "ae6b2153e7b3ad021cb12bc9305627a77c5d0b445bda623569f95131a5b7f530",
+            "crates/toucan_semantic/src/variadic_pack.rs": "12453b3d9d0402017127f9bb27e1e3c43fa73ba9ca8547da6a5f953fea3336be",
+            "crates/toucan_semantic/src/vector.rs": "51090c48fa016e001a54a4ad08bf8f6e74449b7fc0f15179cea26ddce5a13976",
+            "crates/toucan_semantic/src/vector_constant.rs": "d64457db24af428f87c83e092ca6cf11d2c58679e09cd38d2c0694c45d5396de",
+            "crates/toucan_semantic/src/weak.rs": "8553ab2b5fb11c629d723488c3a137f5ba4b9e24495b7efa25e4276c4dde0853",
+            "crates/toucan_semantic/src/wide_float.rs": "ca55a602d2ae217ed49a807c5deaa4a3714ddb2308d868025d20c0e70b1a2932",
+            "crates/toucan_semantic/src/x86.rs": "05a13f1d05113c46c1f293e023263108025ee7a0ead39746de06409961483355",
+            "crates/toucan_semantic/src/implicit_library_names.rs": "27d6402958c30050f23fce95c0988a839006b44bc16c1dd16fb61062adaa225e"
+          }
+        }
+      ]
+    },
+    {
+      "log": "/home/dev-user/.cache/toucan/aws-lc-callback-final-2026-09-09/evidence/toucan-layout-test-build.stdout",
+      "log_sha256": "61832c49fa349840afc6f9011e350d408ab08d30f04d675e3ef8843afd715318",
+      "all_nine_frontend_crates": true,
+      "libclang_generator_crates_absent": true,
+      "artifacts": [
+        {
+          "name": "toucan_layout",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_layout/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_layout#0.0.1",
+          "fresh": true,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_layout-bc49545d266b9db1.rlib",
+          "rlib_sha256": "0dba81be2a0cc15751ef80e988fd7dce9850ecc709e652f4ddaba8713510374b",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_layout-bc49545d266b9db1.d",
+          "dep_info_sha256": "4a7daf3e56cd8b19a9b8f2db663e020473a50fafdc8a90b3b43524dfb447a3f3",
+          "source_inputs": {
+            "crates/toucan_layout/src/lib.rs": "4685082a5c6d4055f29312a212a5722b3af5fbd4faca0b128402ac20f35e94f7",
+            "crates/toucan_layout/src/builder/mod.rs": "a37255b02c68098ddb56d05896fa5e55bd6184588c622e9a1455d36e1bc6d875",
+            "crates/toucan_layout/src/builder/common.rs": "c1fa587f74a2c61ed99175bb6b327f0e2da6b1f0e2bb968ba669909b2435e987",
+            "crates/toucan_layout/src/builder/msvc.rs": "271454534df329737fd69c6b5a787125a9e42a992afc1989ca88413030264739",
+            "crates/toucan_layout/src/builder/sysv_like/mod.rs": "ec2f10ec5cb75dba9521fc6e71858f9df74da3acc483395c3e707e9d9840364c",
+            "crates/toucan_layout/src/builder/sysv_like/mingw.rs": "135b06f6384152e66d753b5091c820c6519a30eab283b4b8a7eebf751015c2d6",
+            "crates/toucan_layout/src/builder/sysv_like/sysv.rs": "bfd7238eb3820cce9951e197afc3fe663e88f7a1a70f99fc90fc85d62eb081f2",
+            "crates/toucan_layout/src/layout.rs": "83a366fd4e5786afec932ee18b5f74bfdee52c470355f2fc98d5c824d848d078",
+            "crates/toucan_layout/src/result.rs": "53b5fd6340cdbf394609f978f20c09b5e3755b2fa196ba6ff1cf9e3a63ec8a3f",
+            "crates/toucan_layout/src/target.rs": "1dc4b6b6ccc0f24766aa6e1d78b9e686645560c78c2387b2d1b793711dce335c",
+            "crates/toucan_layout/src/util.rs": "12476b43e943ba8eb1bd2976bbde40c07fa16ec7b4ce4d95bdf9ac00dffe2b5a",
+            "crates/toucan_layout/src/visitor.rs": "c3288eb855aad2084e13081479f6078f32c3032645a16c75e5a1d73e3c8e5000"
+          }
+        },
+        {
+          "name": "toucan_target",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_target/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_target#0.0.1",
+          "fresh": true,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_target-1390cd284500061e.rlib",
+          "rlib_sha256": "9632a690178e7abe4fcfa8956e1b42922e01019d8464e8356c9452a7e498c550",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_target-1390cd284500061e.d",
+          "dep_info_sha256": "0008ade37ac5178433ac152513eb554edbf8b9b820f6a07c7833d009f3f47751",
+          "source_inputs": {
+            "crates/toucan_target/src/lib.rs": "2f036b8010133f8e15b08eb4d61ba870be579a5f81d3f8db457a0fdc830bb224",
+            "crates/toucan_target/src/language.rs": "0b7d204823de07c77ad2087c8539d06a9a1d1cc7bcc9197d05aad2037255c44a",
+            "crates/toucan_target/src/macros.rs": "6904a09853299b8300a8ef3ac0a575edcecd553641f0545e89ff62d3817a2a34",
+            "crates/toucan_target/src/profile.rs": "779a2281f07ef5abbd2332559d7f6a919992d7b3e2304e5c0c79369aa407e8a8"
+          }
+        },
+        {
+          "name": "toucan_parser",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_parser/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_parser#0.0.1",
+          "fresh": true,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_parser-3b7ab7a67dd65164.rlib",
+          "rlib_sha256": "4f68056a92e1309ab7d861aca1c133401bb5959e3db25405c22e6e4b0363d4a2",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_parser-3b7ab7a67dd65164.d",
+          "dep_info_sha256": "bed386d85a398043b3f1cc923cbc7e15ada6731a2ee997a78373121daae52d49",
+          "source_inputs": {
+            "crates/toucan_parser/src/lib.rs": "931a9a9d4cd3b9793dafefaf5e72dbbe23a2ad248ed7d10cb74c35d574c13969",
+            "crates/toucan_parser/src/ast.rs": "007d996f07db86c74d88798a5e50c5c8975ef661044851607000d4879935b5c8",
+            "crates/toucan_parser/src/driver.rs": "13edda8889adb49ed4c91e045ebbe8943f0deba3171f0fe58a2c5ddc41bdd581",
+            "crates/toucan_parser/src/limits.rs": "11463bf3ae7c7714b4c9ad19f7f2ddf836b91880e621a40464c376dd14c06aa2",
+            "crates/toucan_parser/src/loc.rs": "2e6629ee87f17c940ca857d17d1f1b8368c1869323ff5991e6d3482bbe7d598e",
+            "crates/toucan_parser/src/print.rs": "484eeb9f6e255c30a0c14440268aab3735d577b074486a343abd87a60571b874",
+            "crates/toucan_parser/src/span.rs": "55709b3ec6a74577ed4b333f635779daf78471ec4861f30857a1a53955e02052",
+            "crates/toucan_parser/src/visit.rs": "dc39cf7d5de5450d857c4a5e25cdc46d8bc9390db51d0c7e2cdb4d20dd26d064",
+            "crates/toucan_parser/src/astutil.rs": "76b3ea93154ccf1be356a5b8e4dbf1deb6a4e826d995436b33fb3fdb86f66f9b",
+            "crates/toucan_parser/src/env.rs": "0e0e47d2f4bfd3f4ede69d254559bba4fbe2f3d4f65bd9359ab88483047f74d0",
+            "crates/toucan_parser/src/measure.rs": "aab1aa7c9d28fbcb0ef4b2f65f5be9fd764c5e56d906374bd5589081dc54ea53",
+            "crates/toucan_parser/src/parser.rs": "3b07f0f79fdb8dc5f7ba65000e8e66faf73cf36bee54469241ab7d49c2b642b9",
+            "crates/toucan_parser/src/strings.rs": "a8cc3d9da555cb6deedaef5008818eaee733fdcb56b5823ffaf0334d8e035723"
+          }
+        },
+        {
+          "name": "toucan_semantic",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_semantic/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_semantic#0.0.1",
+          "fresh": true,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_semantic-8fcfe45f7d062c8b.rlib",
+          "rlib_sha256": "d17be1395bad95fbf1b26d37acf8ac8a14f436d33a36aa4aa6f3c82302a4e15d",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_semantic-8fcfe45f7d062c8b.d",
+          "dep_info_sha256": "ab27c0234d8d57ee14b05112f832de772b5127048412af236886d066262bc568",
+          "source_inputs": {
+            "crates/toucan_semantic/src/lib.rs": "672b381f94727bb301709e8e5b326143edc4ed7a3901d67ff814724f9d4627a4",
+            "crates/toucan_semantic/src/alignment_names.rs": "5429d2123c7ae9834799e718f8a59aee2c7d38ac94283ee0ed04bc7fa5185185",
+            "crates/toucan_semantic/src/alignof.rs": "e4fca390368516610c0dfc8628d3ff535e4dbb5bf541d2731e625fc0c3ed40be",
+            "crates/toucan_semantic/src/allocation.rs": "25fce2dcfcb66dc97aeb3c0456d154e7c2928bceb5cd3a5344c585296d1cf823",
+            "crates/toucan_semantic/src/analyze.rs": "df48884168f7de895701f2595207ede3e82293321ea3044e66e06e918790054c",
+            "crates/toucan_semantic/src/arm.rs": "5865cc6a9e45881c8954a00f9f52b649d9026babde6cac94e1323c34f266e788",
+            "crates/toucan_semantic/src/array_identity.rs": "2ba9dbba758c550b93d2266883c4ce8d4786cb39fb6ca79d0298257c2c3ca943",
+            "crates/toucan_semantic/src/asm.rs": "8c0f0cc71edae04b9df33c24869a53fd4e7116a0dbd36a506e69ffe7ab0e7fe6",
+            "crates/toucan_semantic/src/atomic.rs": "8df40632bf5772b60482299d3574158aba79c6f025ffcb187b836b301be28264",
+            "crates/toucan_semantic/src/atomic_type.rs": "cb9a0bcd435fb525e7425ed3d9d9e4b15e8d753c57c773c0ae2f6ee85bb5a906",
+            "crates/toucan_semantic/src/attributes.rs": "7772eb8d556b36379fa7878c6113f2e5fc5be6f0956b41de64e1fd551baa6b9e",
+            "crates/toucan_semantic/src/auto_type.rs": "ad24a6f5c84931c77ccfa55018ced0d94a8f61959fdb9fc857677f1620593b07",
+            "crates/toucan_semantic/src/builtin_function.rs": "f7fbd55987ec99d07a50e74b69f157089ed378e1b1e216bf53b4f8d87088a0bd",
+            "crates/toucan_semantic/src/builtins.rs": "28fff17f2347b953a359e5c216b59e69753faa15f2b8225a5988beb8c43dca9a",
+            "crates/toucan_semantic/src/c11_atomic.rs": "4dbe8611e04149cba0e87f48c21da48bf257f560bba7684da0d4ed13a7933ece",
+            "crates/toucan_semantic/src/checked.rs": "aceca1376e4e5ec99131f95ee1fe16fc40df1624e5de7fb9d71c97e0ae73f694",
+            "crates/toucan_semantic/src/checked/access.rs": "df792320e9543c8608d4c75e3be8517342b40a4fc9aaedbd850cab959849ffa8",
+            "crates/toucan_semantic/src/checked/attributes.rs": "f7f2b3fabde53eafdd391e408568dec0167b376fe007eb4f78ce5c507ee9e61b",
+            "crates/toucan_semantic/src/checked/bounds.rs": "a2b186594f92cc6262cbc4fb10067229caee331a6e1925145ce6367ed9785382",
+            "crates/toucan_semantic/src/checked/dll_storage.rs": "5880dcab9a058965546121bb45a2605975335becebd743f1396fdfab85ca8c4b",
+            "crates/toucan_semantic/src/checked/expression.rs": "7c66fe5a324106535fe724492f4aa2ba9266cdd024f1fa97672baf0f78ed5771",
+            "crates/toucan_semantic/src/checked/inference.rs": "4f12d402387929897560a0ceb3a836e430c0919f84420099df0ddbcc313dd354",
+            "crates/toucan_semantic/src/checked/initializer.rs": "df7190156a0aec752c1b9712b7e5f48093ba82a8103046595b6d09878662fdc1",
+            "crates/toucan_semantic/src/checked/inline.rs": "e646f816da4d176ba47f192e36d6bfa0771cd2297f3b1cb42493d05fb3c2f34d",
+            "crates/toucan_semantic/src/checked/ownership.rs": "8cdf99cf4555fd2b943c183f1569816dc64aee0599d6d8e8e618a6056fa5d4d1",
+            "crates/toucan_semantic/src/checked/query.rs": "c593316c3e90e67e04ec9f90dd0173618f83195edf7dd10de3dc6a0e96e797dc",
+            "crates/toucan_semantic/src/checked/references.rs": "067cbde0f0477e77cafb4b70dbfdea674232414f2fbae0124875dc990710ac86",
+            "crates/toucan_semantic/src/checked/shuffle.rs": "d6b69c9c947bafe63a6f09f9381f382271dc856fdbeeaf34436cb3aa3f6a0097",
+            "crates/toucan_semantic/src/checked/statement.rs": "d7739f71be05b7b6677df50f33ecbf3e1e26e445db617cf8e27978152b35f5a2",
+            "crates/toucan_semantic/src/checked/target.rs": "9f11e75ff4cf13e0a9c9cb68e3105876cae70d561a8e50926efb5551af136bea",
+            "crates/toucan_semantic/src/declaration_origins.rs": "34e6cf3f381ca412f696ea644742de6f30de9824cf09751026142b351593ba1f",
+            "crates/toucan_semantic/src/documentation_origins.rs": "decf0c34a1bfbf156ce6c88cf86a1458eb5358c229571584d3d7869005c3e602",
+            "crates/toucan_semantic/src/parameter_dependencies.rs": "31a6bb25f41f168b50b7c7a63e2b5eac4a3b10e14b2b3eab1d007830eab1cbe2",
+            "crates/toucan_semantic/src/tag_discovery.rs": "6800569bf388055e2ede341f44d576e6c58bf91311f3136e09db3a11c139c43e",
+            "crates/toucan_semantic/src/lexical_tags.rs": "72819d04d57379c66d5a024c3616385d11f411ee005183f9463e2a2df3830b1b",
+            "crates/toucan_semantic/src/complex.rs": "e85841621a67fb53a0b4a5eadf9efdd480d777e93099013200fbd185905e280c",
+            "crates/toucan_semantic/src/const_objects.rs": "1d14b577c297e1787de3ce2134eeb8660e9efcda07c1cd45cbbeb652faeefe31",
+            "crates/toucan_semantic/src/constant_query.rs": "da2d0d45570969ef633253791eb4464001e1458fffc54fbad60ed68de782997f",
+            "crates/toucan_semantic/src/declspec.rs": "1061ec7f3f3ebdb8fd3c9d8f2a5cefbf95a9d9b2868dd578796f677739ad4cfb",
+            "crates/toucan_semantic/src/dll_storage.rs": "a16abcf0905e2b5fdf9ca1f88497010e084075b989924b9fd76e64585fa330d1",
+            "crates/toucan_semantic/src/elementwise.rs": "937f76ddf80b63d78e2d8ff0a4c398b51c9f704bc483a9d7c95ca076e649e3a9",
+            "crates/toucan_semantic/src/enums.rs": "ae6ce98d305f62b14f558dadaa574f74fed99755d83f88271aa83e5623378bc6",
+            "crates/toucan_semantic/src/expression.rs": "b2126ee7cad61c390d60a908229686f32c89d10139fb156b4faa6591c2e92c65",
+            "crates/toucan_semantic/src/features.rs": "a09af0a70af9e76cee22abb07c8ffa42a74b3fb45b5ede569a66caec9828289d",
+            "crates/toucan_semantic/src/floating.rs": "1d91defe4e4e1bf37868193705ddb5f8b76e1478017ced8452643f9686979875",
+            "crates/toucan_semantic/src/fortified.rs": "5eb0ba6df4760f07fb4ca4b27245bf2bfd941c4f233505d2b109d20126cdadad",
+            "crates/toucan_semantic/src/implicit_function.rs": "ee7a70bc1ea4f38aafd65aa8e3e7bda15e533f862364fa1e53ac588914497615",
+            "crates/toucan_semantic/src/initializer.rs": "035c7e000e8ece2555549732c6d54a427ea948893f159bf84c9ab0ebdc05bbac",
+            "crates/toucan_semantic/src/inline.rs": "05064ca725015de284145fdad4cac684c6da8b87adbdece3a4f5f378a1f72cb0",
+            "crates/toucan_semantic/src/integer.rs": "7d102f15e1bdcd908e54a8eb8f7f3bb2818b2e6037bbef061f54c02ecea08fcc",
+            "crates/toucan_semantic/src/introspection.rs": "1cabc903fff9c912a0a3aaa6fef263935d2c84aa171c02595091127e88eccc14",
+            "crates/toucan_semantic/src/ir.rs": "e00359cc85fc895a6e2d530064533d8a5077e8adda439e638571e6350e6e581c",
+            "crates/toucan_semantic/src/literals.rs": "51f1851c89e92efc2a90e31dcb619918766cc141844c0cf960f1b9ef40692341",
+            "crates/toucan_semantic/src/narrow_float.rs": "b88a159f289586b76dc5dec3a538c3de13f25eb2651315bcbf4599457153c37c",
+            "crates/toucan_semantic/src/noescape.rs": "af108b75b3bb435ad92ca9f7556c943afe335fd9d4bf374d396792975e72003e",
+            "crates/toucan_semantic/src/nontemporal.rs": "8533aa188df33f9f0b5e74fc1c55c88113260d092b70ab45be037459e6db79c4",
+            "crates/toucan_semantic/src/noreturn.rs": "668009ea3e890370c4ac2f29178d6cb23314bb0af3e74ba475b5151d66dfe155",
+            "crates/toucan_semantic/src/object_alignment.rs": "7ff34f0f63a8b7b6b8e43709ab37f418c89f455f85bbd4540fcc9c390817c4ea",
+            "crates/toucan_semantic/src/object_extent.rs": "dbbe5f7606601f52a11b4d4f62996e03a935bbbe4622adee3c22eabc8894e918",
+            "crates/toucan_semantic/src/object_size.rs": "76c26fe60124239b146894c7de386b608a6fceed349ec4461d7ca3abcab36832",
+            "crates/toucan_semantic/src/object_types.rs": "3c811797610d37cc66c4dd8505415c056669aa2ceefb674e2f367ac4996c7834",
+            "crates/toucan_semantic/src/object_values.rs": "2dd7b23b9416cb1aaed2d71f1d6e731ae7a3765644e171cd9abce531e03d7f28",
+            "crates/toucan_semantic/src/old_style.rs": "0953bd17ed59f9d1e9eed5b37124b27ef0159d59e6dc4e4e3e779c01834ed92f",
+            "crates/toucan_semantic/src/overflow.rs": "75b7cb9cb000ac3941a1bc8d6a316368ab2420b528c2fd6d4ea19d01817e7b8b",
+            "crates/toucan_semantic/src/parameters.rs": "c29a6e6d2cbf6803db8cabc0b432b722d854f6a84178d32814a2cf705f9a0ce2",
+            "crates/toucan_semantic/src/parser_extensions.rs": "2e2edd79482c0e712bf3c521a113d05cf8d3587d49d3c9436b0371d961d0f4da",
+            "crates/toucan_semantic/src/prefetch.rs": "37aaf1cae5c3c21fe701bb068c4473ae4dff544b1cc1ee50b97e393627b14fbb",
+            "crates/toucan_semantic/src/returns_twice.rs": "027c1b76fce2de57fd365517738c3b50604d932061b7002495befb4300e6f9ae",
+            "crates/toucan_semantic/src/statement.rs": "71078cebf1e1ed3ff7cae4f540cdd9b756c19f5637990a639c1784874d164718",
+            "crates/toucan_semantic/src/sync.rs": "e5fba95c8a41d103c095a032cdac6b84916aa3dbec296310ca73c8df57ac4e9f",
+            "crates/toucan_semantic/src/target_features.rs": "faea5423bed050bab548126d7840cc9e96750f653679d4084908fd6bf4f0ca12",
+            "crates/toucan_semantic/src/target_names.rs": "524d6411a5c6ab268a4676fb5d2b57d7dd3de8913a208c727f124aeb15604063",
+            "crates/toucan_semantic/src/transparent_union.rs": "f618b6b33c353e9315046754ba76b25a05b71bab071cc79c5f3632e0b1388444",
+            "crates/toucan_semantic/src/type_alignment.rs": "ae6b2153e7b3ad021cb12bc9305627a77c5d0b445bda623569f95131a5b7f530",
+            "crates/toucan_semantic/src/variadic_pack.rs": "12453b3d9d0402017127f9bb27e1e3c43fa73ba9ca8547da6a5f953fea3336be",
+            "crates/toucan_semantic/src/vector.rs": "51090c48fa016e001a54a4ad08bf8f6e74449b7fc0f15179cea26ddce5a13976",
+            "crates/toucan_semantic/src/vector_constant.rs": "d64457db24af428f87c83e092ca6cf11d2c58679e09cd38d2c0694c45d5396de",
+            "crates/toucan_semantic/src/weak.rs": "8553ab2b5fb11c629d723488c3a137f5ba4b9e24495b7efa25e4276c4dde0853",
+            "crates/toucan_semantic/src/wide_float.rs": "ca55a602d2ae217ed49a807c5deaa4a3714ddb2308d868025d20c0e70b1a2932",
+            "crates/toucan_semantic/src/x86.rs": "05a13f1d05113c46c1f293e023263108025ee7a0ead39746de06409961483355",
+            "crates/toucan_semantic/src/implicit_library_names.rs": "27d6402958c30050f23fce95c0988a839006b44bc16c1dd16fb61062adaa225e"
+          }
+        },
+        {
+          "name": "toucan_bindings",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_bindings/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_bindings#0.0.1",
+          "fresh": true,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_bindings-0f7b1a9550c7a268.rlib",
+          "rlib_sha256": "beb51d7f0c122fde27f7778f4687cce8c8f7262234184f95c8a7dd14d0864f7b",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_bindings-0f7b1a9550c7a268.d",
+          "dep_info_sha256": "4340f3523153c27ab712e9ca3f4ec368ef5494e9792cc692168ffff5dd8ebf13",
+          "source_inputs": {
+            "crates/toucan_bindings/src/lib.rs": "ad203f2325c550d662fba1666fc5ff5caa354a3aaaa6419045e52bf10bff83a6",
+            "crates/toucan_bindings/src/alias_dependencies.rs": "56e801c56dfad33d25d7da2e0a4a500ca5dd36a902f5dfa4eada0be6f236c62e",
+            "crates/toucan_bindings/src/atomic.rs": "09e89af8d3aaca83c3753ed605ce546384e89e24036567004fdfcd0a5dafa2ad",
+            "crates/toucan_bindings/src/complex.rs": "3945844f213afdcb4807cc56f4d98c62307a10c48f0fb89669aef16aec1e0dc2",
+            "crates/toucan_bindings/src/derives.rs": "7946f395a3a85e529f46a89a12b472ddfddcea5e1baff2893953e24ca8544e2b",
+            "crates/toucan_bindings/src/documentation.rs": "943b8c14dfbdb5273393aadc3a92990ec90b50229fd013cf0691ae63697b5bb2",
+            "crates/toucan_bindings/src/enum_constants.rs": "2391effe349f964c9649bddf7dd1b15aec50f863024a99805ae2dcd92dd54768",
+            "crates/toucan_bindings/src/enumeration.rs": "ccab8377f0b4687b3666ae624d62b10a857fbf256496203c044497dc08d6f8f5",
+            "crates/toucan_bindings/src/external.rs": "31dfb29dbe206e40b3d07613c0303801ccca17fe4ae7a0bb215dc11e55f47176",
+            "crates/toucan_bindings/src/lexical_names.rs": "a48180e89125dd7901f83c566612567d3a1bf3edca39ac6528aa1d7561dcd085",
+            "crates/toucan_bindings/src/objects.rs": "1fd977f5ac918e04b1e23358217bb1e3a1f27dd4a176ef88fd214598e0692a5f",
+            "crates/toucan_bindings/src/renaming.rs": "cc52f7d2d7ea31e785f2558a5ce2524c97a910a87d77794f228b94b087b1f256",
+            "crates/toucan_bindings/src/selection.rs": "18e9dd2bc5f49b53949865bd9f16ecd9c69c385d4e120c8a62c9b50e5a8eee26",
+            "crates/toucan_bindings/src/tag_discovery.rs": "47774a08fbded71beaab58c75bd5486b5f8c526f5806ffffd05dd7be9511fcc5",
+            "crates/toucan_bindings/src/type_dependencies.rs": "6a588038c729f7e30853163ab02bb1092fa0e94ddf3ff4eba6d326a369540af1",
+            "crates/toucan_bindings/src/work_budget.rs": "a65becfbaca1c7b2ffd6e677725baeea7d6ea25596d757357777dc3088ccdd11"
+          }
+        },
+        {
+          "name": "toucan_preprocessor",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_preprocessor/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_preprocessor#0.0.1",
+          "fresh": true,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_preprocessor-1b3c338ef3e9ec25.rlib",
+          "rlib_sha256": "e1261324b2485d3fbe3b6b440fb8fcf1c1ad73dfa84ced8b51e4f24e292cc28a",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_preprocessor-1b3c338ef3e9ec25.d",
+          "dep_info_sha256": "b950ce45acec39ffa4feef28b009da46787b88b85fe2b9e67717226593a62916",
+          "source_inputs": {
+            "crates/toucan_preprocessor/src/lib.rs": "73c6b21272ffbb1c16c11e05c349a46290d0af7c15ba63e2cc7bb6887686ac9b",
+            "crates/toucan_preprocessor/src/file_identity.rs": "0a9885a3e7930bb3f19e7bdb7837ea80c58df100d593c2017d4b9b781d70f523",
+            "crates/toucan_preprocessor/src/file_origins.rs": "90ec11eeaf085b647ee55e75f0b185b1ff081faa77b5ac20405fa706e12c558a",
+            "crates/toucan_preprocessor/src/include_search.rs": "ea3a8fecd97342222f5c5db59c82623aaebef38feeeead82eb187c8c48327577",
+            "crates/toucan_preprocessor/src/macro_definitions.rs": "7ea5899311f48f3436377dcba4864ea3245ce282565c4b1bd7b296822cb68081",
+            "crates/toucan_preprocessor/src/macro_redefinitions.rs": "0a659f64ad4886c94d5432686fdb1c63bbc317795907b1ea7c93df104acd28fc",
+            "crates/toucan_preprocessor/src/comments.rs": "ebd36b8f75d7536bbde906b3634d400ea58805676d298c9cc26597c59d7c65f7",
+            "crates/toucan_preprocessor/src/documentation.rs": "2051266a00be2a384d52d7b37e99ae8744e7205d48742493f69b4e8b8a6afa8f",
+            "crates/toucan_preprocessor/src/definitions.rs": "cc98cc05604a42ebe598af172d3965593d321ae68bdb4d9ee9d3635145352b47",
+            "crates/toucan_preprocessor/src/expand.rs": "e6b8e18ca911f49420706aecd2e782f4f8a90f5de2584f37db29e5a90674e3fe",
+            "crates/toucan_preprocessor/src/expression.rs": "ad9a4b57e41017f11337b403acb224224261c4c068b26da10d269fc3c141d1b3",
+            "crates/toucan_preprocessor/src/provenance.rs": "b924ad4df444cd1127fc6334654d8921f784710088fa0843ef72de35a3de10a6",
+            "crates/toucan_preprocessor/src/queries.rs": "80ce7424bddcf520c4003a64fa65bcbe55cdf5c33851724ed0317302cc57981e",
+            "crates/toucan_preprocessor/src/timestamp.rs": "5e52c2b812d3fd88263dd35d51c13a9c8d9b35192d5d985e1b9d2a2536d769fe",
+            "crates/toucan_preprocessor/src/token.rs": "36e1b3036202f90b5220e3bac48e4756f1da34d20e6823bfc2b3c6a29cab2bd7"
+          }
+        },
+        {
+          "name": "toucan_source",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_source/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_source#0.0.1",
+          "fresh": true,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_source-7c49dd112fda7ab2.rlib",
+          "rlib_sha256": "866f365258edcb82b70c45bc293c157d1d66d2e940506015bca5e7ee3b81bb02",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_source-7c49dd112fda7ab2.d",
+          "dep_info_sha256": "011634fe4557c7c1ddd3c99fd6dd13f7f4e9015e44a33ab419b92c54432fadf6",
+          "source_inputs": {
+            "crates/toucan_source/src/lib.rs": "d51303a95804152678ea0199f6a6d2662528e92a2a815e5bfd52bc45d4518b29"
+          }
+        },
+        {
+          "name": "toucan",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan#0.0.1",
+          "fresh": true,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan-0364cf3583071899.rlib",
+          "rlib_sha256": "367c21fae859bedaca0b55e9f99ba10da574228a8e1ee1e46ab33dda98de2aae",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan-0364cf3583071899.d",
+          "dep_info_sha256": "b5df1c8c80365aa7b7cb3cc7d1f0db407b3dee7579a2e45f823c37f3e70255c7",
+          "source_inputs": {
+            "crates/toucan/src/lib.rs": "127260883ab7e06e46b9bc2b3326a4eec6eaf78e2390fb2b99bb9ca6b9fd67c5",
+            "crates/toucan/src/features.rs": "8baf28580f7cd517011f6cf998aea5eeb5080d2cf7ab82a070ae2fd934e60f15",
+            "crates/toucan/resources/integer-types.h": "f9d8e279304812bf67d6ed901acc4cf8354a3f85e95b839a4b61186d51fe5c4a",
+            "crates/toucan/resources/limits.h": "4c28fe0df157fdb428600bf877ccdb6e6c753a03bc5ec62a86ddd86071af1e04",
+            "crates/toucan/resources/stddef.h": "6dda7522c3e54c6ba4536f2879fc3a9e0cc8f58e4973904480de8116b31c2624",
+            "crates/toucan/resources/stdarg.h": "4923354e95ecdb7a521f7bd30b9433e926d90d14448e2f7b1bed1974144a7aed",
+            "crates/toucan/resources/stdbool.h": "0cf6bbc7c63649e8eb29fc304520281629618b124bd39fc986068aff96577182"
+          }
+        },
+        {
+          "name": "toucan_bindgen",
+          "manifest_path": "/home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_bindgen/Cargo.toml",
+          "package_id": "path+file:///home/dev-user/.cache/toucan/callback-final-source-2026-09-09/crates/toucan_bindgen#0.0.1",
+          "fresh": true,
+          "rlib": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/libtoucan_bindgen-972615a8c88496b4.rlib",
+          "rlib_sha256": "549c9ff2ebbeb0e7068631c2f9ce0506081d6362e7434ca8baa5579f687424ec",
+          "dep_info": "/home/dev-user/.cache/toucan/aws-lc-consumer-composed-docs-02/cache/toucan/target/release/deps/toucan_bindgen-972615a8c88496b4.d",
+          "dep_info_sha256": "9233b92a4f4335caf5d88030b908395b6e43fff52f5410667d07ab3c3ee044c9",
+          "source_inputs": {
+            "crates/toucan_bindgen/src/lib.rs": "fec861c75b158ecd08c2ed7a8f508ffb1a79001daaacce3cd7fc594435d54979",
+            "crates/toucan_bindgen/src/arguments.rs": "68e404554f08fd40331ef3e1603c8b30d13d38ffe3029a45f79ef3e2ce986c57",
+            "crates/toucan_bindgen/src/callbacks.rs": "fdaf0192a51d5428842ce2c24188bae702110378a5e19ab90145f39483cb6a16",
+            "crates/toucan_bindgen/src/documentation.rs": "96241dd80c1b358f0cc10f70b520d5fff3568c3d0789edd9eaeef614d508b9e7",
+            "crates/toucan_bindgen/src/formatting.rs": "40cb0bf6b17b2ea8b3559a801581fb6ce0941b9a8bca7791bbf69dd8d05c1a73",
+            "crates/toucan_bindgen/src/macro_compat.rs": "a78c744c95ba8f887093ad9cc72adaff452e0ae5ff2a51981c04bc3dbfd0bd40",
+            "crates/toucan_bindgen/src/macro_projection.rs": "f3a57e5827abc96303070c707260a467855e92e1e6db4c79e2f1b28ffaafed35",
+            "crates/toucan_bindgen/src/macro_values.rs": "e26a39020d2379913b0a453163934b3c219525cab288713cab9192f0922c726f",
+            "crates/toucan_bindgen/src/objects.rs": "c35e57dc8f563a76479ed556098d760f7ea8ffcf65690bacef538b483927df62",
+            "crates/toucan_bindgen/src/parameter_dependencies.rs": "0c40890edf6ee7706d5c561eab69a532ef1daa84d555f4180f2bb50556bf5e05",
+            "crates/toucan_bindgen/src/selection.rs": "724a37cb87c1326e533a9f932f6cecc3f2a2aeb810deab7143e849bfc6bc346d"
+          }
+        }
+      ]
+    }
+  ],
+  "cases": {
+    "reference": {
+      "consumer_sha256": "9ea2a3ecc4c0597a755bd229414e0730757023854e98678e23fa7f7f7a9cd1b9",
+      "bindings_sha256": "81e34d272e09f57a0555c68e4c847d7e2adfc78d3fde9988f6a5d3cc3e89667a",
+      "generated_layout_tests": 75,
+      "changed_upstream_files": [],
+      "non_generator_dependencies": {
+        "packages": {
+          "aws-lc-rs@1.18.0": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "ce2b2dcc879c3bae0d371e77c99f2238400ef24ec001394befa67b6e543add9e",
+            "features": [
+              "aws-lc-sys",
+              "bindgen",
+              "prebuilt-nasm"
+            ]
+          },
+          "aws-lc-sys@0.44.0": {
+            "source": null,
+            "checksum": null,
+            "features": [
+              "bindgen",
+              "prebuilt-nasm"
+            ]
+          },
+          "cc@1.4.4": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "0ad534f4357a5264cce5019c989cf66a4f0dc4e0d1b1d15f8aacec0ff7360273",
+            "features": [
+              "parallel"
+            ]
+          },
+          "cmake@0.1.58": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678",
+            "features": []
+          },
+          "dunce@1.0.5": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813",
+            "features": []
+          },
+          "find-msvc-tools@0.1.11": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "d45db016d36b838f563236e9193d0ee6ce38f3f68b6c94e914b4929c96bbb890",
+            "features": []
+          },
+          "fs_extra@1.3.0": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c",
+            "features": []
+          },
+          "jobserver@0.1.35": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "1c00acbd29eabad4a2392fa0e921c874934dbbf4194312ad20f04a0ed67a3cb3",
+            "features": []
+          },
+          "libc@0.2.189": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2",
+            "features": [
+              "default",
+              "std"
+            ]
+          },
+          "pkg-config@0.3.34": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548",
+            "features": []
+          },
+          "shlex@2.0.1": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba",
+            "features": [
+              "default",
+              "std"
+            ]
+          },
+          "toucan-aws-lc-consumer@0.0.0": {
+            "source": null,
+            "checksum": null,
+            "features": []
+          },
+          "zeroize@1.9.0": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e",
+            "features": [
+              "alloc",
+              "default"
+            ]
+          }
+        },
+        "edges": [
+          {
+            "from": "aws-lc-rs@1.18.0",
+            "to": "aws-lc-sys@0.44.0",
+            "name": "aws_lc_sys",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-rs@1.18.0",
+            "to": "zeroize@1.9.0",
+            "name": "zeroize",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-sys@0.44.0",
+            "to": "pkg-config@0.3.34",
+            "name": "pkg_config",
+            "kinds": [
+              {
+                "kind": "build",
+                "target": "cfg(unix)"
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-sys@0.44.0",
+            "to": "cc@1.4.4",
+            "name": "cc",
+            "kinds": [
+              {
+                "kind": "build",
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-sys@0.44.0",
+            "to": "cmake@0.1.58",
+            "name": "cmake",
+            "kinds": [
+              {
+                "kind": "build",
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-sys@0.44.0",
+            "to": "dunce@1.0.5",
+            "name": "dunce",
+            "kinds": [
+              {
+                "kind": "build",
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-sys@0.44.0",
+            "to": "fs_extra@1.3.0",
+            "name": "fs_extra",
+            "kinds": [
+              {
+                "kind": "build",
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "cc@1.4.4",
+            "to": "libc@0.2.189",
+            "name": "libc",
+            "kinds": [
+              {
+                "kind": null,
+                "target": "cfg(unix)"
+              }
+            ]
+          },
+          {
+            "from": "cc@1.4.4",
+            "to": "find-msvc-tools@0.1.11",
+            "name": "find_msvc_tools",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "cc@1.4.4",
+            "to": "jobserver@0.1.35",
+            "name": "jobserver",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "cc@1.4.4",
+            "to": "shlex@2.0.1",
+            "name": "shlex",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "cmake@0.1.58",
+            "to": "cc@1.4.4",
+            "name": "cc",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "jobserver@0.1.35",
+            "to": "libc@0.2.189",
+            "name": "libc",
+            "kinds": [
+              {
+                "kind": null,
+                "target": "cfg(unix)"
+              }
+            ]
+          },
+          {
+            "from": "toucan-aws-lc-consumer@0.0.0",
+            "to": "aws-lc-rs@1.18.0",
+            "name": "aws_lc_rs",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "toucan-aws-lc-consumer@0.0.0",
+            "to": "aws-lc-sys@0.44.0",
+            "name": "aws_lc_sys",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          }
+        ]
+      },
+      "native_object_count": 362,
+      "deterministic_runtime_artifacts": 41
+    },
+    "toucan": {
+      "consumer_sha256": "b189ca46edb174f7f6f41644827cf2e8398c105cc1979fa5c960f0c1f143e88f",
+      "bindings_sha256": "3d954ea74b811a3a6d13ac1567048bc3403572a61d62677770b337d8e520c25e",
+      "generated_layout_tests": 74,
+      "changed_upstream_files": [
+        "Cargo.toml"
+      ],
+      "non_generator_dependencies": {
+        "packages": {
+          "aws-lc-rs@1.18.0": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "ce2b2dcc879c3bae0d371e77c99f2238400ef24ec001394befa67b6e543add9e",
+            "features": [
+              "aws-lc-sys",
+              "bindgen",
+              "prebuilt-nasm"
+            ]
+          },
+          "aws-lc-sys@0.44.0": {
+            "source": null,
+            "checksum": null,
+            "features": [
+              "bindgen",
+              "prebuilt-nasm"
+            ]
+          },
+          "cc@1.4.4": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "0ad534f4357a5264cce5019c989cf66a4f0dc4e0d1b1d15f8aacec0ff7360273",
+            "features": [
+              "parallel"
+            ]
+          },
+          "cmake@0.1.58": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "c0f78a02292a74a88ac736019ab962ece0bc380e3f977bf72e376c5d78ff0678",
+            "features": []
+          },
+          "dunce@1.0.5": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "92773504d58c093f6de2459af4af33faa518c13451eb8f2b5698ed3d36e7c813",
+            "features": []
+          },
+          "find-msvc-tools@0.1.11": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "d45db016d36b838f563236e9193d0ee6ce38f3f68b6c94e914b4929c96bbb890",
+            "features": []
+          },
+          "fs_extra@1.3.0": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "42703706b716c37f96a77aea830392ad231f44c9e9a67872fa5548707e11b11c",
+            "features": []
+          },
+          "jobserver@0.1.35": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "1c00acbd29eabad4a2392fa0e921c874934dbbf4194312ad20f04a0ed67a3cb3",
+            "features": []
+          },
+          "libc@0.2.189": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "3eaf3ede3fee6db1a4c2ee091bf8a8b4dccdc6d17f656fb07896ee72867612f2",
+            "features": [
+              "default",
+              "std"
+            ]
+          },
+          "pkg-config@0.3.34": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "f6b464fbc74e149a392436b17d523f769e057cb6877f6a5c4618bc6f11800548",
+            "features": []
+          },
+          "shlex@2.0.1": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "f8fadd59c855ef2080decdef8ff161eb6661b86933c9d82e5ba29dc602a55aba",
+            "features": [
+              "default",
+              "std"
+            ]
+          },
+          "toucan-aws-lc-consumer@0.0.0": {
+            "source": null,
+            "checksum": null,
+            "features": []
+          },
+          "zeroize@1.9.0": {
+            "source": "registry+https://github.com/rust-lang/crates.io-index",
+            "checksum": "e13c156562582aa81c60cb29407084cdb54c4164760106ab78e6c5b0858cf64e",
+            "features": [
+              "alloc",
+              "default"
+            ]
+          }
+        },
+        "edges": [
+          {
+            "from": "aws-lc-rs@1.18.0",
+            "to": "aws-lc-sys@0.44.0",
+            "name": "aws_lc_sys",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-rs@1.18.0",
+            "to": "zeroize@1.9.0",
+            "name": "zeroize",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-sys@0.44.0",
+            "to": "pkg-config@0.3.34",
+            "name": "pkg_config",
+            "kinds": [
+              {
+                "kind": "build",
+                "target": "cfg(unix)"
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-sys@0.44.0",
+            "to": "cc@1.4.4",
+            "name": "cc",
+            "kinds": [
+              {
+                "kind": "build",
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-sys@0.44.0",
+            "to": "cmake@0.1.58",
+            "name": "cmake",
+            "kinds": [
+              {
+                "kind": "build",
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-sys@0.44.0",
+            "to": "dunce@1.0.5",
+            "name": "dunce",
+            "kinds": [
+              {
+                "kind": "build",
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "aws-lc-sys@0.44.0",
+            "to": "fs_extra@1.3.0",
+            "name": "fs_extra",
+            "kinds": [
+              {
+                "kind": "build",
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "cc@1.4.4",
+            "to": "libc@0.2.189",
+            "name": "libc",
+            "kinds": [
+              {
+                "kind": null,
+                "target": "cfg(unix)"
+              }
+            ]
+          },
+          {
+            "from": "cc@1.4.4",
+            "to": "find-msvc-tools@0.1.11",
+            "name": "find_msvc_tools",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "cc@1.4.4",
+            "to": "jobserver@0.1.35",
+            "name": "jobserver",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "cc@1.4.4",
+            "to": "shlex@2.0.1",
+            "name": "shlex",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "cmake@0.1.58",
+            "to": "cc@1.4.4",
+            "name": "cc",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "jobserver@0.1.35",
+            "to": "libc@0.2.189",
+            "name": "libc",
+            "kinds": [
+              {
+                "kind": null,
+                "target": "cfg(unix)"
+              }
+            ]
+          },
+          {
+            "from": "toucan-aws-lc-consumer@0.0.0",
+            "to": "aws-lc-rs@1.18.0",
+            "name": "aws_lc_rs",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          },
+          {
+            "from": "toucan-aws-lc-consumer@0.0.0",
+            "to": "aws-lc-sys@0.44.0",
+            "name": "aws_lc_sys",
+            "kinds": [
+              {
+                "kind": null,
+                "target": null
+              }
+            ]
+          }
+        ]
+      },
+      "native_object_count": 362,
+      "deterministic_runtime_artifacts": 41
+    }
+  },
+  "scope_limits": [
+    "Native x86-64 Linux crypto-only AWS-LC wrapper and emitted layout tests.",
+    "Does not refresh uv TLS, measure performance, prove every public API export, or establish another target.",
+    "Separate old Cargo target directories are reused through a preserved cache-owned runner adaptation; all sys/consumer sources and output paths are fresh."
+  ],
+  "runtime_artifacts_equal": true,
+  "archive": {
+    "path": "capture.json.gz",
+    "bytes": 1074641,
+    "sha256": "213ab54dea7490420f16a592b7d3338d6d29752f9b5fc7dd70a634a2f5b4f7ef"
+  }
+}

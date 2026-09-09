@@ -18,12 +18,19 @@ features and remaining gaps.
 Build from this checkout with Rust 1.96 or later:
 
 ```console
-cargo install --path crates/toucan_cli --locked
+cargo install --path crates/toucan_cli --bin toucan --locked
 ```
 
 The frontend does not require libclang or invoke a C compiler. Target system headers
 and compiler resource headers may still be needed to parse an application's headers.
 Linking and using the generated bindings requires the corresponding C library.
+
+For an executable named `bindgen` that accepts the pinned AWS-LC external
+binding-generator command, [install the separate CLI](docs/external-bindgen-cli.md):
+
+```console
+cargo install --path crates/toucan_cli --bin bindgen --locked
+```
 
 ## Generate bindings
 
@@ -84,9 +91,25 @@ the unmodified `zstd` and `zstd-safe` Rust APIs.
 ### Existing binding build scripts
 
 The experimental [toucan_bindgen adapter](crates/toucan_bindgen) supports the
-builder calls used by the pinned zstd-sys build script. It selects Cargo's target
-and generates bindings during the build without libclang. The adapter documents
-its supported arguments and API subset; unsupported options produce errors.
+builder calls used by the pinned zstd-sys and AWS-LC build scripts. It selects
+Cargo's target and generates bindings during the build without libclang. The
+adapter documents its supported arguments and API subset; unsupported options
+produce errors. See [replacement readiness](docs/replacement-readiness.md) for
+the tested consumer paths and release blockers.
+
+The proposed [uv and ty integration](docs/opt-in-rollout.md) adds a build-time
+`toucan-zstd` Cargo feature. [Complete builds of both pinned applications](corpus/evidence/astral-git-optin-2026-09-09/README.md)
+pass selected library and runtime checks in fresh Linux x86-64 images without
+libclang, compiling the frontend from its pinned Git dependency. The pinned
+upstream revisions do not expose this selector.
+
+Installing `toucan_cli` also installs a standalone `bindgen` executable. With
+that executable first on `PATH`, the pinned `aws-lc-sys` build script selects it
+when `AWS_LC_SYS_EXTERNAL_BINDGEN=1`. The [native crypto consumer
+proof](corpus/evidence/aws-lc-external-cli-317756d/README.md) checks the unchanged
+build script and generated bindings; the executable rejects unsupported options.
+This route has not been validated for SSL or FIPS, and the unchanged upstream
+manifest still compiles its `bindgen` and `clang-sys` build dependencies.
 
 ## Analyze headers
 
@@ -178,10 +201,13 @@ and source references through `Compilation::checked()`. See the
 `parse_file` for files, and configure include directories, predefined macros, virtual
 headers, and resource limits through `Config::preprocessor`.
 
-Library crates forbid unsafe Rust, do not invoke compiler processes, and leave
-allocator selection to the embedding application. The CLI uses the system allocator
-by default. Build with `--features performance-allocator` to use jemalloc on supported
-Unix platforms or mimalloc on Windows.
+The integrated frontend and binding adapter do not invoke a C compiler. The
+standalone `toucan_parser::parse` compatibility entry point is an exception: it
+launches its configured C preprocessor; `parse_preprocessed` accepts text without
+that process. Library crates forbid unsafe Rust and leave allocator selection to
+the embedding application. The CLI uses the system allocator by default. Build
+with `--features performance-allocator` to use jemalloc on supported Unix
+platforms or mimalloc on Windows.
 
 ## Validation
 
@@ -200,6 +226,30 @@ The [recorded evidence](corpus/evidence/native-06cefbe/summary.json) identifies
 the tested commits and configurations. See [compatibility](docs/compatibility.md)
 for coverage and gaps. [Benchmarks](docs/benchmarks.md) and [fuzzing](fuzz/README.md)
 record separate performance and malformed-input checks.
+
+The [conformance guide](docs/conformance.md) describes the scope of language,
+preprocessor, ABI, and consumer checks. The external C suite now exercises both
+compiler-preprocessed input and original source through Toucan's preprocessor;
+both routes pass the [Rust 1.96 CI gate](corpus/evidence/native-conformance-ci-2026-09-09/README.md).
+
+The [ARMv7 test corrections](corpus/evidence/armv7-test-matrices-2026-09-09/README.md)
+pass all seven CI workflows at `6c66ec7`, including full native suites with
+ignored tests enabled on Linux x86-64 and AArch64, and all-features tests and
+package checks on Linux and Windows.
+
+The [combined Builder validation](corpus/evidence/native-callbacks-2026-09-09/README.md)
+checks the combined Builder and analysis changes: 1,268 workspace tests and
+Rustdoc pass on Linux; recorded GitHub jobs also pass on Linux x64/ARM and Windows.
+The [Apple Silicon validation at `ac3312d`](corpus/evidence/macos-arm64-ac3312d-2026-09-09/README.md)
+passes workspace and package checks, the native corpus, all four zstd profiles,
+and a SQLite consumer. It does not validate later commits or full uv/ty builds.
+The macOS workflow remains opt-in on pull requests; this run allocated no Intel
+runners.
+
+More recent bounded native checks include [installed Windows ARM64 SDK headers](corpus/evidence/windows-arm64-sdk-2026-09-09/README.md)
+with generated Rust layouts and an [i686 zstd C/Rust consumer](corpus/evidence/i686-zstd-consumer-2026-09-09/README.md)
+with byte-identical compression outputs. They establish those recorded paths;
+they do not validate every project configuration or the latest macOS source.
 
 ## Development
 
@@ -280,8 +330,9 @@ Wide strings retain their typed arrays when this option is enabled.
 
 ### Inline assembly in headers
 
-GNU basic and extended `asm` statements are checked on the supported Linux and
-macOS targets. The frontend validates C operand expressions, writable outputs,
+GNU basic and extended `asm` statements are checked on the supported x86 and
+AArch64 Linux and macOS targets. ARMv7 inline assembly is unsupported.
+The frontend validates C operand expressions, writable outputs,
 memory addressability, symbolic names, matching constraints, alternative counts,
 template references, and a target-specific set of clobbers. Read/write outputs
 count twice toward the 30-operand limit. Integer immediates, generic register and

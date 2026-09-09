@@ -282,6 +282,7 @@ impl Emitter<'_> {
         layout_required: bool,
     ) -> Result<(), Error> {
         check_depth(depth)?;
+        self.check_pointer_width(ty)?;
         match &self.unit.resolve(ty)?.kind {
             TypeKind::Complex(_) if layout_required => return Err(crate::complex::storage_error()),
             TypeKind::Integer(IntegerKind::Int128 | IntegerKind::UnsignedInt128)

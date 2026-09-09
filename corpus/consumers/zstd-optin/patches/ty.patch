@@ -1,0 +1,62 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -220,6 +220,7 @@
+ which = { version = "8.0.0" }
+ wild = { version = "2" }
+ zip = { version = "8.0", default-features = false }
++zstd-sys = { version = "2.0.16", default-features = false }
+ 
+ [workspace.metadata.cargo-shear]
+ ignored = [
+--- a/crates/ty/Cargo.toml
++++ b/crates/ty/Cargo.toml
+@@ -69,6 +69,7 @@
+ [features]
+ default = []
+ test-uv = ["ty_server/test-uv"]
++toucan-zstd = ["ty_project/toucan-zstd"]
+ 
+ [lints]
+ workspace = true
+--- a/crates/ty_project/Cargo.toml
++++ b/crates/ty_project/Cargo.toml
+@@ -77,6 +77,7 @@
+     "ty_python_semantic/schemars",
+     "ty_python_core/schemars",
+ ]
++toucan-zstd = ["zstd", "ty_vendored/toucan-zstd"]
+ zstd = ["ty_vendored/zstd"]
+ junit = ["ruff_db/junit"]
+ format = ["ruff_python_formatter"]
+--- a/crates/ty_vendored/Cargo.toml
++++ b/crates/ty_vendored/Cargo.toml
+@@ -14,21 +14,28 @@
+ ruff_db = { workspace = true }
+ static_assertions = { workspace = true }
+ zip = { workspace = true }
++zstd-sys = { workspace = true, optional = true, features = ["toucan"] }
+ 
+ [build-dependencies]
+ path-slash = { workspace = true }
+ walkdir = { workspace = true }
+ zip = { workspace = true }
++zstd-sys = { workspace = true, optional = true, features = ["toucan"] }
+ 
+ [dev-dependencies]
+ walkdir = { workspace = true }
+ 
+ [features]
++deflate = ["zip/deflate-flate2-zlib-rs"]
++toucan-zstd = ["zstd", "dep:zstd-sys"]
+ zstd = ["zip/zstd"]
+-deflate = ["zip/deflate-flate2-zlib-rs"]
+ 
+ [lints]
+ workspace = true
+ 
+ [lib]
+ doctest = false
++
++[package.metadata.cargo-shear]
++# Select the same binding generator for the typeshed compressor and decompressor.
++ignored = ["zstd-sys"]

@@ -528,6 +528,7 @@ dependencies = [
  "tempfile",
  "tikv-jemallocator",
  "toucan",
+ "toucan_bindgen",
 ]
 
 [[package]]
@@ -576,6 +577,7 @@ dependencies = [
  "tempfile",
  "thiserror",
  "toucan_layout",
+ "toucan_test_support",
 ]
 
 [[package]]

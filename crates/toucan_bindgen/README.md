@@ -19,6 +19,17 @@ The `runtime` feature accepts the existing manifest's feature selection. Both
 configurations use Toucan's frontend. Building the adapter requires Rust 1.96;
 generated declarations can target Rust 1.64 or later.
 
+`RustTarget` accepts `"1.64".parse()?` and `"1.64.0".parse()?` in existing
+`rust_target` calls. Stable patch releases select the same language features.
+Parsing returns `std::io::Error` with `InvalidInput` for invalid or unsupported
+targets. Targets must be stable Rust 1.64 or newer, with a minor number no greater
+than 65535. Nightly targets are explicitly unsupported. The default remains Rust 1.64.
+
+The [target parsing capture](../../corpus/evidence/rust-target-parse-2026-09-09.json.gz)
+checks 47 strings against bindgen, preserves the existing version-policy
+differences, and verifies identical generated output for parsed and constructed
+stable targets.
+
 ## Supported build scripts
 
 `Builder` supports ordered `header` calls, `clang_arg`/`clang_args`, `use_core`,
@@ -90,6 +101,13 @@ The default representation uses `usize` for compatible `size_t`, unsigned types
 for nonnegative integer macros, core paths, and Rust 1.64 syntax. Select enum
 variants explicitly: Rust enums cannot represent arbitrary integer values.
 Unsupported C syntax and unproved Rust calling ABIs remain generation errors.
+
+Bare function typedefs use bindgen's nullable callback representation. For
+`typedef int Callback(int);`, the Rust alias is `Option<unsafe extern "C" fn(...)>`.
+A C `Callback *` uses that alias directly; `Callback **` becomes a raw pointer
+to the alias. This preserves typed `None` values in existing Rust consumers.
+See [function typedef bindings](../../docs/function-typedef-bindings.md) for
+alias chains, nested callbacks, external replacements and native evidence.
 
 ## Targets and arguments
 
@@ -180,8 +198,10 @@ representations. Unsupported expressions and out-of-range characters appear in
 evaluation as `MacroEvaluation::Provided` and retain accepted incompatible
 redefinitions with their physical locations. The core library's C constant
 evaluation remains a separate API. See [macro values](../../docs/macro-value-compatibility.md)
-for the grammar, bounds, and differential evidence. `push_macro` and `pop_macro`
-remain unsupported.
+for the grammar, bounds, and differential evidence. The preprocessor applies
+`push_macro` and `pop_macro` before expanding subsequent tokens, including when
+they appear through `_Pragma`. The Builder's written-definition value history
+remains a separate policy.
 
 The Builder emits ordinary externally linked C function definitions and excludes
 inline candidates. Its default path uses compact declaration-time inline facts,
@@ -224,6 +244,11 @@ categories select their union. A nonmatching pattern selects no roots; invalid
 expressions fail generation. Required types are included recursively.
 
 Type patterns match typedefs and lexical tag names such as `Outer_Inner`.
+Named incomplete tags introduced by record members keep their file-scope names:
+`struct Owner { struct T *data; };` exposes `T`, while a definition inside
+`Owner` exposes `Owner_T`. An unrelated `typedef int T` keeps the qualified
+opaque name `Owner_T` to avoid a Rust type-name collision. Prototype-scope tags
+remain separate types, and incomplete records expose no public storage fields.
 Function patterns match functions only, even when a C tag shares that spelling.
 Variable patterns match objects and written object macros. An enumerator of an
 anonymous top-level enum without a typedef selects that whole enum; enumerators

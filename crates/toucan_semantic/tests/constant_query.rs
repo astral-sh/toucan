@@ -26,6 +26,9 @@ const PROVEN: &[(&str, u128)] = &[
     ("__builtin_ctz(8)", 1),
     ("__builtin_ctzl(8)", 1),
     ("__builtin_ctzll(8)", 1),
+    ("__builtin_popcount(0)", 1),
+    ("__builtin_popcountl(8)", 1),
+    ("__builtin_popcountll(8)", 1),
     ("__builtin_inf()", 1),
     ("__builtin_inff()", 1),
     ("__builtin_infl()", 1),
@@ -42,6 +45,7 @@ const PROVEN: &[(&str, u128)] = &[
     ("__builtin_nan((const char*)0)", 0),
     ("__builtin_clz(global)", 0),
     ("__builtin_ctz(global++)", 0),
+    ("__builtin_popcount(global++)", 0),
     ("__builtin_constant_p(global)", 1),
     ("global", 0),
     ("&global", 0),
@@ -123,7 +127,8 @@ fn constant_queries_prove_supported_folds_without_optimizer_assumptions() {
         ] {
             let accepted = !matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu
+                Target::I686UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxGnu
                     | Target::X86_64UnknownLinuxMusl
                     | Target::Aarch64UnknownLinuxGnu
                     | Target::Aarch64UnknownLinuxMusl

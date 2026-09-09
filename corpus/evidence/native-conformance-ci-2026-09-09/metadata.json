@@ -1,0 +1,516 @@
+{
+  "artifacts": {
+    "artifacts": [
+      {
+        "archive_download_url": "https://api.github.com/repos/astral-sh/toucan/actions/artifacts/10120935329/zip",
+        "created_at": "2026-09-09T19:20:42Z",
+        "digest": "sha256:000e7c30b49fc12be87d291cf53b92dca5fa779287be53ea79864064dcc4a932",
+        "expired": false,
+        "expires_at": "2026-09-23T19:20:35Z",
+        "id": 10120935329,
+        "name": "c-testsuite-conformance-clang",
+        "node_id": "MDg6QXJ0aWZhY3QxMDEyMDkzNTMyOQ==",
+        "size_in_bytes": 5481592,
+        "updated_at": "2026-09-09T19:20:42Z",
+        "url": "https://api.github.com/repos/astral-sh/toucan/actions/artifacts/10120935329",
+        "workflow_run": {
+          "head_branch": "charlie/codex-toucan-native-preprocessor-gate",
+          "head_repository_id": 1360719664,
+          "head_sha": "ca8924413da6fc01e44192f548bef0a18050ffd0",
+          "id": 34394052399,
+          "repository_id": 1360719664
+        }
+      },
+      {
+        "archive_download_url": "https://api.github.com/repos/astral-sh/toucan/actions/artifacts/10120904074/zip",
+        "created_at": "2026-09-09T19:19:54Z",
+        "digest": "sha256:8a26d2a1c52286eac512bd34bcdb9fcd351c0ff8bd3b69e04f52fb58326583bc",
+        "expired": false,
+        "expires_at": "2026-09-23T19:19:46Z",
+        "id": 10120904074,
+        "name": "c-testsuite-conformance-gcc",
+        "node_id": "MDg6QXJ0aWZhY3QxMDEyMDkwNDA3NA==",
+        "size_in_bytes": 5393721,
+        "updated_at": "2026-09-09T19:19:54Z",
+        "url": "https://api.github.com/repos/astral-sh/toucan/actions/artifacts/10120904074",
+        "workflow_run": {
+          "head_branch": "charlie/codex-toucan-native-preprocessor-gate",
+          "head_repository_id": 1360719664,
+          "head_sha": "ca8924413da6fc01e44192f548bef0a18050ffd0",
+          "id": 34394052399,
+          "repository_id": 1360719664
+        }
+      }
+    ],
+    "total_count": 2
+  },
+  "jobs": {
+    "jobs": [
+      {
+        "check_run_url": "https://api.github.com/repos/astral-sh/toucan/check-runs/102609230133",
+        "completed_at": "2026-09-09T19:19:55Z",
+        "conclusion": "success",
+        "created_at": "2026-09-09T19:16:16Z",
+        "head_branch": "charlie/codex-toucan-native-preprocessor-gate",
+        "head_sha": "ca8924413da6fc01e44192f548bef0a18050ffd0",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34394052399/job/102609230133",
+        "id": 102609230133,
+        "labels": [
+          "ubuntu-24.04"
+        ],
+        "name": "Pedantic C11 acceptance (gcc)",
+        "node_id": "CR_kwDOURrvMM8AAAAX4_yZNQ",
+        "run_attempt": 1,
+        "run_id": 34394052399,
+        "run_url": "https://api.github.com/repos/astral-sh/toucan/actions/runs/34394052399",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions",
+        "runner_id": 1002373047,
+        "runner_name": "GitHub Actions 1002373047",
+        "started_at": "2026-09-09T19:16:22Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completed_at": "2026-09-09T19:16:24Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "started_at": "2026-09-09T19:16:23Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:16:33Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "started_at": "2026-09-09T19:16:24Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:16:43Z",
+            "conclusion": "success",
+            "name": "Run dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0",
+            "number": 3,
+            "started_at": "2026-09-09T19:16:33Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:16:54Z",
+            "conclusion": "success",
+            "name": "Install independent compiler oracles",
+            "number": 4,
+            "started_at": "2026-09-09T19:16:43Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:16:54Z",
+            "conclusion": "success",
+            "name": "Test the acceptance gate",
+            "number": 5,
+            "started_at": "2026-09-09T19:16:54Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:18:55Z",
+            "conclusion": "success",
+            "name": "Build the frontend",
+            "number": 6,
+            "started_at": "2026-09-09T19:16:54Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:19:45Z",
+            "conclusion": "success",
+            "name": "Require acceptance of pedantic-positive cases",
+            "number": 7,
+            "started_at": "2026-09-09T19:18:55Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:19:54Z",
+            "conclusion": "success",
+            "name": "Upload acceptance results and diagnostics",
+            "number": 8,
+            "started_at": "2026-09-09T19:19:45Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:19:54Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 16,
+            "started_at": "2026-09-09T19:19:54Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:19:54Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 17,
+            "started_at": "2026-09-09T19:19:54Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://api.github.com/repos/astral-sh/toucan/actions/jobs/102609230133",
+        "workflow_name": "C acceptance conformance"
+      },
+      {
+        "check_run_url": "https://api.github.com/repos/astral-sh/toucan/check-runs/102609230405",
+        "completed_at": "2026-09-09T19:20:43Z",
+        "conclusion": "success",
+        "created_at": "2026-09-09T19:16:16Z",
+        "head_branch": "charlie/codex-toucan-native-preprocessor-gate",
+        "head_sha": "ca8924413da6fc01e44192f548bef0a18050ffd0",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34394052399/job/102609230405",
+        "id": 102609230405,
+        "labels": [
+          "ubuntu-24.04"
+        ],
+        "name": "Pedantic C11 acceptance (clang)",
+        "node_id": "CR_kwDOURrvMM8AAAAX4_yaRQ",
+        "run_attempt": 1,
+        "run_id": 34394052399,
+        "run_url": "https://api.github.com/repos/astral-sh/toucan/actions/runs/34394052399",
+        "runner_group_id": 0,
+        "runner_group_name": "GitHub Actions",
+        "runner_id": 1002373048,
+        "runner_name": "GitHub Actions 1002373048",
+        "started_at": "2026-09-09T19:17:04Z",
+        "status": "completed",
+        "steps": [
+          {
+            "completed_at": "2026-09-09T19:17:05Z",
+            "conclusion": "success",
+            "name": "Set up job",
+            "number": 1,
+            "started_at": "2026-09-09T19:17:05Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:17:14Z",
+            "conclusion": "success",
+            "name": "Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 2,
+            "started_at": "2026-09-09T19:17:06Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:17:22Z",
+            "conclusion": "success",
+            "name": "Run dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0",
+            "number": 3,
+            "started_at": "2026-09-09T19:17:14Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:17:33Z",
+            "conclusion": "success",
+            "name": "Install independent compiler oracles",
+            "number": 4,
+            "started_at": "2026-09-09T19:17:22Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:17:33Z",
+            "conclusion": "success",
+            "name": "Test the acceptance gate",
+            "number": 5,
+            "started_at": "2026-09-09T19:17:33Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:19:33Z",
+            "conclusion": "success",
+            "name": "Build the frontend",
+            "number": 6,
+            "started_at": "2026-09-09T19:17:33Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:20:33Z",
+            "conclusion": "success",
+            "name": "Require acceptance of pedantic-positive cases",
+            "number": 7,
+            "started_at": "2026-09-09T19:19:33Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:20:42Z",
+            "conclusion": "success",
+            "name": "Upload acceptance results and diagnostics",
+            "number": 8,
+            "started_at": "2026-09-09T19:20:33Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:20:43Z",
+            "conclusion": "success",
+            "name": "Post Run actions/checkout@11d5960a326750d5838078e36cf38b85af677262",
+            "number": 16,
+            "started_at": "2026-09-09T19:20:42Z",
+            "status": "completed"
+          },
+          {
+            "completed_at": "2026-09-09T19:20:43Z",
+            "conclusion": "success",
+            "name": "Complete job",
+            "number": 17,
+            "started_at": "2026-09-09T19:20:43Z",
+            "status": "completed"
+          }
+        ],
+        "url": "https://api.github.com/repos/astral-sh/toucan/actions/jobs/102609230405",
+        "workflow_name": "C acceptance conformance"
+      }
+    ],
+    "total_count": 2
+  },
+  "run": {
+    "actor": {
+      "avatar_url": "https://avatars.githubusercontent.com/u/1309177?v=4",
+      "events_url": "https://api.github.com/users/charliermarsh/events{/privacy}",
+      "followers_url": "https://api.github.com/users/charliermarsh/followers",
+      "following_url": "https://api.github.com/users/charliermarsh/following{/other_user}",
+      "gists_url": "https://api.github.com/users/charliermarsh/gists{/gist_id}",
+      "gravatar_id": "",
+      "html_url": "https://github.com/charliermarsh",
+      "id": 1309177,
+      "login": "charliermarsh",
+      "node_id": "MDQ6VXNlcjEzMDkxNzc=",
+      "organizations_url": "https://api.github.com/users/charliermarsh/orgs",
+      "received_events_url": "https://api.github.com/users/charliermarsh/received_events",
+      "repos_url": "https://api.github.com/users/charliermarsh/repos",
+      "site_admin": false,
+      "starred_url": "https://api.github.com/users/charliermarsh/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/charliermarsh/subscriptions",
+      "type": "User",
+      "url": "https://api.github.com/users/charliermarsh",
+      "user_view_type": "public"
+    },
+    "artifacts_url": "https://api.github.com/repos/astral-sh/toucan/actions/runs/34394052399/artifacts",
+    "cancel_url": "https://api.github.com/repos/astral-sh/toucan/actions/runs/34394052399/cancel",
+    "check_suite_id": 93175530940,
+    "check_suite_node_id": "CS_kwDOURrvMM8AAAAVsbHFvA",
+    "check_suite_url": "https://api.github.com/repos/astral-sh/toucan/check-suites/93175530940",
+    "conclusion": "success",
+    "created_at": "2026-09-09T19:16:15Z",
+    "display_title": "Check original C sources in the conformance gate",
+    "event": "pull_request",
+    "head_branch": "charlie/codex-toucan-native-preprocessor-gate",
+    "head_commit": {
+      "author": {
+        "email": "charlie.r.marsh@gmail.com",
+        "name": "Charlie Marsh"
+      },
+      "committer": {
+        "email": "charlie.r.marsh@gmail.com",
+        "name": "Charlie Marsh"
+      },
+      "id": "ca8924413da6fc01e44192f548bef0a18050ffd0",
+      "message": "Check original C sources in the conformance gate",
+      "timestamp": "2026-09-09T19:14:34Z",
+      "tree_id": "3f5faf4b300c44260bd15be8f2d93bf20d95d662"
+    },
+    "head_repository": {
+      "archive_url": "https://api.github.com/repos/astral-sh/toucan/{archive_format}{/ref}",
+      "assignees_url": "https://api.github.com/repos/astral-sh/toucan/assignees{/user}",
+      "blobs_url": "https://api.github.com/repos/astral-sh/toucan/git/blobs{/sha}",
+      "branches_url": "https://api.github.com/repos/astral-sh/toucan/branches{/branch}",
+      "collaborators_url": "https://api.github.com/repos/astral-sh/toucan/collaborators{/collaborator}",
+      "comments_url": "https://api.github.com/repos/astral-sh/toucan/comments{/number}",
+      "commits_url": "https://api.github.com/repos/astral-sh/toucan/commits{/sha}",
+      "compare_url": "https://api.github.com/repos/astral-sh/toucan/compare/{base}...{head}",
+      "contents_url": "https://api.github.com/repos/astral-sh/toucan/contents/{+path}",
+      "contributors_url": "https://api.github.com/repos/astral-sh/toucan/contributors",
+      "deployments_url": "https://api.github.com/repos/astral-sh/toucan/deployments",
+      "description": null,
+      "downloads_url": "https://api.github.com/repos/astral-sh/toucan/downloads",
+      "events_url": "https://api.github.com/repos/astral-sh/toucan/events",
+      "fork": false,
+      "forks_url": "https://api.github.com/repos/astral-sh/toucan/forks",
+      "full_name": "astral-sh/toucan",
+      "git_commits_url": "https://api.github.com/repos/astral-sh/toucan/git/commits{/sha}",
+      "git_refs_url": "https://api.github.com/repos/astral-sh/toucan/git/refs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/astral-sh/toucan/git/tags{/sha}",
+      "hooks_url": "https://api.github.com/repos/astral-sh/toucan/hooks",
+      "html_url": "https://github.com/astral-sh/toucan",
+      "id": 1360719664,
+      "issue_comment_url": "https://api.github.com/repos/astral-sh/toucan/issues/comments{/number}",
+      "issue_events_url": "https://api.github.com/repos/astral-sh/toucan/issues/events{/number}",
+      "issues_url": "https://api.github.com/repos/astral-sh/toucan/issues{/number}",
+      "keys_url": "https://api.github.com/repos/astral-sh/toucan/keys{/key_id}",
+      "labels_url": "https://api.github.com/repos/astral-sh/toucan/labels{/name}",
+      "languages_url": "https://api.github.com/repos/astral-sh/toucan/languages",
+      "merges_url": "https://api.github.com/repos/astral-sh/toucan/merges",
+      "milestones_url": "https://api.github.com/repos/astral-sh/toucan/milestones{/number}",
+      "name": "toucan",
+      "node_id": "R_kgDOURrvMA",
+      "notifications_url": "https://api.github.com/repos/astral-sh/toucan/notifications{?since,all,participating}",
+      "owner": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/115962839?v=4",
+        "events_url": "https://api.github.com/users/astral-sh/events{/privacy}",
+        "followers_url": "https://api.github.com/users/astral-sh/followers",
+        "following_url": "https://api.github.com/users/astral-sh/following{/other_user}",
+        "gists_url": "https://api.github.com/users/astral-sh/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/astral-sh",
+        "id": 115962839,
+        "login": "astral-sh",
+        "node_id": "O_kgDOBulz1w",
+        "organizations_url": "https://api.github.com/users/astral-sh/orgs",
+        "received_events_url": "https://api.github.com/users/astral-sh/received_events",
+        "repos_url": "https://api.github.com/users/astral-sh/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/astral-sh/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/astral-sh/subscriptions",
+        "type": "Organization",
+        "url": "https://api.github.com/users/astral-sh",
+        "user_view_type": "public"
+      },
+      "private": true,
+      "pulls_url": "https://api.github.com/repos/astral-sh/toucan/pulls{/number}",
+      "releases_url": "https://api.github.com/repos/astral-sh/toucan/releases{/id}",
+      "stargazers_url": "https://api.github.com/repos/astral-sh/toucan/stargazers",
+      "statuses_url": "https://api.github.com/repos/astral-sh/toucan/statuses/{sha}",
+      "subscribers_url": "https://api.github.com/repos/astral-sh/toucan/subscribers",
+      "subscription_url": "https://api.github.com/repos/astral-sh/toucan/subscription",
+      "tags_url": "https://api.github.com/repos/astral-sh/toucan/tags",
+      "teams_url": "https://api.github.com/repos/astral-sh/toucan/teams",
+      "trees_url": "https://api.github.com/repos/astral-sh/toucan/git/trees{/sha}",
+      "url": "https://api.github.com/repos/astral-sh/toucan"
+    },
+    "head_sha": "ca8924413da6fc01e44192f548bef0a18050ffd0",
+    "html_url": "https://github.com/astral-sh/toucan/actions/runs/34394052399",
+    "id": 34394052399,
+    "jobs_url": "https://api.github.com/repos/astral-sh/toucan/actions/runs/34394052399/jobs",
+    "logs_url": "https://api.github.com/repos/astral-sh/toucan/actions/runs/34394052399/logs",
+    "name": "C acceptance conformance",
+    "node_id": "WFR_kwLOURrvMM8AAAAIAguXLw",
+    "path": ".github/workflows/conformance.yml",
+    "previous_attempt_url": null,
+    "pull_requests": [
+      {
+        "base": {
+          "ref": "charlie/codex-toucan-astral-optin-trigger",
+          "repo": {
+            "id": 1360719664,
+            "name": "toucan",
+            "url": "https://api.github.com/repos/astral-sh/toucan"
+          },
+          "sha": "8a1225894e44fdb3028ffd9445948240c8d9751e"
+        },
+        "head": {
+          "ref": "charlie/codex-toucan-native-preprocessor-gate",
+          "repo": {
+            "id": 1360719664,
+            "name": "toucan",
+            "url": "https://api.github.com/repos/astral-sh/toucan"
+          },
+          "sha": "ca8924413da6fc01e44192f548bef0a18050ffd0"
+        },
+        "id": 4488522697,
+        "number": 340,
+        "url": "https://api.github.com/repos/astral-sh/toucan/pulls/340"
+      }
+    ],
+    "referenced_workflows": [],
+    "repository": {
+      "archive_url": "https://api.github.com/repos/astral-sh/toucan/{archive_format}{/ref}",
+      "assignees_url": "https://api.github.com/repos/astral-sh/toucan/assignees{/user}",
+      "blobs_url": "https://api.github.com/repos/astral-sh/toucan/git/blobs{/sha}",
+      "branches_url": "https://api.github.com/repos/astral-sh/toucan/branches{/branch}",
+      "collaborators_url": "https://api.github.com/repos/astral-sh/toucan/collaborators{/collaborator}",
+      "comments_url": "https://api.github.com/repos/astral-sh/toucan/comments{/number}",
+      "commits_url": "https://api.github.com/repos/astral-sh/toucan/commits{/sha}",
+      "compare_url": "https://api.github.com/repos/astral-sh/toucan/compare/{base}...{head}",
+      "contents_url": "https://api.github.com/repos/astral-sh/toucan/contents/{+path}",
+      "contributors_url": "https://api.github.com/repos/astral-sh/toucan/contributors",
+      "deployments_url": "https://api.github.com/repos/astral-sh/toucan/deployments",
+      "description": null,
+      "downloads_url": "https://api.github.com/repos/astral-sh/toucan/downloads",
+      "events_url": "https://api.github.com/repos/astral-sh/toucan/events",
+      "fork": false,
+      "forks_url": "https://api.github.com/repos/astral-sh/toucan/forks",
+      "full_name": "astral-sh/toucan",
+      "git_commits_url": "https://api.github.com/repos/astral-sh/toucan/git/commits{/sha}",
+      "git_refs_url": "https://api.github.com/repos/astral-sh/toucan/git/refs{/sha}",
+      "git_tags_url": "https://api.github.com/repos/astral-sh/toucan/git/tags{/sha}",
+      "hooks_url": "https://api.github.com/repos/astral-sh/toucan/hooks",
+      "html_url": "https://github.com/astral-sh/toucan",
+      "id": 1360719664,
+      "issue_comment_url": "https://api.github.com/repos/astral-sh/toucan/issues/comments{/number}",
+      "issue_events_url": "https://api.github.com/repos/astral-sh/toucan/issues/events{/number}",
+      "issues_url": "https://api.github.com/repos/astral-sh/toucan/issues{/number}",
+      "keys_url": "https://api.github.com/repos/astral-sh/toucan/keys{/key_id}",
+      "labels_url": "https://api.github.com/repos/astral-sh/toucan/labels{/name}",
+      "languages_url": "https://api.github.com/repos/astral-sh/toucan/languages",
+      "merges_url": "https://api.github.com/repos/astral-sh/toucan/merges",
+      "milestones_url": "https://api.github.com/repos/astral-sh/toucan/milestones{/number}",
+      "name": "toucan",
+      "node_id": "R_kgDOURrvMA",
+      "notifications_url": "https://api.github.com/repos/astral-sh/toucan/notifications{?since,all,participating}",
+      "owner": {
+        "avatar_url": "https://avatars.githubusercontent.com/u/115962839?v=4",
+        "events_url": "https://api.github.com/users/astral-sh/events{/privacy}",
+        "followers_url": "https://api.github.com/users/astral-sh/followers",
+        "following_url": "https://api.github.com/users/astral-sh/following{/other_user}",
+        "gists_url": "https://api.github.com/users/astral-sh/gists{/gist_id}",
+        "gravatar_id": "",
+        "html_url": "https://github.com/astral-sh",
+        "id": 115962839,
+        "login": "astral-sh",
+        "node_id": "O_kgDOBulz1w",
+        "organizations_url": "https://api.github.com/users/astral-sh/orgs",
+        "received_events_url": "https://api.github.com/users/astral-sh/received_events",
+        "repos_url": "https://api.github.com/users/astral-sh/repos",
+        "site_admin": false,
+        "starred_url": "https://api.github.com/users/astral-sh/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/astral-sh/subscriptions",
+        "type": "Organization",
+        "url": "https://api.github.com/users/astral-sh",
+        "user_view_type": "public"
+      },
+      "private": true,
+      "pulls_url": "https://api.github.com/repos/astral-sh/toucan/pulls{/number}",
+      "releases_url": "https://api.github.com/repos/astral-sh/toucan/releases{/id}",
+      "stargazers_url": "https://api.github.com/repos/astral-sh/toucan/stargazers",
+      "statuses_url": "https://api.github.com/repos/astral-sh/toucan/statuses/{sha}",
+      "subscribers_url": "https://api.github.com/repos/astral-sh/toucan/subscribers",
+      "subscription_url": "https://api.github.com/repos/astral-sh/toucan/subscription",
+      "tags_url": "https://api.github.com/repos/astral-sh/toucan/tags",
+      "teams_url": "https://api.github.com/repos/astral-sh/toucan/teams",
+      "trees_url": "https://api.github.com/repos/astral-sh/toucan/git/trees{/sha}",
+      "url": "https://api.github.com/repos/astral-sh/toucan"
+    },
+    "rerun_url": "https://api.github.com/repos/astral-sh/toucan/actions/runs/34394052399/rerun",
+    "run_attempt": 1,
+    "run_number": 220,
+    "run_started_at": "2026-09-09T19:16:15Z",
+    "status": "completed",
+    "triggering_actor": {
+      "avatar_url": "https://avatars.githubusercontent.com/u/1309177?v=4",
+      "events_url": "https://api.github.com/users/charliermarsh/events{/privacy}",
+      "followers_url": "https://api.github.com/users/charliermarsh/followers",
+      "following_url": "https://api.github.com/users/charliermarsh/following{/other_user}",
+      "gists_url": "https://api.github.com/users/charliermarsh/gists{/gist_id}",
+      "gravatar_id": "",
+      "html_url": "https://github.com/charliermarsh",
+      "id": 1309177,
+      "login": "charliermarsh",
+      "node_id": "MDQ6VXNlcjEzMDkxNzc=",
+      "organizations_url": "https://api.github.com/users/charliermarsh/orgs",
+      "received_events_url": "https://api.github.com/users/charliermarsh/received_events",
+      "repos_url": "https://api.github.com/users/charliermarsh/repos",
+      "site_admin": false,
+      "starred_url": "https://api.github.com/users/charliermarsh/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/charliermarsh/subscriptions",
+      "type": "User",
+      "url": "https://api.github.com/users/charliermarsh",
+      "user_view_type": "public"
+    },
+    "updated_at": "2026-09-09T19:20:44Z",
+    "url": "https://api.github.com/repos/astral-sh/toucan/actions/runs/34394052399",
+    "workflow_id": 352791035,
+    "workflow_url": "https://api.github.com/repos/astral-sh/toucan/actions/workflows/352791035"
+  }
+}

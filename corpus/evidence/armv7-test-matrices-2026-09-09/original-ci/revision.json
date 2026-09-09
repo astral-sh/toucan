@@ -1,0 +1,9 @@
+{
+  "checkout_log_sha256": "34a3a6894da31a65f5c903265e6d78ee12ccdb82fe4fbe3d5796cd41666b3477",
+  "head": "39a4c0c0992ca943745268452a31a5d2f6079313",
+  "head_tree": "cd4f065277d1a2288c63d8aad0bdc3f7a8821394",
+  "job_id": 102620185700,
+  "tested_merge": "ad9b6d5a0c3256c81cb07f00dfb490d3e5a55976",
+  "tested_merge_tree": "cd4f065277d1a2288c63d8aad0bdc3f7a8821394",
+  "trees_equal": true
+}

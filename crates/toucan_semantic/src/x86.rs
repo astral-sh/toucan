@@ -590,11 +590,14 @@ impl X86Intrinsic {
         let descriptor = self.descriptor();
         match (target, profile.compiler()) {
             (
-                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl,
+                Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl,
                 toucan_target::Compiler::Gnu,
             ) => descriptor.gcc,
             (
-                Target::X86_64UnknownLinuxGnu
+                Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin
                 | Target::X86_64PcWindowsMsvc,
@@ -631,7 +634,9 @@ impl X86Intrinsic {
         }
         match (target, profile.compiler()) {
             (
-                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl,
+                Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl,
                 toucan_target::Compiler::Gnu,
             ) => match self {
                 Self::VecExtV2si => immediate!(1, 0, 1, 1, AfterInlining),
@@ -672,7 +677,8 @@ impl X86Intrinsic {
                 _ => &[],
             },
             (
-                Target::X86_64UnknownLinuxGnu
+                Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin
                 | Target::X86_64PcWindowsMsvc,
@@ -711,7 +717,9 @@ impl X86Intrinsic {
         if self == Self::Prefetch
             && matches!(
                 profile.target(),
-                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+                Target::I686UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
             )
             && profile.compiler() == toucan_target::Compiler::Gnu
         {
@@ -770,6 +778,18 @@ impl Analyzer {
                 } else { "this x86 intrinsic spelling is unavailable in the selected compiler profile" },
             )
         })?;
+        if self.unit.target == Target::I686UnknownLinuxGnu
+            && self.unit.compiler == toucan_target::Compiler::Gnu
+            && intrinsic
+                .required_features()
+                .iter()
+                .any(|feature| self.current_x86_features() & feature.bit() == 0)
+        {
+            return Err(Error::new(
+                call.span.start,
+                "i686 GNU instruction intrinsic requires enabled target features",
+            ));
+        }
         if signature.parameters.len() != call.node.arguments.len() {
             return Err(Error::new(
                 call.span.start,

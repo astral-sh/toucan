@@ -1,0 +1,48 @@
+{
+  "status": "passed",
+  "run_id": 34394853038,
+  "run_url": "https://github.com/astral-sh/toucan/actions/runs/34394853038",
+  "driver_commit": "d00076d620c34b42c17a474e32e41090288e4483",
+  "frontend_git_revision": "85bf1ad6dcbc5840ade11bf8798785b6da13260a",
+  "target": "x86_64-unknown-linux-gnu",
+  "application_command_count": 34,
+  "projects": {
+    "uv": {
+      "project_revision": "d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+      "rustc_version": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+      "command_count": 17,
+      "original_project_files": 1738,
+      "original_locked_packages": 750,
+      "library_tests_per_build": 19,
+      "binary_sha256": {
+        "upstream": "119625686aa672a1cf9947f4982a8b328865a5aef630ef3b675dd7946e5290eb",
+        "toucan": "a6d5a2d9e3c91394c4e1056dac474daadc46156e1e9db970b32ab81238db70a0"
+      },
+      "verified_frontend_source_files": 630,
+      "job_id": 102611904802,
+      "artifact_id": 10121454971,
+      "artifact_zip_bytes": 87617217,
+      "artifact_zip_digest": "sha256:2f457f3f3ea0e603080eab2e2cb6767f3ab1fb3fd124abd148cc1949891e7882"
+    },
+    "ty": {
+      "project_revision": "e7adf82ff005f3ab3051c363464cf65bf8a6e2f3",
+      "rustc_version": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+      "command_count": 17,
+      "original_project_files": 11118,
+      "original_locked_packages": 557,
+      "library_tests_per_build": 2,
+      "binary_sha256": {
+        "upstream": "67a905cffb5c2a2d02e9070612c6b4a7515cca543ec20fd9482e14c0b3ab5fd9",
+        "toucan": "30225e0586b717cbe50cd11f2b2b14bff00a9afdd235a2a3b4c14e612a4447a9"
+      },
+      "verified_frontend_source_files": 630,
+      "job_id": 102611904323,
+      "artifact_id": 10121491657,
+      "artifact_zip_bytes": 36079520,
+      "artifact_zip_digest": "sha256:6232122cae40d62487d055461a3b25b3b5b8e821f392943a3a35f28116e37e93"
+    }
+  },
+  "frontend_library_bytes_uploaded": false,
+  "frontend_library_hashes_independently_recomputed": false,
+  "application_executable_hashes_independently_recomputed": true
+}

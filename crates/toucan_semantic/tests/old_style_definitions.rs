@@ -491,7 +491,8 @@ fn function_attributes_cover_identifier_list_bounds_and_keep_parameter_sites() {
     for profile in CompilerProfile::ALL.into_iter().filter(|profile| {
         matches!(
             profile.target(),
-            toucan_target::Target::X86_64UnknownLinuxGnu
+            toucan_target::Target::I686UnknownLinuxGnu
+                | toucan_target::Target::X86_64UnknownLinuxGnu
                 | toucan_target::Target::X86_64UnknownLinuxMusl
                 | toucan_target::Target::X86_64AppleDarwin
                 | toucan_target::Target::X86_64PcWindowsMsvc
@@ -499,7 +500,14 @@ fn function_attributes_cover_identifier_list_bounds_and_keep_parameter_sites() {
     }) {
         for (source, gnu, clang) in cases {
             let analysis = parity(source, profile);
-            let expected = if profile.compiler() == Compiler::Gnu {
+            let expected = if profile.target() == toucan_target::Target::I686UnknownLinuxGnu
+                && profile.compiler() == Compiler::Gnu
+                && source.contains(r#"target("no-mmx")"#)
+                && source.contains("__builtin_ia32_emms()")
+            {
+                // GCC -m32 does not expose the MMX spelling without an enabled ISA.
+                false
+            } else if profile.compiler() == Compiler::Gnu {
                 gnu
             } else {
                 clang

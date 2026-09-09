@@ -1,7 +1,7 @@
 use std::collections::{BTreeMap, HashMap, HashSet};
 use std::num::NonZeroU32;
 
-use serde::Serialize;
+use serde::{Serialize, Serializer, ser::SerializeStruct};
 use toucan_target::{self as target, Target};
 
 use crate::Error;
@@ -67,11 +67,68 @@ impl Type {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Hash)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 pub struct Qualifiers {
     pub is_const: bool,
     pub is_volatile: bool,
     pub is_restrict: bool,
+    /// Keep both Microsoft qualifiers in the fourth byte of every C type.
+    microsoft_flags: u8,
+}
+
+impl Qualifiers {
+    const UNALIGNED: u8 = 1;
+    const MSVC_PTR32: u8 = 2;
+
+    /// Microsoft unaligned accesses retain type identity without packing fields.
+    pub fn is_unaligned(self) -> bool {
+        self.microsoft_flags & Self::UNALIGNED != 0
+    }
+
+    /// Set the Microsoft unaligned qualifier without changing pointer width.
+    pub fn set_unaligned(&mut self, enabled: bool) {
+        self.set_microsoft_flag(Self::UNALIGNED, enabled);
+    }
+
+    /// Microsoft `__ptr32` retains distinct pointer identity on Windows.
+    pub fn is_msvc_ptr32(self) -> bool {
+        self.microsoft_flags & Self::MSVC_PTR32 != 0
+    }
+
+    /// Set the Microsoft pointer-width qualifier; layout depends on the target.
+    pub fn set_msvc_ptr32(&mut self, enabled: bool) {
+        self.set_microsoft_flag(Self::MSVC_PTR32, enabled);
+    }
+
+    fn set_microsoft_flag(&mut self, flag: u8, enabled: bool) {
+        if enabled {
+            self.microsoft_flags |= flag;
+        } else {
+            self.microsoft_flags &= !flag;
+        }
+    }
+}
+
+impl Serialize for Qualifiers {
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        let mut fields = serializer.serialize_struct(
+            "Qualifiers",
+            3 + usize::from(self.is_unaligned()) + usize::from(self.is_msvc_ptr32()),
+        )?;
+        fields.serialize_field("is_const", &self.is_const)?;
+        fields.serialize_field("is_volatile", &self.is_volatile)?;
+        fields.serialize_field("is_restrict", &self.is_restrict)?;
+        if self.is_unaligned() {
+            fields.serialize_field("is_unaligned", &true)?;
+        }
+        if self.is_msvc_ptr32() {
+            fields.serialize_field("is_msvc_ptr32", &true)?;
+        }
+        fields.end()
+    }
 }
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize, Hash)]
@@ -323,6 +380,7 @@ impl CallingConvention {
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin,
             ) => Ok(self),
+            (Self::Win64, Target::Aarch64PcWindowsMsvc) => Ok(Self::C),
             _ => Err(Error::new(
                 0,
                 "explicit calling convention is unsupported on this target",
@@ -660,6 +718,8 @@ impl TranslationUnit {
             result.is_const |= ty.qualifiers.is_const;
             result.is_volatile |= ty.qualifiers.is_volatile;
             result.is_restrict |= ty.qualifiers.is_restrict;
+            result.set_unaligned(result.is_unaligned() || ty.qualifiers.is_unaligned());
+            result.set_msvc_ptr32(result.is_msvc_ptr32() || ty.qualifiers.is_msvc_ptr32());
             let TypeKind::Typedef(name) = &ty.kind else {
                 return Ok(result);
             };
@@ -707,7 +767,7 @@ impl TranslationUnit {
             .map_err(|e| Error::new(0, e.to_string()))?;
         // clang-cl honors a GNU typedef's decreased pointer alignment even though
         // the Microsoft field-layout rules retain the natural field alignment.
-        if self.target == Target::X86_64PcWindowsMsvc {
+        if self.target.is_windows() {
             let mut current = ty;
             for _ in 0..128 {
                 if let Some(alignment) = self.typedef_alignment(current)? {
@@ -719,6 +779,22 @@ impl TranslationUnit {
                     TypeKind::Array { element, .. } => current = element,
                     _ => break,
                 }
+            }
+        }
+        // `__unaligned` lowers the alignment required for an object or
+        // pointee. A field of that type still uses its natural record layout;
+        // layout_type above deliberately leaves field annotations unchanged.
+        let mut current = ty;
+        for _ in 0..128 {
+            if self.qualifiers(current)?.is_unaligned() {
+                layout.alignment_bits = layout.alignment_bits.min(8);
+                break;
+            }
+            match &self.resolve(current)?.kind {
+                TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
+                    current = element;
+                }
+                _ => break,
             }
         }
         Ok(layout)
@@ -823,6 +899,29 @@ impl TranslationUnit {
             ));
         }
         let resolved = ty;
+        if resolved.qualifiers.is_msvc_ptr32() {
+            match self.target {
+                Target::X86_64PcWindowsMsvc => {
+                    return Ok(aligned_layout_type(
+                        target::Type::opaque_layout(&target::Layout {
+                            size_bits: 32,
+                            alignment_bits: 32,
+                            field_alignment_bits: 32,
+                            required_alignment_bits: 8,
+                            fields: Vec::new(),
+                        }),
+                        ty.alignment.bytes(),
+                    ));
+                }
+                Target::Aarch64PcWindowsMsvc => {}
+                _ => {
+                    return Err(Error::new(
+                        0,
+                        "__ptr32 pointer ABI is unsupported on this target",
+                    ));
+                }
+            }
+        }
         if !expand_record && let TypeKind::Record(id) = resolved.kind {
             if !cache.contains_key(&id) {
                 // Shared record definitions form a graph. Expanding every edge
@@ -861,7 +960,7 @@ impl TranslationUnit {
                 .profile()?
                 .layout(&inner)
                 .map_err(|e| Error::new(0, e.to_string()))?;
-            let layout = crate::atomic_type::atomic_layout(self.compiler, inner)?;
+            let layout = crate::atomic_type::atomic_layout(self.target, self.compiler, inner)?;
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&layout),
                 ty.alignment.bytes(),
@@ -888,11 +987,18 @@ impl TranslationUnit {
                     "vectors larger than 16 bytes require unsupported target-feature configuration",
                 ));
             }
+            // Clang's ARMv7 ABI caps natural vector alignment at eight bytes,
+            // even when the vector occupies 16 bytes.
+            let alignment = if self.target.is_armv7() {
+                size.min(64)
+            } else {
+                size
+            };
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&target::Layout {
                     size_bits: size,
-                    alignment_bits: size,
-                    field_alignment_bits: size,
+                    alignment_bits: alignment,
+                    field_alignment_bits: alignment,
                     required_alignment_bits: 8,
                     fields: Vec::new(),
                 }),

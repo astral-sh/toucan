@@ -48,6 +48,7 @@ fuzz_target!(|bytes: &[u8]| {
             },
             prepend_enum_name: selector & 8 != 0,
             rustified_enums: true,
+            nullable_function_typedefs: true,
             derives: toucan::DeriveOptions {
                 copy: derives & 1 != 0,
                 debug: Some(derives & 2 != 0),

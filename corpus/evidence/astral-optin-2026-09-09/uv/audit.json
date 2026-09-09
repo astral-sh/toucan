@@ -1,0 +1,271 @@
+{
+  "status": "passed",
+  "project": "uv",
+  "run_id": 34389234082,
+  "tested_commit": "131ec7a3a5aaa9b14a68b1a5d64b667faa889a89",
+  "project_revision": "d28a3ee3d0f7122b0da64b0226d2e173e7d23747",
+  "target": "x86_64-unknown-linux-gnu",
+  "rustc_version": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8\n",
+  "driver_sha256": "a1a3d0c8a0840abce5b302ac45dfde1d3c8b83a1bfe54a1101b703985fde7a59",
+  "command_count": 14,
+  "libclang_before": {
+    "searched_roots": [
+      "/opt",
+      "/usr/lib",
+      "/usr/local/lib"
+    ],
+    "library_lookup": null,
+    "found": []
+  },
+  "libclang_after": {
+    "searched_roots": [
+      "/opt",
+      "/usr/lib",
+      "/usr/local/lib"
+    ],
+    "library_lookup": null,
+    "found": []
+  },
+  "installed_libclang_packages": [],
+  "verified_frontend_source_files": 630,
+  "frontend_artifacts": [
+    {
+      "build": "build",
+      "packages": [
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_layout#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_layout/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_target#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_target/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_parser#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_parser/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_preprocessor#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_preprocessor/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_bindings#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_bindings/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_source#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_source/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_semantic#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_semantic/Cargo.toml",
+          "fresh": false
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_bindgen#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_bindgen/Cargo.toml",
+          "fresh": false
+        }
+      ]
+    },
+    {
+      "build": "tests-uv-extract",
+      "packages": [
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_layout#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_layout/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_target#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_target/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_parser#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_parser/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_semantic#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_semantic/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_bindings#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_bindings/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_source#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_source/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_preprocessor#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_preprocessor/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan/Cargo.toml",
+          "fresh": true
+        },
+        {
+          "package_id": "path+file:///__w/toucan/toucan/crates/toucan_bindgen#0.0.1",
+          "manifest_path": "/__w/toucan/toucan/crates/toucan_bindgen/Cargo.toml",
+          "fresh": true
+        }
+      ]
+    }
+  ],
+  "original_project_files": 1738,
+  "original_locked_packages": 750,
+  "original_package_versions_and_dependency_edges_preserved": true,
+  "library_tests_per_build": 19,
+  "library_test_results": {
+    "passed": 19,
+    "ignored": 0,
+    "tests": {
+      "archive_path::tests::archive_member_path_normalizes_safe_paths": "ok",
+      "archive_path::tests::archive_member_path_rejects_invalid_names": "ok",
+      "archive_path::tests::archive_member_path_rejects_paths_outside_root": "ok",
+      "dirhash::archive::tests::digest_path_uses_normalized_archive_path": "ok",
+      "dirhash::archive::tests::directory_digest_uses_shared_dirhash_scheme": "ok",
+      "dirhash::archive::tests::extracted_file_executable_status": "ok",
+      "dirhash::tests::test_add_update_and_add_empty_dir": "ok",
+      "dirhash::tests::test_blake3_copy": "ok",
+      "dirhash::tests::test_blake3_copy_reuses_buffer": "ok",
+      "dirhash::tests::test_blake3_copy_short_reader": "ok",
+      "dirhash::tests::test_dirhash_path": "ok",
+      "dirhash::tests::test_dirhash_path_symlinks": "ok",
+      "dirhash::tests::test_normalize": "ok",
+      "dirhash::tests::test_vectors_json": "ok",
+      "tests::test_unacceptable_filename_error_replaces_control_characters": "ok",
+      "tests::test_validate_archive_member_name": "ok",
+      "vendor::cloneable_seekable_reader::test::test_cloneable_seekable_reader": "ok",
+      "vendor::cloneable_seekable_reader::test::test_clones_have_independent_buffers_and_positions": "ok",
+      "vendor::cloneable_seekable_reader::test::test_concurrent_clones_read_distinct_offsets": "ok"
+    }
+  },
+  "binary_sha256": {
+    "upstream": "119625686aa672a1cf9947f4982a8b328865a5aef630ef3b675dd7946e5290eb",
+    "toucan": "dc88687543a58e8c905264a9b9c14cca4159f3da1dae21a6dddb7896fd7cb90c"
+  },
+  "binding_inputs": [
+    {
+      "phase": "upstream",
+      "build": "build",
+      "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+      "manifest_path": "/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+      "features": [
+        "std"
+      ],
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/upstream-deps/zstd_sys-888064b51f8883d5.d",
+      "dep_info_sha256": "efa0bb3f61e6f947b0637041fedcad3d4923261a672f8c5cbf83194198ec58d9",
+      "active_bindings": {
+        "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+      }
+    },
+    {
+      "phase": "upstream",
+      "build": "tests-uv-extract",
+      "package_id": "registry+https://github.com/rust-lang/crates.io-index#zstd-sys@2.0.16+zstd.1.5.7",
+      "manifest_path": "/github/home/.cargo/registry/src/index.crates.io-1949cf8c6b5b557f/zstd-sys-2.0.16+zstd.1.5.7/Cargo.toml",
+      "features": [
+        "std"
+      ],
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/upstream-tests-uv-extract-deps/zstd_sys-888064b51f8883d5.d",
+      "dep_info_sha256": "efa0bb3f61e6f947b0637041fedcad3d4923261a672f8c5cbf83194198ec58d9",
+      "active_bindings": {
+        "src/bindings_zstd.rs": "881de08bd90cb6a5a8a638b3d3309bd695507615a0837fe9747f5847dccc517f"
+      }
+    },
+    {
+      "phase": "toucan",
+      "build": "build",
+      "package_id": "path+file:///tmp/toucan-optin-cache/uv-work/zstd-rs/zstd-safe/zstd-sys#2.0.16+zstd.1.5.7",
+      "manifest_path": "/tmp/toucan-optin-cache/uv-work/zstd-rs/zstd-safe/zstd-sys/Cargo.toml",
+      "features": [
+        "std",
+        "toucan"
+      ],
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/toucan-deps/zstd_sys-4669f2a2fc8d37b5.d",
+      "dep_info_sha256": "b9e56114de460931225dae113ae6da1de1604a2d24662b6aef55200fc9ab0f5c",
+      "generated_binding": "/__w/toucan/toucan/results/optin/acceptance/toucan-deps/libzstd_sys-4669f2a2fc8d37b5-bindings.rs",
+      "generated_binding_sha256": "dc8d836aa33b7528a49e6cf2dee6017a4ff0fa35ce5b35c333ffe736d784a29d",
+      "original_out_dir_binding": "/tmp/toucan-optin-cache/uv-target/x86_64-unknown-linux-gnu/debug/build/zstd-sys-0fa6cc5653abbb78/out/bindings.rs"
+    },
+    {
+      "phase": "toucan",
+      "build": "tests-uv-extract",
+      "package_id": "path+file:///tmp/toucan-optin-cache/uv-work/zstd-rs/zstd-safe/zstd-sys#2.0.16+zstd.1.5.7",
+      "manifest_path": "/tmp/toucan-optin-cache/uv-work/zstd-rs/zstd-safe/zstd-sys/Cargo.toml",
+      "features": [
+        "std",
+        "toucan"
+      ],
+      "profile": {
+        "opt_level": "0",
+        "debuginfo": 0,
+        "debug_assertions": true,
+        "overflow_checks": true,
+        "test": false
+      },
+      "dep_info": "/__w/toucan/toucan/results/optin/acceptance/toucan-tests-uv-extract-deps/zstd_sys-4669f2a2fc8d37b5.d",
+      "dep_info_sha256": "b9e56114de460931225dae113ae6da1de1604a2d24662b6aef55200fc9ab0f5c",
+      "generated_binding": "/__w/toucan/toucan/results/optin/acceptance/toucan-tests-uv-extract-deps/libzstd_sys-4669f2a2fc8d37b5-bindings.rs",
+      "generated_binding_sha256": "dc8d836aa33b7528a49e6cf2dee6017a4ff0fa35ce5b35c333ffe736d784a29d",
+      "original_out_dir_binding": "/tmp/toucan-optin-cache/uv-target/x86_64-unknown-linux-gnu/debug/build/zstd-sys-0fa6cc5653abbb78/out/bindings.rs"
+    }
+  ],
+  "runtime": {
+    "installed_files": {
+      "toucan_consumer_probe/__init__.py": "94b882363df5755799f970a566e95be6d3cb0e34673efca79c142922c5489972",
+      "toucan_consumer_probe/data.bin": "120c518a83325c66464701a6ee080302f332bc768ea3f60473b209f1bfb091df",
+      "toucan_consumer_probe-1.0.0.dist-info/METADATA": "4d7c66b0c7158a524f1eef397daf5daaaf6bae8aaa255dd0e60a3ee0db42a41b",
+      "toucan_consumer_probe-1.0.0.dist-info/WHEEL": "8f347e3b5103e1b6cf9df83d9f6f9dfcec9a97e078ab3e7216e4eddff75e5a24"
+    },
+    "wheel_sha256": "23814de6e20b910903ad084f034b7dfaca670c2586ab7b3f0b05be0d18a52c7e",
+    "zstd_wheel_sha256": "ba7a5d12ba5068ac326d80bd0a8860130114bf85cf1f6e162fe27f48291c5161",
+    "imports_match": true,
+    "truncated_frame_rejected_without_installation": true
+  },
+  "limitations": [
+    "Linux x86-64 zstd feature only; AWS-LC generation is separate.",
+    "No performance comparison; dev/test builds have debug information disabled.",
+    "Post-build source stability and binding freshness were checked by the hash-verified CI driver; live CI filesystem was not re-read during artifact audit."
+  ]
+}

@@ -19,7 +19,11 @@ fn macro_queries_keep_object_alignment_and_size_t_integer_metadata() {
         let compilation = toucan::parse_source(Path::new("alignment.h"), HEADER, &config).unwrap();
         let options = BindingOptions {
             allowlist: vec!["ALIGN_*".into()],
-            rust_target: RustTarget::RUST_1_64,
+            rust_target: if profile.target().is_armv7() {
+                RustTarget::stable(78).unwrap()
+            } else {
+                RustTarget::RUST_1_64
+            },
             ..Default::default()
         };
         let (source, report) = compilation.bindings(&options).unwrap();

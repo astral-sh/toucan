@@ -1,0 +1,83 @@
+name: Windows ARM64 native ABI acceptance
+
+on:
+  # This branch-only trigger runs acceptance while the new workflow is in the PR;
+  # workflow_dispatch is available once the workflow exists on the default branch.
+  push:
+    branches: [charlie/codex-toucan-windows-arm64-acceptance]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-arm64-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: MSVC, LLVM, and generated Rust FFI
+    runs-on: windows-11-vs2026-arm
+    timeout-minutes: 20
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: stable
+      - name: Require native ARM64 Rust, LLVM, MSVC, and the Windows SDK
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force results/windows-arm64 | Out-Null
+          $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+          $rustc = rustc --version --verbose | Out-String
+          "ImageOS=$env:ImageOS`nImageVersion=$env:ImageVersion`nCommit=$env:GITHUB_SHA`nArchitecture=$arch`n$rustc" |
+            Set-Content results/windows-arm64/runner.txt
+          if ($arch -ne 'Arm64' -or $rustc -notmatch '(?m)^host: aarch64-pc-windows-msvc\s*$') {
+            throw 'This acceptance job requires native Windows ARM64 Rust'
+          }
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $visualStudio = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.ARM64 -property installationPath
+          if ($LASTEXITCODE -or !$visualStudio) { throw 'No ARM64 MSVC installation found' }
+          if (!(Test-Path (Join-Path $visualStudio 'VC/Auxiliary/Build/vcvarsall.bat'))) {
+            throw 'Missing ARM64 MSVC environment setup'
+          }
+          $clangCl = (Get-Command clang-cl.exe -CommandType Application -ErrorAction Stop).Source
+          "VisualStudio=$visualStudio`nLLVM=$clangCl" | Set-Content results/windows-arm64/tool-paths.txt
+          "TOUCAN_VS=$visualStudio" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TOUCAN_CLANG_CL=$clangCl" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Build and execute independent C and Rust probes
+        shell: cmd
+        run: |
+          call "%TOUCAN_VS%\VC\Auxiliary\Build\vcvarsall.bat" arm64 > results\windows-arm64\msvc-setup.txt 2>&1
+          if errorlevel 1 (type results\windows-arm64\msvc-setup.txt & exit /b 1)
+          where cl.exe > results\windows-arm64\compiler-paths.txt
+          if errorlevel 1 exit /b 1
+          where link.exe >> results\windows-arm64\compiler-paths.txt
+          if errorlevel 1 exit /b 1
+          where clang-cl.exe >> results\windows-arm64\compiler-paths.txt
+          if errorlevel 1 exit /b 1
+          cargo build --locked -p toucan_cli > results\windows-arm64\build.txt 2>&1
+          if errorlevel 1 (type results\windows-arm64\build.txt & exit /b 1)
+          cargo test --locked -p toucan_target --test layout > results\windows-arm64\target-test.txt 2>&1
+          if errorlevel 1 (type results\windows-arm64\target-test.txt & exit /b 1)
+          cargo test --locked -p toucan --test arm64_windows > results\windows-arm64\frontend-test.txt 2>&1
+          if errorlevel 1 (type results\windows-arm64\frontend-test.txt & exit /b 1)
+          cargo test --locked -p toucan_cli --test compiler_profiles > results\windows-arm64\cli-test.txt 2>&1
+          if errorlevel 1 (type results\windows-arm64\cli-test.txt & exit /b 1)
+          python scripts\verify_windows_arm64_abi.py --toucan target\debug\toucan.exe --output results\windows-arm64\probes > results\windows-arm64\acceptance.txt 2>&1
+          set "TOUCAN_STATUS=%ERRORLEVEL%"
+          type results\windows-arm64\acceptance.txt
+          exit /b %TOUCAN_STATUS%
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: windows-arm64-native-${{ github.run_attempt }}
+          path: results/windows-arm64/
+          retention-days: 30
+          if-no-files-found: error

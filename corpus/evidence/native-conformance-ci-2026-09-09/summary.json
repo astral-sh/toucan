@@ -1,0 +1,198 @@
+{
+  "files": {
+    "README.md": {
+      "bytes": 4175,
+      "sha256": "9b0e654fb02799ab17baa655a944a8f97a99d0c6ea15a00d9c43e5f9c5c521e6"
+    },
+    "artifact-verification.json": {
+      "bytes": 39146,
+      "sha256": "96d856b70301d11cce64bf4a7c51c215c048ec768d6edeec0a479dbaeb2ec0fe"
+    },
+    "build-review.py.gz": {
+      "bytes": 2916,
+      "sha256": "f76a392f2721334ab4b70ae5b90915a8fb893cc7adc6e813e7f365792a524d79"
+    },
+    "build-verification.json": {
+      "bytes": 6365,
+      "sha256": "587fdf7133137c86cb78ebf1275893d908378321901393b8a52ba2e42363473a"
+    },
+    "capture.json.gz": {
+      "bytes": 2597446,
+      "sha256": "450f0301592170f0ee0fa6c447f156c11ed54256c454cd683ee5d52a0585ceb3"
+    },
+    "clang.json.gz": {
+      "bytes": 922892,
+      "sha256": "75ecc83a26f016dc8016443f826079b0d82fde573aa18ff64e7dd2b7194329e6"
+    },
+    "gcc.json.gz": {
+      "bytes": 889925,
+      "sha256": "b0ce2672b13777c89bb74b9c6342f4b21fe459d46e15d8efdbd36c0a7bb5491d"
+    },
+    "metadata.json": {
+      "bytes": 24644,
+      "sha256": "a41922ab948dcb5fc45f3b6a63e5fec86dc8ab5468c7612bcd75ca84017e3c59"
+    },
+    "prepare-package.py.gz": {
+      "bytes": 1919,
+      "sha256": "3e3689e20ef472665959906cb74d42fecc73c387a5f59295770269db9652b036"
+    },
+    "tested-merge.json": {
+      "bytes": 2601,
+      "sha256": "d60382ca2f41b1e4d72d99dc0c819d97dd8f4698af37592b0a7910d6c0db3452"
+    },
+    "tested-sources.json": {
+      "bytes": 1240,
+      "sha256": "0afd23d2426236b2a86d882ca07da6db813ea08805dc841cb256061321560773"
+    },
+    "verification.json": {
+      "bytes": 550,
+      "sha256": "44b700efc9d062e80440a6ec278c69abf380fc468ffa24a9742c0168eafed861"
+    },
+    "verify.py": {
+      "bytes": 15747,
+      "sha256": "ff2ee891d0968649ff4376556b733e4aca3a5b1274ba6ba0766188d12234b5c5"
+    }
+  },
+  "head_sha": "ca8924413da6fc01e44192f548bef0a18050ffd0",
+  "profiles": {
+    "clang": {
+      "binary_sha256": {
+        "native_probe": "9ef0001c90a97a117ab1ce32cc8f1cd28076457288995fb8125a00440e583154",
+        "toucan": "7fa6f3f9e012507b1c813619e65a5b48ca6ef53cd75ec1cda1e78cf4a0d0cd00"
+      },
+      "include_dirs": [
+        "/usr/lib/llvm-18/lib/clang/18/include",
+        "/usr/local/include",
+        "/usr/include/x86_64-linux-gnu",
+        "/usr/include"
+      ],
+      "macro_difference_counts": {
+        "compiler_only": 221,
+        "different": 0,
+        "toucan_only": 5
+      },
+      "native_header_count": 53,
+      "native_input_count": 273,
+      "native_probe_source_sha256": "407a2002b0810cdcd68206fc4415af75d7c0d9302118b6555f2dfab13e8bf537",
+      "raw_report_sha256": "d7596fe7e04f1b0f79a3c0bf131999e5e4fca428e0ec258c9473bace53363056",
+      "runner_sha256": "fed0ebfa288b752db7aa739ea244533bc42e3c3f1dc32520832938e78ca2832c",
+      "seconds": 60.091448575000015,
+      "summary": {
+        "both_accept": {
+          "c11": 220,
+          "c17": 220,
+          "c90": 197,
+          "c99": 220,
+          "gnu11": 220,
+          "gnu17": 220,
+          "gnu90": 219,
+          "gnu99": 220,
+          "strict_c11": 211
+        },
+        "changed_tools": [],
+        "differences": [
+          "00144.c"
+        ],
+        "eligible_count": 220,
+        "native_source": {
+          "accepted": 219,
+          "analysis_rejected": [
+            "00144.c"
+          ],
+          "checked": 220,
+          "differences": [
+            "00144.c"
+          ],
+          "eligible_count": 220,
+          "input_changed": [],
+          "preprocessing_rejected": [],
+          "strict_accepted": 211,
+          "strict_differences": [],
+          "strict_eligible_count": 211,
+          "tool_failure": []
+        },
+        "oracle_pipeline_failures": [],
+        "source_count": 220,
+        "strict_differences": [],
+        "strict_eligible_count": 211,
+        "strict_toucan_accepted": 211,
+        "tool_failures": [],
+        "toucan_accepted": 219,
+        "toucan_checked": 220
+      }
+    },
+    "gcc": {
+      "binary_sha256": {
+        "native_probe": "9ef0001c90a97a117ab1ce32cc8f1cd28076457288995fb8125a00440e583154",
+        "toucan": "7fa6f3f9e012507b1c813619e65a5b48ca6ef53cd75ec1cda1e78cf4a0d0cd00"
+      },
+      "include_dirs": [
+        "/usr/lib/gcc/x86_64-linux-gnu/13/include",
+        "/usr/local/include",
+        "/usr/include/x86_64-linux-gnu",
+        "/usr/include"
+      ],
+      "macro_difference_counts": {
+        "compiler_only": 249,
+        "different": 41,
+        "toucan_only": 7
+      },
+      "native_header_count": 45,
+      "native_input_count": 265,
+      "native_probe_source_sha256": "407a2002b0810cdcd68206fc4415af75d7c0d9302118b6555f2dfab13e8bf537",
+      "raw_report_sha256": "4ce5c66ee50a01c7aa187b2d3005768c1ebb80c53f801eb7a5c785c89481ebbc",
+      "runner_sha256": "fed0ebfa288b752db7aa739ea244533bc42e3c3f1dc32520832938e78ca2832c",
+      "seconds": 49.8112759,
+      "summary": {
+        "both_accept": {
+          "c11": 220,
+          "c17": 220,
+          "c90": 197,
+          "c99": 220,
+          "gnu11": 220,
+          "gnu17": 220,
+          "gnu90": 219,
+          "gnu99": 220,
+          "strict_c11": 211
+        },
+        "changed_tools": [],
+        "differences": [
+          "00144.c"
+        ],
+        "eligible_count": 220,
+        "native_source": {
+          "accepted": 219,
+          "analysis_rejected": [
+            "00144.c"
+          ],
+          "checked": 220,
+          "differences": [
+            "00144.c"
+          ],
+          "eligible_count": 220,
+          "input_changed": [],
+          "preprocessing_rejected": [],
+          "strict_accepted": 211,
+          "strict_differences": [],
+          "strict_eligible_count": 211,
+          "tool_failure": []
+        },
+        "oracle_pipeline_failures": [],
+        "source_count": 220,
+        "strict_differences": [],
+        "strict_eligible_count": 211,
+        "strict_toucan_accepted": 211,
+        "tool_failures": [],
+        "toucan_accepted": 219,
+        "toucan_checked": 220
+      }
+    }
+  },
+  "pull_request": 340,
+  "run_id": 34394052399,
+  "run_url": "https://github.com/astral-sh/toucan/actions/runs/34394052399",
+  "schema_version": 1,
+  "status": "verified",
+  "tested_merge_sha": "97dc7dc9d17bb348a7e7ecebae083c30e8974ef5",
+  "tested_tree": "3f5faf4b300c44260bd15be8f2d93bf20d95d662"
+}

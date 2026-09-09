@@ -32,7 +32,8 @@ const OPS: &[(&str, SyncOperation, usize)] = &[
 fn gnu(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu
+        Target::I686UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxGnu
             | Target::X86_64UnknownLinuxMusl
             | Target::Aarch64UnknownLinuxGnu
             | Target::Aarch64UnknownLinuxMusl
@@ -156,6 +157,16 @@ fn gcc_and_clang_overload_rules_are_explicit() {
             "void f(_Bool*p){__sync_lock_release(p);}",
             "int f(int (*__sync_fetch_and_add)(int,int)){return __sync_fetch_and_add(1,2);}",
         ] {
+            if (target == Target::I686UnknownLinuxGnu || target.is_armv7())
+                && source.contains("__int128")
+            {
+                let error = check(source, target).unwrap_err();
+                assert!(
+                    error.message.contains("__int128 is unavailable"),
+                    "{target}: {source}: {error}"
+                );
+                continue;
+            }
             check(source, target).unwrap_or_else(|error| panic!("{target}: {source}: {error}"));
         }
         for (name, _, count) in OPS.iter().filter(|(_, _, n)| *n == 2) {
@@ -286,7 +297,6 @@ fn sync_signatures_match_native_gcc_and_cross_target_clang() {
             );
         }
         for target in Target::ALL {
-            check(&source, target).unwrap();
             let output = compiler_input(
                 Command::new("clang").args([
                     "-target",
@@ -301,6 +311,22 @@ fn sync_signatures_match_native_gcc_and_cross_target_clang() {
                 ]),
                 &source,
             );
+            if ty == "__int128" && (target == Target::I686UnknownLinuxGnu || target.is_armv7()) {
+                let platform = if target.is_armv7() { "ARMv7" } else { "i686" };
+                assert!(
+                    check(&source, target)
+                        .unwrap_err()
+                        .message
+                        .contains(&format!("__int128 is unavailable on {platform} GNU Linux"))
+                );
+                assert_eq!(toucan_test_support::compiler_acceptance(&output), Ok(false));
+                assert!(
+                    String::from_utf8_lossy(&output.stderr)
+                        .contains("__int128 is not supported on this target")
+                );
+                continue;
+            }
+            check(&source, target).unwrap();
             assert!(
                 output.status.success(),
                 "{target} {ty}: {}",

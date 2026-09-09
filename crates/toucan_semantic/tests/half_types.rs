@@ -2,7 +2,12 @@ use toucan_semantic::{
     Analysis, AnalysisOptions, ArithmeticConstant, Error, FloatKind, FloatingFormat, TypeKind,
     analyze_with_profile, evaluate_arithmetic,
 };
-use toucan_target::{Compiler, CompilerProfile};
+use toucan_target::{Compiler, CompilerProfile, Target};
+
+fn supports_narrow_types(profile: CompilerProfile) -> bool {
+    // The Linux Clang and GCC -m32 profiles reject _Float16 and __bf16.
+    profile.target() != Target::I686UnknownLinuxGnu
+}
 
 fn check(source: &str, profile: CompilerProfile) -> Result<Analysis, Error> {
     let plain = analyze_with_profile(source, profile, &AnalysisOptions::default());
@@ -52,10 +57,22 @@ const SOURCE: &str = r#"
  H literal=1.5f16;
 "#;
 
+fn source_for_profile(profile: CompilerProfile) -> String {
+    if profile.target().is_armv7() {
+        SOURCE.replace("_Alignof(BV)==16", "_Alignof(BV)==8")
+    } else {
+        SOURCE.to_owned()
+    }
+}
+
 #[test]
 fn half_types_keep_distinct_storage_and_nominal_arithmetic_types() {
-    for profile in CompilerProfile::ALL {
-        let a = check(SOURCE, profile).unwrap_or_else(|e| panic!("{profile:?}: {e}"));
+    for profile in CompilerProfile::ALL
+        .into_iter()
+        .filter(|profile| supports_narrow_types(*profile))
+    {
+        let a = check(&source_for_profile(profile), profile)
+            .unwrap_or_else(|e| panic!("{profile:?}: {e}"));
         let u = a.unit();
         assert_eq!(
             u.resolve(&u.typedefs["H"]).unwrap().kind,
@@ -108,7 +125,10 @@ fn apfloat_conversions_preserve_narrow_bits_and_integer_ranges() {
         ("-__builtin_inf()", 0xfc00, 0xff80),
         ("__builtin_nan(\"0\")", 0x7e00, 0x7fc0),
     ];
-    for profile in CompilerProfile::ALL {
+    for profile in CompilerProfile::ALL
+        .into_iter()
+        .filter(|profile| supports_narrow_types(*profile))
+    {
         let a = check("", profile).unwrap();
         let u = a.unit();
         for (expression, half, brain) in values {
@@ -156,7 +176,10 @@ fn apfloat_conversions_preserve_narrow_bits_and_integer_ranges() {
 
 #[test]
 fn constant_arithmetic_respects_the_compiler_excess_precision_boundary() {
-    for profile in CompilerProfile::ALL {
+    for profile in CompilerProfile::ALL
+        .into_iter()
+        .filter(|profile| supports_narrow_types(*profile))
+    {
         let a = check("", profile).unwrap();
         for source in [
             "(_Float16)1+(_Float16)0x1p-11-(_Float16)1",
@@ -209,12 +232,99 @@ fn invalid_narrow_type_operations_keep_constraint_diagnostics() {
 }
 
 #[test]
+fn i686_rejects_narrow_scalar_types_but_accepts_ordinary_floats() {
+    for compiler in [Compiler::Gnu, Compiler::Clang] {
+        let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap();
+        for (name, message) in [
+            ("_Float16", "_Float16 is unavailable on i686 GNU Linux"),
+            ("__bf16", "__bf16 is unavailable on i686 GNU Linux"),
+        ] {
+            let source = format!("typedef {name} Narrow;");
+            assert!(
+                check(&source, profile)
+                    .unwrap_err()
+                    .message
+                    .contains(message),
+                "{profile:?}: {source}"
+            );
+        }
+        for source in [
+            "float x=1.5f16;",
+            "float narrow(void){return (float)1.5f16;}",
+        ] {
+            let error = check(source, profile).unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("f16 floating literal suffix is unavailable"),
+                "{profile:?}: {source}: {error}"
+            );
+        }
+        check("typedef float Single; typedef double Double;", profile).unwrap();
+    }
+}
+
+#[test]
+#[ignore = "requires Clang for i686 and native x86-64 GNU GCC"]
+fn i686_f16_literal_suffix_matches_compiler_acceptance() {
+    let directory = tempfile::tempdir().unwrap();
+    let source = directory.path().join("literal.c");
+    let apple_clang_accepts_f16 = cfg!(target_os = "macos")
+        && toucan_test_support::clang_accepts_i686("float f(void){return (float)1.5f16;}");
+    for compiler in [Compiler::Gnu, Compiler::Clang] {
+        if compiler == Compiler::Gnu && !cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+            continue;
+        }
+        let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap();
+        for (input, accepted) in [
+            ("float f(void){return 1.5f;}", true),
+            ("float f(void){return (float)1.5f16;}", false),
+        ] {
+            assert_eq!(
+                check(input, profile).is_ok(),
+                accepted,
+                "{profile:?}: {input}"
+            );
+            if compiler == Compiler::Clang && apple_clang_accepts_f16 && !accepted {
+                // Apple Clang exposes f16 on an i686 Linux cross target.
+                continue;
+            }
+            std::fs::write(&source, input).unwrap();
+            let mut command = if compiler == Compiler::Gnu {
+                let mut command = std::process::Command::new(
+                    std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into()),
+                );
+                command.arg("-m32");
+                command
+            } else {
+                let mut command = std::process::Command::new("clang");
+                command.args(["-target", profile.target().triple()]);
+                command
+            };
+            let output = command
+                .args(["-std=gnu11", "-x", "c", "-fsyntax-only"])
+                .arg(&source)
+                .output()
+                .unwrap();
+            assert_eq!(
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted),
+                "{profile:?}: {input}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
+}
+
+#[test]
 #[ignore = "requires Clang's five target backends and native GNU GCC on Linux"]
 fn declarations_and_constraints_match_compiler_profiles() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("half.c");
-    std::fs::write(&path, SOURCE).unwrap();
+    let apple_clang_accepts_i686_narrow = cfg!(target_os = "macos")
+        && toucan_test_support::clang_accepts_i686("typedef _Float16 H; typedef __bf16 B;");
     for profile in CompilerProfile::ALL {
+        std::fs::write(&path, source_for_profile(profile)).unwrap();
         let mut command = if profile.compiler() == Compiler::Clang {
             let mut c = std::process::Command::new("clang");
             c.args(["-target", profile.target().triple()]);
@@ -232,6 +342,24 @@ fn declarations_and_constraints_match_compiler_profiles() {
             .arg(&path)
             .output()
             .unwrap();
+        if !supports_narrow_types(profile) {
+            if profile.compiler() == Compiler::Clang
+                && profile.target() == Target::I686UnknownLinuxGnu
+                && apple_clang_accepts_i686_narrow
+            {
+                continue;
+            }
+            let errors = String::from_utf8_lossy(&result.stderr);
+            assert!(
+                !result.status.success(),
+                "{profile:?}: narrow scalars accepted"
+            );
+            assert!(
+                errors.contains("_Float16") && errors.contains("__bf16"),
+                "{errors}"
+            );
+            continue;
+        }
         assert!(
             result.status.success(),
             "{profile:?}: {}",

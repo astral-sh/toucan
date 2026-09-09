@@ -262,7 +262,10 @@ impl Builder {
                 | Builtin::CountLeadingZerosLongLong
                 | Builtin::CountTrailingZeros
                 | Builtin::CountTrailingZerosLong
-                | Builtin::CountTrailingZerosLongLong => operands(arguments),
+                | Builtin::CountTrailingZerosLongLong
+                | Builtin::PopulationCount
+                | Builtin::PopulationCountLong
+                | Builtin::PopulationCountLongLong => operands(arguments),
                 Builtin::Overflow(intrinsic) if intrinsic.is_predicate() => operands(arguments),
                 Builtin::Overflow(_) => Present,
                 Builtin::Atomic(crate::atomic::AtomicOperation::AlwaysLockFree) => Absent,

@@ -31,11 +31,14 @@ fn availability(profile: CompilerProfile) -> Vec<(&'static str, bool)> {
     let gnu = profile.compiler() == Compiler::Gnu;
     let x86_linux = matches!(
         profile.target(),
-        Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+        Target::I686UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxMusl
     );
     let linux = matches!(
         profile.target(),
-        Target::X86_64UnknownLinuxGnu
+        Target::I686UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxGnu
             | Target::X86_64UnknownLinuxMusl
             | Target::Aarch64UnknownLinuxGnu
             | Target::Aarch64UnknownLinuxMusl
@@ -90,11 +93,14 @@ fn spellings_literals_and_machine_modes_have_separate_availability() {
         let gnu = profile.compiler() == Compiler::Gnu;
         let x86_linux = matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
         );
         let linux = matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::Aarch64UnknownLinuxGnu
                 | Target::Aarch64UnknownLinuxMusl
@@ -171,11 +177,13 @@ fn builtin_typedef_shadowing_preserves_prior_types_and_parameter_scopes() {
         parity(
             "int __float128=1; int f(void){return __float128;}",
             profile,
-            !profile.target().is_x86_64(),
+            profile.target() != Target::I686UnknownLinuxGnu && !profile.target().is_x86_64(),
         );
         if matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
         ) {
             parity(
                 "__float128 a;typedef int __float128;__float128 b;_Static_assert(sizeof(a)==16 && sizeof(b)==4,\"replacement\");",

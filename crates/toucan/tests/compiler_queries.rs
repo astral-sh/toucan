@@ -83,7 +83,7 @@ fn source_queries_preserve_catalog_boundaries_and_caller_overrides() {
         let source = if profile.compiler() == Compiler::Clang {
             format!(
                 "_Static_assert(__has_declspec_attribute(__align__) == {}, \"declspec alias\");\n_Static_assert(!__has_feature(cxx_exceptions) && !__has_extension(toucan_missing) && !__building_module(_Builtin_stddef), \"unavailable\");\n_Static_assert(!__has_c_attribute(fallthrough), \"C23 syntax\");\n",
-                u8::from(profile.target() == Target::X86_64PcWindowsMsvc)
+                u8::from(profile.target().is_windows())
             )
         } else {
             "_Static_assert(!__has_c_attribute(fallthrough), \"C23 syntax\");\n".into()
@@ -174,7 +174,7 @@ fn advertised_language_features_match_native_source_acceptance() {
             if profile.compiler() == Compiler::Clang {
                 source.push_str(&format!(
                     "_Static_assert(__has_declspec_attribute(__align__) == {}, \"declspec\");\n",
-                    u8::from(profile.target() == Target::X86_64PcWindowsMsvc)
+                    u8::from(profile.target().is_windows())
                 ));
             }
             std::fs::write(&path, &source).unwrap();

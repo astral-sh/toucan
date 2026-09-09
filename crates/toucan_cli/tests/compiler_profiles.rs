@@ -70,3 +70,29 @@ fn invalid_profiles_fail_before_reading_input_or_replacing_output() {
         assert_eq!(std::fs::read_to_string(&output).unwrap(), "existing\n");
     }
 }
+
+#[test]
+fn windows_arm64_bindgen_accepts_native_architecture_macros() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("arm64.h");
+    std::fs::write(
+        &header,
+        "#if !defined(_M_ARM64) || defined(_M_X64)\n#error wrong architecture\n#endif\nint __attribute__((ms_abi)) arm_call(long value);\n",
+    )
+    .unwrap();
+    let output = Command::new(env!("CARGO_BIN_EXE_toucan"))
+        .arg("bindgen")
+        .arg(&header)
+        .args(["--target", "aarch64-pc-windows-msvc"])
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+    let source = String::from_utf8(output.stdout).unwrap();
+    assert!(source.contains("target_arch = \"aarch64\""), "{source}");
+    assert!(source.contains("pub fn arm_call("), "{source}");
+    assert!(!source.contains("extern \"win64\""), "{source}");
+}

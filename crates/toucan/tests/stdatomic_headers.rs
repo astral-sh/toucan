@@ -12,7 +12,7 @@ fn predefined_integer_and_lock_free_contracts() {
         for width in [8, 16, 32, 64] {
             for family in ["LEAST", "FAST"] {
                 let bits = if gnu && family == "FAST" && matches!(width, 16 | 32) {
-                    64
+                    profile.target().pointer_width()
                 } else {
                     width
                 };

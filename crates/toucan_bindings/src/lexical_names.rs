@@ -297,7 +297,24 @@ impl Builder<'_> {
             return Err(Error("cyclic lexical record ownership".into()));
         }
         let leaf = self.leaf(Tag::Record(id), record.name.as_deref(), origin)?;
-        let name = self.qualified(parent(origin), leaf, depth)?;
+        // A named incomplete tag introduced by a member still belongs to C's
+        // enclosing scope. Bindgen gives it the unqualified name, but that name
+        // must not replace an unrelated typedef in Rust's single type namespace.
+        let owner = if record.fields.is_none()
+            && record.name.is_some()
+            && !self
+                .unit
+                .typedefs
+                .get(&leaf)
+                .map(|ty| self.unit.resolve(ty))
+                .transpose()?
+                .is_some_and(|ty| ty.kind != TypeKind::Record(id))
+        {
+            None
+        } else {
+            parent(origin)
+        };
+        let name = self.qualified(owner, leaf, depth)?;
         self.active.remove(&id);
         self.names.records.insert(id, name.clone());
         Ok(name)

@@ -7,7 +7,17 @@ use toucan_target::Target;
 #[test]
 fn int128_bindings_require_the_fixed_rust_abi() {
     for target in Target::ALL {
-        let unit = analyze("typedef __int128 I; I f(I);", target).unwrap();
+        let result = analyze("typedef __int128 I; I f(I);", target);
+        if target == Target::I686UnknownLinuxGnu || target.is_armv7() {
+            assert!(
+                result
+                    .unwrap_err()
+                    .message
+                    .contains("__int128 is unavailable")
+            );
+            continue;
+        }
+        let unit = result.unwrap();
         let bindings = generate(&unit, &Options::default()).unwrap();
         assert!(bindings.source.contains("::core::primitive::i128"));
         let error = generate(

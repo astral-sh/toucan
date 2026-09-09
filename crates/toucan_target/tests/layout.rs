@@ -39,7 +39,9 @@ fn data_models_are_explicit() {
             target.char_is_signed(),
             !matches!(
                 target,
-                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl
+                Target::Aarch64UnknownLinuxGnu
+                    | Target::Aarch64UnknownLinuxMusl
+                    | Target::Armv7UnknownLinuxGnueabihf
             )
         );
         let macros = target.predefined_macros();
@@ -65,6 +67,96 @@ fn data_models_are_explicit() {
         Target::parse("riscv64gc-unknown-linux-musl"),
         Err(LayoutError::UnsupportedTarget(_))
     ));
+    let i686 = Target::I686UnknownLinuxGnu;
+    assert_eq!((i686.pointer_width(), i686.long_width()), (32, 32));
+    assert_eq!(i686.builtin_layout(B::Double).unwrap().alignment_bytes(), 4);
+    assert_eq!(
+        (
+            i686.builtin_layout(B::LongDouble).unwrap().size_bytes(),
+            i686.builtin_layout(B::LongDouble)
+                .unwrap()
+                .alignment_bytes()
+        ),
+        (12, 4)
+    );
+    assert!(matches!(
+        i686.layout(&record(vec![field(B::Int128)])),
+        Err(LayoutError::UnsupportedBuiltin { .. })
+    ));
+    assert!(matches!(
+        i686.layout(&Type {
+            annotations: vec![],
+            variant: TypeVariant::Enum(vec![-1, i128::from(u64::MAX)]),
+        }),
+        Err(LayoutError::UnsupportedEnumRange(_))
+    ));
+}
+
+#[test]
+fn armv7_hard_float_uses_clang_and_the_32_bit_aapcs_vfp_model() {
+    use toucan_target::{Compiler, CompilerProfile};
+
+    let target = Target::parse("armv7-unknown-linux-gnueabihf").unwrap();
+    assert!(target.is_armv7() && target.is_linux());
+    assert!(!target.is_aarch64() && !target.is_x86_64() && !target.is_windows());
+    assert_eq!(
+        CompilerProfile::default_for(target).compiler(),
+        Compiler::Clang
+    );
+    assert!(CompilerProfile::new(target, Compiler::Gnu).is_err());
+    assert_eq!((target.pointer_width(), target.long_width()), (32, 32));
+    assert!(!target.char_is_signed() && !target.wchar_is_signed());
+    assert_eq!(target.default_maximum_alignment(), 8);
+    assert_eq!(
+        (
+            target.builtin_layout(B::LongDouble).unwrap().size_bytes(),
+            target
+                .builtin_layout(B::LongDouble)
+                .unwrap()
+                .alignment_bytes(),
+        ),
+        (8, 8),
+    );
+    assert!(matches!(
+        target.builtin_layout(B::Int128),
+        Err(LayoutError::UnsupportedBuiltin { .. })
+    ));
+    let macros = target.predefined_macros();
+    for (name, value) in [
+        ("__ARM_PCS_VFP", "1"),
+        ("__ARM_ARCH", "7"),
+        ("__ILP32__", "1"),
+        ("__SIZEOF_POINTER__", "4"),
+        ("__SIZEOF_LONG_DOUBLE__", "8"),
+        ("__BIGGEST_ALIGNMENT__", "8"),
+        ("__WCHAR_TYPE__", "unsigned int"),
+        ("__INT64_TYPE__", "long long int"),
+    ] {
+        assert_eq!(&macros[name], value, "{name}");
+    }
+    assert!(!macros.contains_key("__SIZEOF_INT128__"));
+}
+
+#[test]
+fn arm64_windows_model_has_its_own_predefines_and_alignment_rules() {
+    let target = Target::parse("aarch64-pc-windows-msvc").unwrap();
+    let macros = target.predefined_macros();
+    assert_eq!(macros["_M_ARM64"], "1");
+    assert_eq!(macros["__SIZEOF_INT128__"], "16");
+    assert_eq!(macros["_WIN64"], "1");
+    assert!(!macros.contains_key("_M_X64"));
+    assert!(!macros.contains_key("_M_AMD64"));
+    assert!(!macros.contains_key("__LP64__"));
+    assert_eq!((target.long_width(), target.wchar_width()), (32, 16));
+    assert!(target.is_aarch64() && target.is_windows() && !target.is_x86_64());
+    let mut ty = record(vec![field(B::Char), field(B::Int128)]);
+    let natural = target.layout(&ty).unwrap();
+    assert_eq!((natural.size_bytes(), natural.alignment_bytes()), (32, 16));
+    assert_eq!(natural.fields[1].unwrap().offset_bits, 128);
+    ty.annotations.push(Annotation::PragmaPack(64));
+    let packed = target.layout(&ty).unwrap();
+    assert_eq!((packed.size_bytes(), packed.alignment_bytes()), (24, 8));
+    assert_eq!(packed.fields[1].unwrap().offset_bits, 64);
 }
 
 #[test]
@@ -72,7 +164,17 @@ fn packing_changes_offsets_and_alignment() {
     let mut ty = record(vec![field(B::Char), field(B::Int), field(B::Double)]);
     for target in Target::ALL {
         let natural = target.layout(&ty).unwrap();
-        assert_eq!((natural.size_bytes(), natural.alignment_bytes()), (16, 8));
+        assert_eq!(
+            (natural.size_bytes(), natural.alignment_bytes()),
+            (
+                16,
+                if target == Target::I686UnknownLinuxGnu {
+                    4
+                } else {
+                    8
+                }
+            )
+        );
         assert_eq!(natural.fields[1].unwrap().offset_bits, 32);
         ty.annotations = vec![Annotation::Packed];
         let packed = target.layout(&ty).unwrap();
@@ -118,7 +220,15 @@ fn union_and_array_layouts() {
     };
     for target in Target::ALL {
         let union = target.layout(&ty).unwrap();
-        assert_eq!((union.size_bytes(), union.alignment_bytes()), (8, 8));
+        let expected_alignment = if target == Target::I686UnknownLinuxGnu {
+            4
+        } else {
+            8
+        };
+        assert_eq!(
+            (union.size_bytes(), union.alignment_bytes()),
+            (8, expected_alignment)
+        );
         assert!(
             union
                 .fields
@@ -133,7 +243,10 @@ fn union_and_array_layouts() {
             },
         };
         let layout = target.layout(&array).unwrap();
-        assert_eq!((layout.size_bytes(), layout.alignment_bytes()), (56, 8));
+        assert_eq!(
+            (layout.size_bytes(), layout.alignment_bytes()),
+            (56, expected_alignment)
+        );
     }
 }
 
@@ -186,7 +299,7 @@ fn opaque_children_preserve_packing_and_required_alignment() {
 fn enum_layouts_cover_signed_and_unsigned_boundaries() {
     for target in Target::ALL
         .into_iter()
-        .filter(|target| *target != Target::X86_64PcWindowsMsvc)
+        .filter(|target| !target.is_windows())
     {
         for (minimum, maximum, packed, bits) in [
             (0, i128::from(u32::MAX), false, 32),
@@ -215,7 +328,14 @@ fn enum_layouts_cover_signed_and_unsigned_boundaries() {
             let layout = target.layout(&ty).unwrap();
             assert_eq!(
                 (layout.size_bits, layout.alignment_bits),
-                (bits, bits),
+                (
+                    bits,
+                    if bits == 64 && target == Target::I686UnknownLinuxGnu {
+                        32
+                    } else {
+                        bits
+                    }
+                ),
                 "{target}: {minimum}..={maximum}, packed={packed}"
             );
         }

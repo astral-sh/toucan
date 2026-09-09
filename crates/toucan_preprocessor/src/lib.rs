@@ -31,7 +31,7 @@ mod token;
 #[cfg(test)]
 mod tests;
 
-use std::collections::{BTreeMap, BTreeSet};
+use std::collections::{BTreeMap, BTreeSet, VecDeque};
 use std::fmt;
 use std::fs;
 use std::io::Read;
@@ -50,6 +50,9 @@ use token::{Kind, Token, lex_limited, lex_with_scope, normalize, render};
 /// Include search paths, predefined macros, and per-translation-unit resource limits.
 #[derive(Clone, Debug)]
 pub struct Config {
+    /// Enable MSVC preprocessing operators such as `__pragma`.
+    /// Clang's Windows/MSVC profiles enable this extension by default.
+    pub ms_extensions: bool,
     /// Record physical header paths and final macro-definition origins for file selection.
     pub record_file_origins: bool,
     /// Capture successful written definitions in order, including later-undefined macros.
@@ -108,6 +111,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            ms_extensions: false,
             record_file_origins: false,
             record_macro_definitions: false,
             documentation: None,
@@ -176,6 +180,7 @@ pub struct Preprocessed {
     documentation: Option<Box<Documentation>>,
     config: Config,
     active_queries: u8,
+    ms_pragma_active: bool,
     path: PathBuf,
 }
 
@@ -213,6 +218,7 @@ impl Preprocessed {
     pub fn is_defined(&self, name: &str) -> bool {
         self.macros.contains_key(name)
             || is_builtin(name)
+            || name == "__pragma" && self.ms_pragma_active
             || query_active(self.active_queries, name).is_some()
     }
 
@@ -253,6 +259,7 @@ impl Preprocessed {
         let mut expansion = Expansion {
             macros: &self.macros,
             active_queries: self.active_queries,
+            ms_pragma_active: self.ms_pragma_active,
             config: &self.config,
             file: &self.path,
             produced: 0,
@@ -320,7 +327,10 @@ pub struct Preprocessor {
     config: Config,
     include_search: Option<Box<include_search::SearchOrder>>,
     active_queries: u8,
+    ms_pragma_active: bool,
     macros: BTreeMap<String, Macro>,
+    macro_stacks: BTreeMap<String, Vec<PushedMacro>>,
+    macro_stack_bytes: usize,
     dependencies: BTreeMap<PathBuf, Option<Arc<Path>>>,
     once: BTreeSet<PathBuf>,
     hardlinks: BTreeMap<(u64, u64), Arc<Path>>,
@@ -336,6 +346,15 @@ pub struct Preprocessor {
     macro_redefinitions: Option<Box<MacroRedefinitions>>,
     documentation: Option<Box<Documentation>>,
     documentation_system: bool,
+}
+
+struct PushedMacro {
+    definition: Option<Macro>,
+    file_origin: Option<file_origins::MacroOrigin>,
+    documentation: Option<Vec<Option<documentation::OriginId>>>,
+    query_active: bool,
+    ms_pragma_active: bool,
+    retained_bytes: usize,
 }
 
 /// Separates the read path, shared file identity, access spelling, and main-file rules.
@@ -409,11 +428,15 @@ fn accessed_parent(path: &Path) -> Option<std::borrow::Cow<'_, Path>> {
 impl Preprocessor {
     /// Configure include resolution and macro expansion without invoking a compiler.
     pub fn new(config: Config) -> Self {
+        let ms_pragma_active = config.ms_extensions;
         Self {
             config,
             include_search: None,
             active_queries: 0,
+            ms_pragma_active,
             macros: BTreeMap::new(),
+            macro_stacks: BTreeMap::new(),
+            macro_stack_bytes: 0,
             dependencies: BTreeMap::new(),
             once: BTreeSet::new(),
             hardlinks: BTreeMap::new(),
@@ -517,6 +540,13 @@ impl Preprocessor {
         )
     }
 
+    fn is_defined(&self, name: &str) -> bool {
+        self.macros.contains_key(name)
+            || is_builtin(name)
+            || name == "__pragma" && self.ms_pragma_active
+            || query_active(self.active_queries, name).is_some()
+    }
+
     /// Register dependencies once and retain only Clang's noncanonical first name.
     fn register_file(
         &mut self,
@@ -577,11 +607,14 @@ impl Preprocessor {
         self.include_search = None;
         self.include_search = include_search::SearchOrder::resolve(&self.config)?;
         self.macros.clear();
+        self.macro_stacks.clear();
+        self.macro_stack_bytes = 0;
         self.active_queries = self
             .config
             .feature_queries
             .as_ref()
             .map_or(0, |queries| queries.enabled);
+        self.ms_pragma_active = self.config.ms_extensions;
         self.dependencies.clear();
         self.once.clear();
         self.hardlinks.clear();
@@ -661,6 +694,7 @@ impl Preprocessor {
             documentation: self.documentation.take(),
             config: self.config.clone(),
             active_queries: self.active_queries,
+            ms_pragma_active: self.ms_pragma_active,
             path: path.to_owned(),
         }
     }
@@ -931,9 +965,7 @@ impl Preprocessor {
                             .map_err(&fail)?
                     } else {
                         let name = identifier(rest).map_err(&fail)?;
-                        let defined = self.macros.contains_key(name)
-                            || is_builtin(name)
-                            || query_active(self.active_queries, name).is_some();
+                        let defined = self.is_defined(name);
                         if directive.text == "ifdef" {
                             defined
                         } else {
@@ -1026,6 +1058,9 @@ impl Preprocessor {
                     let name = identifier(rest).map_err(&fail)?;
                     if is_builtin(name) {
                         return Err(fail("cannot undefine a builtin macro".into()));
+                    }
+                    if name == "__pragma" {
+                        self.ms_pragma_active = false;
                     }
                     self.macros.remove(name);
                     if let Some(docs) = &mut self.documentation {
@@ -1196,6 +1231,108 @@ impl Preprocessor {
         self.flush(&logical_path, input, &mut pending, output)
     }
 
+    fn push_macro(&mut self, name: &str) -> Result<(), &'static str> {
+        let definition = self.macros.get(name);
+        let file_origin = self
+            .file_origins
+            .as_ref()
+            .and_then(|origins| origins.macro_origin(name));
+        let documentation = self
+            .documentation
+            .as_ref()
+            .and_then(|docs| docs.macro_origins(name));
+        // Each stack slot owns a copy of the definition and optional provenance.
+        // Source-token limits alone cannot bound repeated pushes of one macro.
+        let mut bytes = size_of::<PushedMacro>()
+            .checked_add(size_of::<(String, Vec<PushedMacro>)>())
+            .and_then(|bytes| bytes.checked_add(name.len()))
+            .ok_or("macro stack byte limit exceeded")?;
+        let mut charge = |amount: usize| {
+            bytes = bytes
+                .checked_add(amount)
+                .ok_or("macro stack byte limit exceeded")?;
+            Ok::<(), &'static str>(())
+        };
+        if let Some(definition) = definition {
+            charge(definition.replacement.len())?;
+            for parameter in definition.parameters.iter().flatten() {
+                charge(
+                    size_of::<String>()
+                        .checked_add(parameter.len())
+                        .ok_or("macro stack byte limit exceeded")?,
+                )?;
+            }
+            if let Some(parameter) = &definition.variadic_parameter {
+                charge(parameter.len())?;
+            }
+        }
+        if let Some((location, accessed)) = &file_origin {
+            charge(location.path.as_os_str().len())?;
+            charge(accessed.as_os_str().len())?;
+        }
+        if let Some(origins) = &documentation {
+            charge(
+                origins
+                    .len()
+                    .checked_mul(size_of::<Option<documentation::OriginId>>())
+                    .ok_or("macro stack byte limit exceeded")?,
+            )?;
+        }
+        let total = self
+            .macro_stack_bytes
+            .checked_add(bytes)
+            .filter(|&bytes| bytes <= self.config.max_source_bytes)
+            .ok_or("macro stack byte limit exceeded")?;
+        let query_active =
+            FeatureQuery::from_name(name).is_some_and(|kind| self.active_queries & kind.bit() != 0);
+        self.macro_stacks
+            .entry(name.to_owned())
+            .or_default()
+            .push(PushedMacro {
+                definition: definition.cloned(),
+                file_origin,
+                documentation,
+                query_active,
+                ms_pragma_active: name == "__pragma" && self.ms_pragma_active,
+                retained_bytes: bytes,
+            });
+        self.macro_stack_bytes = total;
+        Ok(())
+    }
+
+    fn pop_macro(&mut self, name: &str) -> Result<(), &'static str> {
+        let Some(stack) = self.macro_stacks.get_mut(name) else {
+            return Err("pop_macro has no matching push_macro");
+        };
+        let snapshot = stack.pop().ok_or("pop_macro has no matching push_macro")?;
+        if stack.is_empty() {
+            self.macro_stacks.remove(name);
+        }
+        self.macro_stack_bytes -= snapshot.retained_bytes;
+        if let Some(definition) = snapshot.definition {
+            self.macros.insert(name.to_owned(), definition);
+        } else {
+            self.macros.remove(name);
+        }
+        if let Some(origins) = &mut self.file_origins {
+            origins.restore_macro(name, snapshot.file_origin);
+        }
+        if let Some(docs) = &mut self.documentation {
+            docs.restore_macro(name, snapshot.documentation);
+        }
+        if let Some(kind) = FeatureQuery::from_name(name) {
+            if snapshot.query_active {
+                self.active_queries |= kind.bit();
+            } else {
+                self.active_queries &= !kind.bit();
+            }
+        }
+        if name == "__pragma" {
+            self.ms_pragma_active = snapshot.ms_pragma_active;
+        }
+        Ok(())
+    }
+
     fn pragma(
         &mut self,
         input: InputFile<'_>,
@@ -1219,6 +1356,17 @@ impl Preprocessor {
                 self.once.insert(path);
             }
             Some("pack") => {
+                // Clang's Microsoft extensions expand the operands of a raw
+                // #pragma pack (for example, _CRT_PACKING in the Windows SDK).
+                // Ordinary Clang and GNU preprocessing leave them untouched.
+                let expanded = if self.config.ms_extensions {
+                    let mut expanded = vec![tokens[0].clone()];
+                    expanded.extend(self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?);
+                    Some(expanded)
+                } else {
+                    None
+                };
+                let tokens = expanded.as_deref().unwrap_or(tokens);
                 let directive = format!("#pragma {}\n", render(tokens));
                 if output.len().saturating_add(directive.len()) > self.config.max_source_bytes {
                     return Err(fail("output byte limit exceeded"));
@@ -1259,6 +1407,56 @@ impl Preprocessor {
                 }
             }
             Some("message") => {}
+            Some("warning") => {
+                // MSVC expands pragma arguments: its runtime headers use a
+                // macro expanding to a list of warning numbers here.
+                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
+                if !msvc_warning_pragma(&expanded) {
+                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
+                }
+            }
+            Some("prefast") => {
+                // PREfast pragmas control static-analysis warnings, including
+                // their push/pop stack. No such diagnostics are emitted here.
+                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
+                if !msvc_prefast_pragma(&expanded) {
+                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
+                }
+            }
+            Some("deprecated") => {
+                // MSVC warns on uses of these names (including macro names),
+                // without attaching deprecation attributes to declarations.
+                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
+                if !msvc_deprecated_pragma(&expanded) {
+                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
+                }
+            }
+            Some("intrinsic" | "function") => {
+                // These control code generation for calls in C function bodies;
+                // they do not affect the declarations emitted as bindings.
+                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
+                if !msvc_function_pragma(&expanded) {
+                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
+                }
+            }
+            Some("push_macro" | "pop_macro") => {
+                let name = pragma_macro_name(tokens).ok_or_else(|| {
+                    Error::at(
+                        &origin.path,
+                        origin.line,
+                        origin.column,
+                        format!("unsupported pragma: {}", render(tokens)),
+                    )
+                })?;
+                if tokens[0].text == "push_macro" {
+                    self.push_macro(name).map_err(fail)?;
+                } else {
+                    self.pop_macro(name).map_err(fail)?;
+                }
+            }
+            // These delimit regions in the Visual Studio editor and do not
+            // affect the preprocessed translation unit.
+            Some("region" | "endregion") => {}
             _ => {
                 return Err(Error::at(
                     &origin.path,
@@ -1284,14 +1482,24 @@ impl Preprocessor {
         let output_start = output.len();
         let line = pending[0].line;
         let column = pending[0].column;
-        let tokens = self.expand_at(path, std::mem::take(pending))?;
-        let mut start = 0;
-        for (index, token) in tokens.iter().enumerate() {
-            if token.kind != Kind::Pragma {
-                continue;
+        let mut pending: VecDeque<_> = std::mem::take(pending).into();
+        let mut had_pragma = false;
+        loop {
+            let fallback = pending
+                .front()
+                .map_or((line, column), |token| (token.line, token.column));
+            let mut tokens = self.expand_with(path, fallback, |expansion| {
+                expansion.expand_until_pragma(&mut pending)
+            })?;
+            if tokens.last().is_none_or(|token| token.kind != Kind::Pragma) {
+                if !tokens.is_empty() || !had_pragma {
+                    self.output_tokens(path, line, column, &tokens, output)?;
+                }
+                break;
             }
-            if start != index {
-                self.output_tokens(path, line, column, &tokens[start..index], output)?;
+            let token = tokens.pop().expect("final expansion token is a pragma");
+            if !tokens.is_empty() {
+                self.output_tokens(path, line, column, &tokens, output)?;
             }
             let payload = lex_with_scope(&token.text, self.config.scope_punctuator)
                 .map_err(|message| Error::at(path, token.line, token.column, message))?;
@@ -1311,10 +1519,7 @@ impl Preprocessor {
                 &payload,
                 output,
             )?;
-            start = index + 1;
-        }
-        if start < tokens.len() || tokens.is_empty() {
-            self.output_tokens(path, line, column, &tokens[start..], output)?;
+            had_pragma = true;
         }
         if let Some(origins) = &mut self.file_origins {
             origins.append(
@@ -1413,9 +1618,19 @@ impl Preprocessor {
         let fallback = tokens
             .first()
             .map_or((1, 1), |token| (token.line, token.column));
+        self.expand_with(path, fallback, |expansion| expansion.expand(tokens))
+    }
+
+    fn expand_with<T>(
+        &mut self,
+        path: &Path,
+        fallback: (usize, usize),
+        expand: impl FnOnce(&mut Expansion<'_>) -> Result<T, String>,
+    ) -> Result<T, Error> {
         let mut expansion = Expansion {
             macros: &self.macros,
             active_queries: self.active_queries,
+            ms_pragma_active: self.ms_pragma_active,
             config: &self.config,
             file: path,
             produced: self.expansion_tokens,
@@ -1425,7 +1640,7 @@ impl Preprocessor {
             counter: Some(self.counter),
             documentation: self.documentation.as_deref_mut(),
         };
-        let result = expansion.expand(tokens);
+        let result = expand(&mut expansion);
         self.expansion_tokens = expansion.produced;
         self.expansion_bytes = expansion.produced_bytes;
         self.counter = expansion.counter.expect("translation unit counter");
@@ -1458,9 +1673,7 @@ impl Preprocessor {
                 .get(position)
                 .filter(|token| token.kind == Kind::Identifier)
                 .ok_or("defined requires an identifier")?;
-            let defined = self.macros.contains_key(&name.text)
-                || is_builtin(&name.text)
-                || query_active(self.active_queries, &name.text).is_some();
+            let defined = self.is_defined(&name.text);
             replaced.push(Token::new(Kind::Number, if defined { "1" } else { "0" }));
             position += 1;
             if parenthesized {
@@ -1782,11 +1995,202 @@ impl Preprocessor {
         if let Some(kind) = FeatureQuery::from_name(&name.text) {
             self.active_queries &= !kind.bit();
         }
+        if name.text == "__pragma" {
+            self.ms_pragma_active = false;
+        }
         if let Some(docs) = &mut self.documentation {
             docs.define(&name.text, replacement, self.config.max_source_bytes)?;
         }
         self.macros.insert(name.text.clone(), definition);
         Ok(())
+    }
+}
+
+fn pragma_macro_name(tokens: &[Token]) -> Option<&str> {
+    let [_, open, literal, close] = tokens else {
+        return None;
+    };
+    if open.text != "(" || close.text != ")" || literal.kind != Kind::String {
+        return None;
+    }
+    let name = literal.text.strip_prefix('"')?.strip_suffix('"')?;
+    let lexed = lex_with_scope(name, false).ok()?;
+    match lexed.as_slice() {
+        [token] if token.kind == Kind::Identifier && token.text == name => Some(name),
+        _ => None,
+    }
+}
+
+/// Validate the MSVC list of function names before discarding a code-generation hint.
+fn msvc_function_pragma(tokens: &[Token]) -> bool {
+    let [open, rest @ .., close] = tokens else {
+        return false;
+    };
+    if open.text != "(" || close.text != ")" {
+        return false;
+    }
+    let mut names = rest.iter();
+    if !names
+        .next()
+        .is_some_and(|name| name.kind == Kind::Identifier)
+    {
+        return false;
+    }
+    while let Some(comma) = names.next() {
+        if comma.text != ","
+            || !names
+                .next()
+                .is_some_and(|name| name.kind == Kind::Identifier)
+        {
+            return false;
+        }
+    }
+    true
+}
+
+/// Validate names for MSVC's name-based deprecation diagnostic.
+fn msvc_deprecated_pragma(tokens: &[Token]) -> bool {
+    let [open, rest @ .., close] = tokens else {
+        return false;
+    };
+    if open.text != "(" || close.text != ")" {
+        return false;
+    }
+    let mut names = rest.iter();
+    if !names.next().is_some_and(msvc_deprecated_name) {
+        return false;
+    }
+    while let Some(comma) = names.next() {
+        if comma.text != "," || !names.next().is_some_and(msvc_deprecated_name) {
+            return false;
+        }
+    }
+    true
+}
+
+fn msvc_deprecated_name(name: &Token) -> bool {
+    if name.kind == Kind::Identifier {
+        return true;
+    }
+    if name.kind != Kind::String {
+        return false;
+    }
+    let Some(spelling) = name
+        .text
+        .strip_prefix('"')
+        .and_then(|text| text.strip_suffix('"'))
+    else {
+        return false;
+    };
+    let Ok(tokens) = lex_with_scope(spelling, false) else {
+        return false;
+    };
+    matches!(tokens.as_slice(), [token] if token.kind == Kind::Identifier && token.text == spelling)
+}
+
+/// Validate PREfast warning suppression without retaining analyzer-only state.
+fn msvc_prefast_pragma(tokens: &[Token]) -> bool {
+    let [open, arguments @ .., close] = tokens else {
+        return false;
+    };
+    if open.text != "(" || close.text != ")" {
+        return false;
+    }
+    match arguments {
+        [action] if matches!(action.text.as_str(), "push" | "pop") => true,
+        [action, colon, rest @ ..]
+            if matches!(action.text.as_str(), "disable" | "suppress") && colon.text == ":" =>
+        {
+            let mut rules = rest;
+            let mut count = 0;
+            while let Some(rule) = rules.first() {
+                let numeric = rule.kind == Kind::Number
+                    && rule.text.bytes().all(|byte| byte.is_ascii_digit());
+                let symbolic = rule.kind == Kind::Identifier
+                    && rule.text.strip_prefix("__WARNING_").is_some_and(|name| {
+                        !name.is_empty()
+                            && name.bytes().all(|byte| {
+                                byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_'
+                            })
+                    });
+                if !numeric && !symbolic {
+                    break;
+                }
+                count += 1;
+                rules = &rules[1..];
+            }
+            count > 0
+                && (rules.is_empty()
+                    || matches!(rules, [comma, reason] if comma.text == "," && reason.kind == Kind::String))
+        }
+        _ => false,
+    }
+}
+
+/// Warning pragmas change only the compiler's warning state, which this
+/// preprocessor does not emit. Validate the MSVC syntax before discarding it.
+fn msvc_warning_pragma(tokens: &[Token]) -> bool {
+    if tokens.len() < 3 || tokens[0].text != "(" || tokens[tokens.len() - 1].text != ")" {
+        return false;
+    }
+    let mut arguments = &tokens[1..tokens.len() - 1];
+    match arguments {
+        [action] if matches!(action.text.as_str(), "push" | "pop") => return true,
+        [action, comma, level]
+            if action.text == "push"
+                && comma.text == ","
+                && matches!(level.text.as_str(), "1" | "2" | "3" | "4") =>
+        {
+            return true;
+        }
+        _ => {}
+    }
+
+    loop {
+        let Some((specifier, rest)) = arguments.split_first() else {
+            return false;
+        };
+        if !matches!(
+            specifier.text.as_str(),
+            "1" | "2" | "3" | "4" | "default" | "disable" | "error" | "once" | "suppress"
+        ) || rest.first().is_none_or(|token| token.text != ":")
+        {
+            return false;
+        }
+        arguments = &rest[1..];
+        let mut count = 0;
+        while let Some(number) = arguments.first() {
+            if number.kind != Kind::Number || !number.text.bytes().all(|byte| byte.is_ascii_digit())
+            {
+                break;
+            }
+            count += 1;
+            arguments = &arguments[1..];
+        }
+        if count == 0 {
+            return false;
+        }
+        if arguments.first().is_some_and(|token| token.text == ",") {
+            if count != 1 || !matches!(specifier.text.as_str(), "disable" | "suppress") {
+                return false;
+            }
+            let [comma, justification, colon, literal, rest @ ..] = arguments else {
+                return false;
+            };
+            if comma.text != ","
+                || justification.text != "justification"
+                || colon.text != ":"
+                || literal.kind != Kind::String
+            {
+                return false;
+            }
+            arguments = rest;
+        }
+        match arguments {
+            [] => return true,
+            [semicolon, rest @ ..] if semicolon.text == ";" => arguments = rest,
+            _ => return false,
+        }
     }
 }
 

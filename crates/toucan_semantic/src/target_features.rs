@@ -34,6 +34,10 @@ pub struct FunctionTarget {
     clang_spelling: Option<String>,
     options: Vec<X86TargetOption>,
     mmx: bool,
+    #[serde(skip)]
+    sse: bool,
+    #[serde(skip)]
+    sse2: bool,
     lzcnt: bool,
     bmi: bool,
     bmi2: bool,
@@ -79,7 +83,8 @@ impl FunctionTarget {
     pub fn enables(&self, feature: X86Feature) -> bool {
         match feature {
             X86Feature::Mmx => self.mmx,
-            X86Feature::Sse | X86Feature::Sse2 => true,
+            X86Feature::Sse => self.sse,
+            X86Feature::Sse2 => self.sse2,
             X86Feature::Lzcnt => self.lzcnt,
             X86Feature::Bmi => self.bmi,
             X86Feature::Bmi2 => self.bmi2,
@@ -125,18 +130,15 @@ impl FunctionOptions {
         self.minimum_vector_width
     }
 
-    pub(crate) fn mmx(&self) -> bool {
-        self.target.as_ref().is_none_or(|target| target.mmx)
-    }
-
     /// Compact enabled feature set for deferred inlining checks.
-    pub(crate) fn x86_features(&self) -> u8 {
+    pub(crate) fn x86_features(&self, physical_target: Target) -> u8 {
         X86Feature::ALL.into_iter().fold(0, |bits, feature| {
             let enabled = self.target.as_ref().map_or(
-                matches!(
-                    feature,
-                    X86Feature::Mmx | X86Feature::Sse | X86Feature::Sse2
-                ),
+                physical_target != Target::I686UnknownLinuxGnu
+                    && matches!(
+                        feature,
+                        X86Feature::Mmx | X86Feature::Sse | X86Feature::Sse2
+                    ),
                 |target| target.enables(feature),
             );
             bits | if enabled { feature.bit() } else { 0 }
@@ -182,10 +184,7 @@ impl TranslationUnit {
             }
             if let Some(target) = &options.target {
                 if !is_x86(self.target) {
-                    return Err(Error::new(
-                        0,
-                        "x86 function options require an x86-64 target",
-                    ));
+                    return Err(Error::new(0, "x86 function options require an x86 target"));
                 }
                 if target.options.len() > 256 {
                     return Err(Error::new(
@@ -205,14 +204,31 @@ impl TranslationUnit {
                         "function target identity does not match its compiler profile",
                     ));
                 }
-                let mmx = target
-                    .options
-                    .iter()
-                    .fold(true, |value, option| match option {
-                        X86TargetOption::Mmx => true,
-                        X86TargetOption::NoMmx => false,
-                        _ => value,
-                    });
+                let baseline = self.target != Target::I686UnknownLinuxGnu;
+                let (mmx, sse, sse2) = target.options.iter().fold(
+                    (baseline, baseline, baseline),
+                    |(mut mmx, mut sse, mut sse2), option| {
+                        match option {
+                            X86TargetOption::Mmx => mmx = true,
+                            X86TargetOption::NoMmx => mmx = false,
+                            X86TargetOption::Sse => {
+                                if !target.options.contains(&X86TargetOption::NoMmx) {
+                                    mmx = true;
+                                }
+                                sse = true;
+                            }
+                            X86TargetOption::Sse2 => {
+                                if !target.options.contains(&X86TargetOption::NoMmx) {
+                                    mmx = true;
+                                }
+                                sse = true;
+                                sse2 = true;
+                            }
+                            _ => {}
+                        }
+                        (mmx, sse, sse2)
+                    },
+                );
                 let state = |enable, disable| {
                     target.options.iter().fold(false, |value, option| {
                         if *option == enable {
@@ -225,6 +241,8 @@ impl TranslationUnit {
                     })
                 };
                 if mmx != target.mmx
+                    || sse != target.sse
+                    || sse2 != target.sse2
                     || state(X86TargetOption::Lzcnt, X86TargetOption::NoLzcnt) != target.lzcnt
                     || state(X86TargetOption::Bmi, X86TargetOption::NoBmi) != target.bmi
                     || state(X86TargetOption::Bmi2, X86TargetOption::NoBmi2) != target.bmi2
@@ -240,7 +258,8 @@ impl TranslationUnit {
 fn is_x86(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu
+        Target::I686UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxGnu
             | Target::X86_64UnknownLinuxMusl
             | Target::X86_64AppleDarwin
             | Target::X86_64PcWindowsMsvc
@@ -400,7 +419,9 @@ impl Analyzer {
         }
         self.validate_target_arguments(parsed)?;
         let mut options = Vec::new();
-        let mut mmx = true;
+        let mut mmx = self.unit.target != Target::I686UnknownLinuxGnu;
+        let mut sse = mmx;
+        let mut sse2 = mmx;
         let mut lzcnt = false;
         let mut bmi = false;
         let mut bmi2 = false;
@@ -443,8 +464,21 @@ impl Analyzer {
                         bmi2 = false;
                         X86TargetOption::NoBmi2
                     }
-                    "sse" => X86TargetOption::Sse,
-                    "sse2" => X86TargetOption::Sse2,
+                    "sse" => {
+                        if !options.contains(&X86TargetOption::NoMmx) {
+                            mmx = true;
+                        }
+                        sse = true;
+                        X86TargetOption::Sse
+                    }
+                    "sse2" => {
+                        if !options.contains(&X86TargetOption::NoMmx) {
+                            mmx = true;
+                        }
+                        sse = true;
+                        sse2 = true;
+                        X86TargetOption::Sse2
+                    }
                     "no-evex512" if parsed.clang => X86TargetOption::NoEvex512,
                     "no-evex512" => {
                         return Err(Error::new(
@@ -472,6 +506,8 @@ impl Analyzer {
             clang_spelling: parsed.clang.then(|| parsed.arguments[0].clone()),
             options,
             mmx,
+            sse,
+            sse2,
             lzcnt,
             bmi,
             bmi2,
@@ -670,6 +706,7 @@ pub(crate) enum FeatureUse {
     X86 {
         offset: usize,
         intrinsic: &'static str,
+        feature: X86Feature,
     },
     Inline {
         offset: usize,
@@ -680,9 +717,17 @@ pub(crate) enum FeatureUse {
 }
 
 impl Analyzer {
-    pub(crate) fn current_mmx(&self) -> bool {
-        self.current_function_options()
-            .is_none_or(FunctionOptions::mmx)
+    pub(crate) fn current_x86_features(&self) -> u8 {
+        self.current_function_options().map_or_else(
+            || {
+                if self.unit.target == Target::I686UnknownLinuxGnu {
+                    0
+                } else {
+                    X86Feature::Mmx.bit() | X86Feature::Sse.bit() | X86Feature::Sse2.bit()
+                }
+            },
+            |options| options.x86_features(self.unit.target),
+        )
     }
 
     pub(crate) fn require_x86_features(
@@ -694,13 +739,16 @@ impl Analyzer {
         // disabled. The intrinsic retains its ISA requirements independently.
         if self.unit.compiler == Compiler::Clang
             && !self.suppress_sve_features
-            && !self.current_mmx()
-            && intrinsic.required_features().contains(&X86Feature::Mmx)
+            && let Some(&feature) = intrinsic
+                .required_features()
+                .iter()
+                .find(|feature| self.current_x86_features() & feature.bit() == 0)
         {
             self.push_feature_use(
                 FeatureUse::X86 {
                     offset,
                     intrinsic: intrinsic.name(),
+                    feature,
                 },
                 offset,
             )?;
@@ -735,12 +783,10 @@ impl Analyzer {
         let Some(name) = self.named_function_callee(&call.node.callee) else {
             return Ok(());
         };
-        let caller_features = self
-            .current_function_options()
-            .map_or(7, FunctionOptions::x86_features);
+        let caller_features = self.current_x86_features();
         let declaration_time = self.unit.compiler == Compiler::Clang;
         let visible_mismatch = self.visible_function_options(name).is_some_and(|options| {
-            options.always_inline && options.x86_features() & !caller_features != 0
+            options.always_inline && options.x86_features(self.unit.target) & !caller_features != 0
         });
         if declaration_time {
             if !visible_mismatch {

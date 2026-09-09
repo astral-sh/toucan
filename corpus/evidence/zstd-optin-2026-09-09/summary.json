@@ -1,0 +1,284 @@
+{
+  "status": "passed",
+  "toucan_revision": "66c87396bbe03b22085339a87b8c350c90be280b",
+  "target": "x86_64-unknown-linux-gnu",
+  "cases": [
+    {
+      "case": "default",
+      "active_packages": [
+        "cc",
+        "find-msvc-tools",
+        "jobserver",
+        "libc",
+        "pkg-config",
+        "shlex",
+        "toucan-zstd-consumer",
+        "zstd",
+        "zstd-safe",
+        "zstd-sys"
+      ],
+      "sys_instances": [
+        {
+          "features": [
+            "legacy",
+            "std",
+            "zdict_builder"
+          ],
+          "library": "/home/dev-user/.cache/toucan/ohm-shared-build/x86_64-unknown-linux-gnu/debug/build/workspaces/eed4fae25b9595bb/e261b7ca353383a4-all-native-all/zstd-sys/d2b1f4377e7ca6e4/out/libzstd_sys-d2b1f4377e7ca6e4.rlib",
+          "library_sha256": "ea6a0d7617d99f13df99b8a577fee96fab4c2cd8dc667297b83640e1187c8b7b",
+          "dep_info": "/tmp/toucan-optin-integration/evidence/default/zstd-sys-0.d",
+          "cargo_artifact_reused": false
+        }
+      ],
+      "executable": "/home/dev-user/.cache/toucan/ohm-target-zstd-optin/consumer/x86_64-unknown-linux-gnu/debug/toucan-zstd-consumer",
+      "executable_sha256": "a7c96c6f99ab92dffabca5b4a187c7326fbc70a73d21e5c424c0434be6954ccd",
+      "runtime_stdout": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\n",
+      "runtime_artifacts": {
+        "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+        "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+        "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+        "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+      },
+      "lock_sha256": "e4949f160760d9310cfb198370850ab978c344c6ec590ae4170a7d1d336a40a4"
+    },
+    {
+      "case": "toucan",
+      "active_packages": [
+        "aho-corasick",
+        "bitflags",
+        "cc",
+        "cexpr",
+        "find-msvc-tools",
+        "jobserver",
+        "libc",
+        "memchr",
+        "minimal-lexical",
+        "nom",
+        "pkg-config",
+        "proc-macro2",
+        "quote",
+        "regex",
+        "regex-automata",
+        "regex-syntax",
+        "rustc_apfloat",
+        "serde",
+        "serde_core",
+        "serde_derive",
+        "shlex",
+        "smallvec",
+        "syn",
+        "thiserror",
+        "thiserror-impl",
+        "toucan",
+        "toucan-zstd-consumer",
+        "toucan_bindgen",
+        "toucan_bindings",
+        "toucan_layout",
+        "toucan_parser",
+        "toucan_preprocessor",
+        "toucan_semantic",
+        "toucan_source",
+        "toucan_target",
+        "unicode-ident",
+        "zstd",
+        "zstd-safe",
+        "zstd-sys"
+      ],
+      "sys_instances": [
+        {
+          "features": [
+            "legacy",
+            "std",
+            "toucan",
+            "zdict_builder"
+          ],
+          "library": "/home/dev-user/.cache/toucan/ohm-shared-build/x86_64-unknown-linux-gnu/debug/build/workspaces/eed4fae25b9595bb/e261b7ca353383a4-all-native-all/zstd-sys/22158a610cfcfdbd/out/libzstd_sys-22158a610cfcfdbd.rlib",
+          "library_sha256": "ea4309132aa87a76e239c1672df9e75f18b6919d7f2f59c03db1225d34665f14",
+          "dep_info": "/tmp/toucan-optin-integration/evidence/toucan/zstd-sys-0.d",
+          "bindings": "/home/dev-user/.cache/toucan/ohm-shared-build/x86_64-unknown-linux-gnu/debug/build/workspaces/eed4fae25b9595bb/e261b7ca353383a4-all-native-all/zstd-sys/67800d2885b47673/out/bindings.rs",
+          "bindings_sha256": "52e189c737b7c4f4fea64588111695ff169fae567a2d7526ec06ca013c12d442",
+          "generated_during_this_build": true,
+          "cargo_artifact_reused": false
+        }
+      ],
+      "executable": "/home/dev-user/.cache/toucan/ohm-target-zstd-optin/consumer/x86_64-unknown-linux-gnu/debug/toucan-zstd-consumer",
+      "executable_sha256": "d0b277a213b282f3698941fc699753df9b5bb06e0d9db409ce9a1a0b13154643",
+      "runtime_stdout": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\n",
+      "runtime_artifacts": {
+        "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+        "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+        "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+        "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+      },
+      "lock_sha256": "e4949f160760d9310cfb198370850ab978c344c6ec590ae4170a7d1d336a40a4"
+    },
+    {
+      "case": "combined",
+      "active_packages": [
+        "aho-corasick",
+        "bindgen",
+        "bitflags",
+        "cc",
+        "cexpr",
+        "cfg-if",
+        "clang-sys",
+        "either",
+        "find-msvc-tools",
+        "glob",
+        "itertools",
+        "jobserver",
+        "libc",
+        "libloading",
+        "memchr",
+        "minimal-lexical",
+        "nom",
+        "pkg-config",
+        "proc-macro2",
+        "quote",
+        "regex",
+        "regex-automata",
+        "regex-syntax",
+        "rustc-hash",
+        "rustc_apfloat",
+        "serde",
+        "serde_core",
+        "serde_derive",
+        "shlex",
+        "smallvec",
+        "syn",
+        "thiserror",
+        "thiserror-impl",
+        "toucan",
+        "toucan-zstd-consumer",
+        "toucan_bindgen",
+        "toucan_bindings",
+        "toucan_layout",
+        "toucan_parser",
+        "toucan_preprocessor",
+        "toucan_semantic",
+        "toucan_source",
+        "toucan_target",
+        "unicode-ident",
+        "zstd",
+        "zstd-safe",
+        "zstd-sys"
+      ],
+      "sys_instances": [
+        {
+          "features": [
+            "bindgen",
+            "legacy",
+            "std",
+            "toucan",
+            "zdict_builder"
+          ],
+          "library": "/home/dev-user/.cache/toucan/ohm-shared-build/x86_64-unknown-linux-gnu/debug/build/workspaces/eed4fae25b9595bb/e261b7ca353383a4-all-native-all/zstd-sys/dba63281cff93754/out/libzstd_sys-dba63281cff93754.rlib",
+          "library_sha256": "13e50f2908a973831f3b1eb4ea581b14edff2217bb5b3ef90f82a4e45c54b307",
+          "dep_info": "/tmp/toucan-optin-integration/evidence/combined/zstd-sys-0.d",
+          "bindings": "/home/dev-user/.cache/toucan/ohm-shared-build/x86_64-unknown-linux-gnu/debug/build/workspaces/eed4fae25b9595bb/e261b7ca353383a4-all-native-all/zstd-sys/8881b7c396a7060c/out/bindings.rs",
+          "bindings_sha256": "52e189c737b7c4f4fea64588111695ff169fae567a2d7526ec06ca013c12d442",
+          "generated_during_this_build": true,
+          "cargo_artifact_reused": false
+        }
+      ],
+      "executable": "/home/dev-user/.cache/toucan/ohm-target-zstd-optin/consumer/x86_64-unknown-linux-gnu/debug/toucan-zstd-consumer",
+      "executable_sha256": "3d14045c011acd9830cdae1d0ca58b057c857787c33187533242d8fc732e4c09",
+      "runtime_stdout": "zstd 0.13.3: 58000 bytes round-tripped through bulk (78 bytes) and streaming (81 bytes) APIs\ndictionary: 2048 bytes, frame 10037 bytes, fingerprint a2960645be8fb7ed\n",
+      "runtime_artifacts": {
+        "bulk.zst": "a621333928868d87b617f92a19358a29a9ed6bf618c3cf072971462ebd693a74",
+        "stream.zst": "aee22ef3d940b412da49b147a147d2ec1ec82dfb6e9771384ae35cc27564f08a",
+        "trained.dict": "5c5a229b8c88624ee78c01c205d25b6a4170bbff1a08df5d7eed820c32d168da",
+        "trained.zst": "3bf59737d7a6b03a9479b5e649376aef8cb759672bb5650cca9425c9758a0e09"
+      },
+      "lock_sha256": "e4949f160760d9310cfb198370850ab978c344c6ec590ae4170a7d1d336a40a4"
+    },
+    {
+      "case": "dual-graph",
+      "active_packages": [
+        "aho-corasick",
+        "bitflags",
+        "cc",
+        "cexpr",
+        "find-msvc-tools",
+        "jobserver",
+        "libc",
+        "memchr",
+        "minimal-lexical",
+        "nom",
+        "pkg-config",
+        "proc-macro2",
+        "quote",
+        "regex",
+        "regex-automata",
+        "regex-syntax",
+        "rustc_apfloat",
+        "serde",
+        "serde_core",
+        "serde_derive",
+        "shlex",
+        "smallvec",
+        "syn",
+        "thiserror",
+        "thiserror-impl",
+        "toucan",
+        "toucan-optin-dual-graph",
+        "toucan_bindgen",
+        "toucan_bindings",
+        "toucan_layout",
+        "toucan_parser",
+        "toucan_preprocessor",
+        "toucan_semantic",
+        "toucan_source",
+        "toucan_target",
+        "unicode-ident",
+        "zstd",
+        "zstd-safe",
+        "zstd-sys"
+      ],
+      "sys_instances": [
+        {
+          "features": [
+            "std",
+            "toucan"
+          ],
+          "library": "/home/dev-user/.cache/toucan/ohm-shared-build/debug/build/workspaces/a370c7fbf31469d2/e261b7ca353383a4-all-native-all/zstd-sys/898c3bb3a4e0cbc2/out/libzstd_sys-898c3bb3a4e0cbc2.rlib",
+          "library_sha256": "77ec7b4d5570a99d8fe26874f7816dc923d51cd21da9707a27304bba00a3e226",
+          "dep_info": "/tmp/toucan-optin-integration/evidence/dual-graph/zstd-sys-0.d",
+          "bindings": "/home/dev-user/.cache/toucan/ohm-shared-build/debug/build/workspaces/a370c7fbf31469d2/e261b7ca353383a4-all-native-all/zstd-sys/386191ee249a6a70/out/bindings.rs",
+          "bindings_sha256": "dc8d836aa33b7528a49e6cf2dee6017a4ff0fa35ce5b35c333ffe736d784a29d",
+          "generated_during_this_build": true,
+          "cargo_artifact_reused": false
+        },
+        {
+          "features": [
+            "std",
+            "toucan"
+          ],
+          "library": "/home/dev-user/.cache/toucan/ohm-shared-build/x86_64-unknown-linux-gnu/debug/build/workspaces/a370c7fbf31469d2/e261b7ca353383a4-all-native-all/zstd-sys/f6f772fdbdecbc07/out/libzstd_sys-f6f772fdbdecbc07.rlib",
+          "library_sha256": "10499989414bce6c8ff1e637151e1607cec287dffdb9f32b7c79ebf61c45edbe",
+          "dep_info": "/tmp/toucan-optin-integration/evidence/dual-graph/zstd-sys-1.d",
+          "bindings": "/home/dev-user/.cache/toucan/ohm-shared-build/x86_64-unknown-linux-gnu/debug/build/workspaces/a370c7fbf31469d2/e261b7ca353383a4-all-native-all/zstd-sys/49597fbef8c4b008/out/bindings.rs",
+          "bindings_sha256": "dc8d836aa33b7528a49e6cf2dee6017a4ff0fa35ce5b35c333ffe736d784a29d",
+          "generated_during_this_build": true,
+          "cargo_artifact_reused": false
+        }
+      ],
+      "executable": "/home/dev-user/.cache/toucan/ohm-target-zstd-optin/dual-graph/x86_64-unknown-linux-gnu/debug/toucan-optin-dual-graph",
+      "executable_sha256": "7684ec789bccbab1133bae794580ef70bde4273174e5f2d0d57c8e7354407f2f",
+      "runtime_stdout": "build-time zstd compression and runtime decompression match\n",
+      "runtime_artifacts": {},
+      "lock_sha256": "84b1ea87be33ede9c6da59426b0a635d992766df9400e8161cf9f69fd6f90199"
+    }
+  ],
+  "limits": [
+    "No full ty/uv rebuild in this smoke run.",
+    "No physically libclang-free environment was used.",
+    "Optional Toucan generation requires build-host Rust 1.96; old Cargo default-path compatibility remains untested."
+  ],
+  "source_inventory": {
+    "commit": "66c87396bbe03b22085339a87b8c350c90be280b",
+    "tree": "ebe905b772d249308f986bf3fd91934c6190f064",
+    "verified_files": 2529,
+    "source": "/home/dev-user/.cache/toucan/builder-refresh-66c8739-2026-09-09/source"
+  }
+}

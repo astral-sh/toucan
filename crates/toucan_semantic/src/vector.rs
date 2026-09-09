@@ -311,8 +311,12 @@ impl Analyzer {
                 Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => 113,
                 Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
+                | Target::I686UnknownLinuxGnu
                 | Target::X86_64AppleDarwin => 64,
-                Target::Aarch64AppleDarwin | Target::X86_64PcWindowsMsvc => 53,
+                Target::Aarch64AppleDarwin
+                | Target::Armv7UnknownLinuxGnueabihf
+                | Target::X86_64PcWindowsMsvc
+                | Target::Aarch64PcWindowsMsvc => 53,
             },
             FloatKind::FLOAT128 => 113,
             FloatKind::FLOAT16 => 11,
@@ -331,7 +335,9 @@ impl Analyzer {
             1 => IntegerKind::Char,
             2 => IntegerKind::Short,
             4 => IntegerKind::Int,
-            8 if self.gnu_vector_profile() => IntegerKind::Long,
+            8 if self.gnu_vector_profile() && self.unit.target.long_width() == 64 => {
+                IntegerKind::Long
+            }
             8 => IntegerKind::LongLong,
             16 => IntegerKind::Int128,
             _ => {

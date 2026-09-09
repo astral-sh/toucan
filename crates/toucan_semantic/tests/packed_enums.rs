@@ -56,7 +56,7 @@ const RANGES: &[(&str, IntegerKind, &str, u64)] = &[
 ];
 
 fn range_probe(profile: CompilerProfile, values: &str, c_type: &str, bytes: u64) -> String {
-    let microsoft = profile.target() == Target::X86_64PcWindowsMsvc;
+    let microsoft = profile.target().is_windows();
     let (c_type, bytes) = if microsoft {
         ("int", 4)
     } else {
@@ -78,7 +78,7 @@ fn packed_ranges_select_the_compatible_integer_without_changing_identifiers() {
             assert!(unit.enums[0].packed);
             assert_eq!(
                 unit.enum_integer_kind(0).unwrap(),
-                if profile.target() == Target::X86_64PcWindowsMsvc {
+                if profile.target().is_windows() {
                     IntegerKind::Int
                 } else {
                     expected
@@ -104,11 +104,26 @@ fn wide_packed_enums_keep_the_existing_compiler_range_rules() {
         ] {
             let source = format!("enum __attribute__((packed)) E{{{values}}};");
             let result = parity(&source, profile);
-            if profile.target() == Target::X86_64PcWindowsMsvc
-                || (kind == IntegerKind::Int128 && profile.compiler() == Compiler::Clang)
+            if (profile.target().is_windows() && kind != IntegerKind::UnsignedInt)
+                || (kind == IntegerKind::Int128
+                    && (profile.compiler() == Compiler::Clang
+                        || profile.target() == Target::I686UnknownLinuxGnu))
             {
                 assert!(result.is_err(), "{profile:?}: {source}");
             } else {
+                let kind = if profile.target().is_windows() {
+                    IntegerKind::Int
+                } else if profile.target() == Target::I686UnknownLinuxGnu
+                    || profile.target().is_armv7()
+                {
+                    match kind {
+                        IntegerKind::UnsignedLong => IntegerKind::UnsignedLongLong,
+                        IntegerKind::Long => IntegerKind::LongLong,
+                        other => other,
+                    }
+                } else {
+                    kind
+                };
                 assert_eq!(result.unwrap().unit().enum_integer_kind(0).unwrap(), kind);
             }
         }
@@ -171,7 +186,7 @@ fn tag_attribute_placement_does_not_repack_unrelated_objects() {
                 clang
             };
             assert_eq!(unit.enums[0].packed, packed, "{profile:?}: {source}");
-            let expected_size = if packed && profile.target() != Target::X86_64PcWindowsMsvc {
+            let expected_size = if packed && !profile.target().is_windows() {
                 1
             } else {
                 4
@@ -212,7 +227,7 @@ fn tag_alignment_is_admitted_only_when_storage_rules_are_unchanged() {
                 "enum __attribute__(({attributes})) E{{A=1,B=2}}; struct __attribute__((packed)) Packed{{char head;enum E field;char tail;}};\n#pragma pack(push,1)\nstruct Pragma{{char head;enum E field;char tail;}};\n#pragma pack(pop)\n_Static_assert(sizeof(enum E)=={bytes} && _Alignof(enum E)=={bytes},\"enum\");\n_Static_assert(sizeof(struct Packed)=={bytes}+2 && _Alignof(struct Packed)==1 && __builtin_offsetof(struct Packed,field)==1,\"packed\");\n_Static_assert(sizeof(struct Pragma)=={bytes}+2 && _Alignof(struct Pragma)==1 && __builtin_offsetof(struct Pragma,field)==1,\"pragma\"); enum E array[2]; int use(enum E *p){{return *p;}}"
             );
             let result = parity(&source, profile);
-            if profile.target() == Target::X86_64PcWindowsMsvc {
+            if profile.target().is_windows() {
                 assert!(result.unwrap_err().message.contains("Microsoft enum"));
             } else {
                 result.unwrap_or_else(|error| panic!("{profile:?}: {source}: {error}"));
@@ -273,18 +288,39 @@ fn alignment_forwards_and_late_declarations_keep_their_distinct_constraints() {
                     (source.find("enum").unwrap()..source.find(" E").unwrap())
                         .contains(&error.offset)
                 );
-                assert!(error.message.contains(
-                    if profile.target() == Target::X86_64PcWindowsMsvc {
-                        "Microsoft enum"
-                    } else {
-                        "incomplete enum"
-                    }
-                ));
+                assert!(error.message.contains(if profile.target().is_windows() {
+                    "Microsoft enum"
+                } else {
+                    "incomplete enum"
+                }));
             }
         }
         parity("enum E{A=1};enum __attribute__((aligned(16))) E;_Static_assert(_Alignof(enum E)==4,\"late ignored\");",profile).unwrap();
-        if profile.target() != Target::X86_64PcWindowsMsvc {
-            parity("enum E{A=0x100000000ULL} __attribute__((aligned(8)));_Static_assert(sizeof(enum E)==8 && _Alignof(enum E)==8,\"wide\");",profile).unwrap();
+        if !profile.target().is_windows() {
+            let alignment = if profile.target() == Target::I686UnknownLinuxGnu
+                && profile.compiler() == Compiler::Gnu
+            {
+                4
+            } else {
+                8
+            };
+            let source = format!(
+                "enum E{{A=0x100000000ULL}} __attribute__((aligned(8)));_Static_assert(sizeof(enum E)==8 && _Alignof(enum E)=={alignment},\"wide\");"
+            );
+            let result = parity(&source, profile);
+            if profile.target() == Target::I686UnknownLinuxGnu
+                && profile.compiler() == Compiler::Clang
+            {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("enum alignment that changes storage layout"),
+                    "{source}"
+                );
+            } else {
+                result.unwrap();
+            }
         }
     }
 }
@@ -293,7 +329,7 @@ fn alignment_forwards_and_late_declarations_keep_their_distinct_constraints() {
 fn packed_values_promote_but_enum_tags_keep_nominal_identity() {
     for profile in CompilerProfile::ALL {
         let header = "enum __attribute__((packed)) E{A=0,B=255};";
-        let integer = if profile.target() == Target::X86_64PcWindowsMsvc {
+        let integer = if profile.target().is_windows() {
             "int"
         } else {
             "unsigned char"
@@ -306,15 +342,9 @@ fn packed_values_promote_but_enum_tags_keep_nominal_identity() {
             assert!(parity(&format!("{header}{tail}"), profile).is_err());
         }
         let old_style = parity(&format!("{header}int f();int f(enum E);"), profile);
-        assert_eq!(
-            old_style.is_ok(),
-            profile.target() == Target::X86_64PcWindowsMsvc
-        );
+        assert_eq!(old_style.is_ok(), profile.target().is_windows());
         let too_wide = parity(&format!("{header}struct Bits{{enum E field:9;}};"), profile);
-        assert_eq!(
-            too_wide.is_ok(),
-            profile.target() == Target::X86_64PcWindowsMsvc
-        );
+        assert_eq!(too_wide.is_ok(), profile.target().is_windows());
         let analysis = parity(&format!("{header}int variadic(int,...);int run(enum E value){{return variadic(0,value)+(+value);}}"),profile).unwrap();
         let code = analysis.checked().unwrap();
         let mut promoted = 0;
@@ -384,7 +414,7 @@ fn packed_enum_layout_types_and_placement_match_compilers() {
             } else {
                 clang
             };
-            let bytes = if packed && profile.target() != Target::X86_64PcWindowsMsvc {
+            let bytes = if packed && !profile.target().is_windows() {
                 1
             } else {
                 4

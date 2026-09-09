@@ -94,7 +94,7 @@ pub use inline::{FunctionDefinitionKind, FunctionInlineFacts};
 pub use ir::*;
 pub use literals::{
     DecodedString, StringEncoding, decode_character_literal, decode_character_literal_with_profile,
-    decode_string_literals,
+    decode_string_literals, decode_string_literals_with_profile,
 };
 pub use noescape::{ParameterContracts, ParameterContractsId};
 pub use object_alignment::DeclarationAlignment;

@@ -14,9 +14,10 @@ Layout supports packing, explicit alignment, and bitfields. Binding generation h
 additional representation constraints described below.
 
 GNU `__int128` and `unsigned __int128` work in declarations, casts, constants,
-and function bodies. Compiler probes cover scalar, packed-record, and bitfield
-layouts on all five targets, including Clang's Windows extension; Microsoft C
-does not accept this GNU spelling. Generated 128-bit ABI types require Rust 1.78
+and function bodies on the supported 64-bit targets. Compiler probes cover scalar,
+packed-record, and bitfield layouts, including Clang's Windows extension; Microsoft C
+does not accept this GNU spelling. The i686 profile rejects `__int128`.
+Generated 128-bit ABI types require Rust 1.78
 or newer with its bundled LLVM, following Rust's
 [ABI correction](https://blog.rust-lang.org/2024/03/30/i128-layout-update/).
 
@@ -49,8 +50,9 @@ constant expression: `(int)(1.0 + 2.0)` is one example.
 Floating literals, arithmetic, and casts round to nearest, ties to even in their
 target format without host floating-point arithmetic. The public result retains
 the C type, encoding, and exact bits, including negative zero and subnormals.
-`long double` uses x87 extended precision on x86-64 Linux/macOS, binary128 on
-AArch64 Linux, and binary64 on AArch64 macOS and x86-64 Windows. Its bits exclude object padding.
+`long double` uses x87 extended precision on x86 Linux/macOS (including i686 GNU
+Linux), binary128 on AArch64 Linux, and binary64 on AArch64 macOS and Windows.
+Its bits exclude object padding.
 The `__builtin_inf` and `__builtin_huge_val` families preserve target infinities.
 Overflow, division by zero, invalid operations, and unsupported formats produce
 diagnostics.
@@ -363,12 +365,26 @@ attribute placement and inherited declarations. Rust declarations, function type
 and callback pointers use `extern "C"`, `extern "win64"`, or `extern "sysv64"` as
 appropriate. An explicit convention matching the platform default uses Rust's C ABI.
 
-The x86-32 `cdecl`, `stdcall`, `fastcall`, and `thiscall` attributes have the platform
-ABI on the supported 64-bit targets. Other conventions remain unsupported. The
-`ms_abi` and `sysv_abi` attributes are currently rejected on AArch64; in particular,
-Clang's AArch64 `ms_abi` changes the convention and cannot safely be discarded.
+The x86-32 `cdecl`, `stdcall`, `fastcall`, and `thiscall` attributes are ignored
+on supported 64-bit targets. On i686 GNU Linux, `cdecl` uses the C ABI;
+`stdcall`, `fastcall`, and `thiscall` are diagnosed because their distinct
+32-bit calling conventions are not implemented. Other conventions remain unsupported. The
+`sysv_abi` selects the default C ABI on i686 GNU Linux; `ms_abi` is rejected
+because its 32-bit aggregate return convention differs from the default.
+`ms_abi` and `sysv_abi` attributes are currently rejected on AArch64 Linux and
+macOS; in particular, Clang's AArch64 `ms_abi` changes the convention and cannot
+safely be discarded. Windows ARM64 uses its native C convention for `ms_abi` and
+ignores `sysv_abi`, matching the Clang Windows ARM64 profile.
 
-Clang IR probes cover all five targets. Native x86-64 GCC/Clang tests call C from
+Microsoft pointer-width qualifiers retain their type identity. Windows x64
+`__ptr32` has four-byte size and alignment; Windows ARM64 keeps its native
+eight-byte layout while preserving that distinction. The frontend checks pointer
+conversions and conditional expressions. Binding generation rejects selected
+x64 `__ptr32` uses, including typedefs, nested records, callbacks, and caller-owned
+types, because native Rust pointers use eight-byte storage. Unselected SDK
+declarations using `__ptr32` can still be checked while generating supported types.
+
+Clang IR probes cover every supported target. Native x86-64 GCC/Clang tests call C from
 Rust and Rust callbacks from C with mixed register/stack arguments and aggregate
 returns. Variadic extern declarations are checked by rustc; these tests do not
 establish nondefault-ABI variadic argument traversal. Ordinary `va_start` in a
@@ -383,10 +399,13 @@ compiler ABI is used; flags such as `-fshort-enums` are not implied.
 | Target | Layout model | Native validation |
 | --- | --- | --- |
 | `x86_64-unknown-linux-gnu` | Implemented; GCC and Clang probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
+| `i686-unknown-linux-gnu` | Implemented; GCC and Clang cross-target probes | [Untouched zstd header and C layout probes passed](../corpus/evidence/i686-target-2026-09-09/README.md); [native C/Rust FFI passed](../corpus/evidence/i686-native-af0d174-2026-09-09/README.md) with GCC and Clang at O0/O2; [native zstd C/Rust consumer passed](../corpus/evidence/i686-zstd-consumer-2026-09-09/README.md) on Ubuntu 24.04 |
 | `aarch64-unknown-linux-gnu` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
+| `armv7-unknown-linux-gnueabihf` | Implemented for Clang hard-float; cross-target C layout and macro probes | [GCC/Clang C layouts and C/Rust FFI passed under QEMU](../corpus/evidence/armv7-qemu-2026-09-09/README.md) at O0/O2, with 256 rounds per pair. Native ARM hardware and full consumers remain unvalidated. Rust output requires 1.78 or newer. |
 | `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
-| `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
-| `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | Not run; MSVC header syntax is incomplete |
+| `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI, differential checks, zstd profiles, and SQLite consumer passed at `ac3312d`](../corpus/evidence/macos-arm64-ac3312d-2026-09-09/README.md); later integration heads and full uv/ty builds remain separate gates |
+| `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | [Installed Windows SDK header checks and native Rust layouts passed](../corpus/evidence/windows-x64-sdk-2026-09-09/README.md), with separate [native DLL calls](../corpus/evidence/windows-dll-native-f57e9fa/summary.json); full consumers remain unvalidated |
+| `aarch64-pc-windows-msvc` | Implemented; Clang cross-target layout and ABI probes | [Installed Windows SDK header checks and native Rust layouts passed](../corpus/evidence/windows-arm64-sdk-2026-09-09/README.md), with separate [MSVC DLL calls](../corpus/evidence/windows-arm64-native-4ce552f/summary.json); full consumers remain unvalidated |
 | `x86_64-unknown-linux-musl` | Implemented; GCC and Clang probes | [Native ABI and zstd Builder checks passed](../corpus/evidence/musl-native-019012e/summary.json) |
 | `aarch64-unknown-linux-musl` | Implemented; GCC and Clang probes | [Native ABI and zstd Builder checks passed](../corpus/evidence/musl-native-019012e/summary.json) |
 
@@ -564,9 +583,11 @@ code for these operations.
 
 Unsupported selected ABI representations fail binding generation. Reports name
 selected macros that cannot be emitted, and `--deny-skipped-macros` can make these
-omissions an error. Internal-linkage declarations and function definitions are
-reported as skipped. They are not exposed as callable externs. A function definition can still have an
-exported symbol; generating bindings for definitions is outside the current scope.
+omissions an error. The core binding emitter skips internal-linkage declarations
+and function definitions by default. The Builder includes eligible externally
+linked non-inline C function definitions when their symbols can be called;
+internal and inline definitions remain subject to its selection rules. See
+[function selection](bindgen-functions.md) for those rules and native evidence.
 
 Static address initializers include array-valued subobjects, such as
 `int *p = &grid[1][2][3]`, array members, and indirect function designators.
@@ -651,6 +672,17 @@ lint jobs pass with zero macOS jobs. A separate 301-second AddressSanitizer camp
 checks the optional object-value and documentation-origin metadata through 43,501
 executions without findings. The capture identifies each tested revision and its
 limits.
+
+The [combined callback validation](../corpus/evidence/native-callbacks-2026-09-09/README.md)
+records 1,268 passing native workspace tests, Rustdoc, three bounded bindings
+AddressSanitizer campaigns, and successful Linux x64/ARM and Windows GitHub jobs.
+It identifies the tested source for each result and records zero macOS allocations.
+The original local test process exit code was unavailable after its tool session
+ended; every planned test binary and doctest group has a passing final result.
+The [Builder comparison at `66c87396`](../benchmarks/evidence/builder-66c8739/README.md)
+measures a fresh release build after checking four pinned real-header projects
+with independent C probes and generated Rust FFI calls. All eight outputs match
+the earlier preflight byte for byte; the recorded API differences remain.
 
 Complete the declaration and expression conformance work; extend independent review
 and adversarial testing of the [parser resource limits](parser-limits.md); extend the target/header

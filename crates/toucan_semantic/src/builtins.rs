@@ -451,8 +451,9 @@ impl Analyzer {
             .integer(call.span.start)
     }
 
-    /// Counts only after parameter conversion. GCC leaves zero undefined, including
-    /// a nonzero wider value that becomes zero when converted to the parameter.
+    /// Counts only after parameter conversion. GCC leaves zero undefined for
+    /// leading/trailing zero counts, including a wider value truncated to zero.
+    /// Population count defines zero as zero.
     pub(crate) fn eval_bit_count(
         &mut self,
         call: &Node<ast::CallExpression>,
@@ -471,7 +472,7 @@ impl Analyzer {
         let value = self
             .convert_arithmetic(value, &parameter, offset)?
             .integer(offset)?;
-        if value.value == 0 {
+        if value.value == 0 && !name.starts_with("__builtin_popcount") {
             return Err(Error::new(
                 offset,
                 format!("{name} has an undefined result for zero"),
@@ -479,6 +480,8 @@ impl Analyzer {
         }
         let count = if name.starts_with("__builtin_clz") {
             value.value.leading_zeros() - (128 - u32::from(value.bits))
+        } else if name.starts_with("__builtin_popcount") {
+            value.value.count_ones()
         } else {
             value.value.trailing_zeros()
         };
@@ -552,9 +555,11 @@ pub(crate) fn complex_unary(name: &str) -> Option<(FloatKind, ast::UnaryOperator
 
 pub(crate) fn bit_count_kind(name: &str) -> Option<IntegerKind> {
     let kind = match name {
-        "__builtin_clz" | "__builtin_ctz" => IntegerKind::UnsignedInt,
-        "__builtin_clzl" | "__builtin_ctzl" => IntegerKind::UnsignedLong,
-        "__builtin_clzll" | "__builtin_ctzll" => IntegerKind::UnsignedLongLong,
+        "__builtin_clz" | "__builtin_ctz" | "__builtin_popcount" => IntegerKind::UnsignedInt,
+        "__builtin_clzl" | "__builtin_ctzl" | "__builtin_popcountl" => IntegerKind::UnsignedLong,
+        "__builtin_clzll" | "__builtin_ctzll" | "__builtin_popcountll" => {
+            IntegerKind::UnsignedLongLong
+        }
         _ => return None,
     };
     Some(kind)

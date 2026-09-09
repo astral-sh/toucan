@@ -111,6 +111,12 @@ fn cases() -> Vec<(String, bool)> {
     }
     cases
 }
+fn valid_for_profile(source: &str, valid: bool, profile: CompilerProfile) -> bool {
+    valid
+        && profile.compiler() == Compiler::Clang
+        && !(profile.target() == Target::I686UnknownLinuxGnu
+            && (source.contains("_Float16") || source.contains("__bf16")))
+}
 #[test]
 fn memory_types_and_constraints_match_profile_rules() {
     for profile in CompilerProfile::ALL {
@@ -118,7 +124,7 @@ fn memory_types_and_constraints_match_profile_rules() {
             let result = check(&source, profile);
             assert_eq!(
                 result.is_ok(),
-                valid && profile.compiler() == Compiler::Clang,
+                valid_for_profile(&source, valid, profile),
                 "{profile:?} {source}: {result:?}"
             );
         }
@@ -263,6 +269,10 @@ fn native_constraint_matrix() {
     let d = tempfile::tempdir().unwrap();
     let input = d.path().join("hint.c");
     let output = d.path().join("hint.s");
+    let apple_clang_accepts_i686_half =
+        cfg!(target_os = "macos") && toucan_test_support::clang_accepts_i686("typedef _Float16 H;");
+    let apple_clang_accepts_i686_bfloat =
+        cfg!(target_os = "macos") && toucan_test_support::clang_accepts_i686("typedef __bf16 B;");
     for p in CompilerProfile::ALL {
         let host = cfg!(target_os = "linux")
             && ((cfg!(target_arch = "x86_64")
@@ -293,11 +303,18 @@ fn native_constraint_matrix() {
             if source.contains("_Complex") {
                 continue;
             } // Classified separately: valid typing, incomplete compiler lowering.
+            if p.compiler() == Compiler::Clang
+                && p.target() == Target::I686UnknownLinuxGnu
+                && ((apple_clang_accepts_i686_half && source.contains("_Float16"))
+                    || (apple_clang_accepts_i686_bfloat && source.contains("__bf16")))
+            {
+                continue;
+            }
             std::fs::write(&input, &source).unwrap();
             let result = cc.output().unwrap();
             assert_eq!(
                 toucan_test_support::compiler_acceptance(&result).unwrap(),
-                valid && p.compiler() == Compiler::Clang,
+                valid_for_profile(&source, valid, p),
                 "{p:?} {source}: {}",
                 String::from_utf8_lossy(&result.stderr)
             );

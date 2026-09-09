@@ -332,14 +332,8 @@ fn cursor_keyword_tokens_follow_language_and_target() {
                 ("inline", c99 || mode.is_gnu()),
                 ("asm", mode.is_gnu()),
                 ("typeof", mode.is_gnu()),
-                (
-                    "__declspec",
-                    profile.target() == Target::X86_64PcWindowsMsvc,
-                ),
-                (
-                    "static_assert",
-                    profile.target() == Target::X86_64PcWindowsMsvc,
-                ),
+                ("__declspec", profile.target().is_windows()),
+                ("static_assert", profile.target().is_windows()),
             ] {
                 let result = context.define(name, &definition("7"), false);
                 assert_eq!(result.is_err(), keyword, "{profile:?}: {name}");

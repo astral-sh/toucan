@@ -1267,6 +1267,7 @@ pub fn visit_pointer_qualifier<'ast, V: Visit<'ast> + ?Sized>(
                 visitor.visit_extension(&extension.node, &extension.span);
             }
         }
+        PointerQualifier::MsvcPointerWidth(_) => {}
     }
 }
 

@@ -4,7 +4,7 @@ use toucan_target::Target;
 #[test]
 fn enum_types_are_compatible_with_their_selected_integer_types() {
     for target in Target::ALL {
-        let unsigned = if target == Target::X86_64PcWindowsMsvc {
+        let unsigned = if target.is_windows() {
             "int"
         } else {
             "unsigned int"

@@ -143,7 +143,7 @@ const CASES: &[(&str, [Outcome; 6])] = &[
 ];
 
 fn outcome(table: &[Outcome; 6], profile: CompilerProfile) -> Outcome {
-    let family = if profile.target() == Target::X86_64PcWindowsMsvc {
+    let family = if profile.target().is_windows() {
         4
     } else if profile.compiler() == Compiler::Clang {
         2

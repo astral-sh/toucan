@@ -1,0 +1,27 @@
+{
+  "schema_version": 1,
+  "github_run": 34385182838,
+  "github_artifact": 10117455703,
+  "source_commit": "8c8e74c7aa5598da20725b9247836a3559189d46",
+  "status": "passed",
+  "target": "armv7-unknown-linux-gnueabihf",
+  "qemu_execution": true,
+  "native_hardware_execution": false,
+  "source_sha256": "7190d31cc22feb9f2fee831599a48891585204b310f131b959280506ee6168a6",
+  "source_bytes": 34729,
+  "captured_from": "native/evidence.json",
+  "files": {
+    "evidence.json.gz": {
+      "sha256": "b1181df09df48bf21c9d4c408a3ee20d5b45a44cf1c575bee039ea68dd9914ec",
+      "bytes": 4775
+    },
+    "summary.json": {
+      "sha256": "58b7bb31c0f9753f12cc52352df692b7a225333981f640cc56b9a6caf2b1bee6",
+      "bytes": 8313
+    },
+    "verification-inputs.json.gz": {
+      "sha256": "9f488965cb3938806120b3c8313f42962f1f474143c36f947552036443a7b07a",
+      "bytes": 12680
+    }
+  }
+}

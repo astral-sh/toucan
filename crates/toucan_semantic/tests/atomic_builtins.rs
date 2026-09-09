@@ -61,7 +61,8 @@ const CALLS: &[(&str, A)] = &[
 fn gnu(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu
+        Target::I686UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxGnu
             | Target::X86_64UnknownLinuxMusl
             | Target::Aarch64UnknownLinuxGnu
             | Target::Aarch64UnknownLinuxMusl
@@ -292,7 +293,7 @@ fn lock_free_constants_require_a_proof_and_mutations_never_fold() {
             );
         }
         check("_Static_assert(__atomic_always_lock_free(-1,0)==0,\"\");_Static_assert(__atomic_always_lock_free(4.0,0)==1,\"\");",target).unwrap();
-        if target != Target::X86_64PcWindowsMsvc {
+        if !target.is_windows() {
             assert!(
                 check(
                     "struct S{};void f(struct S*p){__atomic_load(p,p,0);}",

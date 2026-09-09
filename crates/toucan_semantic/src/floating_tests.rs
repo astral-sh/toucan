@@ -101,7 +101,8 @@ fn arithmetic_rounding_retains_target_precision_and_signed_zero() {
         assert_eq!(&values[..8], &[1, u64::MAX as u128 - 2, 1, 0, 1, 1, 1, 0]);
         let wide = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin
                 | Target::Aarch64UnknownLinuxGnu

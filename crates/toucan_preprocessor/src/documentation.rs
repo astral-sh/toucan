@@ -426,6 +426,16 @@ impl Documentation {
     pub(crate) fn undefine(&mut self, name: &str) {
         self.macros.remove(name);
     }
+    pub(crate) fn macro_origins(&self, name: &str) -> Option<Vec<Option<OriginId>>> {
+        self.macros.get(name).cloned()
+    }
+    pub(crate) fn restore_macro(&mut self, name: &str, origins: Option<Vec<Option<OriginId>>>) {
+        if let Some(origins) = origins {
+            self.macros.insert(name.to_owned(), origins);
+        } else {
+            self.macros.remove(name);
+        }
+    }
     pub(crate) fn replacements(&self, name: &str, tokens: &mut [Token]) {
         if let Some(origins) = self.macros.get(name) {
             assert_eq!(origins.len(), tokens.len(), "macro spelling token count");

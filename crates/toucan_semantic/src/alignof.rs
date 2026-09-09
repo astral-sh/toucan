@@ -5,7 +5,7 @@ use std::num::NonZeroU32;
 
 use lang_c::{ast, span::Node};
 use serde::Serialize;
-use toucan_target::Compiler;
+use toucan_target::{Compiler, Target};
 
 use crate::analyze::Analyzer;
 use crate::expression::ExpressionInfo;
@@ -76,7 +76,15 @@ impl Analyzer {
         let bytes = self.alignment_operand(|analyzer| match &query.node.operand {
             ast::AlignOfOperand::TypeName(name) => {
                 let ty = analyzer.type_name(&name.node)?;
-                analyzer.alignment_type_value(&ty, false, query.span.start)
+                let alignment = analyzer.alignment_type_value(&ty, false, query.span.start)?;
+                if query.node.kind == ast::AlignOfKind::Gnu
+                    && analyzer.i686_double_preferred_alignment(&ty)?
+                    && analyzer.unit.typedef_alignment(&ty)?.is_none()
+                {
+                    Ok(alignment.max(8))
+                } else {
+                    Ok(alignment)
+                }
             }
             ast::AlignOfOperand::Expression(expression) => {
                 analyzer.alignment_queries.active += 1;
@@ -89,7 +97,25 @@ impl Analyzer {
                         "alignment queries cannot designate bitfields",
                     ));
                 }
-                analyzer.object_query_alignment(&info, expression.span.start)
+                let alignment = analyzer.object_query_alignment(&info, expression.span.start)?;
+                let projection = matches!(
+                    &expression.node,
+                    ast::Expression::UnaryOperator(unary)
+                        if matches!(
+                            unary.node.operator.node,
+                            ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary
+                        )
+                );
+                if analyzer.i686_double_preferred_alignment(&info.ty)?
+                    && info.alignment_origin.is_none()
+                    && analyzer.unit.typedef_alignment(&info.ty)?.is_none()
+                    && (query.node.kind == ast::AlignOfKind::Gnu
+                        || projection && analyzer.unit.compiler == Compiler::Gnu)
+                {
+                    Ok(alignment.max(8))
+                } else {
+                    Ok(alignment)
+                }
             }
         });
         self.restore_allocation_context(allocation_context, false);
@@ -97,6 +123,15 @@ impl Analyzer {
         let result = AlignmentResult { bytes };
         self.alignment_queries.results.insert(key, result);
         Ok(result)
+    }
+
+    fn i686_double_preferred_alignment(&self, ty: &Type) -> Result<bool, Error> {
+        Ok(self.unit.target == Target::I686UnknownLinuxGnu
+            && matches!(
+                self.unit.resolve(ty)?.kind,
+                TypeKind::Float(crate::FloatKind::Double)
+                    | TypeKind::Complex(crate::FloatKind::Double)
+            ))
     }
 
     fn alignment_type_value(
@@ -127,7 +162,10 @@ impl Analyzer {
 
     /// Function types have a compiler extension alignment, but no object layout.
     pub(crate) fn function_type_alignment(&self) -> u64 {
-        if self.unit.compiler == Compiler::Gnu && self.unit.target.is_x86_64() {
+        if self.unit.compiler == Compiler::Gnu
+            && (self.unit.target.is_x86_64()
+                || self.unit.target == toucan_target::Target::I686UnknownLinuxGnu)
+        {
             1
         } else {
             4

@@ -55,7 +55,10 @@ all 1,408 compiler/language/trait combinations for that fixture.
 The second generation also uses enum selector version 1: byte-sum bit 2 selects
 bindgen enum naming and bit 3 selects enum-name prefixes. This exercises lexical
 record ownership, shared anonymous numbering, and Rust-name collisions. The
-default generation remains active for every accepted input.
+default generation remains active for every accepted input. The second pass also
+enables `nullable_function_typedefs`, matching the Builder policy, while the
+default pass keeps non-null function typedefs. The `function-typedefs.h` seed
+covers alias chains, callback returns, pointer levels, and callback storage.
 Older archived sources retain their recorded selector contracts. The `checked`
 target compares analysis with and without retained code. Successful results must have
 identical declarations; invalid inputs must produce the same diagnostic, except

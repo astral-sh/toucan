@@ -799,11 +799,15 @@ const CASES: &[(&str, &str, &str, [bool; 5])] = &[
 ];
 fn target_index(target: Target) -> usize {
     match target {
-        Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl => 0,
-        Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => 1,
+        Target::X86_64UnknownLinuxGnu
+        | Target::X86_64UnknownLinuxMusl
+        | Target::I686UnknownLinuxGnu => 0,
+        Target::Aarch64UnknownLinuxGnu
+        | Target::Aarch64UnknownLinuxMusl
+        | Target::Armv7UnknownLinuxGnueabihf => 1,
         Target::X86_64AppleDarwin => 2,
         Target::Aarch64AppleDarwin => 3,
-        Target::X86_64PcWindowsMsvc => 4,
+        Target::X86_64PcWindowsMsvc | Target::Aarch64PcWindowsMsvc => 4,
     }
 }
 #[test]
@@ -822,7 +826,12 @@ fn source_constraints_and_scoped_limits_match_clang18() {
             } else {
                 assert_eq!(
                     result.is_ok(),
-                    profile.compiler() == Compiler::Clang && native[target_index(profile.target())],
+                    profile.compiler() == Compiler::Clang
+                        && native[target_index(profile.target())]
+                        && !(matches!(
+                            profile.target(),
+                            Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+                        ) && name == "int128"),
                     "{operation}/{name}/{profile:?}: {result:?}"
                 );
             }
@@ -889,11 +898,25 @@ fn scalar_queries_are_not_constant_folds_and_dead_operands_stay_checked() {
 #[ignore = "requires Clang18 and native C callers"]
 fn native_saturation_and_integer_ordering() {
     let source = include_str!("fixtures/elementwise/access.c");
+    let (before, guarded) = source
+        .split_once("#if defined(__SIZEOF_INT128__)\n")
+        .unwrap();
+    let (int128, after) = guarded.split_once("#endif\n").unwrap();
     for profile in CompilerProfile::ALL
         .into_iter()
         .filter(|p| p.compiler() == Compiler::Clang)
     {
-        check(source, profile).unwrap();
+        // Semantic analysis receives C after preprocessing; the native caller
+        // receives the original guarded fixture for each compiler target.
+        let parsed = if matches!(
+            profile.target(),
+            Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+        ) {
+            format!("{before}{after}")
+        } else {
+            format!("{before}{int128}{after}")
+        };
+        check(&parsed, profile).unwrap();
     }
     let d = tempfile::tempdir().unwrap();
     let access = d.path().join("access.c");
@@ -969,7 +992,11 @@ fn native_type_constraints_include_valid_unsupported_forms() {
                 .unwrap();
             assert_eq!(
                 toucan_test_support::compiler_acceptance(&output).unwrap(),
-                native[target_index(profile.target())],
+                native[target_index(profile.target())]
+                    && !(matches!(
+                        profile.target(),
+                        Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+                    ) && name == "int128"),
                 "{operation}/{name}/{profile:?}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );

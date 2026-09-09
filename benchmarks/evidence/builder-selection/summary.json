@@ -1,0 +1,706 @@
+{
+  "schema_version": 1,
+  "review_status": "passed",
+  "measured_commit": "43867b9272a0b1278e076525805e1af0a7b15ac4",
+  "measured_source": "/home/dev-user/.cache/toucan/selection-final-source-2026-09-09",
+  "equivalent_validated_commit": "00ec563b1c5d583d0b852ed707a13ff719a9d7ee",
+  "equivalent_published_commit": "b371cd0cdda8e5cc4190c42f47d510f3b9115aac",
+  "scope": "Matched Builder generation on four pinned Linux x86_64 header workloads. This snapshot precedes nullable callback typedef changes. Results do not establish application speedups or a statistically significant revision change from the earlier shared-host acfb815 run.",
+  "method": {
+    "pairs_per_project": 7,
+    "measured_calls_per_process": 10,
+    "measured_calls_total": 560,
+    "first_calls_total": 56,
+    "project_order": [
+      "zlib",
+      "sqlite",
+      "zstd",
+      "libgit2"
+    ],
+    "random_seed": 20260909,
+    "engine_order": "Seeded shuffle within each pair, independently checked against every recorded order.",
+    "estimator": "Per-engine median of seven process medians. Speedup is the median of seven within-pair bindgen/Toucan ratios; the range includes all seven ratios.",
+    "included": "Builder configuration, preprocessing, parsing, semantic analysis, and source string emission.",
+    "excluded": "Process startup, first library initialization from steady-call samples, and writing generated outputs to disk.",
+    "first_calls": "One recorded first call per process, excluded from the ten measured calls; includes initial library loading but excludes process startup.",
+    "outliers": "All measured samples and first calls retained; no trimming."
+  },
+  "projects": {
+    "zlib": {
+      "process_medians_ms": {
+        "toucan-builder": [
+          22.040796500000003,
+          22.191342999999996,
+          21.9658065,
+          21.740461500000002,
+          21.926778499999998,
+          22.139526,
+          22.0615005
+        ],
+        "bindgen": [
+          117.3345275,
+          117.43520000000001,
+          117.583166,
+          115.8841835,
+          115.7122165,
+          115.208797,
+          116.3547275
+        ]
+      },
+      "median_ms": {
+        "toucan-builder": 22.040796500000003,
+        "bindgen": 116.3547275
+      },
+      "process_median_range_ms": {
+        "toucan-builder": [
+          21.740461500000002,
+          22.191342999999996
+        ],
+        "bindgen": [
+          115.208797,
+          117.583166
+        ]
+      },
+      "bindgen_over_toucan_ratios": [
+        5.323515758606999,
+        5.29193749111985,
+        5.353009278307173,
+        5.330346069240527,
+        5.277210078990857,
+        5.203760776088883,
+        5.27410760206451
+      ],
+      "median_bindgen_over_toucan": 5.29193749111985,
+      "bindgen_over_toucan_range": [
+        5.203760776088883,
+        5.353009278307173
+      ],
+      "first_calls_ms": {
+        "toucan-builder": [
+          27.776159000000003,
+          45.972946,
+          26.977027,
+          26.766343000000003,
+          26.056307,
+          26.67381,
+          26.137318
+        ],
+        "bindgen": [
+          165.44495,
+          255.197927,
+          187.432739,
+          154.421272,
+          151.59441,
+          147.223657,
+          154.98969300000002
+        ]
+      },
+      "median_first_call_ms": {
+        "toucan-builder": 26.766343000000003,
+        "bindgen": 154.98969300000002
+      },
+      "first_call_range_ms": {
+        "toucan-builder": [
+          26.056307,
+          45.972946
+        ],
+        "bindgen": [
+          147.223657,
+          255.197927
+        ]
+      },
+      "measured_sample_range_ms": {
+        "toucan-builder": [
+          21.540172,
+          24.654839000000003
+        ],
+        "bindgen": [
+          114.01752699999999,
+          420.992522
+        ]
+      },
+      "paired_orders": [
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ]
+      ],
+      "output_sha256": {
+        "toucan-builder": "c3c08d3c5651d41b9c151f1365f767151c3cd802e0a5babcf24720ca38e68f49",
+        "bindgen": "a0b3f8fb6328e641ea378d9b832cb2d64a5d474b14e2ce5ef245a78e7d4b4870"
+      },
+      "preflight_structural_api_equivalent": true
+    },
+    "sqlite": {
+      "process_medians_ms": {
+        "toucan-builder": [
+          26.9735705,
+          25.926654999999997,
+          24.2079345,
+          25.657592,
+          25.9137805,
+          24.623020000000004,
+          25.957106500000002
+        ],
+        "bindgen": [
+          153.851066,
+          155.552614,
+          152.452248,
+          153.450593,
+          152.5016255,
+          155.66821499999998,
+          153.24029000000002
+        ]
+      },
+      "median_ms": {
+        "toucan-builder": 25.9137805,
+        "bindgen": 153.450593
+      },
+      "process_median_range_ms": {
+        "toucan-builder": [
+          24.2079345,
+          26.9735705
+        ],
+        "bindgen": [
+          152.452248,
+          155.66821499999998
+        ]
+      },
+      "bindgen_over_toucan_ratios": [
+        5.703770881945347,
+        5.999717819363895,
+        6.297614858467169,
+        5.980709062643134,
+        5.884962462347012,
+        6.322060210323508,
+        5.903596766457771
+      ],
+      "median_bindgen_over_toucan": 5.980709062643134,
+      "bindgen_over_toucan_range": [
+        5.703770881945347,
+        6.322060210323508
+      ],
+      "first_calls_ms": {
+        "toucan-builder": [
+          36.734111,
+          34.816178,
+          34.196369999999995,
+          33.841718,
+          34.425287999999995,
+          59.414222,
+          34.471223
+        ],
+        "bindgen": [
+          187.082094,
+          202.84903100000002,
+          188.139177,
+          189.12884599999998,
+          195.678931,
+          185.606487,
+          210.713111
+        ]
+      },
+      "median_first_call_ms": {
+        "toucan-builder": 34.471223,
+        "bindgen": 189.12884599999998
+      },
+      "first_call_range_ms": {
+        "toucan-builder": [
+          33.841718,
+          59.414222
+        ],
+        "bindgen": [
+          185.606487,
+          210.713111
+        ]
+      },
+      "measured_sample_range_ms": {
+        "toucan-builder": [
+          23.296221,
+          35.147947
+        ],
+        "bindgen": [
+          148.96321700000001,
+          586.138372
+        ]
+      },
+      "paired_orders": [
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ]
+      ],
+      "output_sha256": {
+        "toucan-builder": "77102ed4bc1526be75aa0f551decf71d597d78e608ec6b22e15451e69f5d2831",
+        "bindgen": "709a92e13f72649b1c841d9a15076f3ca845d636f0b01f449a10dc1fcbbf7a5a"
+      },
+      "preflight_structural_api_equivalent": false
+    },
+    "zstd": {
+      "process_medians_ms": {
+        "toucan-builder": [
+          8.895409,
+          8.958571500000001,
+          8.577862,
+          8.5691955,
+          8.6195185,
+          8.8482315,
+          9.028978500000001
+        ],
+        "bindgen": [
+          103.0582325,
+          106.30120500000001,
+          105.7053715,
+          106.077826,
+          101.0820115,
+          106.24515450000001,
+          106.678274
+        ]
+      },
+      "median_ms": {
+        "toucan-builder": 8.8482315,
+        "bindgen": 106.077826
+      },
+      "process_median_range_ms": {
+        "toucan-builder": [
+          8.5691955,
+          9.028978500000001
+        ],
+        "bindgen": [
+          101.0820115,
+          106.678274
+        ]
+      },
+      "bindgen_over_toucan_ratios": [
+        11.585553008299,
+        11.86586555680222,
+        12.323044075551694,
+        12.378971398190181,
+        11.727106508327582,
+        12.007501668553767,
+        11.815098906260546
+      ],
+      "median_bindgen_over_toucan": 11.86586555680222,
+      "bindgen_over_toucan_range": [
+        11.585553008299,
+        12.378971398190181
+      ],
+      "first_calls_ms": {
+        "toucan-builder": [
+          12.915483,
+          12.553676999999999,
+          12.877583,
+          30.044926,
+          12.834662,
+          12.113996,
+          12.882212
+        ],
+        "bindgen": [
+          136.623038,
+          136.207742,
+          140.857056,
+          133.346529,
+          175.66241399999998,
+          133.399517,
+          140.008412
+        ]
+      },
+      "median_first_call_ms": {
+        "toucan-builder": 12.877583,
+        "bindgen": 136.623038
+      },
+      "first_call_range_ms": {
+        "toucan-builder": [
+          12.113996,
+          30.044926
+        ],
+        "bindgen": [
+          133.346529,
+          175.66241399999998
+        ]
+      },
+      "measured_sample_range_ms": {
+        "toucan-builder": [
+          8.172894999999999,
+          10.4457
+        ],
+        "bindgen": [
+          98.94244,
+          472.890944
+        ]
+      },
+      "paired_orders": [
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ]
+      ],
+      "output_sha256": {
+        "toucan-builder": "98efc3aef8b039fbed4da46b6c0eff79284bc40fd3a7716d04cfd044da4eb720",
+        "bindgen": "45e0a2d0ff007554e396f298a2c5ec04829b571ffeef5003d410e14d5d7cb2a6"
+      },
+      "preflight_structural_api_equivalent": true
+    },
+    "libgit2": {
+      "process_medians_ms": {
+        "toucan-builder": [
+          191.616468,
+          192.2155015,
+          193.72476749999998,
+          190.328838,
+          191.0338595,
+          195.66478899999998,
+          198.29409950000002
+        ],
+        "bindgen": [
+          262.3017205,
+          262.631491,
+          261.8862635,
+          259.05276200000003,
+          273.9232965,
+          266.2413535,
+          261.8292785
+        ]
+      },
+      "median_ms": {
+        "toucan-builder": 192.2155015,
+        "bindgen": 262.3017205
+      },
+      "process_median_range_ms": {
+        "toucan-builder": [
+          190.328838,
+          198.29409950000002
+        ],
+        "bindgen": [
+          259.05276200000003,
+          273.9232965
+        ]
+      },
+      "bindgen_over_toucan_ratios": [
+        1.3688892360754712,
+        1.3663387653466648,
+        1.3518470915186414,
+        1.3610799326164122,
+        1.4338991905254366,
+        1.3607014060153666,
+        1.3204088228555684
+      ],
+      "median_bindgen_over_toucan": 1.3610799326164122,
+      "bindgen_over_toucan_range": [
+        1.3204088228555684,
+        1.4338991905254366
+      ],
+      "first_calls_ms": {
+        "toucan-builder": [
+          217.793846,
+          213.934076,
+          216.15768,
+          215.343088,
+          214.674409,
+          217.849289,
+          217.386755
+        ],
+        "bindgen": [
+          376.919654,
+          322.94221699999997,
+          326.87378,
+          327.763913,
+          331.87252900000004,
+          331.44685000000004,
+          326.182189
+        ]
+      },
+      "median_first_call_ms": {
+        "toucan-builder": 216.15768,
+        "bindgen": 327.763913
+      },
+      "first_call_range_ms": {
+        "toucan-builder": [
+          213.934076,
+          217.849289
+        ],
+        "bindgen": [
+          322.94221699999997,
+          376.919654
+        ]
+      },
+      "measured_sample_range_ms": {
+        "toucan-builder": [
+          187.23752399999998,
+          206.76726000000002
+        ],
+        "bindgen": [
+          253.349445,
+          294.938021
+        ]
+      },
+      "paired_orders": [
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "toucan-builder",
+          "bindgen"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ],
+        [
+          "bindgen",
+          "toucan-builder"
+        ]
+      ],
+      "output_sha256": {
+        "toucan-builder": "5c07a740c3cde936c6e264a1b12e4bea7dc4fe5470d192f6d1864b257ae5d6b5",
+        "bindgen": "2abd7082ae44b09bbc8abced90ad234c5fe15128c53ce9ae3e55f1493dd18f0b"
+      },
+      "preflight_structural_api_equivalent": false
+    }
+  },
+  "binary": {
+    "path": "/home/dev-user/.cache/toucan/selection-builder-preflight-target-2026-09-09/release/toucan-inprocess-benchmark",
+    "sha256": "1ed955e687c3c79b77cef87654ed93c2d09be574fa042e622575cce82b0fa4e5"
+  },
+  "libclang": {
+    "path": "/usr/lib/llvm-18/lib/libclang.so.1",
+    "resolved_path": "/usr/lib/x86_64-linux-gnu/libclang-18.so.18",
+    "sha256": "d7c54213dbeb95deb5bfee76cf3e32e425cbaf8ccbd2900345414fb57476458b"
+  },
+  "environment": {
+    "platform": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
+    "cpu_model": "AMD EPYC-Milan Processor",
+    "affinity": [
+      3
+    ],
+    "rustc": "1.98.1",
+    "profile": "fresh standalone release build",
+    "allocator": "system, with LD_PRELOAD/MALLOC_CONF/MIMALLOC_VERBOSE/GLIBC_TUNABLES cleared",
+    "host_before": {
+      "load_1_5_15_minutes": [
+        0.47509765625,
+        1.533203125,
+        2.37158203125
+      ],
+      "available_cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "allocator_overrides": {
+        "LD_PRELOAD": null,
+        "MALLOC_CONF": null,
+        "MIMALLOC_VERBOSE": null,
+        "GLIBC_TUNABLES": null
+      }
+    },
+    "host_after": {
+      "load_1_5_15_minutes": [
+        1.0048828125,
+        1.4775390625,
+        2.2900390625
+      ],
+      "available_cpus": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27,
+        28,
+        29,
+        30,
+        31
+      ],
+      "allocator_overrides": {
+        "LD_PRELOAD": null,
+        "MALLOC_CONF": null,
+        "MIMALLOC_VERBOSE": null,
+        "GLIBC_TUNABLES": null
+      }
+    },
+    "prerequisites": {
+      "reviewed": true,
+      "compiler_work_idle": true,
+      "native_passed": true,
+      "rustdoc_passed": true,
+      "asan_passed": true,
+      "consumers_passed": true,
+      "preflight_reviewed": true,
+      "native_summary": "/home/dev-user/.cache/toucan/selection-native-validation-handoff/summary.json",
+      "consumer_summary": "/home/dev-user/.cache/toucan/astral-selection-final-proof-source/corpus/evidence/astral-builder-00ec563/summary.json",
+      "preflight_summary": "/home/dev-user/.cache/toucan/selection-preflight-handoff/summary.json",
+      "source_equivalence": "/tmp/toucan-selection-source-equivalence.json",
+      "agent_state": "All three agents completed and confirmed compiler work idle; explicit quiet-window messages sent. Root native/ASan/Rustdoc and both consumer runs completed."
+    }
+  },
+  "integrity": {
+    "output_hashes_and_configurations_match_preflight": true,
+    "header_hashes_match_preflight": true,
+    "binary_and_libclang_unchanged": true,
+    "full_source_audits": [
+      {
+        "commit": "43867b9272a0b1278e076525805e1af0a7b15ac4",
+        "tree": "011de5ca0edaf193e4aefaca278af61a57089353",
+        "files": 2358,
+        "manifest_sha256": "e6b9ad9048310b4ac846d140f11f7c75713065b59b977ad7acf6b5818e226d30",
+        "all_files_unchanged": true
+      },
+      {
+        "commit": "00ec563b1c5d583d0b852ed707a13ff719a9d7ee",
+        "tree": "6a106c512b6e567066a3f031fd79134e1ecf44a8",
+        "files": 2359,
+        "manifest_sha256": "dcf8429178a121a16295877c4e9d13d36e5d0adfa21c3cef3be25eb262eba414",
+        "all_files_unchanged": true
+      }
+    ],
+    "published_tree_matches_validated_tree": true
+  },
+  "preflight": "../builder-preflight-selection/README.md",
+  "remaining_differences": {
+    "sqlite": "C-validated xDlSym returned callback signature differs from bindgen.",
+    "libgit2": "Ten extra integer typedef aliases.",
+    "sentinels": "Both generators emit signed i32 values for three unsigned64-bit C sentinel expressions; native value differences remain recorded in preflight."
+  },
+  "limitations": [
+    "One shared Linux host and four pinned workloads with warm filesystem caches. CPU frequency, other tenants and memory/filesystem contention were not controlled.",
+    "Generation timings cover the named source snapshots; subsequent implementation layers require new validation and measurement.",
+    "Full structural API equality holds for zlib and zstd. Documentation text, traits, bitfield-accessor semantics, arbitrary applications and other targets are outside this timing claim."
+  ]
+}

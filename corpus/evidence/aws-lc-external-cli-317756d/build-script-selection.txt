@@ -1,0 +1,4 @@
+cargo:warning=Environment Variable found 'AWS_LC_SYS_EXTERNAL_BINDGEN': '1'
+cargo:warning=Generating bindings - external bindgen. Platform: x86_64-unknown-linux-gnu
+cargo:warning=Emitting configuration: cargo:rustc-cfg=use_bindgen_pregenerated
+cargo:rustc-cfg=use_bindgen_pregenerated

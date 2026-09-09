@@ -43,11 +43,16 @@ impl Analyzer {
             }
             ast::Expression::Cast(cast) => {
                 let ty = self.type_name(&cast.node.type_name.node)?;
-                matches!(
+                let integer = matches!(
                     self.unit.resolve(&ty)?.kind,
                     TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
-                ) && (matches!(&cast.node.expression.node, ast::Expression::Constant(constant) if matches!(&constant.node, ast::Constant::Float(literal) if !literal.suffix.imaginary))
-                    || self.is_integer_constant_expression(&cast.node.expression, depth + 1)?)
+                );
+                integer
+                    && (self
+                        .null_base_member_offset(&cast.node.expression)?
+                        .is_some()
+                        || matches!(&cast.node.expression.node, ast::Expression::Constant(constant) if matches!(&constant.node, ast::Constant::Float(literal) if !literal.suffix.imaginary))
+                        || self.is_integer_constant_expression(&cast.node.expression, depth + 1)?)
             }
             ast::Expression::UnaryOperator(unary) => {
                 matches!(
@@ -312,6 +317,10 @@ impl Analyzer {
             ast::Expression::Cast(cast) => {
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 let destination = self.integer_type(&ty, offset)?;
+                if let Some(bytes) = self.null_base_member_offset(&cast.node.expression)? {
+                    self.expression_type(&cast.node.expression)?;
+                    return Ok(convert(self.size_value(bytes), destination));
+                }
                 // C11 6.6 permits a floating constant as an immediate operand
                 // of a cast to integer type in an integer constant expression.
                 if let ast::Expression::Constant(constant) = &cast.node.expression.node
@@ -493,7 +502,9 @@ impl Analyzer {
             u128::from(value),
             bits,
             false,
-            if self.unit.target.long_width() == u64::from(bits) {
+            if bits == 32 {
+                3
+            } else if self.unit.target.long_width() == u64::from(bits) {
                 4
             } else {
                 5
@@ -545,6 +556,103 @@ impl Analyzer {
             }
         }
         Err(Error::new(offset, format!("unknown field `{name}`")))
+    }
+
+    /// Fold only the offset-macro spelling `(integer)&(((record*)0)->field)`.
+    /// This is a compiler extension, so an arbitrary pointer address or dereference
+    /// must never become an integer constant through this path.
+    pub(crate) fn null_base_member_offset(
+        &mut self,
+        address: &Node<ast::Expression>,
+    ) -> Result<Option<u64>, Error> {
+        use ast::{BinaryOperator as Binary, Expression as E, MemberOperator as Member};
+
+        let E::UnaryOperator(address) = &address.node else {
+            return Ok(None);
+        };
+        if address.node.operator.node != ast::UnaryOperator::Address {
+            return Ok(None);
+        }
+        let mut path = Vec::new();
+        let mut current = address.node.operand.as_ref();
+        loop {
+            if path.len() >= 128 {
+                return Err(Error::new(
+                    current.span.start,
+                    "offsetof nesting limit exceeded",
+                ));
+            }
+            match &current.node {
+                E::Member(member) => {
+                    path.push(current);
+                    current = member.node.expression.as_ref();
+                    if member.node.operator.node == Member::Indirect {
+                        break;
+                    }
+                }
+                E::BinaryOperator(binary) if binary.node.operator.node == Binary::Index => {
+                    path.push(current);
+                    current = binary.node.lhs.as_ref();
+                }
+                _ => return Ok(None),
+            }
+        }
+        let E::Cast(base) = &current.node else {
+            return Ok(None);
+        };
+        let E::Constant(zero) = &base.node.expression.node else {
+            return Ok(None);
+        };
+        let ast::Constant::Integer(literal) = &zero.node else {
+            return Ok(None);
+        };
+        if self.literal(literal, zero.span.start)?.value != 0 {
+            return Ok(None);
+        }
+        let pointer = self.type_name(&base.node.type_name.node)?;
+        let TypeKind::Pointer(pointee) = &self.unit.resolve(&pointer)?.kind else {
+            return Ok(None);
+        };
+        let mut ty = (**pointee).clone();
+        if !matches!(self.unit.resolve(&ty)?.kind, TypeKind::Record(_)) {
+            return Ok(None);
+        }
+        let mut bytes = 0u64;
+        for (index, step) in path.into_iter().rev().enumerate() {
+            let delta = match &step.node {
+                E::Member(member)
+                    if (index == 0 && member.node.operator.node == Member::Indirect)
+                        || (index > 0 && member.node.operator.node == Member::Direct) =>
+                {
+                    let (delta, field) =
+                        self.field_offset(&ty, &member.node.identifier.node.name, step.span.start)?;
+                    ty = field;
+                    delta
+                }
+                E::BinaryOperator(binary) if binary.node.operator.node == Binary::Index => {
+                    let TypeKind::Array { element, .. } = &self.unit.resolve(&ty)?.kind else {
+                        return Ok(None);
+                    };
+                    let element = (**element).clone();
+                    if !self.is_integer_constant_expression(&binary.node.rhs, 0)? {
+                        return Ok(None);
+                    }
+                    let at = self
+                        .eval(&binary.node.rhs)?
+                        .as_u64()
+                        .map_err(|error| Error::new(binary.node.rhs.span.start, error.message))?;
+                    let stride = self.unit.layout(&element)?.size_bytes();
+                    ty = element;
+                    at.checked_mul(stride)
+                        .ok_or_else(|| Error::new(step.span.start, "offsetof overflow"))?
+                }
+                _ => return Ok(None),
+            };
+            bytes = bytes
+                .checked_add(delta)
+                .ok_or_else(|| Error::new(step.span.start, "offsetof overflow"))?;
+        }
+        Ok(Some(bytes))
     }
 
     pub(crate) fn integer_type(&self, ty: &Type, offset: usize) -> Result<IntegerValue, Error> {
@@ -626,7 +734,7 @@ impl Analyzer {
                 // Clang's MS mode recovers an oversized explicitly signed LL
                 // literal by wrapping its value. Preserve the existing rejection
                 // instead of giving that recovery an unsigned type.
-                && !(self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+                && !(self.unit.target.is_windows()
                     && minimum_rank == 5);
             if (literal.suffix.unsigned || radix != 10 || c90_unsigned)
                 && value <= IntegerValue::mask(bits)
@@ -655,9 +763,10 @@ impl Analyzer {
         let wider_than_int = variants.iter().any(|variant| !variant.value.fits_int());
         for variant in variants {
             let value = variant.value;
-            // Some compiler extensions recover from an unrepresentable enum by
-            // truncating its values. We reject that recovery instead of emitting
-            // constants whose values changed silently.
+            // The Windows MSVC enum ABI uses signed int even for unsigned
+            // 32-bit enumerators. Clang and MSVC reinterpret SDK sentinels
+            // such as 0xffffffff as -1 when the definition closes. Preserve
+            // this bounded conversion, but reject wider lossy recoveries.
             let converted = convert(value, destination);
             let representable = if value.signed && value.signed_value() < 0 {
                 converted.signed && value.signed_value() == converted.signed_value()
@@ -665,7 +774,12 @@ impl Analyzer {
                 (!converted.signed || converted.signed_value() >= 0)
                     && value.value == converted.value
             };
-            if !representable {
+            let windows_u32_sentinel = self.unit.target.is_windows()
+                && destination.bits == 32
+                && destination.signed
+                && !value.signed
+                && value.value <= u128::from(u32::MAX);
+            if !representable && !windows_u32_sentinel {
                 return Err(Error::new(
                     offset,
                     "enum value is not representable in its compatible integer type",

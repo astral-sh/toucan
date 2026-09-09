@@ -22,7 +22,11 @@ fn generate(profile: CompilerProfile) -> String {
         toucan::parse_source(Path::new("api.h"), HEADER, &Config::with_profile(profile)).unwrap();
     let (source, report) = compilation
         .bindings(&BindingOptions {
-            rust_target: RustTarget::RUST_1_64,
+            rust_target: if profile.target().is_armv7() {
+                RustTarget::stable(78).unwrap()
+            } else {
+                RustTarget::RUST_1_64
+            },
             allowlist: [
                 "Opaque",
                 "Callback",

@@ -60,6 +60,19 @@ fn fixtures() -> Vec<(&'static str, &'static str, Type, Vec<&'static str>)> {
             vec!["c", "i", "u"],
         ),
         (
+            "pack8_int128",
+            "#pragma pack(push, 8)\nstruct pack8_int128 { char c; __int128 i; unsigned __int128 u; };\n#pragma pack(pop)",
+            record(
+                vec![
+                    field(B::Char, None),
+                    field(B::Int128, None),
+                    field(B::UnsignedInt128, None),
+                ],
+                vec![Annotation::PragmaPack(64)],
+            ),
+            vec!["c", "i", "u"],
+        ),
+        (
             "int128_bits",
             "struct int128_bits { unsigned __int128 a:65; unsigned __int128 b:12; char c; };",
             record(
@@ -131,7 +144,12 @@ fn fixtures() -> Vec<(&'static str, &'static str, Type, Vec<&'static str>)> {
 
 fn assertions(target: Target) -> String {
     let mut source = String::new();
-    for (name, declaration, ty, fields) in fixtures() {
+    for (name, declaration, ty, fields) in fixtures().into_iter().filter(|(name, _, _, _)| {
+        !matches!(
+            target,
+            Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+        ) || !name.contains("int128")
+    }) {
         writeln!(source, "{declaration}").unwrap();
         let layout = target.layout(&ty).unwrap();
         writeln!(
@@ -202,9 +220,7 @@ fn enum_assertions(target: Target, source: &mut String) {
         ("packed_unsigned_byte", vec![0, 255], true),
     ] {
         // MSVC diagnoses enumerators outside the range of int instead of widening them.
-        if target == Target::X86_64PcWindowsMsvc
-            && values.iter().any(|&value| i32::try_from(value).is_err())
-        {
+        if target.is_windows() && values.iter().any(|&value| i32::try_from(value).is_err()) {
             continue;
         }
         let attribute = if packed {
@@ -351,10 +367,18 @@ fn gcc_wide_enum_layouts() {
 }
 
 #[test]
-#[ignore = "requires clang with all five target backends; run with --include-ignored"]
+#[ignore = "requires Clang with the supported cross-target backends; run with --include-ignored"]
 fn clang_cross_target_layouts() {
     let directory = tempfile::tempdir().unwrap();
     for target in Target::ALL {
+        #[cfg(target_os = "macos")]
+        if target == Target::I686UnknownLinuxGnu
+            && !apple_clang_models_gnu_i686_alignment(directory.path())
+        {
+            // Apple Clang may use 8-byte long long/double alignment for its
+            // GNU i686 cross target, unlike the 4-byte GNU i686 ABI.
+            continue;
+        }
         let source = directory.path().join(format!("{target}.c"));
         std::fs::write(&source, assertions(target)).unwrap();
         let output = Command::new("clang")
@@ -374,6 +398,59 @@ fn clang_cross_target_layouts() {
             String::from_utf8_lossy(&output.stderr)
         );
     }
+}
+
+#[cfg(target_os = "macos")]
+fn apple_clang_models_gnu_i686_alignment(directory: &std::path::Path) -> bool {
+    const MARKER: &str = "GNU i686 scalar alignment";
+    let source = directory.join("gnu-i686-alignment.c");
+    std::fs::write(
+        &source,
+        format!("_Static_assert(_Alignof(long long) == 4 && _Alignof(double) == 4, \"{MARKER}\");"),
+    )
+    .unwrap();
+    let output = Command::new("clang")
+        .args([
+            "-target",
+            Target::I686UnknownLinuxGnu.triple(),
+            "-std=c11",
+            "-Werror",
+            "-fsyntax-only",
+        ])
+        .arg(source)
+        .output()
+        .expect("clang must be available for the i686 GNU ABI probe");
+    let accepted = toucan_test_support::compiler_acceptance(&output)
+        .expect("Clang i686 GNU ABI probe must finish normally");
+    if !accepted {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("static assertion failed") && stderr.contains(MARKER),
+            "unexpected clang i686 GNU ABI probe failure: {stderr}"
+        );
+    }
+    accepted
+}
+
+// GCC's -m32 selects the host x86 multilib ABI; a native AArch64 GCC cannot use it.
+// clang_cross_target_layouts still checks i686 GNU Linux on other hosts.
+#[cfg(all(target_os = "linux", any(target_arch = "x86", target_arch = "x86_64")))]
+#[test]
+#[ignore = "requires GCC with -m32 support; run with --include-ignored"]
+fn gcc_i686_cross_target_layouts() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("i686-unknown-linux-gnu.c");
+    std::fs::write(&path, assertions(Target::I686UnknownLinuxGnu)).unwrap();
+    let output = Command::new("gcc")
+        .args(["-m32", "-std=c11", "-Werror", "-fsyntax-only"])
+        .arg(path)
+        .output()
+        .expect("GCC must be available for the i686 GNU ABI probe");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[cfg(all(

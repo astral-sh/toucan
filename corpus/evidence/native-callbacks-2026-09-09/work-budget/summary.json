@@ -1,0 +1,37 @@
+{
+  "source_commit": "7db2b85027108be1515ad76263720e665cba2ab9",
+  "status": "passed",
+  "exit_code": 0,
+  "elapsed_seconds": 301.2829234209785,
+  "statistics": {
+    "number_of_executed_units": 26082,
+    "average_exec_per_sec": 86,
+    "new_units_added": 322,
+    "slowest_unit_time_sec": 0,
+    "peak_rss_mb": 674
+  },
+  "binary_sha256": "95ef8d4ac9a9200de35121ad213157fd567b1eaea00621f5ba80afef955a545e",
+  "source_unchanged": true,
+  "sanitizer_options": {
+    "ASAN_OPTIONS": "detect_leaks=0",
+    "LSAN_OPTIONS": null
+  },
+  "initial_archive_sha256": "018a0d29eaa821cb488170b01326a825d88654984ba8615b7d1a7537c7f9c8f1",
+  "binding_nullable_function_typedefs": {
+    "first_generation": false,
+    "second_generation": true
+  },
+  "source_files": 2389,
+  "raw_directory": "/home/dev-user/.cache/toucan/bindings-callback-final-asan-2026-09-09",
+  "qualification": "Bounded native Linux x86-64 AddressSanitizer campaign of the bindings target. It exercises both function typedef projection policies across target profiles and language modes; counts include rejected C inputs. It does not compile generated Rust, establish C conformance, or prove complete memory safety. LeakSanitizer is disabled in the ptrace environment.",
+  "artifacts": {
+    "capture.json.gz": {
+      "bytes": 738379,
+      "sha256": "c808032f0ab345662d1f0f8e093daf7d67885fd8eb131c69f774423d19366807"
+    },
+    "initial-corpus.tar.gz": {
+      "bytes": 821561,
+      "sha256": "018a0d29eaa821cb488170b01326a825d88654984ba8615b7d1a7537c7f9c8f1"
+    }
+  }
+}

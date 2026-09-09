@@ -16,8 +16,9 @@ fn cases(profile: CompilerProfile, name: &str) -> Vec<(String, bool)> {
         Compiler::Gnu => name != "__float128",
         Compiler::Clang => matches!(name, "_Float16" | "__float128"),
     };
-    let predefined =
-        profile.compiler() == Compiler::Gnu && profile.target().is_x86_64() && name == "__float128";
+    let predefined = profile.compiler() == Compiler::Gnu
+        && (profile.target().is_x86_64() || profile.target() == Target::I686UnknownLinuxGnu)
+        && name == "__float128";
     [
         ("typedef int NAME;NAME value;", !keyword),
         ("void f(int NAME){NAME=1;}", !keyword),
