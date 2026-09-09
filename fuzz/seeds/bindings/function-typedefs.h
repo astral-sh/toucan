@@ -1,0 +1,13 @@
+typedef int Callback(int);
+typedef Callback Alias;
+typedef Alias *Pointer;
+typedef Pointer Factory(Pointer);
+typedef Factory *FactoryPointer;
+struct Callbacks { Alias *one; Pointer *two; Pointer array[2]; };
+extern Alias *callback;
+extern Pointer *callback_slot;
+extern Pointer callbacks[2];
+Callback declared;
+Pointer get_callback(void);
+FactoryPointer get_factory(void);
+void take_callbacks(Alias callback, FactoryPointer factory);
