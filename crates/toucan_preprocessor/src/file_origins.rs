@@ -66,35 +66,27 @@ impl FileOrigins {
 
     /// Physical header containing the token at an output byte offset.
     pub fn source_file(&self, offset: usize) -> Option<&Path> {
-        let index = self
-            .mappings
-            .partition_point(|entry| entry.generated.end <= offset);
-        self.mappings
-            .get(index)
-            .filter(|entry| entry.generated.contains(&offset))
-            .map(|entry| entry.path.as_ref())
+        self.mapping(offset).map(|entry| entry.path.as_ref())
     }
 
     /// Compiler-visible header name at an output byte offset, before `#line` remapping.
     pub fn source_name(&self, offset: usize) -> Option<&Path> {
-        let index = self
-            .mappings
-            .partition_point(|entry| entry.generated.end <= offset);
-        self.mappings
-            .get(index)
-            .filter(|entry| entry.generated.contains(&offset))
-            .map(|entry| entry.accessed.as_ref())
+        self.mapping(offset).map(|entry| entry.accessed.as_ref())
     }
 
     /// Initial include class at a generated offset; see `FileMapping::is_system_include`.
     pub fn source_is_system_include(&self, offset: usize) -> Option<bool> {
+        self.mapping(offset).map(|entry| entry.system_include)
+    }
+
+    /// Find the half-open range containing `offset`, excluding gaps between mappings.
+    fn mapping(&self, offset: usize) -> Option<&FileMapping> {
         let index = self
             .mappings
             .partition_point(|entry| entry.generated.end <= offset);
         self.mappings
             .get(index)
             .filter(|entry| entry.generated.contains(&offset))
-            .map(|entry| entry.system_include)
     }
 
     /// Source location of the last active definition; absent after `#undef`.
@@ -106,10 +98,6 @@ impl FileOrigins {
     /// Compiler-visible input name of the final active macro definition.
     pub fn macro_definition_name(&self, name: &str) -> Option<&Path> {
         self.macros.get(name).map(|entry| entry.1.as_ref())
-    }
-
-    fn intern_path(&mut self, path: &Path) -> Arc<Path> {
-        self.paths.intern(path)
     }
 
     pub(crate) fn append(
@@ -131,8 +119,8 @@ impl FileOrigins {
             last.generated.end = generated.end;
             return;
         }
-        let path = self.intern_path(path);
-        let accessed = self.intern_path(accessed);
+        let path = self.paths.intern(path);
+        let accessed = self.paths.intern(accessed);
         self.mappings.push(FileMapping {
             generated,
             path,
@@ -149,8 +137,8 @@ impl FileOrigins {
         line: usize,
         column: usize,
     ) {
-        let path = self.intern_path(path);
-        let accessed = self.intern_path(accessed);
+        let path = self.paths.intern(path);
+        let accessed = self.paths.intern(accessed);
         self.macros.insert(
             name.into(),
             (
