@@ -1379,6 +1379,14 @@ impl Preprocessor {
                     return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
                 }
             }
+            Some("prefast") => {
+                // PREfast pragmas control static-analysis warnings, including
+                // their push/pop stack. No such diagnostics are emitted here.
+                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
+                if !msvc_prefast_pragma(&expanded) {
+                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
+                }
+            }
             Some("intrinsic" | "function") => {
                 // These control code generation for calls in C function bodies;
                 // they do not affect the declarations emitted as bindings.
@@ -1992,6 +2000,45 @@ fn msvc_function_pragma(tokens: &[Token]) -> bool {
         }
     }
     true
+}
+
+/// Validate PREfast warning suppression without retaining analyzer-only state.
+fn msvc_prefast_pragma(tokens: &[Token]) -> bool {
+    let [open, arguments @ .., close] = tokens else {
+        return false;
+    };
+    if open.text != "(" || close.text != ")" {
+        return false;
+    }
+    match arguments {
+        [action] if matches!(action.text.as_str(), "push" | "pop") => true,
+        [action, colon, rest @ ..]
+            if matches!(action.text.as_str(), "disable" | "suppress") && colon.text == ":" =>
+        {
+            let mut rules = rest;
+            let mut count = 0;
+            while let Some(rule) = rules.first() {
+                let numeric = rule.kind == Kind::Number
+                    && rule.text.bytes().all(|byte| byte.is_ascii_digit());
+                let symbolic = rule.kind == Kind::Identifier
+                    && rule.text.strip_prefix("__WARNING_").is_some_and(|name| {
+                        !name.is_empty()
+                            && name.bytes().all(|byte| {
+                                byte.is_ascii_uppercase() || byte.is_ascii_digit() || byte == b'_'
+                            })
+                    });
+                if !numeric && !symbolic {
+                    break;
+                }
+                count += 1;
+                rules = &rules[1..];
+            }
+            count > 0
+                && (rules.is_empty()
+                    || matches!(rules, [comma, reason] if comma.text == "," && reason.kind == Kind::String))
+        }
+        _ => false,
+    }
 }
 
 /// Warning pragmas change only the compiler's warning state, which this
