@@ -109,7 +109,7 @@ also supplies file-allowlist provenance and anonymous helper ordering.
 
 `TranslationUnit::tag_discovery` retains these sparse binding facts separately
 from actual lexical owners. Units containing tag definitions under enum cursors
-or new file-scope tags in trailing record attributes receive one additional
+or new file-scope tags in trailing tag attributes receive one additional
 bounded parse and graph walk after type checking. Other units retain no
 occurrence graph and use no second parse. The graph
 limits events and type traversal to one million entries or steps, and nesting
@@ -118,8 +118,8 @@ to 128 levels; invalid public IDs and naming owners produce generation errors.
 The [discovery capture](../corpus/evidence/enum-cursor-discovery-2026-09-09.json.gz)
 contains pinned bindgen comparisons, generated Rust compilation, and native
 C/Rust layout and call checks. General Rust type/variant keyword escaping and
-static constant object projection remain separate policies. Alignment attributes
-on enum tags remain explicitly unsupported.
+static constant object projection remain separate policies. Enum tag alignment
+is limited to the [supported storage-preserving forms](enum-alignment.md).
 On x86-64 Linux this layer adds one eight-byte optional pointer to the unit;
 record and enum sizes remain unchanged. Ninety-seven ordinary allocation
 controls keep their call counts, with eight additional requested bytes only

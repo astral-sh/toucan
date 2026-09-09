@@ -89,11 +89,11 @@ fn discovered_enums_cross_c_calls_and_record_layouts() {
         ("aarch64", "macos") => Target::Aarch64AppleDarwin,
         _ => return,
     };
-    let header = "enum Outer { COUNT=sizeof(enum Inner { VALUE=7 }) }; struct { int ignored; } source; struct Owner { __typeof__(source); enum Inner field; }; enum Inner echo(enum Inner); int read_owner(const struct Owner *); struct Aligned {char field;} __attribute__((aligned(sizeof(enum Attribute {ATTRIBUTE=3})))); struct Aligned from_attribute(enum Attribute);";
+    let header = "enum Outer { COUNT=sizeof(enum Inner { VALUE=7 }) }; struct { int ignored; } source; struct Owner { __typeof__(source); enum Inner field; }; enum Inner echo(enum Inner); int read_owner(const struct Owner *); struct Aligned {char field;} __attribute__((aligned(sizeof(enum Attribute {ATTRIBUTE=3})))); struct Aligned from_attribute(enum Attribute); enum __attribute__((aligned(4))) AlignedEnum {ALIGNED=5}; enum AlignedEnum echo_aligned(enum AlignedEnum); int read_aligned(const enum AlignedEnum *);";
     let unit = analyze(header, target).unwrap();
     let directory = tempfile::tempdir().unwrap();
     let c = directory.path().join("probe.c");
-    std::fs::write(&c,format!("{header}\n_Static_assert(sizeof(struct Aligned)==4 && _Alignof(struct Aligned)==4,\"aligned record\"); enum Inner echo(enum Inner value) {{ return value; }} int read_owner(const struct Owner *value) {{ return value->field; }} struct Aligned from_attribute(enum Attribute value) {{struct Aligned result={{(char)value}}; return result;}}")).unwrap();
+    std::fs::write(&c,format!("{header}\n_Static_assert(sizeof(struct Aligned)==4 && _Alignof(struct Aligned)==4,\"aligned record\"); enum Inner echo(enum Inner value) {{ return value; }} int read_owner(const struct Owner *value) {{ return value->field; }} struct Aligned from_attribute(enum Attribute value) {{struct Aligned result={{(char)value}}; return result;}} enum AlignedEnum echo_aligned(enum AlignedEnum value) {{return value;}} int read_aligned(const enum AlignedEnum *value) {{return *value;}}")).unwrap();
     for rustified_enums in [false, true] {
         let bindings = generate(
             &unit,
@@ -114,8 +114,13 @@ fn discovered_enums_cross_c_calls_and_record_layouts() {
         } else {
             "Aligned_Attribute_ATTRIBUTE"
         };
+        let aligned = if rustified_enums {
+            "AlignedEnum::ALIGNED"
+        } else {
+            "AlignedEnum_ALIGNED"
+        };
         let main = directory.path().join("main.rs");
-        std::fs::write(&main,format!("#![allow(dead_code,non_camel_case_types,non_upper_case_globals)]\n{bindings}\nfn main() {{ let value=Owner {{field:{value}}}; assert_eq!(unsafe{{read_owner(&value)}},7); assert_eq!(unsafe{{echo({value})}},{value}); assert_eq!(unsafe{{from_attribute({attribute})}}.field,3); assert_eq!(::core::mem::size_of::<Aligned>(),4); assert_eq!(::core::mem::align_of::<Aligned>(),4); }}")).unwrap();
+        std::fs::write(&main,format!("#![allow(dead_code,non_camel_case_types,non_upper_case_globals)]\n{bindings}\nfn main() {{ let value=Owner {{field:{value}}}; assert_eq!(unsafe{{read_owner(&value)}},7); assert_eq!(unsafe{{echo({value})}},{value}); assert_eq!(unsafe{{from_attribute({attribute})}}.field,3); assert_eq!(::core::mem::size_of::<Aligned>(),4); assert_eq!(::core::mem::align_of::<Aligned>(),4); let aligned={aligned}; assert_eq!(unsafe{{read_aligned(&aligned)}},5); assert_eq!(unsafe{{echo_aligned(aligned)}},aligned); }}")).unwrap();
         for compiler in [
             std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into()),
             "clang".into(),
@@ -235,4 +240,55 @@ fn trailing_record_attribute_names_match_bindgen_and_drive_enum_selection() {
     .unwrap()
     .source;
     assert!(!output.contains("pub enum Record_Visible"));
+}
+
+#[test]
+fn aligned_enum_attribute_children_follow_bindgen_cursor_visibility() {
+    for (source, visible) in [
+        (
+            "enum E{VALUE=1} __attribute__((aligned(sizeof(enum Other{OTHER=1}))));",
+            false,
+        ),
+        (
+            "enum __attribute__((aligned(sizeof(enum Other{OTHER=1})))) E{VALUE=1};",
+            true,
+        ),
+        (
+            "__attribute__((aligned(sizeof(enum Other{OTHER=1})))) enum E{VALUE=1};",
+            true,
+        ),
+        (
+            "enum Outer{COUNT=sizeof(enum Hidden{HIDDEN=1} __attribute__((aligned(sizeof(enum Other{OTHER=1})))))};enum Hidden object;",
+            false,
+        ),
+    ] {
+        for rustified_enums in [false, true] {
+            let unit = analyze(source, Target::X86_64UnknownLinuxGnu).unwrap();
+            let output = generate(
+                &unit,
+                &Options {
+                    rustified_enums,
+                    ..options()
+                },
+            )
+            .unwrap()
+            .source;
+            assert_eq!(
+                output.contains("pub type Other =") || output.contains("pub enum Other"),
+                visible,
+                "{output}"
+            );
+            assert_eq!(
+                output.contains("pub const Other_OTHER:"),
+                visible && !rustified_enums,
+                "{output}"
+            );
+            assert!(
+                generate(&unit, &Options::default())
+                    .unwrap()
+                    .source
+                    .contains("pub const OTHER:")
+            );
+        }
+    }
 }

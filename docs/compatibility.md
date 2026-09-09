@@ -1020,7 +1020,9 @@ arithmetic and variadic arguments.
 
 Tag attributes apply at the definition. Clang also retains attributes on a
 forward tag; GNU ignores them there. Packing a typedef or object does not change
-its enum tag. Direct enum alignment attributes remain unsupported. GNU
+its enum tag. GNU ignores enum tag alignment; non-Microsoft Clang accepts
+completed tags whose explicit alignment matches their natural storage alignment.
+[Other enum alignment forms](enum-alignment.md) retain explicit diagnostics. GNU
 `__alignof__(expression)` is a separate parser gap; type alignment queries work.
 
 Default bindings preserve the compatible integer domain. Optional Rust enums use

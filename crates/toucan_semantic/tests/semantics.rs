@@ -560,7 +560,7 @@ fn forward_record_attributes_follow_target_compiler() {
         )
         .unwrap();
     }
-    assert!(analyze("enum __attribute__((aligned(16))) E { A };", TARGET).is_err());
+    analyze("enum __attribute__((aligned(16))) E { A }; _Static_assert(_Alignof(enum E)==4,\"GNU ignores enum tag alignment\");", TARGET).unwrap();
 }
 
 #[test]

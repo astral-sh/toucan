@@ -266,3 +266,62 @@ fn record_attribute_children_do_not_need_an_unrelated_enum_to_activate_discovery
         TagDiscovery::Discovered {record: Some(id), ..} if id == record(&unit,"Record"))
     );
 }
+
+#[test]
+fn trailing_enum_attributes_hide_tags_without_changing_c_scope() {
+    use toucan_semantic::{AnalysisOptions, Scope, analyze_with_profile};
+    use toucan_target::CompilerProfile;
+
+    for profile in CompilerProfile::ALL {
+        if profile.target() == Target::X86_64PcWindowsMsvc {
+            continue;
+        }
+        for (source, hidden) in [
+            (
+                "enum E{VALUE=1} __attribute__((aligned(sizeof(enum Other{OTHER=1}))));",
+                true,
+            ),
+            (
+                "enum __attribute__((aligned(sizeof(enum Other{OTHER=1})))) E{VALUE=1};",
+                false,
+            ),
+            (
+                "__attribute__((aligned(sizeof(enum Other{OTHER=1})))) enum E{VALUE=1};",
+                false,
+            ),
+        ] {
+            for prefix in ["", "enum Outer{COUNT=sizeof(enum Hidden{HIDDEN=1})};"] {
+                let source = format!(
+                    "{prefix}{source}_Static_assert(sizeof(enum Other)==4 && OTHER==1,\"C scope\");"
+                );
+                let mut units = Vec::new();
+                for retain_code in [false, true] {
+                    let analysis = analyze_with_profile(
+                        &source,
+                        profile,
+                        &AnalysisOptions {
+                            retain_code,
+                            ..Default::default()
+                        },
+                    )
+                    .unwrap();
+                    let unit = analysis.unit();
+                    let other = enumeration(unit, "Other");
+                    assert_eq!(unit.enums[other].scope, Scope::File);
+                    assert_eq!(
+                        matches!(
+                            unit.tag_discovery
+                                .as_ref()
+                                .and_then(|facts| facts.enums.get(&other)),
+                            Some(TagDiscovery::Hidden)
+                        ),
+                        hidden,
+                        "{profile:?}: {source}"
+                    );
+                    units.push(serde_json::to_value(unit).unwrap());
+                }
+                assert_eq!(units[0], units[1]);
+            }
+        }
+    }
+}

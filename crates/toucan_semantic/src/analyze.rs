@@ -2474,11 +2474,12 @@ impl Analyzer {
                             self.attributes(std::slice::from_ref(extension), &mut attributes)?;
                         }
                     }
-                    // Trailing record attributes are evaluated before the
-                    // record is built. Their tag definitions need a cursor
-                    // owner without changing the tags' actual C scope.
+                    // Trailing tag attributes are evaluated before the tag
+                    // is built. Their definitions need cursor ownership or
+                    // visibility facts without changing actual C scope.
                     if types.last().is_some_and(|ty| {
                         matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
+                            || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty())
                     }) && (self.unit.enums[first_enum..]
                         .iter()
                         .any(|enumeration| enumeration.scope == Scope::File)
@@ -2593,7 +2594,11 @@ impl Analyzer {
         // GCC ignores layout attributes on forward tags; Clang retains them.
         // Both ignore a new attribute applied after the tag is already defined.
         if defines_tag || clang_forward {
-            self.apply_tag_attributes(&ty, &record_attributes)?;
+            self.apply_tag_attributes(
+                &ty,
+                &record_attributes,
+                types.first().map_or(0, |ty| ty.span.start),
+            )?;
         }
         let atomic_wrapper = atomic && self.unit.atomic_value(&ty)?.is_none();
         if atomic {
@@ -4876,7 +4881,12 @@ impl Analyzer {
         Ok(resolved)
     }
 
-    fn apply_tag_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
+    fn apply_tag_attributes(
+        &mut self,
+        ty: &Type,
+        attributes: &Attributes,
+        offset: usize,
+    ) -> Result<(), Error> {
         attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
         if let Some(span) = attributes.transparent_union {
@@ -4896,16 +4906,35 @@ impl Analyzer {
                 };
             }
         } else if let TypeKind::Enum(id) = self.unit.resolve(ty)?.kind {
-            if attributes.vendor_alignment().is_some() {
-                return Err(Error::new(
-                    0,
-                    "alignment attributes on enum tags are unsupported",
-                ));
-            }
             self.unit.enums[id].packed |= attributes.packed;
+            if let Some(alignment) = attributes.vendor_alignment()
+                && self.unit.compiler == Compiler::Clang
+            {
+                // GCC ignores tag alignment. Clang preserves it independently
+                // of integer size, so an ordinary Rust integer is suitable
+                // only when the attribute leaves all storage rules unchanged.
+                if self.unit.target == Target::X86_64PcWindowsMsvc {
+                    return Err(Error::new(
+                        offset,
+                        "alignment attributes on Microsoft enum tags are unsupported",
+                    ));
+                }
+                if !self.unit.enums[id].complete {
+                    return Err(Error::new(
+                        offset,
+                        "alignment attributes on incomplete enum tags are unsupported",
+                    ));
+                }
+                if self.unit.layout(ty)?.alignment_bits / 8 != alignment {
+                    return Err(Error::new(
+                        offset,
+                        "enum alignment that changes storage layout is unsupported",
+                    ));
+                }
+            }
         } else if attributes.packed || attributes.vendor_alignment().is_some() {
             return Err(Error::new(
-                0,
+                offset,
                 "layout attributes on a non-record type are unsupported",
             ));
         }
@@ -5163,6 +5192,12 @@ impl Analyzer {
                                     ));
                                 }
                             };
+                            if value == 0 && self.unit.compiler == Compiler::Clang {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "aligned attributes require a positive power of two",
+                                ));
+                            }
                             set_alignment(result, value, extension.span.start)?;
                         }
                         Some(crate::attributes::Attribute::Aarch64VectorPcs)

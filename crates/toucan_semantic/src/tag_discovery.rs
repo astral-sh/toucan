@@ -348,10 +348,12 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
     }
 
     fn visit_enum_type(&mut self, declaration: &'ast ast::EnumType, span: &'ast Span) {
+        // Interior attributes precede the cursor; trailing attributes belong
+        // to it and are visited by the surrounding specifier list.
+        for extension in &declaration.extensions {
+            self.visit_extension(&extension.node, &extension.span);
+        }
         if declaration.enumerators.is_empty() {
-            for extension in &declaration.extensions {
-                self.visit_extension(&extension.node, &extension.span);
-            }
             return;
         }
         let Some(id) = self.enum_id(declaration, span) else {
@@ -364,9 +366,6 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
             self.attribute_tags.insert(tag);
         }
         let previous = self.parent.replace(tag);
-        for extension in &declaration.extensions {
-            self.visit_extension(&extension.node, &extension.span);
-        }
         for enumerator in &declaration.enumerators {
             self.visit_enumerator(&enumerator.node, &enumerator.span);
         }

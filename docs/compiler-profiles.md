@@ -99,8 +99,10 @@ including explicit ISO C modes. Clang forward record-tag alignment and packing a
 Windows, correcting an earlier omission. Other existing default behavior is
 preserved. Flags such as `-fshort-enums`, optimization, optional instruction sets,
 and arbitrary compiler versions are not implied by a profile. Unsupported
-extensions continue to produce diagnostics. The layout adapter can represent
-aligned enum layouts, but source-level enum alignment attributes remain unsupported; packed enum attributes are supported.
+extensions continue to produce diagnostics. Packed enum attributes are supported.
+GNU ignores enum tag alignment, while non-Microsoft Clang admits explicit
+alignment that leaves a completed enum's storage unchanged.
+[Other enum alignment forms](enum-alignment.md) retain explicit diagnostics.
 
 The [profile evidence](../corpus/evidence/compiler-profiles-2026-09-08.json) records
 source and binary hashes, compiler commands, allocation samples, and the
