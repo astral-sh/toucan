@@ -46,9 +46,10 @@ The [root integration](../corpus/evidence/bindgen-selection-root-integration-202
 preserves the earlier enumerator-query optimization and macro-definition history.
 The binding and origin suites and workspace Clippy pass on that combined source.
 
-Macro selection currently follows the final active macro environment. Bindgen's
-sequential macro-value history and comment/derive/format options remain separate
-adapter work. [Default function selection](bindgen-functions.md) extends this
-layer without requiring origin capture. The examined unchanged
-AWS-LC 0.44.0 crypto-only route has no first/final-definition or file-membership
-difference among its 7,900 selected macro definitions.
+Macro selection now uses [ordered macro values](macro-value-compatibility.md).
+Every definition updates the parsed-value context before file filtering; only
+the first successfully parsed definition can supply output. Its accessed header
+determines membership, independently of later redefinitions and logical `#line`
+names. [Default function selection](bindgen-functions.md) extends declaration
+selection without requiring origin capture. Derives and formatting are separate
+adapter policies; documentation emission remains an integration gate.

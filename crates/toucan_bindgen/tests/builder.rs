@@ -3,7 +3,7 @@ use toucan_bindgen::{Builder, RustTarget};
 #[test]
 fn ordered_headers_include_paths_and_options_generate_one_module() {
     let dir = tempfile::tempdir().unwrap();
-    std::fs::write(dir.path().join("first.h"), "#include <stddef.h>\n#define VALUE INPUT\ntypedef enum Mode { MODE_A, MODE_B } Mode;\nstruct Record { char tag; long value; };\n").unwrap();
+    std::fs::write(dir.path().join("first.h"), "#include <stddef.h>\n#if INPUT != 7\n#error missing configured input\n#endif\n#define VALUE 7\ntypedef enum Mode { MODE_A, MODE_B } Mode;\nstruct Record { char tag; long value; };\n").unwrap();
     std::fs::write(
         dir.path().join("second.h"),
         "void keep(struct Record *, Mode, size_t); void omitted(void);\n",

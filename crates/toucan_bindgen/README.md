@@ -24,6 +24,7 @@ generated declarations can target Rust 1.64 or later.
 `Builder` supports ordered `header` calls, `clang_arg`/`clang_args`, `use_core`,
 `size_t_is_usize`, `rust_target`, `layout_tests`, `raw_line`,
 `blocklist_function`, `blocklist_type`, `rustified_enum`, and `prepend_enum_name`.
+Integer macro options include `default_macro_constant_type` and `fit_macro_constants`.
 Generation returns bindings
 with `Display`, `write`, `write_to_file`, and a `report()` containing omitted macros and
 dependencies. Compile-time size and alignment assertions remain enabled when
@@ -147,15 +148,24 @@ prototypes still invoke it. Generated names must be ASCII identifiers, use
 Toucan's existing reserved-identifier escaping, and cannot collide with another
 selected Rust value.
 
-This first policy layer follows final active macro definitions. In particular,
-`#undef` removes a macro and a replacement definition supplies the final value.
-Pinned bindgen 0.72.1 instead parses macro definitions sequentially and preserves
-previous parsed values through `#undef`; matching that behavior is separate adapter
-work. The unchanged AWS-LC 0.44.0 crypto-only configuration examined here has no
-redefinition/undef history difference: its 7,900 selected definitions have identical
-first and final replacements and file-selection membership. This control concerns
-definition history, independently of macro expression/type policy.
-`push_macro` and `pop_macro` remain unsupported.
+Macro values follow bindgen 0.72.1's written definition order. The first parsed
+definition supplies output; later definitions update values used by subsequent
+macros. `#undef` does not erase that parsed-value context. Configured predefined
+macros and enum constants are not seeded into it. File selection uses the first
+parsed definition's accessed header, after updating the context. With callbacks,
+names that are function-like in the final active environment are skipped.
+
+Integer values wrap as i64, independently of C suffixes. The default
+`MacroTypeVariation::Unsigned` uses u32/u64 for nonnegative values and i32/i64 for
+negative values. `Signed` uses i32/i64; `fit_macro_constants(true)` also permits
+8- and 16-bit integers. These options do not change character, string, or f64
+representations. Unsupported expressions and out-of-range characters appear in
+`report().skipped_macros`; resource exhaustion fails generation. Reports mark this
+evaluation as `MacroEvaluation::Provided` and retain accepted incompatible
+redefinitions with their physical locations. The core library's C constant
+evaluation remains a separate API. See [macro values](../../docs/macro-value-compatibility.md)
+for the grammar, bounds, and differential evidence. `push_macro` and `pop_macro`
+remain unsupported.
 
 The Builder emits ordinary externally linked C function definitions and excludes
 inline candidates. Its default path uses compact declaration-time inline facts,

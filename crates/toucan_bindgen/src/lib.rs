@@ -9,6 +9,9 @@
 mod arguments;
 pub mod callbacks;
 mod formatting;
+mod macro_compat;
+mod macro_projection;
+mod macro_values;
 mod selection;
 
 use std::fmt;
@@ -17,6 +20,7 @@ use std::path::{Path, PathBuf};
 use std::rc::Rc;
 
 pub use formatting::Formatter;
+pub use macro_projection::MacroTypeVariation;
 
 use toucan::{BindingOptions, Compiler, CompilerProfile, Config, MacroType, Target};
 
@@ -80,6 +84,8 @@ pub struct Builder {
     allowlist_files: Vec<String>,
     callbacks: Vec<Rc<dyn callbacks::ParseCallbacks>>,
     formatting: formatting::Options,
+    macro_type_variation: MacroTypeVariation,
+    fit_macro_constants: bool,
     error: Option<String>,
 }
 
@@ -100,11 +106,26 @@ impl Default for Builder {
             callbacks: Vec::new(),
             error: None,
             formatting: formatting::Options::default(),
+            macro_type_variation: MacroTypeVariation::default(),
+            fit_macro_constants: false,
         }
     }
 }
 
 impl Builder {
+    /// Choose signed or unsigned storage for parsed integer macro values.
+    /// Negative values always use signed storage.
+    pub fn default_macro_constant_type(mut self, variation: MacroTypeVariation) -> Self {
+        self.macro_type_variation = variation;
+        self
+    }
+
+    /// Permit 8- and 16-bit macro constants when their values fit. Disabled by default.
+    pub fn fit_macro_constants(mut self, fit: bool) -> Self {
+        self.fit_macro_constants = fit;
+        self
+    }
+
     /// Choose how generated declarations are formatted when written or displayed.
     pub fn formatter(mut self, formatter: Formatter) -> Self {
         self.formatting.formatter = formatter;
@@ -318,6 +339,9 @@ impl Builder {
         let mut config = arguments::configuration(&self.arguments)?;
         config.analysis.retain_declaration_origins = files.is_some() || !self.callbacks.is_empty();
         config.preprocessor.record_file_origins = files.is_some();
+        config.preprocessor.record_macro_definitions = true;
+        config.preprocessor.macro_redefinition_policy =
+            toucan::MacroRedefinitionPolicy::RecordAndReplace;
         let paths = self
             .headers
             .into_iter()
@@ -339,7 +363,16 @@ impl Builder {
                 &mut self.options,
             )?;
         }
-        let (source, report) = compilation.bindings(&self.options)?;
+        let macros = macro_compat::evaluate(
+            &compilation,
+            files.as_ref(),
+            !self.callbacks.is_empty(),
+            &mut self.options,
+            self.macro_type_variation,
+            self.fit_macro_constants,
+        )?;
+        let (source, report) =
+            compilation.bindings_with_macros(&self.options, &macros.values, macros.skipped)?;
         Ok(Bindings::new(source, report, self.options, self.formatting))
     }
 }

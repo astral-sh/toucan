@@ -1,9 +1,10 @@
 # Bindgen macro values
 
-The adapter's standalone macro-value evaluator models bindgen 0.72.1's ordered
+The adapter's macro-value evaluator models bindgen 0.72.1's ordered
 cursor-token evaluation. These values are not native C constant-expression
-results. This prerequisite is tested independently; Builder integration supplies
-selection, callbacks, Rust type projection, and report provenance separately.
+results. Builder generation combines written definition history, file selection,
+callback classification, Rust type projection, and report provenance. Ordinary
+`Compilation::bindings` continues to use C constant-expression evaluation.
 
 ## Values and history
 
@@ -58,6 +59,22 @@ attempts. Payload accounting does not claim exact allocator overhead. Lower
 limits are supported; recursive descent always retains a hard 128-level ceiling.
 Only successful value insertion changes context state.
 
+## Builder representation and reports
+
+`default_macro_constant_type(MacroTypeVariation::Unsigned)` is the default:
+nonnegative values use u32/u64, and negative values use i32/i64. `Signed` selects
+i32/i64 for all integers. `fit_macro_constants(true)` also considers 8- and
+16-bit types. The last call to either option wins. Integer suffixes do not
+override these settings. Characters use u8 when safely representable; f64 values
+and byte strings retain their separate representations.
+
+Builder records written definitions and uses the explicit `RecordAndReplace`
+preprocessing policy. Unsupported expressions are reported as skipped macros.
+Resource-limit errors fail generation even for macros outside selected files,
+because those definitions participate in subsequent value lookup. The report's
+`macro_evaluation` is `Provided`, and `macro_types` contains no invented C types.
+Accepted redefinitions retain physical source locations on both binding APIs.
+
 ## Evidence and remaining integration
 
 The [capture](../corpus/evidence/macro-values-2026-09-08/README.md) compares 48
@@ -74,5 +91,14 @@ retains diagnostics. Its [separate capture](../corpus/evidence/macro-redefinitio
 preserves the same values across all 48 complete history inputs. Binding reports
 retain accepted redefinitions with their current physical source location;
 configured definitions have no invented location. The ordinary strict policy is
-unchanged. Enum constants are excluded from the macro-only comparison. Final
-Builder output and unchanged-source AWS-LC builds remain integration gates.
+unchanged. Enum constants are excluded from that standalone macro-only comparison.
+
+The [Builder capture](../corpus/evidence/builder-macro-values-2026-09-08/README.md)
+compares generated constant names, Rust types, and executable values across 73
+paired cases: four signed/fit combinations with 31 scalar boundaries, 48 history
+cases, 16 callback/final-function cases, four file-selection cases, and a
+configured-macro control. All match bindgen 0.72.1 with libclang 18.1.3. Both
+generators' output executes on current Rust; scalar, file-selection, and configured
+cases also execute on actual Rust 1.64. There are 164 successful generated-program
+executions. These are local Linux tests, not native macOS or Windows validation.
+Unchanged-source AWS-LC and complete application builds remain integration gates.

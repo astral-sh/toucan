@@ -125,16 +125,6 @@ pub(crate) fn apply(
             _ => return Err(configuration("unsupported declaration-origin category")),
         }
     }
-    if let (Some(selection), Some(files), Some(physical)) = (&mut selection, files, physical) {
-        for name in compilation.preprocessed().macros.keys() {
-            if physical
-                .macro_definition_name(name)
-                .is_some_and(|path| files.is_match(path.to_string_lossy().as_ref()))
-            {
-                selection.macros.insert(name.clone());
-            }
-        }
-    }
     // Bindgen applies function blocklists to the callback-adjusted item name.
     // Translate those policies back to C symbols for the core emitter.
     if !callbacks.is_empty() && !options.blocklist_functions.is_empty() {
