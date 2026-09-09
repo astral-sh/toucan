@@ -653,16 +653,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::SizeOfTy(size) => {
-                let checkpoint = self.sve_feature_checkpoint();
-                let allocation_context = self.allocation_context(false);
-                let ty = self.type_name(&size.node.0.node);
-                let ty =
-                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
-                        analyzer.unit.is_variable_length_array(ty)
-                    })?;
-                if !self.unit.is_variable_length_array(&ty)? {
-                    self.discard_sve_feature_uses(checkpoint);
-                }
+                let ty = self.sizeof_type_name(&size.node.0.node)?;
                 self.require_sizeof_operand(&ty, offset)?;
                 integer_to_type(self.size_value(0))
             }
@@ -1254,6 +1245,22 @@ impl Analyzer {
             },
             qualifiers,
         ))
+    }
+
+    /// Resolves a written `sizeof` type, retaining operand feature requirements and
+    /// promoting deferred allocation uses only when the result is a variable-length
+    /// array. Callers separately validate that the type has a size.
+    pub(crate) fn sizeof_type_name(&mut self, name: &ast::TypeName) -> Result<Type, Error> {
+        let checkpoint = self.sve_feature_checkpoint();
+        let allocation_context = self.allocation_context(false);
+        let ty = self.type_name(name);
+        let ty = self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
+            analyzer.unit.is_variable_length_array(ty)
+        })?;
+        if !self.unit.is_variable_length_array(&ty)? {
+            self.discard_sve_feature_uses(checkpoint);
+        }
+        Ok(ty)
     }
 
     pub(crate) fn sizeof_expression(
