@@ -1,0 +1,44 @@
+--- a/Cargo.toml
++++ b/Cargo.toml
+@@ -314,6 +314,7 @@
+ windows-version = { version = "0.1.6" }
+ wiremock = { version = "0.6.4" }
+ zeroize = { version = "1.8.1" }
++zstd-sys = { version = "2.0.16", default-features = false }
+ 
+ # dev-dependencies
+ assert_cmd = { version = "2.0.16" }
+--- a/crates/uv/Cargo.toml
++++ b/crates/uv/Cargo.toml
+@@ -159,6 +159,8 @@
+ [features]
+ default = ["performance", "test-defaults"]
+ native-auth = []
++# Generate zstd bindings with Toucan on native Linux x86-64.
++toucan-zstd = ["uv-extract/toucan-zstd"]
+ # Use better memory allocators, etc.
+ performance = ["performance-memory-allocator"]
+ performance-memory-allocator = ["dep:uv-performance-memory-allocator"]
+--- a/crates/uv-extract/Cargo.toml
++++ b/crates/uv-extract/Cargo.toml
+@@ -43,6 +43,7 @@
+ tokio = { workspace = true }
+ tokio-util = { workspace = true, features = ["compat"] }
+ tracing = { workspace = true }
++zstd-sys = { workspace = true, optional = true, features = ["toucan"] }
+ 
+ [dev-dependencies]
+ uv-preview = { workspace = true, features = ["testing"] }
+@@ -53,9 +54,11 @@
+ 
+ [features]
+ default = []
++toucan-zstd = ["dep:zstd-sys"]
+ 
+ [package.metadata.cargo-shear]
+ # NOTE: `async-compression` owns the actual Deflate codec, but we need to
+ # explicitly declare `flate2` here so the workspace's `zlib-rs` backend stays
+ # selected after removing the synchronous `zip` dependency.
+-ignored = ["flate2"]
++# zstd-sys selects the optional generator for the shared compression dependency.
++ignored = ["flate2", "zstd-sys"]

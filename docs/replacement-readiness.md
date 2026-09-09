@@ -6,6 +6,10 @@ other consumers. The checks below identify their own tested revisions, including
 the combined-source baseline `7db2b850`. The remaining gates apply to the
 eventual release revision.
 
+The proposed [uv and ty opt-in integration](opt-in-rollout.md) is scoped to native
+Linux x86-64. It records the feature patches, current evidence, source-distribution
+requirements, and clean application builds still needed before offering the feature.
+
 ## Pinned consumer paths
 
 | Path | Result on the frozen source | Boundary |

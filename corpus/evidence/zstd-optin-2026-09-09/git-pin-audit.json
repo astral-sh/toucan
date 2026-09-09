@@ -1,0 +1,55 @@
+{
+  "status": "failed_source_selection",
+  "fetch": "succeeded_with_repository_authorization",
+  "repository_visibility": "private",
+  "revision": "66c87396bbe03b22085339a87b8c350c90be280b",
+  "cause": "Historical archived driver Cargo.toml has an absolute path dependency into the live checkout; Cargo Git package discovery selected live paths under a pinned Git source ID.",
+  "metadata_sha256": "5bee2c411daabff11dc7632e0838f5da16bd63f4af2042c0ba4aeadd0efc2365",
+  "frontend_packages": [
+    {
+      "name": "toucan",
+      "source": "git+https://github.com/astral-sh/toucan?rev=66c87396bbe03b22085339a87b8c350c90be280b#66c87396bbe03b22085339a87b8c350c90be280b",
+      "manifest_path": "/home/dev-user/code/oss/toucan/crates/toucan/Cargo.toml"
+    },
+    {
+      "name": "toucan_bindgen",
+      "source": "git+https://github.com/astral-sh/toucan?rev=66c87396bbe03b22085339a87b8c350c90be280b#66c87396bbe03b22085339a87b8c350c90be280b",
+      "manifest_path": "/home/dev-user/.cache/toucan/cargo-home/git/checkouts/toucan-ea6ca074736c2b10/66c8739/crates/toucan_bindgen/Cargo.toml"
+    },
+    {
+      "name": "toucan_bindings",
+      "source": "git+https://github.com/astral-sh/toucan?rev=66c87396bbe03b22085339a87b8c350c90be280b#66c87396bbe03b22085339a87b8c350c90be280b",
+      "manifest_path": "/home/dev-user/code/oss/toucan/crates/toucan_bindings/Cargo.toml"
+    },
+    {
+      "name": "toucan_layout",
+      "source": "git+https://github.com/astral-sh/toucan?rev=66c87396bbe03b22085339a87b8c350c90be280b#66c87396bbe03b22085339a87b8c350c90be280b",
+      "manifest_path": "/home/dev-user/code/oss/toucan/crates/toucan_layout/Cargo.toml"
+    },
+    {
+      "name": "toucan_parser",
+      "source": "git+https://github.com/astral-sh/toucan?rev=66c87396bbe03b22085339a87b8c350c90be280b#66c87396bbe03b22085339a87b8c350c90be280b",
+      "manifest_path": "/home/dev-user/code/oss/toucan/crates/toucan_parser/Cargo.toml"
+    },
+    {
+      "name": "toucan_preprocessor",
+      "source": "git+https://github.com/astral-sh/toucan?rev=66c87396bbe03b22085339a87b8c350c90be280b#66c87396bbe03b22085339a87b8c350c90be280b",
+      "manifest_path": "/home/dev-user/code/oss/toucan/crates/toucan_preprocessor/Cargo.toml"
+    },
+    {
+      "name": "toucan_semantic",
+      "source": "git+https://github.com/astral-sh/toucan?rev=66c87396bbe03b22085339a87b8c350c90be280b#66c87396bbe03b22085339a87b8c350c90be280b",
+      "manifest_path": "/home/dev-user/code/oss/toucan/crates/toucan_semantic/Cargo.toml"
+    },
+    {
+      "name": "toucan_source",
+      "source": "git+https://github.com/astral-sh/toucan?rev=66c87396bbe03b22085339a87b8c350c90be280b#66c87396bbe03b22085339a87b8c350c90be280b",
+      "manifest_path": "/home/dev-user/code/oss/toucan/crates/toucan_source/Cargo.toml"
+    },
+    {
+      "name": "toucan_target",
+      "source": "git+https://github.com/astral-sh/toucan?rev=66c87396bbe03b22085339a87b8c350c90be280b#66c87396bbe03b22085339a87b8c350c90be280b",
+      "manifest_path": "/home/dev-user/code/oss/toucan/crates/toucan_target/Cargo.toml"
+    }
+  ]
+}

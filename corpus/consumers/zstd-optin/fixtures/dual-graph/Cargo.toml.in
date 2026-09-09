@@ -1,0 +1,18 @@
+[package]
+name = "toucan-optin-dual-graph"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[features]
+toucan-zstd = ["dep:zstd-sys"]
+
+[dependencies]
+zstd = { version = "=0.13.3", path = "../zstd-rs", default-features = false }
+zstd-sys = { version = "=2.0.16", path = "../zstd-rs/zstd-safe/zstd-sys", default-features = false, features = ["toucan"], optional = true }
+
+[build-dependencies]
+zstd = { version = "=0.13.3", path = "../zstd-rs", default-features = false }
+zstd-sys = { version = "=2.0.16", path = "../zstd-rs/zstd-safe/zstd-sys", default-features = false, features = ["toucan"], optional = true }
