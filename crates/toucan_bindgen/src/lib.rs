@@ -291,6 +291,25 @@ impl Builder {
         self
     }
 
+    /// Name a native symbol that deliberately differs from a requested prefix.
+    pub fn link_name_override(
+        mut self,
+        c_name: impl Into<String>,
+        native_symbol: impl Into<String>,
+    ) -> Self {
+        let (c_name, native_symbol) = (c_name.into(), native_symbol.into());
+        if c_name.is_empty() || native_symbol.is_empty() || native_symbol.contains('\0') {
+            self.fail(
+                "link name override must have a C name and a nonempty native symbol without NUL",
+            );
+        } else {
+            self.options
+                .link_name_overrides
+                .insert(c_name, native_symbol);
+        }
+        self
+    }
+
     /// Choose the Rust language version used by generated declarations.
     pub fn rust_target(mut self, target: RustTarget) -> Self {
         self.options.rust_target = target.0;

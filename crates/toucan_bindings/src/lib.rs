@@ -56,6 +56,9 @@ pub struct Options {
     /// their Rust names. This overrides an explicit C asm link name, matching
     /// bindgen's `--prefix-link-name` callback behavior.
     pub link_name_prefix: Option<String>,
+    /// Native linker symbols for specific C declarations, taking precedence over
+    /// `link_name_prefix` when a library intentionally leaves a symbol unprefixed.
+    pub link_name_overrides: BTreeMap<String, String>,
     /// Selected written object occurrences, keyed by their original C names.
     /// Enables literal projection and preserves the selected occurrence's type.
     /// Internal objects without a materialized constant are skipped and reported.
@@ -189,7 +192,9 @@ pub enum MacroType {
 
 impl Options {
     pub(crate) fn link_name<'a>(&self, declaration: &'a Declaration) -> Cow<'a, str> {
-        if let Some(prefix) = &self.link_name_prefix {
+        if let Some(symbol) = self.link_name_overrides.get(&declaration.name) {
+            symbol.clone().into()
+        } else if let Some(prefix) = &self.link_name_prefix {
             format!("{prefix}{}", declaration.name).into()
         } else {
             declaration

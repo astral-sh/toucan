@@ -197,3 +197,21 @@ aliases and four record shapes also differ. This run does not cover SSL, FIPS,
 other targets, or the later stack head. The unchanged upstream manifest still
 compiles `bindgen`, `clang-sys`, and `libloading` as build dependencies even
 though it launches Toucan for generation.
+
+## External FIPS executable and external SSL limit
+
+The [native `aws-lc-fips-sys 0.14.2` run](../corpus/evidence/aws-lc-external-fips-2026-09-09/README.md)
+uses the unchanged upstream FIPS build script and a traced standalone Toucan
+`bindgen` executable. The generated file is compiled and consumed by
+`aws-lc-rs/fips`: all 97 generated layouts pass, 41 crypto artifacts equal the
+prior reference, six layouts match a C11 probe, and a direct native Rust call
+to `BORINGSSL_integrity_test` succeeds. The FIPS symbol list leaves that
+function unprefixed; Toucan now follows the C definition, unlike the
+same-command bindgen-cli output. Full generated API equality remains false.
+The build does not establish FIPS certification or other targets. The unchanged
+upstream script still calls `bindgen::clang_version()`, so this functional FIPS
+path does not remove its libclang requirement.
+
+The same external selection with `aws-lc-sys 0.44.0` and `ssl` fails in the
+unchanged upstream script *before* it launches the executable. The earlier
+successful SSL run uses the Cargo Builder adapter, a distinct build path.

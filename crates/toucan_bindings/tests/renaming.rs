@@ -40,6 +40,28 @@ fn prefix_link_names_uses_original_c_names_for_functions_and_objects() {
 }
 
 #[test]
+fn native_link_name_override_takes_precedence_over_requested_prefix() {
+    let unit = analyze(
+        "int BORINGSSL_integrity_test(void); int BORINGSSL_self_test(void);",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    let options = Options {
+        link_name_prefix: Some("aws_lc_fips_0_14_2_".into()),
+        link_name_overrides: [(
+            "BORINGSSL_integrity_test".into(),
+            "BORINGSSL_integrity_test".into(),
+        )]
+        .into(),
+        ..Default::default()
+    };
+    let output = generate(&unit, &options).unwrap().source;
+    assert!(output.contains("pub fn BORINGSSL_integrity_test("));
+    assert!(!output.contains("#[link_name = \"aws_lc_fips_0_14_2_BORINGSSL_integrity_test\"]"));
+    assert!(output.contains("#[link_name = \"aws_lc_fips_0_14_2_BORINGSSL_self_test\"]"));
+}
+
+#[test]
 fn generated_names_reject_collisions_and_invalid_requests() {
     let unit = analyze(
         "int left(void); int right(void); enum E{VALUE=1}; typedef int Alias;",

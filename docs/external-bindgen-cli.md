@@ -1,8 +1,9 @@
 # External `bindgen` executable
 
 The `toucan_cli` package builds a second executable named `bindgen`. It accepts
-the C-only argument sequence from `aws-lc-sys` 0.44.0's external-bindgen path and
-generates bindings through `toucan_bindgen::Builder`. It does not invoke libclang.
+the C-only argument sequence from the external-bindgen paths of `aws-lc-sys`
+0.44.0 and `aws-lc-fips-sys` 0.14.2. It generates bindings through
+`toucan_bindgen::Builder` without invoking libclang.
 
 ```sh
 cargo build -p toucan_cli --bin bindgen --release
@@ -32,7 +33,8 @@ bindgen [--prefix-link-name aws_lc_0_44_0_] \
 ```
 
 The generated `#[link_name]` uses the original C function or object name with
-the requested prefix; Rust names are unchanged. C has no methods, constructors,
+the requested prefix, except for the FIPS integrity symbol described below;
+Rust names are unchanged. C has no methods, constructors,
 or destructors, so these categories select nothing. `--` forwards the same
 checked Clang-style include, macro, target, and language options supported by
 the Builder adapter. Provide target C system headers and a sysroot explicitly;
@@ -52,8 +54,16 @@ layout tests. The same-command differential against bindgen-cli 0.72.1 shows
 linker-name differences: Toucan prefixes the globals as requested, and the
 actual AWS-LC archive contains all 60 prefixed definitions. A direct Rust link
 test succeeds with Toucan and fails with bindgen-cli output for one of those
-globals. Full API equality remains false. Test each other target or feature
-selection separately; SSL and
-FIPS have different requirements from this crypto-only run. The unchanged
+globals. Full API equality remains false. The separate
+[native FIPS run](../corpus/evidence/aws-lc-external-fips-2026-09-09/README.md)
+uses the unchanged `aws-lc-fips-sys` build script and tests an actual FIPS
+integrity call, 41 matching crypto artifacts, six C/Rust layouts, and 97
+generated layout tests. The FIPS symbol list deliberately leaves
+`BORINGSSL_integrity_test` unprefixed: Toucan reads that list and emits the
+correct linker name, while bindgen-cli incorrectly prefixes it. The unchanged
+`aws-lc-sys` build script explicitly rejects external mode with `ssl` enabled.
+Test each other target or feature selection separately. The unchanged
 upstream manifest still compiles the bindgen Rust build dependency and its
-`clang-sys`/`libloading` transitive crates in external mode.
+`clang-sys`/`libloading` transitive crates in external mode. Its build script
+also calls `bindgen::clang_version()` even when external generation is selected;
+this unchanged upstream build does not establish a libclang-free installation.

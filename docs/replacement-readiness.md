@@ -15,6 +15,7 @@ eventual release revision.
 | `aws-lc-sys` with `all-bindings` | [Paired build and consumption](../corpus/evidence/aws-lc-all-bindings-7db2b85/README.md) pass the 41 crypto artifacts, six C/Rust layouts, a memory-BIO call, and 98 generated layout tests per generator. The [frozen API differential](../corpus/evidence/aws-lc-all-bindings-differential-7db2b85/README.md) matches 2,618 functions and 60 globals after canonical ELF symbol matching. | Native x86-64 Linux; SSL and FIPS are disabled. The frozen output differs in an incomplete tag's public name, three explicit padding fields, and 13 extra aliases. A later [name correction](../corpus/evidence/incomplete-record-names/README.md) has no full consumer rebuild yet; the other differences remain. |
 | `aws-lc-sys` with `ssl,all-bindings` | [Paired native SSL builds](../corpus/evidence/aws-lc-ssl-consumer-7db2b85-2026-09-09/README.md) pass 106 layout tests per generator, 41 matching crypto artifacts, six C/Rust layouts, and C and Rust SSL context/object calls. Canonical ELF comparison matches 3,230 functions and 60 globals. | Frozen `7db2b85` source on native x86-64 Linux. No full handshake, FIPS, external executable, or exact generated API equality; 15 extra aliases and four record shapes differ. |
 | `aws-lc-sys` external `bindgen` executable | [Native build through the unchanged upstream script](../corpus/evidence/aws-lc-external-cli-317756d/README.md) passes 41 crypto artifacts, six C/Rust layouts, and 98 generated layout tests. The same-command reference agrees on all 2,618 functions and 3,851 constants. | Native Linux x86-64 crypto only. Bindgen-cli leaves 60 globals unprefixed despite `--prefix-link-name`; Toucan prefixes them and all 60 symbols exist in the native archive. The original AWS-LC manifest still compiles bindgen and clang-sys as build dependencies. |
+| `aws-lc-fips-sys` external `bindgen` executable | [Native FIPS build through the unchanged upstream script](../corpus/evidence/aws-lc-external-fips-2026-09-09/README.md) invokes Toucan, consumes its generated Rust, and passes an actual integrity-check FFI call, 41 reference-matching crypto artifacts, six C/Rust layouts, and 97 generated layout tests. | Native Linux x86-64 only. FIPS certification and full API coverage are not established. Toucan fixes a C-validated unprefixed integrity symbol that bindgen-cli also links incorrectly. The upstream script still calls libclang. |
 | `uv` HTTPS through AWS-LC | [Paired binaries](../corpus/evidence/uv-tls-builder-7db2b85/summary.json) install the same payload with TLS 1.2 and 1.3, and both reject an unrelated CA or wrong hostname before making a request. | Native x86-64 Linux, the recorded provider and selected features. |
 | Four untouched public-header projects | [Combined-source preflight](../benchmarks/evidence/builder-preflight-callbacks/README.md) checks zlib, SQLite, zstd, and libgit2 with native C probes, generated Rust, and actual FFI calls. | Zlib and zstd pass structural API equality. SQLite's corrected returned callback, ten extra libgit2 aliases, and three signed sentinels remain recorded differences. |
 
@@ -58,13 +59,16 @@ loaded libraries; it does not measure the memory of a full application build.
    The [macOS workflow](../.github/workflows/macos.yml) keeps Intel opt-in, and
    the latest GitHub audit records zero macOS allocations.
 3. **Optional generator profiles.** The selected AWS crypto, `all-bindings`,
-   SSL, and standalone executable routes have separate native evidence. The
-   recorded paths do not exercise FIPS or SSL through the external executable.
-   Test each release profile with the original build script, consumed generated
-   bindings, independent layouts, and representative calls. External mode
-   launches the executable and cannot be replaced solely through a Cargo
-   dependency substitution. Cover additional zstd feature/header
-   combinations if selecting them in the adopting project.
+   SSL through the Builder adapter, standalone crypto, and standalone FIPS
+   routes have separate native evidence. Unchanged `aws-lc-sys 0.44.0` refuses
+   the [external SSL route](../corpus/evidence/aws-lc-external-fips-2026-09-09/README.md)
+   before calling any generator; its upstream build script must change to enable
+   that combination. The unmodified external FIPS script still calls
+   `bindgen::clang_version()`; removing libclang from that installation also
+   requires an upstream build-script change. Test each adopting release profile
+   with its original build script, consumed generated bindings, independent
+   layouts, and representative calls. Cover additional zstd feature/header
+   combinations if selecting them.
 4. **Public contract and safety.** Define a supported Builder API, diagnostic
    behavior, target set, and versioned inspection format before a stable release.
    Keep rejecting unsupported [C and Rust ABI forms](compatibility.md#current-gaps)
