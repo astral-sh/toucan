@@ -1356,6 +1356,17 @@ impl Preprocessor {
                 self.once.insert(path);
             }
             Some("pack") => {
+                // Clang's Microsoft extensions expand the operands of a raw
+                // #pragma pack (for example, _CRT_PACKING in the Windows SDK).
+                // Ordinary Clang and GNU preprocessing leave them untouched.
+                let expanded = if self.config.ms_extensions {
+                    let mut expanded = vec![tokens[0].clone()];
+                    expanded.extend(self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?);
+                    Some(expanded)
+                } else {
+                    None
+                };
+                let tokens = expanded.as_deref().unwrap_or(tokens);
                 let directive = format!("#pragma {}\n", render(tokens));
                 if output.len().saturating_add(directive.len()) > self.config.max_source_bytes {
                     return Err(fail("output byte limit exceeded"));
