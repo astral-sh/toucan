@@ -84,9 +84,11 @@ the unmodified `zstd` and `zstd-safe` Rust APIs.
 ### Existing binding build scripts
 
 The experimental [toucan_bindgen adapter](crates/toucan_bindgen) supports the
-builder calls used by the pinned zstd-sys build script. It selects Cargo's target
-and generates bindings during the build without libclang. The adapter documents
-its supported arguments and API subset; unsupported options produce errors.
+builder calls used by the pinned zstd-sys and AWS-LC build scripts. It selects
+Cargo's target and generates bindings during the build without libclang. The
+adapter documents its supported arguments and API subset; unsupported options
+produce errors. See [replacement readiness](docs/replacement-readiness.md) for
+the tested consumer paths and release blockers.
 
 ## Analyze headers
 
@@ -178,10 +180,13 @@ and source references through `Compilation::checked()`. See the
 `parse_file` for files, and configure include directories, predefined macros, virtual
 headers, and resource limits through `Config::preprocessor`.
 
-Library crates forbid unsafe Rust, do not invoke compiler processes, and leave
-allocator selection to the embedding application. The CLI uses the system allocator
-by default. Build with `--features performance-allocator` to use jemalloc on supported
-Unix platforms or mimalloc on Windows.
+The integrated frontend and binding adapter do not invoke a C compiler. The
+standalone `toucan_parser::parse` compatibility entry point is an exception: it
+launches its configured C preprocessor; `parse_preprocessed` accepts text without
+that process. Library crates forbid unsafe Rust and leave allocator selection to
+the embedding application. The CLI uses the system allocator by default. Build
+with `--features performance-allocator` to use jemalloc on supported Unix
+platforms or mimalloc on Windows.
 
 ## Validation
 

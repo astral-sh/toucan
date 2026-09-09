@@ -386,7 +386,7 @@ compiler ABI is used; flags such as `-fshort-enums` are not implied.
 | `aarch64-unknown-linux-gnu` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
 | `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
 | `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
-| `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | Not run; MSVC header syntax is incomplete |
+| `x86_64-pc-windows-msvc` | Implemented; Clang cross-target probes | [Native DLL calls passed](../corpus/evidence/windows-dll-native-f57e9fa/summary.json); Windows SDK headers and full consumers remain unvalidated |
 | `x86_64-unknown-linux-musl` | Implemented; GCC and Clang probes | [Native ABI and zstd Builder checks passed](../corpus/evidence/musl-native-019012e/summary.json) |
 | `aarch64-unknown-linux-musl` | Implemented; GCC and Clang probes | [Native ABI and zstd Builder checks passed](../corpus/evidence/musl-native-019012e/summary.json) |
 
@@ -564,9 +564,11 @@ code for these operations.
 
 Unsupported selected ABI representations fail binding generation. Reports name
 selected macros that cannot be emitted, and `--deny-skipped-macros` can make these
-omissions an error. Internal-linkage declarations and function definitions are
-reported as skipped. They are not exposed as callable externs. A function definition can still have an
-exported symbol; generating bindings for definitions is outside the current scope.
+omissions an error. The core binding emitter skips internal-linkage declarations
+and function definitions by default. The Builder includes eligible externally
+linked non-inline C function definitions when their symbols can be called;
+internal and inline definitions remain subject to its selection rules. See
+[function selection](bindgen-functions.md) for those rules and native evidence.
 
 Static address initializers include array-valued subobjects, such as
 `int *p = &grid[1][2][3]`, array members, and indirect function designators.
