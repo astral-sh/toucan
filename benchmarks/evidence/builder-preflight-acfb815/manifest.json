@@ -1,0 +1,16 @@
+{
+  "archive": "capture.json.gz",
+  "archive_sha256": "99c3b1ca87ed0af1fd804dbdb56013edce8b843f80b0888a9b17b092a3e0f210",
+  "archive_bytes": 3622923,
+  "file_count": 356,
+  "original_capture_directories": [
+    "/home/dev-user/.cache/toucan/final-builder-preflight-2026-09-09",
+    "/home/dev-user/.cache/toucan/final-builder-preflight-2026-09-09-native-v4",
+    "/home/dev-user/.cache/toucan/final-builder-sentinel-proof-2026-09-09",
+    "/home/dev-user/.cache/toucan/final-builder-preflight-2026-09-09-native",
+    "/home/dev-user/.cache/toucan/final-builder-preflight-2026-09-09-native-v3",
+    "/home/dev-user/.cache/toucan/final-builder-preflight-plan",
+    "/home/dev-user/.cache/toucan/compare-edition-proof"
+  ],
+  "summary_sha256": "9f1bf74d9a7482e299102a7d67a22c8e84b977a538f7c2f0146ec088ebcfcf89"
+}
