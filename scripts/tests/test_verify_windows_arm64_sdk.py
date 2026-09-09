@@ -78,6 +78,18 @@ class SdkInputs(unittest.TestCase):
             with self.assertRaisesRegex(RuntimeError, "PE signature"):
                 sdk.machine(path)
 
+    def test_native_target_controls_and_header_wrappers(self):
+        arm = sdk.c_source(sdk.CASES["winnt"])
+        x64 = sdk.c_source(sdk.CASES["winnt"], "x86_64-pc-windows-msvc")
+        self.assertIn("#define _ARM64_ 1\n#include <excpt.h>", arm)
+        self.assertIn("#define _AMD64_ 1\n#include <excpt.h>", x64)
+        self.assertIn("!defined(_M_ARM64)", arm)
+        self.assertIn("!defined(_M_X64)", x64)
+        self.assertNotIn("#define _ARM64_ 1", x64)
+        self.assertNotEqual(arm, x64)
+        self.assertEqual(sdk.TARGETS[sdk.TARGET]["machine"], 0xAA64)
+        self.assertEqual(sdk.TARGETS["x86_64-pc-windows-msvc"]["machine"], 0x8664)
+
 
 class FailureRecording(unittest.TestCase):
     def test_failed_command_and_missing_phase_cannot_pass(self):
@@ -116,6 +128,15 @@ class FailureRecording(unittest.TestCase):
             self.assertEqual(evidence["status"], "failed")
             self.assertFalse(evidence["native_execution"])
             self.assertIn("native Windows ARM64", evidence["error"])
+
+            other = Path(temporary) / "x64"
+            arguments.extend(["--target", "x86_64-pc-windows-msvc"])
+            arguments[4] = str(other)
+            with mock.patch.object(sys, "argv", arguments), mock.patch.object(sys, "platform", "linux"):
+                self.assertEqual(sdk.main(), 1)
+            x64 = json.loads((other / "evidence.json").read_text())
+            self.assertEqual(x64["target"], "x86_64-pc-windows-msvc")
+            self.assertIn("native Windows X64", x64["error"])
 
 
 if __name__ == "__main__":

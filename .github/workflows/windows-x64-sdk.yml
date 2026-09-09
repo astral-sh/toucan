@@ -1,0 +1,69 @@
+name: Windows x64 SDK headers
+
+on:
+  push:
+    branches: [charlie/codex-toucan-windows-x64-sdk]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-x64-sdk-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  sdk:
+    if: github.ref == 'refs/heads/charlie/codex-toucan-windows-x64-sdk'
+    name: Installed SDK C headers and generated Rust (x64)
+    runs-on: windows-2025
+    timeout-minutes: 12
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: stable
+      - name: Locate native x64 tools
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force results/windows-x64-sdk | Out-Null
+          $arch = [System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture.ToString()
+          $rustc = rustc --version --verbose | Out-String
+          "ImageOS=$env:ImageOS`nImageVersion=$env:ImageVersion`nCommit=$env:GITHUB_SHA`nArchitecture=$arch`n$rustc" |
+            Set-Content results/windows-x64-sdk/runner.txt
+          if ($arch -ne 'X64' -or $rustc -notmatch '(?m)^host: x86_64-pc-windows-msvc\s*$') {
+            throw 'This SDK check requires native Windows x64 Rust'
+          }
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $visualStudio = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -or !$visualStudio) { throw 'No x64 MSVC installation found' }
+          if (!(Test-Path (Join-Path $visualStudio 'VC/Auxiliary/Build/vcvarsall.bat'))) {
+            throw 'Missing x64 MSVC environment setup'
+          }
+          $clangCl = (Get-Command clang-cl.exe -CommandType Application -ErrorAction Stop).Source
+          "TOUCAN_VS=$visualStudio" | Out-File -FilePath $env:GITHUB_ENV -Append
+          "TOUCAN_CLANG_CL=$clangCl" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Check the installed Windows SDK
+        shell: cmd
+        run: |
+          call "%TOUCAN_VS%\VC\Auxiliary\Build\vcvarsall.bat" x64 > results\windows-x64-sdk\msvc-setup.txt 2>&1
+          if errorlevel 1 (type results\windows-x64-sdk\msvc-setup.txt & exit /b 1)
+          cargo build --locked -p toucan_cli > results\windows-x64-sdk\build.txt 2>&1
+          if errorlevel 1 (type results\windows-x64-sdk\build.txt & exit /b 1)
+          python -B scripts\verify_windows_arm64_sdk.py --target x86_64-pc-windows-msvc --toucan target\debug\toucan.exe --output results\windows-x64-sdk\probes > results\windows-x64-sdk\sdk.txt 2>&1
+          set "TOUCAN_STATUS=%ERRORLEVEL%"
+          type results\windows-x64-sdk\sdk.txt
+          exit /b %TOUCAN_STATUS%
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: windows-x64-sdk-${{ github.run_attempt }}
+          path: results/windows-x64-sdk/
+          retention-days: 30
+          if-no-files-found: error
