@@ -1273,6 +1273,7 @@ impl Emitter<'_> {
                 "type nesting exceeds the binding limit of 256".into(),
             ));
         }
+        self.check_pointer_width(ty)?;
         if self.register_external(ty, true, layout_required)? {
             return self.collect_external_dependencies(ty, depth);
         }
@@ -1682,6 +1683,18 @@ impl Emitter<'_> {
         }
     }
 
+    /// Rust pointers cannot represent the four-byte Microsoft x64 pointer ABI.
+    fn check_pointer_width(&self, ty: &Type) -> Result<(), Error> {
+        if self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+            && self.unit.qualifiers(ty)?.is_msvc_ptr32()
+        {
+            return Err(Error(
+                "Windows x64 __ptr32 pointers have no supported Rust ABI representation".into(),
+            ));
+        }
+        Ok(())
+    }
+
     fn check_128_bit_abi(&self) -> Result<(), Error> {
         if self.options.rust_target.minor < 78 {
             return Err(Error(
@@ -1697,6 +1710,7 @@ impl Emitter<'_> {
 
     fn ty_at(&self, ty: &Type, depth: usize) -> Result<String, Error> {
         self.work_budget.charge(depth)?;
+        self.check_pointer_width(ty)?;
         if let Some(name) = self.external_name(ty)? {
             return Ok(name);
         }

@@ -90,12 +90,12 @@ impl Qualifiers {
         self.set_microsoft_flag(Self::UNALIGNED, enabled);
     }
 
-    /// Microsoft `__ptr32` retains distinct pointer identity on Windows ARM64.
+    /// Microsoft `__ptr32` retains distinct pointer identity on Windows.
     pub fn is_msvc_ptr32(self) -> bool {
         self.microsoft_flags & Self::MSVC_PTR32 != 0
     }
 
-    /// Set the Microsoft pointer-width qualifier without changing alignment.
+    /// Set the Microsoft pointer-width qualifier; layout depends on the target.
     pub fn set_msvc_ptr32(&mut self, enabled: bool) {
         self.set_microsoft_flag(Self::MSVC_PTR32, enabled);
     }
@@ -899,11 +899,28 @@ impl TranslationUnit {
             ));
         }
         let resolved = ty;
-        if resolved.qualifiers.is_msvc_ptr32() && self.target != Target::Aarch64PcWindowsMsvc {
-            return Err(Error::new(
-                0,
-                "__ptr32 pointer ABI is unsupported on this target",
-            ));
+        if resolved.qualifiers.is_msvc_ptr32() {
+            match self.target {
+                Target::X86_64PcWindowsMsvc => {
+                    return Ok(aligned_layout_type(
+                        target::Type::opaque_layout(&target::Layout {
+                            size_bits: 32,
+                            alignment_bits: 32,
+                            field_alignment_bits: 32,
+                            required_alignment_bits: 8,
+                            fields: Vec::new(),
+                        }),
+                        ty.alignment.bytes(),
+                    ));
+                }
+                Target::Aarch64PcWindowsMsvc => {}
+                _ => {
+                    return Err(Error::new(
+                        0,
+                        "__ptr32 pointer ABI is unsupported on this target",
+                    ));
+                }
+            }
         }
         if !expand_record && let TypeKind::Record(id) = resolved.kind {
             if !cache.contains_key(&id) {

@@ -541,7 +541,12 @@ impl Analyzer {
                 } else if let (TypeKind::Pointer(left), TypeKind::Pointer(right)) =
                     (&left_value.kind, &right_value.kind)
                 {
-                    self.composite_pointer(left, right, offset)?.pointer()
+                    let mut pointer = self.composite_pointer(left, right, offset)?.pointer();
+                    pointer.qualifiers.set_msvc_ptr32(
+                        left_value.qualifiers.is_msvc_ptr32()
+                            && right_value.qualifiers.is_msvc_ptr32(),
+                    );
+                    pointer
                 } else {
                     return Err(Error::new(
                         offset,

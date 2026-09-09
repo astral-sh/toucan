@@ -3631,7 +3631,10 @@ impl Analyzer {
                                     ));
                                 }
                                 if *width == 32 {
-                                    if self.unit.target != Target::Aarch64PcWindowsMsvc {
+                                    if !matches!(
+                                        self.unit.target,
+                                        Target::Aarch64PcWindowsMsvc | Target::X86_64PcWindowsMsvc
+                                    ) {
                                         return Err(Error::new(
                                             qualifier.span.start,
                                             "__ptr32 pointer ABI is unsupported on this target",

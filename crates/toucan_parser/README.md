@@ -60,8 +60,9 @@ preserves comma-separated, whitespace-separated, and string annotation names.
 Semantic checking determines the supported attributes and their valid subjects.
 Pointer declarators also retain `__ptr32` and `__ptr64` with their written widths
 and source spans. Windows ARM64 gives `__ptr32` an eight-byte layout but keeps it
-distinct from an ordinary pointer; Windows x64's four-byte `__ptr32` ABI is
-rejected by semantic checking until it can be represented in generated Rust.
+distinct from an ordinary pointer. Windows x64 gives `__ptr32` four-byte size and
+alignment. Semantic checking supports both layouts; binding generation rejects
+selected x64 `__ptr32` types because Rust pointers use the native eight-byte ABI.
 
 GNU attributes on null statements have a distinct `Statement::Attribute` node.
 Semantic checking determines which statement annotations are supported; the visitor

@@ -34,15 +34,38 @@ fn windows_arm64_pointer_widths_keep_layout_and_type_identity() {
     );
 }
 
+const X64_POINTERS: &str = r#"
+    typedef void * __ptr32 P32;
+    typedef P32 Alias;
+    typedef void * __ptr64 P64;
+    _Static_assert(sizeof(Alias) == 4 && _Alignof(Alias) == 4, "x64 __ptr32 layout");
+    _Static_assert(sizeof(P64) == 8 && _Alignof(P64) == 8, "x64 native pointer");
+    _Static_assert(!__builtin_types_compatible_p(P32, P64), "pointer width identity");
+    _Static_assert(__builtin_types_compatible_p(const Alias, P32), "top-level const");
+    struct Holder { char tag; Alias pointer; char tail; };
+    _Static_assert(sizeof(struct Holder) == 12 && _Alignof(struct Holder) == 4, "record layout");
+    _Static_assert(__builtin_offsetof(struct Holder, pointer) == 4, "field offset");
+    struct Nested { Alias pointers[3]; P64 wide; };
+    _Static_assert(sizeof(struct Nested) == 24, "nested pointer array");
+    _Static_assert(__builtin_offsetof(struct Nested, wide) == 16, "native field offset");
+    P32 narrow(P64 value) { return (P32)value; }
+    P64 widen(P32 value) { return (P64)value; }
+    P32 implicit_narrow(P64 value) { return value; }
+    P64 implicit_widen(P32 value) { return value; }
+    int * __ptr32 narrow_pointer;
+    int *native_pointer;
+    _Static_assert(sizeof(1 ? narrow_pointer : narrow_pointer) == 4, "conditional narrow width");
+    _Static_assert(sizeof(1 ? narrow_pointer : native_pointer) == 8, "conditional mixed width");
+    _Static_assert(sizeof(1 ? native_pointer : narrow_pointer) == 8, "conditional reversed width");
+    _Static_assert(sizeof(1 ? narrow_pointer : 0) == 4, "conditional null width");
+    _Static_assert(sizeof(1 ? narrow_pointer : (void *)0) == 4, "conditional void null width");
+    _Static_assert(sizeof(narrow_pointer + 1) == 4, "arithmetic width");
+    _Static_assert(sizeof((native_pointer, narrow_pointer)) == 4, "comma width");
+"#;
+
 #[test]
-fn x64_does_not_report_eight_byte_layout_for_four_byte_pointers() {
-    let error = analyze("typedef void * __ptr32 P32;", Target::X86_64PcWindowsMsvc)
-        .unwrap_err()
-        .to_string();
-    assert!(
-        error.contains("__ptr32 pointer ABI is unsupported"),
-        "{error}"
-    );
+fn windows_x64_pointer_widths_keep_layout_and_type_identity() {
+    analyze(X64_POINTERS, Target::X86_64PcWindowsMsvc).unwrap();
 }
 
 #[test]
@@ -50,10 +73,7 @@ fn x64_does_not_report_eight_byte_layout_for_four_byte_pointers() {
 fn clang_windows_pointer_width_oracle() {
     for (target, source) in [
         ("aarch64-pc-windows-msvc", ARM64_POINTERS),
-        (
-            "x86_64-pc-windows-msvc",
-            "typedef void * __ptr32 P32; _Static_assert(sizeof(P32) == 4 && _Alignof(P32) == 4, \"x64 __ptr32 ABI\");",
-        ),
+        ("x86_64-pc-windows-msvc", X64_POINTERS),
     ] {
         let mut process = Command::new("clang")
             .args([
