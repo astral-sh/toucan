@@ -115,3 +115,20 @@ comment on the later `evp_encode_ctx_st` definition. The reference emits that
 comment only on the typedef. This documented output difference does not change
 the runtime or layout result. The capture establishes this crypto-only consumer
 route; it does not establish complete public API or text equality.
+
+## Callback compatibility refresh
+
+The [frozen `7db2b85` refresh](../corpus/evidence/aws-lc-builder-7db2b85/summary.json)
+repeats the paired crypto-only consumer and emitted layout tests after the
+callback typedef, generation work limit, Rust target parsing, and enum comparison
+layers. Both builds pass through the unchanged AWS-LC build script and Rust wrappers. All 41
+deterministic runtime artifacts match, and the six C/Rust layout checks pass.
+
+All 2,389 frontend files retain their exact SHA256 hashes, with no added, changed,
+or deleted files. Cargo artifact and dep-info audits identify all nine frontend
+crates from that snapshot in both the consumer and generated layout-test builds.
+The reference and candidate use fresh source copies and separate existing Cargo
+target directories; the capture preserves that runner adaptation. The upstream
+source checks and non-generator dependency graph checks pass. This native Linux
+refresh does not refresh uv TLS, measure performance, or establish complete API
+equality or another target.
