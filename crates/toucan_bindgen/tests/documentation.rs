@@ -12,6 +12,56 @@ impl toucan_bindgen::callbacks::ParseCallbacks for Rename {
 }
 
 #[test]
+fn forward_typedefs_do_not_copy_alias_comments_to_the_tag() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("forward.h");
+    for source in [
+        "/** ALIAS */ typedef struct Record Alias; /** DEFINITION */ struct Record {int value;};",
+        "/** ALIAS */ typedef enum Record Alias; /** DEFINITION */ enum Record {VALUE=1};",
+    ] {
+        std::fs::write(&header, source).unwrap();
+        let output = Builder::default()
+            .header(header.to_string_lossy())
+            .formatter(Formatter::None)
+            .layout_tests(false)
+            .generate()
+            .unwrap()
+            .to_string();
+        assert_eq!(output.matches("#[doc = ").count(), 2, "{output}");
+        assert!(
+            output.contains("#[doc = \" ALIAS\"]\npub type Alias"),
+            "{output}"
+        );
+        assert!(output.contains("#[doc = \" DEFINITION\"]"), "{output}");
+    }
+    for (source, comments) in [
+        (
+            "/** ALIAS */ typedef struct Record Record; struct Record {int value;};",
+            0,
+        ),
+        ("/** ALIAS */ typedef struct Record Alias;", 1),
+        (
+            "/** FORWARD */ struct Record; /** DEFINITION */ struct Record {int value;};",
+            1,
+        ),
+        ("struct Owner {/** FIELD */ struct Record *field;};", 2),
+    ] {
+        std::fs::write(&header, source).unwrap();
+        let output = Builder::default()
+            .header(header.to_string_lossy())
+            .formatter(Formatter::None)
+            .layout_tests(false)
+            .generate()
+            .unwrap()
+            .to_string();
+        assert_eq!(output.matches("#[doc = ").count(), comments, "{output}");
+        if source.starts_with("/** FORWARD") {
+            assert!(output.contains("#[doc = \" FORWARD\"]"), "{output}");
+        }
+    }
+}
+
+#[test]
 fn object_projection_keeps_docs_on_renamed_scalar_and_string_constants() {
     let directory = tempfile::tempdir().unwrap();
     let header = directory.path().join("objects.h");

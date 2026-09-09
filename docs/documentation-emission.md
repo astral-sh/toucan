@@ -21,6 +21,15 @@ line. Leading comments stop at intervening declaration barriers. Blank lines do
 not themselves prevent attachment. The first attached comment wins across
 redeclarations, including an empty comment that suppresses later documentation.
 
+A forward tag introduced by a file-scope typedef, object, or function declaration
+does not acquire that declaration's comment. An actual standalone forward tag can
+carry its own comment, and an inline tag definition can share a typedef's comment.
+This keeps AWS-LC's `EVP_ENCODE_CTX` typedef documentation off the later
+`evp_encode_ctx_st` definition. The
+[focused forward-tag comparison](../corpus/evidence/forward-tag-documentation-2026-09-09.json.gz)
+covers later definitions, opaque records, same-name aliases, and redeclarations
+across physical source files.
+
 Macro declarations first search the invocation, then the declaration-begin
 spelling. A member whose containing record or enumeration is also macro-expanded
 uses its spelling location. This prevents a comment on a generated container

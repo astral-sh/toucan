@@ -46,7 +46,7 @@ impl DocumentationDeclaration {
     pub fn parent_name(&self) -> Option<usize> {
         self.parent_name
     }
-    /// An existing tag use, without an independent written declaration.
+    /// A tag reference that does not carry its own documentation comment.
     pub fn is_reference(&self) -> bool {
         self.reference
     }

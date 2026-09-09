@@ -4097,6 +4097,9 @@ impl Analyzer {
         if self.scope() == Scope::File
             && let Some(origins) = &mut self.documentation_origins
         {
+            // File declarations document their typedef or object, not an embedded
+            // forward tag. Standalone tags are marked in declaration_specifiers;
+            // a new tag inside a record field has its own documentable cursor.
             origins.push(
                 crate::DocumentationTarget::Record(id),
                 declaration.span.start,
@@ -4105,7 +4108,8 @@ impl Analyzer {
                     .identifier
                     .as_ref()
                     .map_or(declaration.span.start, |name| name.span.start),
-                reference,
+                reference
+                    || (self.lexical_record.is_none() && declaration.node.declarations.is_none()),
             )?;
         }
         if self.scope() == Scope::File
@@ -4583,7 +4587,8 @@ impl Analyzer {
                     .identifier
                     .as_ref()
                     .map_or(declaration.span.start, |name| name.span.start),
-                reference,
+                reference
+                    || (self.lexical_record.is_none() && declaration.node.enumerators.is_empty()),
             )?;
         }
         if self.scope() == Scope::File
