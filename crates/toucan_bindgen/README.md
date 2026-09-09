@@ -116,11 +116,16 @@ dependency files to name the generated output. Compression, streaming,
 dictionaries, experimental APIs, and shared thread pools must return identical
 results and artifact bytes. The generated dependency graph must contain no
 bindgen, clang-sys, or libloading packages. Native corpus CI runs this gate on
-both Linux and macOS architectures.
+Linux. The macOS validation workflow covers Apple Silicon and includes Intel
+only when requested.
 
 The [saved Linux run](../../corpus/evidence/bindgen-builder-2026-09-08/summary.json)
 records all four configurations and 25 byte-identical runtime artifacts. It
 includes the consumed generated files and unchanged build-script hash.
+The [macro-history refresh](../../corpus/evidence/builder-corpus-dependencies-2026-09-09/README.md)
+also passes all four profiles and 25 artifact comparisons. Initial metadata
+resolution fetches the adapter's dependencies; subsequent builds remain locked
+and offline.
 
 For complete application paths, `scripts/verify_astral_builder.py` builds pinned
 ty and uv through zstd-sys's unchanged build script and compares their compression
