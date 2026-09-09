@@ -1,0 +1,86 @@
+name: uv and ty Toucan feature acceptance
+
+on:
+  push:
+    branches:
+      - charlie/codex-toucan-astral-optin-clean-build
+
+permissions:
+  contents: read
+
+concurrency:
+  group: astral-optin-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  consumer:
+    if: github.ref == 'refs/heads/charlie/codex-toucan-astral-optin-clean-build'
+    name: ${{ matrix.project }} without libclang
+    runs-on: ubuntu-24.04
+    timeout-minutes: 50
+    container:
+      image: ubuntu:24.04@sha256:224a1869083a311ef3f13648a154ba79832fbef6364d31493642ca03082da254
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix:
+        project: [uv, ty]
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - name: Install native build tools
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/toucan-optin-bootstrap
+          apt-get -o APT::Update::Error-Mode=any update -qq \
+            2>&1 | tee /tmp/toucan-optin-bootstrap/apt-update.log
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential ca-certificates cmake curl git libzstd1 nasm \
+            perl pkg-config python3 python3-venv \
+            2>&1 | tee /tmp/toucan-optin-bootstrap/apt-install.log
+          dpkg-query -W > /tmp/toucan-optin-bootstrap/packages.txt
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: stable
+      - name: Compare actual application builds and behavior
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p results/optin
+          cp -R /tmp/toucan-optin-bootstrap results/optin/bootstrap
+          git rev-parse HEAD | tee results/optin/commit.txt
+          python3 -B scripts/verify_astral_optin.py \
+            --project '${{ matrix.project }}' \
+            --cache /tmp/toucan-optin-cache \
+            --output results/optin/acceptance \
+            --build-timeout 1800 \
+            2>&1 | tee results/optin/acceptance.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          evidence = json.loads(Path("results/optin/acceptance/evidence.json").read_text())
+          assert evidence["status"] == "passed"
+          assert evidence["libclang_before"]["found"] == []
+          assert evidence["libclang_after"]["found"] == []
+          assert evidence["toucan_bindings"]
+          assert evidence["library_tests"]["toucan"]
+          assert evidence["runtime"]
+          PY
+      - name: Retain validation evidence
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: astral-optin-${{ matrix.project }}-${{ github.run_attempt }}
+          path: |
+            results/optin/
+            /tmp/toucan-optin-bootstrap/
+          retention-days: 14
+          if-no-files-found: error

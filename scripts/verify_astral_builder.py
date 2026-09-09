@@ -213,7 +213,12 @@ def binary_artifact(log: Path, source: Path, project: dict) -> dict:
 
 
 def generated_artifacts(
-    log: Path, source: Path, output: Path, expected_target: str | None = None
+    log: Path,
+    source: Path,
+    output: Path,
+    expected_target: str | None = None,
+    *,
+    generator_feature: str = "bindgen",
 ) -> list[dict]:
     result = []
     for line in log.read_text().splitlines():
@@ -224,9 +229,12 @@ def generated_artifacts(
         ):
             continue
         crate = Path(artifact["manifest_path"]).parent
-        if crate.resolve() != source.resolve() or "bindgen" not in artifact["features"]:
+        if (
+            crate.resolve() != source.resolve()
+            or generator_feature not in artifact["features"]
+        ):
             raise RuntimeError(
-                "Cargo did not build the explicit source with bindgen enabled"
+                f"Cargo did not build the explicit source with {generator_feature} enabled"
             )
         rlib = next(Path(p) for p in artifact["filenames"] if p.endswith(".rlib"))
         dep = rlib.with_name(rlib.stem.removeprefix("lib") + ".d")
@@ -279,12 +287,19 @@ def generated_artifacts(
     return result
 
 
-def check_features(upstream: list[dict], generated: list[dict]) -> None:
-    expected = sorted(sorted(set(row["features"]) | {"bindgen"}) for row in upstream)
+def check_features(
+    upstream: list[dict],
+    generated: list[dict],
+    *,
+    generator_feature: str = "bindgen",
+) -> None:
+    expected = sorted(
+        sorted(set(row["features"]) | {generator_feature}) for row in upstream
+    )
     actual = sorted(sorted(row["features"]) for row in generated)
     if expected != actual:
         raise RuntimeError(
-            f"feature changes extend beyond bindgen: {expected} != {actual}"
+            f"feature changes extend beyond {generator_feature}: {expected} != {actual}"
         )
 
 

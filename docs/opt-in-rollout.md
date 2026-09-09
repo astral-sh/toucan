@@ -53,6 +53,15 @@ generated files actually consumed by each build, then repeat the two
 and truncated-response rejection. Run the corresponding project CI with the
 feature enabled and retain the exact source and lockfile revisions.
 
+The branch-scoped [Linux acceptance workflow](../.github/workflows/astral-optin.yml)
+runs [verify_astral_optin.py](../scripts/verify_astral_optin.py) in a pinned Ubuntu
+container with a native C toolchain and no libclang. It compares the untouched
+upstream default build with the patched feature build, verifies source and lock
+inventories, and audits both ty dependency instances. The gate has one bounded
+job per application and no macOS runner. Its first full execution is pending;
+local checks cover preparation, real Cargo artifact inspection, rejection of the
+wrong generator feature, and rejection of a host with libclang installed.
+
 The trial pins Toucan through Git. The repository is private, so this requires
 repository access. A public integration needs published Toucan crates or a
 public dependency source before it can land; an optional private Git dependency
