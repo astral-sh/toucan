@@ -46,6 +46,16 @@ const MS_PRAGMA_SHADOW_SOURCE: &str = concat!(
     "_Static_assert(sizeof(struct Restored) == 6, \"restored builtin\");\n",
 );
 
+const EMPTY_MACRO_STRINGIFICATION: &str = concat!(
+    "#define EMPTY\n#define ERASE(...)\n#define ALIAS EMPTY\n",
+    "#define ID(x) x\n#define S(x) #x\n#define E(x) S(x)\n",
+    "#define CAT(a,b) a##b\n",
+    "E(a EMPTY+b) E(a EMPTY EMPTY+b) E(a ALIAS+b)\n",
+    "E(a ERASE(1, 2)+b) E(a ID(EMPTY)+b) E(a/**/EMPTY+b)\n",
+    "E(a+EMPTY+b) E(EMPTY a EMPTY) S(a EMPTY+b)\n",
+    "E(CAT(EMPTY,suffix)) E(CAT(,foo)) E(CAT(foo,))\n",
+);
+
 #[test]
 fn date_time_formats_validated_utc_timestamps() {
     for &(seconds, date, time) in TIMESTAMPS {
@@ -297,6 +307,28 @@ fn preprocess(source: &str) -> String {
         .preprocess_str(Path::new("test.h"), source)
         .unwrap()
         .source
+}
+
+#[test]
+fn empty_macro_expansions_preserve_stringification_whitespace() {
+    let expected = [
+        "\"a +b\"",
+        "\"a +b\"",
+        "\"a +b\"",
+        "\"a +b\"",
+        "\"a +b\"",
+        "\"a +b\"",
+        "\"a++b\"",
+        "\"a\"",
+        "\"a EMPTY+b\"",
+        "\"EMPTYsuffix\"",
+        "\"foo\"",
+        "\"foo\"",
+    ];
+    assert_eq!(
+        preprocess(EMPTY_MACRO_STRINGIFICATION),
+        expected.join(" ") + "\n"
+    );
 }
 
 #[test]
@@ -775,6 +807,7 @@ fn differential_macro_corpus_matches_native_c_preprocessor() {
     use std::process::{Command, Stdio};
 
     let corpus = [
+        EMPTY_MACRO_STRINGIFICATION,
         "#define A 3\n#define F(x) (x+A)\n#define G F\nG(G(2))\n",
         "#define F() 1\nF _Pragma(\"pack(1)\") ()\n",
         "#define E(x)\n#define F(x) E(x)\nF(_Pragma(\"pack(1)\"))\n",
