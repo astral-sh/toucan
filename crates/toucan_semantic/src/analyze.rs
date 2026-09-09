@@ -3776,58 +3776,37 @@ impl Analyzer {
                             } else {
                                 None
                             };
-                            if let Some(constant) = constant {
-                                let length = constant.as_u64()?;
-                                if matches!(array.node.size, ast::ArraySize::StaticExpression(_))
-                                    && let Some(checked) = &mut self.checked
-                                {
-                                    let scope = self.lexical_scopes.last();
-                                    let definition =
-                                        scope.is_some_and(|scope| scope.is_definition_parameters);
-                                    let prototype = scope.is_some_and(|scope| {
-                                        !scope.is_block && !scope.is_definition_parameters
-                                    });
-                                    retained_bound = Some(checked.array_bound(
-                                        declaration,
-                                        Some(expression),
-                                        array.span,
-                                        crate::checked::bounds::BoundContext {
-                                            prototype,
-                                            definition,
-                                            type_name,
-                                            minimum: true,
-                                            constant: Some(length),
-                                        },
-                                    )?);
-                                }
+                            let length = constant.map(IntegerValue::as_u64).transpose()?;
+                            let minimum =
+                                matches!(array.node.size, ast::ArraySize::StaticExpression(_));
+                            if (minimum || length.is_none())
+                                && let Some(checked) = &mut self.checked
+                            {
+                                let scope = self.lexical_scopes.last();
+                                let definition =
+                                    scope.is_some_and(|scope| scope.is_definition_parameters);
+                                let prototype = scope.is_some_and(|scope| {
+                                    !scope.is_block && !scope.is_definition_parameters
+                                });
+                                retained_bound = Some(checked.array_bound(
+                                    declaration,
+                                    Some(expression),
+                                    array.span,
+                                    crate::checked::bounds::BoundContext {
+                                        prototype,
+                                        definition,
+                                        type_name,
+                                        minimum,
+                                        constant: length,
+                                    },
+                                )?);
+                            }
+                            if let Some(length) = length {
                                 TypeKind::Array {
                                     element: Box::new(ty),
                                     length: Some(length),
                                 }
                             } else {
-                                if let Some(checked) = &mut self.checked {
-                                    let scope = self.lexical_scopes.last();
-                                    let definition =
-                                        scope.is_some_and(|scope| scope.is_definition_parameters);
-                                    let prototype = scope.is_some_and(|scope| {
-                                        !scope.is_block && !scope.is_definition_parameters
-                                    });
-                                    retained_bound = Some(checked.array_bound(
-                                        declaration,
-                                        Some(expression),
-                                        array.span,
-                                        crate::checked::bounds::BoundContext {
-                                            prototype,
-                                            definition,
-                                            type_name,
-                                            minimum: matches!(
-                                                array.node.size,
-                                                ast::ArraySize::StaticExpression(_)
-                                            ),
-                                            constant: None,
-                                        },
-                                    )?);
-                                }
                                 TypeKind::VariableArray {
                                     element: Box::new(ty),
                                     identity: self.array_identity(array.span)?,
