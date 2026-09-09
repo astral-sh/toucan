@@ -8,7 +8,11 @@ fn bindings(profile: CompilerProfile, rustified_enums: bool) -> String {
         analysis.unit(),
         &Options {
             rustified_enums,
-            rust_target: RustTarget::RUST_1_64,
+            rust_target: if profile.target().is_armv7() {
+                RustTarget::stable(78).unwrap()
+            } else {
+                RustTarget::RUST_1_64
+            },
             ..Default::default()
         },
     )

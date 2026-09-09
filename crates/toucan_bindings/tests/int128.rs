@@ -8,7 +8,7 @@ use toucan_target::Target;
 fn int128_bindings_require_the_fixed_rust_abi() {
     for target in Target::ALL {
         let result = analyze("typedef __int128 I; I f(I);", target);
-        if target == Target::I686UnknownLinuxGnu {
+        if target == Target::I686UnknownLinuxGnu || target.is_armv7() {
             assert!(
                 result
                     .unwrap_err()

@@ -108,7 +108,9 @@ fn aggregate_values_and_packed_atomic_objects_diagnose() {
     ];
     for target in Target::ALL {
         for source in cases {
-            if target == Target::I686UnknownLinuxGnu && source.contains("__int128") {
+            if (target == Target::I686UnknownLinuxGnu || target.is_armv7())
+                && source.contains("__int128")
+            {
                 assert!(
                     analyze(source, target)
                         .unwrap_err()
@@ -176,7 +178,7 @@ fn atomic_alignment_and_names_are_checked_before_output() {
         )
         .unwrap();
         assert!(output.contains("pub struct __toucan_test_atomic_0_"));
-        if target == Target::I686UnknownLinuxGnu {
+        if target == Target::I686UnknownLinuxGnu || target.is_armv7() {
             assert!(
                 analyze("typedef _Atomic(__int128) Wide;void f(Wide*);", target)
                     .unwrap_err()
@@ -368,7 +370,11 @@ fn fixture(profile: CompilerProfile) -> String {
     generate(
         analysis.unit(),
         &Options {
-            rust_target: RustTarget::RUST_1_64,
+            rust_target: if profile.target().is_armv7() {
+                RustTarget::stable(78).unwrap()
+            } else {
+                RustTarget::RUST_1_64
+            },
             rustified_enums: true,
             // The unchanged C fixture still checks storage and declarations;
             // narrow Clang calls and aligned i686 scalars stay blocked.
@@ -540,7 +546,17 @@ fn generated_layouts_match_compiler_targets() {
             ("AtomicPointer", pointer_bytes, pointer_bytes),
             ("AtomicPair", 8, 8),
             ("struct Fields", 8 + pointer_bytes, pointer_bytes),
-            ("union U", 8, if pointer_bytes == 4 { 4 } else { 8 }),
+            // Clang aligns ARMv7 long long to eight bytes despite its
+            // four-byte pointers; i686 keeps the four-byte union alignment.
+            (
+                "union U",
+                8,
+                if pointer_bytes == 4 && !target.is_armv7() {
+                    4
+                } else {
+                    8
+                },
+            ),
         ] {
             source.push_str(&format!("_Static_assert(sizeof({ty})=={size},\"size\");_Static_assert(_Alignof({ty})=={align},\"alignment\");"));
         }

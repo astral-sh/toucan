@@ -13,7 +13,12 @@ fn selected_returns_twice_functions_require_c_wrappers() {
             "int __attribute__((returns_twice)) checkpoint(void) { return 1; } int wrapper(void);",
         ] {
             let unit = analyze(source, target).unwrap();
-            for rust_target in [RustTarget::RUST_1_64, RustTarget::default()] {
+            let oldest_rust = if target.is_armv7() {
+                RustTarget::stable(78).unwrap()
+            } else {
+                RustTarget::RUST_1_64
+            };
+            for rust_target in [oldest_rust, RustTarget::default()] {
                 for allowlist in [vec![], vec!["checkpoint".into()]] {
                     let error = generate(
                         &unit,

@@ -51,7 +51,11 @@ fn defaults_require_zero_validity_independently_of_field_default_traits() {
     for target in Target::ALL {
         let unit = analyze(SOURCE, target).unwrap();
         for copy in [true, false] {
-            let source = generate(&unit, &options(copy)).unwrap().source;
+            let mut options = options(copy);
+            if target.is_armv7() {
+                options.rust_target = RustTarget::stable(78).unwrap();
+            }
+            let source = generate(&unit, &options).unwrap().source;
             for name in [
                 "Scalars",
                 "Float",

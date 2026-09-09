@@ -20,7 +20,11 @@ fn explicit_builtin_declarations_link_to_the_library() {
         let output = generate(
             unit.unit(),
             &Options {
-                rust_target: RustTarget::RUST_1_64,
+                rust_target: if profile.target().is_armv7() {
+                    RustTarget::stable(78).unwrap()
+                } else {
+                    RustTarget::RUST_1_64
+                },
                 ..Default::default()
             },
         )
