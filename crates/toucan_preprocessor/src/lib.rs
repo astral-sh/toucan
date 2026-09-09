@@ -1379,6 +1379,14 @@ impl Preprocessor {
                     return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
                 }
             }
+            Some("intrinsic" | "function") => {
+                // These control code generation for calls in C function bodies;
+                // they do not affect the declarations emitted as bindings.
+                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
+                if !msvc_function_pragma(&expanded) {
+                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
+                }
+            }
             Some("push_macro" | "pop_macro") => {
                 let name = pragma_macro_name(tokens).ok_or_else(|| {
                     Error::at(
@@ -1957,6 +1965,33 @@ fn pragma_macro_name(tokens: &[Token]) -> Option<&str> {
         [token] if token.kind == Kind::Identifier && token.text == name => Some(name),
         _ => None,
     }
+}
+
+/// Validate the MSVC list of function names before discarding a code-generation hint.
+fn msvc_function_pragma(tokens: &[Token]) -> bool {
+    let [open, rest @ .., close] = tokens else {
+        return false;
+    };
+    if open.text != "(" || close.text != ")" {
+        return false;
+    }
+    let mut names = rest.iter();
+    if !names
+        .next()
+        .is_some_and(|name| name.kind == Kind::Identifier)
+    {
+        return false;
+    }
+    while let Some(comma) = names.next() {
+        if comma.text != ","
+            || !names
+                .next()
+                .is_some_and(|name| name.kind == Kind::Identifier)
+        {
+            return false;
+        }
+    }
+    true
 }
 
 /// Warning pragmas change only the compiler's warning state, which this
