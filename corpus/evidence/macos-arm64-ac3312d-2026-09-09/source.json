@@ -1,0 +1,19 @@
+{
+  "commit": "ac3312d204258db2d2f50cf41e1e56ccefc9ec22",
+  "scope": "These hashes are read from the tested Git commit, not the later local checkout.",
+  "source_files_sha256": {
+    ".github/workflows/ci.yml": "fe0998762d457252506b1f2bba77bce14b9227c7c74f9509adf1c2274dc3b975",
+    ".github/workflows/corpus.yml": "c9462fe7ecb19eed6abbbce48168b28c94f83653a719ab12518dbe7ade0cb559",
+    ".github/workflows/macos-arm64-integration.yml": "af41cc306077bed3e86fac0c7f44699d30c97c2d0d0b8dca66a45d7760e2e670",
+    "Cargo.lock": "f534ac661d59122ea72d6365f0f29c5251d4dd6a936c1f3bb65253f592f271df",
+    "Cargo.toml": "fd951542ebcc65c584e78e35d26749d3559399117b8e9a86d5df1b1b527a5d17",
+    "corpus/manifest.json": "399dba14e90eef0375eff3229db1fd927677cd94e31fc98221a7d842b40260bb",
+    "scripts/probe_record_layouts.py": "a034c4d5930d249854c04fdcb7035d03453a5d4ae9f221d71b7e50539eb1ee10",
+    "scripts/verify_bindgen_builder.py": "33aece1ca28d10509ae65581e5479bd8723f3b2a3e13cce0fdd17db336c92b1f",
+    "scripts/verify_corpus.py": "ab539787a78f35a28baaaa0cc6268872d8e38759a8350e17dcfaf66382fe0539",
+    "scripts/verify_rust_target.py": "027d52e0d82987c34e9308e918edd3021d14d86ce0792e07496116c76c8ade14",
+    "scripts/verify_sqlite_consumer.py": "88ffe06c29ad988545ca3ae8eb2be23fb5a29af1d396fa499a1376490eabba0d",
+    "scripts/verify_zstd_consumer.py": "300f69a5a5bfc77917994ca4544a2f1913e6332b69a1ac483012c103ba58a1fd"
+  },
+  "tree": "6ab41ada8f1e490723155dae071d7c57448a8359"
+}

@@ -59,9 +59,11 @@ loaded libraries; it does not measure the memory of a full application build.
    to validated targets and configurations and retain the existing generator elsewhere.
 2. **Current-source platform and consumer validation.** The published combined
    source passed Linux x64/ARM corpus and Windows packaging; the latest paired
-   application checks ran on Linux x64. Earlier macOS C/FFI evidence covers an
-   older source. Run Apple Silicon validation of the intended integration head
-   and selected consumer builds before a macOS switch; request Intel separately
+   application checks ran on Linux x64. The [Apple Silicon run at `ac3312d`](../corpus/evidence/macos-arm64-ac3312d-2026-09-09/README.md)
+   passes workspace tests, package checks, native C/Rust comparisons, all four
+   zstd profiles, and the SQLite consumer. It does not cover subsequent commits
+   or full uv/ty builds. Validate the intended integration head and selected
+   application builds before a macOS switch; request Intel separately
    if distributing generation on Intel Macs. Windows x86-64 DLL calls have
    bounded [native evidence](../corpus/evidence/windows-dll-native-f57e9fa/summary.json);
    [Windows ARM64 SDK C layouts and DLL calls](../corpus/evidence/windows-arm64-native-4ce552f/README.md)
@@ -72,10 +74,8 @@ loaded libraries; it does not measure the memory of a full application build.
    four, and seven supported types respectively and reports zero skipped
    declarations. Full Windows consumers and other SDK versions remain open;
    selected x64 `__ptr32` bindings receive an explicit unsupported-ABI diagnostic.
-   The first [Apple Silicon integration run](https://github.com/astral-sh/toucan/actions/runs/34378956751)
-   failed on test fixture and cross-compiler assumptions, so it does not establish
-   current-source macOS acceptance. The [macOS workflow](../.github/workflows/macos.yml)
-   keeps Intel opt-in; that integration run allocated only Apple Silicon runners.
+   The [macOS workflow](../.github/workflows/macos.yml) keeps Intel opt-in;
+   the successful `ac3312d` run allocated only Apple Silicon runners.
 3. **Optional generator profiles.** The selected AWS crypto, `all-bindings`,
    SSL through the Builder adapter, standalone crypto, and standalone FIPS
    routes have separate native evidence. Unchanged `aws-lc-sys 0.44.0` refuses

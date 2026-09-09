@@ -221,12 +221,14 @@ the tested commits and configurations. See [compatibility](docs/compatibility.md
 for coverage and gaps. [Benchmarks](docs/benchmarks.md) and [fuzzing](fuzz/README.md)
 record separate performance and malformed-input checks.
 
-The [latest native validation](corpus/evidence/native-callbacks-2026-09-09/README.md)
+The [combined Builder validation](corpus/evidence/native-callbacks-2026-09-09/README.md)
 checks the combined Builder and analysis changes: 1,268 workspace tests and
 Rustdoc pass on Linux; recorded GitHub jobs also pass on Linux x64/ARM and Windows.
-The macOS validation workflow remains opt-in on pull requests, with Intel also
-opt-in. This validation does not expand the earlier macOS test result to the
-latest source.
+The [Apple Silicon validation at `ac3312d`](corpus/evidence/macos-arm64-ac3312d-2026-09-09/README.md)
+passes workspace and package checks, the native corpus, all four zstd profiles,
+and a SQLite consumer. It does not validate later commits or full uv/ty builds.
+The macOS workflow remains opt-in on pull requests; this run allocated no Intel
+runners.
 
 More recent bounded native checks include [installed Windows ARM64 SDK headers](corpus/evidence/windows-arm64-sdk-2026-09-09/README.md)
 with generated Rust layouts and an [i686 zstd C/Rust consumer](corpus/evidence/i686-zstd-consumer-2026-09-09/README.md)
