@@ -1427,8 +1427,9 @@ impl Analyzer {
         } else {
             self.integer_type(&expression.ty, offset)?
         };
-        if self.unit.compiler == toucan_target::Compiler::Clang
-            && let Some(width) = expression.bitfield
+        // Both compiler families promote narrow bitfields regardless of the
+        // rank of the declared storage type.
+        if let Some(width) = expression.bitfield
             && width <= 32
         {
             Ok(if width < 32 || integer.signed {
@@ -1441,8 +1442,6 @@ impl Analyzer {
                     rank: 3,
                 }
             })
-        } else if expression.bitfield.is_some_and(|width| width < 32) && integer.rank <= 3 {
-            Ok(IntegerValue::int(0))
         } else {
             Ok(promote(integer))
         }
