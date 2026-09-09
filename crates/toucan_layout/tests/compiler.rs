@@ -146,6 +146,7 @@ fn unvalidated_compiler_overrides_are_errors() {
                     && matches!(
                         target,
                         Target::X86_64UnknownLinuxGnu
+                            | Target::I686UnknownLinuxGnu
                             | Target::X86_64UnknownLinuxMusl
                             | Target::Aarch64UnknownLinuxGnu
                             | Target::Aarch64UnknownLinuxMusl
@@ -193,9 +194,10 @@ fn selected_layout_matches_compilers_on_the_same_linux_target() {
                 .contains("clang"),
         "TOUCAN_GCC must identify GNU GCC"
     );
-    // Cross-Clang checks retain the Linux physical ABI on both architectures.
+    // Cross-Clang checks retain the Linux physical ABI on all three architectures.
     for target in [
         Target::X86_64UnknownLinuxGnu,
+        Target::I686UnknownLinuxGnu,
         Target::Aarch64UnknownLinuxGnu,
     ] {
         for (source, ty) in cases() {

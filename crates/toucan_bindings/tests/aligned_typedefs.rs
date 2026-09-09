@@ -64,7 +64,7 @@ fn normalized_size_t_checks_the_discarded_alias_layout() {
         } else {
             "unsigned long"
         };
-        for alignment in [1, 8, 16] {
+        for alignment in [1, 4, 8, 16] {
             let source = format!(
                 "typedef {integer} internal __attribute__((aligned({alignment}))); \
                  typedef internal size_t; size_t length(size_t);"
@@ -79,7 +79,7 @@ fn normalized_size_t_checks_the_discarded_alias_layout() {
                 },
             );
             // MSVC explicit alignment also changes the required alignment under packing.
-            if alignment == 8 && !target.is_windows() {
+            if alignment as u64 == target.pointer_width() / 8 && !target.is_windows() {
                 let bindings = result.unwrap();
                 assert!(bindings.source.contains("arg0: ::core::primitive::usize"));
                 assert!(!bindings.source.contains("pub type internal"));

@@ -108,6 +108,15 @@ fn aggregate_values_and_packed_atomic_objects_diagnose() {
     ];
     for target in Target::ALL {
         for source in cases {
+            if target == Target::I686UnknownLinuxGnu && source.contains("__int128") {
+                assert!(
+                    analyze(source, target)
+                        .unwrap_err()
+                        .message
+                        .contains("__int128 is unavailable")
+                );
+                continue;
+            }
             let error = bindings(source, target, &Options::default()).unwrap_err();
             assert!(
                 error.0.contains("atomic") || error.0.contains("typedef alignment"),
@@ -167,31 +176,69 @@ fn atomic_alignment_and_names_are_checked_before_output() {
         )
         .unwrap();
         assert!(output.contains("pub struct __toucan_test_atomic_0_"));
-        let output = bindings(
-            "typedef _Atomic(__int128) Wide;void f(Wide*);",
-            target,
-            &Options {
-                rust_target: RustTarget::RUST_1_64,
-                ..Options::default()
-            },
-        )
-        .unwrap();
-        assert!(output.contains("MaybeUninit<[::core::primitive::u8; 16]>"));
-        assert!(
-            bindings(
-                "typedef _Atomic(__int128) Wide;void f(Wide);",
+        if target == Target::I686UnknownLinuxGnu {
+            assert!(
+                analyze("typedef _Atomic(__int128) Wide;void f(Wide*);", target)
+                    .unwrap_err()
+                    .message
+                    .contains("__int128 is unavailable")
+            );
+        } else {
+            let output = bindings(
+                "typedef _Atomic(__int128) Wide;void f(Wide*);",
                 target,
                 &Options {
                     rust_target: RustTarget::RUST_1_64,
                     ..Options::default()
-                }
+                },
             )
-            .unwrap_err()
-            .0
-            .contains("1.78")
-        );
+            .unwrap();
+            assert!(output.contains("MaybeUninit<[::core::primitive::u8; 16]>"));
+            assert!(
+                bindings(
+                    "typedef _Atomic(__int128) Wide;void f(Wide);",
+                    target,
+                    &Options {
+                        rust_target: RustTarget::RUST_1_64,
+                        ..Options::default()
+                    }
+                )
+                .unwrap_err()
+                .0
+                .contains("1.78")
+            );
+        }
     }
 }
+
+#[test]
+fn i686_eight_byte_atomic_storage_does_not_claim_a_scalar_call_abi() {
+    for compiler in [Compiler::Gnu, Compiler::Clang] {
+        let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap();
+        for value in ["long long", "double"] {
+            let source = format!("typedef _Atomic({value}) A; A f(A);");
+            let analysis =
+                toucan_semantic::analyze_with_profile(&source, profile, &Default::default())
+                    .unwrap();
+            let error = generate(analysis.unit(), &Options::default()).unwrap_err();
+            assert!(
+                error.0.contains("altered atomic scalar alignment"),
+                "{compiler:?} {value}: {error}"
+            );
+            let storage = generate(
+                analysis.unit(),
+                &Options {
+                    blocklist_functions: vec!["f".into()],
+                    ..Options::default()
+                },
+            )
+            .unwrap();
+            assert!(storage.source.contains("pub type A"));
+            assert!(!storage.source.contains("pub fn f("));
+        }
+    }
+}
+
 #[test]
 fn atomic_function_pointer_value_dependencies_are_collected() {
     let source = "struct S{int x;};typedef int I;typedef _Atomic(int(*)(struct S*,I)) Callback;Callback f(Callback);";
@@ -295,29 +342,37 @@ const API: &str = include_str!("fixtures/atomic/api.h");
 fn fixture(profile: CompilerProfile) -> String {
     let analysis =
         toucan_semantic::analyze_with_profile(API, profile, &Default::default()).unwrap();
+    let mut blocklist_functions = if profile.compiler() == Compiler::Clang {
+        [
+            "c_i8",
+            "c_i16",
+            "c_b",
+            "c_many",
+            "c_callback_i8",
+            "c_callback_i16",
+            "c_callback_b",
+            "c_narrow_stress",
+        ]
+        .map(str::to_owned)
+        .to_vec()
+    } else {
+        vec![]
+    };
+    if profile.target() == Target::I686UnknownLinuxGnu {
+        // i386 aligns atomic 64-bit storage to eight bytes even though
+        // ordinary long long and double have four-byte alignment. Their
+        // by-value call ABI remains unproven; the C fixture still checks storage.
+        blocklist_functions
+            .extend(["c_i64", "c_d", "c_callback_i64", "c_callback_d"].map(str::to_owned));
+    }
     generate(
         analysis.unit(),
         &Options {
             rust_target: RustTarget::RUST_1_64,
             rustified_enums: true,
-            // Selection is explicit: the unchanged C fixture still checks these
-            // valid declarations, but their Clang call ABI is rejected above.
-            blocklist_functions: if profile.compiler() == Compiler::Clang {
-                [
-                    "c_i8",
-                    "c_i16",
-                    "c_b",
-                    "c_many",
-                    "c_callback_i8",
-                    "c_callback_i16",
-                    "c_callback_b",
-                    "c_narrow_stress",
-                ]
-                .map(str::to_owned)
-                .to_vec()
-            } else {
-                vec![]
-            },
+            // The unchanged C fixture still checks storage and declarations;
+            // narrow Clang calls and aligned i686 scalars stay blocked.
+            blocklist_functions,
             ..Options::default()
         },
     )
@@ -478,13 +533,14 @@ fn generated_layouts_match_compiler_targets() {
             rust_targets += 1;
         }
         let mut source = API.to_owned();
+        let pointer_bytes = target.pointer_width() / 8;
         for (ty, size, align) in [
             ("AtomicInt", 4, 4),
             ("AtomicBool", 1, 1),
-            ("AtomicPointer", 8, 8),
+            ("AtomicPointer", pointer_bytes, pointer_bytes),
             ("AtomicPair", 8, 8),
-            ("struct Fields", 16, 8),
-            ("union U", 8, 8),
+            ("struct Fields", 8 + pointer_bytes, pointer_bytes),
+            ("union U", 8, if pointer_bytes == 4 { 4 } else { 8 }),
         ] {
             source.push_str(&format!("_Static_assert(sizeof({ty})=={size},\"size\");_Static_assert(_Alignof({ty})=={align},\"alignment\");"));
         }
@@ -516,7 +572,7 @@ fn generated_layouts_match_compiler_targets() {
             String::from_utf8_lossy(&out.stderr)
         );
     }
-    assert_eq!(rust_targets, if all { 5 } else { 1 });
+    assert_eq!(rust_targets, if all { Target::ALL.len() } else { 1 });
 }
 
 #[test]
