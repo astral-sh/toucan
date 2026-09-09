@@ -493,6 +493,43 @@ fn virtual_headers_once_and_macro_includes() {
 }
 
 #[test]
+fn include_queries_expand_nested_function_macros() {
+    let config = Config {
+        allow_filesystem: false,
+        virtual_headers: ["virtual.h", "a)b.h", "a(b.h"]
+            .into_iter()
+            .map(|name| (name.into(), String::new()))
+            .collect(),
+        ..Config::default()
+    };
+    for query in ["__has_include", "__has_include_next"] {
+        let source = format!(
+            "#define HEADER(x) x\n\
+             #define SELECT(unused, name) name\n\
+             #if {query}(HEADER(\"virtual.h\")) && \
+                 {query}(HEADER(HEADER(<virtual.h>))) && \
+                 {query}(SELECT((1, 2), HEADER(\"virtual.h\"))) && \
+                 !{query}(HEADER(\"missing.h\"))\nfound\n#endif\n\
+             #if {query}(<a)b.h>) && {query}(<a(b.h>) && \
+                 {query}(\"a)b.h\") && {query}(\"a(b.h\")\nparentheses\n#endif\n"
+        );
+        let result = Preprocessor::new(config.clone())
+            .preprocess_str(Path::new("test.h"), &source)
+            .unwrap();
+        assert_eq!(result.source, "found\nparentheses\n", "{query}");
+        for argument in ["HEADER(\"virtual.h\")", "HEADER(HEADER(\"virtual.h\"))"] {
+            let error = Preprocessor::new(config.clone())
+                .preprocess_str(
+                    Path::new("test.h"),
+                    &format!("#define HEADER(x) x\n#if {query}({argument}\n#endif\n"),
+                )
+                .unwrap_err();
+            assert!(error.message.contains("unterminated"), "{error}");
+        }
+    }
+}
+
+#[test]
 fn forced_includes_share_macros_limits_and_source_locations() {
     let config = Config {
         allow_filesystem: false,
@@ -831,8 +868,9 @@ fn include_next_tracks_search_origin_and_quoted_local_includes() {
     fs::write(directory.join("local-only.h"), "").unwrap();
     fs::write(
         directory.join("main.h"),
-        "#line 20 \"renamed/main.h\"\n\
-         #if !__has_include(\"local-only.h\")\n#error lost physical path\n#endif\n\
+        "#define HEADER(x) x\n\
+         #line 20 \"renamed/main.h\"\n\
+         #if !__has_include(HEADER(HEADER(\"local-only.h\")))\n#error lost physical path\n#endif\n\
          #include <layer.h>\n",
     )
     .unwrap();
@@ -843,7 +881,7 @@ fn include_next_tracks_search_origin_and_quoted_local_includes() {
          #if !__has_include(\"helper.h\")\n#error lost physical path\n#endif\n\
          #if __has_include_next(\"helper.h\")\nquery_restarts\n#endif\n\
          #define NEXT_HEADER <layer.h>\n\
-         #if __has_include_next(NEXT_HEADER)\n#include_next NEXT_HEADER\n\
+         #if __has_include_next(HEADER(HEADER(NEXT_HEADER)))\n#include_next NEXT_HEADER\n\
          #else\n#error missing next header\n#endif\n",
     )
     .unwrap();

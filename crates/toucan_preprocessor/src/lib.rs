@@ -1771,10 +1771,21 @@ impl Preprocessor {
             }
             position += 1;
             let start = position;
-            while expanded
-                .get(position)
-                .is_some_and(|token| token.text != ")")
-            {
+            let mut nesting = 0;
+            let mut angle_header = expanded.get(start).is_some_and(|token| token.text == "<");
+            while let Some(token) = expanded.get(position) {
+                // Parentheses in a literal header name are ordinary characters;
+                // elsewhere, keep complete function-macro arguments for expansion.
+                if angle_header {
+                    angle_header = token.text != ">";
+                } else {
+                    match token.text.as_str() {
+                        "(" => nesting += 1,
+                        ")" if nesting == 0 => break,
+                        ")" => nesting -= 1,
+                        _ => {}
+                    }
+                }
                 position += 1;
             }
             if position == expanded.len() {
