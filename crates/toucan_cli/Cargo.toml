@@ -1,5 +1,6 @@
 [package]
 name = "toucan_cli"
+default-run = "toucan"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
