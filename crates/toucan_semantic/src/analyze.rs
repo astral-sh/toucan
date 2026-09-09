@@ -4049,7 +4049,8 @@ impl Analyzer {
                         // GNU and Clang accept declarations without members,
                         // including nested tag definitions. Only a directly
                         // written unnamed record declares an anonymous member.
-                        if !matches!(base.kind, TypeKind::Record(id) if self.unit.records[id].name.is_none())
+                        if !anonymous_record_specifier(&field.node.specifiers)
+                            || !matches!(base.kind, TypeKind::Record(id) if self.unit.records[id].name.is_none())
                         {
                             continue;
                         }
@@ -5447,4 +5448,13 @@ fn normalize_attributes(source: &str) -> (String, HashSet<usize>) {
         String::from_utf8(bytes).expect("attribute normalization preserves UTF-8"),
         record_attributes,
     )
+}
+
+/// Only a directly written unnamed struct or union declares an anonymous member.
+pub(crate) fn anonymous_record_specifier(specifiers: &[Node<ast::SpecifierQualifier>]) -> bool {
+    specifiers.iter().any(|specifier| {
+        matches!(&specifier.node,
+        ast::SpecifierQualifier::TypeSpecifier(ty) if matches!(&ty.node,
+            ast::TypeSpecifier::Struct(record) if record.node.identifier.is_none()))
+    })
 }
