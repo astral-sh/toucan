@@ -8,9 +8,11 @@ contains 220 small programs, primarily imported from SCC and TinyCC.
 
 This checks syntax and semantic acceptance. It does not link or execute these
 programs, compare their expected output, validate ABI layout, or establish full
-C conformance. Toucan receives compiler-preprocessed source, so the audit also
-does not assess its native preprocessor. The separate [binding corpus](../README.md)
-checks layouts, constants, and actual C/Rust calls.
+C conformance. The default route supplies compiler-preprocessed source. The
+opt-in [native-source route](#native-source-route) additionally preprocesses and
+analyzes the original files through Toucan. Neither route checks rejection of
+invalid C. The separate [binding corpus](../README.md) checks layouts, constants,
+and actual C/Rust calls.
 
 ## Run
 
@@ -53,16 +55,72 @@ cross-compiling. Use `--preprocessor clang` to check Clang's preprocessed output
 GCC is the default. The selected preprocessor also selects Toucan's GNU or Clang
 compiler profile. Use `--preprocessor clang` on Darwin and Windows, where the
 frontend currently supports only Clang profiles. `--dialect gnu11` changes preprocessing and the comparison's
-eligibility criterion from C11 to GNU11. All three compiler modes below are still
+eligibility criterion from C11 to GNU11. All compiler modes below are still
 recorded.
+
+## Native-source route
+
+Build the existing library audit probe alongside the CLI, then enable the route:
+
+```console
+cargo build --release --locked -p toucan_cli -p toucan --bin toucan --example audit_translation_unit
+python3 scripts/audit_c_testsuite.py --native-source \
+  --native-probe target/release/examples/audit_translation_unit \
+  --preprocessor gcc --workers 4 --fail-on-strict-difference
+```
+
+Repeat with `--preprocessor clang` to exercise the Clang profile. The opt-in route
+currently requires `--target` to match the native host. The selected compiler's
+`-E -v` output supplies the ordered resource and system include directories. Explicit
+`-I` arguments must name existing absolute directories. Ordered `-D` and `-U` options
+from the common and selected-compiler argument lists are applied to both routes.
+Other explicit compiler flags, quote-only search entries, and framework entries
+fail configuration instead of being discarded. Cross-compilation, sysroot flags,
+and other include-option forms remain available to the default compiler-preprocessed
+route, but are not translated by this opt-in route.
+
+Toucan retains its shipped target, compiler, and language-mode predefines and
+feature-query behavior. The compiler's `-dM` output is recorded alongside Toucan's
+configured definitions, including every missing or differing macro. The audit does
+not install the compiler's definitions into Toucan or claim that both preprocessors
+select identical conditional branches. Discovered include directories use the
+probe's ordered `include_dirs`; compiler system-header warning metadata is not
+reproduced. This tests original-source acceptance with explicit configurations,
+not token-for-token preprocessing equivalence.
+
+Each original file first runs through the probe's preprocessing operation, then
+through its ordinary `parse_file` analysis with checked-code retention disabled.
+The latter operation reads the original file again. Both operations report the
+actual filesystem dependencies; compiler depfiles are not substituted for them.
+The audit records complete native preprocessing output, declaration output, their
+hashes, and the embedded resource-header configuration. It hashes every reported
+file before and after analysis, compares the dependency sets, and rechecks all
+sources and read headers after the complete run. Changed inputs fail the audit
+and update both the final report and the affected case sidecars. An early
+preprocessing rejection has no complete dependency inventory and never counts as
+accepted native input.
+
+The top-level counts continue to describe the compiler-preprocessed route.
+`summary.native_source` separately records native acceptance, preprocessing and
+analysis rejections, tool/protocol failures, changed inputs, and strict-positive
+differences. `--fail-on-strict-difference` requires **both** routes to accept every
+eligible pedantic-positive case when native processing is enabled. Exploratory
+rejections stay visible without failing that narrower gate. Crashes, timeouts,
+missing or malformed probe JSON, inconsistent status/exit codes, and changed
+inputs always fail. Probe executable hashes and the checked-out protocol source
+are recorded; a separate build record must establish executable source provenance.
+
+The original source bytes and existing compiler-preprocessed route are preserved.
+This does not add negative-source, ABI, code-generation, or runtime conformance
+claims, and it does not establish complete standard-library header coverage.
 
 ## Method and evidence
 
 For every original source, each compiler runs:
 
-- `-std=c11 -fsyntax-only`
-- `-std=gnu11 -fsyntax-only`
-- `-std=c11 -pedantic-errors -fsyntax-only`
+- C90, C99, C11, and C17 with `-fsyntax-only`.
+- GNU90, GNU99, GNU11, and GNU17 with `-fsyntax-only`.
+- `-std=c11 -pedantic-errors -fsyntax-only`.
 
 Only the pedantic Clang classification adds `-Wno-strict-prototypes` and
 `-Wno-deprecated-non-prototype`. These suppress deprecation diagnostics for
@@ -85,7 +143,9 @@ the source and diagnostics before classifying a difference.
 `evidence.json` records the manifest, executable hashes before the run, checks that
 they did not change during the run, compiler versions, relevant include environment,
 arguments, source and preprocessed hashes, origin sidecars, timings, and acceptance
-results. Every command has retained stdout and stderr. Each completed case also has
+results. Every command has retained stdout and stderr. Child commands use `LC_ALL=C`
+and `SOURCE_DATE_EPOCH=0`; the native library probe uses its deterministic Unix-epoch
+timestamp default. Each completed case also has
 its own `cases/NNNNN/result.json`, so partial diagnostics survive an interrupted run.
 The recorded durations describe this audit; they are not performance benchmarks.
 
@@ -110,11 +170,26 @@ python3 scripts/audit_c_testsuite.py --workers 4 --fail-on-strict-difference
 
 The [conformance workflow](../../.github/workflows/conformance.yml) runs this gate
 on Ubuntu with Rust 1.96, Python 3.12, explicit GCC 13 and Clang 18 executables,
-and four workers. Separate GCC and Clang jobs each check their compiler's
-preprocessed input with the corresponding frontend profile. It also tests the gate's failure behavior and retains reports,
-inputs, and diagnostics as artifacts, including failed audits.
+and four workers. Separate GCC and Clang jobs check both their compiler's
+preprocessed input and the original-source route with the corresponding frontend
+profile. It also tests the gate's failure behavior and retains reports, inputs,
+and diagnostics as artifacts, including failed audits.
 
 ## Recorded results
+
+The [native-source audit](../evidence/native-conformance-9d8901b-2026-09-09/summary.json)
+uses CLI and library-probe binaries built from `9d8901b`; all 630 recorded build
+inputs match `66c87396`. Both GCC 13 and Clang 18 runs checked all 220 original
+sources. The compiler-preprocessed and native-source routes each accepted 219
+cases and all 211 pedantic-positive cases. Only the known `00144.c`
+discarded-qualifier rejection remained, outside the strict subset. No native
+preprocessing failures, tool/protocol failures, or changed inputs were recorded.
+
+The [capture](../evidence/native-conformance-9d8901b-2026-09-09/README.md) separates
+build provenance, the uncommitted audit-driver hash, and each route's results.
+It retains source/header hashes and diagnostics without redistributing downloaded
+upstream sources or preprocessed files. The driver keeps compiler/Toucan macro
+differences visible; these results do not imply identical preprocessing output.
 
 The [compiler-profile refresh](../evidence/conformance-profiles-440db13/summary.json)
 at `440db13` checks all 220 sources separately with GCC-preprocessed/GNU-profile

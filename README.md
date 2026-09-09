@@ -227,6 +227,10 @@ the tested commits and configurations. See [compatibility](docs/compatibility.md
 for coverage and gaps. [Benchmarks](docs/benchmarks.md) and [fuzzing](fuzz/README.md)
 record separate performance and malformed-input checks.
 
+The [conformance guide](docs/conformance.md) describes the scope of language,
+preprocessor, ABI, and consumer checks. The external C suite now exercises both
+compiler-preprocessed input and original source through Toucan's preprocessor.
+
 The [combined Builder validation](corpus/evidence/native-callbacks-2026-09-09/README.md)
 checks the combined Builder and analysis changes: 1,268 workspace tests and
 Rustdoc pass on Linux; recorded GitHub jobs also pass on Linux x64/ARM and Windows.

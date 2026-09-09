@@ -40,6 +40,9 @@ loaded libraries; it does not measure the memory of a full application build.
 
 ## Gates for a general drop-in release
 
+The [conformance guide](conformance.md) explains what the language and
+preprocessor audits check, alongside ABI, consumer, and malformed-input testing.
+
 1. **Target coverage.** [`Target::parse`](../crates/toucan_target/src/lib.rs) accepts
    ten triples: x86-64 and AArch64 Linux with GNU or musl libc, i686 GNU Linux,
    ARMv7 GNU Linux with the Clang hard-float profile, both macOS architectures,

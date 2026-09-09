@@ -47,11 +47,12 @@ jobs:
       - name: Test the acceptance gate
         run: python3.12 -m unittest discover -s tools/binding_compare/tests -p test_c_testsuite.py
       - name: Build the frontend
-        run: cargo build --locked --release -p toucan_cli --no-default-features
+        run: cargo build --locked --release -p toucan_cli -p toucan --bin toucan --example audit_translation_unit --no-default-features
       - name: Require acceptance of pedantic-positive cases
         run: |
           python3.12 scripts/audit_c_testsuite.py \
             --toucan target/release/toucan \
+            --native-source --native-probe target/release/examples/audit_translation_unit \
             --gcc gcc-13 --clang clang-18 \
             --target x86_64-unknown-linux-gnu \
             --preprocessor ${{ matrix.preprocessor }} \
