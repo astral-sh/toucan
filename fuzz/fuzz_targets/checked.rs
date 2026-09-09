@@ -15,6 +15,10 @@ fn retention_limit(error: &Error) -> bool {
             | "retained type nesting limit exceeded"
             | "declaration-origin occurrence limit exceeded"
             | "declaration-origin source fragment limit exceeded"
+            | "object-value occurrence limit exceeded"
+            | "object-value metadata exceeds the 64 MiB limit"
+            | "object-value type nesting exceeds the 128-level limit"
+            | "documentation declaration limit exceeded"
     )
 }
 
@@ -44,6 +48,8 @@ fuzz_target!(|bytes: &[u8]| {
     let options = AnalysisOptions {
         retain_code: true,
         retain_declaration_origins: true,
+        retain_object_values: true,
+        retain_documentation_origins: true,
         ..AnalysisOptions::default()
     };
     match (
@@ -53,6 +59,8 @@ fuzz_target!(|bytes: &[u8]| {
     ) {
         (Ok(unit), Ok(analysis)) => {
             assert!(analysis.checked().is_some());
+            assert!(analysis.object_values().is_some());
+            assert!(analysis.documentation_origins().is_some());
             assert!(
                 format!("{unit:?}") == format!("{:?}", analysis.unit()),
                 "declaration IR changed for {profile:?}"

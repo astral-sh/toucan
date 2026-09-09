@@ -60,7 +60,14 @@ Older archived sources retain their recorded selector contracts. The `checked`
 target compares analysis with and without retained code. Successful results must have
 identical declarations; invalid inputs must produce the same diagnostic, except
 when the separate retention limits are reached. It also exercises layout queries
-on the retained analysis owner. All targets reject invalid UTF-8, so saved reproducer
+on the retained analysis owner. It retains object initializer facts and documentation
+declaration locations alongside the checked graph. Object profiles, declaration
+identities and names, source ordering, and UTF-8 offset boundaries are checked;
+documentation targets must address existing declarations, records, enum variants,
+or fields. The optional metadata retains its separate occurrence, byte, and nesting
+limits. These checks cover direct semantic input, not preprocessor comment capture
+or the builder's documentation attachment and emission.
+All targets reject invalid UTF-8, so saved reproducer
 bytes are exactly the source used for preprocessing, analysis, binding generation,
 and target selection.
 Invalid input may return a diagnostic; panics, aborts,

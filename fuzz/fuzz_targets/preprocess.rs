@@ -37,7 +37,9 @@ fuzz_target!(|bytes: &[u8]| {
         record_macro_definitions: selector & 4 != 0,
         documentation: match (selector >> 4) & 3 {
             0 => None,
-            value => Some(toucan::DocumentationOptions {parse_all_comments: value >= 2}),
+            value => Some(toucan::DocumentationOptions {
+                parse_all_comments: value >= 2,
+            }),
         },
         macro_redefinition_policy: if selector & 8 == 0 {
             toucan::MacroRedefinitionPolicy::Strict
@@ -130,7 +132,10 @@ fuzz_target!(|bytes: &[u8]| {
                 assert!(output.source.get(range.clone()).is_some());
                 let origin = docs.origin(mapping).expect("owned origin");
                 assert_eq!(docs.resolve(range.start), Some(origin));
-                for location in [origin.invocation(), origin.spelling()].into_iter().flatten() {
+                for location in [origin.invocation(), origin.spelling()]
+                    .into_iter()
+                    .flatten()
+                {
                     let source = docs.source(location.source()).expect("owned source");
                     assert!(location.offset() < source.source_len());
                     assert!(data.is_char_boundary(location.offset()));

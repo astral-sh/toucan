@@ -10,6 +10,44 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     unit.validate_function_options().unwrap();
     unit.validate_parameter_contracts().unwrap();
     unit.validate_alignment_origins().unwrap();
+    if let Some(objects) = analysis.object_values() {
+        let mut previous = 0;
+        for object in objects.entries() {
+            assert_eq!(object.profile(), unit.profile().unwrap());
+            let declaration = &unit.declarations[object.declaration()];
+            assert_eq!(object.name(), declaration.name);
+            source_point(source, object.offset());
+            assert!(object.offset() >= previous);
+            previous = object.offset();
+        }
+    }
+    if let Some(documentation) = analysis.documentation_origins() {
+        use toucan::semantic::DocumentationTarget;
+        let mut previous = (0, 0);
+        for origin in documentation.entries() {
+            source_point(source, origin.begin());
+            source_point(source, origin.name());
+            if let Some(parent) = origin.parent_name() {
+                source_point(source, parent);
+            }
+            let order = (origin.name(), origin.begin());
+            assert!(order >= previous);
+            previous = order;
+            match origin.target() {
+                DocumentationTarget::Declaration(id) => assert!(id < unit.declarations.len()),
+                DocumentationTarget::Record(id) => assert!(id < unit.records.len()),
+                DocumentationTarget::Enum(id) => assert!(id < unit.enums.len()),
+                DocumentationTarget::Enumerator {
+                    enumeration,
+                    variant,
+                } => assert!(variant < unit.enums[enumeration].variants.len()),
+                DocumentationTarget::Field { record, field: id } => {
+                    field(unit, record, id);
+                }
+                _ => panic!("new documentation origin needs invariant coverage"),
+            }
+        }
+    }
     if let Some(origins) = analysis.declaration_origins() {
         use toucan::semantic::DeclarationTarget;
         let mut previous = 0;
@@ -1138,6 +1176,11 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             _ => {}
         }
     }
+}
+
+fn source_point(source: &str, offset: usize) {
+    assert!(offset < source.len());
+    assert!(source.is_char_boundary(offset));
 }
 
 fn source_span(source: &str, span: &SourceSpan) {
