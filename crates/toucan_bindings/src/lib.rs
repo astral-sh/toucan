@@ -18,6 +18,8 @@ mod objects;
 mod renaming;
 mod selection;
 mod tag_discovery;
+mod type_dependencies;
+pub use type_dependencies::TypeDependencies;
 
 pub use selection::BindingSelection;
 
@@ -37,6 +39,8 @@ use toucan_semantic::{
 pub struct Options {
     /// Optional item documentation keyed by C identity, independent of selection.
     pub documentation: Option<Box<Documentation>>,
+    /// Optional source dependencies of reachable callback records and typedefs.
+    pub type_dependencies: Option<Box<TypeDependencies>>,
     /// Exact names or prefixes ending in `*`. Empty selects all unless explicit roots are supplied.
     pub allowlist: Vec<String>,
     /// Owner-local roots selected independently of C identifier spelling.
@@ -369,6 +373,9 @@ pub fn generate_with_macros(
 ) -> Result<Bindings, Error> {
     unit.validate_function_options()?;
     unit.validate_parameter_contracts()?;
+    if let Some(dependencies) = &options.type_dependencies {
+        dependencies.validate(unit)?;
+    }
     options.validate_dll_import_libraries()?;
     options.validate_generated_names(unit)?;
     options.validate_object_bindings(unit)?;
@@ -1243,12 +1250,38 @@ impl Emitter<'_> {
                         // dependencies must not leak into separately generated modules.
                         self.size_t_type(ty)?;
                     } else {
+                        if let Some(dependencies) = self
+                            .options
+                            .type_dependencies
+                            .as_ref()
+                            .and_then(|deps| deps.typedefs.get(name))
+                        {
+                            for alias in dependencies {
+                                self.collect_at(
+                                    &Type::new(TypeKind::Typedef(alias.clone())),
+                                    depth + 1,
+                                )?;
+                            }
+                        }
                         self.collect_use_at(ty, depth + 1, layout_required)?;
                     }
                 }
             }
             TypeKind::Record(id) => {
                 if self.records.insert(*id) {
+                    if let Some(dependencies) = self
+                        .options
+                        .type_dependencies
+                        .as_ref()
+                        .and_then(|deps| deps.records.get(id))
+                    {
+                        for alias in dependencies {
+                            self.collect_at(
+                                &Type::new(TypeKind::Typedef(alias.clone())),
+                                depth + 1,
+                            )?;
+                        }
+                    }
                     let record = self
                         .unit
                         .records

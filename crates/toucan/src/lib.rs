@@ -13,6 +13,7 @@ use std::time::{Duration, Instant};
 pub use toucan_bindings::{
     BindingSelection, Bindings, DeriveOptions, Documentation as BindingDocumentation,
     EnumConstantStyle, MacroType, MacroValue, Options as BindingOptions, RustTarget,
+    TypeDependencies,
 };
 pub use toucan_preprocessor::{
     CommandLineMacroNormalizer, FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude,
@@ -351,6 +352,10 @@ impl Compilation {
     /// The facade skips this catalog when preprocessing retained no comments.
     pub fn documentation_origins(&self) -> Option<&semantic::DocumentationDeclarations> {
         self.analysis.documentation_origins()
+    }
+    /// Returns optional source dependencies erased by C parameter adjustment.
+    pub fn parameter_type_dependencies(&self) -> Option<&semantic::ParameterTypeDependencies> {
+        self.analysis.parameter_type_dependencies()
     }
     /// Resolves the token origins intersecting a retained source span.
     ///

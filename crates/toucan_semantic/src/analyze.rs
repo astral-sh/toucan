@@ -44,23 +44,31 @@ pub fn analyze_with_profile(
     profile: CompilerProfile,
     options: &crate::AnalysisOptions,
 ) -> Result<crate::Analysis, Error> {
-    let (unit, checked, declaration_origins, object_values, documentation_origins) =
-        crate::with_parser_stack(|| {
-            analyze_on_parser_stack(
-                source,
-                profile,
-                options.retain_code.then_some(options.limits),
-                options.retain_declaration_origins,
-                options.retain_object_values,
-                options.retain_documentation_origins,
-            )
-        })??;
+    let (
+        unit,
+        checked,
+        declaration_origins,
+        object_values,
+        documentation_origins,
+        parameter_type_dependencies,
+    ) = crate::with_parser_stack(|| {
+        analyze_on_parser_stack(
+            source,
+            profile,
+            options.retain_code.then_some(options.limits),
+            options.retain_declaration_origins,
+            options.retain_object_values,
+            options.retain_documentation_origins,
+            options.retain_parameter_type_dependencies,
+        )
+    })??;
     Ok(crate::Analysis {
         unit,
         checked,
         declaration_origins,
         object_values,
         documentation_origins,
+        parameter_type_dependencies,
     })
 }
 
@@ -77,8 +85,9 @@ pub(crate) fn analyze_inner(
             false,
             false,
             false,
+            false,
         )
-        .map(|(unit, checked, _, _, _)| (unit, checked))
+        .map(|(unit, checked, _, _, _, _)| (unit, checked))
     })?
 }
 
@@ -88,6 +97,7 @@ type AnalysisParts = (
     Option<Box<crate::DeclarationOrigins>>,
     Option<Box<crate::ObjectValues>>,
     Option<Box<crate::DocumentationDeclarations>>,
+    Option<Box<crate::ParameterTypeDependencies>>,
 );
 
 fn analyze_on_parser_stack(
@@ -97,6 +107,7 @@ fn analyze_on_parser_stack(
     retain_declaration_origins: bool,
     retain_object_values: bool,
     retain_documentation_origins: bool,
+    retain_parameter_type_dependencies: bool,
 ) -> Result<AnalysisParts, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
@@ -120,6 +131,8 @@ fn analyze_on_parser_stack(
         retain_object_values.then(|| Box::new(crate::object_values::Builder::new()));
     analyzer.documentation_origins = retain_documentation_origins
         .then(|| Box::new(crate::documentation_origins::Builder::new()));
+    analyzer.parameter_type_dependencies = retain_parameter_type_dependencies
+        .then(|| Box::new(crate::parameter_dependencies::Builder::new()));
     analyzer.prepare_dll_storage(&source);
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
@@ -193,12 +206,18 @@ fn analyze_on_parser_stack(
             .take()
             .map(|builder| builder.finish(&parsed.offsets, source.len()).map(Box::new))
             .transpose()?;
+        let parameter_type_dependencies = analyzer
+            .parameter_type_dependencies
+            .take()
+            .map(|builder| builder.finish(&parsed.offsets).map(Box::new))
+            .transpose()?;
         Ok((
             analyzer.unit,
             checked,
             declaration_origins,
             object_values,
             documentation_origins,
+            parameter_type_dependencies,
         ))
     })();
     result.map_err(|mut error: Error| {
@@ -1040,6 +1059,7 @@ pub(crate) struct Analyzer {
     pub(crate) diagnostic_kinds: HashMap<String, u8>,
     pub(crate) checked: Option<Box<CodeBuilder>>,
     declaration_origins: Option<Box<crate::declaration_origins::Builder>>,
+    pub(crate) parameter_type_dependencies: Option<Box<crate::parameter_dependencies::Builder>>,
     documentation_origins: Option<Box<crate::documentation_origins::Builder>>,
     pub(crate) unit: TranslationUnit,
     pub(crate) tags: HashMap<String, TagBinding>,
@@ -1074,12 +1094,18 @@ impl Analyzer {
         if self.nesting >= 128 {
             return Err(Error::new(offset, "expression nesting limit exceeded"));
         }
+        if let Some(dependencies) = &mut self.parameter_type_dependencies {
+            dependencies.enter_expression(self.nesting);
+        }
         self.nesting += 1;
         Ok(())
     }
 
     pub(crate) fn leave_expression(&mut self) {
         self.nesting -= 1;
+        if let Some(dependencies) = &mut self.parameter_type_dependencies {
+            dependencies.leave_expression(self.nesting);
+        }
     }
 
     fn new(profile: CompilerProfile, packs: PackEvents) -> Self {
@@ -1144,6 +1170,7 @@ impl Analyzer {
             diagnostic_kinds: HashMap::new(),
             checked: None,
             declaration_origins: None,
+            parameter_type_dependencies: None,
             documentation_origins: None,
             unit,
             tags,
@@ -1370,6 +1397,9 @@ impl Analyzer {
                 "auto and register are not permitted at file scope",
             ));
         }
+        if let Some(deps) = &mut self.parameter_type_dependencies {
+            deps.begin(declaration.span, false)?;
+        }
         let is_typedef = storage.class == Some(ast::StorageClassSpecifier::Typedef);
         let mut auto = self.auto_declaration(declaration)?;
         let explicit = if auto.is_none() {
@@ -1385,6 +1415,12 @@ impl Analyzer {
             attributes.require_no_transparent_union()?;
         }
         for item in &declaration.node.declarators {
+            if let Some(deps) = &mut self.parameter_type_dependencies {
+                deps.begin(
+                    declarator_name_span(&item.node.declarator).unwrap_or(item.span),
+                    true,
+                )?;
+            }
             let inferred = auto
                 .as_mut()
                 .map(|group| self.auto_item(declaration, item, group))
@@ -1702,6 +1738,17 @@ impl Analyzer {
                     item.span.start,
                 )?;
             }
+            let (dependency_prototype, dependency_previous_prototype) = if self
+                .parameter_type_dependencies
+                .is_some()
+            {
+                (
+                    matches!(&self.unit.resolve(&ty)?.kind, TypeKind::Function(function) if function.prototype),
+                    previous_index.is_some_and(|index| self.unit.resolve(&self.unit.declarations[index].ty).is_ok_and(|ty| matches!(&ty.kind, TypeKind::Function(function) if function.prototype))),
+                )
+            } else {
+                (false, false)
+            };
             let declaration_index = if let Some(previous_index) = previous_index {
                 let previous = &self.unit.declarations[previous_index];
                 alignment = alignment.combined(self.merge_declaration_alignment(
@@ -1864,6 +1911,16 @@ impl Analyzer {
                 });
                 index
             };
+            if let Some(deps) = &mut self.parameter_type_dependencies {
+                deps.declaration(
+                    declaration_index,
+                    &self.unit.declarations[declaration_index].name,
+                    kind,
+                    dependency_prototype,
+                    previous_index.is_some(),
+                    dependency_previous_prototype,
+                )?;
+            }
             if kind == DeclarationKind::Typedef {
                 self.note_typedef_lexical_tag(declaration_index, &declaration.node.specifiers)?;
             }
@@ -1997,6 +2054,9 @@ impl Analyzer {
                     checked.attach_initializer(site, initializer)?;
                 }
             }
+        }
+        if let Some(deps) = &mut self.parameter_type_dependencies {
+            deps.discard();
         }
         Ok(())
     }
@@ -2821,6 +2881,9 @@ impl Analyzer {
                                 return Ok(ty);
                             }
                             ast::TypeOf::Expression(expression) => {
+                                let dependency_expression = self.parameter_type_dependencies.as_mut().map(|dependencies| {
+                                    dependencies.begin_type_expression(crate::parameter_dependencies::type_expression_identifier(expression))
+                                });
                                 let checkpoint = self.sve_feature_checkpoint();
                                 let allocation_context = self.allocation_context(false);
                                 let ty = self.expression_type(expression);
@@ -2831,6 +2894,17 @@ impl Analyzer {
                                 )?;
                                 if !self.unit.is_variably_modified(&ty)? {
                                     self.discard_sve_feature_uses(checkpoint);
+                                }
+                                if let (Some(dependencies), Some(previous)) =
+                                    (&mut self.parameter_type_dependencies, dependency_expression)
+                                {
+                                    dependencies.finish_type_expression(
+                                        previous,
+                                        matches!(
+                                            self.unit.resolve(&ty)?.kind,
+                                            TypeKind::Function(_)
+                                        ),
+                                    )?;
                                 }
                                 self.retain_typeof_alignment(&mut ty, true, value.span.start)?;
                                 return Ok(ty);
@@ -3196,48 +3270,58 @@ impl Analyzer {
             attributes.alias_base && !parameter.declarator().is_some_and(has_function_derivation);
         let mut array_qualifiers = Qualifiers::default();
         let mut array_atomic = false;
-        let (name, mut parameter_type, mut declared_type_use) =
-            if let Some(declarator) = parameter.declarator() {
-                let array = outermost_derived(declarator).and_then(|derived| {
-                    if let ast::DerivedDeclarator::Array(array) = &derived.node {
-                        Some((derived.span.start, array))
-                    } else {
-                        None
-                    }
-                });
-                if let Some((_, array)) = array {
-                    for qualifier in &array.node.qualifiers {
-                        add_qualifier(&mut array_qualifiers, &mut array_atomic, qualifier)?;
-                    }
+        let (name, mut parameter_type, mut declared_type_use) = if let Some(declarator) =
+            parameter.declarator()
+        {
+            let array = outermost_derived(declarator).and_then(|derived| {
+                if let ast::DerivedDeclarator::Array(array) = &derived.node {
+                    Some((derived.span.start, array))
+                } else {
+                    None
                 }
-                let (name, ty, extra) = self.declarator_at(
-                    base,
-                    declarator,
-                    DeclaratorContext {
-                        parameter_array: array.map(|(offset, _)| offset),
-                        alias_base: attributes.alias_base,
-                        base_use: attributes.type_use,
-                        type_name: attributes.type_name_use,
-                        definition: None,
-                    },
-                )?;
-                self.check_nodebug_function_like(&ty, &extra)?;
-                extra.require_function_attributes(false)?;
-                extra.require_no_weak()?;
-                extra.require_no_transparent_union()?;
-                attributes.alignment = attributes.alignment.max(extra.alignment);
-                attributes.msvc_alignment = attributes.msvc_alignment.max(extra.msvc_alignment);
-                attributes.noescape.extend(extra.noescape);
-                (name, ty, extra.type_use)
-            } else {
-                (
-                    parameter
-                        .implicit_identifier()
-                        .map(|identifier| identifier.node.name.clone()),
-                    base,
-                    attributes.type_use,
-                )
-            };
+            });
+            if let Some((_, array)) = array {
+                for qualifier in &array.node.qualifiers {
+                    add_qualifier(&mut array_qualifiers, &mut array_atomic, qualifier)?;
+                }
+            }
+            let dependency_cursor = self.parameter_type_dependencies.as_mut().map(|deps| {
+                deps.parameter_cursor(declarator_name_span(declarator).unwrap_or(parameter.span()))
+            });
+            let result = self.declarator_at(
+                base,
+                declarator,
+                DeclaratorContext {
+                    parameter_array: array.map(|(offset, _)| offset),
+                    alias_base: attributes.alias_base,
+                    base_use: attributes.type_use,
+                    type_name: attributes.type_name_use,
+                    definition: None,
+                },
+            );
+            if let (Some(deps), Some(previous)) =
+                (&mut self.parameter_type_dependencies, dependency_cursor)
+            {
+                deps.restore_cursor(previous);
+            }
+            let (name, ty, extra) = result?;
+            self.check_nodebug_function_like(&ty, &extra)?;
+            extra.require_function_attributes(false)?;
+            extra.require_no_weak()?;
+            extra.require_no_transparent_union()?;
+            attributes.alignment = attributes.alignment.max(extra.alignment);
+            attributes.msvc_alignment = attributes.msvc_alignment.max(extra.msvc_alignment);
+            attributes.noescape.extend(extra.noescape);
+            (name, ty, extra.type_use)
+        } else {
+            (
+                parameter
+                    .implicit_identifier()
+                    .map(|identifier| identifier.node.name.clone()),
+                base,
+                attributes.type_use,
+            )
+        };
         if let Some(mode) = &attributes.mode {
             self.floating_machine_mode(&parameter_type, mode, parameter.span().start)?;
         }
@@ -3287,6 +3371,15 @@ impl Analyzer {
                 id,
                 &self.unit.resolve(&parameter_type)?.kind,
             )?;
+        }
+        if let Some(deps) = &mut self.parameter_type_dependencies
+            && let TypeKind::Typedef(name) = &parameter_type.kind
+            && matches!(
+                self.unit.resolve(&parameter_type)?.kind,
+                TypeKind::Array { .. } | TypeKind::VariableArray { .. }
+            )
+        {
+            deps.alias(name)?;
         }
         parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
             TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
@@ -4174,6 +4267,16 @@ impl Analyzer {
             match &declaration.node {
                 ast::StructDeclaration::StaticAssert(assertion) => self.static_assert(assertion)?,
                 ast::StructDeclaration::Field(field) => {
+                    let dependency_field = !field.node.declarators.is_empty()
+                        && self
+                            .parameter_type_dependencies
+                            .as_ref()
+                            .is_some_and(|deps| {
+                                self.unit.records[id].scope == Scope::File || deps.active()
+                            });
+                    if dependency_field && let Some(deps) = &mut self.parameter_type_dependencies {
+                        deps.begin(field.span, false)?;
+                    }
                     let (mut base, mut attributes) =
                         self.specifier_qualifiers(&field.node.specifiers, false)?;
                     attributes.require_function_attributes(false)?;
@@ -4277,6 +4380,15 @@ impl Analyzer {
                         fields.push(member);
                     } else {
                         for declarator in &field.node.declarators {
+                            if dependency_field
+                                && let Some(deps) = &mut self.parameter_type_dependencies
+                            {
+                                deps.begin(
+                                    crate::checked::references::member_name_span(declarator)
+                                        .unwrap_or(declarator.span),
+                                    true,
+                                )?;
+                            }
                             let (name, ty, extra) =
                                 if let Some(declarator) = &declarator.node.declarator {
                                     self.declarator(base.clone(), declarator, &attributes)?
@@ -4373,8 +4485,16 @@ impl Analyzer {
                                     )?;
                                 }
                             }
+                            if dependency_field
+                                && let Some(deps) = &mut self.parameter_type_dependencies
+                            {
+                                deps.record_field(id)?;
+                            }
                             fields.push(member);
                         }
+                    }
+                    if dependency_field && let Some(deps) = &mut self.parameter_type_dependencies {
+                        deps.discard();
                     }
                 }
             }

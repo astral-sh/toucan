@@ -169,12 +169,16 @@ impl Analyzer {
                     info.register = self.is_register_object(name);
                     info.alignment_origin = self.identifier_alignment_origin(name, offset)?;
                     return Ok(info);
-                } else if let Some(declaration) = self
+                } else if let Some((declaration_index, declaration)) = self
                     .unit
                     .declarations
                     .iter()
-                    .find(|decl| decl.name == *name)
+                    .enumerate()
+                    .find(|(_, decl)| decl.name == *name)
                 {
+                    if let Some(dependencies) = &mut self.parameter_type_dependencies {
+                        dependencies.resolved_expression(offset, declaration_index);
+                    }
                     match declaration.kind {
                         DeclarationKind::Variable => {
                             let mut info = ExpressionInfo::object(declaration.ty.clone());

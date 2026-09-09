@@ -14,6 +14,7 @@ mod macro_compat;
 mod macro_projection;
 mod macro_values;
 mod objects;
+mod parameter_dependencies;
 mod selection;
 
 use std::fmt;
@@ -359,6 +360,7 @@ impl Builder {
                     parse_all_comments: comments.parse_all_comments,
                 });
         config.analysis.retain_object_values = true;
+        config.analysis.retain_parameter_type_dependencies = true;
         config.analysis.retain_declaration_origins = files.is_some() || !self.callbacks.is_empty();
         config.preprocessor.record_file_origins = files.is_some();
         config.preprocessor.record_macro_definitions = true;
@@ -385,6 +387,7 @@ impl Builder {
                 &mut self.options,
             )?;
         }
+        parameter_dependencies::apply(&compilation, files.as_ref(), &mut self.options)?;
         objects::select(&compilation, files.as_ref(), &mut self.options)?;
         if self.generate_comments {
             documentation::apply(&compilation, comments, &mut self.options)?;

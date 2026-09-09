@@ -10,6 +10,24 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
         depth: usize,
     ) -> Result<bool, Error> {
+        let previous = self
+            .parameter_type_dependencies
+            .as_mut()
+            .map(|dependencies| dependencies.suspend());
+        let result = self.is_integer_constant_expression_inner(expression, depth);
+        if let (Some(dependencies), Some(previous)) =
+            (&mut self.parameter_type_dependencies, previous)
+        {
+            dependencies.restore_suspension(previous);
+        }
+        result
+    }
+
+    fn is_integer_constant_expression_inner(
+        &mut self,
+        expression: &Node<ast::Expression>,
+        depth: usize,
+    ) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
                 expression.span.start,

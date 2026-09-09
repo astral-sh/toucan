@@ -21,10 +21,12 @@ mod c11_atomic;
 pub mod checked;
 mod declaration_origins;
 mod documentation_origins;
+mod parameter_dependencies;
 pub use declaration_origins::{DeclarationOrigin, DeclarationOrigins, DeclarationTarget};
 pub use documentation_origins::{
     DocumentationDeclaration, DocumentationDeclarations, DocumentationTarget,
 };
+pub use parameter_dependencies::{ParameterTypeDependencies, ParameterTypeOccurrence};
 mod tag_discovery;
 pub use tag_discovery::{TagDiscoveries, TagDiscovery};
 mod lexical_tags;
@@ -139,6 +141,8 @@ pub struct AnalysisOptions {
     pub retain_object_values: bool,
     /// Retain declaration starts, member locations, and containing declaration locations.
     pub retain_documentation_origins: bool,
+    /// Retain source typedef dependencies erased by array-parameter adjustment.
+    pub retain_parameter_type_dependencies: bool,
     /// Resource limits applied only when `retain_code` is enabled.
     pub limits: checked::Limits,
 }
@@ -170,6 +174,8 @@ pub struct Analysis {
     object_values: Option<Box<ObjectValues>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     documentation_origins: Option<Box<DocumentationDeclarations>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    parameter_type_dependencies: Option<Box<ParameterTypeDependencies>>,
 }
 
 impl Analysis {
@@ -193,6 +199,11 @@ impl Analysis {
     pub fn documentation_origins(&self) -> Option<&DocumentationDeclarations> {
         self.documentation_origins.as_deref()
     }
+    /// Returns optional source dependencies without changing adjusted C types.
+    pub fn parameter_type_dependencies(&self) -> Option<&ParameterTypeDependencies> {
+        self.parameter_type_dependencies.as_deref()
+    }
+
     /// Discards optional metadata, returning the owned declaration representation.
     pub fn into_unit(self) -> TranslationUnit {
         self.unit
