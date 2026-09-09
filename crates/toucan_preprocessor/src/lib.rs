@@ -685,7 +685,7 @@ impl Preprocessor {
         }
         Preprocessed {
             source,
-            macros: self.macros.clone(),
+            macros: std::mem::take(&mut self.macros),
             dependencies: self.dependencies.keys().cloned().collect(),
             mappings: std::mem::take(&mut self.mappings),
             file_origins: self.file_origins.take(),
