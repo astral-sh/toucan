@@ -84,7 +84,15 @@ pub(crate) fn literal_kind(
         ast::FloatFormat::TS18661Format(ast::TS18661FloatType {
             format: ast::TS18661FloatFormat::BinaryInterchange,
             width: 16,
-        }) => FloatKind::FLOAT16,
+        }) => {
+            if target == toucan_target::Target::I686UnknownLinuxGnu {
+                return Err(Error::new(
+                    offset,
+                    "the f16 floating literal suffix is unavailable for _Float16 on i686 GNU Linux",
+                ));
+            }
+            FloatKind::FLOAT16
+        }
         _ => {
             return Err(Error::new(
                 offset,

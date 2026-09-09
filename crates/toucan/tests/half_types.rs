@@ -11,7 +11,12 @@ fn narrow_macros_require_an_explicit_supported_rust_type() {
         )
         .unwrap();
         let (bindings, report) = parsed.bindings(&toucan::BindingOptions::default()).unwrap();
-        assert_eq!(report.floating_macros, 2);
+        let i686 = profile.target() == Target::I686UnknownLinuxGnu;
+        assert_eq!(
+            report.floating_macros,
+            if i686 { 0 } else { 2 },
+            "{profile:?}: {report:?}"
+        );
         for (name, ty) in [("HALF", "_Float16"), ("BRAIN", "__bf16")] {
             let skip = report
                 .skipped_macros
@@ -20,8 +25,23 @@ fn narrow_macros_require_an_explicit_supported_rust_type() {
                 .unwrap();
             assert!(skip.reason.contains(ty), "{}", skip.reason);
         }
-        assert!(bindings.contains("pub const HALF_FLOAT: ::core::primitive::f32"));
-        assert!(bindings.contains("0x8000000000000000"));
+        if i686 {
+            for (name, reason) in [
+                ("HALF_FLOAT", "f16 floating literal suffix is unavailable"),
+                ("BRAIN_DOUBLE", "__bf16 is unavailable"),
+            ] {
+                let skipped = report
+                    .skipped_macros
+                    .iter()
+                    .find(|item| item.name == name)
+                    .unwrap_or_else(|| panic!("{profile:?}: {name} was not reported as skipped"));
+                assert!(skipped.reason.contains(reason), "{profile:?}: {skipped:?}");
+                assert!(!bindings.contains(&format!("pub const {name}:")));
+            }
+        } else {
+            assert!(bindings.contains("pub const HALF_FLOAT: ::core::primitive::f32"));
+            assert!(bindings.contains("0x8000000000000000"));
+        }
     }
 }
 

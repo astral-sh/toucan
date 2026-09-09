@@ -239,7 +239,65 @@ fn i686_rejects_narrow_scalar_types_but_accepts_ordinary_floats() {
                 "{profile:?}: {source}"
             );
         }
+        for source in [
+            "float x=1.5f16;",
+            "float narrow(void){return (float)1.5f16;}",
+        ] {
+            let error = check(source, profile).unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("f16 floating literal suffix is unavailable"),
+                "{profile:?}: {source}: {error}"
+            );
+        }
         check("typedef float Single; typedef double Double;", profile).unwrap();
+    }
+}
+
+#[test]
+#[ignore = "requires Clang for i686 and native x86-64 GNU GCC"]
+fn i686_f16_literal_suffix_matches_compiler_acceptance() {
+    let directory = tempfile::tempdir().unwrap();
+    let source = directory.path().join("literal.c");
+    for compiler in [Compiler::Gnu, Compiler::Clang] {
+        if compiler == Compiler::Gnu && !cfg!(all(target_os = "linux", target_arch = "x86_64")) {
+            continue;
+        }
+        let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap();
+        for (input, accepted) in [
+            ("float f(void){return 1.5f;}", true),
+            ("float f(void){return (float)1.5f16;}", false),
+        ] {
+            std::fs::write(&source, input).unwrap();
+            let mut command = if compiler == Compiler::Gnu {
+                let mut command = std::process::Command::new(
+                    std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into()),
+                );
+                command.arg("-m32");
+                command
+            } else {
+                let mut command = std::process::Command::new("clang");
+                command.args(["-target", profile.target().triple()]);
+                command
+            };
+            let output = command
+                .args(["-std=gnu11", "-x", "c", "-fsyntax-only"])
+                .arg(&source)
+                .output()
+                .unwrap();
+            assert_eq!(
+                toucan_test_support::compiler_acceptance(&output),
+                Ok(accepted),
+                "{profile:?}: {input}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            assert_eq!(
+                check(input, profile).is_ok(),
+                accepted,
+                "{profile:?}: {input}"
+            );
+        }
     }
 }
 
