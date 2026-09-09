@@ -2255,7 +2255,6 @@ fn header_name(tokens: &[Token]) -> Result<(String, bool), String> {
     Err("#include requires a quoted or angle-bracket header name".into())
 }
 
-/// Decode the string literal used by `#line`, which follows ordinary C escape rules.
 /// GNU preprocessor output carries source locations as numeric directives.
 /// Its flags describe include transitions, warning policy, and C++ linkage;
 /// they do not affect this C frontend's token stream or constraint checking.
@@ -2312,6 +2311,7 @@ fn line_marker(tokens: &[Token]) -> Result<LineMarker, String> {
     })
 }
 
+/// Decode the string literal used by `#line`, which follows ordinary C escape rules.
 fn line_filename(literal: &str) -> Result<String, String> {
     let mut output = Vec::new();
     let mut chars = literal[1..literal.len() - 1].chars().peekable();
