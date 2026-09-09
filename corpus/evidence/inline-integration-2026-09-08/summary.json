@@ -1,0 +1,21 @@
+{
+  "source_base": "903a6e6a9e743365e1d9830209d6283b25c6cee6",
+  "prefetch_patch_sha256": "6a2de827b44c97e7e609d3f937aad4aad05dba1a041f1876e06eb5e546b4d140",
+  "original_inline_patch_sha256": "c98fe3682e75483d7361e7f23dd9e78c2f92a96d325a2251606e31c796994bf3",
+  "focused_tests": 28,
+  "core_native_observations": 3136,
+  "weak_native_observations": 832,
+  "clippy": "semantic all targets passed",
+  "changes": [
+    "Analyzer registry field and initialization placed alongside existing allocation fields.",
+    "Public ownership reexport preserves builtin and declspec exports.",
+    "Compatibility section appended after current allocation and prefetch sections.",
+    "Size assertion reflects pre-existing Microsoft alignment metadata:Entity88 rather than80; Type40,Declaration136,DeclarationSite256,FunctionBody56 unchanged."
+  ],
+  "notes": [
+    "Initial focused log preserves the stale Entity80 assertion failure; the corrected size test passes separately. All other focused/native checks pass.",
+    "Root pre-inline semantic rlib libtoucan_semantic-bb04adb48cf2070a.rlib confirms Type40,Declaration136,DeclarationSite256,Entity88,FunctionBody56.",
+    "Original source, benchmark, native and fuzz evidence archives remain byte-identical.",
+    "No new performance claim or sanitizer campaign is made by this mechanical integration."
+  ]
+}

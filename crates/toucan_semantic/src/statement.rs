@@ -192,7 +192,7 @@ impl Analyzer {
             if gnu
                 && significant == 1
                 && direct_expression
-                && result.lvalue
+                && result.is_lvalue()
                 && analyzer.unit.qualifiers(&result.ty)? == crate::Qualifiers::default()
                 && !matches!(
                     analyzer.unit.resolve(&result.ty)?.kind,
@@ -545,7 +545,7 @@ impl Analyzer {
         result
     }
 
-    fn bind_local(
+    pub(crate) fn bind_local(
         &mut self,
         name: &str,
         ty: Type,
@@ -664,7 +664,7 @@ impl Analyzer {
         }
         let mut auto = self.auto_declaration(declaration)?;
         let explicit = if auto.is_none() {
-            Some(self.specifiers(&declaration.node.specifiers)?)
+            Some(self.declaration_specifiers(&declaration.node)?)
         } else {
             None
         };
@@ -689,7 +689,7 @@ impl Analyzer {
                 }
             };
             let inference = inferred.as_ref().map(|(_, _, inference)| inference);
-            let (name, mut ty, extra) =
+            let (name, mut ty, mut extra) =
                 self.declarator(base.clone(), &item.node.declarator, attributes)?;
             extra.check_nodebug_subject()?;
             if let Some(inference) = inference {
@@ -712,6 +712,16 @@ impl Analyzer {
             }
             let name =
                 name.ok_or_else(|| Error::new(item.span.start, "local declaration has no name"))?;
+            let is_extern = is_extern
+                || (storage.is_none()
+                    && !is_typedef
+                    && crate::dll_storage::implicit_extern(extra.dll_storage.as_deref()));
+            if for_initializer && is_extern {
+                return Err(Error::new(
+                    item.span.start,
+                    "for declaration cannot declare a linked object",
+                ));
+            }
             let variably_modified = self.unit.is_variably_modified(&ty)?;
             let function = matches!(self.unit.resolve(&ty)?.kind, TypeKind::Function(_));
             if !is_typedef && !function && self.unit.is_sizeless(&ty)? {
@@ -742,6 +752,62 @@ impl Analyzer {
             } else {
                 None
             };
+            if !is_typedef {
+                if function || is_extern {
+                    self.require_linked_float_name(&name, item.span.start)?;
+                }
+                let external = (function || is_extern)
+                    && !is_static
+                    && !previous_file.is_some_and(|index| self.unit.declarations[index].is_static)
+                    && !self
+                        .block_externs
+                        .get(&name)
+                        .is_some_and(|prior| prior.is_static);
+                let builtin = self.builtin_function_declaration(
+                    &name,
+                    &mut ty,
+                    external,
+                    false,
+                    &mut extra.link_name,
+                    item.span.start,
+                )?;
+                if builtin
+                    && self.unit.compiler == toucan_target::Compiler::Gnu
+                    && matches!(
+                        name.as_str(),
+                        "__builtin_malloc" | "__builtin_calloc" | "__builtin_realloc"
+                    )
+                    && extra.c11_noreturn.is_none()
+                {
+                    extra.noreturn = None;
+                }
+            }
+            let dll_storage_class = self.dll_declaration(crate::dll_storage::Declaration {
+                name: &name,
+                kind: if is_typedef {
+                    crate::DeclarationKind::Typedef
+                } else if function {
+                    crate::DeclarationKind::Function
+                } else {
+                    crate::DeclarationKind::Variable
+                },
+                attributes: extra.dll_storage.as_deref(),
+                specifiers: &declaration.node.specifiers,
+                external: (function || is_extern)
+                    && !is_static
+                    && !previous_file.is_some_and(|index| self.unit.declarations[index].is_static)
+                    && !self
+                        .block_externs
+                        .get(&name)
+                        .is_some_and(|prior| prior.is_static),
+                definition: item.node.initializer.is_some(),
+                tentative: false,
+                thread_local,
+                previous_definition: previous_file
+                    .is_some_and(|index| self.unit.declarations[index].is_definition),
+                block: true,
+                offset: item.span.start,
+            })?;
             let noreturn = function
                 && !is_typedef
                 && self.declaration_noreturn(
@@ -798,8 +864,18 @@ impl Analyzer {
                 && !is_static
                 && previous_symbol.is_none_or(|item| !item.is_static);
             let previous_definition = previous_symbol.is_some_and(|item| item.is_definition);
-            let symbol_binding =
-                self.check_symbol_binding(&name, extra.weak, external, previous_definition)?;
+            let symbol_binding = self.check_symbol_binding(
+                &name,
+                self.inline_weak_attribute(
+                    &name,
+                    extra.weak,
+                    function && !is_typedef,
+                    extra.inline_specifier.is_some(),
+                    previous_definition,
+                ),
+                external,
+                previous_definition,
+            )?;
 
             if variably_modified && (is_extern || function) {
                 return Err(Error::new(
@@ -932,6 +1008,26 @@ impl Analyzer {
                     let declaration = &self.unit.declarations[index];
                     declaration.kind != DeclarationKind::Typedef && declaration.is_static
                 });
+            if function && !is_typedef {
+                self.record_inline_declaration(
+                    &name,
+                    crate::inline::DeclarationFacts {
+                        offset: item.span.start,
+                        site: None,
+                        inline_source: extra.inline_specifier.map(|(span, _)| span),
+                        gnu_source: extra.gnu_inline.map(|(span, _)| span),
+                        file_scope: false,
+                        written_inline: extra.inline_specifier.is_some(),
+                        written_extern: is_extern,
+                        written_gnu_inline: extra.inline_specifier.is_some()
+                            && extra.gnu_inline.is_some(),
+                        body: false,
+                        internal: internal_linkage,
+                        inlined: false,
+                        gnu_inline: false,
+                    },
+                )?;
+            }
             if linked {
                 let previous = self.visible_linked_alignment(&name).or_else(|| {
                     self.block_externs
@@ -1060,6 +1156,7 @@ impl Analyzer {
                     if !function {
                         self.object_alignment_sugar(&mut composite, &ty)?;
                     }
+                    let mut inline_site = None;
                     if let Some(checked) = &mut self.checked {
                         let site = checked.local_declaration(
                             item,
@@ -1086,7 +1183,13 @@ impl Analyzer {
                                 allocation: None,
                             },
                         )?;
+                        inline_site = site;
                         if let Some(site) = site {
+                            checked.attach_dll_storage(
+                                site,
+                                dll_storage_class,
+                                extra.dll_storage.as_deref(),
+                            )?;
                             checked.attach_alignment(site, written_alignment, alignment)?;
                             if linked && let Some(index) = previous_file {
                                 checked.attach_entity_alignment(
@@ -1112,6 +1215,9 @@ impl Analyzer {
                             checked.attach_noreturn(site, noreturn, extra.noreturn)?;
                             checked.attach_symbol_binding(site, symbol_binding, extra.weak);
                         }
+                    }
+                    if function {
+                        self.inline_declaration_site(&name, inline_site);
                     }
                     self.retain_local_alignment(&name, alignment);
                     self.lexical_scopes
@@ -1225,6 +1331,9 @@ impl Analyzer {
                     "local object requires a complete type",
                 ));
             }
+            if function && !is_typedef {
+                self.inline_declaration_site(&name, checked_site);
+            }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
                 if let Some(inference) = &inference {
                     checked.retain_type_inference(site, inference)?;
@@ -1233,6 +1342,11 @@ impl Analyzer {
                 if linked && let Some(index) = previous_file {
                     checked.attach_entity_alignment(site, self.unit.declarations[index].alignment);
                 }
+                checked.attach_dll_storage(
+                    site,
+                    dll_storage_class,
+                    extra.dll_storage.as_deref(),
+                )?;
                 checked.attach_diagnostic_attributes(site, &extra.diagnostic_attributes)?;
                 checked.attach_returns_twice(site, returns_twice, extra.returns_twice)?;
                 checked.attach_function_options(
@@ -1308,7 +1422,9 @@ impl Analyzer {
     }
 
     fn scalar_condition(&mut self, expression: &Node<ast::Expression>) -> Result<(), Error> {
-        let ty = self.value_expression_type(expression)?;
+        let info = self.expression_info(expression)?;
+        info.check_prefetch_value_operation(expression.span.start)?;
+        let ty = self.converted_type(&info, expression.span.start)?;
         self.require_scalar(&ty, expression.span.start)
     }
 
@@ -1500,6 +1616,9 @@ impl Analyzer {
                         analyzer.value_expression_type(expression)?;
                     }
                     ast::ForInitializer::Declaration(declaration) => {
+                        if analyzer.unit.language_mode.is_c90() && analyzer.unit.compiler == toucan_target::Compiler::Gnu {
+                            return Err(Error::new(declaration.span.start, "for-loop declarations require C99 or later in the GNU compiler profile"));
+                        }
                         analyzer.block_declaration(declaration, true)?
                     }
                     ast::ForInitializer::StaticAssert(assertion) => {

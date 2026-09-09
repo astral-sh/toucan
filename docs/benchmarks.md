@@ -1,5 +1,36 @@
 # Benchmarks
 
+## Builder API baseline
+
+The [September 9 Builder comparison](../benchmarks/evidence/builder-acfb815/README.md)
+measures the actual Builder APIs on the same public-header roots and output policy,
+including comments and default derives. The frozen `acfb815` source produces these
+results against bindgen 0.72.1 with libclang 18.1.3:
+
+| Project | Toucan Builder | bindgen | Median paired speedup |
+| --- | ---: | ---: | ---: |
+| zlib 1.3.1 | 21.82 ms | 116.11 ms | 5.30× |
+| SQLite 3.45.1 | 25.67 ms | 154.34 ms | 6.27× |
+| zstd 1.5.7 | 9.09 ms | 103.56 ms | 11.53× |
+| libgit2 1.9.1 | 192.71 ms | 261.73 ms | 1.37× |
+
+Times are medians of seven process medians; speedups are medians of seven matched
+pair ratios. Each process discards its first call and measures ten subsequent
+calls, for 560 measured generations on CPU 3 of a shared Linux host. All output
+and input hashes pass. The evidence preserves raw samples, spread, first-call
+costs, exact commands, and toolchain identities.
+
+The [untimed preflight](../benchmarks/evidence/builder-preflight-acfb815/README.md)
+passes the shared signature, constant, layout, and native FFI checks. Exact API
+equality holds for zstd. Missing array-parameter aliases in zlib and SQLite,
+additional libgit2 aliases, and C-validated callback and sentinel differences
+remain recorded. This baseline precedes the alias fix. It measures generation,
+with the shared-host limits described in the capture; it does not measure complete
+application performance. The older core-route results below use a different
+workload and cannot establish a revision speedup for this Builder route.
+
+## Subprocess harness
+
 `scripts/benchmark.py` measures subprocess startup and binding generation against
 a supplied header. It records every sample's iteration, tool order, output hash,
 stderr, size, time, and Linux peak resident memory. The JSON also records tool
@@ -130,6 +161,64 @@ shows the same pattern. Both runs preserve the complete output hashes from the
 existing correctness artifacts; the later implementation added language and
 compiler features without changing these four binding outputs.
 
+### Avoiding declaration copies for literal arithmetic
+
+The next [paired measurement](../benchmarks/evidence/literal-evaluation-2026-09-08/summary.json)
+compares the frozen library baseline with literal-only constant evaluation using
+a fresh, small environment. Queries involving identifiers, types, calls, or
+compound literals keep the existing full environment. Both paths retain public
+unit validation and target-specific arithmetic. A bounded AST traversal decides
+which environment to use; it does not introduce a second expression evaluator.
+
+| Project | Before | After | bindgen 0.72.1 | Before / after |
+| --- | ---: | ---: | ---: | ---: |
+| zlib | 38.94 ms | 31.12 ms | 132.46 ms | 1.25× |
+| SQLite | 199.98 ms | 67.25 ms | 199.44 ms | 2.97× |
+| zstd | 9.32 ms | 8.62 ms | 123.21 ms | 1.08× |
+| libgit2 | 402.97 ms | 285.32 ms | 286.11 ms | 1.41× |
+
+SQLite is about three times faster than bindgen in this run; libgit2 is roughly
+equal. Each result again contains 15 measured calls after warmup, now with the
+before, after, and bindgen process order randomized within each pair. CPU 3 ran
+the benchmark; independent verification used other CPUs on the shared host.
+
+Binding-generation allocations fall from 1,804,101 to 70,280 for SQLite and from
+2,078,204 to 894,534 for libgit2. Configuration and parse allocations are unchanged.
+All four complete outputs and report fields match except elapsed timings.
+Another 341 macro expressions match across 22 compiler/target/language settings,
+including their skipped-macro diagnostics. The recorded checks include native
+constant probes, public-environment validation, query-local enum isolation, and
+[34,955 address-sanitized binding executions](../fuzz/evidence/literal-evaluation-2026-09-08/README.md).
+These measurements retain the same shared-host limitations as the baseline.
+
+### Avoiding declaration copies for enumerator expressions
+
+The [enumerator query capture](../benchmarks/evidence/constant-query-2026-09-08/README.md)
+extends the bounded proof to expressions using known integer constants. Each
+query copies only the values it references into a fresh analyzer. Type-dependent
+and unknown expressions retain the complete environment and existing validation.
+
+| Project | Before | After | bindgen 0.72.1 |
+| --- | ---: | ---: | ---: |
+| zlib | 33.210 ms | 33.507 ms | 118.930 ms |
+| SQLite | 51.625 ms | 52.034 ms | 154.641 ms |
+| zstd | 8.838 ms | 8.886 ms | 100.890 ms |
+| libgit2 | 285.329 ms | 218.466 ms | 259.455 ms |
+
+Libgit2 generation is 23.4% faster than the `a215c7e` baseline in this capture.
+Its binding phase makes 75.8% fewer allocation requests and requests 70.7% fewer
+bytes. All four outputs and binding reports match before and after, apart from
+elapsed times. Another 164,400 query results match across all 88 supported
+compiler, target, and language settings, including types, diagnostics, and offsets.
+
+Seven randomized rounds contain 420 timed library calls on CPU 30, using the
+system allocator and separately built source trees. Allocation counters and
+Callgrind profiles were captured separately. These are warm library calls on a
+shared host; process startup and first libclang initialization are excluded.
+The other projects' medians are 0.5–0.9% higher, so this capture does not establish
+unchanged latency for those routes. The artifact preserves raw samples, complete
+outputs, all 149 actual header hashes, source, and reproduction drivers.
+
 ## Allocator comparison
 
 A paired run at commit `f78baa8` compared the system allocator with the CLI's
@@ -156,3 +245,24 @@ small increase in memory. The default remains the system allocator; library user
 choose their process allocator. This was a shared host with concurrent verification
 work, warm caches, and uncontrolled CPU frequency. These measurements predate the
 later atomic/MMX and parser changes and do not measure macOS or Windows allocators.
+
+## Compiler query integration
+
+The [combined query revision](../benchmarks/evidence/compiler-queries-2026-09-08/evidence.json)
+compares the integrated C90, Microsoft declaration, allocation, and query layers
+with the optimized literal-evaluation revision `daa1c0f`. Three randomized process
+triples each measure five library calls after a discarded warmup. All complete
+outputs and pinned header dependencies match their references. The system
+allocator is used; other processes and CPU frequency on this shared host are
+uncontrolled. These measurements are not isolated attribution to query handling.
+
+| Header | Previous Toucan | Combined Toucan | bindgen 0.72.1 |
+| --- | ---: | ---: | ---: |
+| zlib | 31.40 ms | 33.90 ms | 130.38 ms |
+| SQLite | 50.84 ms | 51.86 ms | 165.50 ms |
+| zstd | 8.50 ms | 8.95 ms | 116.69 ms |
+| libgit2 | 278.83 ms | 295.25 ms | 280.41 ms |
+
+The combined revision is 2–8% slower than the earlier Toucan revision in this
+run. Libgit2 is about 5% slower than bindgen; the other three headers remain
+faster. Raw samples and the capture script are archived alongside the summary.

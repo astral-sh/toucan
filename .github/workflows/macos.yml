@@ -1,0 +1,51 @@
+name: macOS validation
+
+on:
+  pull_request:
+    types: [labeled]
+  push:
+    branches: [main]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "corpus/manifest.json"
+      - "corpus/probes.json"
+      - "corpus/translation-units.json"
+      - "corpus/ffi/**"
+      - "corpus/oracles/**"
+      - "scripts/**"
+      - "tools/**"
+      - ".github/workflows/ci.yml"
+      - ".github/workflows/corpus.yml"
+      - ".github/workflows/macos.yml"
+  workflow_dispatch:
+    inputs:
+      intel:
+        description: Also validate Intel Mac compatibility
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+# Explicit requests share one group across PRs. Unrelated labels cannot cancel it.
+concurrency:
+  group: macos-validation-${{ (github.event_name != 'pull_request' || github.event.label.name == 'run-macos' || github.event.label.name == 'run-macos-intel') && 'requested' || github.run_id }}
+  cancel-in-progress: true
+
+jobs:
+  tests:
+    if: github.event_name != 'pull_request' || github.event.label.name == 'run-macos' || github.event.label.name == 'run-macos-intel'
+    uses: ./.github/workflows/ci.yml
+    with:
+      macos: true
+      intel: ${{ inputs.intel || github.event.label.name == 'run-macos-intel' }}
+
+  # Run the corpus after tests so an Intel request occupies at most one Intel runner.
+  corpus:
+    needs: tests
+    uses: ./.github/workflows/corpus.yml
+    with:
+      macos: true
+      intel: ${{ inputs.intel || github.event.label.name == 'run-macos-intel' }}

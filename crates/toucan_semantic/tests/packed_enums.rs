@@ -183,11 +183,9 @@ fn tag_attribute_placement_does_not_repack_unrelated_objects() {
                 expected_size
             );
         }
-        assert!(
-            parity("enum __attribute__((aligned(16))) E{A=0};", profile)
-                .unwrap_err()
-                .message
-                .contains("alignment attributes on enum")
+        assert_eq!(
+            parity("enum __attribute__((aligned(16))) E{A=0};", profile).is_ok(),
+            profile.compiler() == Compiler::Gnu,
         );
         assert!(
             parity("enum __attribute__((packed)) E;", profile)
@@ -198,6 +196,96 @@ fn tag_attribute_placement_does_not_repack_unrelated_objects() {
                 .message
                 .contains("incomplete enum")
         );
+    }
+}
+
+#[test]
+fn tag_alignment_is_admitted_only_when_storage_rules_are_unchanged() {
+    for profile in CompilerProfile::ALL {
+        for (attributes, bytes) in [
+            ("aligned(4)", 4),
+            ("aligned(1),aligned(4)", 4),
+            ("aligned(4),aligned(1)", 4),
+            ("packed,aligned(1)", 1),
+        ] {
+            let source = format!(
+                "enum __attribute__(({attributes})) E{{A=1,B=2}}; struct __attribute__((packed)) Packed{{char head;enum E field;char tail;}};\n#pragma pack(push,1)\nstruct Pragma{{char head;enum E field;char tail;}};\n#pragma pack(pop)\n_Static_assert(sizeof(enum E)=={bytes} && _Alignof(enum E)=={bytes},\"enum\");\n_Static_assert(sizeof(struct Packed)=={bytes}+2 && _Alignof(struct Packed)==1 && __builtin_offsetof(struct Packed,field)==1,\"packed\");\n_Static_assert(sizeof(struct Pragma)=={bytes}+2 && _Alignof(struct Pragma)==1 && __builtin_offsetof(struct Pragma,field)==1,\"pragma\"); enum E array[2]; int use(enum E *p){{return *p;}}"
+            );
+            let result = parity(&source, profile);
+            if profile.target() == Target::X86_64PcWindowsMsvc {
+                assert!(result.unwrap_err().message.contains("Microsoft enum"));
+            } else {
+                result.unwrap_or_else(|error| panic!("{profile:?}: {source}: {error}"));
+            }
+        }
+        for source in [
+            "enum __attribute__((aligned(1))) E{A=1};",
+            "enum __attribute__((aligned(16))) E{A=1};",
+            "enum __attribute__((packed,aligned(4))) E{A=1};",
+            "enum __attribute__((aligned)) E{A=1};",
+        ] {
+            let result = parity(source, profile);
+            assert_eq!(
+                result.is_ok(),
+                profile.compiler() == Compiler::Gnu,
+                "{profile:?}: {source}"
+            );
+            if let Err(error) = result {
+                assert!(error.offset < source.find(" E").unwrap());
+                assert!(error.message.contains("unsupported"));
+            }
+        }
+        for source in [
+            "enum __attribute__((aligned(3))) E{A=1};",
+            "enum __attribute__((aligned(-1))) E{A=1};",
+            "int value; enum __attribute__((aligned(value))) E{A=1};",
+            "enum __attribute__((aligned(1,2))) E{A=1};",
+        ] {
+            assert!(parity(source, profile).is_err(), "{profile:?}: {source}");
+        }
+        for source in [
+            "enum __attribute__((aligned(0))) E{A=1};",
+            "int object __attribute__((aligned(0)));",
+            "typedef int Alias __attribute__((aligned(0))); ",
+        ] {
+            assert_eq!(
+                parity(source, profile).is_ok(),
+                profile.compiler() == Compiler::Gnu
+            );
+        }
+        parity("_Alignas(0) int object;", profile).unwrap();
+    }
+}
+
+#[test]
+fn alignment_forwards_and_late_declarations_keep_their_distinct_constraints() {
+    for profile in CompilerProfile::ALL {
+        for source in [
+            "int before; enum __attribute__((aligned(4))) E; enum E{A=1};",
+            "int before; enum __attribute__((aligned(4))) E; enum __attribute__((packed)) E{A=1};",
+        ] {
+            let result = parity(source, profile);
+            if profile.compiler() == Compiler::Gnu {
+                result.unwrap();
+            } else {
+                let error = result.unwrap_err();
+                assert!(
+                    (source.find("enum").unwrap()..source.find(" E").unwrap())
+                        .contains(&error.offset)
+                );
+                assert!(error.message.contains(
+                    if profile.target() == Target::X86_64PcWindowsMsvc {
+                        "Microsoft enum"
+                    } else {
+                        "incomplete enum"
+                    }
+                ));
+            }
+        }
+        parity("enum E{A=1};enum __attribute__((aligned(16))) E;_Static_assert(_Alignof(enum E)==4,\"late ignored\");",profile).unwrap();
+        if profile.target() != Target::X86_64PcWindowsMsvc {
+            parity("enum E{A=0x100000000ULL} __attribute__((aligned(8)));_Static_assert(sizeof(enum E)==8 && _Alignof(enum E)==8,\"wide\");",profile).unwrap();
+        }
     }
 }
 

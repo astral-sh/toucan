@@ -29,6 +29,12 @@ pub struct TranslationUnit {
     /// Field declaration identities belong to the source record.
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub record_origins: BTreeMap<usize, usize>,
+    /// Lexical record containment and source ordering, independent of C scope.
+    #[serde(skip_serializing_if = "crate::TagLexicalOrigins::is_empty")]
+    pub lexical_tags: crate::TagLexicalOrigins,
+    /// Sparse header-cursor discovery facts for enum-expression descendants.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tag_discovery: Option<Box<crate::TagDiscoveries>>,
     pub enums: Vec<Enum>,
     pub typedefs: BTreeMap<String, Type>,
     pub constants: BTreeMap<String, IntegerValue>,
@@ -407,6 +413,18 @@ impl SymbolBinding {
 
 #[derive(Clone, Debug, Serialize)]
 pub struct Declaration {
+    /// Summary of file-scope inline occurrences, separate from final body ownership.
+    /// `None` means no recorded inline history applies to this declaration.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub inline_facts: Option<crate::FunctionInlineFacts>,
+    /// Ownership of a function body, independently of `is_definition`, which
+    /// continues to indicate a checked body or an initialized object.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub function_definition_kind: Option<crate::FunctionDefinitionKind>,
+    /// DLL storage visible at the final file declaration. This does not identify
+    /// a library, change the C type, or describe earlier emitted references.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub dll_storage_class: Option<crate::DllStorageClass>,
     /// Explicit object/function alignment, independent of the declared C type.
     #[serde(skip_serializing_if = "crate::DeclarationAlignment::is_empty")]
     pub alignment: crate::DeclarationAlignment,
@@ -534,6 +552,7 @@ impl TranslationUnit {
     /// Validates compiler identity when callers construct or modify public IR.
     pub fn profile(&self) -> Result<target::CompilerProfile, Error> {
         target::CompilerProfile::new(self.target, self.compiler)
+            .map(|profile| profile.with_language_mode(self.language_mode))
             .map_err(|e| Error::new(0, e.to_string()))
     }
 
@@ -595,7 +614,7 @@ impl TranslationUnit {
         ))
     }
 
-    /// Returns the outermost GNU typedef alignment override, without applying
+    /// Returns the outermost vendor typedef alignment override, without applying
     /// it to the pointee or mutating a referenced record.
     pub fn typedef_alignment(&self, ty: &Type) -> Result<Option<NonZeroU32>, Error> {
         Ok(self.typedef_alignment_metadata(ty)?.bytes())
@@ -913,10 +932,21 @@ impl TranslationUnit {
                 IntegerKind::Int128 => target::BuiltinType::Int128,
                 IntegerKind::UnsignedInt128 => target::BuiltinType::UnsignedInt128,
             }),
-            TypeKind::Float(kind) => Some(match kind {
-                FloatKind::Float => target::BuiltinType::Float,
-                FloatKind::Double => target::BuiltinType::Double,
+            TypeKind::Float(kind) => Some(match *kind {
+                FloatKind::Float | FloatKind::FLOAT32 => target::BuiltinType::Float,
+                FloatKind::Double | FloatKind::FLOAT64 | FloatKind::FLOAT32X => {
+                    target::BuiltinType::Double
+                }
                 FloatKind::LongDouble => target::BuiltinType::LongDouble,
+                FloatKind::FLOAT64X if self.compiler == toucan_target::Compiler::Gnu => {
+                    target::BuiltinType::LongDouble
+                }
+                FloatKind::FLOAT64X => {
+                    return Err(Error::new(
+                        0,
+                        "_Float64x layout is only defined in the supported GNU profiles",
+                    ));
+                }
                 FloatKind::BFloat16 | FloatKind::Extended { .. } => {
                     return Err(Error::new(
                         0,
@@ -1001,6 +1031,10 @@ impl TranslationUnit {
                         | FloatKind::Double
                         | FloatKind::LongDouble
                         | FloatKind::FLOAT128
+                        | FloatKind::FLOAT32
+                        | FloatKind::FLOAT64
+                        | FloatKind::FLOAT32X
+                        | FloatKind::FLOAT64X
                 ) {
                     return Err(Error::new(0, "extended complex types are unsupported"));
                 }

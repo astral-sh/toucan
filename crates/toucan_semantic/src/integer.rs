@@ -10,6 +10,24 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
         depth: usize,
     ) -> Result<bool, Error> {
+        let previous = self
+            .parameter_type_dependencies
+            .as_mut()
+            .map(|dependencies| dependencies.suspend());
+        let result = self.is_integer_constant_expression_inner(expression, depth);
+        if let (Some(dependencies), Some(previous)) =
+            (&mut self.parameter_type_dependencies, previous)
+        {
+            dependencies.restore_suspension(previous);
+        }
+        result
+    }
+
+    fn is_integer_constant_expression_inner(
+        &mut self,
+        expression: &Node<ast::Expression>,
+        depth: usize,
+    ) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
                 expression.span.start,
@@ -69,10 +87,10 @@ impl Analyzer {
             }
             ast::Expression::Conditional(conditional) => {
                 self.is_integer_constant_expression(&conditional.node.condition, depth + 1)?
-                    && self.is_integer_constant_expression(
-                        &conditional.node.then_expression,
-                        depth + 1,
-                    )?
+                    && match &conditional.node.then_expression {
+                        Some(value) => self.is_integer_constant_expression(value, depth + 1)?,
+                        None => true,
+                    }
                     && self.is_integer_constant_expression(
                         &conditional.node.else_expression,
                         depth + 1,
@@ -80,7 +98,12 @@ impl Analyzer {
             }
             ast::Expression::SizeOfTy(size) => {
                 let checkpoint = self.sve_feature_checkpoint();
-                let ty = self.type_name(&size.node.0.node)?;
+                let allocation_context = self.allocation_context(false);
+                let ty = self.type_name(&size.node.0.node);
+                let ty =
+                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
+                        analyzer.unit.is_variable_length_array(ty)
+                    })?;
                 if !self.unit.is_variable_length_array(&ty)? {
                     self.discard_sve_feature_uses(checkpoint);
                 }
@@ -88,7 +111,12 @@ impl Analyzer {
             }
             ast::Expression::SizeOfVal(size) => {
                 let checkpoint = self.sve_feature_checkpoint();
-                let ty = self.expression_type(&size.node.0)?;
+                let allocation_context = self.allocation_context(false);
+                let ty = self.expression_type(&size.node.0);
+                let ty =
+                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
+                        analyzer.unit.is_variable_length_array(ty)
+                    })?;
                 if !self.unit.is_variable_length_array(&ty)? {
                     self.discard_sve_feature_uses(checkpoint);
                 }
@@ -356,22 +384,31 @@ impl Analyzer {
                 self.binary(&binary.node.operator.node, left, right, offset)
             }
             ast::Expression::Conditional(conditional) => {
-                let left_ty = self.expression_type(&conditional.node.then_expression)?;
+                let left_ty = self.expression_type(conditional.node.nonzero_expression())?;
                 let right_ty = self.expression_type(&conditional.node.else_expression)?;
                 let destination = common(
                     self.integer_type(&left_ty, offset)?,
                     self.integer_type(&right_ty, offset)?,
                 );
-                let selected = if self.eval(&conditional.node.condition)?.truth() {
-                    &conditional.node.then_expression
+                let condition = self.eval(&conditional.node.condition)?;
+                let value = if condition.truth() {
+                    match &conditional.node.then_expression {
+                        Some(value) => self.eval(value)?,
+                        None => condition,
+                    }
                 } else {
-                    &conditional.node.else_expression
+                    self.eval(&conditional.node.else_expression)?
                 };
-                Ok(convert(self.eval(selected)?, destination))
+                Ok(convert(value, destination))
             }
             ast::Expression::SizeOfTy(size) => {
                 let checkpoint = self.sve_feature_checkpoint();
-                let ty = self.type_name(&size.node.0.node)?;
+                let allocation_context = self.allocation_context(false);
+                let ty = self.type_name(&size.node.0.node);
+                let ty =
+                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
+                        analyzer.unit.is_variable_length_array(ty)
+                    })?;
                 if !self.unit.is_variable_length_array(&ty)? {
                     self.discard_sve_feature_uses(checkpoint);
                 }
@@ -440,11 +477,12 @@ impl Analyzer {
                 "sizeof a variable-length array is not an integer constant expression",
             ));
         }
-        if matches!(
-            self.unit.resolve(ty)?.kind,
-            TypeKind::Array { length: None, .. } | TypeKind::Void | TypeKind::Function(_)
-        ) {
-            return Err(Error::new(offset, "sizeof requires a complete object type"));
+        match self.unit.resolve(ty)?.kind {
+            TypeKind::Void | TypeKind::Function(_) => return Ok(self.size_value(1)),
+            TypeKind::Array { length: None, .. } => {
+                return Err(Error::new(offset, "sizeof requires a complete object type"));
+            }
+            _ => {}
         }
         Ok(self.size_value(self.unit.layout(ty)?.size_bytes()))
     }
@@ -584,7 +622,15 @@ impl Analyzer {
             if !literal.suffix.unsigned && value < (1u128 << (bits - 1)) {
                 return Ok(IntegerValue::new(value, bits, true, rank));
             }
-            if (literal.suffix.unsigned || radix != 10) && value <= IntegerValue::mask(bits) {
+            let c90_unsigned = self.unit.language_mode.is_c90() && rank >= 4
+                // Clang's MS mode recovers an oversized explicitly signed LL
+                // literal by wrapping its value. Preserve the existing rejection
+                // instead of giving that recovery an unsigned type.
+                && !(self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+                    && minimum_rank == 5);
+            if (literal.suffix.unsigned || radix != 10 || c90_unsigned)
+                && value <= IntegerValue::mask(bits)
+            {
                 return Ok(IntegerValue::new(value, bits, false, rank));
             }
         }

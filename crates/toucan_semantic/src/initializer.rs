@@ -16,6 +16,38 @@ enum ConstantKind {
     Address,
 }
 
+/// A relocation base or an absolute target address. Symbol spelling is resolved
+/// in the active lexical scope; anonymous objects use their source occurrence.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum PointerBase<'a> {
+    Symbol(&'a str),
+    Anonymous(usize, usize),
+}
+
+#[derive(Clone, Copy, PartialEq, Eq)]
+struct PointerConstant<'a> {
+    base: Option<PointerBase<'a>>,
+    offset: u128,
+    nullable: bool,
+}
+
+impl PointerConstant<'_> {
+    fn truth(self) -> Option<bool> {
+        if self.base.is_none() {
+            Some(self.offset != 0)
+        } else if self.nullable {
+            None
+        } else {
+            Some(true)
+        }
+    }
+}
+
+enum ConstantBranch<'a> {
+    Reused(Option<PointerConstant<'a>>),
+    Selected(&'a Node<ast::Expression>),
+}
+
 struct FlexibleState {
     member_index: usize,
     elements: Option<u64>,
@@ -212,7 +244,14 @@ impl Analyzer {
     }
 
     fn empty_initializer(&self, initializer: &Node<ast::Initializer>) -> bool {
-        matches!(&initializer.node, ast::Initializer::List(items) if items.is_empty() || (items.len() == 1 && self.empty_initializers.contains(&items[0].span.start)))
+        matches!(&initializer.node, ast::Initializer::List(items) if self.empty_initializer_items(items))
+    }
+
+    /// Recognizes written empty lists, including the parser's marked placeholder
+    /// used for an otherwise unparseable empty compound literal.
+    pub(crate) fn empty_initializer_items(&self, items: &[Node<ast::InitializerListItem>]) -> bool {
+        items.is_empty()
+            || (items.len() == 1 && self.empty_initializers.contains(&items[0].span.start))
     }
 
     /// Finds the innermost flexible member crossed by a subobject designator.
@@ -253,16 +292,10 @@ impl Analyzer {
             .transpose()?
             .flatten();
         let result = if let Some(value) = self.unit.atomic_value(ty)?.cloned() {
-            if !self.gnu_sync_profile()
-                && matches!(
-                    self.unit.resolve(&value)?.kind,
-                    TypeKind::Record(_) | TypeKind::Vector { .. }
-                )
-                && matches!(initializer.node, InitializerView::List(_))
-            {
+            if !self.gnu_sync_profile() && matches!(initializer.node, InitializerView::List(_)) {
                 return Err(Error::new(
                     initializer.span.start,
-                    "this Clang profile requires an atomic aggregate initializer to be a compatible value expression",
+                    "this Clang profile requires an atomic initializer to be a compatible value expression",
                 ));
             }
             self.initializer_inner_impl(
@@ -339,7 +372,7 @@ impl Analyzer {
                                     | TypeKind::Complex(_)
                             )
                         {
-                            let value = self.eval_arithmetic(expression)?;
+                            let value = self.eval_initializer_arithmetic(expression)?;
                             self.convert_arithmetic(value, ty, offset)?;
                         }
                     }
@@ -350,6 +383,11 @@ impl Analyzer {
                 Ok(ty.clone())
             }
             InitializerView::List(items) => {
+                let items = if self.empty_initializer_items(items) {
+                    &[][..]
+                } else {
+                    items
+                };
                 if let Some(id) = retained {
                     let aggregate = matches!(
                         resolved.kind,
@@ -363,15 +401,12 @@ impl Analyzer {
                         }
                         _ => None,
                     };
-                    self.code_builder()
-                        .initializer_list(id, aggregate, union_member);
+                    self.code_builder().initializer_list(
+                        id,
+                        aggregate || items.is_empty(),
+                        union_member,
+                    );
                 }
-                let items =
-                    if items.len() == 1 && self.empty_initializers.contains(&items[0].span.start) {
-                        &[][..]
-                    } else {
-                        items
-                    };
                 if matches!(resolved.kind, TypeKind::Array { .. })
                     && let [item] = items
                     && item.node.designation.is_empty()
@@ -399,6 +434,9 @@ impl Analyzer {
                     resolved.kind,
                     TypeKind::Array { .. } | TypeKind::Vector { .. } | TypeKind::Record(_)
                 ) {
+                    if items.is_empty() {
+                        return Ok(ty.clone());
+                    }
                     let [item] = items else {
                         return Err(Error::new(offset, "scalar initializer requires one value"));
                     };
@@ -945,7 +983,9 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
     ) -> Result<ConstantKind, Error> {
         self.enter_expression(expression.span.start)?;
+        let previous = std::mem::replace(&mut self.allow_const_object_reads, true);
         let result = self.static_initializer_inner(expression);
+        self.allow_const_object_reads = previous;
         self.leave_expression();
         result
     }
@@ -999,7 +1039,7 @@ impl Analyzer {
                         .builtin_name(call)
                         .is_some_and(|name| self.complex_unary_builtin(name).is_some()) =>
             {
-                self.eval_arithmetic(expression)?;
+                self.eval_initializer_arithmetic(expression)?;
                 Ok(ConstantKind::Arithmetic)
             }
             ast::Expression::SizeOfTy(_)
@@ -1032,14 +1072,20 @@ impl Analyzer {
             ast::Expression::StringLiteral(_) => Ok(ConstantKind::Address),
             ast::Expression::Member(_) => self.static_designator(expression),
             ast::Expression::Identifier(identifier) => {
-                if self.unit.constants.contains_key(&identifier.node.name) {
+                if self.unit.constants.contains_key(&identifier.node.name)
+                    || self.const_object_value(&identifier.node.name).is_some()
+                {
                     return Ok(ConstantKind::Arithmetic);
                 }
                 let ty = self.expression_type(expression)?;
                 if matches!(
                     self.unit.resolve(&ty)?.kind,
                     TypeKind::Array { .. } | TypeKind::Function(_)
-                ) && self.object_has_static_storage(&identifier.node.name)
+                ) && (self.object_has_static_storage(&identifier.node.name)
+                    && !self.dll_imported_object(&identifier.node.name)
+                    || self
+                        .builtin_function_reference(&identifier.node.name)?
+                        .is_some())
                 {
                     Ok(ConstantKind::Address)
                 } else {
@@ -1109,7 +1155,7 @@ impl Analyzer {
                     return Err(invalid());
                 }
                 let left = self.static_initializer(&binary.node.lhs)?;
-                if let Ok(value) = self.eval_arithmetic(&binary.node.lhs)
+                if let Ok(value) = self.eval_initializer_arithmetic(&binary.node.lhs)
                     && ((binary.node.operator.node == Op::LogicalAnd && !value.truth())
                         || (binary.node.operator.node == Op::LogicalOr && value.truth()))
                 {
@@ -1117,7 +1163,7 @@ impl Analyzer {
                 }
                 let right = self.static_initializer(&binary.node.rhs)?;
                 if left == ConstantKind::Arithmetic && right == ConstantKind::Arithmetic {
-                    self.eval_arithmetic(expression)?;
+                    self.eval_initializer_arithmetic(expression)?;
                     Ok(ConstantKind::Arithmetic)
                 } else if left == ConstantKind::Address
                     && right == ConstantKind::Arithmetic
@@ -1136,12 +1182,11 @@ impl Analyzer {
                 }
             }
             ast::Expression::Conditional(conditional) => {
-                let condition = self.eval_arithmetic(&conditional.node.condition)?;
-                self.static_initializer(if condition.truth() {
-                    &conditional.node.then_expression
-                } else {
-                    &conditional.node.else_expression
-                })
+                let kind = self.static_initializer(&conditional.node.condition)?;
+                match self.static_conditional_branch(&conditional.node, offset)? {
+                    ConstantBranch::Reused(_) => Ok(kind),
+                    ConstantBranch::Selected(selected) => self.static_initializer(selected),
+                }
             }
             ast::Expression::TypesCompatible(query) => {
                 self.eval_types_compatible(query)?;
@@ -1157,6 +1202,247 @@ impl Analyzer {
             }
             _ => Err(invalid()),
         }
+    }
+
+    /// Selects a static conditional using declaration-time symbol binding. A weak
+    /// address can be null, even when a later declaration provides a definition.
+    fn static_conditional_branch<'a>(
+        &mut self,
+        conditional: &'a ast::ConditionalExpression,
+        offset: usize,
+    ) -> Result<ConstantBranch<'a>, Error> {
+        let condition = &conditional.condition;
+        let condition_ty = self.value_expression_type(condition)?;
+        if !matches!(self.unit.resolve(&condition_ty)?.kind, TypeKind::Pointer(_)) {
+            return Ok(if self.eval_initializer_arithmetic(condition)?.truth() {
+                match &conditional.then_expression {
+                    Some(value) => ConstantBranch::Selected(value),
+                    None => ConstantBranch::Reused(None),
+                }
+            } else {
+                ConstantBranch::Selected(&conditional.else_expression)
+            });
+        }
+        let address = self.static_pointer(condition, false)?;
+        if let Some(truth) = address.and_then(PointerConstant::truth) {
+            return Ok(if truth {
+                match &conditional.then_expression {
+                    Some(value) => ConstantBranch::Selected(value),
+                    None => ConstantBranch::Reused(address),
+                }
+            } else {
+                ConstantBranch::Selected(&conditional.else_expression)
+            });
+        }
+        // GCC preserves the address relocation for `p ? p : 0`, including
+        // omitted-middle syntax, without assuming a weak p is nonzero. Clang
+        // does not admit this as a static initializer. Compare symbolic identity
+        // and byte offsets for an explicit middle operand; unrelated addresses
+        // cannot justify this fold.
+        if self.gnu_sync_profile()
+            && let Some(address) = address
+            && (self
+                .eval(&conditional.else_expression)
+                .is_ok_and(|v| v.value == 0)
+                || self
+                    .static_pointer(&conditional.else_expression, false)?
+                    .is_some_and(|value| value.base.is_none() && value.offset == 0))
+            && (conditional.then_expression.is_none()
+                || self.static_pointer(conditional.nonzero_expression(), false)? == Some(address))
+        {
+            return Ok(match &conditional.then_expression {
+                Some(value) => ConstantBranch::Selected(value),
+                None => ConstantBranch::Reused(Some(address)),
+            });
+        }
+        Err(Error::new(
+            offset,
+            "static storage initializer has no constant pointer condition",
+        ))
+    }
+
+    /// Resolves a checked address constant without reading an object. The caller
+    /// separately checks static-storage eligibility; this bounded walk preserves
+    /// symbol identity, weak binding, and target-width absolute pointer bits.
+    fn static_pointer<'a>(
+        &mut self,
+        expression: &'a Node<ast::Expression>,
+        location: bool,
+    ) -> Result<Option<PointerConstant<'a>>, Error> {
+        self.enter_expression(expression.span.start)?;
+        let result = self.static_pointer_inner(expression, location);
+        self.leave_expression();
+        result
+    }
+
+    fn static_pointer_inner<'a>(
+        &mut self,
+        expression: &'a Node<ast::Expression>,
+        location: bool,
+    ) -> Result<Option<PointerConstant<'a>>, Error> {
+        use ast::{BinaryOperator as Binary, Expression as E, UnaryOperator as Unary};
+        let offset = expression.span.start;
+        let designator = matches!(&expression.node, E::Member(_) | E::CompoundLiteral(_))
+            || matches!(&expression.node, E::UnaryOperator(unary) if unary.node.operator.node == Unary::Indirection)
+            || matches!(&expression.node, E::BinaryOperator(binary) if binary.node.operator.node == Binary::Index);
+        if !location && designator {
+            let ty = self.expression_type(expression)?;
+            if !matches!(
+                self.unit.resolve(&ty)?.kind,
+                TypeKind::Array { .. } | TypeKind::Function(_)
+            ) {
+                return Ok(None);
+            }
+        }
+        let mask = u128::MAX >> (128 - self.unit.target.pointer_width());
+        let result = match &expression.node {
+            E::Identifier(identifier) => {
+                let name = identifier.node.name.as_str();
+                let ty = self.expression_type(expression)?;
+                if !location
+                    && !matches!(
+                        self.unit.resolve(&ty)?.kind,
+                        TypeKind::Array { .. } | TypeKind::Function(_)
+                    )
+                {
+                    return Ok(None);
+                }
+                if !self.object_has_static_storage(name)
+                    && self.builtin_function_reference(name)?.is_none()
+                {
+                    return Ok(None);
+                }
+                let linked = self
+                    .lexical_scopes
+                    .iter()
+                    .rev()
+                    .find(|scope| scope.names.contains_key(name))
+                    .is_none_or(|scope| scope.linked.contains(name));
+                PointerConstant {
+                    base: Some(PointerBase::Symbol(name)),
+                    offset: 0,
+                    nullable: linked && self.weak_symbols.contains_key(name),
+                }
+            }
+            E::StringLiteral(_) | E::CompoundLiteral(_) => PointerConstant {
+                base: Some(PointerBase::Anonymous(
+                    expression.span.start,
+                    expression.span.end,
+                )),
+                offset: 0,
+                nullable: false,
+            },
+            E::UnaryOperator(unary) if unary.node.operator.node == Unary::Address && !location => {
+                return self.static_pointer(&unary.node.operand, true);
+            }
+            E::UnaryOperator(unary) if unary.node.operator.node == Unary::Indirection => {
+                return self.static_pointer(&unary.node.operand, false);
+            }
+            E::Cast(cast) if !location => {
+                let ty = self.type_name(&cast.node.type_name.node)?;
+                if !matches!(self.unit.resolve(&ty)?.kind, TypeKind::Pointer(_)) {
+                    return Ok(None);
+                }
+                if let Ok(value) = self.eval(&cast.node.expression) {
+                    PointerConstant {
+                        base: None,
+                        offset: if value.signed {
+                            value.signed_value() as u128
+                        } else {
+                            value.value
+                        } & mask,
+                        nullable: false,
+                    }
+                } else {
+                    return self.static_pointer(&cast.node.expression, false);
+                }
+            }
+            E::Member(member) => {
+                let direct = member.node.operator.node == ast::MemberOperator::Direct;
+                let Some(mut address) = self.static_pointer(&member.node.expression, direct)?
+                else {
+                    return Ok(None);
+                };
+                let mut ty = self.expression_type(&member.node.expression)?;
+                if !direct {
+                    let TypeKind::Pointer(pointee) = &self.unit.resolve(&ty)?.kind else {
+                        return Ok(None);
+                    };
+                    ty = (**pointee).clone();
+                }
+                let (bytes, _) =
+                    self.field_offset(&ty, &member.node.identifier.node.name, offset)?;
+                address.offset = address.offset.wrapping_add(u128::from(bytes)) & mask;
+                address
+            }
+            E::BinaryOperator(binary)
+                if matches!(
+                    binary.node.operator.node,
+                    Binary::Plus | Binary::Minus | Binary::Index
+                ) =>
+            {
+                let left_ty = self.value_expression_type(&binary.node.lhs)?;
+                let (pointer, integer, pointer_ty) =
+                    if matches!(self.unit.resolve(&left_ty)?.kind, TypeKind::Pointer(_)) {
+                        (&binary.node.lhs, &binary.node.rhs, left_ty)
+                    } else if binary.node.operator.node != Binary::Minus {
+                        let ty = self.value_expression_type(&binary.node.rhs)?;
+                        (&binary.node.rhs, &binary.node.lhs, ty)
+                    } else {
+                        return Ok(None);
+                    };
+                let Some(mut address) = self.static_pointer(pointer, false)? else {
+                    return Ok(None);
+                };
+                let TypeKind::Pointer(pointee) = &self.unit.resolve(&pointer_ty)?.kind else {
+                    return Ok(None);
+                };
+                let stride = match self.unit.resolve(pointee)?.kind {
+                    TypeKind::Void | TypeKind::Function(_) => 1,
+                    _ => self.unit.layout(pointee)?.size_bytes(),
+                };
+                let value = self.eval(integer)?;
+                let index = if value.signed {
+                    value.signed_value() as u128
+                } else {
+                    value.value
+                };
+                let bytes = index.wrapping_mul(u128::from(stride));
+                address.offset = if binary.node.operator.node == Binary::Minus {
+                    address.offset.wrapping_sub(bytes)
+                } else {
+                    address.offset.wrapping_add(bytes)
+                } & mask;
+                address
+            }
+            E::Conditional(conditional) if !location => {
+                let selected = match self.static_conditional_branch(&conditional.node, offset)? {
+                    ConstantBranch::Reused(address) => return Ok(address),
+                    ConstantBranch::Selected(selected) => selected,
+                };
+                // The conditional's pointer result converts a selected integer
+                // null pointer constant before an enclosing condition uses it.
+                if self.eval(selected).is_ok_and(|value| value.value == 0) {
+                    PointerConstant {
+                        base: None,
+                        offset: 0,
+                        nullable: false,
+                    }
+                } else {
+                    return self.static_pointer(selected, false);
+                }
+            }
+            E::Choose(selection) => {
+                let selected = self.choose_expression(selection)?;
+                return self.static_pointer(selected, location);
+            }
+            E::GenericSelection(selection) => {
+                let selected = self.generic_expression(selection)?;
+                return self.static_pointer(selected, location);
+            }
+            _ => return Ok(None),
+        };
+        Ok(Some(result))
     }
 
     /// Array and function designators form addresses without reading their objects.
@@ -1206,7 +1492,12 @@ impl Analyzer {
             }
 
             ast::Expression::Identifier(identifier) => {
-                if self.object_has_static_storage(&identifier.node.name) {
+                if self.object_has_static_storage(&identifier.node.name)
+                    && !self.dll_imported_object(&identifier.node.name)
+                    || self
+                        .builtin_function_reference(&identifier.node.name)?
+                        .is_some()
+                {
                     Ok(())
                 } else {
                     Err(invalid())
@@ -1279,5 +1570,74 @@ impl Analyzer {
             }
             _ => Err(invalid()),
         }
+    }
+}
+
+impl Analyzer {
+    /// Retain destination-converted arithmetic values after ordinary C checking.
+    /// Address constants and enum objects have no scalar literal projection.
+    pub(crate) fn scalar_object_value(
+        &mut self,
+        ty: &Type,
+        initializer: &Node<ast::Initializer>,
+    ) -> Result<Option<crate::ArithmeticConstant>, Error> {
+        self.scalar_initializer_value(ty, initializer, false)?
+            .map(|value| value.into_constant(self.unit.target, initializer.span.start))
+            .transpose()
+    }
+
+    /// Evaluate one scalar initializer with the same destination conversion used
+    /// by its declaration. Enum objects can seed Clang initializer reads without
+    /// changing the separate binding projection's enum policy.
+    pub(crate) fn scalar_initializer_value(
+        &mut self,
+        ty: &Type,
+        initializer: &Node<ast::Initializer>,
+        include_enums: bool,
+    ) -> Result<Option<crate::floating::ArithmeticValue>, Error> {
+        let destination = self.unit.atomic_value(ty)?.unwrap_or(ty).clone();
+        if !matches!(
+            self.unit.resolve(&destination)?.kind,
+            TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Float(_)
+        ) && !(include_enums
+            && matches!(self.unit.resolve(&destination)?.kind, TypeKind::Enum(_)))
+        {
+            return Ok(None);
+        }
+        let mut initializer = initializer;
+        for _ in 0..128 {
+            match &initializer.node {
+                ast::Initializer::Expression(expression) => {
+                    if self.static_initializer(expression)? != ConstantKind::Arithmetic {
+                        return Ok(None);
+                    }
+                    let value = self.eval_initializer_arithmetic(expression)?;
+                    let value =
+                        self.convert_arithmetic(value, &destination, initializer.span.start)?;
+                    return Ok(Some(value));
+                }
+                ast::Initializer::List(items) => {
+                    if items.is_empty() || self.empty_initializer_items(items) {
+                        let zero = crate::floating::ArithmeticValue::Integer(crate::IntegerValue {
+                            value: 0,
+                            bits: 32,
+                            signed: true,
+                            rank: 3,
+                        });
+                        let value =
+                            self.convert_arithmetic(zero, &destination, initializer.span.start)?;
+                        return Ok(Some(value));
+                    }
+                    let [item] = items.as_slice() else {
+                        return Ok(None);
+                    };
+                    initializer = &item.node.initializer;
+                }
+            }
+        }
+        Err(Error::new(
+            initializer.span.start,
+            "object-value initializer nesting exceeds the 128-level limit",
+        ))
     }
 }

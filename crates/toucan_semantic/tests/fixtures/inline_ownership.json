@@ -1,0 +1,1276 @@
+[
+  {
+    "name": "plain",
+    "source": "__inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "extern",
+    "source": "extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "InlineOnly",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "InlineOnly",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "static",
+    "source": "static __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "Internal",
+      "gcc:gnu11": "Internal",
+      "clang:gnu90": "Internal",
+      "clang:gnu11": "Internal",
+      "msvc:gnu90": "Internal",
+      "msvc:gnu11": "Internal"
+    }
+  },
+  {
+    "name": "plain_prior_extern",
+    "source": "extern int f(void); __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "plain_later_extern",
+    "source": "__inline__ int f(void){return 1;} extern int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "plain_prior_plain",
+    "source": "int f(void); __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "plain_later_plain",
+    "source": "__inline__ int f(void){return 1;} int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "plain_all_inline",
+    "source": "__inline__ int f(void); __inline__ int f(void){return 1;} __inline__ int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "plain_block_extern",
+    "source": "__inline__ int f(void){return 1;} int block(void){extern int f(void);return f();}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "gnu_plain",
+    "source": "__attribute__((gnu_inline)) __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_extern",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "InlineOnly",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "InlineOnly",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "InlineOnly",
+      "msvc:gnu11": "InlineOnly"
+    }
+  },
+  {
+    "name": "gnu_prior_attribute",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void); extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "InlineOnly",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "InlineOnly",
+      "msvc:gnu11": "InlineOnly"
+    }
+  },
+  {
+    "name": "gnu_later_attribute",
+    "source": "extern __inline__ int f(void){return 1;} __attribute__((gnu_inline)) extern __inline__ int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "InlineOnly",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "gnu_inconsistent",
+    "source": "extern __inline__ int f(void); __attribute__((gnu_inline)) extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "InlineOnly",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "InlineOnly",
+      "msvc:gnu11": "InlineOnly"
+    }
+  },
+  {
+    "name": "extern_then_definition",
+    "source": "extern __inline__ int f(void){return 1;} int f(void){return 2;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": null,
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "definition_then_extern",
+    "source": "int f(void){return 2;} extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "extern_twice",
+    "source": "extern __inline__ int f(void){return 1;} extern __inline__ int f(void){return 2;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "InlineOnly",
+      "clang:gnu11": null,
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "plain_twice",
+    "source": "__inline__ int f(void){return 1;} __inline__ int f(void){return 2;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "plain_mutable_static",
+    "source": "__inline__ int f(void){static int x;return ++x;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "plain_const_static",
+    "source": "__inline__ int f(void){static const int x=1;return x;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "plain_reference_static",
+    "source": "static int x; __inline__ int f(void){return ++x;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "inline_variable",
+    "source": "__inline__ int x; int f(void){return x;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "inline_typedef",
+    "source": "typedef __inline__ int T; T f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "inline_parameter",
+    "source": "int f(__inline__ int x){return x;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "inline_pointer_object",
+    "source": "__inline__ int (*p)(void); int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "gnu_without_inline",
+    "source": "__attribute__((gnu_inline)) int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "inline_proto_plain_definition",
+    "source": "__inline__ int f(void); int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "extern_inline_proto_plain_definition",
+    "source": "extern __inline__ int f(void); int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "plain_definition_later_inline",
+    "source": "int f(void){return 1;} __inline__ int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "plain_definition_later_extern_inline",
+    "source": "int f(void){return 1;} extern __inline__ int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "inline_definition_block_plain",
+    "source": "__inline__ int f(void){return 1;} int other(void){int f(void);return f();}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "gnu_proto_plain_noninline_definition",
+    "source": "__attribute__((gnu_inline)) __inline__ int f(void);int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_proto_extern_noninline_definition",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void);int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "noninline_gnu_proto_inline_definition",
+    "source": "__attribute__((gnu_inline)) int f(void);__inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "noninline_proto_gnu_inline_definition",
+    "source": "int f(void);__attribute__((gnu_inline)) __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_body_later_noninline",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "InlineOnly",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "InlineOnly",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "InlineOnly",
+      "msvc:gnu11": "InlineOnly"
+    }
+  },
+  {
+    "name": "gnu_body_later_inline",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} __inline__ int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_inline_proto_noattr_extern_body",
+    "source": "__attribute__((gnu_inline)) __inline__ int f(void);extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "inline_proto_attr_only_on_noninline_body",
+    "source": "__inline__ int f(void);__attribute__((gnu_inline)) int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "block_inline_declaration",
+    "source": "int f(void){return 1;}int other(void){__inline__ int f(void);return f();}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "static_inline_decl_only",
+    "source": "static __inline__ int f(void);",
+    "has_body": false,
+    "expected": {
+      "gcc:gnu90": "Declaration",
+      "gcc:gnu11": "Declaration",
+      "clang:gnu90": "Declaration",
+      "clang:gnu11": "Declaration",
+      "msvc:gnu90": "Declaration",
+      "msvc:gnu11": "Declaration"
+    }
+  },
+  {
+    "name": "gnu_prior_nonextern_inline",
+    "source": "__attribute__((gnu_inline)) __inline__ int f(void); __attribute__((gnu_inline)) extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_later_nonextern_inline",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} __attribute__((gnu_inline)) __inline__ int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_prior_plain",
+    "source": "int f(void); __attribute__((gnu_inline)) extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "InlineOnly",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "InlineOnly",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "InlineOnly",
+      "msvc:gnu11": "InlineOnly"
+    }
+  },
+  {
+    "name": "gnu_block_nonextern_inline",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} int other(void){__attribute__((gnu_inline)) __inline__ int f(void);return f();}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "InlineOnly",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "block_extern",
+    "source": "__inline__ int f(void){return 1;} int other(void){extern int f(void);return f();}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "multiple_e_d",
+    "source": "extern __inline__ int f(void){return 1;} int f(void){return 3;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": null,
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_e_i",
+    "source": "extern __inline__ int f(void){return 1;} __inline__ int f(void){return 2;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": null,
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_e_e",
+    "source": "extern __inline__ int f(void){return 1;} extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "InlineOnly",
+      "clang:gnu11": null,
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_ip_e_d",
+    "source": "__inline__ int f(void); extern __inline__ int f(void){return 1;} int f(void){return 3;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": null,
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_e_ip_d",
+    "source": "extern __inline__ int f(void){return 1;} __inline__ int f(void); int f(void){return 3;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": null,
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_e_d_ip",
+    "source": "extern __inline__ int f(void){return 1;} int f(void){return 3;} __inline__ int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": null,
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_e_i_d",
+    "source": "extern __inline__ int f(void){return 1;} __inline__ int f(void){return 2;} int f(void){return 3;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_e_d_e",
+    "source": "extern __inline__ int f(void){return 1;} int f(void){return 3;} extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_e_e_d",
+    "source": "extern __inline__ int f(void){return 1;} extern __inline__ int f(void){return 1;} int f(void){return 3;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": null,
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_gnu_e_d",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} int f(void){return 3;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "multiple_gnu_e_i",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} __attribute__((gnu_inline)) __inline__ int f(void){return 2;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "multiple_gnu_e_e",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} __attribute__((gnu_inline)) extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "InlineOnly",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "InlineOnly",
+      "msvc:gnu11": "InlineOnly"
+    }
+  },
+  {
+    "name": "multiple_gnu_ip_e_d",
+    "source": "__attribute__((gnu_inline)) __inline__ int f(void); __attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} int f(void){return 3;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "multiple_gnu_e_ip_d",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} __attribute__((gnu_inline)) __inline__ int f(void); int f(void){return 3;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "multiple_gnu_e_d_ip",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} int f(void){return 3;} __attribute__((gnu_inline)) __inline__ int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "multiple_gnu_e_i_d",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} __attribute__((gnu_inline)) __inline__ int f(void){return 2;} int f(void){return 3;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_gnu_e_d_e",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} int f(void){return 3;} __attribute__((gnu_inline)) extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "multiple_gnu_e_e_d",
+    "source": "__attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} __attribute__((gnu_inline)) extern __inline__ int f(void){return 1;} int f(void){return 3;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "prior_block_inline",
+    "source": "int other(void){__inline__ int f(void);return 0;} int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "prior_block_extern",
+    "source": "int other(void){extern int f(void);return 0;} __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "prior_block_gnu_inline",
+    "source": "int other(void){__attribute__((gnu_inline)) __inline__ int f(void);return 0;} extern __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "InlineOnly",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "prior_block_internal_inline",
+    "source": "static int f(void); int other(void){extern __inline__ int f(void);return 0;} __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "Internal",
+      "gcc:gnu11": "Internal",
+      "clang:gnu90": "Internal",
+      "clang:gnu11": "Internal",
+      "msvc:gnu90": "Internal",
+      "msvc:gnu11": "Internal"
+    }
+  },
+  {
+    "name": "gnu_function_arity",
+    "source": "__attribute__((gnu_inline(1))) __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "gnu_noninline_function_arity",
+    "source": "__attribute__((gnu_inline(1))) int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": null,
+      "clang:gnu11": null,
+      "msvc:gnu90": null,
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "gnu_ignored_object_arity",
+    "source": "int x __attribute__((gnu_inline(1))); int f(void){return x;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_ignored_typedef_arity",
+    "source": "typedef int T __attribute__((gnu_inline(1))); T f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_ignored_parameter_arity",
+    "source": "int f(int x __attribute__((gnu_inline(1)))){return x;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_ignored_field_arity",
+    "source": "struct S {int x __attribute__((gnu_inline(1)));}; int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_pointer_placement",
+    "source": "__inline__ int * __attribute__((gnu_inline)) f(void){return 0;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_outer_pointer_placement",
+    "source": "__attribute__((gnu_inline)) __inline__ int *f(void){return 0;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "gnu_paren_placement",
+    "source": "__inline__ int (__attribute__((gnu_inline)) f)(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "internal_extern_repeat",
+    "source": "static int f(void); extern __inline__ int f(void){return 1;} int f(void){return 2;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "Internal",
+      "clang:gnu11": null,
+      "msvc:gnu90": "Internal",
+      "msvc:gnu11": null
+    }
+  },
+  {
+    "name": "function_typedef_inline",
+    "source": "typedef int F(void); __inline__ F f; int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "function_typedef_gnu_inline",
+    "source": "typedef int F(void); __inline__ F f __attribute__((gnu_inline)); int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "scope_file_to_block",
+    "source": "__attribute__((gnu_inline)) __inline__ int f(void); int other(void){__inline__ int f(void);return 0;} int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "scope_block_same",
+    "source": "int other(void){__attribute__((gnu_inline)) __inline__ int f(void);__inline__ int f(void);return 0;} int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "scope_block_nested",
+    "source": "int other(void){__attribute__((gnu_inline)) __inline__ int f(void);{__inline__ int f(void);}return 0;} int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "scope_block_siblings",
+    "source": "int other(void){{__attribute__((gnu_inline)) __inline__ int f(void);}{__inline__ int f(void);}return 0;} int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "scope_block_to_file",
+    "source": "int other(void){__attribute__((gnu_inline)) __inline__ int f(void);return 0;} __inline__ int f(void); int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "scope_file_via_plain",
+    "source": "__attribute__((gnu_inline)) __inline__ int f(void); int other(void){int f(void);__inline__ int f(void);return 0;} int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": null,
+      "gcc:gnu11": null,
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "scope_file_after_block_plain",
+    "source": "int other(void){__inline__ int f(void);return 0;} __attribute__((gnu_inline)) __inline__ int f(void); int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "scope_block_to_second_function",
+    "source": "int other(void){__attribute__((gnu_inline)) __inline__ int f(void);return 0;} int second(void){__inline__ int f(void);return 0;} int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "External",
+      "msvc:gnu90": "External",
+      "msvc:gnu11": "External"
+    }
+  },
+  {
+    "name": "ordering_prior_block_plain",
+    "source": "int other(void){int f(void);return 0;} __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "ordering_prior_block_inline",
+    "source": "int other(void){__inline__ int f(void);return 0;} __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "ordering_prior_block_extern_inline",
+    "source": "int other(void){extern __inline__ int f(void);return 0;} __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "ordering_file_inline_block_extern_body",
+    "source": "__inline__ int f(void); int other(void){extern int f(void);return 0;} __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "ordering_block_extern_file_inline_body",
+    "source": "int other(void){extern int f(void);return 0;} __inline__ int f(void); __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "ordering_block_inline_then_extern_body",
+    "source": "int other(void){__inline__ int f(void);return 0;} int other2(void){extern int f(void);return 0;} __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "ordering_block_extern_then_inline_body",
+    "source": "int other(void){extern int f(void);return 0;} int other2(void){__inline__ int f(void);return 0;} __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "ordering_block_inline_then_plain_body",
+    "source": "int other(void){__inline__ int f(void);return 0;} int other2(void){int f(void);return 0;} __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "External",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftInline",
+      "msvc:gnu11": "MicrosoftInline"
+    }
+  },
+  {
+    "name": "ordering_file_inline_block_extern_proto_body",
+    "source": "__inline__ int f(void);int other(void){extern int f(void);return 0;} __inline__ int f(void); __inline__ int f(void){return 1;}",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  },
+  {
+    "name": "ordering_body_then_block_extern_proto",
+    "source": "__inline__ int f(void){return 1;} int other(void){extern int f(void);return 0;} __inline__ int f(void);",
+    "has_body": true,
+    "expected": {
+      "gcc:gnu90": "External",
+      "gcc:gnu11": "InlineOnly",
+      "clang:gnu90": "External",
+      "clang:gnu11": "InlineOnly",
+      "msvc:gnu90": "MicrosoftExternInline",
+      "msvc:gnu11": "MicrosoftExternInline"
+    }
+  }
+]

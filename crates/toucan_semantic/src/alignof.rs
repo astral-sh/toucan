@@ -72,6 +72,7 @@ impl Analyzer {
                 "alignment query count exceeds the 65536-entry limit",
             ));
         }
+        let allocation_context = self.allocation_context(false);
         let bytes = self.alignment_operand(|analyzer| match &query.node.operand {
             ast::AlignOfOperand::TypeName(name) => {
                 let ty = analyzer.type_name(&name.node)?;
@@ -90,7 +91,9 @@ impl Analyzer {
                 }
                 analyzer.object_query_alignment(&info, expression.span.start)
             }
-        })?;
+        });
+        self.restore_allocation_context(allocation_context, false);
+        let bytes = bytes?;
         let result = AlignmentResult { bytes };
         self.alignment_queries.results.insert(key, result);
         Ok(result)
@@ -103,20 +106,8 @@ impl Analyzer {
         offset: usize,
     ) -> Result<u64, Error> {
         match self.unit.resolve(ty)?.kind {
-            TypeKind::Void => Ok(1),
-            TypeKind::Function(_) => Ok(
-                if self.unit.compiler == Compiler::Gnu
-                    && matches!(
-                        self.unit.target,
-                        toucan_target::Target::X86_64UnknownLinuxGnu
-                            | toucan_target::Target::X86_64UnknownLinuxMusl
-                    )
-                {
-                    1
-                } else {
-                    4
-                },
-            ),
+            TypeKind::Void => self.non_object_alignment(ty, 1),
+            TypeKind::Function(_) => self.non_object_alignment(ty, self.function_type_alignment()),
             TypeKind::Record(id) if self.unit.records[id].fields.is_none() => {
                 if expression && self.unit.compiler == Compiler::Gnu {
                     Ok(1)
@@ -132,6 +123,24 @@ impl Analyzer {
                 error
             }),
         }
+    }
+
+    /// Function types have a compiler extension alignment, but no object layout.
+    pub(crate) fn function_type_alignment(&self) -> u64 {
+        if self.unit.compiler == Compiler::Gnu && self.unit.target.is_x86_64() {
+            1
+        } else {
+            4
+        }
+    }
+
+    fn non_object_alignment(&self, ty: &Type, natural: u64) -> Result<u64, Error> {
+        if self.unit.compiler == Compiler::Clang
+            && let Some(alignment) = self.unit.typedef_alignment(ty)?
+        {
+            return Ok(u64::from(alignment.get()));
+        }
+        Ok(natural)
     }
 
     fn object_query_alignment(&self, info: &ExpressionInfo, offset: usize) -> Result<u64, Error> {

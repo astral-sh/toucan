@@ -1,52 +1,93 @@
 # Preprocessor feature queries
 
-The standalone preprocessor accepts an optional `FeatureQueries` configuration
-for `__has_builtin` and `__has_attribute`. Its immutable `FeatureQueryProvider`
-supplies supported names and numeric results. The preprocessor does not depend on
-target or semantic crates. A missing configuration leaves both operators undefined.
+The standalone preprocessor accepts an optional `FeatureQueries` configuration.
+Its immutable provider supplies supported names and numeric results; the
+preprocessor has no dependency on the target or semantic crates. Without that
+configuration, query operators are undefined.
 
-Queries are predefined operators with compiler-specific argument rules. GNU
-expands builtin arguments; Clang reads the identifier as written. Both expand
-attribute arguments. GNU accepts an optional attribute namespace; the provider
-receives its spelling. In GCC 13, `gnu::aligned` is recognized in GNU11 but returns
-zero in C11, so a frontend's catalog must also carry its language mode.
+| Operator | GNU 13 | Clang | Argument |
+| --- | --- | --- | --- |
+| `__has_builtin` | Defined | Defined | GNU expands it; Clang reads a raw identifier |
+| `__has_attribute` | Defined | Defined | Expanded identifier; GNU also accepts a namespace |
+| `__has_feature` | Undefined | Defined | Raw identifier |
+| `__has_extension` | Undefined | Defined | Raw identifier |
+| `__has_c_attribute` | Defined | Defined | Expanded identifier or namespace |
+| `__has_declspec_attribute` | Undefined | Defined | Expanded identifier |
+| `__building_module` | Undefined | Defined | Raw identifier |
 
-The operators rescan inside ordinary source, conditions, aliases, and wrappers.
-Malformed arguments diagnose even on the unevaluated side of `0 && query()`;
-inactive directive groups remain unprocessed. Argument expansion and results use
-the existing token, byte, and depth limits. Result tokens retain invocation locations.
+Namespace separators must be lexically adjacent. A macro used only as the
+separator does not expand there; an enclosing wrapper can prescan its argument.
+Clang leaves the trailing lookahead of an unscoped C-attribute name unexpanded.
+Malformed arguments diagnose even in `0 && query()`; inactive groups remain
+unprocessed. Results retain invocation locations and use the existing byte,
+token, and expansion-depth limits. Clang emits an `L` suffix for results greater
+than one, including attribute revision dates; GNU leaves them unsuffixed.
 
-`#undef` and `#define` can remove or replace an operator. `Config::undefine`
-provides the corresponding command-line operation. Each entry point restores the
-configured initial state. `Preprocessed::is_defined` includes active operators;
-`expand_object_macro` observes their final state when expanding another macro.
-Operators do not appear as fake replacement strings in the macro map.
+`Config::scope_punctuator` independently selects whether `::` is one token. Its
+standalone default is false. The facade enables it for Clang and GNU language
+modes. Strict GNU modes still recognize physically adjacent colon pairs in query
+syntax, but reject pasting them into a single token. Whitespace or substitution
+cannot turn two separate colons into a namespace separator. Identity macro
+changes do not change the selected language or query rules.
 
-The provider must implement bounded, deterministic queries. An `Arc` shares its
-immutable catalog between configuration copies; the preprocessor does not allocate
-a per-name cache. Numeric results permit standard-version dates such as GCC's
-`__has_attribute(fallthrough) == 201910`.
+`#undef`, `#define`, and `Config::undefine` can remove or replace an operator.
+Each entry point restores configured defaults. `Preprocessed::is_defined`
+includes active operators, and final object-macro expansion observes their
+current state. Operators are absent from the replacement-macro map. Providers
+must be bounded and deterministic; configuration copies share the immutable
+catalog through `Arc`, without allocating a per-name cache.
 
-The facade connects these two operators to the semantic builtin and attribute
-classifiers. The catalog carries the compiler, target, and language mode independently
-of identity macro overrides. Unknown names and known attributes whose constraints
-are ignored return zero. A positive result still requires valid operands, a supported
-target feature, and a representable ABI at a Rust call boundary. GCC's accepted
-parser forms `__builtin_complex` and `__builtin_va_arg` remain unadvertised, matching
-its query registration. CLI and Builder `-D`/`-U` overrides apply to operators too.
+## Frontend capabilities
 
-The other five query macros still return zero; they need their own grammar and
-feature policies. Compiler version macros have not changed in this layer.
+The facade uses the semantic builtin, GNU-attribute, and Microsoft-attribute
+classifiers. It advertises these six Clang language features: `c_alignas`,
+`c_alignof`, `c_atomic`, `c_generic_selections`, `c_static_assert`, and
+`c_thread_local`. Feature queries require a C11 mode; extension queries also
+succeed in C90 modes. Paired surrounding double underscores are accepted query
+aliases. The Apple TLS query uses the existing macOS 11 validation baseline;
+unversioned Clang Darwin triples can select older targets without TLS. Written
+Microsoft attribute names retain their separate, exact spelling
+rules.
 
-Native differential tests cover 22 cases in C11 and GNU11 with native GCC and
-Clang's five original targets: 264 decisions, including successful output values,
-argument effects, and syntax rejection. The standalone tests also cover resource
-limits, final environments, configuration overrides, entry-point resets, and source
-locations. Cross-target preprocessing uses no sysroot and establishes no ABI claim.
+The MSVC profile advertises checked `align`, `noreturn`, and `noinline` declaration
+attributes. Unknown features, ignored attribute contracts, C++/Objective-C
+features, sanitizer settings, and modules return zero. C-attribute queries return
+zero until C23 attribute syntax and constraints are implemented. A positive
+query still requires valid operands and, at a Rust call boundary, a supported ABI.
+The catalog measures implemented support rather than every capability of the
+native compiler. Compiler version macros remain unchanged in this layer.
 
-The preprocessing fuzzer selects GNU/Clang query rules and trigraph defaults
-independently. Its small test catalog exercises recognized and unknown names;
-the production frontend's supported-feature catalog remains separately owned.
+Expanding query operands preserve supported `_Pragma` effects, including `once`
+when a header is included again. Raw queries and deferred namespace lookahead
+retain their argument constraints. Empty, once, system-header, and ignored clang
+pragmas work under GNU; Clang also permits diagnostic and message handlers.
+Conditional effects follow the configured query dialect even if identity macros
+are overridden. The [pragma evidence](../corpus/evidence/query-pragmas-2026-09-08/summary.json)
+compares original C compilation before preprocessing: Clang accepts some pack
+queries with `-E` but crashes when compiling them. Pack inside a query remains an
+explicit unsupported case; a compiler crash is never counted as source rejection.
+
+## Validation
+
+The [operator evidence](../corpus/evidence/remaining-query-operators-2026-09-08/summary.json)
+records 5,880 native acceptance/output comparisons and 20 command-line override
+cases across four language modes, GCC 13, and five original Clang targets. A
+second run uses GCC 14 with explicit `-U__has_feature` and `-U__has_extension` to
+constrain its operator set to the modeled GNU 13 environment. Raw availability
+is recorded before those overrides. Namespace availability and scope-token
+pasting are calibrated independently: GCC 14 accepts scoped attributes in strict
+modes while still rejecting pasted `::`. This does not add a GNU 14 profile.
+
+The preprocessing fuzzer independently selects query dialect, trigraph handling,
+five comment policies, and scope-token handling. Selector version 3 covers all
+40 settings for every seed without consuming any source bytes. Its small catalog
+exercises all seven operators and numeric revision results; frontend capability
+checks use their own source and compiler comparisons.
+
+## Earlier evidence
+
+The records below describe their original source revisions and coverage.
+Subsequent C90 support is documented in [language modes](language-modes.md).
 
 The [recorded differential run](../corpus/evidence/feature-query-operators-2026-09-08/summary.json)
 also includes the extracted GNU AArch64 compiler: all 308 case/profile/mode
@@ -79,3 +120,16 @@ The archive also records a 120-second AddressSanitizer preprocessing campaign at
 `d7ba4de`: 415,264 executions with no finding. It uses the mechanical operators'
 small test catalog, independently of this semantic catalog. Leak detection was
 disabled in the ptrace environment.
+
+The [combined integration](../corpus/evidence/compiler-query-integration-2026-09-08/summary.json)
+also checks 264 feature-selected source pairs across all 44 profile/mode settings,
+32 native C compilations, and 3,828 preprocessing/retained-code seed pairs. Eight
+reference binding artifacts are unchanged. Its ASan campaign runs 488,116 inputs
+in 181 seconds with no findings; source hashes remain unchanged and every seed
+covers all 40 preprocessing settings.
+
+The [pragma integration](../corpus/evidence/query-pragmas-root-integration-2026-09-08/summary.json)
+checks repeated header inclusion with the semantic catalog across all 44 settings,
+reruns native inclusion and identity-override probes, and preserves eight binding
+artifacts. Its ASan run processes 264,003 inputs in 121 seconds with no findings
+and unchanged source hashes.

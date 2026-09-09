@@ -1,0 +1,62 @@
+{
+  "schema_version": 1,
+  "parent_commit": "3519d97148ca7168072693ddda46487297a789ce",
+  "frozen_layer_sha256": "7d49dd13184fed0657254d6f974ba49058e8657105f3183fef4140afe3007205",
+  "source_files_sha256": {
+    "crates/toucan/tests/omitted_conditional.rs": "e7693257162aaa2600acc48d04dee9921b4d20e98b6da29840936ed480115a1f",
+    "crates/toucan_parser/grammar.rustpeg": "0f9d2e11399793a5cdf4957149ae46bd6f78ec52595d39a8c3b85ed81300d6c0",
+    "crates/toucan_parser/scripts/instrument.py": "0a22d20fa44c308c2994769870219d600ef36b1da8cb59337824c0856bf53105",
+    "crates/toucan_parser/src/ast.rs": "007d996f07db86c74d88798a5e50c5c8975ef661044851607000d4879935b5c8",
+    "crates/toucan_parser/src/parser.rs": "3b07f0f79fdb8dc5f7ba65000e8e66faf73cf36bee54469241ab7d49c2b642b9",
+    "crates/toucan_parser/src/visit.rs": "dc39cf7d5de5450d857c4a5e25cdc46d8bc9390db51d0c7e2cdb4d20dd26d064",
+    "crates/toucan_parser/tests/omitted_conditional.rs": "69aa69ed1f42f8a45ad541eaaa96cfe6437721b984af722638a6780cd84c2794",
+    "crates/toucan_semantic/src/analyze.rs": "8b10b823476d6690269a167f524ed4074a9cd7b8ed084e4c06e09c3838013088",
+    "crates/toucan_semantic/src/checked/access.rs": "df792320e9543c8608d4c75e3be8517342b40a4fc9aaedbd850cab959849ffa8",
+    "crates/toucan_semantic/src/checked/bounds.rs": "a2b186594f92cc6262cbc4fb10067229caee331a6e1925145ce6367ed9785382",
+    "crates/toucan_semantic/src/checked/expression.rs": "7c66fe5a324106535fe724492f4aa2ba9266cdd024f1fa97672baf0f78ed5771",
+    "crates/toucan_semantic/src/checked/query.rs": "c593316c3e90e67e04ec9f90dd0173618f83195edf7dd10de3dc6a0e96e797dc",
+    "crates/toucan_semantic/src/constant_query.rs": "e1cb80ef172ef591cd32ff0a62208aa056050f9a0000d9753ec6cb7185771171",
+    "crates/toucan_semantic/src/expression.rs": "278c050c0ee56e9f74bcb63eeb93ca1ac300be6c427c3f594bbcda9f6874fcb7",
+    "crates/toucan_semantic/src/floating.rs": "90fe6b525cc4ce9dfb29c1407ba522e8a96150603b0c3154ce9f1d708334a270",
+    "crates/toucan_semantic/src/initializer.rs": "7dadd8dba443361207686a343725fa18fe0c102b78c83611f459cab4db4b43be",
+    "crates/toucan_semantic/src/integer.rs": "e39e987b7449d275c8aa9bbb6b477c15521b6085b19e44b222f442d29e64035a",
+    "crates/toucan_semantic/src/object_extent.rs": "dbbe5f7606601f52a11b4d4f62996e03a935bbbe4622adee3c22eabc8894e918",
+    "crates/toucan_semantic/src/overflow.rs": "75b7cb9cb000ac3941a1bc8d6a316368ab2420b528c2fd6d4ea19d01817e7b8b",
+    "crates/toucan_semantic/src/vector_constant.rs": "d64457db24af428f87c83e092ca6cf11d2c58679e09cd38d2c0694c45d5396de",
+    "crates/toucan_semantic/tests/fixtures/conditional_addresses.json": "7133f3517f38c330c6ba3825f85415bec596cfd7175eb3bb5741b37afc763cbb",
+    "crates/toucan_semantic/tests/fixtures/omitted_conditional.json": "251df19d92b5eb45295b8b9604c20003c57fe780a1bc81e7f64ddf4b927c01e6",
+    "crates/toucan_semantic/tests/fixtures/omitted_conditional_runtime.json": "ea2bdcc90ab4c78116c70fecb99f8b75019a5deecef0d9b3a818410ca0c10001",
+    "crates/toucan_semantic/tests/omitted_conditional.rs": "36a5ea445359c807a4b754708faa3037bfce06b9fc4774c4055d012d35b4bada",
+    "fuzz/fuzz_targets/bindings.rs": "ba66324ef0b916f43c930e076c850e3c77f419433fbae2999d29234128553655",
+    "fuzz/fuzz_targets/checked.rs": "5c7c9463879324fcc666ddf2daad1b1a04d832e3e277806ab025b2397bd3afee",
+    "fuzz/fuzz_targets/checked_invariants.rs": "8bea94fb2c21673652ff115b3f1eb405ec45a940d1c3979897790cef63547879",
+    "fuzz/fuzz_targets/preprocess.rs": "7f829b4d02f689d2ce7abea37cea1cdf685771e52ce8fc4f4128597e204f1cc9",
+    "fuzz/fuzz_targets/semantic.rs": "737c5987e9dedb1eb18437e7c453c8c943301a4d09a8c2c0b3114d875613dcda",
+    "fuzz/seeds/bindings/omitted-conditional-weak.h": "fe4d7d29004aacc05bc242d53d0cac81c45cc4f3da9b42d4b3e9ebf9864a8a89",
+    "fuzz/seeds/bindings/omitted-conditional.h": "61b24f3e309614819189a3afea6974a42dab7d032924e03e7931f0757d4aa8b1",
+    "fuzz/seeds/checked/omitted-conditional-weak.h": "fe4d7d29004aacc05bc242d53d0cac81c45cc4f3da9b42d4b3e9ebf9864a8a89",
+    "fuzz/seeds/checked/omitted-conditional.h": "61b24f3e309614819189a3afea6974a42dab7d032924e03e7931f0757d4aa8b1",
+    "fuzz/seeds/semantic/omitted-conditional-weak.h": "fe4d7d29004aacc05bc242d53d0cac81c45cc4f3da9b42d4b3e9ebf9864a8a89",
+    "fuzz/seeds/semantic/omitted-conditional.h": "61b24f3e309614819189a3afea6974a42dab7d032924e03e7931f0757d4aa8b1"
+  },
+  "tests": {
+    "native": {
+      "passed": 12,
+      "ignored": 0
+    },
+    "msrv-gcc": {
+      "passed": 2,
+      "ignored": 0
+    },
+    "msrv-clang": {
+      "passed": 2,
+      "ignored": 0
+    }
+  },
+  "parser_regenerated": true,
+  "integration": "Applied cleanly over DLL, GNU floating types, all eight language modes, modern profiles and non-object query rules; regenerated the combined parser. Void-lvalue no-load conversion and shared type resolution preserved.",
+  "limitations": [
+    "Full workspace, all-seed replay and sanitizer checks are combined with the following floating-name and provenance layers.",
+    "Native root execution is x86_64 Linux; non-Linux execution remains a CI gate."
+  ]
+}

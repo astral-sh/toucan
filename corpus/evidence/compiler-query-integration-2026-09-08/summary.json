@@ -1,0 +1,65 @@
+{
+  "status": "passed",
+  "source_sha256": "2b955c57afbeb865e20e12a7e494c561d60bb1c513156ba70bc60d084167a485",
+  "reported_test_counts": {
+    "facade": {
+      "passed": 16,
+      "failed": 0,
+      "ignored": 0
+    },
+    "catalog-native": {
+      "passed": 4,
+      "failed": 0,
+      "ignored": 0
+    },
+    "workspace": {
+      "passed": 761,
+      "failed": 0,
+      "ignored": 197
+    },
+    "operators-native": {
+      "passed": 8,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "native_operator_cases": 5880,
+  "native_operator_overrides": 20,
+  "native_feature_selected_C_compilations": 32,
+  "feature_selected_source_pairs": 264,
+  "facade_checked_replay": {
+    "profiles": 11,
+    "language_modes": 4,
+    "pairs": 3828,
+    "accepted": 2602,
+    "matching_diagnostics": 1226
+  },
+  "original_header_outputs_equal": 4,
+  "musl_abi_outputs_equal": 4,
+  "fuzz": {
+    "statistics": {
+      "number_of_executed_units": 488116,
+      "average_exec_per_sec": 2696,
+      "new_units_added": 2758,
+      "slowest_unit_time_sec": 0,
+      "peak_rss_mb": 513
+    },
+    "elapsed_seconds": 181.12778203999915,
+    "source_unchanged": true,
+    "artifacts": {},
+    "selector_version": 3,
+    "settings_per_seed": 40,
+    "seed_files": 7,
+    "all_settings_present_in_initial_archive": true,
+    "leak_sanitizer": false
+  },
+  "benchmark": "../../../benchmarks/evidence/compiler-queries-2026-09-08/evidence.json",
+  "macos_tls_deployment_baseline": "11.0",
+  "limits": [
+    "No native Windows execution",
+    "C23 attribute queries remain zero",
+    "No module context",
+    "Pragma query operands deferred to a separate layer",
+    "GNU13 operator availability; no full GNU14 profile"
+  ]
+}

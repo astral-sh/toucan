@@ -1,0 +1,842 @@
+{
+  "profiles": 11,
+  "language_modes": [
+    "gnu11",
+    "c11",
+    "gnu90",
+    "c90"
+  ],
+  "selector_version": 2,
+  "all_inputs_preserved": true,
+  "semantic_seeds": [
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/c11-keyword-identifiers.h",
+      "source_sha256": "87a5671aa29d0c6c97a5424c23ca80d868aa975f0ecf88c7dea6180f8dc900f8",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/c90.h",
+      "source_sha256": "b5c7a6f7578d157f94beb61532b7691f06a655016574a9676f70cc2f102d7ce0",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/calling_conventions.h",
+      "source_sha256": "4b37b1d0cfe8e6726a418bebca69c935e5517c4f8e3a1daf62510ef7da7e0a7f",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/compiler_intrinsics.h",
+      "source_sha256": "83b7b6fa48a38eba149dc1773173c88ec007e92f803ed7bc2aa5141c28babf8d",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/control_flow_budget.h",
+      "source_sha256": "e355db333c608da0751f1dafbdaae8a925ca6fc58e706528d7f05df24b615483",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/declarations.h",
+      "source_sha256": "fb7bb36ed664f01ecf0f60a44057a64a6f990d2a7fb3fcb3ed27366930e5ba76",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/floating.h",
+      "source_sha256": "088026cdfc071e104230227422b6fb7520f3d07fc0ec86ca4db4eafa19a72977",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/gnu-keywords.h",
+      "source_sha256": "fea4835d0eb2eeddd1e81591f429c4068ae1d15acd07604db9143aa365833a9a",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/inline_assembly.h",
+      "source_sha256": "c3c0ad78b72cbc13797f8e1a282b6e75cfd7c9ab9576b56e7dc78eef7310864d",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/nested_record_assignment.h",
+      "source_sha256": "756ca82a3ad6f5b381086577e3c948827836aeefcc2cf5aeceb2c3a31da6987b",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/noreturn-declarations.h",
+      "source_sha256": "71790059f64d59b8cd74a5072030ff13deb564587d9d5525c62d897d38237b95",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/sparse_initializer.h",
+      "source_sha256": "d086a15ddd1842c8dce3e55caaf72246d28c82ec3c93c61a3d8040935e2e01af",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/statement_expressions.h",
+      "source_sha256": "a6081b0408cc476ff7de88a9a88c0301a2d4bf1b230d820ca99e8b55fb81b742",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/variable_array_scopes.h",
+      "source_sha256": "da9b085926725b953c84158a22ab69778665d99e5136450da51f1df630d7ce05",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/variable_arrays.h",
+      "source_sha256": "49717561fa6a437410dca83b25f76edd21bb5a25f6f03e38d36c46774b24aa69",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/variadic_body.h",
+      "source_sha256": "2b4b208b8288d765dabf54f4f532a7746ac0cd1fb9acbc2dca26b112ad76a4be",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/vector-constant-arithmetic.h",
+      "source_sha256": "811f3a8e2ec7c0c4825a597c81e631056690eff32a8ec89536ef893066104e65",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "semantic",
+      "seed": "fuzz/seeds/semantic/vector-constant-selection.h",
+      "source_sha256": "afe4a64ac2c2d9dc99f52cc3cc422a0ff3e9c219d6e6a5c474f5fa6cc7fb8c83",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/aligned_ancestry.h",
+      "source_sha256": "80b723b6ad8f89daba2addfa188d1c901264b9b87bde139f60c919fb0fb14b75",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/arm_sve_type_contexts.h",
+      "source_sha256": "e12832abb3e73a27caf2a20e60bfebfcd22a9c7926a5d038a9c204404b60d607",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/arm_vector_declarations.h",
+      "source_sha256": "f9f987bdcd4f96446fb5a35649a3df1c6b6cc8884a391fbc8a2b7925a794c2a5",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/atomic_builtins.h",
+      "source_sha256": "0d88c487f7aeedcab080b7afa3a55dbf2b37aba31e6f941aaf241f9310ff7b54",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/atomic_nested_address.h",
+      "source_sha256": "38c0586b960f37be132d2059acc0fd01ebacb8a949dd27840240cb2bce187ee0",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/atomic_nested_query.h",
+      "source_sha256": "5d41796c9a3fc5707639934b83146ffbf44333c490d8795527cb761f4e1bdf05",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/atomic_type_bounds.h",
+      "source_sha256": "abaafd2911ad1f8e324220cdf58b18576c72c5bda4f59031264da42e9b4530a7",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/atomic_type_initializers_gnu.h",
+      "source_sha256": "366fc39ea6d458f3868635693488a19283cd0ebc84e272a07c3819f99f1ae002",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/atomic_types.h",
+      "source_sha256": "663e95c1ae40c903a134b84c5dd206f667d5bca0e221dc26b7930f59dfca9650",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/auto_type.h",
+      "source_sha256": "be44eeeaece227b70ef7a073f3191c3fbcaafe8728bafc7faef2613c3c9c1a11",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/binary128.h",
+      "source_sha256": "33676dca3db80e30b2dfe8f7de7c22094f677f7c5ea40b282fd44951ac0cc806",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/bit_counts_llp64.h",
+      "source_sha256": "23012c6221f243332121ea370e6c64d43aeeed469cd2f721d52c827f43a6020a",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/bit_counts_lp64.h",
+      "source_sha256": "e6b3a348a779c4c1ee904ac375a6eb5724ccd928536578678bd9f0fe3405c69d",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/bmi_targets.h",
+      "source_sha256": "50e2830c1d0454ed056b0cc34d3782df025bfbd26ff400e83cdf26530b57c591",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/c11-keyword-identifiers.h",
+      "source_sha256": "87a5671aa29d0c6c97a5424c23ca80d868aa975f0ecf88c7dea6180f8dc900f8",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/c11_atomic.h",
+      "source_sha256": "9fc4f43a1dda110ff4197061cb4b2a5a230a4a72a0168f2c318191907c27be89",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/c11_atomic_bounds.h",
+      "source_sha256": "e42758721d03c5e90967d20d353b314fd0add024130a1da90271505b39b9496c",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/c90.h",
+      "source_sha256": "35ebe5ca386e7beb5f10e67ab03c1ffcb1e1b8741be2551036d6aef4c1a7fdbc",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/calling_keywords.h",
+      "source_sha256": "5fb389f3e26347c941648676b664c209d90cbfdd771ac7ab0449f8962ce0d6a7",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/clang_auto_declarators.h",
+      "source_sha256": "fbaba83d8639c9b2c8d94bcca160ba878737c6d088eb2922bc1cffbe9517c516",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/complex_nontemporal.h",
+      "source_sha256": "242593bd2601ff2a554735e7780485693933a030d762a2eff06114002c5659c9",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/complex_projections.h",
+      "source_sha256": "33ec0bc03da5916476a317868896b962b4a0458450817a633b9d36186976284a",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/complex_types.h",
+      "source_sha256": "a67e1cb53b2182b52286553e49800830b336f36d4887fb3495022e26931b44da",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/constant_diagnostic.h",
+      "source_sha256": "52c2b561d4df19b37e2360557e07a54968318c5c45285bae2b470a828fcf3a80",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/constant_query.h",
+      "source_sha256": "beaeef1bd10ab1e4f836b682b6d4e0ee820464b39d476bdf645e7fe814d8523e",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/convert_vector.h",
+      "source_sha256": "43c641546f75e1ae3bb9dd0d896630ef90d3991e8f8b8c47599831388b9c62df",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/diagnostic_attributes.h",
+      "source_sha256": "b735ff1fdf998744f75f35305d65d19f5d6ef5d957e3dd7086b69242e0216921",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/elementwise.h",
+      "source_sha256": "2525fae19b58c27fb922079a3d1c82a1a1ba785bedc85148525d77a3167a1a6b",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/empty_definition.h",
+      "source_sha256": "42c7766a9813fdb8cd72b4bb79f449283e09b1e67fc0cbd20d718283e3455a31",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/fallthrough.h",
+      "source_sha256": "293f48d428addb2be1433603ad1fe9535097a2973794da6b8857a16704464a8a",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/fortified_intrinsics.h",
+      "source_sha256": "84c4844a0fd6d0d2ace5190a6bd6d009499cfbec6a0f07589470c904486c98af",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/function_targets.h",
+      "source_sha256": "3b9b3c34dc008c82cb12ba6d4e36b39c25546df326c0aafa8f2977ccede9d0b3",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/gnu-keywords.h",
+      "source_sha256": "fea4835d0eb2eeddd1e81591f429c4068ae1d15acd07604db9143aa365833a9a",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/gnu_vector_shuffle.h",
+      "source_sha256": "a1ff3dff9a377868f46b1df5b844d765476a2a0905b2f725f8d8e438831b5878",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/half_excess_precision.h",
+      "source_sha256": "f010f5c10f86ceee2150aba56056a39af5f1f80553048ac5ab457a58b4aaa1a2",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/half_types.h",
+      "source_sha256": "35d9d28ea81d09001dfc0cc7e10f4b3ea7c85a3464837118b022a19b64916f8d",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/infinity_intrinsics.h",
+      "source_sha256": "ca073050dc8b2888eaef3103794c32f2c3287e0104b70c1091868a89c482f218",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/initializers.h",
+      "source_sha256": "e9a6b826d04bf52d5768f0593e822bfaf65c5bb90464ad015e27602fbe002dbc",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/intrinsic_queries.h",
+      "source_sha256": "5e77a1bd5f381af3f186075aa89b98ac6556334bc1541d5e3a6113783896d2ae",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/memory_and_byte_swap.h",
+      "source_sha256": "80ad3f010d25df1e061c1aa411c1e17e1d53bd8d612dda1e7e171f0ee755bc9e",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/minimum_vector_width.h",
+      "source_sha256": "6247e89a1e3b5ca8bfbacb224462cd06afa40500a2818e5f6db8d7ca63039259",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/mixed_floating_conversions.h",
+      "source_sha256": "5b22eeed688c3b1f77ead8d112be3babe7badc89d79bc87ce7d8ce5aff826b0b",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/mmx_deferred_immediate.h",
+      "source_sha256": "c0118bda7190a8b555c7d4da6af096eaaa7fb5c1fd78481c5a42ba7e7d83edb0",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/mmx_intrinsics.h",
+      "source_sha256": "a8600338512a4e4c746baa0769e68673e309fced9c015b3d541f9ed3b6c9b692",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/msvc_integers.h",
+      "source_sha256": "5e6339a8158123819b5f4e428e7856a5bcefee5517ad41adf987e30949a83d08",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/nan_intrinsics.h",
+      "source_sha256": "90781733ca46bbcc5631bd6152dff2d9d79d25406ea0c828928e38f86138032d",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/nodebug.h",
+      "source_sha256": "855500c0b04ab927c4a8071832cfb445baa1b626b6f56ef9b7731fd9c09c751f",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/noescape.h",
+      "source_sha256": "dac2a7bf80e88ccdcc4c9f462046ec23f8f9bc7c7c03171e0fe3d80474487cd5",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/nontemporal.h",
+      "source_sha256": "6b3c594b7a81337eedb5cff135743913eb72269119485eeb86cff9159719d406",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/noreturn-declarations.h",
+      "source_sha256": "71790059f64d59b8cd74a5072030ff13deb564587d9d5525c62d897d38237b95",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/object_extents.h",
+      "source_sha256": "3e8e64e70a051d66490376b991594981ad3ae62cd58ef32ca12b311f7a2f5ded",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/object_size.h",
+      "source_sha256": "111c37a469bc3f4e1da8f53ba4a02715030a1c6a9c63ef55ac38d4d95ec0af86",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/old_style_definitions.h",
+      "source_sha256": "cb445ebad7d83d5d3e9f97874f948277456e2bc930b53a7b967470b8d9fd25b1",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/old_style_function_targets.h",
+      "source_sha256": "eafe71b44acf54e7efa82069c9d83b008367e4a4ad89e5f6d25f61662627c777",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/overflow_nested_predicates.h",
+      "source_sha256": "f6c947da77f93b7adc02c096d4505445f5ba2d33546fe1932966849238f46d9a",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/overflow_predicates.h",
+      "source_sha256": "d95193d8aee3a4c0e01b2b4d20b13f51ccfbe60f0334ebeddcf4a37663531a2a",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/overflow_stores.h",
+      "source_sha256": "97f28f5ba4912d7ba43dcd4acd4c224a7765e5413ad29e747ac87832b64403df",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/packed_enums.h",
+      "source_sha256": "01332268ae3469f82b331c15ddd2975e3b90580de1e2d575403c4e14fb730f6e",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/prototype_typeof_ownership.h",
+      "source_sha256": "80ccf69fc59b1d40b1d3128798c520fc7353f34e821f7391c7248e86c16886ec",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/query_evaluation.h",
+      "source_sha256": "424948b1d90a3ddaf933cd5dbc9940f43bcd4c2666bcaa7909760eefca604dde",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/returns_twice.h",
+      "source_sha256": "4ca8d697df3f13dfa96aa2eb30742b935dabf303fdd023ec0d70df11a3c2f554",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/runtime_extent_conversions.h",
+      "source_sha256": "a2e526e715744fd25aaa6c44ae9d58461a6328547c5bdcc28c7c71da4cdc4347",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/shuffle_dynamic.h",
+      "source_sha256": "7407b392f8b9228518a9165d62629a869338c01f514bee212699e6bb0a867200",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/shuffle_vector.h",
+      "source_sha256": "5555678733b163903260e168c7c942804cc53ab82f68573502e340235a7c1e57",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/sse_deferred_prefetch.h",
+      "source_sha256": "44bd4d552df66730866b90b4d444c50d5bfd41852b618ab2bd62d22903126837",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/sse_intrinsics.h",
+      "source_sha256": "229012cb5ea76e8ba34d4c670b6538776c58c753426fe212075118535bce4d81",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/statements.h",
+      "source_sha256": "9f1514806b2eb0f1690adfe81a7d5bd9cf9adba68b96f128c815099ba3a87012",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/static_subobject_addresses.h",
+      "source_sha256": "4feb21b0f3430c979601283ab4892f8b164e40fcbc25476876ba7dd648540afa",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/sync_builtins.h",
+      "source_sha256": "bb783275ef7a9913e6451a5716029fa6666450df3368a61ed82df4c2bcf301ab",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/thread_local.h",
+      "source_sha256": "8eea8e0b838b15dddd7b817ff8843b4f9e4d372f0b6c85fec24f11023b3ab29b",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/transparent_unions.h",
+      "source_sha256": "c2655beb8aee4094af0ed7a5c8ddfa1a66416edee73eb7abc0ce1e672fc50591",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/type_introspection.h",
+      "source_sha256": "63cdff85138097a2ede434787a9f72a524afa47bca55d94a518af779b1e468ac",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/type_uses.h",
+      "source_sha256": "b645b0dedfb872fe25318c2d1b01fdc4c8b0c623413c95630aca86513c07fb79",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/undefined_bit_count.h",
+      "source_sha256": "a635d8b16021543e4db72f89cf0b1750621366e100785c3fefc6f2f42832e95e",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/undefined_vector.h",
+      "source_sha256": "7d396e6e28f5c8255a0a5c7fb3087721b5b06a7cb72040479d65763c38cd4f65",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/variadic_pack.h",
+      "source_sha256": "51278dcdaaf75751a48778f11bfda39d3eb5507fc7bce3ed4edcf766b2ad1050",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/variadic_pack_generic.h",
+      "source_sha256": "d730bf1a3d80263553e2ab919983f63a783ce2435cf960569e2535ee483c3a6e",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/vector-constant-arithmetic.h",
+      "source_sha256": "811f3a8e2ec7c0c4825a597c81e631056690eff32a8ec89536ef893066104e65",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/vector-constant-selection.h",
+      "source_sha256": "afe4a64ac2c2d9dc99f52cc3cc422a0ff3e9c219d6e6a5c474f5fa6cc7fb8c83",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/vector_types.h",
+      "source_sha256": "ef9570aeaf7ec3899e00c82f77647cc2eb3b7f20e1d73839b81b62c8ec6717ea",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/vla_type_identity.h",
+      "source_sha256": "36f943bba3cb55253b3f5ef77cbc138be515ff02073f83a6c69f34c6b692737f",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "checked",
+      "seed": "fuzz/seeds/checked/weak_symbols.h",
+      "source_sha256": "f843f4689d2dfb865d84f9da82a13e2e4c2cd0b5f74b32d353ee20e218d17f2d",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/api.h",
+      "source_sha256": "9915e4c1534ea44ff51b0d2157ae294cfd88aabc1d51d55855721c280daefed5",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/atomic_storage.h",
+      "source_sha256": "21ea963fdf08b5dc673602580b2c395f2b1e106e9936d03f75970f8dd6bbd8d5",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/bool_macros.h",
+      "source_sha256": "ee9293ac59844c212a49a26d90f665cd97d27b80db99a78510cc5e23c5651b1e",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/c11-keyword-identifiers.h",
+      "source_sha256": "87a5671aa29d0c6c97a5424c23ca80d868aa975f0ecf88c7dea6180f8dc900f8",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/c90.h",
+      "source_sha256": "097bc5793d38e4275a5fa4bd615f79cfe6bbfceb9fc82decc3e6ba1f463b58b9",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/control_flow_budget.h",
+      "source_sha256": "e355db333c608da0751f1dafbdaae8a925ca6fc58e706528d7f05df24b615483",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/floating.h",
+      "source_sha256": "eae23ad80dbba2971cfbda9ed177c1f702e0de29ef8303b2804cb6f23e2c24fd",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/gnu-keywords.h",
+      "source_sha256": "fea4835d0eb2eeddd1e81591f429c4068ae1d15acd07604db9143aa365833a9a",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/inline_assembly.h",
+      "source_sha256": "c3c0ad78b72cbc13797f8e1a282b6e75cfd7c9ab9576b56e7dc78eef7310864d",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/nested_record_assignment.h",
+      "source_sha256": "756ca82a3ad6f5b381086577e3c948827836aeefcc2cf5aeceb2c3a31da6987b",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/noreturn-declarations.h",
+      "source_sha256": "71790059f64d59b8cd74a5072030ff13deb564587d9d5525c62d897d38237b95",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/sparse_initializer.h",
+      "source_sha256": "d086a15ddd1842c8dce3e55caaf72246d28c82ec3c93c61a3d8040935e2e01af",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/statement_expressions.h",
+      "source_sha256": "a6081b0408cc476ff7de88a9a88c0301a2d4bf1b230d820ca99e8b55fb81b742",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/variable_array_scopes.h",
+      "source_sha256": "da9b085926725b953c84158a22ab69778665d99e5136450da51f1df630d7ce05",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/variadic_body.h",
+      "source_sha256": "0a289e8cc6f21c7be9037f7ae00bd3dd580da1b29440c3b72e7c32a377aec474",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/vector-constant-arithmetic.h",
+      "source_sha256": "811f3a8e2ec7c0c4825a597c81e631056690eff32a8ec89536ef893066104e65",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    },
+    {
+      "target": "bindings",
+      "seed": "fuzz/seeds/bindings/vector-constant-selection.h",
+      "source_sha256": "afe4a64ac2c2d9dc99f52cc3cc422a0ff3e9c219d6e6a5c474f5fa6cc7fb8c83",
+      "variants": 44,
+      "mode_profile_combinations": 44
+    }
+  ],
+  "preprocessing_selector_version": 2,
+  "preprocessing_settings_per_seed": 20,
+  "preprocessing_seeds": [
+    "fuzz/seeds/preprocess/c90-comments.h",
+    "fuzz/seeds/preprocess/c90-pragmas.h",
+    "fuzz/seeds/preprocess/conditional_paste.h",
+    "fuzz/seeds/preprocess/feature-queries.h",
+    "fuzz/seeds/preprocess/macros.h",
+    "fuzz/seeds/preprocess/query-counter.h"
+  ]
+}

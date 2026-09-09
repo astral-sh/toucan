@@ -161,3 +161,30 @@ replaces the earlier `static_storage()` getter and serialized field. For example
 `_Thread_local const char *text = "hello";` has a constant initializer, while
 `static int *p = &thread_object;` is invalid: a TLS address is computed for the
 current thread. Runtime address-taking is valid and retains ordinary pointer types.
+
+## Declaration origins without body retention
+
+Set `AnalysisOptions::retain_declaration_origins` to retain written file-scope
+declaration locations independently of `retain_code`. `Analysis::declaration_origins()`
+(and the facade's `Compilation::declaration_origins()`) returns source-ordered
+occurrences. Compatible redeclarations share their canonical target while keeping
+separate locations and definition/linkage facts. Tentative object declarations
+report `is_definition() == false`; the final declaration data reflects translation-unit
+completion. Targets index the same owned
+translation unit's declarations, records, enums, and enumerators. Tag references
+are included with `is_reference() == true`; they are not independent file-selection
+roots. Block-local declarations are not included.
+
+This catalog does not allocate expression, statement, or initializer arenas and
+does not consume checked-code budgets. It has separate fixed limits of one million
+occurrences and 64 MiB of mapped source fragments. Origins are absent by default.
+Their byte ranges refer to the original preprocessed input after parser adapter
+mapping, just like checked-code spans.
+
+For physical header selection, also enable
+`Config::preprocessor.record_file_origins`. Resolve an origin's starting byte
+through `compilation.preprocessed().file_origins().unwrap().source_file(offset)`.
+These input paths stay separate from diagnostic `#line` paths. A declaration
+expanded by a macro belongs to the file containing its invocation. The physical
+macro-definition lookup reports the final active definition and removes names
+after `#undef`; it does not implement a binding generator's macro-history policy.

@@ -1,0 +1,51 @@
+{
+  "status": "passed",
+  "source_sha256": "c19c6bca432a4afb6dee3a167d161dd389570e8f068cbbc689d2502e82b80576",
+  "reported_test_counts": {
+    "parser": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    "semantic": {
+      "passed": 12,
+      "failed": 0,
+      "ignored": 0
+    },
+    "facade": {
+      "passed": 17,
+      "failed": 0,
+      "ignored": 0
+    },
+    "workspace": {
+      "passed": 741,
+      "failed": 0,
+      "ignored": 193
+    },
+    "rust164": {
+      "passed": 1,
+      "failed": 0,
+      "ignored": 0
+    }
+  },
+  "python_tests": 30,
+  "parser_regeneration_byte_identical": true,
+  "parser_instrumentation": {
+    "loops": 86,
+    "guards": 556,
+    "rules": 248
+  },
+  "checked_replay": {
+    "profiles": 11,
+    "language_modes": 4,
+    "pairs": 3696,
+    "accepted": 2526,
+    "matching_diagnostics": 1170
+  },
+  "original_header_outputs_equal": 4,
+  "musl_abi_outputs_equal": 4,
+  "rust_1_64_native_c90_ffi": "passed",
+  "retained_literal_evaluation_profile_regression": "passed in all four modes",
+  "fuzz_scope": "Original and agent integration ASan archives retained with their exact source hashes; no additional root ASan campaign claimed",
+  "cli_differential_scope": "Agent integration result remains historical 180/184; the following scalar-initializer layer reruns all cases"
+}

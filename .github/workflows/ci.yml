@@ -10,21 +10,37 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      macos:
+        required: true
+        type: boolean
+      intel:
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.ref }}
+  group: ci-${{ github.ref }}-${{ inputs.macos && 'macos' || 'default' }}
   cancel-in-progress: true
 
 jobs:
   test:
     name: Test (${{ matrix.os }})
+    timeout-minutes: 60
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, ubuntu-24.04-arm, macos-15, macos-15-intel]
+        os: >-
+          ${{ fromJSON(inputs.macos
+            && (inputs.intel && '["macos-15", "macos-15-intel"]' || '["macos-15"]')
+            || '["ubuntu-24.04", "ubuntu-24.04-arm"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
@@ -77,6 +93,7 @@ jobs:
           RUSTDOCFLAGS: -D warnings
 
   lint:
+    if: ${{ !inputs.macos }}
     name: Lint
     runs-on: ubuntu-24.04
     steps:
@@ -89,6 +106,7 @@ jobs:
       - run: cargo clippy --workspace --all-targets --all-features -- -D warnings
 
   msrv:
+    if: ${{ !inputs.macos }}
     name: Rust 1.96
     runs-on: ubuntu-24.04
     steps:
@@ -100,10 +118,15 @@ jobs:
 
   distribution:
     name: Packages and allocators (${{ matrix.os }})
+    timeout-minutes: 30
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      CARGO_PROFILE_TEST_DEBUG: "0"
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-24.04, macos-15, windows-2025]
+        os: ${{ fromJSON(inputs.macos && '["macos-15"]' || '["ubuntu-24.04", "windows-2025"]') }}
     runs-on: ${{ matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262

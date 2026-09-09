@@ -7,8 +7,24 @@
 
 mod atomic;
 mod complex;
+mod derives;
+mod documentation;
+pub use documentation::Documentation;
+mod enum_constants;
+mod enumeration;
 mod external;
+mod lexical_names;
+mod objects;
+mod renaming;
+mod selection;
+mod tag_discovery;
+mod type_dependencies;
+pub use type_dependencies::TypeDependencies;
 
+pub use selection::BindingSelection;
+
+pub use derives::DeriveOptions;
+pub use enum_constants::EnumConstantStyle;
 pub use external::{ExternalType, ExternalTypeKind};
 
 use std::collections::{BTreeMap, BTreeSet};
@@ -21,11 +37,50 @@ use toucan_semantic::{
 
 #[derive(Debug, Default, Clone)]
 pub struct Options {
-    /// Exact names or prefixes ending in `*`. Empty selects all declarations.
+    /// Optional item documentation keyed by C identity, independent of selection.
+    pub documentation: Option<Box<Documentation>>,
+    /// Optional source dependencies of reachable callback records and typedefs.
+    pub type_dependencies: Option<Box<TypeDependencies>>,
+    /// Exact names or prefixes ending in `*`. Empty selects all unless explicit roots are supplied.
     pub allowlist: Vec<String>,
+    /// Owner-local roots selected independently of C identifier spelling.
+    /// Name allowlists and explicit roots are combined; `Some(empty)` selects no roots.
+    pub selection: Option<Box<BindingSelection>>,
+    /// Rust names for functions and external objects, keyed by original C spelling.
+    /// Native symbol names remain unchanged. Selected value-name collisions are errors.
+    pub generated_names: BTreeMap<String, String>,
+    /// Selected written object occurrences, keyed by their original C names.
+    /// Enables literal projection and preserves the selected occurrence's type.
+    /// Internal objects without a materialized constant are skipped and reported.
+    pub object_bindings: BTreeMap<String, toucan_semantic::ObjectOccurrence>,
+    /// Additional explicit Rust object names mapped to their checked occurrences.
+    /// Each occurrence retains its original C declaration and linker identity.
+    /// Internal objects require a materialized scalar or string constant.
+    /// Empty preserves the ordinary one-name emission path.
+    pub additional_objects: BTreeMap<String, toucan_semantic::ObjectOccurrence>,
+    /// Emit externally linked functions even when their C definition is present.
+    /// The caller must still link the C object providing that definition.
+    pub emit_function_definitions: bool,
+    /// Exclude functions whose file declarations are all inline, or that have an
+    /// inline body, including a replaced GNU body. This is independent of linkage.
+    pub exclude_inline_functions: bool,
     /// Emit Rust enums with named variants instead of integer aliases. Values
     /// outside the declared variants are invalid Rust enum values.
     pub rustified_enums: bool,
+    /// Select Rust enums by exact name or trailing `*` prefix. Integer style
+    /// uses C tags, first anonymous typedef names, or anonymous enumerators.
+    /// Bindgen style uses lexical record-qualified names, direct typedef names,
+    /// anonymous helper names, and original anonymous enumerator names. Later
+    /// aliases do not select the enum. Empty retains integer aliases unless
+    /// `rustified_enums` selects every enum.
+    pub rustified_enum_patterns: Vec<String>,
+    /// Prepend the C enum tag or first anonymous typedef name to integer
+    /// constant projections. Selection still uses original C enumerator names.
+    pub prepend_enum_name: bool,
+    /// Choose global integer projections or bindgen's scoped Rust enum policy.
+    pub enum_constant_style: EnumConstantStyle,
+    /// Traits to provide when their generated storage representation permits it.
+    pub derives: DeriveOptions,
     /// Represent a pointer-sized unsigned `size_t` typedef as Rust `usize`.
     pub size_t_is_usize: bool,
     /// Namespace synthetic types and layout tests when including multiple
@@ -45,6 +100,11 @@ pub struct Options {
     /// Caller-provided Rust appended verbatim. These lines are not parsed or ABI
     /// checked; callers are responsible for their validity and C compatibility.
     pub raw_lines: Vec<String>,
+    /// DLL library names for imported declarations, selected by exact C name or
+    /// trailing `*` prefix. Exact names win, then the longest matching prefix.
+    /// Rules apply only to selected declarations carrying `dllimport`; `*` is an
+    /// explicit default. A later insertion for the same pattern replaces it.
+    pub dll_import_libraries: BTreeMap<String, String>,
     /// Emit byte string macros as `&core::ffi::CStr`. Interior NUL bytes are errors.
     /// Wide string macros retain typed code-unit arrays.
     pub generate_cstr: bool,
@@ -118,17 +178,64 @@ pub enum MacroType {
 
 impl Options {
     pub fn includes(&self, name: &str) -> bool {
-        self.allowlist.is_empty()
+        self.selects_all()
             || self
                 .allowlist
                 .iter()
                 .any(|pattern| matches_name(pattern, name))
     }
 
-    fn blocks_function(&self, name: &str) -> bool {
-        self.blocklist_functions
-            .iter()
-            .any(|pattern| matches_name(pattern, name))
+    fn dll_import_library(&self, name: &str) -> Option<&str> {
+        self.dll_import_libraries
+            .get(name)
+            .or_else(|| {
+                self.dll_import_libraries
+                    .iter()
+                    .filter_map(|(pattern, library)| {
+                        pattern
+                            .strip_suffix('*')
+                            .filter(|prefix| name.starts_with(prefix))
+                            .map(|prefix| (prefix.len(), library))
+                    })
+                    .max_by_key(|(length, _)| *length)
+                    .map(|(_, library)| library)
+            })
+            .map(String::as_str)
+    }
+
+    fn validate_dll_import_libraries(&self) -> Result<(), Error> {
+        for (pattern, library) in &self.dll_import_libraries {
+            let prefix = pattern.strip_suffix('*').unwrap_or(pattern);
+            if (prefix.is_empty() && pattern != "*")
+                || !prefix.bytes().enumerate().all(|(index, byte)| {
+                    byte == b'_'
+                        || byte.is_ascii_alphabetic()
+                        || (index > 0 && byte.is_ascii_digit())
+                })
+            {
+                return Err(Error(format!(
+                    "DLL import pattern `{pattern}` must be an exact C name or trailing '*' prefix"
+                )));
+            }
+            if library.is_empty() || library.chars().any(char::is_control) {
+                return Err(Error(
+                    "DLL import library names must be nonempty and contain no control characters"
+                        .into(),
+                ));
+            }
+        }
+        Ok(())
+    }
+
+    fn blocks_function(&self, declaration: &toucan_semantic::Declaration) -> bool {
+        (self.exclude_inline_functions
+            && declaration.inline_facts.is_some_and(|facts| {
+                !facts.has_non_inline_declaration || facts.has_inline_definition
+            }))
+            || self
+                .blocklist_functions
+                .iter()
+                .any(|pattern| matches_name(pattern, &declaration.name))
     }
 
     fn blocks_type(&self, name: &str) -> bool {
@@ -171,6 +278,7 @@ pub struct Bindings {
     pub blocked_types: Vec<ExternalType>,
     /// Caller-provided Rust, excluded from declaration counts and ABI validation.
     pub raw_lines: Vec<String>,
+
     /// Enum constants are projected to their enum's compatible integer type.
     pub enum_constants: Vec<EnumConstants>,
     /// Rust-to-C names for macro constants whose identifiers were escaped or renamed.
@@ -195,6 +303,16 @@ pub struct MacroIntegerType {
 #[derive(Debug)]
 pub enum MacroValue {
     Integer(IntegerValue),
+    /// Caller-selected Rust integer storage. `value` is a bounded bit pattern;
+    /// signed storage uses two's complement. C macro type policies do not apply,
+    /// and this variant does not imply a C expression type.
+    RustInteger {
+        value: u128,
+        bits: u8,
+        signed: bool,
+    },
+    /// Caller-selected binary64 value, without a C expression type.
+    RustFloat(f64),
     Floating(FloatingValue),
     String(Vec<u8>),
     /// UTF-16, UTF-32, or target-wide code units. Supported element types are
@@ -259,6 +377,41 @@ pub fn generate_with_macros(
 ) -> Result<Bindings, Error> {
     unit.validate_function_options()?;
     unit.validate_parameter_contracts()?;
+    if let Some(dependencies) = &options.type_dependencies {
+        dependencies.validate(unit)?;
+    }
+    options.validate_dll_import_libraries()?;
+    options.validate_generated_names(unit)?;
+    options.validate_object_bindings(unit)?;
+    if let Some(selection) = &options.selection {
+        selection.validate(unit)?;
+    }
+    // A selected typedef declaration also explicitly selects its alias name.
+    // Normalize only this opt-in case; ordinary generation keeps borrowed options.
+    let normalized = options.selection.as_ref().and_then(|roots| {
+        let aliases: Vec<_> = roots
+            .declarations
+            .iter()
+            .filter_map(|&id| {
+                let declaration = &unit.declarations[id];
+                (declaration.kind == DeclarationKind::Typedef
+                    && !roots.typedefs.contains(&declaration.name))
+                .then_some(&declaration.name)
+            })
+            .collect();
+        if aliases.is_empty() {
+            return None;
+        }
+        let mut normalized = options.clone();
+        normalized
+            .selection
+            .as_mut()
+            .unwrap()
+            .typedefs
+            .extend(aliases.into_iter().cloned());
+        Some(normalized)
+    });
+    let options = normalized.as_ref().unwrap_or(options);
     if let Some(namespace) = &options.helper_namespace
         && (namespace.is_empty()
             || !namespace.bytes().enumerate().all(|(index, byte)| {
@@ -272,29 +425,49 @@ pub fn generate_with_macros(
     let declaration_names: BTreeSet<_> = unit
         .declarations
         .iter()
-        .filter(|item| {
-            item.kind != DeclarationKind::Function || !options.blocks_function(&item.name)
+        .enumerate()
+        .filter(|(index, item)| {
+            (item.kind != DeclarationKind::Function || !options.blocks_function(item))
+                && (options.selection.is_none()
+                    || options.includes_declaration(*index, &item.name, item.kind))
         })
-        .map(|item| item.name.as_str())
+        .map(|(_, item)| item.name.as_str())
         .chain(
             unit.records
                 .iter()
-                .filter(|item| item.scope == Scope::File)
-                .filter_map(|item| item.name.as_deref()),
+                .enumerate()
+                .filter(|(id, item)| {
+                    item.scope == Scope::File
+                        && (options.selection.is_none()
+                            || options.includes_record(*id, item.name.as_deref()))
+                })
+                .filter_map(|(_, item)| item.name.as_deref()),
         )
         .chain(
             unit.enums
                 .iter()
-                .filter(|item| item.scope == Scope::File)
-                .filter_map(|item| item.name.as_deref()),
+                .enumerate()
+                .filter(|(id, item)| {
+                    item.scope == Scope::File
+                        && (options.selection.is_none()
+                            || options.includes_enum(*id, item.name.as_deref()))
+                })
+                .filter_map(|(_, item)| item.name.as_deref()),
         )
         .collect();
     for (name, value) in macros {
-        if value.is_some() && options.includes(name) && declaration_names.contains(name.as_str()) {
+        if value.is_some()
+            && options.includes_macro(name)
+            && declaration_names.contains(name.as_str())
+        {
             return Err(Error(format!(
                 "macro `{name}` conflicts with a C declaration; their Rust names cannot both be emitted"
             )));
         }
+    }
+    let lexical_names = lexical_names::Names::new(unit, options)?;
+    if let Some(documentation) = &options.documentation {
+        documentation.validate(unit)?;
     }
     let mut emitter = Emitter {
         unit,
@@ -306,6 +479,8 @@ pub fn generate_with_macros(
                 .chain(unit.typedefs.keys().map(String::as_str))
                 .chain(unit.constants.keys().map(String::as_str))
                 .chain(macros.keys().map(String::as_str))
+                .chain(options.generated_names.values().map(String::as_str))
+                .chain(options.additional_objects.keys().map(String::as_str))
                 .chain(
                     unit.records
                         .iter()
@@ -327,20 +502,28 @@ pub fn generate_with_macros(
         atomics: atomic::Atomics::default(),
         complex_records: complex::Records::default(),
         external: external::ExternalTypes::default(),
+        rustified_enums: enumeration::select(unit, options, &lexical_names)?,
+        lexical_names,
+        enum_constant_names: enum_constants::Names::default(),
+        derive_records: derives::Records::default(),
     };
     let mut selected = Vec::new();
     let mut skipped = Vec::new();
     let mut blocked_functions = Vec::new();
     let mut seen = BTreeSet::new();
-    for declaration in &unit.declarations {
-        if !options.includes(&declaration.name) || !seen.insert(declaration.name.clone()) {
+    emitter.prepare_enum_constant_names()?;
+    for (index, declaration) in unit.declarations.iter().enumerate() {
+        declaration.validate_inline_facts()?;
+        if !options.includes_declaration(index, &declaration.name, declaration.kind)
+            || !seen.insert(declaration.name.clone())
+        {
             continue;
         }
         // These reserved names are normally compiler aliases injected by the facade.
         // With an old Rust target, omit them as implicit selection roots. Dependencies
         // and explicit selections still reach the ABI representation check.
         if options.rust_target.minor < 78
-            && options.allowlist.is_empty()
+            && options.selects_all()
             && declaration.kind == DeclarationKind::Typedef
             && matches!(declaration.name.as_str(), "__int128_t" | "__uint128_t")
         {
@@ -348,38 +531,62 @@ pub fn generate_with_macros(
             continue;
         }
         if declaration.kind == DeclarationKind::Typedef && options.blocks_type(&declaration.name) {
-            emitter.register_external(
-                &Type::new(TypeKind::Typedef(declaration.name.clone())),
-                false,
-                false,
-            )?;
+            let ty = Type::new(TypeKind::Typedef(declaration.name.clone()));
+            emitter.register_external(&ty, false, false)?;
+            emitter.collect_external_dependencies(&ty, 0)?;
             continue;
         }
-        if declaration.kind == DeclarationKind::Function
-            && options.blocks_function(&declaration.name)
-        {
+        if declaration.kind == DeclarationKind::Function && options.blocks_function(declaration) {
+            if options
+                .selection
+                .as_ref()
+                .is_some_and(|roots| roots.retain_type_dependencies)
+            {
+                emitter.collect(&declaration.ty)?;
+            }
             blocked_functions.push(declaration.name.clone());
             continue;
         }
+        let object_constant = emitter.object_constant(declaration)?.is_some();
         if declaration.returns_twice {
             return Err(Error(format!(
                 "returns_twice function `{}` requires a C wrapper that keeps repeated returns inside C",
                 declaration.name
             )));
         }
-        if declaration.symbol_binding == toucan_semantic::SymbolBinding::Weak {
+        if !object_constant && declaration.symbol_binding == toucan_semantic::SymbolBinding::Weak {
             return Err(Error(format!(
                 "weak symbol `{}` requires unsupported optional-symbol linkage in Rust bindings",
                 declaration.name
             )));
         }
-        if declaration.is_static
-            || (declaration.kind == DeclarationKind::Function && declaration.is_definition)
+        if !object_constant
+            && declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
+            && declaration.kind == DeclarationKind::Variable
+            && options.dll_import_library(&declaration.name).is_none()
         {
+            return Err(Error(format!(
+                "dllimport object `{}` requires a matching DLL import library rule for its Rust foreign block",
+                declaration.name
+            )));
+        }
+        if (declaration.is_static && !object_constant)
+            || (declaration.kind == DeclarationKind::Function
+                && declaration.is_definition
+                && !options.emit_function_definitions
+                && declaration.dll_storage_class != Some(toucan_semantic::DllStorageClass::Import))
+        {
+            if options
+                .selection
+                .as_ref()
+                .is_some_and(|roots| roots.retain_type_dependencies)
+            {
+                emitter.collect(emitter.object_type(declaration)?)?;
+            }
             skipped.push(declaration.name.clone());
             continue;
         }
-        if declaration.is_thread_local {
+        if declaration.is_thread_local && !object_constant {
             return Err(Error(format!(
                 "thread-local object `{}` requires Rust TLS support; expose C accessor functions for stable Rust bindings",
                 declaration.name
@@ -394,36 +601,72 @@ pub fn generate_with_macros(
                 false,
             )?;
         } else {
-            emitter.collect(&declaration.ty)?;
+            emitter.collect(emitter.object_type(declaration)?)?;
         }
         selected.push(declaration);
     }
+    let mut dll_symbols = BTreeMap::new();
+    for declaration in selected.iter().copied().chain(
+        options
+            .additional_objects
+            .values()
+            .map(|object| &unit.declarations[object.declaration()]),
+    ) {
+        if declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
+            && let Some(library) = options.dll_import_library(&declaration.name)
+        {
+            let symbol = declaration
+                .link_name
+                .as_deref()
+                .unwrap_or(&declaration.name);
+            if let Some(previous) = dll_symbols.insert(symbol, library)
+                && previous != library
+            {
+                return Err(Error(format!(
+                    "DLL import symbol `{symbol}` has conflicting library rules `{previous}` and `{library}`"
+                )));
+            }
+        }
+    }
     for (id, record) in unit.records.iter().enumerate() {
         if record.scope == Scope::File
-            && record
-                .name
-                .as_ref()
-                .is_some_and(|name| options.includes(name))
+            && options.includes_record(id, record.name.as_deref())
+            && !tag_discovery::hidden_record(unit, options, id)
         {
             let ty = Type::new(TypeKind::Record(id));
             if !emitter.register_external(&ty, false, false)? {
                 emitter.collect(&ty)?;
+            } else {
+                emitter.collect_external_dependencies(&ty, 0)?;
             }
         }
     }
     for (id, enumeration) in unit.enums.iter().enumerate() {
         if enumeration.scope == Scope::File
-            && enumeration
-                .name
-                .as_ref()
-                .is_some_and(|name| options.includes(name))
+            && !tag_discovery::hidden_enum(unit, options, id)
+            && (options.includes_enum(id, enumeration.name.as_deref())
+                || ((emitter.is_rustified_enum(id)
+                    || options.enum_constant_style == EnumConstantStyle::Bindgen)
+                    && enumeration
+                        .variants
+                        .iter()
+                        .any(|variant| options.includes_constant(&variant.name))))
             && !emitter.register_external(&Type::new(TypeKind::Enum(id)), false, false)?
         {
             emitter.enums.insert(id);
         }
     }
+    if let Some(selection) = &options.selection {
+        for name in &selection.typedefs {
+            emitter.collect_use_at(&Type::new(TypeKind::Typedef(name.clone())), 0, false)?;
+        }
+    }
+    emitter.prepare_additional_objects()?;
+    emitter.validate_generated_collisions(&selected, macros)?;
     emitter.prepare_atomic_records()?;
     emitter.prepare_external_records()?;
+    emitter.prepare_derive_records()?;
+    emitter.validate_lexical_type_names()?;
     let mut source = format!(
         "// Generated by Toucan for {}.\n// Do not edit.\n\n",
         unit.target.triple()
@@ -443,7 +686,11 @@ pub fn generate_with_macros(
     emitter.emit_atomics(&mut source)?;
     for &(bytes, alignment) in &emitter.vectors {
         let name = emitter.vector_name(bytes, alignment)?;
-        writeln!(source, "#[repr(C, align({alignment}))]\n#[derive(Clone, Copy)]\npub struct {name} {{ pub bytes: [::core::primitive::u8; {bytes}] }}\n").unwrap();
+        let derives = emitter.vector_derives();
+        writeln!(source, "#[repr(C, align({alignment}))]\n{derives}pub struct {name} {{ pub bytes: [::core::primitive::u8; {bytes}] }}\n").unwrap();
+        if options.derives.default {
+            derives::zero_default(&name, &mut source);
+        }
     }
     for &id in &emitter.records {
         emitter.record(id, &mut source)?;
@@ -462,7 +709,7 @@ pub fn generate_with_macros(
         let rust_name = emitter.names.identifier(name)?;
         let rust_type = if options.size_t_is_usize && name == "size_t" {
             let rust_type = emitter.size_t_type(ty)?;
-            if !options.includes(name) {
+            if !options.includes_typedef(name) {
                 continue;
             }
             rust_type
@@ -477,6 +724,7 @@ pub fn generate_with_macros(
             emitter.ty(ty)?
         };
         if rust_name != rust_type {
+            emitter.declaration_doc(name, &mut source);
             writeln!(source, "pub type {rust_name} = {rust_type};").unwrap();
         }
     }
@@ -495,13 +743,13 @@ pub fn generate_with_macros(
             if enum_owners.insert(variant.name.as_str(), id).is_some() {
                 return Err(Error(format!("duplicate enumerator `{}`", variant.name)));
             }
-            if options.includes(&variant.name) && !macros.contains_key(&variant.name) {
+            if let Some(rust_name) = emitter.emitted_constant_name(&variant.name, macros)? {
                 let value = unit.constants.get(&variant.name).ok_or_else(|| {
                     Error(format!("missing enumerator constant `{}`", variant.name))
                 })?;
                 emitted.push(EnumConstant {
                     c_name: variant.name.clone(),
-                    rust_name: emitter.names.identifier(&variant.name)?,
+                    rust_name,
                     c_expression_bits: value.bits,
                     c_expression_signed: value.signed,
                 });
@@ -523,27 +771,41 @@ pub fn generate_with_macros(
         if emitter.blocked_enumerator(name) {
             continue;
         }
-        if options.includes(name) && !macros.contains_key(name) {
+        if let Some(rust_name) = emitter.emitted_constant_name(name, macros)? {
+            emitter.enumerator_doc(name, &mut source);
+            if let Some(id) = emitter.rust_enum_constant(name) {
+                let enum_name = emitter.enum_name(id)?;
+                let variant_name = emitter.names.identifier(name)?;
+                writeln!(
+                    source,
+                    "pub const {rust_name}: {enum_name} = {enum_name}::{variant_name};"
+                )
+                .unwrap();
+                continue;
+            }
             let value = if let Some(&id) = enum_owners.get(name.as_str()) {
                 let (bits, signed) = emitter.enum_integer(id)?;
                 convert_enum_constant(*value, bits, signed)?
             } else {
                 *value
             };
-            source.push_str(&integer_constant_named(
-                &emitter.names.identifier(name)?,
-                value,
-            )?);
+            source.push_str(&integer_constant_named(&rust_name, value)?);
         }
+    }
+    for declaration in &selected {
+        emitter.emit_object_constant(declaration, &mut source)?;
     }
     let extern_keyword = if options.rust_target.minor >= 82 {
         "unsafe extern"
     } else {
         "extern"
     };
-    let mut active_abi = None;
+    let mut active_block = None;
     for declaration in &selected {
-        let name = emitter.names.identifier(&declaration.name)?;
+        if emitter.object_constant(declaration)?.is_some() {
+            continue;
+        }
+        let name = emitter.generated_name(&declaration.name)?;
         let abi = match declaration.kind {
             DeclarationKind::Typedef => continue,
             DeclarationKind::Function => {
@@ -554,13 +816,25 @@ pub fn generate_with_macros(
             }
             DeclarationKind::Variable => "C",
         };
-        if active_abi != Some(abi) {
-            if active_abi.is_some() {
+        let library = (declaration.dll_storage_class
+            == Some(toucan_semantic::DllStorageClass::Import))
+        .then(|| options.dll_import_library(&declaration.name))
+        .flatten();
+        let block = (abi, library);
+        if active_block != Some(block) {
+            if active_block.is_some() {
                 source.push_str("}\n");
             }
-            writeln!(source, "\n{extern_keyword} {abi:?} {{").unwrap();
-            active_abi = Some(abi);
+            if let Some(library) = library {
+                // Debug string formatting emits an escaped Rust string literal.
+                writeln!(source, "\n#[link(name = {library:?}, kind = \"dylib\")]").unwrap();
+                writeln!(source, "{extern_keyword} {abi:?} {{").unwrap();
+            } else {
+                writeln!(source, "\n{extern_keyword} {abi:?} {{").unwrap();
+            }
+            active_block = Some(block);
         }
+        emitter.declaration_doc(&declaration.name, &mut source);
         match declaration.kind {
             DeclarationKind::Typedef => {}
             DeclarationKind::Function => {
@@ -587,7 +861,7 @@ pub fn generate_with_macros(
                 if name != *link_name {
                     writeln!(source, "    #[link_name = {link_name:?}]").unwrap();
                 }
-                let mutable = if emitter.is_const(&declaration.ty)? {
+                let mutable = if emitter.is_const(emitter.object_type(declaration)?)? {
                     ""
                 } else {
                     "mut "
@@ -595,21 +869,22 @@ pub fn generate_with_macros(
                 writeln!(
                     source,
                     "    pub static {mutable}{name}: {};",
-                    emitter.ty(&declaration.ty)?
+                    emitter.ty(emitter.object_type(declaration)?)?
                 )
                 .unwrap();
             }
         }
     }
-    if active_abi.is_some() {
+    if active_block.is_some() {
         source.push_str("}\n");
     } else {
         writeln!(source, "\n{extern_keyword} \"C\" {{\n}}").unwrap();
     }
+    emitter.emit_additional_objects(&mut source)?;
     let mut renamed_macros = BTreeMap::new();
     let mut macro_types = Vec::new();
     for (name, value) in macros {
-        if !options.includes(name) {
+        if !options.includes_macro(name) {
             continue;
         }
         let Some(value) = value else {
@@ -621,6 +896,29 @@ pub fn generate_with_macros(
             renamed_macros.insert(name.clone(), c_name.clone());
         }
         match value {
+            MacroValue::RustInteger {
+                value,
+                bits,
+                signed,
+            } => {
+                source.push_str(&integer_constant_named(
+                    &name,
+                    IntegerValue {
+                        value: *value,
+                        bits: *bits,
+                        signed: *signed,
+                        rank: 1,
+                    },
+                )?);
+            }
+            MacroValue::RustFloat(value) => {
+                source.push_str(&floating_bits_constant_named(
+                    &name,
+                    64,
+                    u128::from(value.to_bits()),
+                    options.rust_target,
+                ));
+            }
             MacroValue::Floating(value) => {
                 source.push_str(&floating_constant_named(
                     &name,
@@ -720,7 +1018,7 @@ pub fn generate_with_macros(
     }
     Ok(Bindings {
         source,
-        declarations: selected.len(),
+        declarations: selected.len() + options.additional_objects.len(),
         skipped,
         blocked_functions,
         blocked_types: emitter.external.types.into_values().collect(),
@@ -737,11 +1035,39 @@ fn floating_constant_named(
     rust_target: RustTarget,
 ) -> Result<String, Error> {
     let (width, bits) = match value.kind() {
-        FloatKind::Float => (32, value.to_bits()),
-        FloatKind::Double => (64, value.to_bits()),
+        FloatKind::Float | FloatKind::FLOAT32 => (32, value.to_bits()),
+        FloatKind::Double | FloatKind::FLOAT64 | FloatKind::FLOAT32X => (64, value.to_bits()),
+        FloatKind::FLOAT64X => return Err(Error("_Float64x macro constants have no Rust representation; use an explicit float or double cast".into())),
         kind if kind.is_narrow() => return Err(Error(format!("{} macro constants have no Rust representation; use an explicit float or double cast", if kind == FloatKind::BFloat16 {"__bf16"} else {"_Float16"}))),
         _ => return Err(Error("long double macro constants have no Rust representation; use an explicit float or double cast".into())),
     };
+    Ok(floating_bits_constant_named(name, width, bits, rust_target))
+}
+
+/// Render an IEEE bit pattern using syntax supported by the requested Rust release.
+fn floating_bits_constant_named(
+    name: &str,
+    width: usize,
+    bits: u128,
+    rust_target: RustTarget,
+) -> String {
+    floating_bits_constant_typed(
+        name,
+        &format!("::core::primitive::f{width}"),
+        width,
+        bits,
+        rust_target,
+    )
+}
+
+/// Preserve a C scalar typedef while rendering its underlying IEEE bit pattern.
+fn floating_bits_constant_typed(
+    name: &str,
+    declared_type: &str,
+    width: usize,
+    bits: u128,
+    rust_target: RustTarget,
+) -> String {
     let rust_type = format!("::core::primitive::f{width}");
     let bits = format!("0x{bits:0digits$x}", digits = width / 4);
     let expression = if rust_target.minor >= 83 {
@@ -754,13 +1080,13 @@ fn floating_constant_named(
         )
     };
     let safety = if rust_target.minor < 83 {
-        "// SAFETY: equal-width integer and IEEE float; every bit pattern is valid.\n"
+        // Current rustc suggests from_bits, which is not const on these targets.
+        // Older compilers do not know this lint, so suppress that warning too.
+        "// SAFETY: equal-width integer and IEEE float; every bit pattern is valid.\n#[allow(unknown_lints, unnecessary_transmutes)]\n"
     } else {
         ""
     };
-    Ok(format!(
-        "{safety}pub const {name}: {rust_type} = {expression};\n"
-    ))
+    format!("{safety}pub const {name}: {declared_type} = {expression};\n")
 }
 
 fn normalize_macro(value: IntegerValue, policy: MacroType) -> Result<IntegerValue, Error> {
@@ -863,6 +1189,10 @@ struct Emitter<'a> {
     atomics: atomic::Atomics,
     complex_records: complex::Records,
     external: external::ExternalTypes,
+    rustified_enums: BTreeSet<usize>,
+    lexical_names: lexical_names::Names,
+    enum_constant_names: enum_constants::Names<'a>,
+    derive_records: derives::Records,
 }
 
 struct BitfieldSegment {
@@ -892,13 +1222,14 @@ impl Emitter<'_> {
             ));
         }
         if self.register_external(ty, true, layout_required)? {
-            return Ok(());
+            return self.collect_external_dependencies(ty, depth);
         }
         let atomic = self.unit.atomic_value(ty)?.is_some();
         if atomic {
             self.collect_atomic(ty, depth)?;
         }
-        let vector = matches!(self.unit.resolve(ty)?.kind, TypeKind::Vector { .. });
+        let resolved = self.unit.resolve(ty)?;
+        let vector = matches!(resolved.kind, TypeKind::Vector { .. });
         if vector {
             let layout = self.unit.layout(ty)?;
             let (bytes, alignment) = (layout.size_bytes(), layout.alignment_bytes());
@@ -909,7 +1240,10 @@ impl Emitter<'_> {
             }
             self.vectors.insert((bytes, alignment));
         }
-        if ty.alignment.bytes().is_some() && !vector && !atomic {
+        // Void/function typedef alignment affects C queries, not the storage
+        // or calling convention of a pointer to that type.
+        let non_object = matches!(resolved.kind, TypeKind::Void | TypeKind::Function(_));
+        if ty.alignment.bytes().is_some() && !vector && !atomic && !non_object {
             let mut underlying = ty.clone();
             underlying.alignment = toucan_semantic::TypeAlignment::default();
             let actual = self.unit.layout(ty)?;
@@ -942,12 +1276,38 @@ impl Emitter<'_> {
                         // dependencies must not leak into separately generated modules.
                         self.size_t_type(ty)?;
                     } else {
+                        if let Some(dependencies) = self
+                            .options
+                            .type_dependencies
+                            .as_ref()
+                            .and_then(|deps| deps.typedefs.get(name))
+                        {
+                            for alias in dependencies {
+                                self.collect_at(
+                                    &Type::new(TypeKind::Typedef(alias.clone())),
+                                    depth + 1,
+                                )?;
+                            }
+                        }
                         self.collect_use_at(ty, depth + 1, layout_required)?;
                     }
                 }
             }
             TypeKind::Record(id) => {
                 if self.records.insert(*id) {
+                    if let Some(dependencies) = self
+                        .options
+                        .type_dependencies
+                        .as_ref()
+                        .and_then(|deps| deps.records.get(id))
+                    {
+                        for alias in dependencies {
+                            self.collect_at(
+                                &Type::new(TypeKind::Typedef(alias.clone())),
+                                depth + 1,
+                            )?;
+                        }
+                    }
                     let record = self
                         .unit
                         .records
@@ -987,6 +1347,14 @@ impl Emitter<'_> {
     }
 
     fn record_name(&self, id: usize) -> Result<String, Error> {
+        if tag_discovery::hidden_record(self.unit, self.options, id) {
+            return Err(Error(
+                "a declaration references a record marked hidden by tag discovery".into(),
+            ));
+        }
+        if let Some(name) = self.lexical_names.record(id) {
+            return Ok(enum_constants::name_part(name)?.into_owned());
+        }
         let record = self
             .unit
             .records
@@ -1013,12 +1381,20 @@ impl Emitter<'_> {
     }
 
     fn enum_name(&self, id: usize) -> Result<String, Error> {
+        if tag_discovery::hidden_enum(self.unit, self.options, id) {
+            return Err(Error(
+                "a declaration references an enum marked hidden by tag discovery".into(),
+            ));
+        }
+        if let Some(name) = self.lexical_names.enumeration(id) {
+            return Ok(enum_constants::name_part(name)?.into_owned());
+        }
         let enumeration = self
             .unit
             .enums
             .get(id)
             .ok_or_else(|| Error("invalid enum identity".into()))?;
-        if self.options.rustified_enums
+        if self.is_rustified_enum(id)
             && enumeration.scope == Scope::File
             && enumeration.name.is_none()
         {
@@ -1053,7 +1429,8 @@ impl Emitter<'_> {
     /// Emit the selected enum representation, retaining aliases for repeated values.
     fn enumeration(&self, id: usize, source: &mut String) -> Result<(), Error> {
         let name = self.enum_name(id)?;
-        if !self.options.rustified_enums {
+        self.enum_doc(id, source);
+        if !self.is_rustified_enum(id) {
             writeln!(source, "pub type {name} = {};", self.enum_type(id)?).unwrap();
             return Ok(());
         }
@@ -1070,7 +1447,12 @@ impl Emitter<'_> {
             ));
         }
         let prefix = if signed { 'i' } else { 'u' };
-        writeln!(source, "#[repr({prefix}{bits})]\n#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]\npub enum {name} {{").unwrap();
+        let derives = self.enum_derives();
+        writeln!(
+            source,
+            "#[repr({prefix}{bits})]\n{derives}pub enum {name} {{"
+        )
+        .unwrap();
         let variant_names = Names::new(
             self.names.original.iter().map(String::as_str).chain(
                 enumeration
@@ -1093,6 +1475,7 @@ impl Emitter<'_> {
                 } else {
                     value.value.to_string()
                 };
+                self.enumerator_doc(&variant.name, source);
                 writeln!(source, "    {rust_name} = {literal},").unwrap();
             }
         }
@@ -1316,8 +1699,9 @@ impl Emitter<'_> {
                 }
             ),
             TypeKind::Complex(_) => return Err(complex::storage_error()),
-            TypeKind::Float(FloatKind::Float) => "::core::primitive::f32".into(),
-            TypeKind::Float(FloatKind::Double) => "::core::primitive::f64".into(),
+            TypeKind::Float(FloatKind::Float | FloatKind::FLOAT32) => "::core::primitive::f32".into(),
+            TypeKind::Float(FloatKind::Double | FloatKind::FLOAT64 | FloatKind::FLOAT32X) => "::core::primitive::f64".into(),
+            TypeKind::Float(FloatKind::FLOAT64X) => return Err(Error("_Float64x uses target long-double storage and has no supported Rust ABI representation".into())),
             TypeKind::Float(kind) if kind.is_narrow() => {
                 return Err(Error(format!(
                     "{} has no supported Rust scalar ABI representation",
@@ -1378,7 +1762,7 @@ impl Emitter<'_> {
             TypeKind::Enum(id) => self.enum_name(*id)?,
             TypeKind::Typedef(name) => {
                 // A C function typedef denotes the function, not a nullable pointer.
-                if self.options.size_t_is_usize && name == "size_t" && !self.options.includes(name)
+                if self.options.size_t_is_usize && name == "size_t" && !self.options.includes_typedef(name)
                 {
                     self.size_t_type(ty)?
                 } else if let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind {
@@ -1641,12 +2025,14 @@ impl Emitter<'_> {
     }
 
     fn record(&self, id: usize, source: &mut String) -> Result<(), Error> {
+        self.record_doc(id, source)?;
         let record = &self.unit.records[id];
         let name = self.record_name(id)?;
         let Some(fields) = &record.fields else {
+            let derives = self.record_derives(id)?;
             writeln!(
                 source,
-                "#[repr(C)]\n#[derive(Clone, Copy)]\npub struct {name} {{ _private: [::core::primitive::u8; 0] }}\n"
+                "#[repr(C)]\n{derives}pub struct {name} {{ _private: [::core::primitive::u8; 0] }}\n"
             )
             .unwrap();
             return Ok(());
@@ -1677,13 +2063,7 @@ impl Emitter<'_> {
             RecordKind::Struct => "struct",
             RecordKind::Union => "union",
         };
-        let derives = if self.contains_atomic_storage(&Type::new(TypeKind::Record(id)), 0)?
-            || self.contains_external_storage(&Type::new(TypeKind::Record(id)), 0)?
-        {
-            ""
-        } else {
-            "#[derive(Clone, Copy)]\n"
-        };
+        let derives = self.record_derives(id)?;
         writeln!(
             source,
             "#[repr({})]\n{derives}pub {kind} {name} {{",
@@ -1884,14 +2264,15 @@ impl Emitter<'_> {
                 byte_offset = offset + self.unit.layout(&field.ty)?.size_bytes();
             }
             let field_type = self.ty(&field.ty)?;
-            let field_type = if record.kind == RecordKind::Union
-                && (self.contains_atomic_storage(&field.ty, 0)?
-                    || self.contains_external_storage(&field.ty, 0)?)
-            {
-                format!("::core::mem::ManuallyDrop<{field_type}>")
-            } else {
-                field_type
-            };
+            let field_type =
+                if record.kind == RecordKind::Union && !self.storage_is_copy(&field.ty, 0)? {
+                    format!("::core::mem::ManuallyDrop<{field_type}>")
+                } else {
+                    field_type
+                };
+            if field.name.is_some() {
+                self.field_doc(id, index, source)?;
+            }
             writeln!(source, "    pub {field_name}: {field_type},").unwrap();
             index += 1;
         }
@@ -1914,6 +2295,9 @@ impl Emitter<'_> {
             .unwrap();
         }
         source.push_str("}\n");
+        if self.record_has_default(id) {
+            derives::zero_default(&name, source);
+        }
         if !accessors.is_empty() {
             writeln!(source, "impl {name} {{\n{accessors}}}\n").unwrap();
         }
@@ -1975,7 +2359,7 @@ impl Emitter<'_> {
         }
         let rust_type = self.ty(ty)?;
         let kind = &self.unit.resolve(ty)?.kind;
-        if self.options.rustified_enums && matches!(kind, TypeKind::Enum(_)) {
+        if matches!(kind, TypeKind::Enum(id) if self.is_rustified_enum(*id)) {
             return Err(Error(
                 "enum bitfields require the integer enum representation".into(),
             ));

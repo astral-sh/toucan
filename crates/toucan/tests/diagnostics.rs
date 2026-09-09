@@ -38,16 +38,17 @@ fn syntax_errors_resolve_to_nested_filesystem_headers() {
     std::fs::create_dir(directory.0.join("nested")).unwrap();
     std::fs::write(directory.0.join("main.h"), "#include \"outer.h\"\n").unwrap();
     std::fs::write(directory.0.join("outer.h"), "#include \"nested/inner.h\"\n").unwrap();
-    let inner = directory.0.join("nested/inner.h");
+    let main = directory.0.join("./main.h");
+    let inner = directory.0.join("./nested/inner.h");
     std::fs::write(&inner, "\n\nint broken(;\n").unwrap();
     let config = Config::new(Target::X86_64UnknownLinuxGnu);
     let preprocessed = toucan::Preprocessor::new(config.preprocessor.clone())
-        .preprocess(&directory.0.join("main.h"))
+        .preprocess(&main)
         .unwrap();
     let expected_offset = preprocessed.source.rfind(';').unwrap();
-    let diagnostic = semantic_error(toucan::parse_file(&directory.0.join("main.h"), &config));
+    let diagnostic = semantic_error(toucan::parse_file(&main, &config));
     let origin = diagnostic.origin.as_ref().unwrap();
-    assert_eq!(origin.path.as_ref(), std::fs::canonicalize(inner).unwrap());
+    assert_eq!(origin.path.as_os_str(), inner.as_os_str());
     assert_eq!(
         (origin.line, origin.column, origin.kind),
         (3, 12, OriginKind::Token)

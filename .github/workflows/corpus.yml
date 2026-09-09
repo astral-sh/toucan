@@ -30,12 +30,20 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+  workflow_call:
+    inputs:
+      macos:
+        required: true
+        type: boolean
+      intel:
+        default: false
+        type: boolean
 
 permissions:
   contents: read
 
 concurrency:
-  group: corpus-${{ github.workflow }}-${{ github.ref }}
+  group: corpus-${{ github.workflow }}-${{ github.ref }}-${{ inputs.macos && 'macos' || 'default' }}
   cancel-in-progress: true
 
 jobs:
@@ -46,17 +54,12 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: ubuntu-24.04
-            target: x86_64-unknown-linux-gnu
-            source_requirement: both
-          - runner: ubuntu-24.04-arm
-            target: aarch64-unknown-linux-gnu
-            source_requirement: toucan
-          - runner: macos-15
-            target: aarch64-apple-darwin
-          - runner: macos-15-intel
-            target: x86_64-apple-darwin
+        include: >-
+          ${{ fromJSON(inputs.macos
+            && (inputs.intel
+              && '[{"runner":"macos-15","target":"aarch64-apple-darwin"},{"runner":"macos-15-intel","target":"x86_64-apple-darwin"}]'
+              || '[{"runner":"macos-15","target":"aarch64-apple-darwin"}]')
+            || '[{"runner":"ubuntu-24.04","target":"x86_64-unknown-linux-gnu","source_requirement":"both"},{"runner":"ubuntu-24.04-arm","target":"aarch64-unknown-linux-gnu","source_requirement":"toucan"}]') }}
 
     steps:
       - name: Check out the source

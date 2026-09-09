@@ -1,8 +1,8 @@
 use std::collections::{BTreeMap, VecDeque};
 use std::path::Path;
 
-use crate::token::{Kind, Token, lex, replace_comments};
-use crate::{Config, Macro};
+use crate::token::{Kind, Token, lex_with_scope, replace_comments};
+use crate::{Config, FeatureQuery, Macro, QueryDialect};
 
 pub(crate) struct Expansion<'a> {
     pub macros: &'a BTreeMap<String, Macro>,
@@ -15,6 +15,7 @@ pub(crate) struct Expansion<'a> {
     pub location: Option<(usize, usize)>,
     /// None for immutable queries of the final macro environment.
     pub counter: Option<u64>,
+    pub documentation: Option<&'a mut crate::documentation::Documentation>,
 }
 
 impl Expansion<'_> {
@@ -24,15 +25,38 @@ impl Expansion<'_> {
             return Err("macro argument expansion depth limit exceeded".into());
         }
         self.recursion += 1;
-        let result = self.expand_inner(tokens);
+        let result = self.expand_inner::<false>(&mut tokens.into());
         self.recursion -= 1;
         result
     }
 
-    fn expand_inner(&mut self, tokens: Vec<Token>) -> Result<Vec<Token>, String> {
-        let mut pending: VecDeque<_> = tokens.into();
+    /// Expands one output token while leaving the remaining rescan stream intact.
+    fn expand_first(&mut self, pending: &mut VecDeque<Token>) -> Result<Option<Token>, String> {
+        if self.recursion >= self.config.max_expansion_depth {
+            return Err("macro argument expansion depth limit exceeded".into());
+        }
+        self.recursion += 1;
+        let result = self.expand_inner::<true>(pending);
+        self.recursion -= 1;
+        result.map(|tokens| {
+            let mut tokens = tokens.into_iter();
+            let first = tokens.next();
+            for token in tokens.rev() {
+                pending.push_front(token);
+            }
+            first
+        })
+    }
+
+    fn expand_inner<const FIRST: bool>(
+        &mut self,
+        pending: &mut VecDeque<Token>,
+    ) -> Result<Vec<Token>, String> {
         let mut output = Vec::new();
-        while let Some(token) = pending.pop_front() {
+        while !FIRST || output.is_empty() {
+            let Some(token) = pending.pop_front() else {
+                break;
+            };
             if token.kind != Kind::Identifier || token.hidden.contains(&token.text) {
                 output.push(token);
                 continue;
@@ -43,13 +67,16 @@ impl Expansion<'_> {
                 if pending.pop_front().is_none_or(|token| token.text != "(") {
                     return Err("_Pragma requires a parenthesized string literal".into());
                 }
-                let (arguments, _, _) = arguments(&mut pending, 1, false)?;
+                let (arguments, _, _) = arguments(pending, 1, false)?;
                 let argument = self.expand(arguments.into_iter().next().expect("one argument"))?;
                 let [literal] = argument.as_slice() else {
                     return Err("_Pragma requires exactly one string literal".into());
                 };
                 let payload = pragma_text(literal)?;
-                let payload = lex(&replace_comments(&payload, self.config.line_comments)?)?;
+                let payload = lex_with_scope(
+                    &replace_comments(&payload, self.config.line_comments)?,
+                    self.config.scope_punctuator,
+                )?;
                 if self.config.line_comments == crate::LineComments::GnuC90
                     && crate::token::adjacent_slashes(&payload)
                 {
@@ -89,6 +116,7 @@ impl Expansion<'_> {
                 replacement.column = token.column;
                 replacement.expanded = true;
                 replacement.space = token.space;
+                replacement.doc_origin = token.doc_origin;
                 self.charge(std::slice::from_ref(&replacement))?;
                 output.push(replacement);
                 self.location = previous_location;
@@ -109,23 +137,30 @@ impl Expansion<'_> {
                         kind.name()
                     ));
                 }
-                let (arguments, _, _) = arguments(&mut pending, 1, false)?;
+                let (arguments, _, _) = arguments(pending, 1, false)?;
                 let argument = arguments.into_iter().next().expect("one query argument");
                 let queries = self
                     .config
                     .feature_queries
                     .as_ref()
                     .expect("active query configuration");
-                let argument = if queries.expands_argument(kind) {
+                let argument = if queries.permits_namespace(kind) {
+                    self.expand_scoped_query_argument(kind, argument, &mut output)?
+                } else if queries.expands_argument(kind) {
                     self.expand(argument)?
                 } else {
                     argument
                 };
                 self.charge(&argument)?;
+                let argument = if queries.expands_argument(kind) {
+                    take_query_directives(argument, &mut output, queries.dialect)?
+                } else {
+                    argument
+                };
                 let value = queries.evaluate(kind, &argument)?;
                 let mut replacement = token;
                 replacement.kind = Kind::Number;
-                replacement.text = value.to_string();
+                replacement.text = queries.spelling(value);
                 replacement.expanded = true;
                 replacement.depth += 1;
                 self.charge(std::slice::from_ref(&replacement))?;
@@ -162,16 +197,26 @@ impl Expansion<'_> {
             let mut replacement = if let Some(parameters) = &definition.parameters {
                 pending.pop_front();
                 let (arguments, omitted_variadic, closing) =
-                    arguments(&mut pending, parameters.len(), definition.variadic)?;
+                    arguments(pending, parameters.len(), definition.variadic)?;
                 // Only macros suppressed at both ends of a function invocation stay
                 // suppressed when its replacement meets the following input.
                 hidden.retain(|name| closing.hidden.contains(name));
-                self.substitute(definition, &arguments, omitted_variadic)?
+                self.substitute(&token.text, definition, &arguments, omitted_variadic)?
             } else {
-                paste(replacement_tokens(&definition.replacement)?)?
+                paste(
+                    self.replacement_tokens(&token.text, &definition.replacement)?,
+                    self.config.scope_punctuator,
+                )?
             };
             self.charge(&replacement)?;
             for replacement in &mut replacement {
+                if let Some(docs) = &mut self.documentation {
+                    replacement.doc_origin = docs.expanded(
+                        token.doc_origin,
+                        replacement.doc_origin,
+                        self.config.max_source_bytes,
+                    )?;
+                }
                 replacement.hidden.extend(hidden.iter().cloned());
                 replacement.hidden.insert(token.text.clone());
                 replacement.depth = replacement.depth.max(token.depth + 1);
@@ -190,8 +235,66 @@ impl Expansion<'_> {
         Ok(output)
     }
 
+    /// Both compilers read the namespace separator before expanding the tail.
+    /// Clang also leaves an unscoped name's immediate lookahead unexpanded.
+    fn expand_scoped_query_argument(
+        &mut self,
+        kind: FeatureQuery,
+        argument: Vec<Token>,
+        directives: &mut Vec<Token>,
+    ) -> Result<Vec<Token>, String> {
+        let queries = self
+            .config
+            .feature_queries
+            .as_ref()
+            .expect("query configuration");
+        let mut pending = argument.into();
+        let first = loop {
+            match self.expand_first(&mut pending)? {
+                Some(token) if token.kind == Kind::Pragma => {
+                    query_directive(&token, queries.dialect)?;
+                    directives.push(token);
+                }
+                Some(token) => break token,
+                None => return Ok(Vec::new()),
+            }
+        };
+        let scope_len = if pending.front().is_some_and(|token| token.text == "::") {
+            1
+        } else if pending.front().is_some_and(|token| token.colon_scope)
+            && pending.get(1).is_some_and(|token| token.text == ":")
+        {
+            2
+        } else {
+            0
+        };
+        if scope_len != 0 {
+            let mut tokens = vec![first];
+            tokens.extend(pending.drain(..scope_len));
+            tokens.extend(self.expand(pending.into())?);
+            Ok(tokens)
+        } else {
+            let remainder = if kind == FeatureQuery::CAttribute
+                && queries.dialect == QueryDialect::Clang
+            {
+                Vec::from(pending)
+            } else {
+                take_query_directives(self.expand(pending.into())?, directives, queries.dialect)?
+            };
+            if !remainder.is_empty() {
+                self.charge(&remainder)?;
+                return Err(format!(
+                    "{} requires an identifier or namespace::identifier",
+                    kind.name()
+                ));
+            }
+            Ok(vec![first])
+        }
+    }
+
     fn substitute(
         &mut self,
+        name: &str,
         definition: &Macro,
         arguments: &[Vec<Token>],
         omitted_variadic: bool,
@@ -206,7 +309,7 @@ impl Expansion<'_> {
             let variadic = arguments.get(parameters.len()).cloned().unwrap_or_default();
             raw.insert(name, variadic);
         }
-        let replacement = replacement_tokens(&definition.replacement)?;
+        let replacement = self.replacement_tokens(name, &definition.replacement)?;
         // Prescan each argument once. Repeated substitution duplicates the result,
         // including _Pragma directives, without incrementing __COUNTER__ again.
         let mut expanded_arguments: BTreeMap<&str, Vec<Token>> = BTreeMap::new();
@@ -278,7 +381,15 @@ impl Expansion<'_> {
             }
             position += 1;
         }
-        paste(substituted)
+        paste(substituted, self.config.scope_punctuator)
+    }
+
+    fn replacement_tokens(&self, name: &str, text: &str) -> Result<Vec<Token>, String> {
+        let mut tokens = replacement_tokens(text, self.config.scope_punctuator)?;
+        if let Some(docs) = &self.documentation {
+            docs.replacements(name, &mut tokens);
+        }
+        Ok(tokens)
     }
 
     fn charge(&mut self, tokens: &[Token]) -> Result<(), String> {
@@ -294,6 +405,47 @@ impl Expansion<'_> {
         }
         Ok(())
     }
+}
+
+/// Expanded directives keep their position in the surrounding output stream;
+/// they do not become operands of a compiler feature query.
+fn take_query_directives(
+    tokens: Vec<Token>,
+    output: &mut Vec<Token>,
+    dialect: QueryDialect,
+) -> Result<Vec<Token>, String> {
+    if !tokens.iter().any(|token| token.kind == Kind::Pragma) {
+        return Ok(tokens);
+    }
+    let mut arguments = Vec::with_capacity(tokens.len());
+    for token in tokens {
+        if token.kind == Kind::Pragma {
+            query_directive(&token, dialect)?;
+            output.push(token);
+        } else {
+            arguments.push(token);
+        }
+    }
+    Ok(arguments)
+}
+
+/// Compiler parsers defer some pragma handlers as annotation tokens. Such tokens
+/// cannot stand in for an identifier, even when a preprocessing-only run accepts
+/// the same source. Preserve only handlers supported at this query boundary.
+fn query_directive(token: &Token, dialect: QueryDialect) -> Result<(), String> {
+    let mut words = token.text.split_whitespace();
+    let name = words.next();
+    if name == Some("pack")
+        || dialect == QueryDialect::Gnu
+            && (name == Some("message")
+                || name == Some("GCC") && words.next() == Some("diagnostic"))
+    {
+        return Err(format!(
+            "unsupported pragma in feature-query argument: {}",
+            token.text
+        ));
+    }
+    Ok(())
 }
 
 fn arguments(
@@ -335,7 +487,7 @@ fn arguments(
     Ok((arguments, omitted, closing))
 }
 
-fn paste(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
+fn paste(tokens: Vec<Token>, scope_punctuator: bool) -> Result<Vec<Token>, String> {
     let mut output: Vec<Token> = Vec::new();
     let mut tokens = tokens.into_iter();
     while let Some(token) = tokens.next() {
@@ -351,7 +503,7 @@ fn paste(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
             output.push(left);
         } else {
             let spelling = format!("{}{}", left.spelling(), right.spelling());
-            let mut pasted = lex(&spelling)?;
+            let mut pasted = lex_with_scope(&spelling, scope_punctuator)?;
             if pasted.len() != 1 || pasted[0].spelling() != spelling {
                 return Err(format!(
                     "token paste does not form one preprocessing token: `{spelling}`"
@@ -362,6 +514,7 @@ fn paste(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
             token.depth = left.depth.max(right.depth);
             token.line = left.line;
             token.space = left.space;
+            token.doc_origin = left.doc_origin;
             output.push(token);
         }
     }
@@ -369,8 +522,8 @@ fn paste(tokens: Vec<Token>) -> Result<Vec<Token>, String> {
     Ok(output)
 }
 
-fn replacement_tokens(text: &str) -> Result<Vec<Token>, String> {
-    let mut tokens = lex(text)?;
+fn replacement_tokens(text: &str, scope_punctuator: bool) -> Result<Vec<Token>, String> {
+    let mut tokens = lex_with_scope(text, scope_punctuator)?;
     for token in &mut tokens {
         if token.text == "##" {
             token.kind = Kind::Paste;

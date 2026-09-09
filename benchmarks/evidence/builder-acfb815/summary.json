@@ -1,0 +1,455 @@
+{
+  "source_commit": "acfb815c7d6b77c9b06779e2dcbf7abbeccc343a",
+  "status": "passed",
+  "binary": {
+    "path": "/home/dev-user/.cache/toucan/final-builder-benchmark-target-2026-09-09/release/toucan-inprocess-benchmark",
+    "sha256": "25767c28e4dfaa74e1b65e3b3bda0a20f34b996ae9bdcb93cb7c428d84703648"
+  },
+  "libclang": {
+    "path": "/usr/lib/llvm-18/lib/libclang.so.1",
+    "resolved_path": "/usr/lib/x86_64-linux-gnu/libclang-18.so.18",
+    "sha256": "d7c54213dbeb95deb5bfee76cf3e32e425cbaf8ccbd2900345414fb57476458b"
+  },
+  "binary_and_libclang_hashes_match_preflight_after_timing": true,
+  "source_inputs_verified_after_timing": 2301,
+  "source_extra": {
+    "scripts/__pycache__/verify_corpus.cpython-312.pyc": "f937afb34efd575dcf233193fc2f4382c23fcb1b1971751b2522bf02b432d54a"
+  },
+  "cpu_model": "AMD EPYC-Milan Processor",
+  "platform": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
+  "affinity": [
+    3
+  ],
+  "host_observation_during_timing": {
+    "load_1_5_15_minutes": [
+      0.95263671875,
+      1.1875,
+      2.0029296875
+    ],
+    "available_cpus": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29,
+      30,
+      31
+    ],
+    "allocator_overrides": {
+      "LD_PRELOAD": null,
+      "MALLOC_CONF": null,
+      "MIMALLOC_VERBOSE": null,
+      "GLIBC_TUNABLES": null
+    }
+  },
+  "host_qualification": "Our native and sanitizer jobs finished before timing; the remaining implementation agent paused compilation and probes. Small metadata, file, and GitHub operations continued. This shared host does not isolate other tenants, frequency, memory bandwidth, or filesystem activity. CPU frequency/governor files were unavailable; no shared host settings were changed.",
+  "environment": {
+    "LIBCLANG_PATH": "/usr/lib/llvm-18/lib",
+    "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo",
+    "RUSTUP_TOOLCHAIN": "stable",
+    "PYTHONDONTWRITEBYTECODE": "1"
+  },
+  "measured_calls": 560,
+  "discarded_first_calls": 56,
+  "process_pairs_per_project": 7,
+  "measured_calls_per_process": 10,
+  "seed": 20260909,
+  "project_order": [
+    "zlib",
+    "sqlite",
+    "zstd",
+    "libgit2"
+  ],
+  "summary_method": "Median of seven per-process medians for each engine; speedup is the median of seven within-pair bindgen/Toucan ratios. First calls are reported separately and include initial libclang loading, but exclude process startup.",
+  "projects": {
+    "zlib": {
+      "process_medians_ms": {
+        "toucan-builder": [
+          21.9565695,
+          21.824523,
+          21.83645,
+          21.49375,
+          21.754762999999997,
+          22.0193715,
+          21.80958
+        ],
+        "bindgen": [
+          115.54331099999999,
+          113.238737,
+          116.114699,
+          118.336068,
+          113.579113,
+          116.60298599999999,
+          116.8535345
+        ]
+      },
+      "median_of_process_medians_ms": {
+        "toucan-builder": 21.824523,
+        "bindgen": 116.114699
+      },
+      "process_median_range_ms": {
+        "toucan-builder": [
+          21.49375,
+          22.0193715
+        ],
+        "bindgen": [
+          113.238737,
+          118.336068
+        ]
+      },
+      "paired_bindgen_over_toucan": [
+        5.262357172872565,
+        5.188600777208281,
+        5.317471429650882,
+        5.505603628961908,
+        5.220884870131659,
+        5.2954729429947625,
+        5.357899349735299
+      ],
+      "median_paired_bindgen_over_toucan": 5.2954729429947625,
+      "paired_ratio_range": [
+        5.188600777208281,
+        5.505603628961908
+      ],
+      "first_calls_ms": {
+        "toucan-builder": [
+          26.422852,
+          26.269435,
+          26.551542,
+          26.489936,
+          25.741689,
+          26.691103000000002,
+          25.567553999999998
+        ],
+        "bindgen": [
+          192.405055,
+          153.347845,
+          150.455343,
+          147.92419700000002,
+          150.688829,
+          142.246793,
+          154.50439599999999
+        ]
+      },
+      "median_first_call_ms": {
+        "toucan-builder": 26.422852,
+        "bindgen": 150.688829
+      },
+      "all_call_medians_ms": {
+        "toucan-builder": 21.832699,
+        "bindgen": 115.809268
+      }
+    },
+    "sqlite": {
+      "process_medians_ms": {
+        "toucan-builder": [
+          25.673856999999998,
+          24.3161715,
+          26.236503000000003,
+          24.431698,
+          26.5429715,
+          24.4302,
+          26.0535965
+        ],
+        "bindgen": [
+          160.98774600000002,
+          156.546676,
+          153.3394045,
+          154.8339515,
+          152.24140949999997,
+          154.3358165,
+          152.80465650000002
+        ]
+      },
+      "median_of_process_medians_ms": {
+        "toucan-builder": 25.673856999999998,
+        "bindgen": 154.3358165
+      },
+      "process_median_range_ms": {
+        "toucan-builder": [
+          24.3161715,
+          26.5429715
+        ],
+        "bindgen": [
+          152.24140949999997,
+          160.98774600000002
+        ]
+      },
+      "paired_bindgen_over_toucan": [
+        6.270493210272225,
+        6.437965614776158,
+        5.8445062019126555,
+        6.337420817005842,
+        5.735658100676481,
+        6.317419280235119,
+        5.865012014751976
+      ],
+      "median_paired_bindgen_over_toucan": 6.270493210272225,
+      "paired_ratio_range": [
+        5.735658100676481,
+        6.437965614776158
+      ],
+      "first_calls_ms": {
+        "toucan-builder": [
+          34.521166,
+          34.809325,
+          33.870993,
+          34.404209,
+          34.859849,
+          34.668963,
+          34.733865
+        ],
+        "bindgen": [
+          189.359156,
+          193.258829,
+          193.101357,
+          191.935879,
+          204.09586099999999,
+          185.51178,
+          189.689253
+        ]
+      },
+      "median_first_call_ms": {
+        "toucan-builder": 34.668963,
+        "bindgen": 191.935879
+      },
+      "all_call_medians_ms": {
+        "toucan-builder": 25.7106555,
+        "bindgen": 154.3358165
+      }
+    },
+    "zstd": {
+      "process_medians_ms": {
+        "toucan-builder": [
+          9.090654,
+          9.082104,
+          9.134536,
+          9.160639499999998,
+          8.940082,
+          9.158717,
+          8.9452375
+        ],
+        "bindgen": [
+          103.5600395,
+          112.016078,
+          109.15528499999999,
+          105.5063155,
+          103.09695500000001,
+          101.54699550000001,
+          103.11922150000001
+        ]
+      },
+      "median_of_process_medians_ms": {
+        "toucan-builder": 9.090654,
+        "bindgen": 103.5600395
+      },
+      "process_median_range_ms": {
+        "toucan-builder": [
+          8.940082,
+          9.160639499999998
+        ],
+        "bindgen": [
+          101.54699550000001,
+          112.016078
+        ]
+      },
+      "paired_bindgen_over_toucan": [
+        11.391924002387507,
+        12.33371452253795,
+        11.949735049486913,
+        11.51735263678917,
+        11.531992100296172,
+        11.087469511286354,
+        11.527834951279942
+      ],
+      "median_paired_bindgen_over_toucan": 11.527834951279942,
+      "paired_ratio_range": [
+        11.087469511286354,
+        12.33371452253795
+      ],
+      "first_calls_ms": {
+        "toucan-builder": [
+          12.232117,
+          12.812109,
+          13.258464,
+          12.937585,
+          12.766274,
+          12.207792,
+          12.772736
+        ],
+        "bindgen": [
+          144.234275,
+          136.713396,
+          136.49192299999999,
+          150.127411,
+          136.651891,
+          137.89881200000002,
+          132.168589
+        ]
+      },
+      "median_first_call_ms": {
+        "toucan-builder": 12.772736,
+        "bindgen": 136.713396
+      },
+      "all_call_medians_ms": {
+        "toucan-builder": 9.075005,
+        "bindgen": 105.4302485
+      }
+    },
+    "libgit2": {
+      "process_medians_ms": {
+        "toucan-builder": [
+          189.830597,
+          189.8899925,
+          192.77940999999998,
+          192.712936,
+          191.32570900000002,
+          196.65910050000002,
+          193.289547
+        ],
+        "bindgen": [
+          261.7266765,
+          267.0081835,
+          264.843741,
+          258.0330025,
+          260.19262599999996,
+          260.501178,
+          264.248913
+        ]
+      },
+      "median_of_process_medians_ms": {
+        "toucan-builder": 192.712936,
+        "bindgen": 261.7266765
+      },
+      "process_median_range_ms": {
+        "toucan-builder": [
+          189.830597,
+          196.65910050000002
+        ],
+        "bindgen": [
+          258.0330025,
+          267.0081835
+        ]
+      },
+      "paired_bindgen_over_toucan": [
+        1.3787380993170453,
+        1.4061203541308265,
+        1.3738175721151966,
+        1.3389500873983882,
+        1.3599459652335586,
+        1.324633222351182,
+        1.3671143478855585
+      ],
+      "median_paired_bindgen_over_toucan": 1.3671143478855585,
+      "paired_ratio_range": [
+        1.324633222351182,
+        1.4061203541308265
+      ],
+      "first_calls_ms": {
+        "toucan-builder": [
+          215.522131,
+          215.752452,
+          218.683908,
+          215.657996,
+          217.02475900000002,
+          218.856029,
+          219.01905399999998
+        ],
+        "bindgen": [
+          319.952583,
+          323.08567500000004,
+          365.250774,
+          326.393954,
+          324.370064,
+          318.007771,
+          335.160157
+        ]
+      },
+      "median_first_call_ms": {
+        "toucan-builder": 217.02475900000002,
+        "bindgen": 324.370064
+      },
+      "all_call_medians_ms": {
+        "toucan-builder": 192.3969555,
+        "bindgen": 262.48897550000004
+      }
+    }
+  },
+  "preflight": "../builder-preflight-acfb815/README.md",
+  "complete_api_equivalence": false,
+  "qualification": "Baseline for the matched Builder file-selection and output policy. Exact API comparison passes for zstd; zlib and SQLite omit two array-parameter typedef aliases, SQLite has a C-validated callback correction, and libgit2 emits ten additional aliases. Three shared sentinel constants require explicit unsigned conversion to match the native C value. Native probes and actual FFI calls pass within the documented preflight scope. These timings measure generation, not compilation or complete application performance. They are not comparable as a revision speedup against the earlier core-route workload.",
+  "artifact": {
+    "path": "capture.json.gz",
+    "sha256": "f6fdc04ecc9372513dc4d7a9883531c58f53fb4318e63be215ed5fc739030862",
+    "bytes": 2372310
+  },
+  "raw_directory": "/home/dev-user/.cache/toucan/builder-timing-acfb815-2026-09-09",
+  "api_comparison_correction": {
+    "qualification": "The previous analyzer ignored public use re-exports. git_attr_t and git_revparse_mode_t are present in both generated files. Original generated source and timings are unchanged; the original capture archive remains preserved.",
+    "previous_libgit2_alias_comparison": {
+      "common": 158,
+      "equal": 158,
+      "toucan_only": [
+        "__int32_t",
+        "__int64_t",
+        "__uint16_t",
+        "__uint32_t",
+        "__uint64_t",
+        "git_attr_t",
+        "git_revparse_mode_t",
+        "int32_t",
+        "int64_t",
+        "uint16_t",
+        "uint32_t",
+        "uint64_t"
+      ],
+      "bindgen_only": [],
+      "different": {}
+    },
+    "corrected_libgit2_alias_comparison": {
+      "common": 160,
+      "equal": 160,
+      "toucan_only": [
+        "__int32_t",
+        "__int64_t",
+        "__uint16_t",
+        "__uint32_t",
+        "__uint64_t",
+        "int32_t",
+        "int64_t",
+        "uint16_t",
+        "uint32_t",
+        "uint64_t"
+      ],
+      "bindgen_only": [],
+      "different": {}
+    },
+    "analyzer_sha256": "b2a9bc5f2b205ad435a0a8bbdff113d79056da4ddcaf2c7a1dfb54a2ca0aa86d",
+    "evidence": "../../../corpus/evidence/comparison-reexports-2026-09-09.json.gz"
+  }
+}

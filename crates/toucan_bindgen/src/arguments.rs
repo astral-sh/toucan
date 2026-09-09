@@ -14,7 +14,9 @@ fn environment(name: &str) -> Result<Option<String>, BindgenError> {
     }
 }
 
-pub(super) fn configuration(arguments: &[String]) -> Result<Config, BindgenError> {
+pub(super) fn configuration(
+    arguments: &[String],
+) -> Result<(Config, crate::documentation::Options), BindgenError> {
     let cargo_target = environment("TARGET")?;
     let mut arguments = arguments.to_vec();
     let mut extra = None;
@@ -39,7 +41,7 @@ pub(super) fn configuration(arguments: &[String]) -> Result<Config, BindgenError
                 .ok_or_else(|| error(format!("invalid shell quoting in {name}")))?,
         );
     }
-    let mut config = from_arguments(&arguments, cargo_target.as_deref())?;
+    let (mut config, comments) = from_arguments_and_comments(&arguments, cargo_target.as_deref())?;
     if let Some(timestamp) = environment("SOURCE_DATE_EPOCH")? {
         config.preprocessor.timestamp = timestamp
             .parse()
@@ -52,14 +54,23 @@ pub(super) fn configuration(arguments: &[String]) -> Result<Config, BindgenError
         config.preprocessor.timestamp = toucan::PreprocessingTimestamp::from_unix_seconds(seconds)
             .map_err(|error| crate::configuration(error.to_string()))?;
     }
-    Ok(config)
+    Ok((config, comments))
 }
 
 /// Resolve the target before applying arguments so predefined macros match it.
+#[cfg(test)]
 pub(super) fn from_arguments(
     arguments: &[String],
     cargo_target: Option<&str>,
 ) -> Result<Config, BindgenError> {
+    from_arguments_and_comments(arguments, cargo_target).map(|(config, _)| config)
+}
+
+fn from_arguments_and_comments(
+    arguments: &[String],
+    cargo_target: Option<&str>,
+) -> Result<(Config, crate::documentation::Options), BindgenError> {
+    let mut comments = crate::documentation::Options::default();
     let mut target = cargo_target.map(str::to_owned);
     let mut mode = LanguageMode::Gnu11;
     let mut trigraph_override = None;
@@ -113,6 +124,8 @@ pub(super) fn from_arguments(
     if let Some(enabled) = trigraph_override {
         config.preprocessor.trigraphs = enabled;
     }
+    let mut macros = (config.preprocessor.line_comments == toucan::LineComments::ClangC90)
+        .then(|| toucan::CommandLineMacroNormalizer::new(&config.preprocessor));
     let mut system_dirs = Vec::new();
     let mut sysroot = None;
     let mut arguments = arguments.iter();
@@ -129,12 +142,12 @@ pub(super) fn from_arguments(
             // Already resolved above.
         } else if matches!(argument.as_str(), "-I" | "-D" | "-U") {
             let operand = value(&mut arguments)?;
-            apply_short(&mut config, argument, &operand)?;
+            apply_short(&mut config, &mut macros, argument, &operand)?;
         } else if argument.starts_with("-I")
             || argument.starts_with("-D")
             || argument.starts_with("-U")
         {
-            apply_short(&mut config, &argument[..2], &argument[2..])?;
+            apply_short(&mut config, &mut macros, &argument[..2], &argument[2..])?;
         } else if argument == "-isystem" {
             system_dirs.push(PathBuf::from(value(&mut arguments)?));
         } else if let Some(path) = argument.strip_prefix("-isystem") {
@@ -159,16 +172,25 @@ pub(super) fn from_arguments(
                     "language `{language}` is unsupported; expected c"
                 )));
             }
-        } else if matches!(
-            argument.as_str(),
-            "-xc" | "-std=c11" | "-std=gnu11" | "-trigraphs" | "-ftrigraphs" | "-fno-trigraphs"
-        ) {
+        } else if argument == "-fparse-all-comments" {
+            comments.parse_all_comments = true;
+        } else if argument == "-fretain-comments-from-system-headers" {
+            comments.retain_system_comments = true;
+        } else if argument.starts_with("-std=")
+            || matches!(
+                argument.as_str(),
+                "-xc" | "-std=c11" | "-std=gnu11" | "-trigraphs" | "-ftrigraphs" | "-fno-trigraphs"
+            )
+        {
             // Language and trigraph options were resolved before applying macros.
         } else {
             return Err(error(format!("unsupported Clang argument `{argument}`")));
         }
     }
-    config.preprocessor.include_dirs.extend(system_dirs);
+    if macros.is_some() {
+        config.preprocessor.predefined_macro_mode = toucan::PredefinedMacroMode::Tokens;
+    }
+    config.preprocessor.system_include_dirs.extend(system_dirs);
     if let Some(sysroot) = sysroot {
         if sysroot.as_os_str().is_empty() {
             return Err(error("sysroot cannot be empty"));
@@ -184,15 +206,20 @@ pub(super) fn from_arguments(
         if let Some(multiarch) = multiarch {
             config
                 .preprocessor
-                .include_dirs
+                .system_include_dirs
                 .push(include.join(multiarch));
         }
-        config.preprocessor.include_dirs.push(include);
+        config.preprocessor.system_include_dirs.push(include);
     }
-    Ok(config)
+    Ok((config, comments))
 }
 
-fn apply_short(config: &mut Config, flag: &str, operand: &str) -> Result<(), BindgenError> {
+fn apply_short(
+    config: &mut Config,
+    macros: &mut Option<toucan::CommandLineMacroNormalizer>,
+    flag: &str,
+    operand: &str,
+) -> Result<(), BindgenError> {
     if operand.is_empty() || operand.contains('\0') {
         return Err(error(format!(
             "{flag} requires a nonempty value without NUL"
@@ -205,6 +232,14 @@ fn apply_short(config: &mut Config, flag: &str, operand: &str) -> Result<(), Bin
             if name.is_empty() || name.contains(['\n', '\r']) {
                 return Err(error("invalid macro name"));
             }
+            let prepared = macros
+                .as_mut()
+                .map(|macros| macros.prepare(name, value))
+                .transpose()
+                .map_err(error)?;
+            let (name, value) = prepared.as_ref().map_or((name, value), |(name, value)| {
+                (name.as_str(), value.as_str())
+            });
             let identifier = name.split('(').next().unwrap_or(name);
             config
                 .preprocessor
@@ -224,6 +259,49 @@ fn apply_short(config: &mut Config, flag: &str, operand: &str) -> Result<(), Bin
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn comment_flags_are_not_read_from_include_operands() {
+        for (arguments, parse_all, retain_system) in [
+            (vec!["-fparse-all-comments"], true, false),
+            (vec!["-fretain-comments-from-system-headers"], false, true),
+            (vec!["-I", "-fparse-all-comments"], false, false),
+            (
+                vec!["-isystem", "-fretain-comments-from-system-headers"],
+                false,
+                false,
+            ),
+        ] {
+            let arguments = arguments.into_iter().map(str::to_owned).collect::<Vec<_>>();
+            let (_, comments) =
+                from_arguments_and_comments(&arguments, Some("x86_64-unknown-linux-gnu")).unwrap();
+            assert_eq!(comments.parse_all_comments, parse_all);
+            assert_eq!(comments.retain_system_comments, retain_system);
+        }
+    }
+
+    #[test]
+    fn c90_definitions_follow_argument_order_before_undefinition() {
+        for (flags, expected) in [
+            (vec!["-DA=1//first", "-UA", "-DB=6//**/2", "-std=c90"], "6"),
+            (
+                vec!["-DB=6//**/2", "-DA=1//first", "-UA", "-std=c90"],
+                "6 / 2",
+            ),
+        ] {
+            let args = flags.iter().map(|s| (*s).to_owned()).collect::<Vec<_>>();
+            let config = from_arguments(&args, Some("x86_64-unknown-linux-gnu")).unwrap();
+            assert_eq!(config.language_mode(), LanguageMode::C90);
+            let output = toucan::Preprocessor::new(config.preprocessor)
+                .preprocess_str(std::path::Path::new("mode.c"), "B\n")
+                .unwrap();
+            assert!(
+                output.source.ends_with(&format!("{expected}\n")),
+                "{flags:?}: {}",
+                output.source
+            );
+        }
+    }
 
     #[test]
     fn command_line_overrides_remove_and_replace_feature_operators() {
@@ -268,7 +346,7 @@ mod tests {
             vec!["-target"],
             vec!["-I"],
             vec!["-x", "c++"],
-            vec!["-std=c99"],
+            vec!["-std=c23"],
             vec!["--target=wasm32-unknown-unknown"],
         ] {
             let arguments = arguments.into_iter().map(str::to_owned).collect::<Vec<_>>();
@@ -283,6 +361,25 @@ mod tests {
         assert_eq!(config.target(), Target::Aarch64UnknownLinuxGnu);
         assert_eq!(config.preprocessor.include_dirs[0], PathBuf::from(&args[1]));
     }
+    #[test]
+    fn modern_standard_aliases_preserve_last_option_and_version_macros() {
+        for (spelling, mode, version) in [
+            ("c99", LanguageMode::C99, "199901L"),
+            ("c9x", LanguageMode::C99, "199901L"),
+            ("iso9899:1999", LanguageMode::C99, "199901L"),
+            ("gnu9x", LanguageMode::Gnu99, "199901L"),
+            ("c17", LanguageMode::C17, "201710L"),
+            ("c18", LanguageMode::C17, "201710L"),
+            ("iso9899:2018", LanguageMode::C17, "201710L"),
+            ("gnu18", LanguageMode::Gnu17, "201710L"),
+        ] {
+            let args = vec!["-std=c90".into(), format!("-std={spelling}")];
+            let config = from_arguments(&args, Some("x86_64-unknown-linux-gnu")).unwrap();
+            assert_eq!(config.language_mode(), mode);
+            assert_eq!(config.preprocessor.defines["__STDC_VERSION__"], version);
+        }
+    }
+
     #[test]
     fn mode_predefines_and_explicit_macros_preserve_driver_order() {
         for (args, mode, strict, trigraphs) in [

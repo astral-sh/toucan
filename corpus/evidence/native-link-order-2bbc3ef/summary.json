@@ -1,0 +1,28 @@
+{
+  "pull_request": 227,
+  "head": "2bbc3efd971aba24ae234e8778b94de871da2ef7",
+  "checkout": "eb5607cc3c95ae098bed4153d48e3021f87b4324",
+  "tree": "c1d7f96c06eb8f75edc0718e7d000961283feaa8",
+  "identical_trees": true,
+  "arm_job": 102231280883,
+  "run": 34276674090,
+  "log_sha256": "e157fedda2cf2453c27ce812965f8d3c27528a1cfa980eb8bb168e3aa0c3570e",
+  "focused_pass_lines": {
+    "FloatN": 1096,
+    "non_object_callbacks": 818,
+    "omitted_conditional_calls": 840
+  },
+  "compilers": {
+    "GCC": "13.3.0",
+    "Clang": "18.1.3",
+    "Rust": "1.98.1"
+  },
+  "status": "passed",
+  "recorded_at": "2026-09-08T21:23:47.801204+00:00",
+  "platform": "native AArch64 GNU/Linux",
+  "run_url": "https://github.com/astral-sh/toucan/actions/runs/34276674090",
+  "job_url": "https://github.com/astral-sh/toucan/actions/runs/34276674090/job/102231280883",
+  "log": "native-arm.log.gz",
+  "compressed_log_sha256": "7676a030da602d73f2877b2f3d3610c9e15f2fcd7f648f10de7af0d022cb890d",
+  "scope": "Native execution of the three C-object linkage fixtures after the shared static-archive link helper. Existing compiler flags and stack protection retained."
+}

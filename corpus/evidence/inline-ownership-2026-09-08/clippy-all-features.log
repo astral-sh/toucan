@@ -1,0 +1,12 @@
+    Blocking waiting for file lock on build directory
+    Checking toucan_parser v0.0.1 (/home/dev-user/.codex/worktrees/toucan-inline-ownership/crates/toucan_parser)
+   Compiling find-msvc-tools v0.1.11
+   Compiling cc v1.4.4
+   Compiling tikv-jemalloc-sys v0.6.1+5.3.0-1-ge13ca993e8ccb9ba9847cc330696e02839f328f7
+    Checking toucan_semantic v0.0.1 (/home/dev-user/.codex/worktrees/toucan-inline-ownership/crates/toucan_semantic)
+    Checking toucan_bindings v0.0.1 (/home/dev-user/.codex/worktrees/toucan-inline-ownership/crates/toucan_bindings)
+    Checking toucan v0.0.1 (/home/dev-user/.codex/worktrees/toucan-inline-ownership/crates/toucan)
+    Checking toucan_bindgen v0.0.1 (/home/dev-user/.codex/worktrees/toucan-inline-ownership/crates/toucan_bindgen)
+    Checking tikv-jemallocator v0.6.1
+    Checking toucan_cli v0.0.1 (/home/dev-user/.codex/worktrees/toucan-inline-ownership/crates/toucan_cli)
+    Finished `dev` profile [unoptimized] target(s) in 39.46s

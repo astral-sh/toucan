@@ -8,7 +8,7 @@ fn language_modes_preserve_identifiers_extensions_and_retained_parity() {
     for profile in CompilerProfile::ALL {
         for mode in LanguageMode::ALL {
             let profile = profile.with_language_mode(mode);
-            let standard = mode == LanguageMode::C11;
+            let standard = !mode.is_gnu();
             let assembly = profile.target() != Target::X86_64PcWindowsMsvc;
             for (source, accepted) in [
                 (
@@ -21,7 +21,10 @@ fn language_modes_preserve_identifiers_extensions_and_retained_parity() {
                     "struct S{int asm,typeof;};int f(struct S*s){return s->asm+s->typeof;}",
                     standard,
                 ),
-                ("void f(void){asm(\"\");}", !standard && assembly),
+                (
+                    "void f(void){asm(\"\");}",
+                    mode == LanguageMode::C90 || (!standard && assembly),
+                ),
                 ("int x asm(\"named\");", !standard),
                 ("int x;typeof(x) y;", !standard),
                 ("void f(void){__asm__(\"\");}", assembly),
@@ -132,7 +135,7 @@ fn keyword_modes_match_native_compilers() {
                 CompilerProfile::new(target, if gnu { Compiler::Gnu } else { Compiler::Clang })
                     .unwrap();
             for mode in LanguageMode::ALL {
-                let standard = mode == LanguageMode::C11;
+                let standard = !mode.is_gnu();
                 let profile = profile.with_language_mode(mode);
                 for (source, expected) in [
                     (

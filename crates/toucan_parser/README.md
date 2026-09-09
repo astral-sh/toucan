@@ -29,6 +29,10 @@ GNU `q`/`Q` floating suffixes and Clang `__float128` preserve distinct AST varia
 GNU `__float128` uses the lexical typedef environment and supports ordinary identifier
 shadowing. `GnuC11WithClangExtensions` keeps GNU builtin-name identity while exposing
 the extension grammar to semantic consumers that validate compiler availability.
+Clang keeps `_Float32`, `_Float64`, `_Float32x`, `_Float64x`, and `_Float128`
+available as ordinary identifiers and typedef names. GNU reserves those spellings;
+both compiler families reserve `_Float16`. These rules are independent of C mode
+and preprocessor version-marker overrides.
 
 `Config::gnu_keywords` controls bare `asm`/`typeof` independently of underscored
 extensions. Standard C11 permits those identifiers, while GNU11 reserves them.
@@ -47,6 +51,13 @@ also enable the single-underscore aliases except `_regcall` and `_pascal`.
 Keywords are accepted in declaration specifiers, pointer qualifiers, and
 parenthesized named or abstract declarators. Semantic checking determines which
 conventions affect the selected target.
+
+Microsoft extensions also reserve `_declspec` and `__declspec`. Attributes retain
+an `Extension::Declspec` node with their exact name, operands, and source span.
+Declaration and field specifiers accept these annotations; struct and enum nodes
+retain attributes written between the tag keyword and its name. The parser
+preserves comma-separated, whitespace-separated, and string annotation names.
+Semantic checking determines the supported attributes and their valid subjects.
 
 GNU attributes on null statements have a distinct `Statement::Attribute` node.
 Semantic checking determines which statement annotations are supported; the visitor

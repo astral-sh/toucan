@@ -149,7 +149,6 @@ def verify(
             [
                 "cargo",
                 "metadata",
-                "--offline",
                 "--format-version=1",
                 "--manifest-path",
                 str(manifest),

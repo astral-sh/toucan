@@ -282,7 +282,9 @@ fn inferred_keyword_spans_and_retention_quotas_survive_adapters() {
             Target::X86_64UnknownLinuxGnu,
             &AnalysisOptions {
                 retain_code: true,
+                retain_declaration_origins: false,
                 limits,
+                ..Default::default()
             },
         )
         .unwrap_err();

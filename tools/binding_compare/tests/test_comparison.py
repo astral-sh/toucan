@@ -1,5 +1,6 @@
 """Regression tests for matching independently generated nominal record names."""
 
+import copy
 import importlib.util
 import unittest
 from pathlib import Path
@@ -57,6 +58,135 @@ class ComparisonTests(unittest.TestCase):
             result["different"], {"different": {"toucan": 2, "bindgen": 4}}
         )
         self.assertFalse(compare.matches(result))
+
+    def test_symbol_groups_compare_every_public_name_shape_and_linker_mapping(self):
+        shape = {
+            "kind": "pointer",
+            "value": {
+                "mutable": False,
+                "pointee": {"kind": "primitive", "value": "i32"},
+            },
+        }
+        for category in ("functions", "globals"):
+            item_shape = (
+                shape
+                if category == "globals"
+                else {
+                    "abi": "C",
+                    "unsafe_": True,
+                    "parameters": [shape],
+                    "result": {"kind": "unit"},
+                    "variadic": False,
+                }
+            )
+            exports = [
+                {"rust_name": name, "shape": copy.deepcopy(item_shape)}
+                for name in ("first", "second")
+            ]
+            left = {category: {"symbol": exports}}
+            reordered = {category: {"symbol": list(reversed(exports))}}
+            groups = compare.export_groups(left, category)
+            self.assertTrue(
+                compare.matches(
+                    compare.compare_maps(
+                        groups, compare.export_groups(reordered, category)
+                    )
+                )
+            )
+            missing = {category: {"symbol": [exports[1]]}}
+            self.assertFalse(
+                compare.matches(
+                    compare.compare_maps(
+                        groups, compare.export_groups(missing, category)
+                    )
+                )
+            )
+            different_symbol = {category: {"other_symbol": exports}}
+            self.assertFalse(
+                compare.matches(
+                    compare.compare_maps(
+                        groups, compare.export_groups(different_symbol, category)
+                    )
+                )
+            )
+            changed = copy.deepcopy(left)
+            changed_shape = changed[category]["symbol"][0]["shape"]
+            if category == "functions":
+                changed_shape = changed_shape["parameters"][0]
+            changed_shape["value"]["mutable"] = True
+            self.assertFalse(
+                compare.matches(
+                    compare.compare_maps(
+                        groups, compare.export_groups(changed, category)
+                    )
+                )
+            )
+
+    def test_record_pairs_follow_all_shared_export_names(self):
+        left = api({name: record(name) for name in ("LA", "LB")})
+        right = api({name: record(name) for name in ("RA", "RB")})
+        left["globals"] = {
+            "symbol": [
+                {"rust_name": name, "shape": {"kind": "record", "value": target}}
+                for name, target in [("one", "LA"), ("two", "LB")]
+            ]
+        }
+        right["globals"] = {
+            "symbol": [
+                {"rust_name": name, "shape": {"kind": "record", "value": target}}
+                for name, target in [("two", "RB"), ("one", "RA")]
+            ]
+        }
+        self.assertEqual(
+            compare.record_pairs(left, right), ({"LA": "RA", "LB": "RB"}, [])
+        )
+
+    def test_record_pairing_uses_only_unambiguous_singleton_fallback(self):
+        left, right = api({"L": record("L")}), api({"R": record("R")})
+        left["globals"] = {
+            "symbol": [{"rust_name": "left", "shape": {"kind": "record", "value": "L"}}]
+        }
+        right["globals"] = {
+            "symbol": [
+                {"rust_name": "right", "shape": {"kind": "record", "value": "R"}}
+            ]
+        }
+        self.assertEqual(compare.record_pairs(left, right), ({"L": "R"}, []))
+        self.assertFalse(
+            compare.matches(
+                compare.compare_maps(
+                    compare.export_groups(left, "globals"),
+                    compare.export_groups(right, "globals"),
+                )
+            )
+        )
+        left["globals"]["symbol"].append(
+            {"rust_name": "another_left", "shape": {"kind": "record", "value": "L"}}
+        )
+        right["globals"]["symbol"].append(
+            {"rust_name": "another_right", "shape": {"kind": "record", "value": "R"}}
+        )
+        self.assertEqual(compare.record_pairs(left, right), ({}, []))
+
+    def test_analyzer_schema_and_duplicate_name_fail_closed(self):
+        for version in (None, 1, 3):
+            with self.assertRaisesRegex(
+                RuntimeError, "unsupported binding analyzer schema"
+            ):
+                compare.validate_api({"schema_version": version})
+        current = {"schema_version": 2, "functions": {}, "globals": {}}
+        compare.validate_api(current)
+        current["globals"] = {"symbol": {"rust_name": "old", "shape": {}}}
+        with self.assertRaisesRegex(RuntimeError, "expected export list"):
+            compare.validate_api(current)
+        current["globals"] = {
+            "symbol": [
+                {"rust_name": "same", "shape": {}},
+                {"rust_name": "same", "shape": {}},
+            ]
+        }
+        with self.assertRaisesRegex(RuntimeError, "duplicate public foreign Rust name"):
+            compare.validate_api(current)
 
     def test_probes_preserve_unsigned_values_without_wrapping(self):
         result = compare.parse_probe(

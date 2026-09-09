@@ -51,7 +51,10 @@ pub enum InitializerKind {
     },
     List {
         entries: Vec<Entry>,
-        /// Applies to unwritten subobjects, not padding bytes. A later entry can
+        /// Applies to unwritten subobjects, or the whole scalar for an empty
+        /// list. Zero initialization uses the destination type's zero value
+        /// (including null pointers), without claiming zeroed padding bytes.
+        /// A later entry can
         /// override an earlier entry or select another union member; the earlier
         /// expression is retained without claiming it must be evaluated.
         zero_fill_unwritten: bool,
@@ -236,12 +239,12 @@ impl Builder {
     pub(crate) fn initializer_list(
         &mut self,
         id: InitializerId,
-        aggregate: bool,
+        zero_fill_unwritten: bool,
         union_member: Option<usize>,
     ) {
         self.code.initializers[id.index()].kind = InitializerKind::List {
             entries: Vec::new(),
-            zero_fill_unwritten: aggregate,
+            zero_fill_unwritten,
             union_member,
         };
     }

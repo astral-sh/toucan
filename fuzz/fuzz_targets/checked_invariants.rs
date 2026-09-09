@@ -2,7 +2,7 @@
 //! lists are visited once; record and expression references are never expanded.
 
 use toucan::semantic::checked::*;
-use toucan::semantic::{Analysis, TranslationUnit, Type, TypeKind};
+use toucan::semantic::{Analysis, FunctionDefinitionKind, TranslationUnit, Type, TypeKind};
 
 pub(super) fn check(analysis: &Analysis, source: &str) {
     let unit = analysis.unit();
@@ -10,12 +10,104 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     unit.validate_function_options().unwrap();
     unit.validate_parameter_contracts().unwrap();
     unit.validate_alignment_origins().unwrap();
+    if let Some(objects) = analysis.object_values() {
+        let mut previous = 0;
+        for object in objects.entries() {
+            assert_eq!(object.profile(), unit.profile().unwrap());
+            let declaration = &unit.declarations[object.declaration()];
+            assert_eq!(object.name(), declaration.name);
+            source_point(source, object.offset());
+            assert!(object.offset() >= previous);
+            previous = object.offset();
+        }
+    }
+    if let Some(documentation) = analysis.documentation_origins() {
+        use toucan::semantic::DocumentationTarget;
+        let mut previous = (0, 0);
+        for origin in documentation.entries() {
+            source_point(source, origin.begin());
+            source_point(source, origin.name());
+            if let Some(parent) = origin.parent_name() {
+                source_point(source, parent);
+            }
+            let order = (origin.name(), origin.begin());
+            assert!(order >= previous);
+            previous = order;
+            match origin.target() {
+                DocumentationTarget::Declaration(id) => assert!(id < unit.declarations.len()),
+                DocumentationTarget::Record(id) => assert!(id < unit.records.len()),
+                DocumentationTarget::Enum(id) => assert!(id < unit.enums.len()),
+                DocumentationTarget::Enumerator {
+                    enumeration,
+                    variant,
+                } => assert!(variant < unit.enums[enumeration].variants.len()),
+                DocumentationTarget::Field { record, field: id } => {
+                    field(unit, record, id);
+                }
+                _ => panic!("new documentation origin needs invariant coverage"),
+            }
+        }
+    }
+    if let Some(dependencies) = analysis.parameter_type_dependencies() {
+        use toucan::semantic::DeclarationTarget;
+        for occurrence in dependencies.occurrences() {
+            source_span(source, occurrence.source());
+            source_span(source, occurrence.owner_source());
+            assert!(!occurrence.typedefs().is_empty());
+            for name in occurrence.typedefs() {
+                assert!(unit.typedefs.contains_key(name));
+            }
+            match occurrence.owner() {
+                DeclarationTarget::Declaration(id) => assert!(id < unit.declarations.len()),
+                DeclarationTarget::Record(id) => assert!(id < unit.records.len()),
+                _ => panic!("new parameter-type dependency owner needs invariant coverage"),
+            }
+        }
+        for (&record, names) in dependencies.records() {
+            assert!(record < unit.records.len());
+            assert!(!names.is_empty());
+            for name in names {
+                assert!(unit.typedefs.contains_key(name));
+            }
+        }
+        for (owner, names) in dependencies.typedefs() {
+            assert!(unit.typedefs.contains_key(owner));
+            assert!(!names.is_empty());
+            for name in names {
+                assert!(unit.typedefs.contains_key(name));
+            }
+        }
+    }
+    if let Some(origins) = analysis.declaration_origins() {
+        use toucan::semantic::DeclarationTarget;
+        let mut previous = 0;
+        for origin in origins.entries() {
+            source_span(source, origin.source());
+            let start = origin.source().range().start;
+            assert!(start >= previous);
+            previous = start;
+            assert!(!(origin.is_reference() && origin.is_definition()));
+            match origin.target() {
+                DeclarationTarget::Declaration(id) => assert!(id < unit.declarations.len()),
+                DeclarationTarget::Record(id) => assert!(id < unit.records.len()),
+                DeclarationTarget::Enum(id) => assert!(id < unit.enums.len()),
+                DeclarationTarget::Enumerator {
+                    enumeration,
+                    variant,
+                } => assert!(variant < unit.enums[enumeration].variants.len()),
+                _ => panic!("new declaration origin needs invariant coverage"),
+            }
+        }
+    }
     for attribute in code.noescape_attributes() {
         source_span(source, attribute.source());
         assert!(code.occurrence(attribute.owner()).is_some());
         for parameter in attribute.parameters() {
             let site = code.declaration(parameter.declaration()).unwrap();
-            assert_eq!(code.entity(site.entity()).unwrap().kind(), EntityKind::Parameter);
+            assert_eq!(
+                code.entity(site.entity()).unwrap().kind(),
+                EntityKind::Parameter
+            );
         }
     }
     for site in code.function_option_sites() {
@@ -133,7 +225,9 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
         }
     }
     for (id, entity) in code.entities() {
-        if entity.noreturn() { assert_eq!(entity.kind(), EntityKind::Function); }
+        if entity.noreturn() {
+            assert_eq!(entity.kind(), EntityKind::Function);
+        }
         if let Some(declaration) = entity.declaration() {
             let declaration = &unit.declarations[declaration];
             assert_eq!(
@@ -142,7 +236,14 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             );
         }
         if let Some(body) = entity.body() {
-            assert_eq!(code.body(body).unwrap().entity(), id);
+            let body = code.body(body).unwrap();
+            assert_eq!(body.entity(), id);
+            assert_ne!(body.definition_kind(), FunctionDefinitionKind::Superseded);
+            let declaration = &unit.declarations[entity.declaration().unwrap()];
+            assert_eq!(
+                declaration.function_definition_kind,
+                Some(body.definition_kind())
+            );
         }
         match entity.kind() {
             EntityKind::Record(record) => {
@@ -170,6 +271,19 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     for (id, declaration) in code.declarations() {
         assert_eq!(scope_membership[id.index()], 1);
         let entity = code.entity(declaration.entity()).unwrap();
+        if declaration.dll_storage_class().is_some() {
+            assert!(matches!(
+                entity.kind(),
+                EntityKind::Variable | EntityKind::Function
+            ));
+            assert_eq!(declaration.linkage(), Linkage::External);
+            assert_ne!(declaration.storage(), Storage::Thread);
+        }
+        if let Some(written) = code.dll_storage_source(id) {
+            for span in [written.import(), written.export()].into_iter().flatten() {
+                source_span(source, span);
+            }
+        }
         assert_eq!(declaration.storage(), entity.storage());
         assert!(code.scope(declaration.scope()).is_some());
         assert!(code.occurrence(declaration.occurrence()).is_some());
@@ -330,6 +444,16 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 let ty = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
                 assert!(matches!(ty.kind, TypeKind::Complex(_)));
             }
+            ExprKind::BuiltinFunction(operation) => {
+                assert_eq!(unit.compiler, toucan::Compiler::Gnu);
+                assert!(!operation.symbol().is_empty());
+                assert!(matches!(
+                    unit.resolve(code.ty(expression.ty()).unwrap())
+                        .unwrap()
+                        .kind,
+                    TypeKind::Function(_)
+                ));
+            }
             ExprKind::Name(entity) => {
                 assert!(code.entity(*entity).is_some());
             }
@@ -342,7 +466,14 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             } => {
                 expression_use(code, operand);
                 if matches!(operator, Unary::Real | Unary::Imaginary) {
-                    assert_eq!(operand.context(),if expression.category()==ValueCategory::ObjectLvalue {UseContext::Place}else{UseContext::Value});
+                    assert_eq!(
+                        operand.context(),
+                        if expression.category() == ValueCategory::ObjectLvalue {
+                            UseContext::Place
+                        } else {
+                            UseContext::Value
+                        }
+                    );
                 }
                 for ty in [computation_type, write_back].into_iter().flatten() {
                     assert!(code.ty(*ty).is_some());
@@ -371,6 +502,27 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             ExprKind::Cast { destination, value } => {
                 assert!(code.ty(*destination).is_some());
                 expression_use(code, value);
+            }
+            ExprKind::OmittedConditional {
+                condition,
+                then_value,
+                else_value,
+            } => {
+                assert_eq!(condition.expression(), then_value.expression());
+                assert_eq!(
+                    then_value.context(),
+                    toucan::semantic::checked::UseContext::ReusedValue
+                );
+                assert!(then_value.conversions().iter().all(|step| !matches!(
+                    step.kind(),
+                    Conversion::AtomicLoad
+                        | Conversion::Lvalue
+                        | Conversion::ArrayDecay
+                        | Conversion::FunctionDecay
+                )));
+                for operand in [condition, then_value, else_value] {
+                    expression_use(code, operand);
+                }
             }
             ExprKind::Conditional {
                 condition,
@@ -404,8 +556,16 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 ..
             } => {
                 expression_use(code, callee);
-                let TypeKind::Pointer(pointee) = &unit.resolve(code.ty(callee.effective_type()).unwrap()).unwrap().kind else { panic!("call pointer type") };
-                let TypeKind::Function(function) = &unit.resolve(pointee).unwrap().kind else { panic!("call function type") };
+                let TypeKind::Pointer(pointee) = &unit
+                    .resolve(code.ty(callee.effective_type()).unwrap())
+                    .unwrap()
+                    .kind
+                else {
+                    panic!("call pointer type")
+                };
+                let TypeKind::Function(function) = &unit.resolve(pointee).unwrap().kind else {
+                    panic!("call function type")
+                };
                 assert!(!function.noreturn || *noreturn);
                 if *noreturn && !function.noreturn {
                     assert!(code.entity(direct_callee.unwrap()).unwrap().noreturn());
@@ -427,7 +587,11 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 let TypeKind::Vector { lanes: result, .. } = unit.resolve(ty).unwrap().kind else {
                     panic!("convertvector destination");
                 };
-                let TypeKind::Vector { lanes: input, .. } = unit.resolve(code.ty(value.effective_type()).unwrap()).unwrap().kind else {
+                let TypeKind::Vector { lanes: input, .. } = unit
+                    .resolve(code.ty(value.effective_type()).unwrap())
+                    .unwrap()
+                    .kind
+                else {
                     panic!("convertvector source");
                 };
                 assert_eq!(input, result);
@@ -477,16 +641,57 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 callee_occurrence,
                 arguments,
                 builtin,
+                declaration,
+                link_name,
                 ..
             } => {
                 assert!(code.occurrence(*callee_occurrence).is_some());
-                if let Builtin::Elementwise(_) = builtin {
-                    assert_eq!(arguments.len(),2);
+                if let Some(id) = declaration {
+                    assert!(code.entity(*id).is_some());
+                }
+                if let Some(link) = link_name {
+                    assert!(link.len() <= 1_048_576);
+                }
+                if *builtin == Builtin::Prefetch {
+                    assert!(!arguments.is_empty());
+                    if unit.compiler == toucan::Compiler::Clang {
+                        assert!(arguments.len() <= 3);
+                    }
+                    assert!(arguments.iter().all(|a| matches!(
+                        a.context(),
+                        UseContext::Value | UseContext::VariadicPack
+                    )));
+                    assert!(matches!(
+                        unit.resolve(code.ty(arguments[0].effective_type()).unwrap())
+                            .unwrap()
+                            .kind,
+                        TypeKind::Pointer(_)
+                    ));
+                }
+                if let Builtin::Allocation(operation) = builtin {
+                    use toucan::semantic::AllocationOperation;
+                    let arity = if matches!(
+                        operation,
+                        AllocationOperation::Malloc | AllocationOperation::Free
+                    ) {
+                        1
+                    } else {
+                        2
+                    };
+                    assert_eq!(arguments.len(), arity);
                     for argument in arguments {
-                        assert_eq!(argument.context(),UseContext::Value);
+                        assert_eq!(argument.context(), UseContext::Value);
+                    }
+                }
+                if let Builtin::Elementwise(_) = builtin {
+                    assert_eq!(arguments.len(), 2);
+                    for argument in arguments {
+                        assert_eq!(argument.context(), UseContext::Value);
                         // Equal integer/vector value types can retain different
                         // typedef alignment sugar when no conversion occurs.
-                        let operand = unit.resolve(code.ty(argument.effective_type()).unwrap()).unwrap();
+                        let operand = unit
+                            .resolve(code.ty(argument.effective_type()).unwrap())
+                            .unwrap();
                         let result = unit.resolve(code.ty(expression.ty()).unwrap()).unwrap();
                         assert_eq!(operand.kind, result.kind);
                         assert_eq!(operand.qualifiers, result.qualifiers);
@@ -500,7 +705,9 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                     assert_eq!(arguments.len(), 2);
                     for argument in arguments {
                         assert_eq!(argument.context(), UseContext::Value);
-                        let ty = unit.resolve(code.ty(argument.effective_type()).unwrap()).unwrap();
+                        let ty = unit
+                            .resolve(code.ty(argument.effective_type()).unwrap())
+                            .unwrap();
                         assert!(matches!(ty.kind, TypeKind::Float(component) if component == kind));
                     }
                 }
@@ -547,14 +754,20 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
                 assert!(code.ty(*ty).is_some());
             }
             ExprKind::SizeOfValue { operand, .. } => expression_use(code, operand),
-            ExprKind::AlignOf { operand, alignment_bytes, .. } => {
+            ExprKind::AlignOf {
+                operand,
+                alignment_bytes,
+                ..
+            } => {
                 assert!(alignment_bytes.is_power_of_two());
                 match operand {
                     toucan::semantic::checked::AlignmentOperand::Type(operand) => {
                         assert!(code.occurrence(operand.occurrence).is_some());
                         assert!(code.type_use(operand.type_use).is_some());
                     }
-                    toucan::semantic::checked::AlignmentOperand::Expression(operand) => expression_use(code, operand),
+                    toucan::semantic::checked::AlignmentOperand::Expression(operand) => {
+                        expression_use(code, operand)
+                    }
                 }
             }
             ExprKind::OffsetOf { record, members } => {
@@ -713,8 +926,33 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             _ => panic!("unfinished or unhandled initializer"),
         }
     }
+    for site in code.function_inline_sites() {
+        let declaration = code.declaration(site.declaration()).unwrap();
+        assert_eq!(
+            code.entity(declaration.entity()).unwrap().kind(),
+            EntityKind::Function
+        );
+        assert_eq!(
+            code.function_inline_site(site.declaration())
+                .unwrap()
+                .declaration(),
+            site.declaration()
+        );
+        for span in [site.inline_specifier(), site.gnu_inline_attribute()]
+            .into_iter()
+            .flatten()
+        {
+            source_span(source, span);
+        }
+    }
     for (id, body) in code.bodies() {
-        assert_eq!(code.entity(body.entity()).unwrap().body(), Some(id));
+        let latest = code.entity(body.entity()).unwrap().body().unwrap();
+        if body.definition_kind() == FunctionDefinitionKind::Superseded {
+            assert!(latest.index() > id.index());
+            assert_eq!(code.body(latest).unwrap().entity(), body.entity());
+        } else {
+            assert_eq!(latest, id);
+        }
         assert_eq!(
             code.declaration(body.declaration()).unwrap().body(),
             Some(id)
@@ -726,14 +964,23 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
             assert!(code.declaration(*parameter).is_some());
         }
         if let Some(old_style) = body.old_style() {
-            assert_eq!(old_style.evaluation_order(), ParameterEvaluationOrder::UnspecifiedBetweenParameters);
+            assert_eq!(
+                old_style.evaluation_order(),
+                ParameterEvaluationOrder::UnspecifiedBetweenParameters
+            );
             assert_eq!(old_style.parameters().len(), body.parameters().len());
             for (entry, parameter) in old_style.parameters().iter().zip(body.parameters()) {
                 assert_eq!(entry.declaration(), *parameter);
                 let site = code.declaration(*parameter).unwrap();
                 assert_eq!(site.scope(), body.scope());
-                assert_eq!(code.entity(site.entity()).unwrap().kind(), EntityKind::Parameter);
-                assert_eq!(code.occurrence(entry.identifier()).unwrap().kind(), OccurrenceKind::OldStyleParameter);
+                assert_eq!(
+                    code.entity(site.entity()).unwrap().kind(),
+                    EntityKind::Parameter
+                );
+                assert_eq!(
+                    code.occurrence(entry.identifier()).unwrap().kind(),
+                    OccurrenceKind::OldStyleParameter
+                );
                 assert_eq!(coverage[entry.identifier().index()] & 16, 0);
                 coverage[entry.identifier().index()] |= 16;
                 let mut ty = code.type_use(entry.incoming()).unwrap().shape();
@@ -961,6 +1208,11 @@ pub(super) fn check(analysis: &Analysis, source: &str) {
     }
 }
 
+fn source_point(source: &str, offset: usize) {
+    assert!(offset < source.len());
+    assert!(source.is_char_boundary(offset));
+}
+
 fn source_span(source: &str, span: &SourceSpan) {
     let range = span.range();
     assert!(source.get(range.clone()).is_some());
@@ -1068,7 +1320,10 @@ fn type_shape(unit: &TranslationUnit, root: &Type) {
                 if let Some(id) = function.parameter_contracts {
                     for &position in &unit.parameter_contracts(id).unwrap().no_escape {
                         let parameter = &function.parameters[position as usize];
-                        assert!(matches!(unit.resolve(&parameter.ty).unwrap().kind, TypeKind::Pointer(_)));
+                        assert!(matches!(
+                            unit.resolve(&parameter.ty).unwrap().kind,
+                            TypeKind::Pointer(_)
+                        ));
                     }
                 }
                 pending.push(&function.return_type);

@@ -1,0 +1,42 @@
+{
+  "source_commit": "55aff58817d4a4d8a9f96353ce11d6aa235d3480",
+  "status": "passed",
+  "source_manifest_sha256": "2f73e635513662ca5769ffa62ccf11842003506a68e8d0e7b292d3910ad3a643",
+  "binary_sha256": "2a9920d861cbc173ba5260f4508f1de383c230650c3f6a59c48d04ac3d5e5a8b",
+  "statistics": {
+    "number_of_executed_units": 402876,
+    "average_exec_per_sec": 3329,
+    "new_units_added": 5197,
+    "slowest_unit_time_sec": 0,
+    "peak_rss_mb": 483
+  },
+  "source_unchanged": true,
+  "elapsed_seconds": 121.15426436900452,
+  "artifacts": {},
+  "files": {
+    "evidence.json.gz": {
+      "bytes": 180568,
+      "sha256": "42703f9f9369b245e265066895f21c320b151b76a7fd95846fe3fc635fedb026"
+    },
+    "source.json.gz": {
+      "bytes": 95254,
+      "sha256": "8b15c92fb6391e09488f92d0133dea8f062163f630080bca9381ef29d3126415"
+    },
+    "fuzz.log.gz": {
+      "bytes": 92651,
+      "sha256": "4a297f20dcf8a8d00c71f73c7091e77c91c2300b5c139cd521bf32159fcf8c45"
+    },
+    "build.log": {
+      "bytes": 1098,
+      "sha256": "6084629368f5cf483ef291e47f44d62943fc8bcc54b3d9531ec21d2b6b3c7076"
+    },
+    "c.dict": {
+      "bytes": 647,
+      "sha256": "bdbd5c471259a8af3335afa5fd8535c85df13206949c26a6d397a6c637cb921b"
+    },
+    "initial-corpus.tar.gz": {
+      "bytes": 65855,
+      "sha256": "fc845bc61f3e64a8c6c45db19fd9d21507299add507756861828d3410103e9d6"
+    }
+  }
+}

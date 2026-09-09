@@ -14,15 +14,17 @@ fn compiler_integer_types_are_available_to_system_headers() {
             assert!(!result.unit().typedefs.contains_key("__uint128_t"));
             continue;
         }
-        let result = toucan::parse_source(
-            Path::new("system.h"),
-            "#if !defined(_PTRDIFF_T) || (__has_feature(modules) && !__building_module(_Builtin_stddef))\n\
-             typedef long ptrdiff_t;\n\
-             #endif\n\
-             struct neon_state { __uint128_t registers[32]; };\n",
-            &config,
-        )
-        .unwrap();
+        // The module predicate is Clang resource-header syntax. GNU resource
+        // headers use the ordinary include guard and do not define these queries.
+        let condition = if config.compiler() == toucan::Compiler::Clang {
+            "!defined(_PTRDIFF_T) || (__has_feature(modules) && !__building_module(_Builtin_stddef))"
+        } else {
+            "!defined(_PTRDIFF_T)"
+        };
+        let source = format!(
+            "#if {condition}\ntypedef long ptrdiff_t;\n#endif\nstruct neon_state {{ __uint128_t registers[32]; }};\n"
+        );
+        let result = toucan::parse_source(Path::new("system.h"), &source, &config).unwrap();
         for (name, kind) in [
             ("__int128_t", IntegerKind::Int128),
             ("__uint128_t", IntegerKind::UnsignedInt128),

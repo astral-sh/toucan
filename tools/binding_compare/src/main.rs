@@ -11,6 +11,8 @@ use quote::ToTokens;
 use serde::Serialize;
 use syn::{ForeignItem, GenericArgument, Item, PathArguments, ReturnType, Type, Visibility};
 
+const API_SCHEMA_VERSION: u32 = 2;
+
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
 #[derive(Clone, Debug, PartialEq, Eq, Serialize)]
@@ -36,7 +38,7 @@ struct Signature {
     variadic: bool,
 }
 
-#[derive(Serialize)]
+#[derive(Debug, PartialEq, Eq, Serialize)]
 struct Export<T> {
     rust_name: String,
     shape: T,
@@ -68,8 +70,9 @@ struct Constant {
 
 #[derive(Default, Serialize)]
 struct Api {
-    functions: BTreeMap<String, Export<Signature>>,
-    globals: BTreeMap<String, Export<Shape>>,
+    schema_version: u32,
+    functions: BTreeMap<String, Vec<Export<Signature>>>,
+    globals: BTreeMap<String, Vec<Export<Shape>>>,
     aliases: BTreeMap<String, Shape>,
     records: BTreeMap<String, Record>,
     constants: BTreeMap<String, Constant>,
@@ -78,6 +81,7 @@ struct Api {
 
 struct Context<'a> {
     aliases: BTreeMap<String, &'a Type>,
+    public_aliases: BTreeSet<String>,
     records: BTreeSet<String>,
     record_names: BTreeMap<String, String>,
     opaque_arrays: BTreeMap<String, (&'a Type, &'a syn::Expr)>,
@@ -166,19 +170,114 @@ fn direct_path(ty: &Type) -> Option<String> {
     None
 }
 
+/// Preserve local type imports as aliases, including bindgen's `pub use` output.
+/// Public imports outside this supported form must remain visible as unsupported.
+fn imported_types(file: &syn::File) -> (Vec<Item>, Vec<String>) {
+    fn flatten(
+        tree: &syn::UseTree,
+        local: bool,
+        depth: usize,
+        names: &mut Vec<(syn::Ident, syn::Ident)>,
+    ) -> Result<()> {
+        if depth > 128 {
+            return Err("type import nesting exceeds 128 levels".into());
+        }
+        match tree {
+            syn::UseTree::Path(path) if !local && path.ident == "self" => {
+                flatten(&path.tree, true, depth + 1, names)?;
+            }
+            syn::UseTree::Name(item) if item.ident != "self" => {
+                names.push((item.ident.clone(), item.ident.clone()));
+            }
+            syn::UseTree::Rename(item) if item.ident != "self" && item.rename != "_" => {
+                names.push((item.ident.clone(), item.rename.clone()));
+            }
+            syn::UseTree::Group(group) => {
+                for item in &group.items {
+                    flatten(item, local, depth + 1, names)?;
+                }
+            }
+            _ => return Err("only explicit local type imports are supported".into()),
+        }
+        Ok(())
+    }
+
+    let declared: BTreeSet<_> = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Type(item) => Some(name(&item.ident)),
+            Item::Struct(item) => Some(name(&item.ident)),
+            Item::Union(item) => Some(name(&item.ident)),
+            Item::Enum(item) => Some(name(&item.ident)),
+            _ => None,
+        })
+        .collect();
+    let mut candidates = Vec::new();
+    let mut unsupported = Vec::new();
+    for item in &file.items {
+        let Item::Use(import) = item else { continue };
+        let mut names = Vec::new();
+        let result = if import.leading_colon.is_some() {
+            Err("absolute type imports are not supported".into())
+        } else {
+            flatten(&import.tree, false, 0, &mut names)
+        };
+        match result {
+            Ok(()) => {
+                candidates.extend(
+                    names
+                        .into_iter()
+                        .map(|(target, alias)| (import, target, alias)),
+                );
+            }
+            Err(error) if public(&import.vis) => {
+                unsupported.push(format!(
+                    "public re-export {}: {error}",
+                    import.to_token_stream()
+                ));
+            }
+            Err(_) => {}
+        }
+    }
+    let available: BTreeSet<_> = declared
+        .iter()
+        .cloned()
+        .chain(candidates.iter().map(|(_, _, alias)| name(alias)))
+        .collect();
+    let mut aliases = Vec::new();
+    for (import, target, alias) in candidates {
+        if !available.contains(&name(&target)) || declared.contains(&name(&alias)) {
+            if public(&import.vis) {
+                unsupported.push(format!(
+                    "unresolved or conflicting public type re-export {alias}"
+                ));
+            }
+            continue;
+        }
+        let visibility = &import.vis;
+        aliases.push(syn::parse_quote!(#visibility type #alias = #target;));
+    }
+    (aliases, unsupported)
+}
+
 impl<'a> Context<'a> {
-    fn new(file: &'a syn::File, target: &'a str) -> Self {
+    fn new(file: &'a syn::File, imports: &'a [Item], target: &'a str) -> Self {
         let mut ctx = Self {
             aliases: BTreeMap::new(),
+            public_aliases: BTreeSet::new(),
             records: BTreeSet::new(),
             record_names: BTreeMap::new(),
             opaque_arrays: BTreeMap::new(),
             target,
         };
-        for item in &file.items {
+        for item in file.items.iter().chain(imports) {
             match item {
                 Item::Type(t) => {
                     ctx.aliases.insert(name(&t.ident), &t.ty);
+                    if public(&t.vis) {
+                        ctx.public_aliases.insert(name(&t.ident));
+                    }
                 }
                 Item::Struct(s) if !helper(&name(&s.ident)) => {
                     ctx.records.insert(name(&s.ident));
@@ -195,7 +294,10 @@ impl<'a> Context<'a> {
             } else if record.starts_with("__toucan_record_") {
                 ctx.aliases
                     .iter()
-                    .filter(|(_, ty)| ctx.record_target(ty, 0).as_ref() == Some(record))
+                    .filter(|(name, ty)| {
+                        ctx.public_aliases.contains(*name)
+                            && ctx.record_target(ty, 0).as_ref() == Some(record)
+                    })
                     .map(|(n, _)| n)
                     .min_by_key(|n| (n.len(), *n))
                     .cloned()
@@ -381,7 +483,10 @@ fn record(
     let aliases = ctx
         .aliases
         .iter()
-        .filter(|(_, t)| ctx.record_target(t, 0).as_ref() == Some(&rust_name))
+        .filter(|(name, t)| {
+            ctx.public_aliases.contains(*name)
+                && ctx.record_target(t, 0).as_ref() == Some(&rust_name)
+        })
         .map(|(n, _)| n.clone())
         .collect();
     let mut result = Record {
@@ -423,10 +528,35 @@ fn record(
     Ok(result)
 }
 
+/// Preserve every public Rust name even when foreign declarations share a symbol.
+/// Duplicate Rust names are invalid in the supported flat binding module; keep
+/// their declarations in the inventory and prevent an equivalence claim.
+fn insert_export<T>(
+    exports: &mut BTreeMap<String, Vec<Export<T>>>,
+    names: &mut BTreeSet<String>,
+    unsupported: &mut Vec<String>,
+    symbol: String,
+    export: Export<T>,
+) {
+    if !names.insert(export.rust_name.clone()) {
+        unsupported.push(format!(
+            "duplicate public foreign Rust name `{}`",
+            export.rust_name
+        ));
+    }
+    exports.entry(symbol).or_default().push(export);
+}
+
 fn analyze(file: &syn::File, target: &str) -> Api {
-    let ctx = Context::new(file, target);
-    let mut api = Api::default();
-    for item in &file.items {
+    let (imports, unsupported) = imported_types(file);
+    let ctx = Context::new(file, &imports, target);
+    let mut api = Api {
+        schema_version: API_SCHEMA_VERSION,
+        unsupported,
+        ..Api::default()
+    };
+    let mut foreign_names = BTreeSet::new();
+    for item in file.items.iter().chain(&imports) {
         let result = (|| -> Result<()> {
             match item {
                 Item::ForeignMod(m) => {
@@ -442,7 +572,10 @@ fn analyze(file: &syn::File, target: &str) -> Api {
                                         _ => Err("receiver in foreign function".into()),
                                     })
                                     .collect::<Result<_>>()?;
-                                api.functions.insert(
+                                insert_export(
+                                    &mut api.functions,
+                                    &mut foreign_names,
+                                    &mut api.unsupported,
                                     link_name(&f.attrs, &f.sig.ident),
                                     Export {
                                         rust_name: name(&f.sig.ident),
@@ -463,7 +596,10 @@ fn analyze(file: &syn::File, target: &str) -> Api {
                             ForeignItem::Static(s) if public(&s.vis) => {
                                 // A mutable foreign static has a mutable address, independent of its declared pointee qualifiers.
                                 let mutable = matches!(s.mutability, syn::StaticMutability::Mut(_));
-                                api.globals.insert(
+                                insert_export(
+                                    &mut api.globals,
+                                    &mut foreign_names,
+                                    &mut api.unsupported,
                                     link_name(&s.attrs, &s.ident),
                                     Export {
                                         rust_name: name(&s.ident),
@@ -571,6 +707,12 @@ fn analyze(file: &syn::File, target: &str) -> Api {
             }
             Err(error) => api.unsupported.push(error.to_string()),
         }
+    }
+    for exports in api.functions.values_mut() {
+        exports.sort_by(|a, b| a.rust_name.cmp(&b.rust_name));
+    }
+    for exports in api.globals.values_mut() {
+        exports.sort_by(|a, b| a.rust_name.cmp(&b.rust_name));
     }
     api
 }
@@ -683,7 +825,7 @@ mod tests {
             }
         );
         assert_eq!(
-            api.functions["consume"].shape.parameters,
+            api.functions["consume"][0].shape.parameters,
             [Shape::Record(key.clone())]
         );
         let source = probe(&api, Path::new("bindings.rs"));
@@ -710,7 +852,7 @@ mod tests {
         let right = api(
             "unsafe extern \"C\" { pub fn f(x: *const u64, callback: ::std::option::Option<unsafe extern \"C\" fn(::std::os::raw::c_int)>, ...); }",
         );
-        assert_eq!(left.functions["f"].shape, right.functions["f"].shape);
+        assert_eq!(left.functions["f"][0].shape, right.functions["f"][0].shape);
     }
 
     #[test]
@@ -720,13 +862,91 @@ mod tests {
         );
         let right =
             api("unsafe extern \"C\" { pub fn f(p: *mut i32, cb: unsafe extern \"C\" fn()); }");
-        assert_ne!(left.functions["f"].shape, right.functions["f"].shape);
+        assert_ne!(left.functions["f"][0].shape, right.functions["f"][0].shape);
     }
 
     #[test]
     fn link_names_identify_exported_symbols() {
         let parsed = api("unsafe extern \"C\" { #[link_name = \"self\"] pub fn escaped(); }");
-        assert_eq!(parsed.functions["self"].rust_name, "escaped");
+        assert_eq!(parsed.functions["self"][0].rust_name, "escaped");
+    }
+
+    #[test]
+    fn shared_symbols_keep_all_public_names_in_stable_order() {
+        let source = "unsafe extern \"C\" {
+            #[link_name = \"object\"] pub static zebra: i32;
+            #[link_name = \"object\"] pub static alpha: i32;
+            #[link_name = \"call\"] pub fn second(value: i32);
+            #[link_name = \"call\"] pub fn first(value: i32);
+        }";
+        let parsed = api(source);
+        assert!(parsed.unsupported.is_empty());
+        assert_eq!(parsed.schema_version, API_SCHEMA_VERSION);
+        assert_eq!(
+            parsed.globals["object"]
+                .iter()
+                .map(|e| e.rust_name.as_str())
+                .collect::<Vec<_>>(),
+            ["alpha", "zebra"]
+        );
+        assert_eq!(
+            parsed.functions["call"]
+                .iter()
+                .map(|e| e.rust_name.as_str())
+                .collect::<Vec<_>>(),
+            ["first", "second"]
+        );
+        let reordered = api("unsafe extern \"C\" {
+            #[link_name = \"object\"] pub static alpha: i32;
+            #[link_name = \"call\"] pub fn first(value: i32);
+            #[link_name = \"object\"] pub static zebra: i32;
+            #[link_name = \"call\"] pub fn second(value: i32);
+        }");
+        assert_eq!(
+            serde_json::to_value(parsed).unwrap(),
+            serde_json::to_value(reordered).unwrap()
+        );
+    }
+
+    #[test]
+    fn shared_symbol_aliases_preserve_each_type_and_static_mutability() {
+        let parsed = api("unsafe extern \"C\" {
+            #[link_name = \"object\"] pub static mut first: *const i32;
+            #[link_name = \"object\"] pub static second: *const i32;
+            #[link_name = \"call\"] pub fn first_call(value: i32);
+            #[link_name = \"call\"] pub fn second_call(value: i64);
+        }");
+        assert!(parsed.unsupported.is_empty());
+        assert!(
+            matches!(&parsed.globals["object"][0].shape, Shape::Pointer { mutable: true, pointee }
+            if matches!(pointee.as_ref(), Shape::Pointer { mutable: false, .. }))
+        );
+        assert!(matches!(
+            &parsed.globals["object"][1].shape,
+            Shape::Pointer { mutable: false, .. }
+        ));
+        assert_ne!(
+            parsed.functions["call"][0].shape,
+            parsed.functions["call"][1].shape
+        );
+    }
+
+    #[test]
+    fn duplicate_foreign_rust_names_are_diagnostics_without_overwriting_exports() {
+        for source in [
+            "unsafe extern \"C\" { #[link_name=\"object\"] pub static same:i32; #[link_name=\"object\"] pub static same:i64; }",
+            "unsafe extern \"C\" { #[link_name=\"one\"] pub fn same(); #[link_name=\"two\"] pub fn same(); }",
+            "unsafe extern \"C\" { pub static same:i32; pub fn same(); }",
+        ] {
+            let parsed = api(source);
+            assert_eq!(parsed.unsupported.len(), 1);
+            assert!(parsed.unsupported[0].contains("duplicate public foreign Rust name `same`"));
+            assert_eq!(
+                parsed.functions.values().map(Vec::len).sum::<usize>()
+                    + parsed.globals.values().map(Vec::len).sum::<usize>(),
+                2
+            );
+        }
     }
 
     #[test]
@@ -735,5 +955,54 @@ mod tests {
             api("pub type A = B; pub type B = A; unsafe extern \"C\" { pub fn f(p: Missing); }");
         assert_eq!(parsed.unsupported.len(), 3);
         assert!(parsed.functions.is_empty());
+    }
+
+    #[test]
+    fn local_type_reexports_preserve_public_aliases_and_uses() {
+        let left = api("pub type First = u32;
+             #[repr(C)] pub struct Record { pub value: First }
+             pub use self::{First as Later, Record as Renamed};
+             use self::Later as Private;
+             use self::Record as PrivateRecord;
+             pub type Last = Private;
+             pub use self::Later as Chained;
+             unsafe extern \"C\" { pub fn consume(value: Last, record: *const Renamed); }");
+        let right = api("pub type First = u32;
+             #[repr(C)] pub struct Record { pub value: First }
+             pub type Later = First; pub type Renamed = Record; pub type Last = Later;
+             pub type Chained = Later;
+             unsafe extern \"C\" { pub fn consume(value: Last, record: *const Renamed); }");
+        assert!(left.unsupported.is_empty(), "{:?}", left.unsupported);
+        assert!(right.unsupported.is_empty(), "{:?}", right.unsupported);
+        assert_eq!(left.aliases, right.aliases);
+        assert!(!left.aliases.contains_key("Private"));
+        assert!(
+            !left.records["Record"]
+                .aliases
+                .contains(&"PrivateRecord".into())
+        );
+        assert_eq!(
+            left.functions["consume"][0].shape,
+            right.functions["consume"][0].shape
+        );
+        assert_eq!(
+            left.records["Record"].aliases,
+            right.records["Record"].aliases
+        );
+    }
+
+    #[test]
+    fn unresolved_public_imports_and_cycles_are_reported() {
+        for source in [
+            "pub use external::Type as Alias;",
+            "pub use self::missing as Alias;",
+            "pub use self::*;",
+            "pub use ::external::Type as Alias;",
+            "pub const VALUE: u32 = 1; pub use self::VALUE as Alias;",
+            "pub use self::B as A; pub use self::A as B;",
+        ] {
+            let parsed = api(source);
+            assert!(!parsed.unsupported.is_empty(), "{source}");
+        }
     }
 }

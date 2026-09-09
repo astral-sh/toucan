@@ -35,6 +35,9 @@ const VALID: &[&str] = &[
     "_Thread_local int x; extern __thread int x;",
     "void f(void) { static __thread int x; extern __thread int y; x=y; }",
 ];
+// Microsoft C inherits the first external declaration's linkage here.
+const LATER_STATIC: &str =
+    "void f(void) { extern _Thread_local int x; } static _Thread_local int x;";
 const INVALID: &[&str] = &[
     "_Thread_local int f(void);",
     "void f(_Thread_local int x);",
@@ -59,7 +62,6 @@ const INVALID: &[&str] = &[
     "void f(void) { extern int x; } _Thread_local int x;",
     "void f(void) { extern _Thread_local int x; } void g(void) { extern int x; }",
     "void f(void) { static _Thread_local int x; extern _Thread_local int x; }",
-    "void f(void) { extern _Thread_local int x; } static _Thread_local int x;",
     "void f(void) { extern _Thread_local int x=1; }",
     "int f(void); _Thread_local int x=f();",
     "int f(void); void g(void) { static _Thread_local int x=f(); }",
@@ -81,6 +83,7 @@ fn thread_storage_constraints_preserve_analysis_parity() {
             .iter()
             .map(|s| (*s, true))
             .chain(INVALID.iter().map(|s| (*s, false)))
+            .chain([(LATER_STATIC, target == Target::X86_64PcWindowsMsvc)])
         {
             let plain = analyze(source, target);
             let retained = analyze_with_options(
@@ -287,6 +290,17 @@ fn thread_storage_matches_gcc_and_clang_on_five_targets() {
         for target in Target::ALL {
             compile(&clang, Some(target), source, accepted, strict);
         }
+    }
+    compile(&gcc, None, LATER_STATIC, false, true);
+    for target in Target::ALL {
+        compile(&clang, Some(target), LATER_STATIC, false, true);
+        compile(
+            &clang,
+            Some(target),
+            LATER_STATIC,
+            target == Target::X86_64PcWindowsMsvc,
+            false,
+        );
     }
     compile(&gcc, None, "__thread static int x;", false, false);
     for target in Target::ALL {

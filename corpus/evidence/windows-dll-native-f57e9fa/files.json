@@ -1,0 +1,510 @@
+{
+  "clang.txt": {
+    "sha256": "68c8e9d9a49a718848d76234be066e1a526918e90849c51719c390e192d12500",
+    "bytes": 116
+  },
+  "llvm-readobj.txt": {
+    "sha256": "db094803eab6f644a9d216e0d4203a07ef624d35a90e13091a6028c05f08cc97",
+    "bytes": 69
+  },
+  "msvc-linker.txt": {
+    "sha256": "ffd689a2d092301b526ca1c27dd63bf0c2a0f1ee276c582749681e85a5064301",
+    "bytes": 3910
+  },
+  "msvc-setup.txt": {
+    "sha256": "01ed3aa7f0cb7be4ad463ae6b790baca98743a796d031c70209b2270a6087073",
+    "bytes": 297
+  },
+  "probes/data_first/api.h": {
+    "sha256": "dc177766b9769f4a6eb2cd4a6284b84e140ee2b9ad779471e9340e590f6a5a98",
+    "bytes": 398
+  },
+  "probes/data_first/bindings.rs": {
+    "sha256": "22fdfb03fe46eb4600b5a9ba87932cf464614516243e7c1fe159547a9a2117f0",
+    "bytes": 1086
+  },
+  "probes/data_first/c_probe.c": {
+    "sha256": "60d1b55c6649773f6c9059fb3fbb31af156bdcc1b9e394946bb5d2f5ec2bef0d",
+    "bytes": 346
+  },
+  "probes/data_first/c_probe.obj": {
+    "sha256": "8b75624a589b05cd234d6146399807adbf5c96ffed8ca04c29bf3f383c58084a",
+    "bytes": 972
+  },
+  "probes/data_first/consumer.rs": {
+    "sha256": "c8dfff9a64bfc9022df77742fdb102ac9c459f6ce091fdc54bba075f498e9f85",
+    "bytes": 606
+  },
+  "probes/data_first/native.rs": {
+    "sha256": "0db4260ee602f24eace8e6c1b7cd8d30c3dcfba8de4fb36b3fe352280259e6dc",
+    "bytes": 639
+  },
+  "probes/data_first/rust0-O0/consumer.exe": {
+    "sha256": "59e1fd64dca6aa5e5bc173f3ffae178d23771800d76e771c85f054dcf9dae4a5",
+    "bytes": 3584
+  },
+  "probes/data_first/rust0-O0/consumer.ll": {
+    "sha256": "0c0bf2748675d1d616d35aeaabfa8d1a15a63d632b21ff1a911621e136ca4af5",
+    "bytes": 6488
+  },
+  "probes/data_first/rust0-O0/consumer.o": {
+    "sha256": "101daa8706187ca9e64537a3c9ff645657632304f759b4066c816c5be9b3b135",
+    "bytes": 1495
+  },
+  "probes/data_first/rust0-O0/native.exe": {
+    "sha256": "744f1963d8baeb91cb5b88c469dd885b559cd56a901d7e67ab4e28e3b5098741",
+    "bytes": 149504
+  },
+  "probes/data_first/rust0-O0/native.pdb": {
+    "sha256": "dd4eb55b2d31045be13280819d3c233c8d0aad64e32276a033a65c7bdbfdf314",
+    "bytes": 1257472
+  },
+  "probes/data_first/rust0-O0/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/data_first/rust0-O0/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/data_first/rust0-O3/consumer.exe": {
+    "sha256": "6dbcaa5c95d9ddb0842b79d455d6d8188678ac66508014d4ffdc217ea87a90a7",
+    "bytes": 3072
+  },
+  "probes/data_first/rust0-O3/consumer.ll": {
+    "sha256": "bf9a3b3fda1b693f33a97f16443b3832dd0e0b38938422475376e1d326c83f50",
+    "bytes": 3027
+  },
+  "probes/data_first/rust0-O3/consumer.o": {
+    "sha256": "f03c446483b8c2e2373d83afc5646361e8a9fbe8e68c3baa4e4ca6f09dc96bc0",
+    "bytes": 1234
+  },
+  "probes/data_first/rust0-O3/native.exe": {
+    "sha256": "b314b8b81a8b6ccab8ad5561e1a70e0bc1849a3136ecdc1994c7abd276279463",
+    "bytes": 145408
+  },
+  "probes/data_first/rust0-O3/native.pdb": {
+    "sha256": "246aea1fed2c501d0bd162a2c12ec19cdb5c4d89e1e779f17cdbfd1360aa36e3",
+    "bytes": 1249280
+  },
+  "probes/data_first/rust0-O3/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/data_first/rust0-O3/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/data_first/rust1-O0/consumer.exe": {
+    "sha256": "751ae952c632bf5b5b84b1db3493679574ed6635fda445843a07e0df42690840",
+    "bytes": 3072
+  },
+  "probes/data_first/rust1-O0/consumer.ll": {
+    "sha256": "f3fd02c44c2da440115188c2cb202eaf00849cefe925d1f4b01997626ef8a3ad",
+    "bytes": 4664
+  },
+  "probes/data_first/rust1-O0/consumer.o": {
+    "sha256": "085310a9dfbea02c560f0ae456a28f6f123c852fda1960f38cb9a115cc01562a",
+    "bytes": 1354
+  },
+  "probes/data_first/rust1-O0/native.exe": {
+    "sha256": "07427dc37d92cf62f6cab632fe9039cb85768832090e2fceb3e994077fa5816c",
+    "bytes": 129024
+  },
+  "probes/data_first/rust1-O0/native.pdb": {
+    "sha256": "c66ad6f686063c9213246eaeb40e1ea3b97cde2e2ccbd9a7b1724e0b5a9721cc",
+    "bytes": 1282048
+  },
+  "probes/data_first/rust1-O0/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/data_first/rust1-O0/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/data_first/rust1-O3/consumer.exe": {
+    "sha256": "286e43750ade42bf3d94ec3fb00e8ebaf4ef23a858ad5659a5dbe507a092c571",
+    "bytes": 3072
+  },
+  "probes/data_first/rust1-O3/consumer.ll": {
+    "sha256": "5b4a2e0a32e47b0ce29c60b64e0ff310712a26b703486c03956418ce21aa3a31",
+    "bytes": 3460
+  },
+  "probes/data_first/rust1-O3/consumer.o": {
+    "sha256": "498e874b53bec936e1a28ec828a8cec9af6b338a098a448d06e730f58c7ece75",
+    "bytes": 1246
+  },
+  "probes/data_first/rust1-O3/native.exe": {
+    "sha256": "1ba539fa06e3c719372d02326a44bcc50eab28a0a0f5610ffa162ef102f3a391",
+    "bytes": 125440
+  },
+  "probes/data_first/rust1-O3/native.pdb": {
+    "sha256": "fd643fa24c8724b632b5bd03918fcd73730134b3ee8f02db0166ca74184d4b88",
+    "bytes": 1282048
+  },
+  "probes/data_first/rust1-O3/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/data_first/rust1-O3/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/evidence.json": {
+    "sha256": "c16b6b5f0a33fdf7df107134d6c77d2075e524d1cc16c35117222f2bf94f9f01",
+    "bytes": 69943
+  },
+  "probes/function_first/api.h": {
+    "sha256": "b361574be8edb831202d13b92218641ed31718d90911f5def8ed4314fa78afeb",
+    "bytes": 398
+  },
+  "probes/function_first/bindings.rs": {
+    "sha256": "cbe280a5f81c56a740fce81ae2150e70ac1ef80808b53804aba616ade8d919c3",
+    "bytes": 1086
+  },
+  "probes/function_first/c_probe.c": {
+    "sha256": "60d1b55c6649773f6c9059fb3fbb31af156bdcc1b9e394946bb5d2f5ec2bef0d",
+    "bytes": 346
+  },
+  "probes/function_first/c_probe.obj": {
+    "sha256": "7f62ff0316abb21f34bf17e87bc0489520bfc2f676f24e7d388e8a53f5a5e12a",
+    "bytes": 972
+  },
+  "probes/function_first/consumer.rs": {
+    "sha256": "c8dfff9a64bfc9022df77742fdb102ac9c459f6ce091fdc54bba075f498e9f85",
+    "bytes": 606
+  },
+  "probes/function_first/native.rs": {
+    "sha256": "0db4260ee602f24eace8e6c1b7cd8d30c3dcfba8de4fb36b3fe352280259e6dc",
+    "bytes": 639
+  },
+  "probes/function_first/rust0-O0/consumer.exe": {
+    "sha256": "67a4e1de40bf0d4a5776bb5977f5c0d3e77ed869f146ed3e91d0399cf3f80c40",
+    "bytes": 3584
+  },
+  "probes/function_first/rust0-O0/consumer.ll": {
+    "sha256": "0c0bf2748675d1d616d35aeaabfa8d1a15a63d632b21ff1a911621e136ca4af5",
+    "bytes": 6488
+  },
+  "probes/function_first/rust0-O0/consumer.o": {
+    "sha256": "101daa8706187ca9e64537a3c9ff645657632304f759b4066c816c5be9b3b135",
+    "bytes": 1495
+  },
+  "probes/function_first/rust0-O0/native.exe": {
+    "sha256": "9b4e56c48b9fbd0d77e334b7f7069873a628722aebef1ebdd5bf7ad4c1871e8c",
+    "bytes": 149504
+  },
+  "probes/function_first/rust0-O0/native.pdb": {
+    "sha256": "450c3abc98239507d298d4543ff87d1779682ae17b4a0bbb01582c233ec20dc2",
+    "bytes": 1257472
+  },
+  "probes/function_first/rust0-O0/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/function_first/rust0-O0/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/function_first/rust0-O3/consumer.exe": {
+    "sha256": "c137544a299d9e08b26aeb1c9a7d6a698eca8d79a6e78a2cc2c432075fdb80e5",
+    "bytes": 3072
+  },
+  "probes/function_first/rust0-O3/consumer.ll": {
+    "sha256": "bf9a3b3fda1b693f33a97f16443b3832dd0e0b38938422475376e1d326c83f50",
+    "bytes": 3027
+  },
+  "probes/function_first/rust0-O3/consumer.o": {
+    "sha256": "f03c446483b8c2e2373d83afc5646361e8a9fbe8e68c3baa4e4ca6f09dc96bc0",
+    "bytes": 1234
+  },
+  "probes/function_first/rust0-O3/native.exe": {
+    "sha256": "d766a71ec866cfc04f54806a50ef1c6d1f07c46fc8319469e78095e0687da5db",
+    "bytes": 145408
+  },
+  "probes/function_first/rust0-O3/native.pdb": {
+    "sha256": "1cd07c8057aa284f09e2b89d8e358127ac4fc8ee750baa2b8c04bfbb8e0b07fa",
+    "bytes": 1249280
+  },
+  "probes/function_first/rust0-O3/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/function_first/rust0-O3/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/function_first/rust1-O0/consumer.exe": {
+    "sha256": "80747fb8a6dc0bc17ef5c73092a16a5ebd17891b19048ff00b6ab39e7c3f29de",
+    "bytes": 3072
+  },
+  "probes/function_first/rust1-O0/consumer.ll": {
+    "sha256": "f3fd02c44c2da440115188c2cb202eaf00849cefe925d1f4b01997626ef8a3ad",
+    "bytes": 4664
+  },
+  "probes/function_first/rust1-O0/consumer.o": {
+    "sha256": "085310a9dfbea02c560f0ae456a28f6f123c852fda1960f38cb9a115cc01562a",
+    "bytes": 1354
+  },
+  "probes/function_first/rust1-O0/native.exe": {
+    "sha256": "48c3146ec1f03f5fea06136eea28acecbc0701aa8bd6b2cddbac9371134e5fab",
+    "bytes": 129024
+  },
+  "probes/function_first/rust1-O0/native.pdb": {
+    "sha256": "3dffaeb10836520465d1e8b3681055f756c1e20dc2ea401699731074e2fe6bb5",
+    "bytes": 1282048
+  },
+  "probes/function_first/rust1-O0/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/function_first/rust1-O0/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/function_first/rust1-O3/consumer.exe": {
+    "sha256": "f92fae164a0705906f946d4ca48306241e77e98e94538ebb5473ae33aa887a10",
+    "bytes": 3072
+  },
+  "probes/function_first/rust1-O3/consumer.ll": {
+    "sha256": "5b4a2e0a32e47b0ce29c60b64e0ff310712a26b703486c03956418ce21aa3a31",
+    "bytes": 3460
+  },
+  "probes/function_first/rust1-O3/consumer.o": {
+    "sha256": "498e874b53bec936e1a28ec828a8cec9af6b338a098a448d06e730f58c7ece75",
+    "bytes": 1246
+  },
+  "probes/function_first/rust1-O3/native.exe": {
+    "sha256": "389000a165e4c4efd33acbaf3acd64db46f9dc60b523216ff5d6c735618a145c",
+    "bytes": 125440
+  },
+  "probes/function_first/rust1-O3/native.pdb": {
+    "sha256": "1cc51dbf5d9ef264cba5e90883dada4515b0a6fc19e5978192bcdcd2f26bc3fb",
+    "bytes": 1282048
+  },
+  "probes/function_first/rust1-O3/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/function_first/rust1-O3/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/ordinary.c": {
+    "sha256": "21e983e2bcae1b1e79d24788acb6c52bcb49b049bcc2954a142c00809872a983",
+    "bytes": 17
+  },
+  "probes/ordinary.obj": {
+    "sha256": "eb8ec413c65b74e0261c9dffbb87e9ea1beffad8bd445be2d4c897cf4958450f",
+    "bytes": 418
+  },
+  "probes/probe_a.c": {
+    "sha256": "bbe3f3318b0ef5d3e780bd205de04bd0df1d09f443a8f501d81a64ac0538da2a",
+    "bytes": 279
+  },
+  "probes/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/probe_a.lib": {
+    "sha256": "8ca2b2dea32ea1e31ea57d3a85794b228b55341a2d0f1b725d1d9917267e2ac4",
+    "bytes": 1894
+  },
+  "probes/probe_a.obj": {
+    "sha256": "9b877eaad76f7eba24c1f0765a04439cbb8867fac27f9bcfe41aeaaf0fc22747",
+    "bytes": 755
+  },
+  "probes/probe_b.c": {
+    "sha256": "2c4a07656640840fc7af36c18895ab5a71b7ccddf0f2a3ca8c419a5fabcb9df5",
+    "bytes": 143
+  },
+  "probes/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/probe_b.lib": {
+    "sha256": "e95d33a7d1e9246d5a8a2981054e56a70df4654e237473d4b86685efe6ec130e",
+    "bytes": 1626
+  },
+  "probes/probe_b.obj": {
+    "sha256": "865259278158a5e2583362cc84d43ab92762a2b35f1633eb8219cad4dceb4795",
+    "bytes": 638
+  },
+  "probes/quoted-library/api.h": {
+    "sha256": "e5d6a1106ebb0ee9f446ee381ba8be571959d987b7b88ef4ba67a61c2f9ff094",
+    "bytes": 36
+  },
+  "probes/quoted-library/bindings.rs": {
+    "sha256": "37cde80788510d9f9062a4f546d1673a137693a878c6174783e8a7597f820e76",
+    "bytes": 672
+  },
+  "probes/quoted-library/consumer.rs": {
+    "sha256": "44d1c72389d7a2a442d54a612ea2313c0009340ab23f6c7d7d986e5a084c8a4e",
+    "bytes": 56
+  },
+  "probes/quoted-library/quoted-0.rmeta": {
+    "sha256": "a757415f68befa00eb95ac5af99f2e78077c8b27adb3a3a63b69256edbeebb3c",
+    "bytes": 3901
+  },
+  "probes/quoted-library/quoted-1.rmeta": {
+    "sha256": "33c7bf9b601700a1291f07ca5a8bbeb491fc87e3560814e7a086e2b160ad36b6",
+    "bytes": 2328
+  },
+  "probes/type_first/api.h": {
+    "sha256": "7102c26a2451eb1c11b9b9cb6ec3691a9e27d2ef40a26f867a5c8e88822676d1",
+    "bytes": 398
+  },
+  "probes/type_first/bindings.rs": {
+    "sha256": "cbe280a5f81c56a740fce81ae2150e70ac1ef80808b53804aba616ade8d919c3",
+    "bytes": 1086
+  },
+  "probes/type_first/c_probe.c": {
+    "sha256": "60d1b55c6649773f6c9059fb3fbb31af156bdcc1b9e394946bb5d2f5ec2bef0d",
+    "bytes": 346
+  },
+  "probes/type_first/c_probe.obj": {
+    "sha256": "a9786a71f8456003f7be211182e74160b6f3c272cac48a98e867b7260e6f0bc8",
+    "bytes": 972
+  },
+  "probes/type_first/consumer.rs": {
+    "sha256": "c8dfff9a64bfc9022df77742fdb102ac9c459f6ce091fdc54bba075f498e9f85",
+    "bytes": 606
+  },
+  "probes/type_first/native.rs": {
+    "sha256": "0db4260ee602f24eace8e6c1b7cd8d30c3dcfba8de4fb36b3fe352280259e6dc",
+    "bytes": 639
+  },
+  "probes/type_first/rust0-O0/consumer.exe": {
+    "sha256": "5fd54b99a0b20d735d416c7beae3ed6cf389867af440563887a65e0bbfb18dc6",
+    "bytes": 3584
+  },
+  "probes/type_first/rust0-O0/consumer.ll": {
+    "sha256": "0c0bf2748675d1d616d35aeaabfa8d1a15a63d632b21ff1a911621e136ca4af5",
+    "bytes": 6488
+  },
+  "probes/type_first/rust0-O0/consumer.o": {
+    "sha256": "101daa8706187ca9e64537a3c9ff645657632304f759b4066c816c5be9b3b135",
+    "bytes": 1495
+  },
+  "probes/type_first/rust0-O0/native.exe": {
+    "sha256": "9327ddc337cf5d1d2dfabfaf611c996ec10422040f19f82b929b17062cd1c3e2",
+    "bytes": 149504
+  },
+  "probes/type_first/rust0-O0/native.pdb": {
+    "sha256": "60a65f7fe52657754de6464cff1c535a409c6dd454462071316735e20249b9fa",
+    "bytes": 1257472
+  },
+  "probes/type_first/rust0-O0/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/type_first/rust0-O0/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/type_first/rust0-O3/consumer.exe": {
+    "sha256": "eb5a16770b2baae29ab34e3fcca946f334cb43a50d45c80a641a7fb604955d0a",
+    "bytes": 3072
+  },
+  "probes/type_first/rust0-O3/consumer.ll": {
+    "sha256": "bf9a3b3fda1b693f33a97f16443b3832dd0e0b38938422475376e1d326c83f50",
+    "bytes": 3027
+  },
+  "probes/type_first/rust0-O3/consumer.o": {
+    "sha256": "f03c446483b8c2e2373d83afc5646361e8a9fbe8e68c3baa4e4ca6f09dc96bc0",
+    "bytes": 1234
+  },
+  "probes/type_first/rust0-O3/native.exe": {
+    "sha256": "8a7667ede39da2e5a91bb45b4d194da166835a2f41449bb7ae95752d658531d4",
+    "bytes": 145408
+  },
+  "probes/type_first/rust0-O3/native.pdb": {
+    "sha256": "5a806b54105d2bf5479760242e935e463877c190cb0b1b240399dc6e03494a26",
+    "bytes": 1249280
+  },
+  "probes/type_first/rust0-O3/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/type_first/rust0-O3/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/type_first/rust1-O0/consumer.exe": {
+    "sha256": "39a04402ba7c8179f54353983fec93a6619ccab401b8301d9ab1bfa31763d1ac",
+    "bytes": 3072
+  },
+  "probes/type_first/rust1-O0/consumer.ll": {
+    "sha256": "f3fd02c44c2da440115188c2cb202eaf00849cefe925d1f4b01997626ef8a3ad",
+    "bytes": 4664
+  },
+  "probes/type_first/rust1-O0/consumer.o": {
+    "sha256": "085310a9dfbea02c560f0ae456a28f6f123c852fda1960f38cb9a115cc01562a",
+    "bytes": 1354
+  },
+  "probes/type_first/rust1-O0/native.exe": {
+    "sha256": "eb89c2ff16246396f765d1da4a42420c9bb99b3f27ad77b2fd0e9d6ce300a181",
+    "bytes": 129024
+  },
+  "probes/type_first/rust1-O0/native.pdb": {
+    "sha256": "d323471cb7b907434b6de9ab84a1a942bf5a1c35e2a6fb562c3050819a2f46e7",
+    "bytes": 1282048
+  },
+  "probes/type_first/rust1-O0/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/type_first/rust1-O0/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "probes/type_first/rust1-O3/consumer.exe": {
+    "sha256": "46d06c4d8769e0d0d2c0ca0d2e1718821594fa8f899dce34628904625901e614",
+    "bytes": 3072
+  },
+  "probes/type_first/rust1-O3/consumer.ll": {
+    "sha256": "5b4a2e0a32e47b0ce29c60b64e0ff310712a26b703486c03956418ce21aa3a31",
+    "bytes": 3460
+  },
+  "probes/type_first/rust1-O3/consumer.o": {
+    "sha256": "498e874b53bec936e1a28ec828a8cec9af6b338a098a448d06e730f58c7ece75",
+    "bytes": 1246
+  },
+  "probes/type_first/rust1-O3/native.exe": {
+    "sha256": "a3fe368f21753da96c61c70008cacea8c242b3adaf1d45406963ac79df67fd93",
+    "bytes": 125440
+  },
+  "probes/type_first/rust1-O3/native.pdb": {
+    "sha256": "6f309036d29a2cd4116b575cbcda1f1ad9f424fa36931fc90c566fa5247a2234",
+    "bytes": 1282048
+  },
+  "probes/type_first/rust1-O3/probe_a.dll": {
+    "sha256": "76530434e5d4a1ed77d5f8b25bf82017450989ac96b647e3db9c893e694257e1",
+    "bytes": 2560
+  },
+  "probes/type_first/rust1-O3/probe_b.dll": {
+    "sha256": "d2fcae7799e2a05a01ad630c4af393a87c40ae5e8cd7ab1c01a28ceb360808a9",
+    "bytes": 2560
+  },
+  "python.txt": {
+    "sha256": "6a5d9f6462ca5dfc6788cfd216ba579fffd7875776ab9d9b35659be78858f73a",
+    "bytes": 16
+  },
+  "runner.txt": {
+    "sha256": "5d3aef467b671fc0a8dda8c59183af4ca61df4df687f3dd415d8fb2fd71546d5",
+    "bytes": 98
+  },
+  "rustc-1.64.0.txt": {
+    "sha256": "66f39241d76d4618f5b7f326773236928b88f6bf5194aa3b3cb5e8fc5d2b381f",
+    "bytes": 201
+  },
+  "rustc-stable.txt": {
+    "sha256": "67d86fbf74071a3c2fbf23eb9e4e28e3ecc0f81b6fce3d35f5bbc88b7de1ecfb",
+    "bytes": 201
+  },
+  "test.txt": {
+    "sha256": "3da15759b8c18a1108343ee03d6ac451d1f9d8844a050e797ce69a540d34c63c",
+    "bytes": 4780
+  }
+}

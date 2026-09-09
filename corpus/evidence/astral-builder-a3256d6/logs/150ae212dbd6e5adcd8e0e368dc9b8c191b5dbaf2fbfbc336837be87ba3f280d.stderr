@@ -1,0 +1,52 @@
+   Compiling toucan_layout v0.0.1 (/home/dev-user/.cache/toucan/astral-builder-source-a3256d6/crates/toucan_layout)
+   Compiling toucan_parser v0.0.1 (/home/dev-user/.cache/toucan/astral-builder-source-a3256d6/crates/toucan_parser)
+   Compiling toucan_preprocessor v0.0.1 (/home/dev-user/.cache/toucan/astral-builder-source-a3256d6/crates/toucan_preprocessor)
+   Compiling toucan_source v0.0.1 (/home/dev-user/.cache/toucan/astral-builder-source-a3256d6/crates/toucan_source)
+   Compiling toucan_target v0.0.1 (/home/dev-user/.cache/toucan/astral-builder-source-a3256d6/crates/toucan_target)
+   Compiling toucan_semantic v0.0.1 (/home/dev-user/.cache/toucan/astral-builder-source-a3256d6/crates/toucan_semantic)
+   Compiling toucan_bindings v0.0.1 (/home/dev-user/.cache/toucan/astral-builder-source-a3256d6/crates/toucan_bindings)
+   Compiling toucan v0.0.1 (/home/dev-user/.cache/toucan/astral-builder-source-a3256d6/crates/toucan)
+   Compiling toucan_bindgen v0.0.1 (/home/dev-user/.cache/toucan/astral-builder-source-a3256d6/crates/toucan_bindgen)
+   Compiling zstd-sys v2.0.16+zstd.1.5.7 (/home/dev-user/.cache/toucan/astral-builder-a3256d6/zstd-sys)
+   Compiling zstd-safe v7.2.4
+   Compiling zstd v0.13.3
+   Compiling async-compression v0.4.19
+   Compiling tower-http v0.6.8
+   Compiling astral_async_zip v0.0.20
+   Compiling reqwest v0.13.4
+   Compiling uv-metadata v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-metadata)
+   Compiling uv-build-backend v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-build-backend)
+   Compiling astral-reqwest-middleware v0.5.1
+   Compiling reqsign-http-send-reqwest v4.0.4
+   Compiling reqsign v0.20.3
+   Compiling astral-reqwest-retry v0.9.1
+   Compiling astral_async_http_range_reader v0.11.1
+   Compiling ambient-id v0.0.11
+   Compiling uv-auth v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-auth)
+   Compiling uv-distribution-types v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-distribution-types)
+   Compiling uv-git v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-git)
+   Compiling uv-cache v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-cache)
+   Compiling uv-torch v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-torch)
+   Compiling uv-configuration v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-configuration)
+   Compiling uv-client v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-client)
+   Compiling uv-extract v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-extract)
+   Compiling uv-workspace v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-workspace)
+   Compiling uv-python v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-python)
+   Compiling uv-requirements-txt v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-requirements-txt)
+   Compiling uv-audit v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-audit)
+   Compiling uv-bin-install v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-bin-install)
+   Compiling uv-publish v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-publish)
+   Compiling uv-types v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-types)
+   Compiling uv-virtualenv v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-virtualenv)
+   Compiling uv-distribution v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-distribution)
+   Compiling uv-resolver v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-resolver)
+   Compiling uv-installer v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-installer)
+   Compiling uv-build-frontend v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-build-frontend)
+   Compiling uv-settings v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-settings)
+   Compiling uv-scripts v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-scripts)
+   Compiling uv-cli v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-cli)
+   Compiling uv-tool v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-tool)
+   Compiling uv-requirements v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-requirements)
+   Compiling uv-dispatch v0.0.77 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv-dispatch)
+   Compiling uv v0.12.10 (/home/dev-user/.cache/toucan/project-consumers/uv-d28a3ee3d0f7122b0da64b0226d2e173e7d23747/crates/uv)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 1m 26s

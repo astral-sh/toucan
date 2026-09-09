@@ -34,7 +34,7 @@ enum Command {
     /// Generate Rust declarations and supported macro constants.
     Bindgen {
         #[command(flatten)]
-        input: Input,
+        input: Box<Input>,
         /// Write bindings to a file instead of standard output.
         #[arg(short, long)]
         output: Option<PathBuf>,
@@ -71,6 +71,9 @@ enum Command {
         /// Append caller-provided Rust from a UTF-8 file, without parsing or ABI checks.
         #[arg(long)]
         raw_lines_file: Vec<PathBuf>,
+        /// Link selected dllimport symbols: NAME=LIBRARY or PREFIX*=LIBRARY. Repeat for multiple DLLs.
+        #[arg(long = "dll-import-library", value_name = "PATTERN=LIBRARY")]
+        dll_import_libraries: Vec<String>,
         /// Emit byte string macros as CStr; reject interior NUL bytes.
         #[arg(long)]
         generate_cstr: bool,
@@ -94,6 +97,15 @@ enum Command {
         /// Include checked expressions, bodies, initializers, and source references.
         #[arg(long)]
         checked_code: bool,
+        /// Limit retained graph nodes; requires --checked-code.
+        #[arg(long, requires = "checked_code")]
+        max_retained_nodes: Option<usize>,
+        /// Limit retained graph edges; requires --checked-code.
+        #[arg(long, requires = "checked_code")]
+        max_retained_edges: Option<usize>,
+        /// Limit owned retained payload bytes; requires --checked-code.
+        #[arg(long, requires = "checked_code")]
+        max_retained_bytes: Option<usize>,
     },
     /// Check declarations, initializers, and function bodies.
     Check {
@@ -136,7 +148,7 @@ struct Input {
 }
 
 impl Input {
-    fn config(&self, arguments: &ArgMatches) -> Result<Config> {
+    fn config(&self, arguments: &ArgMatches, preprocessing: bool) -> Result<Config> {
         let target = match &self.target {
             Some(target) => Target::parse(target)?,
             None => host_target()?,
@@ -146,6 +158,13 @@ impl Input {
             None => CompilerProfile::default_for(target),
         };
         let mut config = Config::with_profile(profile.with_language_mode(self.language_mode));
+        if preprocessing {
+            config.preprocessor.line_comments = match config.preprocessor.line_comments {
+                toucan::LineComments::GnuC90 => toucan::LineComments::GnuC90Preprocessing,
+                toucan::LineComments::ClangC90 => toucan::LineComments::ClangC90Preprocessing,
+                mode => mode,
+            };
+        }
         // As in compiler drivers, a later -std resets earlier trigraph flags.
         if let Some(enabled) = self.trigraphs {
             let standard = arguments
@@ -205,6 +224,8 @@ impl Input {
             .flatten()
             .zip(&self.undefines)
             .peekable();
+        let mut macros = (config.preprocessor.line_comments == toucan::LineComments::ClangC90)
+            .then(|| toucan::CommandLineMacroNormalizer::new(&config.preprocessor));
         while defines.peek().is_some() || undefines.peek().is_some() {
             let define_next = match (defines.peek(), undefines.peek()) {
                 (Some((d, _)), Some((u, _))) => d < u,
@@ -215,6 +236,14 @@ impl Input {
                 let (_, define) = defines.next().expect("peeked definition");
                 let (name, value) = define.split_once('=').unwrap_or((define, "1"));
                 anyhow::ensure!(!name.is_empty(), "macro name must not be empty");
+                let prepared = macros
+                    .as_mut()
+                    .map(|macros| macros.prepare(name, value))
+                    .transpose()
+                    .map_err(anyhow::Error::msg)?;
+                let (name, value) = prepared.as_ref().map_or((name, value), |(name, value)| {
+                    (name.as_str(), value.as_str())
+                });
                 let identifier = name.split('(').next().unwrap_or(name);
                 config
                     .preprocessor
@@ -228,6 +257,9 @@ impl Input {
                 let (_, name) = undefines.next().expect("peeked undefinition");
                 config.preprocessor.undefine(name);
             }
+        }
+        if macros.is_some() {
+            config.preprocessor.predefined_macro_mode = toucan::PredefinedMacroMode::Tokens;
         }
         Ok(config)
     }
@@ -283,7 +315,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
     let arguments = arguments.subcommand().context("missing command")?.1;
     match cli.command {
         Command::Preprocess { input, output } => {
-            let config = input.config(arguments)?;
+            let config = input.config(arguments, true)?;
             let preprocessed =
                 toucan::Preprocessor::new(config.preprocessor).preprocess(&input.header)?;
             write_output(output, &preprocessed.source)
@@ -292,9 +324,21 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
             input,
             output,
             checked_code,
+            max_retained_nodes,
+            max_retained_edges,
+            max_retained_bytes,
         } => {
-            let mut config = input.config(arguments)?;
+            let mut config = input.config(arguments, false)?;
             config.analysis.retain_code = checked_code;
+            if let Some(nodes) = max_retained_nodes {
+                config.analysis.limits.nodes = nodes;
+            }
+            if let Some(edges) = max_retained_edges {
+                config.analysis.limits.edges = edges;
+            }
+            if let Some(bytes) = max_retained_bytes {
+                config.analysis.limits.payload_bytes = bytes;
+            }
             let compilation = toucan::parse_file(&input.header, &config)?;
             write_output(
                 output,
@@ -302,7 +346,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
             )
         }
         Command::Check { input } => {
-            let compilation = toucan::parse_file(&input.header, &input.config(arguments)?)?;
+            let compilation = toucan::parse_file(&input.header, &input.config(arguments, false)?)?;
             eprintln!(
                 "Analyzed {} declarations for {}",
                 compilation.unit().declarations.len(),
@@ -324,6 +368,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
             blocklist_functions,
             blocklist_types,
             raw_lines_file,
+            dll_import_libraries,
             generate_cstr,
             rust_target,
         } => {
@@ -340,21 +385,43 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 };
                 macro_type_overrides.insert(name.to_owned(), policy);
             }
+            let dll_import_libraries = dll_import_libraries
+                .into_iter()
+                .map(|rule| {
+                    let (pattern, library) = rule
+                        .split_once('=')
+                        .context("DLL import library rule must be PATTERN=LIBRARY")?;
+                    Ok((pattern.to_owned(), library.to_owned()))
+                })
+                .collect::<anyhow::Result<std::collections::BTreeMap<_, _>>>()?;
             let raw_lines = raw_lines_file
                 .iter()
                 .map(std::fs::read_to_string)
                 .collect::<Result<Vec<_>, _>>()?;
-            let compilation = toucan::parse_file(&input.header, &input.config(arguments)?)?;
+            let compilation = toucan::parse_file(&input.header, &input.config(arguments, false)?)?;
             let (source, metadata) = compilation.bindings(&BindingOptions {
+                type_dependencies: None,
+                selection: None,
+                object_bindings: Default::default(),
+                additional_objects: Default::default(),
+                documentation: None,
+                generated_names: Default::default(),
+                emit_function_definitions: false,
+                exclude_inline_functions: false,
                 no_layout_tests: false,
                 allowlist,
                 rustified_enums,
+                rustified_enum_patterns: Vec::new(),
+                prepend_enum_name: false,
+                enum_constant_style: Default::default(),
+                derives: Default::default(),
                 size_t_is_usize,
                 helper_namespace,
                 macro_type_overrides,
                 blocklist_functions,
                 blocklist_types,
                 raw_lines,
+                dll_import_libraries,
                 generate_cstr,
                 rust_target,
                 macro_type: if macro_type == "unsigned" {

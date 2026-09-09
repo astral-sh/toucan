@@ -224,7 +224,7 @@ impl Analyzer {
                 let condition = self.eval_arithmetic(&conditional.node.condition)?;
                 self.vector_constant(
                     if condition.truth() {
-                        &conditional.node.then_expression
+                        conditional.node.nonzero_expression()
                     } else {
                         &conditional.node.else_expression
                     },

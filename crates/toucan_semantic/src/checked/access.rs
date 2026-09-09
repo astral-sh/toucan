@@ -53,6 +53,12 @@ impl Scope {
 }
 
 impl Entity {
+    /// DLL storage on the last retained declaration of this entity. Earlier sites
+    /// retain their own storage; this is not a verdict about emitted references.
+    pub fn dll_storage_class(&self) -> Option<crate::DllStorageClass> {
+        self.dll_storage_class
+    }
+
     /// Whether any retained declaration promises that this function does not return.
     /// Earlier sites and calls preserve the promise visible at their source position.
     pub fn noreturn(&self) -> bool {
@@ -72,7 +78,10 @@ impl Entity {
     pub fn symbol_binding(&self) -> crate::SymbolBinding {
         self.symbol_binding
     }
-    /// Returns the definition body, including when this entity has earlier prototypes.
+    /// Returns the latest checked definition body. Earlier GNU extern-inline
+    /// bodies remain accessible through their declaration sites and `bodies()`.
+    /// A body can be inline-only; inspect its definition kind before assuming it
+    /// supplies an external symbol.
     pub fn body(&self) -> Option<BodyId> {
         self.body
     }
@@ -99,6 +108,11 @@ impl Entity {
 }
 
 impl DeclarationSite {
+    /// Effective DLL storage at this declaration's scope and source position.
+    pub fn dll_storage_class(&self) -> Option<crate::DllStorageClass> {
+        self.dll_storage_class
+    }
+
     /// Non-return promise visible at this declaration, independently of its C type.
     pub fn noreturn(&self) -> bool {
         self.noreturn
@@ -199,7 +213,9 @@ impl ConversionStep {
 }
 
 impl ExprUse {
-    /// The written expression before conversions imposed by this use.
+    /// The source expression before conversions imposed by this use.
+    /// For [`super::UseContext::ReusedValue`], identifies the already evaluated
+    /// condition; this use consumes its saved value without evaluating it again.
     pub fn expression(&self) -> ExprId {
         self.expression
     }
@@ -346,6 +362,11 @@ impl InitializerCoverage {
 }
 
 impl FunctionBody {
+    /// Which definition this body contributes, independently of whether a call
+    /// is inlined. Other written bodies remain accessible through their sites.
+    pub fn definition_kind(&self) -> crate::FunctionDefinitionKind {
+        self.definition_kind
+    }
     /// The function identity shared with earlier compatible prototypes.
     pub fn entity(&self) -> EntityId {
         self.entity

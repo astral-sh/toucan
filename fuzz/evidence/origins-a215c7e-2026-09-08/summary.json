@@ -1,0 +1,87 @@
+{
+  "source_commit": "a215c7efc695a3ad330cb752962b2c9aa490b1fa",
+  "campaigns": {
+    "checked": {
+      "status": "passed",
+      "source_commit": "a215c7efc695a3ad330cb752962b2c9aa490b1fa",
+      "source_manifest_sha256": "4f34cfe456777904f43ae31488c4aa52731a8e9640ba9f1e138bd8655b6549e8",
+      "statistics": {
+        "number_of_executed_units": 46217,
+        "average_exec_per_sec": 153,
+        "new_units_added": 1712,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 633
+      },
+      "source_unchanged": true,
+      "elapsed_seconds": 301.29665640399617,
+      "artifacts": {},
+      "files": {
+        "build.log": {
+          "bytes": 1116,
+          "sha256": "36003e52774a1ec939b3324b212dcb4ca671695e7f9382bd85fffd499fb14014"
+        },
+        "c.dict": {
+          "bytes": 647,
+          "sha256": "bdbd5c471259a8af3335afa5fd8535c85df13206949c26a6d397a6c637cb921b"
+        },
+        "evidence.json.gz": {
+          "bytes": 911022,
+          "sha256": "ff083e1fcde45c0cf8b7a1cc47b29e12c37d3b2378829b13f24902b53fb51eb0"
+        },
+        "fuzz.log.gz": {
+          "bytes": 37453,
+          "sha256": "523a5e6b7af62d4a652a084bd915224d3213f9a1a1cd3ac7b0d71e4b375bf50d"
+        },
+        "initial-corpus.tar.gz": {
+          "bytes": 1479588,
+          "sha256": "42d336c0ceb9dfa86c3e7d1a07e4c662f3fa50f7dc489143d691e9b460d4413e"
+        },
+        "source.json.gz": {
+          "bytes": 91114,
+          "sha256": "4b8c141cf065fbc135366fb98c4732c26a92766fa3fce2819b890c77541ef4e8"
+        }
+      }
+    },
+    "preprocess": {
+      "status": "passed",
+      "source_commit": "a215c7efc695a3ad330cb752962b2c9aa490b1fa",
+      "source_manifest_sha256": "4f34cfe456777904f43ae31488c4aa52731a8e9640ba9f1e138bd8655b6549e8",
+      "statistics": {
+        "number_of_executed_units": 500395,
+        "average_exec_per_sec": 2764,
+        "new_units_added": 6173,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 513
+      },
+      "source_unchanged": true,
+      "elapsed_seconds": 181.10139469700516,
+      "artifacts": {},
+      "files": {
+        "build.log": {
+          "bytes": 173,
+          "sha256": "348d80da32600ff166d6979b75020f4a6245c2d57b9a5307e1a0167c981743c5"
+        },
+        "c.dict": {
+          "bytes": 647,
+          "sha256": "bdbd5c471259a8af3335afa5fd8535c85df13206949c26a6d397a6c637cb921b"
+        },
+        "evidence.json.gz": {
+          "bytes": 155867,
+          "sha256": "5f13d2e1b40d3c4da496f2ced1d1813cb6f19c7c3e1520c9078022d6a200027b"
+        },
+        "fuzz.log.gz": {
+          "bytes": 107793,
+          "sha256": "38d92d492332ebd8149a440dcfffc7c1f7c67ff198d36a83e878362db5fb4683"
+        },
+        "initial-corpus.tar.gz": {
+          "bytes": 28533,
+          "sha256": "64efeb0b70610292b5a037f48c0dc33751865152494cba1b5ce1af479a06be95"
+        },
+        "source.json.gz": {
+          "bytes": 91114,
+          "sha256": "4b8c141cf065fbc135366fb98c4732c26a92766fa3fce2819b890c77541ef4e8"
+        }
+      }
+    }
+  }
+}

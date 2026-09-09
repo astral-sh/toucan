@@ -44,6 +44,7 @@ pub(super) enum Key {
 pub(super) struct ExternalTypes {
     pub(super) types: BTreeMap<Key, ExternalType>,
     pub(super) layout_aliases: BTreeSet<String>,
+    dependencies: BTreeSet<Key>,
     records: Vec<Option<bool>>,
     enumerators: BTreeSet<String>,
 }
@@ -87,6 +88,16 @@ impl Emitter<'_> {
         // The first typedef gives an anonymous definition its public name.
         // Later aliases refer to that same external definition, not a new type.
         if anonymous {
+            if self.options.enum_constant_style == crate::EnumConstantStyle::Bindgen {
+                let origin = match ty.kind {
+                    TypeKind::Record(id) => self.unit.lexical_tags.records.get(&id),
+                    TypeKind::Enum(id) => self.unit.lexical_tags.enums.get(&id),
+                    _ => None,
+                };
+                return Ok(crate::lexical_names::Names::typedef_name(self.unit, origin)
+                    .filter(|name| self.options.blocks_type(name))
+                    .map(|name| Key::Typedef(name.to_owned())));
+            }
             for declaration in &self.unit.declarations {
                 if declaration.kind == DeclarationKind::Typedef
                     && self.unit.resolve(&declaration.ty)?.kind == ty.kind
@@ -195,6 +206,72 @@ impl Emitter<'_> {
             },
         );
         Ok(true)
+    }
+
+    /// Follow a reached blocked type once without emitting its definition.
+    pub(super) fn collect_external_dependencies(
+        &mut self,
+        ty: &Type,
+        depth: usize,
+    ) -> Result<(), Error> {
+        if !self
+            .options
+            .selection
+            .as_ref()
+            .is_some_and(|roots| roots.retain_type_dependencies)
+        {
+            return Ok(());
+        }
+        check_depth(depth)?;
+        match &ty.kind {
+            TypeKind::Typedef(name)
+                if self
+                    .external
+                    .dependencies
+                    .insert(Key::Typedef(name.clone())) =>
+            {
+                if let Some(dependencies) = self
+                    .options
+                    .type_dependencies
+                    .as_deref()
+                    .and_then(|dependencies| dependencies.typedefs.get(name))
+                {
+                    for alias in dependencies {
+                        self.collect_at(&Type::new(TypeKind::Typedef(alias.clone())), depth + 1)?;
+                    }
+                }
+                let underlying = self
+                    .unit
+                    .typedefs
+                    .get(name)
+                    .ok_or_else(|| Error(format!("unknown typedef `{name}`")))?;
+                self.collect_use_at(underlying, depth + 1, false)?;
+            }
+            TypeKind::Record(id) if self.external.dependencies.insert(Key::Record(*id)) => {
+                let record = self
+                    .unit
+                    .records
+                    .get(*id)
+                    .ok_or_else(|| Error("invalid record identity".into()))?;
+                if let Some(dependencies) = self
+                    .options
+                    .type_dependencies
+                    .as_deref()
+                    .and_then(|dependencies| dependencies.records.get(id))
+                {
+                    for alias in dependencies {
+                        self.collect_at(&Type::new(TypeKind::Typedef(alias.clone())), depth + 1)?;
+                    }
+                }
+                if let Some(fields) = &record.fields {
+                    for field in fields {
+                        self.collect_at(&field.ty, depth + 1)?;
+                    }
+                }
+            }
+            _ => {}
+        }
+        Ok(())
     }
 
     fn validate_external_storage(

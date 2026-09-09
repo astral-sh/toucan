@@ -41,8 +41,12 @@ object's explicit alignment. These are compiler query rules, not a general proof
 that a runtime pointer is aligned. GCC casts also remove top-level typedef
 alignment, while Clang casts retain it; pointee typedef alignment is separate.
 
-Void queries return 1. Without an explicit declaration alignment, function queries
-return 1 for GNU x86-64 Linux and 4 for the other supported profiles. Clang aligned
+Unannotated void queries return 1. Without an explicit declaration alignment, function queries
+return 1 for GNU x86-64 Linux (GNU or musl libc) and 4 for the other supported profiles.
+Clang preserves GNU-spelled alignment on void/function typedefs; GCC ignores it.
+An explicit function declaration alignment is separate from a typedef's type
+alignment. GCC keeps AArch64 functions at a minimum of 4 bytes; Clang reports the
+written declaration alignment even below that value. Clang aligned
 parameter queries use the parameter's storage annotation inside its definition;
 the parameter's incoming C type remains unchanged.
 

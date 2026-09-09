@@ -1,0 +1,42 @@
+{
+  "archive_sha256": "24ae572e741899b1fd6523f98766be1dc8bfe7f7c40d0592a7dcaa357d634ba4",
+  "base": "b153ec5ff52cc6e4c57a88a962c760f926dc7652",
+  "checks": [
+    "All-target/all-feature PP Clippy",
+    "cargo fmt --all --check",
+    "git diff --check"
+  ],
+  "contract": [
+    "Expanded supported directives retain their effect and output position.",
+    "Raw queries and raw scope lookahead reject deferred pragma tokens.",
+    "Conditional pragma rules use configured QueryDialect independently of identity macro overrides, with legacy standalone fallback when no dialect is configured."
+  ],
+  "native_failure": "Clang18 compilation of pack inside expanding queries crashes after its malformed-query diagnostic; retained as tool failure, never counted as source rejection. Preprocessing-only acceptance is recorded separately.",
+  "not_claimed": [
+    "Full preprocessing-only parity for pack query arguments",
+    "Native Windows or macOS execution",
+    "Performance measurements",
+    "Sanitizer campaign"
+  ],
+  "remaining": [
+    "pack in query arguments remains explicitly unsupported.",
+    "Compiler-specific annotation handling outside this supported pragma subset remains outside this layer."
+  ],
+  "source_manifest_sha256": "99b0ffd67e8350b4e61a763c8125b3c788fcfa97c1f9a9ae8222821501fae9c7",
+  "tests": {
+    "accepted_sources": "Also preprocessed, compared under the library policy for discarded diagnostic/message/system-header/empty pragmas, then Toucan output compiled.",
+    "existing_command_line_overrides": 20,
+    "existing_operator_comparisons": 5880,
+    "failed": 0,
+    "identity_override_cases": 4,
+    "ignored": 0,
+    "native_runs": [
+      "GCC13 and Clang18",
+      "GCC14 and Clang18"
+    ],
+    "new_handler_source_compilation_comparisons_per_run": 2368,
+    "new_native_group": 6,
+    "once_effect": "Repeated real header inclusion matches virtual-header preprocessing; original and generated C compile.",
+    "preprocessor_all_native": 68
+  }
+}

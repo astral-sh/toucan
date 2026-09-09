@@ -102,8 +102,18 @@ impl Format {
             FloatKind::FLOAT16 => Self::Binary16,
             FloatKind::FLOAT128 => Self::Binary128,
             FloatKind::BFloat16 => Self::BFloat16,
-            FloatKind::Float => Self::Binary32,
-            FloatKind::Double => Self::Binary64,
+            FloatKind::Float | FloatKind::FLOAT32 => Self::Binary32,
+            FloatKind::Double | FloatKind::FLOAT64 | FloatKind::FLOAT32X => Self::Binary64,
+            FloatKind::FLOAT64X => match target {
+                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl => Self::X87,
+                Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => Self::Binary128,
+                _ => {
+                    return Err(Error::new(
+                        offset,
+                        "_Float64x format is unsupported outside GNU Linux targets",
+                    ));
+                }
+            },
             FloatKind::LongDouble => match target {
                 Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
@@ -200,6 +210,13 @@ impl Analyzer {
         use ast::UnaryOperator as Unary;
         let offset = expression.span.start;
         match &expression.node {
+            ast::Expression::Identifier(identifier) => {
+                if let Some(value) = self.const_object_value(&identifier.node.name) {
+                    Ok(value)
+                } else {
+                    self.eval(expression).map(ArithmeticValue::Integer)
+                }
+            }
             ast::Expression::Call(call) => {
                 let name = self.builtin_name(call);
                 if let Some(kind) = name.and_then(|name| self.infinity_builtin_kind(name)) {
@@ -319,40 +336,37 @@ impl Analyzer {
             }
             ast::Expression::CompoundLiteral(literal) => {
                 let ty = self.type_name(&literal.node.type_name.node)?;
-                let [item] = literal.node.initializer_list.as_slice() else {
-                    return Err(Error::new(
-                        offset,
-                        "scalar constant initializer requires one value",
-                    ));
-                };
-                if !item.node.designation.is_empty() {
-                    return Err(Error::new(
-                        offset,
-                        "scalar constant initializer cannot have a designator",
-                    ));
-                }
-                let mut initializer = &item.node.initializer;
+                let mut items = literal.node.initializer_list.as_slice();
                 for _ in 0..128 {
-                    match &initializer.node {
+                    if self.empty_initializer_items(items) {
+                        // Empty scalar lists have no expression to validate or
+                        // convert. Check the actual destination and any enclosing
+                        // braces before producing its typed arithmetic zero.
+                        self.expression_type(expression)?;
+                        return self.convert_arithmetic(
+                            ArithmeticValue::Integer(IntegerValue::int(0)),
+                            &ty,
+                            offset,
+                        );
+                    }
+                    let [item] = items else {
+                        return Err(Error::new(
+                            offset,
+                            "scalar constant initializer requires one value",
+                        ));
+                    };
+                    if !item.node.designation.is_empty() {
+                        return Err(Error::new(
+                            offset,
+                            "scalar constant initializer cannot have a designator",
+                        ));
+                    }
+                    match &item.node.initializer.node {
                         ast::Initializer::Expression(expression) => {
                             let value = self.eval_arithmetic(expression)?;
                             return self.convert_arithmetic(value, &ty, offset);
                         }
-                        ast::Initializer::List(items) => {
-                            let [item] = items.as_slice() else {
-                                return Err(Error::new(
-                                    offset,
-                                    "scalar constant initializer requires one value",
-                                ));
-                            };
-                            if !item.node.designation.is_empty() {
-                                return Err(Error::new(
-                                    offset,
-                                    "scalar constant initializer cannot have a designator",
-                                ));
-                            }
-                            initializer = &item.node.initializer;
-                        }
+                        ast::Initializer::List(inner) => items = inner,
                     }
                 }
                 Err(Error::new(
@@ -490,12 +504,14 @@ impl Analyzer {
                 // must satisfy C expression constraints.
                 let ty = self.expression_type(expression)?;
                 let condition = self.eval_arithmetic(&conditional.node.condition)?;
-                let selected = if condition.truth() {
-                    &conditional.node.then_expression
+                let value = if condition.truth() {
+                    match &conditional.node.then_expression {
+                        Some(value) => self.eval_arithmetic(value)?,
+                        None => condition,
+                    }
                 } else {
-                    &conditional.node.else_expression
+                    self.eval_arithmetic(&conditional.node.else_expression)?
                 };
-                let value = self.eval_arithmetic(selected)?;
                 if let TypeKind::Float(kind) = self.unit.resolve(&ty)?.kind {
                     self.require_narrow_constant_precision(kind, offset)?;
                 }

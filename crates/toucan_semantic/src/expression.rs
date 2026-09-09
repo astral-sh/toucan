@@ -11,7 +11,7 @@ use crate::{DeclarationKind, Error, IntegerValue, Qualifiers, Type, TypeKind};
 #[derive(Clone)]
 pub(crate) struct ExpressionInfo {
     pub(crate) ty: Type,
-    pub(crate) lvalue: bool,
+    pub(crate) category: ExpressionCategory,
     pub(crate) bitfield: Option<u64>,
     pub(crate) register: bool,
     pub(crate) vector_element: bool,
@@ -20,11 +20,35 @@ pub(crate) struct ExpressionInfo {
     pub(crate) alignment_origin: Option<crate::alignof::OriginId>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum ExpressionCategory {
+    Value,
+    ObjectLvalue,
+    /// Restricted GNU builtin designator; pointer-value escapes lose this state.
+    PrefetchDesignator,
+}
+impl ExpressionCategory {
+    pub(crate) fn from_lvalue(lvalue: bool) -> Self {
+        if lvalue {
+            Self::ObjectLvalue
+        } else {
+            Self::Value
+        }
+    }
+}
+
 impl ExpressionInfo {
+    pub(crate) fn is_lvalue(&self) -> bool {
+        self.category == ExpressionCategory::ObjectLvalue
+    }
+    pub(crate) fn is_prefetch_designator(&self) -> bool {
+        self.category == ExpressionCategory::PrefetchDesignator
+    }
+
     pub(crate) fn value(ty: Type) -> Self {
         Self {
             ty,
-            lvalue: false,
+            category: ExpressionCategory::Value,
             bitfield: None,
             register: false,
             vector_element: false,
@@ -36,7 +60,7 @@ impl ExpressionInfo {
     fn object(ty: Type) -> Self {
         Self {
             ty,
-            lvalue: true,
+            category: ExpressionCategory::ObjectLvalue,
             bitfield: None,
             register: false,
             vector_element: false,
@@ -122,6 +146,22 @@ impl Analyzer {
             ast::Expression::Identifier(identifier) => {
                 let name = &identifier.node.name;
                 self.check_auto_reference(name, offset)?;
+                self.record_dll_use(name, offset)?;
+                if let Some(operation) = self.builtin_function_reference(name)? {
+                    if self.unit.compiler == toucan_target::Compiler::Clang {
+                        return Err(Error::new(
+                            offset,
+                            "builtin functions must be directly called",
+                        ));
+                    }
+                    let mut info = ExpressionInfo::value(Type::new(TypeKind::Function(Box::new(
+                        self.builtin_function_type(operation)?,
+                    ))));
+                    if operation == crate::BuiltinFunction::Prefetch {
+                        info.category = ExpressionCategory::PrefetchDesignator;
+                    }
+                    return Ok(info);
+                }
                 if let Some(value) = self.unit.constants.get(name) {
                     integer_to_type(*value)
                 } else if let Some(ty) = self.parameter_type(name) {
@@ -129,12 +169,16 @@ impl Analyzer {
                     info.register = self.is_register_object(name);
                     info.alignment_origin = self.identifier_alignment_origin(name, offset)?;
                     return Ok(info);
-                } else if let Some(declaration) = self
+                } else if let Some((declaration_index, declaration)) = self
                     .unit
                     .declarations
                     .iter()
-                    .find(|decl| decl.name == *name)
+                    .enumerate()
+                    .find(|(_, decl)| decl.name == *name)
                 {
+                    if let Some(dependencies) = &mut self.parameter_type_dependencies {
+                        dependencies.resolved_expression(offset, declaration_index);
+                    }
                     match declaration.kind {
                         DeclarationKind::Variable => {
                             let mut info = ExpressionInfo::object(declaration.ty.clone());
@@ -196,6 +240,7 @@ impl Analyzer {
             }
             ast::Expression::Cast(cast) => {
                 let source_info = self.expression_info(&cast.node.expression)?;
+                source_info.check_prefetch_value_operation(offset)?;
                 self.require_sve_value(&source_info.ty, cast.node.expression.span.start)?;
                 let source = self.converted_type(&source_info, cast.node.expression.span.start)?;
                 let source_origin = source_info.alignment_origin;
@@ -272,6 +317,7 @@ impl Analyzer {
                     && indirection.node.operator.node == ast::UnaryOperator::Indirection
                 {
                     let source = self.expression_info(&indirection.node.operand)?;
+                    source.check_prefetch_value_operation(offset)?;
                     self.require_sve_value(&source.ty, indirection.node.operand.span.start)?;
                     let ty = self.converted_type(&source, indirection.node.operand.span.start)?;
                     if !matches!(ty.kind, TypeKind::Pointer(_)) {
@@ -282,6 +328,9 @@ impl Analyzer {
                     return Ok(info);
                 }
                 let operand = self.expression_info(&unary.node.operand)?;
+                if unary.node.operator.node != ast::UnaryOperator::Indirection {
+                    operand.check_prefetch_value_operation(offset)?;
+                }
                 if matches!(
                     unary.node.operator.node,
                     ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary
@@ -313,7 +362,7 @@ impl Analyzer {
                                 "cannot take the address of a bitfield",
                             ));
                         }
-                        if !operand.lvalue
+                        if !operand.is_lvalue()
                             && !matches!(
                                 self.unit.resolve(&operand.ty)?.kind,
                                 TypeKind::Function(_)
@@ -333,12 +382,6 @@ impl Analyzer {
                         let TypeKind::Pointer(pointee) = value.kind else {
                             return Err(Error::new(offset, "indirection requires a pointer"));
                         };
-                        if matches!(self.unit.resolve(&pointee)?.kind, TypeKind::Void) {
-                            return Err(Error::new(
-                                offset,
-                                "indirection requires a pointer to an object or function",
-                            ));
-                        }
                         let function =
                             matches!(self.unit.resolve(&pointee)?.kind, TypeKind::Function(_));
                         let alignment_origin = self.dereference_alignment_origin(
@@ -348,7 +391,11 @@ impl Analyzer {
                         )?;
                         return Ok(ExpressionInfo {
                             ty: *pointee,
-                            lvalue: !function,
+                            category: if operand.is_prefetch_designator() {
+                                ExpressionCategory::PrefetchDesignator
+                            } else {
+                                ExpressionCategory::from_lvalue(!function)
+                            },
                             bitfield: None,
                             register: false,
                             vector_element: false,
@@ -431,11 +478,18 @@ impl Analyzer {
             }
             ast::Expression::BinaryOperator(binary) => return self.binary_expression(binary),
             ast::Expression::Conditional(conditional) => {
-                let condition = self.value_expression_type(&conditional.node.condition)?;
+                let condition_info = self.expression_info(&conditional.node.condition)?;
+                condition_info.check_prefetch_value_operation(offset)?;
+                let condition = self.converted_type(&condition_info, offset)?;
                 self.require_scalar(&condition, offset)?;
                 let left_checkpoint = self.sve_feature_checkpoint();
                 let labels = self.sve_feature_labels;
-                let left = self.expression_info(&conditional.node.then_expression)?;
+                let left = if let Some(then_expression) = &conditional.node.then_expression {
+                    self.expression_info(then_expression)?
+                } else {
+                    condition_info
+                };
+                left.check_prefetch_value_operation(offset)?;
                 if self.sve_feature_checkpoint() > left_checkpoint
                     && labels == self.sve_feature_labels
                     && self.sve_constant_truth(&conditional.node.condition) == Some(false)
@@ -445,6 +499,7 @@ impl Analyzer {
                 let right_checkpoint = self.sve_feature_checkpoint();
                 let labels = self.sve_feature_labels;
                 let right = self.expression_info(&conditional.node.else_expression)?;
+                right.check_prefetch_value_operation(offset)?;
                 if self.sve_feature_checkpoint() > right_checkpoint
                     && labels == self.sve_feature_labels
                     && self.sve_constant_truth(&conditional.node.condition) == Some(true)
@@ -477,8 +532,10 @@ impl Analyzer {
                 {
                     left_value
                 } else if matches!(right_value.kind, TypeKind::Pointer(_))
-                    && self
-                        .is_null_pointer_constant(&conditional.node.then_expression, &left_value)?
+                    && self.is_null_pointer_constant(
+                        conditional.node.nonzero_expression(),
+                        &left_value,
+                    )?
                 {
                     right_value
                 } else if let (TypeKind::Pointer(left), TypeKind::Pointer(right)) =
@@ -504,7 +561,7 @@ impl Analyzer {
                     };
                     (*pointee, true)
                 } else {
-                    (base.ty, base.lvalue)
+                    (base.ty, base.category == ExpressionCategory::ObjectLvalue)
                 };
                 if self.unit.atomic_value(&ty)?.is_some() {
                     return Err(Error::new(
@@ -521,7 +578,7 @@ impl Analyzer {
                 };
                 return Ok(ExpressionInfo {
                     ty: field,
-                    lvalue,
+                    category: ExpressionCategory::from_lvalue(lvalue),
                     bitfield,
                     vector_element: false,
                     volatile_place: false,
@@ -535,6 +592,7 @@ impl Analyzer {
                 if let Some(ty) = self.builtin_call_type(call)? {
                     return Ok(ExpressionInfo::value(ty));
                 }
+                self.implicit_function(call)?;
                 let callee = self.value_expression_type(&call.node.callee)?;
                 let TypeKind::Pointer(pointee) = callee.kind else {
                     return Err(Error::new(offset, "callee is not a function"));
@@ -591,11 +649,16 @@ impl Analyzer {
             }
             ast::Expression::SizeOfTy(size) => {
                 let checkpoint = self.sve_feature_checkpoint();
-                let ty = self.type_name(&size.node.0.node)?;
+                let allocation_context = self.allocation_context(false);
+                let ty = self.type_name(&size.node.0.node);
+                let ty =
+                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
+                        analyzer.unit.is_variable_length_array(ty)
+                    })?;
                 if !self.unit.is_variable_length_array(&ty)? {
                     self.discard_sve_feature_uses(checkpoint);
                 }
-                self.require_complete_object(&ty, offset)?;
+                self.require_sizeof_operand(&ty, offset)?;
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::SizeOfVal(size) => {
@@ -635,8 +698,11 @@ impl Analyzer {
             ));
         }
         let checkpoint = self.sve_feature_checkpoint();
-        let control = self.value_expression_type(&selection.node.expression)?;
+        let allocation_context = self.allocation_context(false);
+        let control = self.value_expression_type(&selection.node.expression);
         self.discard_sve_feature_uses(checkpoint);
+        self.restore_allocation_context(allocation_context, false);
+        let control = control?;
         let mut types = Vec::new();
         let mut expressions = Vec::new();
         let mut selected = None;
@@ -716,6 +782,10 @@ impl Analyzer {
         let checkpoint = self.sve_feature_checkpoint();
         let labels = self.sve_feature_labels;
         let right = self.expression_info(&binary.node.rhs)?;
+        if binary.node.operator.node != Op::Assign {
+            left.check_prefetch_value_operation(offset)?;
+            right.check_prefetch_value_operation(offset)?;
+        }
         if self.sve_feature_checkpoint() > checkpoint
             && labels == self.sve_feature_labels
             && matches!(binary.node.operator.node, Op::LogicalAnd | Op::LogicalOr)
@@ -785,7 +855,7 @@ impl Analyzer {
             ty.qualifiers = self.unit.qualifiers(&left.ty)?;
             return Ok(ExpressionInfo {
                 ty,
-                lvalue: left.lvalue,
+                category: ExpressionCategory::from_lvalue(left.is_lvalue()),
                 bitfield: None,
                 register: left.register,
                 vector_element: true,
@@ -1041,6 +1111,14 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
     ) -> Result<(), Error> {
         let offset = expression.span.start;
+        if self.unit.compiler == toucan_target::Compiler::Gnu
+            && matches!(self.unit.resolve(destination)?.kind, TypeKind::Bool)
+            && let TypeKind::Pointer(pointee) = &self.unit.resolve(source)?.kind
+            && matches!(self.unit.resolve(pointee)?.kind, TypeKind::Function(_))
+        {
+            self.expression_info(expression)?
+                .check_prefetch_value_operation(offset)?;
+        }
         // Clang preserves an atomic rvalue's type. An exact copy requires no
         // lvalue load and cannot use the non-atomic pointer/record constraints.
         if self.unit.atomic_value(destination)?.is_some()
@@ -1182,7 +1260,12 @@ impl Analyzer {
 
     fn sizeof_operand_type(&mut self, expression: &Node<ast::Expression>) -> Result<Type, Error> {
         let checkpoint = self.sve_feature_checkpoint();
-        let operand = self.expression_info(expression)?;
+        let allocation_context = self.allocation_context(false);
+        let operand = self.expression_info(expression);
+        let operand =
+            self.finish_allocation_operand(allocation_context, operand, |analyzer, operand| {
+                analyzer.unit.is_variable_length_array(&operand.ty)
+            })?;
         if !self.unit.is_variable_length_array(&operand.ty)? {
             self.discard_sve_feature_uses(checkpoint);
         }
@@ -1192,8 +1275,21 @@ impl Analyzer {
                 "sizeof cannot be applied to a bitfield",
             ));
         }
-        self.require_complete_object(&operand.ty, expression.span.start)?;
+        self.require_sizeof_operand(&operand.ty, expression.span.start)?;
         Ok(operand.ty)
+    }
+
+    /// GNU and Clang size queries accept void and function types without
+    /// treating those types as complete objects in other expression contexts.
+    fn require_sizeof_operand(&self, ty: &Type, offset: usize) -> Result<(), Error> {
+        if matches!(
+            self.unit.resolve(ty)?.kind,
+            TypeKind::Void | TypeKind::Function(_)
+        ) {
+            Ok(())
+        } else {
+            self.require_complete_object(ty, offset)
+        }
     }
 
     /// Checks a value context, including array conversion restrictions that rely
@@ -1224,19 +1320,31 @@ impl Analyzer {
             ));
         }
         if self.unit.atomic_value(&expression.ty)?.is_some() {
-            return if expression.lvalue || self.gnu_sync_profile() {
+            return if expression.is_lvalue() || self.gnu_sync_profile() {
                 self.atomic_value_type(&expression.ty)
             } else {
                 self.unqualified(&expression.ty)
             };
         }
-        self.value_type(&expression.ty)
+        self.value_type_with_void_lvalue(&expression.ty, expression.is_lvalue())
     }
 
     /// Applies lvalue conversion and C's array/function designator conversion.
     pub(crate) fn value_type(&self, ty: &Type) -> Result<Type, Error> {
+        self.value_type_with_void_lvalue(ty, false)
+    }
+
+    /// Void lvalues have no object value to load, so their qualifiers survive
+    /// conversion. Resolve their type with the ordinary conversion cases.
+    fn value_type_with_void_lvalue(&self, ty: &Type, void_lvalue: bool) -> Result<Type, Error> {
         let resolved = self.unit.resolve(ty)?;
         Ok(match &resolved.kind {
+            TypeKind::Void if void_lvalue => {
+                let mut value = resolved.clone();
+                value.alignment = self.unit.typedef_alignment_metadata(ty)?;
+                value.qualifiers = self.unit.qualifiers(ty)?;
+                value
+            }
             TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                 let mut element = (**element).clone();
                 element.qualifiers =
@@ -1373,12 +1481,12 @@ impl Analyzer {
         right: &ExpressionInfo,
         offset: usize,
     ) -> Result<Type, Error> {
-        let left_type = if left.lvalue || self.gnu_sync_profile() {
+        let left_type = if left.is_lvalue() || self.gnu_sync_profile() {
             self.unit.atomic_value(&left.ty)?.unwrap_or(&left.ty)
         } else {
             &left.ty
         };
-        let right_type = if right.lvalue || self.gnu_sync_profile() {
+        let right_type = if right.is_lvalue() || self.gnu_sync_profile() {
             self.unit.atomic_value(&right.ty)?.unwrap_or(&right.ty)
         } else {
             &right.ty
@@ -1460,6 +1568,10 @@ impl Analyzer {
                 | crate::FloatKind::Double
                 | crate::FloatKind::LongDouble
                 | crate::FloatKind::FLOAT128
+                | crate::FloatKind::FLOAT32
+                | crate::FloatKind::FLOAT64
+                | crate::FloatKind::FLOAT32X
+                | crate::FloatKind::FLOAT64X
         ) {
             Ok(())
         } else {
@@ -1556,7 +1668,7 @@ impl Analyzer {
         expression: &ExpressionInfo,
         offset: usize,
     ) -> Result<(), Error> {
-        if !expression.lvalue
+        if !expression.is_lvalue()
             || self.contains_const(&expression.ty, 0)?
             || matches!(
                 self.unit.resolve(&expression.ty)?.kind,

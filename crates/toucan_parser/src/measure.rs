@@ -342,6 +342,7 @@ enumeration!(TS18661FloatFormat {
     DecimalExtended
 });
 structure!(StructType {
+    extensions,
     kind,
     identifier,
     declarations
@@ -358,6 +359,7 @@ structure!(StructDeclarator {
     bit_width
 });
 structure!(EnumType {
+    extensions,
     identifier,
     enumerators
 });
@@ -473,7 +475,7 @@ structure!(FunctionDefinition {
     declarations,
     statement
 });
-enumeration!(Extension { Attribute(v0), CallingConvention(v0), AsmLabel(v0), AvailabilityAttribute(v0) });
+enumeration!(Extension { Attribute(v0), CallingConvention(v0), Declspec(v0), AsmLabel(v0), AvailabilityAttribute(v0) });
 structure!(Attribute { name, arguments });
 structure!(AvailabilityAttribute { platform, clauses });
 enumeration!(AvailabilityClause { Introduced(v0), Deprecated(v0), Obsoleted(v0), Unavailable, Message(v0), Replacement(v0) });

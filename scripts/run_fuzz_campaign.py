@@ -37,22 +37,24 @@ def corpus_manifest(corpus):
     return result
 
 
-def seed_profiles(data, profiles):
-    """Keep source bytes intact while selecting every profile and both mode bits."""
+def seed_profiles(data, profiles, modes=2):
+    """Keep source bytes intact while selecting each profile in two, four, or eight modes."""
+    if modes not in (2, 4, 8):
+        raise ValueError("expected two, four, or eight language modes")
     prefix, suffix = data + b"\n/* profile ", b" */\n"
     total = sum(prefix) + sum(suffix)
     count = profiles or 1
-    for mode in (0, 1):
+    for mode in range(modes):
         for profile in range(count):
-            # Overlapping ASCII ranges cover a full 512-value mode period.
-            # At most sixteen padding bytes suffice for every supported count.
+            # Overlapping ASCII ranges cover the 512-, 1024-, or 2048-value mode period.
+            # Sixty-four padding bytes suffice for all supported profile counts.
             padding = next(
                 b" " * spaces + bytes([byte])
-                for spaces in range(16)
+                for spaces in range(8 * modes)
                 for byte in range(33, 127)
                 if byte not in (42, 47)
                 and (total + 32 * spaces + byte) % count == profile
-                and bool((total + 32 * spaces + byte) & 0x100) == bool(mode)
+                and ((total + 32 * spaces + byte) >> 8) % modes == mode
             )
             yield prefix + padding + suffix
 
@@ -66,24 +68,37 @@ def archive_initial_corpus(corpus, output):
 
 
 def seed_preprocessor_policies(data):
-    """Append a block comment selecting all 20 comment/query/trigraph settings."""
+    """Select all 480 comment/query/trigraph/scope/history/redefinition/documentation settings."""
     prefix, suffix = data + b"\n/* profile ", b" */\n"
     total = sum(prefix) + sum(suffix)
     for comments in range(5):
         for trigraphs in (False, True):
             for dialect in range(2):
-                # Five comment policies repeat after 2560 checksum values. This
-                # padding covers that period without introducing a comment end.
-                padding = next(
-                    b" " * spaces + bytes([byte])
-                    for spaces in range(81)
-                    for byte in range(33, 127)
-                    if byte not in (42, 47)
-                    and (total + 32 * spaces + byte) & 1 == dialect
-                    and bool((total + 32 * spaces + byte) & 0x100) == trigraphs
-                    and ((total + 32 * spaces + byte) >> 9) % 5 == comments
-                )
-                yield prefix + padding + suffix
+                for scope in (False, True):
+                    for history in (False, True):
+                        for redefine in (False, True):
+                            for documentation in range(3):
+                                # Five comment policies repeat after 2560 checksum values.
+                                # Cover that period without introducing a comment end.
+                                padding = next(
+                                    b" " * spaces + bytes([byte])
+                                    for spaces in range(81)
+                                    for byte in range(33, 127)
+                                    if byte not in (42, 47)
+                                    and (total + 32 * spaces + byte) & 1 == dialect
+                                    and bool((total + 32 * spaces + byte) & 2) == scope
+                                    and bool((total + 32 * spaces + byte) & 4)
+                                    == history
+                                    and bool((total + 32 * spaces + byte) & 8)
+                                    == redefine
+                                    and ((total + 32 * spaces + byte) >> 4) & 3
+                                    == documentation
+                                    and bool((total + 32 * spaces + byte) & 0x100)
+                                    == trigraphs
+                                    and ((total + 32 * spaces + byte) >> 9) % 5
+                                    == comments
+                                )
+                                yield prefix + padding + suffix
 
 
 def run_fuzzer(command, root, output, seconds):
@@ -157,14 +172,39 @@ def main():
         else "sum(input bytes) % profiles",
         "language_mode_selector": None
         if args.target == "preprocess"
-        else "sum(input bytes) & 0x100: 0=gnu11, 256=c11",
+        else "(sum(input bytes) >> 8) & 7: 0=gnu11, 1=c11, 2=gnu90, 3=c90, 4=gnu99, 5=c99, 6=gnu17, 7=c17",
+        "language_mode_selector_version": None if args.target == "preprocess" else 3,
+        "binding_derive_selector_version": 1 if args.target == "bindings" else None,
+        "binding_function_selector_version": 1 if args.target == "bindings" else None,
+        "binding_enum_selector_version": 1 if args.target == "bindings" else None,
+        "binding_enum_selector": "sum(input bytes) & 12: bit2=bindgen enum names, bit3=prepend enum name; second generation"
+        if args.target == "bindings"
+        else None,
+        "binding_function_selector": "sum(input bytes) & 3: bit0=emit definitions, bit1=exclude inline functions; second generation"
+        if args.target == "bindings"
+        else None,
+        "binding_derive_selector": "(sum(input bytes) >> 11) & 15: bit0=Copy, bit1=Debug, bit2=Default, bit3=Eq; second generation rustifies enums"
+        if args.target == "bindings"
+        else None,
         "query_dialect_selector": "sum(input bytes) & 1: 0=gnu, 1=clang"
         if args.target == "preprocess"
         else None,
         "trigraph_selector": "sum(input bytes) & 0x100 != 0"
         if args.target == "preprocess"
         else None,
-        "preprocessor_selector_version": 2 if args.target == "preprocess" else None,
+        "preprocessor_selector_version": 6 if args.target == "preprocess" else None,
+        "documentation_selector": "(sum(input bytes) >> 4) & 3: 0=disabled, 1=documentation markers, 2|3=all comments"
+        if args.target == "preprocess"
+        else None,
+        "macro_redefinition_selector": "sum(input bytes) & 8 != 0: record incompatible replacements; otherwise strict"
+        if args.target == "preprocess"
+        else None,
+        "macro_definition_history_selector": "sum(input bytes) & 4 != 0"
+        if args.target == "preprocess"
+        else None,
+        "scope_punctuator_selector": "sum(input bytes) & 2 != 0"
+        if args.target == "preprocess"
+        else None,
         "comment_policy_selector": "(sum(input bytes) >> 9) % 5: 0=enabled, 1=gcc-c90-compile, 2=gcc-c90-preprocess, 3=clang-c90-compile, 4=clang-c90-preprocess"
         if args.target == "preprocess"
         else None,
@@ -232,7 +272,7 @@ def main():
             seeds = (
                 seed_preprocessor_policies(path.read_bytes())
                 if args.target == "preprocess"
-                else seed_profiles(path.read_bytes(), report["profiles"])
+                else seed_profiles(path.read_bytes(), report["profiles"], modes=8)
             )
             for data in seeds:
                 (corpus / hashlib.sha256(data).hexdigest()).write_bytes(data)

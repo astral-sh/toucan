@@ -11,8 +11,8 @@ Type spelling, literal suffixes, and machine modes have different availability:
 
 | Route | GNU x86 Linux | GNU ARM Linux | Clang x86 Linux | Other Clang profiles |
 | --- | --- | --- | --- | --- |
-| `__float128` | Shadowable predefined typedef | Unavailable | Reserved type spelling | Unavailable |
-| `_Float128` | Distinct binary128 type | Distinct binary128 type | Unavailable spelling | Unavailable spelling |
+| `__float128` | Shadowable predefined typedef | Ordinary identifier, no builtin type | Reserved type spelling | Reserved spelling, unsupported type |
+| `_Float128` | Distinct binary128 type | Distinct binary128 type | Ordinary identifier, no builtin type | Ordinary identifier, no builtin type |
 | `Q` / `q` literal | Binary128 | `long double` | Binary128 | Binary128 |
 | `f128` / `F128` literal | Binary128 | Binary128 | Unavailable | Unavailable |
 | `mode(TF)` / `mode(TC)` | Binary128 real / complex | `long double` real / complex | Binary128 real / complex | ARM Linux: `long double`; Darwin and Windows: unavailable |
@@ -24,6 +24,12 @@ can be shadowed by a local identifier or replaced by an explicit typedef
 without changing types that were already checked. Toucan does not emit that
 implicit typedef as a public declaration. Evaluation fragments use the same
 compiler-specific name rules as translation units.
+
+GNU x86-64 rejects an object or function with linkage named `__float128`, including
+block-scope `extern` declarations. Local objects, parameters, tags, and enumerators
+can use the name; explicit typedefs can replace the predefined alias. GNU AArch64
+has no predefined `__float128` type and permits ordinary file-scope names. Clang
+reserves `__float128` even on targets where that floating type is unavailable.
 
 `mode(SF/DF/SC/DC)` selects the corresponding standard real or complex type.
 Floating modes validate the completed declaration subject, including parameters;

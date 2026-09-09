@@ -1,0 +1,9 @@
+   Compiling toucan_semantic v0.0.1 (/home/dev-user/.codex/worktrees/toucan-inline-integrated/crates/toucan_semantic)
+    Finished `test` profile [unoptimized] target(s) in 0.67s
+     Running tests/inline_ownership.rs (/home/dev-user/.cache/toucan/inline-target/debug/deps/inline_ownership-a0c1376dae37cb2a)
+
+running 1 test
+test inline_metadata_fits_existing_body_and_declaration_padding ... ok
+
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 5 filtered out; finished in 0.00s
+

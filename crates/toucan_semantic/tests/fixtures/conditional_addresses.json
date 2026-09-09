@@ -1,0 +1,242 @@
+[
+  {
+    "name": "object-prior-zero-omitted",
+    "source": "extern int w; extern int s;\nextern int w __attribute__((weak));\nint *p = &w ?: 0;\n",
+    "gnu": true,
+    "clang": false
+  },
+  {
+    "name": "object-prior-zero-ordinary",
+    "source": "extern int w; extern int s;\nextern int w __attribute__((weak));\nint *p = &w ? &w : 0;\n",
+    "gnu": true,
+    "clang": false
+  },
+  {
+    "name": "object-prior-strong-omitted",
+    "source": "extern int w; extern int s;\nextern int w __attribute__((weak));\nint *p = &w ?: &s;\n",
+    "gnu": false,
+    "clang": false
+  },
+  {
+    "name": "object-prior-strong-ordinary",
+    "source": "extern int w; extern int s;\nextern int w __attribute__((weak));\nint *p = &w ? &w : &s;\n",
+    "gnu": false,
+    "clang": false
+  },
+  {
+    "name": "object-late-zero-omitted",
+    "source": "extern int w; extern int s;\nint *p = &w ?: 0;\nextern int w __attribute__((weak));\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "object-late-zero-ordinary",
+    "source": "extern int w; extern int s;\nint *p = &w ? &w : 0;\nextern int w __attribute__((weak));\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "object-late-strong-omitted",
+    "source": "extern int w; extern int s;\nint *p = &w ?: &s;\nextern int w __attribute__((weak));\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "object-late-strong-ordinary",
+    "source": "extern int w; extern int s;\nint *p = &w ? &w : &s;\nextern int w __attribute__((weak));\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "function-prior-zero-omitted",
+    "source": "extern int w(void); extern int s(void);\nextern int w(void) __attribute__((weak));\nint (*p)(void) = &w ?: 0;\n",
+    "gnu": true,
+    "clang": false
+  },
+  {
+    "name": "function-prior-zero-ordinary",
+    "source": "extern int w(void); extern int s(void);\nextern int w(void) __attribute__((weak));\nint (*p)(void) = &w ? &w : 0;\n",
+    "gnu": true,
+    "clang": false
+  },
+  {
+    "name": "function-prior-strong-omitted",
+    "source": "extern int w(void); extern int s(void);\nextern int w(void) __attribute__((weak));\nint (*p)(void) = &w ?: &s;\n",
+    "gnu": false,
+    "clang": false
+  },
+  {
+    "name": "function-prior-strong-ordinary",
+    "source": "extern int w(void); extern int s(void);\nextern int w(void) __attribute__((weak));\nint (*p)(void) = &w ? &w : &s;\n",
+    "gnu": false,
+    "clang": false
+  },
+  {
+    "name": "function-late-zero-omitted",
+    "source": "extern int w(void); extern int s(void);\nint (*p)(void) = &w ?: 0;\nextern int w(void) __attribute__((weak));\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "function-late-zero-ordinary",
+    "source": "extern int w(void); extern int s(void);\nint (*p)(void) = &w ? &w : 0;\nextern int w(void) __attribute__((weak));\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "function-late-strong-omitted",
+    "source": "extern int w(void); extern int s(void);\nint (*p)(void) = &w ?: &s;\nextern int w(void) __attribute__((weak));\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "function-late-strong-ordinary",
+    "source": "extern int w(void); extern int s(void);\nint (*p)(void) = &w ? &w : &s;\nextern int w(void) __attribute__((weak));\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "weak-plus-one",
+    "source": "extern int w[2] __attribute__((weak)); extern int s;\nint*p=(w+1) ? : &s;\n",
+    "gnu": false,
+    "clang": false
+  },
+  {
+    "name": "weak-plus-one",
+    "source": "extern int w[2] __attribute__((weak)); extern int s;\nint*p=(w+1) ? (w+1) : &s;\n",
+    "gnu": false,
+    "clang": false
+  },
+  {
+    "name": "weak-plus-zero",
+    "source": "extern int w[2] __attribute__((weak)); extern int s;\nint*p=(w+0) ? : &s;\n",
+    "gnu": false,
+    "clang": false
+  },
+  {
+    "name": "weak-plus-zero",
+    "source": "extern int w[2] __attribute__((weak)); extern int s;\nint*p=(w+0) ? (w+0) : &s;\n",
+    "gnu": false,
+    "clang": false
+  },
+  {
+    "name": "weak-index-one",
+    "source": "extern int w[2] __attribute__((weak));\nint*p=(&w[1]) ? : 0;\n",
+    "gnu": true,
+    "clang": false
+  },
+  {
+    "name": "weak-index-one",
+    "source": "extern int w[2] __attribute__((weak));\nint*p=(&w[1]) ? (&w[1]) : 0;\n",
+    "gnu": true,
+    "clang": false
+  },
+  {
+    "name": "strong-member",
+    "source": "struct S{int pad;int x;};extern struct S s;\nint*p=(&s.x) ? : 0;\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "strong-member",
+    "source": "struct S{int pad;int x;};extern struct S s;\nint*p=(&s.x) ? (&s.x) : 0;\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "absolute-zero",
+    "source": "extern int s;\nint*p=((int*)0) ? : &s;\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "absolute-zero",
+    "source": "extern int s;\nint*p=((int*)0) ? ((int*)0) : &s;\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "absolute-one",
+    "source": "extern int s;\nint*p=((int*)1) ? : &s;\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "absolute-one",
+    "source": "extern int s;\nint*p=((int*)1) ? ((int*)1) : &s;\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "absolute-truncated",
+    "source": "extern int s;\nint*p=((int*)((unsigned __int128)1<<64)) ? : &s;\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "absolute-truncated",
+    "source": "extern int s;\nint*p=((int*)((unsigned __int128)1<<64)) ? ((int*)((unsigned __int128)1<<64)) : &s;\n",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "shadow_weak",
+    "source": "extern int w __attribute__((weak)); int f(void){static int w;static int*p=&w ?: 0;return p==&w;}",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "absolute_negative",
+    "source": "int s;int*p=((int*)-1+1) ?: &s;",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "absolute_truncate",
+    "source": "int s;int*p=(int*)((unsigned __int128)1<<64) ?: &s;",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "absolute_member",
+    "source": "struct S{char pad[8];int a;};int s;int*p=&((struct S*)0)->a ?: &s;",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "pointer_converted_null_true",
+    "source": "int x,y;int*p=(1?0:&x) ?: &y;",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "pointer_converted_null_false",
+    "source": "int x,y;int*p=(0?&x:0) ?: &y;",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "vla",
+    "source": "int f(int n,int(*p)[n],int(*q)[n]){return sizeof(*(p ?: q));}",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "vla_increment",
+    "source": "int f(int n,int(*p)[n],int(*q)[n]){return sizeof(*(p++ ?: q));}",
+    "gnu": true,
+    "clang": true
+  },
+  {
+    "name": "weak_member_load",
+    "source": "extern struct S{void*p;} w __attribute__((weak));void*p=&w.p ? w.p : 0;",
+    "gnu": false,
+    "clang": false
+  },
+  {
+    "name": "call_condition",
+    "source": "int a;int*load(void);int*p=load() ?: &a;",
+    "gnu": false,
+    "clang": false
+  }
+]

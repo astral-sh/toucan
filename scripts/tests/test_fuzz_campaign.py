@@ -14,6 +14,17 @@ import run_fuzz_campaign as campaign
 
 
 class FuzzCampaignTests(unittest.TestCase):
+    def test_eight_mode_seeds_preserve_inputs_and_cover_profile_boundaries(self):
+        for data in [b"", b"int f(a){return a;}", b"a" * 255, b"a" * 512, b"a" * 1023]:
+            for count in (5, 7, 11, 32):
+                seeds = list(campaign.seed_profiles(data, count, modes=8))
+                self.assertEqual(len(seeds), count * 8)
+                self.assertEqual(
+                    {(sum(seed) % count, (sum(seed) >> 8) & 7) for seed in seeds},
+                    {(profile, mode) for profile in range(count) for mode in range(8)},
+                )
+                self.assertTrue(all(seed.startswith(data) for seed in seeds))
+
     def test_preprocessor_padding_covers_all_policies_without_changing_source(self):
         for source in [
             b"",
@@ -24,18 +35,38 @@ class FuzzCampaignTests(unittest.TestCase):
             b"a" * 2560,
         ]:
             seeds = list(campaign.seed_preprocessor_policies(source))
-            self.assertEqual(len(seeds), 20)
+            self.assertEqual(len(seeds), 480)
             self.assertEqual({(sum(seed) >> 9) % 5 for seed in seeds}, set(range(5)))
             self.assertEqual(
                 {
-                    ((sum(seed) >> 9) % 5, bool(sum(seed) & 0x100), sum(seed) & 1)
+                    (
+                        (sum(seed) >> 9) % 5,
+                        bool(sum(seed) & 0x100),
+                        sum(seed) & 1,
+                        bool(sum(seed) & 2),
+                        bool(sum(seed) & 4),
+                        bool(sum(seed) & 8),
+                        (sum(seed) >> 4) & 3,
+                    )
                     for seed in seeds
                 },
                 {
-                    (comment, trigraph, dialect)
+                    (
+                        comment,
+                        trigraph,
+                        dialect,
+                        scope,
+                        history,
+                        redefine,
+                        documentation,
+                    )
                     for comment in range(5)
                     for trigraph in (False, True)
                     for dialect in range(2)
+                    for scope in (False, True)
+                    for history in (False, True)
+                    for redefine in (False, True)
+                    for documentation in range(3)
                 },
             )
             self.assertTrue(

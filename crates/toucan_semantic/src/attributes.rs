@@ -6,6 +6,7 @@ pub(crate) enum Attribute {
     MinimumVectorWidth,
     Target,
     AlwaysInline,
+    GnuInline,
     NoInline,
     NoEscape,
     NoDebug,
@@ -37,6 +38,7 @@ impl Attribute {
             "min_vector_width" => Self::MinimumVectorWidth,
             "target" => Self::Target,
             "always_inline" => Self::AlwaysInline,
+            "gnu_inline" => Self::GnuInline,
             "noinline" => Self::NoInline,
             "noescape" => Self::NoEscape,
             "nodebug" => Self::NoDebug,
@@ -75,7 +77,6 @@ impl Attribute {
             | "const"
             | "visibility"
             | "sentinel"
-            | "gnu_inline"
             | "unused"
             | "used"
             | "artificial"

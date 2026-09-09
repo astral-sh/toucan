@@ -1,0 +1,106 @@
+{
+  "logs/clippy-final.log": {
+    "bytes": 198,
+    "sha256": "d7fd46310d5d241e997fa4343c84f751770dca8129996eaec85723b6ce0fbb9b"
+  },
+  "logs/comments-native.log": {
+    "bytes": 725,
+    "sha256": "ac170d3cdf8f39b28d57984e938d5f0be91b188ec713e1918c47cabe86ada540"
+  },
+  "logs/diff-check.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "logs/fmt-final.log": {
+    "bytes": 0,
+    "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "logs/gcc14-final.log": {
+    "bytes": 3917,
+    "sha256": "d31174178bcff2939efe13c6e4470055c7500b9d490138965a644fe4b81d1253"
+  },
+  "logs/lib-native.log": {
+    "bytes": 3683,
+    "sha256": "73ee169f110e108b923d9ca5d4764c4787eea52f32351b7cfb0aad7e617cdc7e"
+  },
+  "logs/native-final.log": {
+    "bytes": 3182,
+    "sha256": "4e8f6da071de3efa2ca3eb6681a99d3d1a2cd919951a55e90bfc11102d809d0a"
+  },
+  "logs/tests-final.log": {
+    "bytes": 5683,
+    "sha256": "538705e77a11108f6a2df9e020a74b8b55c78c0c30241c7d624260f66b08c1cf"
+  },
+  "primary-source-hashes.json": {
+    "bytes": 271,
+    "sha256": "7674ec53dc5f203ab13ad580d8fee2c620bc5aa6277bd43668f52d24c9575cf7"
+  },
+  "probes/evidence.json": {
+    "bytes": 127572,
+    "sha256": "68fb8461c11467a8e95926ecba7563ffea8eec37396eb0ee273e0f504d0c100b"
+  },
+  "probes/gcc-version-scopes.json": {
+    "bytes": 10147,
+    "sha256": "15d273e6193cf94a5251ff3f232eb4ab921611cf13cdd0b85820c2b722a3a5fb"
+  },
+  "probes/namespace-expansion.json": {
+    "bytes": 11222,
+    "sha256": "45483fe1b230e0104ba6aad7831690a04e98ba22ce35a377173f9c1ccec50c28"
+  },
+  "probes/namespace-spacing.json": {
+    "bytes": 8392,
+    "sha256": "0c53dab9ef87f3e1ba5ecfc7727b33ad204ff6aadd03e0cf5630d5554746105c"
+  },
+  "probes/namespaces.json": {
+    "bytes": 8695,
+    "sha256": "139320d0490691cfd819b69ea1aadbf98d0b7648abbb1eb29b1199257eac9c76"
+  },
+  "probes/pragma-arguments.json": {
+    "bytes": 4668,
+    "sha256": "0c68c3db983ddc795166e865f6e442f91d40beb552d0ede7b148e4ad5b0a44fa"
+  },
+  "probes/scope-substitution.json": {
+    "bytes": 2450,
+    "sha256": "67fe7b8859baf953a2ed1977bbfb3f1facbd4a4bf8f727d82a90412b35a72e5c"
+  },
+  "probes/scope-token.json": {
+    "bytes": 2536,
+    "sha256": "d615fc2862277b87baf4d59c6e690b0ad86e7773aa76f8696f65aee2be807b49"
+  },
+  "scripts/toucan-remaining-queries-capture.py": {
+    "bytes": 5273,
+    "sha256": "76e803bae9761961cf8c283a8a5631ec205bb99f4e6a9b68d0f7a2c78d5e820c"
+  },
+  "scripts/toucan-remaining-query-probes.py": {
+    "bytes": 1899,
+    "sha256": "fa9bc7a25957b9a3639d86354f2e7e9d3669bd49a66bf3c2a342dae6a147ed8a"
+  },
+  "source/crates/toucan_preprocessor/README.md": {
+    "bytes": 9515,
+    "sha256": "b7b70e278c723203ac6372eceb925a6c22824f775062067ff54b7a2d8ef6e8ee"
+  },
+  "source/crates/toucan_preprocessor/src/expand.rs": {
+    "bytes": 20871,
+    "sha256": "c5dd74fb7ba079ebaf243618ef4aa40a3036cae5a331cfb3f2875a860c8d1d8c"
+  },
+  "source/crates/toucan_preprocessor/src/lib.rs": {
+    "bytes": 54680,
+    "sha256": "a82e8a8fd2e79cabca0a09bd8df2af479fff191693ef564935eb8152bd00816a"
+  },
+  "source/crates/toucan_preprocessor/src/queries.rs": {
+    "bytes": 6199,
+    "sha256": "80ce7424bddcf520c4003a64fa65bcbe55cdf5c33851724ed0317302cc57981e"
+  },
+  "source/crates/toucan_preprocessor/src/token.rs": {
+    "bytes": 11994,
+    "sha256": "c3b64d80574945b689a463cb89e08686fe583d99cad7faf82fa13c527f3f0c5e"
+  },
+  "source/crates/toucan_preprocessor/tests/feature_queries.rs": {
+    "bytes": 29085,
+    "sha256": "043539c2b7cbe09ff5b30834d1b95cc588913f1453f8b478a1df9ba9fa5ea012"
+  },
+  "versions.json": {
+    "bytes": 733,
+    "sha256": "3c5599edf22741aee0ecc91486416839ea93f8ee289db2627ea2e9e38081bb96"
+  }
+}

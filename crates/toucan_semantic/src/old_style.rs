@@ -210,12 +210,26 @@ impl Analyzer {
                         .push(checked.declaration_group(declaration)?);
                 }
             }
-            for (identifier, index) in identifiers.iter().zip(&order) {
+            for (position, (identifier, index)) in identifiers.iter().zip(&mut order).enumerate() {
                 if index.is_none() {
-                    return Err(Error::new(
-                        identifier.span.start,
-                        "C11 requires a declaration for every identifier-list parameter",
-                    ));
+                    if !self.unit.language_mode.is_c90() {
+                        return Err(Error::new(
+                            identifier.span.start,
+                            "C11 requires a declaration for every identifier-list parameter",
+                        ));
+                    }
+                    *index = Some(
+                        self.lexical_scopes
+                            .last()
+                            .expect("parameter scope")
+                            .parameters
+                            .len(),
+                    );
+                    let (site, _) =
+                        self.check_parameter(ParameterSyntax::ImplicitOldStyle(identifier), None)?;
+                    if let Some(sites) = &mut sites {
+                        sites[position] = site;
+                    }
                 }
             }
             let scope = self.lexical_scopes.last_mut().expect("parameter scope");

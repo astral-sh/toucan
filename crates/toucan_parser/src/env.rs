@@ -1,6 +1,7 @@
 use std::collections::{HashMap, HashSet};
 
 use ast::*;
+use driver::Standard;
 use span::Node;
 use strings;
 
@@ -14,10 +15,13 @@ pub struct Env {
     pub symbols: Vec<HashMap<String, Symbol>>,
     pub extensions_gnu: bool,
     pub gnu_keywords: bool,
+    pub standard: Standard,
     pub extensions_clang: bool,
     pub extensions_msvc: bool,
     pub clang_calling_conventions: bool,
     pub gnu_float128_typedef: bool,
+    /// GCC admits UTF-prefixed literals in GNU99 as a language extension.
+    pub gnu_unicode_literals: bool,
     pub reserved: HashSet<&'static str>,
     // Parameter scopes are normally discarded at the end of their declarators.
     // A definition temporarily saves them until its declarator identifies which
@@ -33,10 +37,12 @@ impl Env {
             definition_scopes: None,
             extensions_gnu: false,
             gnu_keywords: false,
+            standard: Standard::C11,
             extensions_clang: false,
             extensions_msvc: false,
             clang_calling_conventions: false,
             gnu_float128_typedef: false,
+            gnu_unicode_literals: false,
             symbols: vec![HashMap::default()],
             reserved,
         }
@@ -52,16 +58,24 @@ impl Env {
             definition_scopes: None,
             extensions_gnu: true,
             gnu_keywords: true,
+            standard: Standard::C11,
             extensions_clang: false,
             extensions_msvc: false,
             clang_calling_conventions: false,
             gnu_float128_typedef: true,
+            gnu_unicode_literals: true,
             symbols: vec![symbols],
             reserved,
         }
     }
 
     pub fn with_clang() -> Env {
+        Self::with_clang_profile(false)
+    }
+
+    // GNU also uses the Clang extension grammar, but keeps its own type keywords.
+    // Do not remove and reinsert them: that can grow the keyword hash table.
+    fn with_clang_profile(gnu_types: bool) -> Env {
         let mut symbols = HashMap::default();
         let mut reserved = HashSet::default();
         symbols.insert("__builtin_va_list".to_owned(), Symbol::Typename);
@@ -69,21 +83,34 @@ impl Env {
         reserved.extend(strings::RESERVED_GNU.iter());
         reserved.extend(strings::RESERVED_CLANG.iter());
         reserved.extend(strings::RESERVED_CLANG_CALLING_CONVENTIONS.iter());
+        if !gnu_types {
+            for name in [
+                "_Float32",
+                "_Float64",
+                "_Float32x",
+                "_Float64x",
+                "_Float128",
+            ] {
+                reserved.remove(name);
+            }
+        }
         Env {
             definition_scopes: None,
             extensions_gnu: true,
             gnu_keywords: true,
+            standard: Standard::C11,
             extensions_clang: true,
             extensions_msvc: false,
             clang_calling_conventions: true,
             gnu_float128_typedef: false,
+            gnu_unicode_literals: gnu_types,
             symbols: vec![symbols],
             reserved,
         }
     }
 
     pub fn with_gnu_and_clang_extensions() -> Env {
-        let mut env = Self::with_clang();
+        let mut env = Self::with_clang_profile(true);
         env.gnu_float128_typedef = true;
         env.reserved.remove("__float128");
         env.clang_calling_conventions = false;
@@ -91,6 +118,22 @@ impl Env {
             env.reserved.remove(name);
         }
         env
+    }
+
+    /// These GNU floating keywords are ordinary identifiers in Clang C.
+    pub fn is_ts18661_keyword(&self, ty: &TS18661FloatType) -> bool {
+        self.gnu_float128_typedef
+            || !self.extensions_clang
+            || !matches!(
+                ty,
+                TS18661FloatType {
+                    format: TS18661FloatFormat::BinaryInterchange,
+                    width: 32 | 64 | 128,
+                } | TS18661FloatType {
+                    format: TS18661FloatFormat::BinaryExtended,
+                    width: 32 | 64,
+                }
+            )
     }
 
     pub fn set_gnu_keywords(&mut self, enabled: bool) {
@@ -116,6 +159,30 @@ impl Env {
         }
         self.extensions_msvc = enabled;
         for name in strings::RESERVED_MSVC {
+            if enabled {
+                self.reserved.insert(name);
+            } else {
+                self.reserved.remove(name);
+            }
+        }
+        if self.standard == Standard::C90 {
+            if self.gnu_keywords {
+                self.reserved.insert("inline");
+            } else {
+                self.reserved.remove("inline");
+            }
+        }
+    }
+
+    pub fn set_standard(&mut self, standard: Standard) {
+        if self.standard == standard {
+            return;
+        }
+        self.standard = standard;
+        for (name, enabled) in [
+            ("inline", standard != Standard::C90 || self.gnu_keywords),
+            ("restrict", standard != Standard::C90),
+        ] {
             if enabled {
                 self.reserved.insert(name);
             } else {

@@ -44,14 +44,32 @@ pub fn analyze_with_profile(
     profile: CompilerProfile,
     options: &crate::AnalysisOptions,
 ) -> Result<crate::Analysis, Error> {
-    let (unit, checked) = crate::with_parser_stack(|| {
+    let (
+        unit,
+        checked,
+        declaration_origins,
+        object_values,
+        documentation_origins,
+        parameter_type_dependencies,
+    ) = crate::with_parser_stack(|| {
         analyze_on_parser_stack(
             source,
             profile,
             options.retain_code.then_some(options.limits),
+            options.retain_declaration_origins,
+            options.retain_object_values,
+            options.retain_documentation_origins,
+            options.retain_parameter_type_dependencies,
         )
     })??;
-    Ok(crate::Analysis { unit, checked })
+    Ok(crate::Analysis {
+        unit,
+        checked,
+        declaration_origins,
+        object_values,
+        documentation_origins,
+        parameter_type_dependencies,
+    })
 }
 
 pub(crate) fn analyze_inner(
@@ -60,15 +78,37 @@ pub(crate) fn analyze_inner(
     retention: Option<CodeLimits>,
 ) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
     crate::with_parser_stack(|| {
-        analyze_on_parser_stack(source, CompilerProfile::default_for(target), retention)
+        analyze_on_parser_stack(
+            source,
+            CompilerProfile::default_for(target),
+            retention,
+            false,
+            false,
+            false,
+            false,
+        )
+        .map(|(unit, checked, _, _, _, _)| (unit, checked))
     })?
 }
+
+type AnalysisParts = (
+    TranslationUnit,
+    Option<CheckedCode>,
+    Option<Box<crate::DeclarationOrigins>>,
+    Option<Box<crate::ObjectValues>>,
+    Option<Box<crate::DocumentationDeclarations>>,
+    Option<Box<crate::ParameterTypeDependencies>>,
+);
 
 fn analyze_on_parser_stack(
     source: &str,
     profile: CompilerProfile,
     retention: Option<CodeLimits>,
-) -> Result<(TranslationUnit, Option<CheckedCode>), Error> {
+    retain_declaration_origins: bool,
+    retain_object_values: bool,
+    retain_documentation_origins: bool,
+    retain_parameter_type_dependencies: bool,
+) -> Result<AnalysisParts, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
@@ -85,6 +125,15 @@ fn analyze_on_parser_stack(
         .map(|(offset, pack)| (parsed.offsets.pragma_offset(offset), pack))
         .collect();
     let mut analyzer = Analyzer::new(profile, packs);
+    analyzer.declaration_origins =
+        retain_declaration_origins.then(|| Box::new(crate::declaration_origins::Builder::new()));
+    analyzer.object_values =
+        retain_object_values.then(|| Box::new(crate::object_values::Builder::new()));
+    analyzer.documentation_origins = retain_documentation_origins
+        .then(|| Box::new(crate::documentation_origins::Builder::new()));
+    analyzer.parameter_type_dependencies = retain_parameter_type_dependencies
+        .then(|| Box::new(crate::parameter_dependencies::Builder::new()));
+    analyzer.prepare_dll_storage(&source);
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
@@ -94,6 +143,7 @@ fn analyze_on_parser_stack(
         analyzer.prepare_typedef_alignments(&parsed.unit, &source)?;
         analyzer.prepare_array_identities(&parsed.unit, &source)?;
         analyzer.prepare_late_function_targets(&parsed.unit, &source)?;
+        analyzer.prepare_inline_definitions(&parsed.unit, &source)?;
         if let Some(limits) = retention {
             analyzer.checked = Some(Box::new(CodeBuilder::new(
                 &parsed.unit,
@@ -120,12 +170,55 @@ fn analyze_on_parser_stack(
         analyzer.validate_weak_symbol_aliases()?;
         analyzer.validate_returns_twice_aliases()?;
         analyzer.finish_inline_targets()?;
+        analyzer.finish_inline_definitions()?;
+        analyzer.finish_dll_inline_definitions();
+        if analyzer.needs_tag_discovery {
+            // Keep the ordinary analysis path free to drop each parsed declaration.
+            // Only this rare compatibility case needs a second, bounded syntax walk.
+            let syntax = parse(
+                &source,
+                0,
+                profile.target(),
+                profile.compiler(),
+                profile.language_mode(),
+            )?;
+            analyzer.unit.tag_discovery =
+                crate::tag_discovery::discover(&analyzer.unit, &syntax.unit, |offset| {
+                    syntax.offsets.original_offset(offset)
+                })?;
+        }
         let checked = analyzer
             .checked
             .take()
             .map(|builder| builder.finish(&parsed.offsets))
             .transpose()?;
-        Ok((analyzer.unit, checked))
+        let declaration_origins = analyzer
+            .declaration_origins
+            .take()
+            .map(|builder| builder.finish(&parsed.offsets).map(Box::new))
+            .transpose()?;
+        let object_values = analyzer
+            .object_values
+            .take()
+            .map(|values| Box::new(values.finish(&parsed.offsets)));
+        let documentation_origins = analyzer
+            .documentation_origins
+            .take()
+            .map(|builder| builder.finish(&parsed.offsets, source.len()).map(Box::new))
+            .transpose()?;
+        let parameter_type_dependencies = analyzer
+            .parameter_type_dependencies
+            .take()
+            .map(|builder| builder.finish(&parsed.offsets).map(Box::new))
+            .transpose()?;
+        Ok((
+            analyzer.unit,
+            checked,
+            declaration_origins,
+            object_values,
+            documentation_origins,
+            parameter_type_dependencies,
+        ))
     })();
     result.map_err(|mut error: Error| {
         error.offset = parsed.offsets.original_offset(error.offset);
@@ -186,9 +279,9 @@ fn evaluate_on_parser_stack<Value>(
     expression: &str,
     evaluate: impl FnOnce(&mut Analyzer, &Node<ast::Expression>) -> Result<Value, Error>,
 ) -> Result<Value, Error> {
-    unit.profile()?;
+    let profile = unit.profile()?;
     unit.validate_function_options()?;
-    let identifiers = validate_expression_source(expression)?;
+    let identifiers = validate_expression_source(expression, unit.compiler, unit.language_mode)?;
     for value in unit.constants.values() {
         value.validate()?;
     }
@@ -263,7 +356,27 @@ fn evaluate_on_parser_stack<Value>(
         return Err(Error::new(0, "expected integer expression"));
     };
     unit.validate_parameter_contracts()?;
-    let mut analyzer = Analyzer::from_unit(unit.clone());
+    // Literals and known enumerator values do not need declaration identities.
+    // Keep validating the public environment above, and copy only the values
+    // referenced by a proven expression. Each query still owns its analyzer.
+    let mut constants = BTreeMap::new();
+    let mut analyzer = if value_expression(
+        &expression.node,
+        &unit.constants,
+        &mut constants,
+        0,
+        &mut 4096,
+    ) {
+        let mut analyzer = Analyzer::new(profile, Vec::new());
+        analyzer.unit.constants = constants
+            .into_iter()
+            .map(|(name, value)| (name.to_owned(), value))
+            .collect();
+        analyzer
+    } else {
+        Analyzer::from_unit(unit.clone())
+    };
+    analyzer.prepare_dll_storage(&source);
     analyzer.allow_late_object_size_folds = true;
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
@@ -288,6 +401,86 @@ fn evaluate_on_parser_stack<Value>(
         })
 }
 
+/// Collects the owner-independent values referenced by an expression that cannot
+/// inspect or introduce types or objects. Unknown names and exhausted traversal
+/// budgets keep the ordinary evaluation path and its limits.
+fn value_expression<'a>(
+    expression: &'a ast::Expression,
+    constants: &BTreeMap<String, IntegerValue>,
+    referenced: &mut BTreeMap<&'a str, IntegerValue>,
+    depth: u8,
+    remaining: &mut usize,
+) -> bool {
+    if depth >= 128 || *remaining == 0 {
+        return false;
+    }
+    *remaining -= 1;
+    let mut operand = |expression: &'a Node<ast::Expression>| {
+        value_expression(
+            &expression.node,
+            constants,
+            referenced,
+            depth + 1,
+            remaining,
+        )
+    };
+    match expression {
+        ast::Expression::Constant(_) => true,
+        ast::Expression::Identifier(identifier) => {
+            let name = identifier.node.name.as_str();
+            if let Some(&value) = constants.get(name) {
+                referenced.insert(name, value);
+                true
+            } else {
+                false
+            }
+        }
+        ast::Expression::UnaryOperator(unary) => {
+            matches!(
+                unary.node.operator.node,
+                ast::UnaryOperator::Plus
+                    | ast::UnaryOperator::Minus
+                    | ast::UnaryOperator::Complement
+                    | ast::UnaryOperator::Negate
+            ) && operand(&unary.node.operand)
+        }
+        ast::Expression::BinaryOperator(binary) => {
+            matches!(
+                binary.node.operator.node,
+                ast::BinaryOperator::Multiply
+                    | ast::BinaryOperator::Divide
+                    | ast::BinaryOperator::Modulo
+                    | ast::BinaryOperator::Plus
+                    | ast::BinaryOperator::Minus
+                    | ast::BinaryOperator::ShiftLeft
+                    | ast::BinaryOperator::ShiftRight
+                    | ast::BinaryOperator::Less
+                    | ast::BinaryOperator::Greater
+                    | ast::BinaryOperator::LessOrEqual
+                    | ast::BinaryOperator::GreaterOrEqual
+                    | ast::BinaryOperator::Equals
+                    | ast::BinaryOperator::NotEquals
+                    | ast::BinaryOperator::BitwiseAnd
+                    | ast::BinaryOperator::BitwiseXor
+                    | ast::BinaryOperator::BitwiseOr
+                    | ast::BinaryOperator::LogicalAnd
+                    | ast::BinaryOperator::LogicalOr
+            ) && operand(&binary.node.lhs)
+                && operand(&binary.node.rhs)
+        }
+        ast::Expression::Conditional(conditional) => {
+            operand(&conditional.node.condition)
+                && conditional
+                    .node
+                    .then_expression
+                    .as_ref()
+                    .is_none_or(|value| operand(value))
+                && operand(&conditional.node.else_expression)
+        }
+        _ => false,
+    }
+}
+
 struct Parsed {
     unit: ast::TranslationUnit,
     record_attributes: HashSet<usize>,
@@ -309,13 +502,27 @@ fn parse(
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
     let original = source;
-    let source = strip_comments(source)?;
+    let source = strip_comments(source, compiler, language_mode)?;
     let adapted = crate::parser_extensions::adapt(&source)?;
     let source = adapted.source;
     let config = driver::Config {
         cpp_command: String::new(),
         cpp_options: Vec::new(),
-        gnu_keywords: language_mode == toucan_target::LanguageMode::Gnu11,
+        gnu_keywords: language_mode.is_gnu(),
+        standard: match language_mode {
+            toucan_target::LanguageMode::C90 | toucan_target::LanguageMode::Gnu90 => {
+                driver::Standard::C90
+            }
+            toucan_target::LanguageMode::C99 | toucan_target::LanguageMode::Gnu99 => {
+                driver::Standard::C99
+            }
+            toucan_target::LanguageMode::C11 | toucan_target::LanguageMode::Gnu11 => {
+                driver::Standard::C11
+            }
+            toucan_target::LanguageMode::C17 | toucan_target::LanguageMode::Gnu17 => {
+                driver::Standard::C17
+            }
+        },
         extensions_msvc: target == Target::X86_64PcWindowsMsvc,
         flavor: match compiler {
             Compiler::Gnu => driver::Flavor::GnuC11WithClangExtensions,
@@ -361,9 +568,41 @@ fn parse(
     })
 }
 
+/// Comment compatibility for callers supplying source directly to the semantic
+/// library. The facade has already completed translation phase three.
+struct SourceComments {
+    enabled: bool,
+    clang_extension: bool,
+}
+
+impl SourceComments {
+    fn new(compiler: Compiler, mode: toucan_target::LanguageMode) -> Self {
+        Self {
+            enabled: mode != toucan_target::LanguageMode::C90,
+            clang_extension: mode == toucan_target::LanguageMode::C90
+                && compiler == Compiler::Clang,
+        }
+    }
+
+    fn starts(&mut self, bytes: &[u8], index: usize) -> bool {
+        if bytes.get(index + 1) != Some(&b'/') {
+            return false;
+        }
+        if self.clang_extension && bytes.get(index + 2) != Some(&b'*') {
+            self.enabled = true;
+        }
+        self.enabled
+    }
+}
+
 /// lang-c expects comments to have been replaced in translation phase three.
-fn strip_comments(source: &str) -> Result<String, Error> {
+fn strip_comments(
+    source: &str,
+    compiler: Compiler,
+    mode: toucan_target::LanguageMode,
+) -> Result<String, Error> {
     let mut bytes = source.as_bytes().to_vec();
+    let mut comments = SourceComments::new(compiler, mode);
     let mut index = 0;
     while index < bytes.len() {
         match bytes[index] {
@@ -377,7 +616,7 @@ fn strip_comments(source: &str) -> Result<String, Error> {
                     index += 1;
                 }
             }
-            b'/' if bytes.get(index + 1) == Some(&b'/') => {
+            b'/' if comments.starts(&bytes, index) => {
                 while index < bytes.len() && bytes[index] != b'\n' {
                     bytes[index] = b' ';
                     index += 1;
@@ -411,8 +650,13 @@ fn strip_comments(source: &str) -> Result<String, Error> {
 /// Balanced delimiters and the absence of declaration separators are checked
 /// independently of the parser, including comments and quoted literals. Returns
 /// identifier tokens so the parser can recognize referenced typedef names.
-fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> {
+fn validate_expression_source(
+    expression: &str,
+    compiler: Compiler,
+    mode: toucan_target::LanguageMode,
+) -> Result<HashSet<&str>, Error> {
     let bytes = expression.as_bytes();
+    let mut comments = SourceComments::new(compiler, mode);
     let mut index = 0;
     let mut delimiters = Vec::new();
     let mut identifiers = HashSet::new();
@@ -462,7 +706,7 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
                     ));
                 }
             }
-            b'/' if bytes.get(index + 1) == Some(&b'/') => {
+            b'/' if comments.starts(bytes, index) => {
                 while index < bytes.len() && bytes[index] != b'\n' {
                     index += 1;
                 }
@@ -516,9 +760,13 @@ fn validate_expression_source(expression: &str) -> Result<HashSet<&str>, Error> 
 
 #[derive(Clone, Debug, Default)]
 pub(crate) struct Attributes {
+    pub(crate) dll_storage: Option<Box<crate::dll_storage::ParsedStorage>>,
     pub(crate) target_attributes: Vec<crate::target_features::ParsedTarget>,
     pub(crate) minimum_vector_width: Vec<crate::target_features::ParsedMinimumVectorWidth>,
     pub(crate) always_inline: Option<(lang_c::span::Span, bool)>,
+    pub(crate) gnu_inline: Option<(lang_c::span::Span, bool)>,
+    /// Written keyword and whether its compiler rejects non-function subjects.
+    pub(crate) inline_specifier: Option<(lang_c::span::Span, bool)>,
     pub(crate) no_inline: Option<(lang_c::span::Span, bool)>,
     pub(crate) noescape: Vec<(lang_c::span::Span, bool)>,
     pub(crate) type_noreturn: bool,
@@ -534,6 +782,7 @@ pub(crate) struct Attributes {
     type_name_use: bool,
     packed: bool,
     pub(crate) alignment: Option<u64>,
+    pub(crate) msvc_alignment: Option<u64>,
     pub(crate) c11_alignment: Option<u64>,
     pub(crate) link_name: Option<String>,
     mode: Option<String>,
@@ -545,6 +794,11 @@ pub(crate) struct Attributes {
 }
 
 impl Attributes {
+    /// The strongest vendor alignment, retaining its spelling in separate fields.
+    pub(crate) fn vendor_alignment(&self) -> Option<u64> {
+        self.alignment.max(self.msvc_alignment)
+    }
+
     /// Clang checks arity only after recognizing a supported declaration subject.
     pub(crate) fn check_nodebug_subject(&self) -> Result<(), Error> {
         if let Some(offset) = self.nodebug_arguments {
@@ -572,6 +826,15 @@ impl Attributes {
         Ok(())
     }
     pub(crate) fn require_function_attributes(&self, function: bool) -> Result<(), Error> {
+        if !function && let Some((span, true)) = self.inline_specifier {
+            return Err(Error::new(
+                span.start,
+                "inline requires a function declaration",
+            ));
+        }
+        if function && let Some((span, true)) = self.gnu_inline {
+            return Err(Error::new(span.start, "gnu_inline takes no arguments"));
+        }
         if !function && let Some(attribute) = self.minimum_vector_width.first() {
             return Err(Error::new(
                 attribute.span.start,
@@ -636,6 +899,10 @@ pub(crate) struct BlockExtern {
 /// Scope frames retain only new bindings; file-scope maps remain shared.
 #[derive(Default)]
 pub(crate) struct LexicalScope {
+    /// GNU attribute consistency follows each binding scope, including attributes
+    /// inherited by its first declaration. Most scopes need no inline state.
+    #[allow(clippy::box_collection)]
+    pub(crate) gnu_inline: Option<Box<HashMap<String, crate::inline::GnuDeclaration>>>,
     // Most scopes have no alignment annotations; keep their inline state one pointer.
     #[allow(clippy::box_collection)]
     pub(crate) alignments: Option<Box<HashMap<String, crate::DeclarationAlignment>>>,
@@ -758,6 +1025,14 @@ struct DeclaratorContext<'a> {
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) const_objects: Option<Box<crate::const_objects::Values>>,
+    pub(crate) allow_const_object_reads: bool,
+    pub(crate) object_values: Option<Box<crate::object_values::Builder>>,
+    pub(crate) inline_registry: Option<Box<crate::inline::Registry>>,
+    pub(crate) dll_registry: Option<Box<crate::dll_storage::Registry>>,
+    pub(crate) allocation_uses: u8,
+    pub(crate) allocation_evaluation: crate::allocation::Evaluation,
+    pub(crate) allocation_symbols: Option<Box<crate::allocation::Symbols>>,
     pub(crate) noreturn_registry: Option<Box<crate::noreturn::Registry>>,
     pub(crate) alignment_registry: Option<Box<crate::type_alignment::Registry>>,
     pub(crate) has_type_noreturn: bool,
@@ -783,9 +1058,15 @@ pub(crate) struct Analyzer {
     pub(crate) function_effects: BTreeMap<String, crate::returns_twice::FunctionEffects>,
     pub(crate) diagnostic_kinds: HashMap<String, u8>,
     pub(crate) checked: Option<Box<CodeBuilder>>,
+    declaration_origins: Option<Box<crate::declaration_origins::Builder>>,
+    pub(crate) parameter_type_dependencies: Option<Box<crate::parameter_dependencies::Builder>>,
+    documentation_origins: Option<Box<crate::documentation_origins::Builder>>,
     pub(crate) unit: TranslationUnit,
     pub(crate) tags: HashMap<String, TagBinding>,
     pub(crate) lexical_scopes: Vec<LexicalScope>,
+    pub(crate) lexical_record: Option<usize>,
+    pub(crate) in_enum_expression: bool,
+    pub(crate) needs_tag_discovery: bool,
     defining_enums: HashSet<usize>,
     tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
@@ -813,12 +1094,18 @@ impl Analyzer {
         if self.nesting >= 128 {
             return Err(Error::new(offset, "expression nesting limit exceeded"));
         }
+        if let Some(dependencies) = &mut self.parameter_type_dependencies {
+            dependencies.enter_expression(self.nesting);
+        }
         self.nesting += 1;
         Ok(())
     }
 
     pub(crate) fn leave_expression(&mut self) {
         self.nesting -= 1;
+        if let Some(dependencies) = &mut self.parameter_type_dependencies {
+            dependencies.leave_expression(self.nesting);
+        }
     }
 
     fn new(profile: CompilerProfile, packs: PackEvents) -> Self {
@@ -832,6 +1119,8 @@ impl Analyzer {
             alignment_origins: Vec::new(),
             records: Vec::new(),
             record_origins: BTreeMap::new(),
+            lexical_tags: crate::TagLexicalOrigins::default(),
+            tag_discovery: None,
             enums: Vec::new(),
             typedefs: BTreeMap::new(),
             constants: BTreeMap::new(),
@@ -858,6 +1147,14 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            const_objects: None,
+            allow_const_object_reads: false,
+            object_values: None,
+            inline_registry: None,
+            dll_registry: None,
+            allocation_uses: 0,
+            allocation_evaluation: Default::default(),
+            allocation_symbols: None,
             noreturn_registry: None,
             alignment_registry: None,
             has_type_noreturn: crate::noescape::has_type_noreturn(&unit),
@@ -872,9 +1169,15 @@ impl Analyzer {
             allow_late_object_size_folds: false,
             diagnostic_kinds: HashMap::new(),
             checked: None,
+            declaration_origins: None,
+            parameter_type_dependencies: None,
+            documentation_origins: None,
             unit,
             tags,
             lexical_scopes: Vec::new(),
+            lexical_record: None,
+            in_enum_expression: false,
+            needs_tag_discovery: false,
             defining_enums: HashSet::new(),
             tentative_definitions: BTreeMap::new(),
             packs: Vec::new(),
@@ -908,7 +1211,7 @@ impl Analyzer {
         }
     }
 
-    fn scope(&self) -> Scope {
+    pub(crate) fn scope(&self) -> Scope {
         match self.lexical_scopes.last() {
             Some(scope) if scope.is_block => Scope::Block,
             Some(_) => Scope::Prototype,
@@ -944,6 +1247,8 @@ impl Analyzer {
 
     pub(crate) fn leave_prototype(&mut self) -> Vec<Parameter> {
         self.leave_noreturn_scope();
+        self.leave_allocation_scope();
+        self.leave_dll_scope();
         self.lexical_function_options
             .remove(&self.lexical_scopes.len());
         let scope = self
@@ -1092,85 +1397,13 @@ impl Analyzer {
                 "auto and register are not permitted at file scope",
             ));
         }
-        let is_typedef = storage.class == Some(ast::StorageClassSpecifier::Typedef);
-        // glibc defines the TS spellings as typedefs for older compiler profiles.
-        // lang-c recognizes their spelling as a type specifier even in this
-        // declaration position, so recover the explicit typedef name here.
-        if declaration.node.declarators.is_empty()
-            && is_typedef
-            && let Some(Node {
-                node:
-                    ast::DeclarationSpecifier::TypeSpecifier(Node {
-                        node: ast::TypeSpecifier::TS18661Float(float),
-                        span,
-                    }),
-                ..
-            }) = declaration.node.specifiers.last()
-            && !self.int128_specifiers.contains(&span.start)
-        {
-            let name = extended_float_name(float);
-            let (ty, attributes) = self.specifiers(
-                &declaration.node.specifiers[..declaration.node.specifiers.len() - 1],
-            )?;
-            attributes.check_nodebug_subject()?;
-            attributes.require_function_attributes(false)?;
-            attributes.require_no_weak()?;
-            attributes.require_no_transparent_union()?;
-            if attributes.packed
-                || attributes.alignment.is_some()
-                || attributes.c11_alignment.is_some()
-                || attributes.mode.is_some()
-            {
-                return Err(Error::new(
-                    declaration.span.start,
-                    "attributes on extended float compatibility typedefs are unsupported",
-                ));
-            }
-            if self
-                .unit
-                .typedefs
-                .insert(name.clone(), ty.clone())
-                .is_some()
-            {
-                return Err(Error::new(
-                    declaration.span.start,
-                    "duplicate extended float typedef",
-                ));
-            }
-            self.unit.declarations.push(Declaration {
-                alignment: crate::DeclarationAlignment::default(),
-                name,
-                ty,
-                kind: DeclarationKind::Typedef,
-                returns_twice: false,
-                noreturn: false,
-                symbol_binding: crate::SymbolBinding::Strong,
-                link_name: None,
-                is_static: false,
-                is_thread_local: false,
-                is_definition: false,
-                flexible_array_storage: None,
-            });
-            if let Some(checked) = &mut self.checked {
-                let index = self.unit.declarations.len() - 1;
-                checked.file_declaration(
-                    declaration,
-                    OccurrenceKind::Declaration,
-                    &self.unit.declarations[index],
-                    index,
-                    false,
-                    declaration
-                        .node
-                        .specifiers
-                        .last()
-                        .map(|specifier| specifier.span),
-                )?;
-            }
-            return Ok(());
+        if let Some(deps) = &mut self.parameter_type_dependencies {
+            deps.begin(declaration.span, false)?;
         }
+        let is_typedef = storage.class == Some(ast::StorageClassSpecifier::Typedef);
         let mut auto = self.auto_declaration(declaration)?;
         let explicit = if auto.is_none() {
-            Some(self.specifiers(&declaration.node.specifiers)?)
+            Some(self.declaration_specifiers(&declaration.node)?)
         } else {
             None
         };
@@ -1182,6 +1415,12 @@ impl Analyzer {
             attributes.require_no_transparent_union()?;
         }
         for item in &declaration.node.declarators {
+            if let Some(deps) = &mut self.parameter_type_dependencies {
+                deps.begin(
+                    declarator_name_span(&item.node.declarator).unwrap_or(item.span),
+                    true,
+                )?;
+            }
             let inferred = auto
                 .as_mut()
                 .map(|group| self.auto_item(declaration, item, group))
@@ -1316,6 +1555,48 @@ impl Analyzer {
                     .iter()
                     .position(|previous| previous.name == name)
             });
+            // Microsoft C retains earlier external linkage when a later object
+            // or function declaration is written `static`, in every C mode.
+            if is_static
+                && kind != DeclarationKind::Typedef
+                && self.unit.target == toucan_target::Target::X86_64PcWindowsMsvc
+                && (previous_index.is_some_and(|index| {
+                    let previous = &self.unit.declarations[index];
+                    previous.kind == kind && !previous.is_static
+                }) || self
+                    .block_externs
+                    .get(&name)
+                    .is_some_and(|previous| !previous.is_static))
+            {
+                is_static = false;
+            }
+            if !is_typedef {
+                self.require_linked_float_name(&name, item.span.start)?;
+                let external = !is_static
+                    && !previous_index.is_some_and(|index| self.unit.declarations[index].is_static)
+                    && !self
+                        .block_externs
+                        .get(&name)
+                        .is_some_and(|prior| prior.is_static);
+                let builtin = self.builtin_function_declaration(
+                    &name,
+                    &mut ty,
+                    external,
+                    definition,
+                    &mut declarator_attributes.link_name,
+                    item.span.start,
+                )?;
+                if builtin
+                    && self.unit.compiler == Compiler::Gnu
+                    && matches!(
+                        name.as_str(),
+                        "__builtin_malloc" | "__builtin_calloc" | "__builtin_realloc"
+                    )
+                    && declarator_attributes.c11_noreturn.is_none()
+                {
+                    declarator_attributes.noreturn = None;
+                }
+            }
             let function_options = if kind == DeclarationKind::Function {
                 Some(self.check_function_options(&name, &declarator_attributes, previous_index)?)
             } else {
@@ -1366,6 +1647,27 @@ impl Analyzer {
                 ));
             }
             let is_definition = definition || item.node.initializer.is_some();
+            let is_extern = storage.class == Some(ast::StorageClassSpecifier::Extern)
+                || (storage.class.is_none()
+                    && !is_typedef
+                    && crate::dll_storage::implicit_extern(
+                        declarator_attributes.dll_storage.as_deref(),
+                    ));
+            let dll_storage_class = self.dll_declaration(crate::dll_storage::Declaration {
+                name: &name,
+                kind,
+                attributes: declarator_attributes.dll_storage.as_deref(),
+                specifiers: &declaration.node.specifiers,
+                external: !is_static
+                    && !previous_index.is_some_and(|index| self.unit.declarations[index].is_static),
+                definition: is_definition,
+                tentative: kind == DeclarationKind::Variable && !is_extern,
+                thread_local: storage.thread_local,
+                previous_definition: previous_index
+                    .is_some_and(|index| self.unit.declarations[index].is_definition),
+                block: false,
+                offset: item.span.start,
+            })?;
             if kind == DeclarationKind::Function {
                 if definition {
                     self.prepare_old_style_definition(
@@ -1379,6 +1681,32 @@ impl Analyzer {
                     self.check_old_style_redeclaration(index, &ty, item.span.start)?;
                 }
             }
+            let repeated_inline_body = if kind == DeclarationKind::Function {
+                self.record_inline_declaration(
+                    &name,
+                    crate::inline::DeclarationFacts {
+                        offset: item.span.start,
+                        site: None,
+                        inline_source: declarator_attributes.inline_specifier.map(|(span, _)| span),
+                        gnu_source: declarator_attributes.gnu_inline.map(|(span, _)| span),
+                        file_scope: true,
+                        written_inline: declarator_attributes.inline_specifier.is_some(),
+                        written_extern: storage.class == Some(ast::StorageClassSpecifier::Extern),
+                        written_gnu_inline: declarator_attributes.inline_specifier.is_some()
+                            && declarator_attributes.gnu_inline.is_some(),
+                        body: definition,
+                        internal: is_static
+                            || ((storage.class.is_none()
+                                || storage.class == Some(ast::StorageClassSpecifier::Extern))
+                                && previous_index
+                                    .is_some_and(|index| self.unit.declarations[index].is_static)),
+                        inlined: false,
+                        gnu_inline: false,
+                    },
+                )?
+            } else {
+                false
+            };
             let written_alignment = if is_typedef {
                 crate::DeclarationAlignment::default()
             } else {
@@ -1394,9 +1722,8 @@ impl Analyzer {
                     item.span.start,
                 )?
             };
-            let alignment_definition = is_definition
-                || (kind == DeclarationKind::Variable
-                    && storage.class != Some(ast::StorageClassSpecifier::Extern));
+            let alignment_definition =
+                is_definition || (kind == DeclarationKind::Variable && !is_extern);
             let mut alignment = written_alignment;
             if !is_typedef
                 && (self.unit.compiler == Compiler::Gnu || previous_index.is_none())
@@ -1411,6 +1738,25 @@ impl Analyzer {
                     item.span.start,
                 )?;
             }
+            let written_object_type = if kind == DeclarationKind::Variable
+                && let Some(values) = &mut self.object_values
+                && previous_index.is_some_and(|index| self.unit.declarations[index].ty != ty)
+            {
+                Some(values.copy_written_type(&ty, item.span.start)?)
+            } else {
+                None
+            };
+            let (dependency_prototype, dependency_previous_prototype) = if self
+                .parameter_type_dependencies
+                .is_some()
+            {
+                (
+                    matches!(&self.unit.resolve(&ty)?.kind, TypeKind::Function(function) if function.prototype),
+                    previous_index.is_some_and(|index| self.unit.resolve(&self.unit.declarations[index].ty).is_ok_and(|ty| matches!(&ty.kind, TypeKind::Function(function) if function.prototype))),
+                )
+            } else {
+                (false, false)
+            };
             let declaration_index = if let Some(previous_index) = previous_index {
                 let previous = &self.unit.declarations[previous_index];
                 alignment = alignment.combined(self.merge_declaration_alignment(
@@ -1463,9 +1809,7 @@ impl Analyzer {
                 if kind != DeclarationKind::Typedef {
                     // Extern declarations inherit visible linkage. A function
                     // declaration without storage behaves as an extern declaration.
-                    if storage.class == Some(ast::StorageClassSpecifier::Extern)
-                        || (storage.class.is_none() && kind == DeclarationKind::Function)
-                    {
+                    if is_extern || (storage.class.is_none() && kind == DeclarationKind::Function) {
                         is_static = previous.is_static;
                     }
                     if previous.is_static != is_static {
@@ -1474,7 +1818,7 @@ impl Analyzer {
                             format!("conflicting linkage for `{name}`"),
                         ));
                     }
-                    if is_definition && previous.is_definition {
+                    if is_definition && previous.is_definition && !repeated_inline_body {
                         return Err(Error::new(
                             item.span.start,
                             format!("multiple definitions of `{name}`"),
@@ -1506,7 +1850,13 @@ impl Analyzer {
                 let previous_definition = previous.is_definition;
                 let symbol_binding = self.check_symbol_binding(
                     &name,
-                    declarator_attributes.weak,
+                    self.inline_weak_attribute(
+                        &name,
+                        declarator_attributes.weak,
+                        kind == DeclarationKind::Function,
+                        declarator_attributes.inline_specifier.is_some(),
+                        previous_definition,
+                    ),
                     kind != DeclarationKind::Typedef && !is_static,
                     previous_definition,
                 )?;
@@ -1517,20 +1867,29 @@ impl Analyzer {
                         Some(self.check_object_initializer(&ty, initializer, true)?);
                 }
                 let previous = &mut self.unit.declarations[previous_index];
+                previous.dll_storage_class = dll_storage_class;
                 previous.alignment = alignment;
                 previous.returns_twice = returns_twice;
                 previous.noreturn = noreturn;
                 previous.symbol_binding = symbol_binding;
                 previous.ty = ty;
                 previous.is_definition |= is_definition;
-                if previous.link_name.is_none() {
+                if previous.link_name.is_none()
+                    || (!is_static && crate::BuiltinFunction::from_name(&previous.name).is_some())
+                {
                     previous.link_name = declarator_attributes.link_name;
                 }
                 previous_index
             } else {
                 let symbol_binding = self.check_symbol_binding(
                     &name,
-                    declarator_attributes.weak,
+                    self.inline_weak_attribute(
+                        &name,
+                        declarator_attributes.weak,
+                        kind == DeclarationKind::Function,
+                        declarator_attributes.inline_specifier.is_some(),
+                        false,
+                    ),
                     kind != DeclarationKind::Typedef && !is_static,
                     false,
                 )?;
@@ -1542,6 +1901,9 @@ impl Analyzer {
                 }
                 let index = self.unit.declarations.len();
                 self.unit.declarations.push(Declaration {
+                    function_definition_kind: None,
+                    inline_facts: None,
+                    dll_storage_class,
                     alignment,
                     returns_twice,
                     noreturn,
@@ -1557,6 +1919,19 @@ impl Analyzer {
                 });
                 index
             };
+            if let Some(deps) = &mut self.parameter_type_dependencies {
+                deps.declaration(
+                    declaration_index,
+                    &self.unit.declarations[declaration_index].name,
+                    kind,
+                    dependency_prototype,
+                    previous_index.is_some(),
+                    dependency_previous_prototype,
+                )?;
+            }
+            if kind == DeclarationKind::Typedef {
+                self.note_typedef_lexical_tag(declaration_index, &declaration.node.specifiers)?;
+            }
             if noreturn {
                 let name = self.unit.declarations[declaration_index].name.clone();
                 self.record_noreturn(&name, true, true, item.span.start)?;
@@ -1571,6 +1946,29 @@ impl Analyzer {
                     .function_options
                     .insert(declaration_index, options.clone());
             }
+            let origin_inline = self.declaration_origins.is_some()
+                && kind == DeclarationKind::Function
+                && self.origin_function_inline(&self.unit.declarations[declaration_index].name);
+            if let Some(origins) = &mut self.declaration_origins {
+                origins.push(
+                    crate::DeclarationTarget::Declaration(declaration_index),
+                    declarator_name_span(&item.node.declarator).unwrap_or(item.span),
+                    is_definition,
+                    kind != DeclarationKind::Typedef && !is_static,
+                    false,
+                    origin_inline,
+                )?;
+            }
+            if let Some(origins) = &mut self.documentation_origins {
+                origins.push(
+                    crate::DocumentationTarget::Declaration(declaration_index),
+                    declaration.span.start,
+                    declarator_name_span(&item.node.declarator)
+                        .unwrap_or(item.span)
+                        .start,
+                    false,
+                )?;
+            }
             let checked_site = if let Some(checked) = &mut self.checked {
                 checked.file_declaration(
                     item,
@@ -1583,10 +1981,12 @@ impl Analyzer {
             } else {
                 None
             };
-            if kind == DeclarationKind::Variable
-                && !is_definition
-                && storage.class != Some(ast::StorageClassSpecifier::Extern)
-            {
+            if kind == DeclarationKind::Function && self.inline_registry.is_some() {
+                self.inline_file_declaration(declaration_index);
+                let name = self.unit.declarations[declaration_index].name.clone();
+                self.inline_declaration_site(&name, checked_site);
+            }
+            if kind == DeclarationKind::Variable && !is_definition && !is_extern {
                 self.tentative_definitions
                     .entry(declaration_index)
                     .or_insert(item.span.start);
@@ -1602,10 +2002,30 @@ impl Analyzer {
                     prechecked_initializer,
                 )?;
             }
+            if kind == DeclarationKind::Variable && self.object_values.is_some() {
+                self.retain_object_value(
+                    declaration_index,
+                    declarator_name_span(&item.node.declarator)
+                        .unwrap_or(item.span)
+                        .start,
+                    item.node.initializer.as_ref(),
+                    written_object_type,
+                )?;
+            }
+            if let Some(initializer) = &item.node.initializer {
+                // The current initializer must not see its own completed value
+                // during optional capture (for example, constant_p(object)).
+                self.note_const_object(declaration_index, initializer)?;
+            }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {
                 if let Some(inference) = &inference {
                     checked.retain_type_inference(site, inference)?;
                 }
+                checked.attach_dll_storage(
+                    site,
+                    dll_storage_class,
+                    declarator_attributes.dll_storage.as_deref(),
+                )?;
                 checked.attach_alignment(site, written_alignment, alignment)?;
                 checked.attach_function_options(
                     site,
@@ -1643,6 +2063,9 @@ impl Analyzer {
                     checked.attach_initializer(site, initializer)?;
                 }
             }
+        }
+        if let Some(deps) = &mut self.parameter_type_dependencies {
+            deps.discard();
         }
         Ok(())
     }
@@ -1699,8 +2122,8 @@ impl Analyzer {
         self.same_type_at::<true, false>(left, right, 0)
     }
 
-    /// Exact deduction also compares VLA identity and treats an array's element
-    /// qualifiers as its own. Ordinary C compatibility retains its existing rules.
+    /// Array qualification belongs to the element type for both identity and
+    /// compatibility. Exact deduction additionally compares VLA identity.
     fn same_type_at<const EXACT: bool, const ARRAY_ELEMENT: bool>(
         &self,
         left: &Type,
@@ -1714,8 +2137,7 @@ impl Analyzer {
             ));
         }
         if !ARRAY_ELEMENT
-            && self.identity_qualifiers::<EXACT>(left, depth)?
-                != self.identity_qualifiers::<EXACT>(right, depth)?
+            && self.identity_qualifiers(left, depth)? != self.identity_qualifiers(right, depth)?
         {
             return Ok(false);
         }
@@ -1735,7 +2157,7 @@ impl Analyzer {
                     element: b,
                     length: bl,
                 },
-            ) => al == bl && self.same_type_at::<EXACT, EXACT>(a, b, depth + 1)?,
+            ) => al == bl && self.same_type_at::<EXACT, true>(a, b, depth + 1)?,
             (
                 TypeKind::VariableArray {
                     element: a,
@@ -1745,7 +2167,7 @@ impl Analyzer {
                     element: b,
                     identity: bi,
                 },
-            ) => (!EXACT || ai == bi) && self.same_type_at::<EXACT, EXACT>(a, b, depth + 1)?,
+            ) => (!EXACT || ai == bi) && self.same_type_at::<EXACT, true>(a, b, depth + 1)?,
             (TypeKind::Function(a), TypeKind::Function(b)) => {
                 if a.noreturn != b.noreturn
                     || a.prototype != b.prototype
@@ -1779,35 +2201,45 @@ impl Analyzer {
         })
     }
 
-    fn identity_qualifiers<'a, const EXACT: bool>(
+    /// Collects qualification across an array chain without changing its stored
+    /// typedefs. Pointer pointees begin a separate qualification boundary.
+    fn identity_qualifiers<'a>(
         &'a self,
         mut ty: &'a Type,
         depth: usize,
     ) -> Result<Qualifiers, Error> {
         let mut result = self.unit.qualifiers(ty)?;
-        if EXACT {
-            let mut levels = depth;
-            while let TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } =
-                &self.unit.resolve(ty)?.kind
-            {
-                levels += 1;
-                if levels >= 128 {
-                    return Err(Error::new(
-                        0,
-                        "type identity nesting exceeds the 128-level limit",
-                    ));
-                }
-                ty = element;
-                let inner = self.unit.qualifiers(ty)?;
-                result.is_const |= inner.is_const;
-                result.is_volatile |= inner.is_volatile;
-                result.is_restrict |= inner.is_restrict;
+        let mut levels = depth;
+        while let TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } =
+            &self.unit.resolve(ty)?.kind
+        {
+            levels += 1;
+            if levels >= 128 {
+                return Err(Error::new(
+                    0,
+                    "type identity nesting exceeds the 128-level limit",
+                ));
             }
+            ty = element;
+            let inner = self.unit.qualifiers(ty)?;
+            result.is_const |= inner.is_const;
+            result.is_volatile |= inner.is_volatile;
+            result.is_restrict |= inner.is_restrict;
         }
         Ok(result)
     }
 
     pub(crate) fn compatible_at(
+        &self,
+        left: &Type,
+        right: &Type,
+        depth: usize,
+    ) -> Result<bool, Error> {
+        self.compatible_array_at::<false>(left, right, depth)
+    }
+
+    /// Compares an array chain's qualifiers once, at its outermost layer.
+    fn compatible_array_at<const ARRAY_ELEMENT: bool>(
         &self,
         left: &Type,
         right: &Type,
@@ -1819,7 +2251,9 @@ impl Analyzer {
                 "type compatibility nesting exceeds the 128-level limit",
             ));
         }
-        if self.unit.qualifiers(left)? != self.unit.qualifiers(right)? {
+        if !ARRAY_ELEMENT
+            && self.identity_qualifiers(left, depth)? != self.identity_qualifiers(right, depth)?
+        {
             return Ok(false);
         }
         let left = self.unit.resolve(left)?;
@@ -1846,7 +2280,7 @@ impl Analyzer {
                     length: b,
                 },
             ) => Ok((a == b || a.is_none() || b.is_none())
-                && self.compatible_at(left, right, depth + 1)?),
+                && self.compatible_array_at::<true>(left, right, depth + 1)?),
             (
                 TypeKind::VariableArray { element: left, .. },
                 TypeKind::VariableArray { element: right, .. },
@@ -1858,7 +2292,7 @@ impl Analyzer {
             | (
                 TypeKind::Array { element: left, .. },
                 TypeKind::VariableArray { element: right, .. },
-            ) => self.compatible_at(left, right, depth + 1),
+            ) => self.compatible_array_at::<true>(left, right, depth + 1),
             (TypeKind::Function(left), TypeKind::Function(right)) => {
                 if left.calling_convention.for_target(self.unit.target)?
                     != right.calling_convention.for_target(self.unit.target)?
@@ -1942,28 +2376,81 @@ impl Analyzer {
         }
         .map(|ty| self.unit.typedef_alignment_metadata(ty))
         .transpose()?;
-        let explicit = attributes.alignment.max(extra.alignment);
+        let explicit = attributes.vendor_alignment().max(extra.vendor_alignment());
         ty.alignment = inherited;
         if let Some(alignment) = explicit {
-            if matches!(
+            let non_object = matches!(
                 self.unit.resolve(ty)?.kind,
                 TypeKind::Void | TypeKind::Function(_)
-            ) {
+            );
+            if non_object
+                && attributes
+                    .msvc_alignment
+                    .max(extra.msvc_alignment)
+                    .is_some()
+            {
                 return Err(Error::new(
                     offset,
-                    "aligned typedefs require an object type",
+                    "Microsoft alignment on void or function typedefs is unsupported",
                 ));
             }
-            ty.alignment = crate::TypeAlignment::new(u32::try_from(alignment).map_err(|_| {
-                Error::new(offset, "typedef alignment exceeds the supported range")
-            })?)
-            .ok_or_else(|| Error::new(offset, "typedef alignment exceeds the supported range"))?;
+            if !non_object || self.unit.compiler == Compiler::Clang {
+                ty.alignment =
+                    crate::TypeAlignment::new(u32::try_from(alignment).map_err(|_| {
+                        Error::new(offset, "typedef alignment exceeds the supported range")
+                    })?)
+                    .ok_or_else(|| {
+                        Error::new(offset, "typedef alignment exceeds the supported range")
+                    })?;
+            }
         }
         if let Some(previous) = previous {
             ty.alignment =
                 crate::TypeAlignment::from_bytes(previous.bytes().max(ty.alignment.bytes()))?;
         }
         self.retain_typedef_alignment(name, ty, previous, inherited, explicit.is_some(), offset)
+    }
+
+    /// Prepares a declaration with its standalone-tag context still available.
+    pub(crate) fn declaration_specifiers(
+        &mut self,
+        declaration: &ast::Declaration,
+    ) -> Result<(Type, Attributes), Error> {
+        let prepared = self.prepare_specifiers_context(
+            &declaration.specifiers,
+            false,
+            declaration.declarators.is_empty(),
+        )?;
+        let result = self.complete_specifiers(&declaration.specifiers, prepared, None)?;
+        if declaration.declarators.is_empty() {
+            self.note_standalone_lexical_tag(&result.0.kind);
+        }
+        if declaration.declarators.is_empty()
+            && (self.declaration_origins.is_some() || self.documentation_origins.is_some())
+        {
+            for specifier in &declaration.specifiers {
+                if let ast::DeclarationSpecifier::TypeSpecifier(ty) = &specifier.node {
+                    let identifier = match &ty.node {
+                        ast::TypeSpecifier::Struct(tag) if tag.node.declarations.is_none() => {
+                            tag.node.identifier.as_ref()
+                        }
+                        ast::TypeSpecifier::Enum(tag) if tag.node.enumerators.is_empty() => {
+                            tag.node.identifier.as_ref()
+                        }
+                        _ => None,
+                    };
+                    if let Some(identifier) = identifier {
+                        if let Some(origins) = &mut self.declaration_origins {
+                            origins.standalone_tag(identifier.span);
+                        }
+                        if let Some(origins) = &mut self.documentation_origins {
+                            origins.standalone_tag(identifier.span.start);
+                        }
+                    }
+                }
+            }
+        }
+        Ok(result)
     }
 
     pub(crate) fn specifiers(
@@ -1978,13 +2465,14 @@ impl Analyzer {
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
     ) -> Result<PreparedSpecifiers, Error> {
-        self.prepare_specifiers_context(specifiers, false)
+        self.prepare_specifiers_context(specifiers, false, false)
     }
 
     fn prepare_specifiers_context(
         &mut self,
         specifiers: &[Node<ast::DeclarationSpecifier>],
         type_name: bool,
+        tag_only: bool,
     ) -> Result<PreparedSpecifiers, Error> {
         let mut types = Vec::new();
         let mut qualifiers = Qualifiers::default();
@@ -1995,23 +2483,100 @@ impl Analyzer {
         };
         let mut record_attributes = Attributes::default();
         let mut after_tag_definition = false;
+        let tag_definition = || {
+            specifiers
+                .iter()
+                .find_map(|specifier| match &specifier.node {
+                    ast::DeclarationSpecifier::TypeSpecifier(ty) => match &ty.node {
+                        ast::TypeSpecifier::Struct(tag) if tag.node.declarations.is_some() => {
+                            Some(ty.span.start)
+                        }
+                        ast::TypeSpecifier::Enum(tag) if !tag.node.enumerators.is_empty() => {
+                            Some(ty.span.start)
+                        }
+                        _ => None,
+                    },
+                    _ => None,
+                })
+        };
         for specifier in specifiers {
             match &specifier.node {
                 ast::DeclarationSpecifier::TypeSpecifier(ty) => {
                     after_tag_definition = matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
                         || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty());
+                    match &ty.node {
+                        ast::TypeSpecifier::Struct(tag) => {
+                            self.attributes(&tag.node.extensions, &mut record_attributes)?
+                        }
+                        ast::TypeSpecifier::Enum(tag) => {
+                            self.attributes(&tag.node.extensions, &mut record_attributes)?
+                        }
+                        _ => {}
+                    }
                     types.push(ty.clone());
                 }
                 ast::DeclarationSpecifier::TypeQualifier(qualifier) => {
                     add_qualifier(&mut qualifiers, &mut atomic, qualifier)?
                 }
                 ast::DeclarationSpecifier::Extension(extensions) => {
-                    if self.record_attributes.contains(&specifier.span.start)
-                        || after_tag_definition
+                    let first_record = self.unit.records.len();
+                    let first_enum = self.unit.enums.len();
+                    for extension in extensions {
+                        if let ast::Extension::Declspec(attribute) = &extension.node {
+                            if type_name {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "__declspec is not permitted directly in a type name",
+                                ));
+                            }
+                            // Microsoft prefix alignment belongs to a following tag
+                            // definition, but the same spelling after `}` belongs to
+                            // the declarator. Other prefix attributes stay on the
+                            // object or function declared alongside a tag definition.
+                            let tag_alignment = attribute.name.node == "align"
+                                && (tag_only
+                                    || tag_definition()
+                                        .is_some_and(|start| extension.span.start < start));
+                            if tag_alignment {
+                                self.declspec_attribute(
+                                    attribute,
+                                    extension.span,
+                                    &mut record_attributes,
+                                    false,
+                                )?;
+                            } else {
+                                self.declspec_attribute(
+                                    attribute,
+                                    extension.span,
+                                    &mut attributes,
+                                    tag_only,
+                                )?;
+                            }
+                        } else if self.record_attributes.contains(&specifier.span.start)
+                            || after_tag_definition
+                        {
+                            self.attributes(
+                                std::slice::from_ref(extension),
+                                &mut record_attributes,
+                            )?;
+                        } else {
+                            self.attributes(std::slice::from_ref(extension), &mut attributes)?;
+                        }
+                    }
+                    // Trailing tag attributes are evaluated before the tag
+                    // is built. Their definitions need cursor ownership or
+                    // visibility facts without changing actual C scope.
+                    if types.last().is_some_and(|ty| {
+                        matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
+                            || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty())
+                    }) && (self.unit.enums[first_enum..]
+                        .iter()
+                        .any(|enumeration| enumeration.scope == Scope::File)
+                        || self.unit.records[first_record..]
+                            .iter()
+                            .any(|record| record.scope == Scope::File))
                     {
-                        self.attributes(extensions, &mut record_attributes)?;
-                    } else {
-                        self.attributes(extensions, &mut attributes)?;
+                        self.needs_tag_discovery = true;
                     }
                 }
                 ast::DeclarationSpecifier::Function(specifier)
@@ -2019,6 +2584,10 @@ impl Analyzer {
                 {
                     attributes.noreturn = Some(specifier.span);
                     attributes.c11_noreturn = Some(specifier.span);
+                }
+                ast::DeclarationSpecifier::Function(specifier) => {
+                    attributes.inline_specifier =
+                        Some((specifier.span, self.unit.compiler == Compiler::Clang));
                 }
                 ast::DeclarationSpecifier::Alignment(alignment) => {
                     let value = self.alignment_operand(|analyzer| match &alignment.node {
@@ -2104,7 +2673,7 @@ impl Analyzer {
         });
         let clang_forward = self.unit.compiler == Compiler::Clang
             && (record_attributes.packed
-                || record_attributes.alignment.is_some()
+                || record_attributes.vendor_alignment().is_some()
                 || record_attributes.transparent_union.is_some())
             && match self.unit.resolve(&ty)?.kind {
                 TypeKind::Record(id) => self.unit.records[id].fields.is_none(),
@@ -2114,7 +2683,11 @@ impl Analyzer {
         // GCC ignores layout attributes on forward tags; Clang retains them.
         // Both ignore a new attribute applied after the tag is already defined.
         if defines_tag || clang_forward {
-            self.apply_tag_attributes(&ty, &record_attributes)?;
+            self.apply_tag_attributes(
+                &ty,
+                &record_attributes,
+                types.first().map_or(0, |ty| ty.span.start),
+            )?;
         }
         let atomic_wrapper = atomic && self.unit.atomic_value(&ty)?.is_none();
         if atomic {
@@ -2194,7 +2767,7 @@ impl Analyzer {
                 )
             })
             .collect::<Vec<_>>();
-        let mut prepared = self.prepare_specifiers_context(&specifiers, type_name)?;
+        let mut prepared = self.prepare_specifiers_context(&specifiers, type_name, false)?;
         // Clang ignores declaration mode attributes in a type name. GNU applies
         // them to the completed abstract declarator.
         if type_name && self.unit.compiler == Compiler::Clang {
@@ -2314,7 +2887,13 @@ impl Analyzer {
                         ast::TypeSpecifier::TypeOf(value) => match &value.node {
                             ast::TypeOf::Type(ty) => {
                                 let checkpoint = self.sve_feature_checkpoint();
-                                let mut ty = self.type_name(&ty.node)?;
+                                let allocation_context = self.allocation_context(false);
+                                let ty = self.type_name(&ty.node);
+                                let mut ty = self.finish_allocation_operand(
+                                    allocation_context,
+                                    ty,
+                                    |analyzer, ty| analyzer.unit.is_variably_modified(ty),
+                                )?;
                                 if !self.unit.is_variably_modified(&ty)? {
                                     self.discard_sve_feature_uses(checkpoint);
                                 }
@@ -2322,10 +2901,30 @@ impl Analyzer {
                                 return Ok(ty);
                             }
                             ast::TypeOf::Expression(expression) => {
+                                let dependency_expression = self.parameter_type_dependencies.as_mut().map(|dependencies| {
+                                    dependencies.begin_type_expression(crate::parameter_dependencies::type_expression_identifier(expression))
+                                });
                                 let checkpoint = self.sve_feature_checkpoint();
-                                let mut ty = self.expression_type(expression)?;
+                                let allocation_context = self.allocation_context(false);
+                                let ty = self.expression_type(expression);
+                                let mut ty = self.finish_allocation_operand(
+                                    allocation_context,
+                                    ty,
+                                    |analyzer, ty| analyzer.unit.is_variably_modified(ty),
+                                )?;
                                 if !self.unit.is_variably_modified(&ty)? {
                                     self.discard_sve_feature_uses(checkpoint);
+                                }
+                                if let (Some(dependencies), Some(previous)) =
+                                    (&mut self.parameter_type_dependencies, dependency_expression)
+                                {
+                                    dependencies.finish_type_expression(
+                                        previous,
+                                        matches!(
+                                            self.unit.resolve(&ty)?.kind,
+                                            TypeKind::Function(_)
+                                        ),
+                                    )?;
                                 }
                                 self.retain_typeof_alignment(&mut ty, true, value.span.start)?;
                                 return Ok(ty);
@@ -2351,39 +2950,48 @@ impl Analyzer {
                             TypeKind::Float(FloatKind::FLOAT128)
                         }
                         ast::TypeSpecifier::TS18661Float(float) => {
-                            let name = extended_float_name(float);
-                            if self.unit.typedefs.contains_key(&name) {
-                                TypeKind::Typedef(name)
-                            } else {
-                                if float.format == ast::TS18661FloatFormat::BinaryInterchange
-                                    && float.width == 128
-                                {
-                                    if self.unit.compiler != toucan_target::Compiler::Gnu {
-                                        return Err(Error::new(
-                                            ty.span.start,
-                                            "the Clang profile rejects the _Float128 type spelling",
-                                        ));
-                                    }
-                                    direct_complex_base = true;
+                            if matches!(
+                                float.format,
+                                ast::TS18661FloatFormat::BinaryInterchange
+                                    | ast::TS18661FloatFormat::BinaryExtended
+                            ) && matches!(float.width, 32 | 64)
+                            {
+                                if self.unit.compiler != Compiler::Gnu {
+                                    return Err(Error::new(
+                                        ty.span.start,
+                                        "GNU _Float32/_Float64/_Float32x/_Float64x types are unavailable in the Clang profile",
+                                    ));
                                 }
-                                TypeKind::Float(FloatKind::Extended {
-                                    format: match float.format {
-                                        ast::TS18661FloatFormat::BinaryInterchange => {
-                                            crate::ExtendedFloatFormat::BinaryInterchange
-                                        }
-                                        ast::TS18661FloatFormat::BinaryExtended => {
-                                            crate::ExtendedFloatFormat::BinaryExtended
-                                        }
-                                        ast::TS18661FloatFormat::DecimalInterchange => {
-                                            crate::ExtendedFloatFormat::DecimalInterchange
-                                        }
-                                        ast::TS18661FloatFormat::DecimalExtended => {
-                                            crate::ExtendedFloatFormat::DecimalExtended
-                                        }
-                                    },
-                                    width: float.width,
-                                })
+                                direct_complex_base = true;
                             }
+                            if float.format == ast::TS18661FloatFormat::BinaryInterchange
+                                && float.width == 128
+                            {
+                                if self.unit.compiler != toucan_target::Compiler::Gnu {
+                                    return Err(Error::new(
+                                        ty.span.start,
+                                        "the Clang profile rejects the _Float128 type spelling",
+                                    ));
+                                }
+                                direct_complex_base = true;
+                            }
+                            TypeKind::Float(FloatKind::Extended {
+                                format: match float.format {
+                                    ast::TS18661FloatFormat::BinaryInterchange => {
+                                        crate::ExtendedFloatFormat::BinaryInterchange
+                                    }
+                                    ast::TS18661FloatFormat::BinaryExtended => {
+                                        crate::ExtendedFloatFormat::BinaryExtended
+                                    }
+                                    ast::TS18661FloatFormat::DecimalInterchange => {
+                                        crate::ExtendedFloatFormat::DecimalInterchange
+                                    }
+                                    ast::TS18661FloatFormat::DecimalExtended => {
+                                        crate::ExtendedFloatFormat::DecimalExtended
+                                    }
+                                },
+                                width: float.width,
+                            })
                         }
                         _ => {
                             return Err(Error::new(
@@ -2435,7 +3043,7 @@ impl Analyzer {
             }
             return Ok(ty);
         }
-        if types.is_empty()
+        if (types.is_empty() && !self.unit.language_mode.is_c90())
             || long > 2
             || (long > 0 && short)
             || (signed && unsigned)
@@ -2602,10 +3210,17 @@ impl Analyzer {
             crate::target_features::merge_inline(extra.always_inline, attributes.always_inline);
         extra.no_inline =
             crate::target_features::merge_inline(extra.no_inline, attributes.no_inline);
+        extra.gnu_inline =
+            crate::target_features::merge_inline(extra.gnu_inline, attributes.gnu_inline);
+        extra.inline_specifier = extra.inline_specifier.or(attributes.inline_specifier);
         extra.nodebug_arguments = extra.nodebug_arguments.or(attributes.nodebug_arguments);
         if name.is_some() {
             self.check_nodebug_function_like(&ty, &extra)?;
         }
+        crate::dll_storage::merge_attributes(
+            &mut extra.dll_storage,
+            attributes.dll_storage.as_deref(),
+        );
         extra.weak = extra.weak.or(attributes.weak);
         extra.returns_twice = extra.returns_twice.or(attributes.returns_twice);
         extra.noreturn = extra.noreturn.or(attributes.noreturn);
@@ -2675,41 +3290,58 @@ impl Analyzer {
             attributes.alias_base && !parameter.declarator().is_some_and(has_function_derivation);
         let mut array_qualifiers = Qualifiers::default();
         let mut array_atomic = false;
-        let (name, mut parameter_type, mut declared_type_use) =
-            if let Some(declarator) = parameter.declarator() {
-                let array = outermost_derived(declarator).and_then(|derived| {
-                    if let ast::DerivedDeclarator::Array(array) = &derived.node {
-                        Some((derived.span.start, array))
-                    } else {
-                        None
-                    }
-                });
-                if let Some((_, array)) = array {
-                    for qualifier in &array.node.qualifiers {
-                        add_qualifier(&mut array_qualifiers, &mut array_atomic, qualifier)?;
-                    }
+        let (name, mut parameter_type, mut declared_type_use) = if let Some(declarator) =
+            parameter.declarator()
+        {
+            let array = outermost_derived(declarator).and_then(|derived| {
+                if let ast::DerivedDeclarator::Array(array) = &derived.node {
+                    Some((derived.span.start, array))
+                } else {
+                    None
                 }
-                let (name, ty, extra) = self.declarator_at(
-                    base,
-                    declarator,
-                    DeclaratorContext {
-                        parameter_array: array.map(|(offset, _)| offset),
-                        alias_base: attributes.alias_base,
-                        base_use: attributes.type_use,
-                        type_name: attributes.type_name_use,
-                        definition: None,
-                    },
-                )?;
-                self.check_nodebug_function_like(&ty, &extra)?;
-                extra.require_function_attributes(false)?;
-                extra.require_no_weak()?;
-                extra.require_no_transparent_union()?;
-                attributes.alignment = attributes.alignment.max(extra.alignment);
-                attributes.noescape.extend(extra.noescape);
-                (name, ty, extra.type_use)
-            } else {
-                (None, base, attributes.type_use)
-            };
+            });
+            if let Some((_, array)) = array {
+                for qualifier in &array.node.qualifiers {
+                    add_qualifier(&mut array_qualifiers, &mut array_atomic, qualifier)?;
+                }
+            }
+            let dependency_cursor = self.parameter_type_dependencies.as_mut().map(|deps| {
+                deps.parameter_cursor(declarator_name_span(declarator).unwrap_or(parameter.span()))
+            });
+            let result = self.declarator_at(
+                base,
+                declarator,
+                DeclaratorContext {
+                    parameter_array: array.map(|(offset, _)| offset),
+                    alias_base: attributes.alias_base,
+                    base_use: attributes.type_use,
+                    type_name: attributes.type_name_use,
+                    definition: None,
+                },
+            );
+            if let (Some(deps), Some(previous)) =
+                (&mut self.parameter_type_dependencies, dependency_cursor)
+            {
+                deps.restore_cursor(previous);
+            }
+            let (name, ty, extra) = result?;
+            self.check_nodebug_function_like(&ty, &extra)?;
+            extra.require_function_attributes(false)?;
+            extra.require_no_weak()?;
+            extra.require_no_transparent_union()?;
+            attributes.alignment = attributes.alignment.max(extra.alignment);
+            attributes.msvc_alignment = attributes.msvc_alignment.max(extra.msvc_alignment);
+            attributes.noescape.extend(extra.noescape);
+            (name, ty, extra.type_use)
+        } else {
+            (
+                parameter
+                    .implicit_identifier()
+                    .map(|identifier| identifier.node.name.clone()),
+                base,
+                attributes.type_use,
+            )
+        };
         if let Some(mode) = &attributes.mode {
             self.floating_machine_mode(&parameter_type, mode, parameter.span().start)?;
         }
@@ -2719,6 +3351,8 @@ impl Analyzer {
         self.attributes(parameter.extensions(), &mut extra)?;
         self.check_nodebug_function_like(&parameter_type, &attributes)?;
         self.check_nodebug_function_like(&parameter_type, &extra)?;
+        crate::dll_storage::check_arguments(attributes.dll_storage.as_deref())?;
+        crate::dll_storage::check_arguments(extra.dll_storage.as_deref())?;
         extra.require_function_attributes(false)?;
         extra.require_no_weak()?;
         extra.require_no_transparent_union()?;
@@ -2758,6 +3392,15 @@ impl Analyzer {
                 &self.unit.resolve(&parameter_type)?.kind,
             )?;
         }
+        if let Some(deps) = &mut self.parameter_type_dependencies
+            && let TypeKind::Typedef(name) = &parameter_type.kind
+            && matches!(
+                self.unit.resolve(&parameter_type)?.kind,
+                TypeKind::Array { .. } | TypeKind::VariableArray { .. }
+            )
+        {
+            deps.alias(name)?;
+        }
         parameter_type = match &self.unit.resolve(&parameter_type)?.kind {
             TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } => {
                 // Qualifying an array typedef qualifies its elements.
@@ -2787,7 +3430,14 @@ impl Analyzer {
                 checked,
                 LocalDeclaration {
                     name: name.as_deref(),
-                    name_span: parameter.declarator().and_then(declarator_name_span),
+                    name_span: parameter
+                        .declarator()
+                        .and_then(declarator_name_span)
+                        .or_else(|| {
+                            parameter
+                                .implicit_identifier()
+                                .map(|identifier| identifier.span)
+                        }),
                     ty: &parameter_type,
                     kind: EntityKind::Parameter,
                     storage: Storage::Automatic,
@@ -2901,6 +3551,7 @@ impl Analyzer {
         let mut minimum_vector_width = Vec::new();
         let mut always_inline = None;
         let mut no_inline = None;
+        let mut gnu_inline = None;
         let mut noescape = Vec::new();
         let mut type_noreturn = false;
         let split = declaration
@@ -2947,6 +3598,10 @@ impl Analyzer {
                                 no_inline = crate::target_features::merge_inline(
                                     no_inline,
                                     attributes.no_inline,
+                                );
+                                gnu_inline = crate::target_features::merge_inline(
+                                    gnu_inline,
+                                    attributes.gnu_inline,
                                 );
                                 if alias_base {
                                     merge_convention(
@@ -3033,7 +3688,12 @@ impl Analyzer {
                         },
                         ast::ArraySize::VariableExpression(expression)
                         | ast::ArraySize::StaticExpression(expression) => {
-                            let bound = self.value_expression_type(expression)?;
+                            // Array bounds have their own expression context, even
+                            // inside a prototype or an unevaluated outer operand.
+                            let allocation_context = self.allocation_context(true);
+                            let bound = self.value_expression_type(expression);
+                            self.restore_allocation_context(allocation_context, false);
+                            let bound = bound?;
                             self.integer_type(&bound, expression.span.start)?;
                             let constant = if self.is_integer_constant_expression(expression, 0)? {
                                 // Undefined arithmetic does not form an ICE. Such an
@@ -3346,6 +4006,8 @@ impl Analyzer {
             crate::target_features::merge_inline(attributes.always_inline, always_inline);
         attributes.no_inline =
             crate::target_features::merge_inline(attributes.no_inline, no_inline);
+        attributes.gnu_inline =
+            crate::target_features::merge_inline(attributes.gnu_inline, gnu_inline);
         attributes.target_type_name = type_name;
         if type_name && self.unit.compiler == Compiler::Clang {
             attributes.mode = None;
@@ -3388,6 +4050,9 @@ impl Analyzer {
                 if inner_attributes.packed {
                     attributes.packed = true;
                 }
+                if inner_attributes.msvc_alignment.is_some() {
+                    attributes.msvc_alignment = inner_attributes.msvc_alignment;
+                }
                 if inner_attributes.alignment.is_some() {
                     attributes.alignment = inner_attributes.alignment;
                 }
@@ -3410,6 +4075,17 @@ impl Analyzer {
                 attributes.no_inline = crate::target_features::merge_inline(
                     attributes.no_inline,
                     inner_attributes.no_inline,
+                );
+                attributes.gnu_inline = crate::target_features::merge_inline(
+                    attributes.gnu_inline,
+                    inner_attributes.gnu_inline,
+                );
+                attributes.inline_specifier = attributes
+                    .inline_specifier
+                    .or(inner_attributes.inline_specifier);
+                crate::dll_storage::merge_attributes(
+                    &mut attributes.dll_storage,
+                    inner_attributes.dll_storage.as_deref(),
                 );
                 attributes.weak = attributes.weak.or(inner_attributes.weak);
                 attributes.returns_twice =
@@ -3481,6 +4157,8 @@ impl Analyzer {
                 declaration.node.declarations.is_none()
                     || binding.depth == self.lexical_scopes.len()
             });
+        let reference = binding.is_some() && declaration.node.declarations.is_none();
+        let introduced = binding.is_none();
         let id = if let Some(binding) = binding {
             let Tag::Record(id) = binding.tag else {
                 return Err(Error::new(
@@ -3521,6 +4199,48 @@ impl Analyzer {
             }
             id
         };
+        self.note_lexical_tag(
+            Tag::Record(id),
+            introduced,
+            declaration.node.declarations.is_some(),
+            self.unit.records[id].fields.is_some(),
+            self.unit.records[id].name.is_none(),
+            declaration.span.start,
+        )?;
+        if self.scope() == Scope::File
+            && let Some(origins) = &mut self.documentation_origins
+        {
+            // File declarations document their typedef or object, not an embedded
+            // forward tag. Standalone tags are marked in declaration_specifiers;
+            // a new tag inside a record field has its own documentable cursor.
+            origins.push(
+                crate::DocumentationTarget::Record(id),
+                declaration.span.start,
+                declaration
+                    .node
+                    .identifier
+                    .as_ref()
+                    .map_or(declaration.span.start, |name| name.span.start),
+                reference
+                    || (self.lexical_record.is_none() && declaration.node.declarations.is_none()),
+            )?;
+        }
+        if self.scope() == Scope::File
+            && let Some(origins) = &mut self.declaration_origins
+        {
+            origins.push(
+                crate::DeclarationTarget::Record(id),
+                declaration
+                    .node
+                    .identifier
+                    .as_ref()
+                    .map_or(declaration.span, |name| name.span),
+                declaration.node.declarations.is_some(),
+                false,
+                reference,
+                false,
+            )?;
+        }
         if let Some(checked) = &mut self.checked {
             checked.tag(
                 declaration,
@@ -3531,59 +4251,251 @@ impl Analyzer {
                 declaration.node.identifier.as_ref().map(|name| name.span),
             )?;
         }
-        if let Some(declarations) = &declaration.node.declarations {
-            if self.unit.records[id].fields.is_some() {
-                return Err(Error::new(
-                    declaration.span.start,
-                    "record is defined more than once",
-                ));
-            }
-            let mut fields = Vec::new();
-            for declaration in declarations {
-                match &declaration.node {
-                    ast::StructDeclaration::StaticAssert(assertion) => {
-                        self.static_assert(assertion)?
+        if declaration.node.declarations.is_some() {
+            let previous = self.lexical_record.replace(id);
+            let previous_doc = self.documentation_parent(
+                declaration
+                    .node
+                    .identifier
+                    .as_ref()
+                    .map_or(declaration.span.start, |name| name.span.start),
+            );
+            let result = self.complete_record(id, kind, declaration);
+            self.restore_documentation_parent(previous_doc);
+            self.lexical_record = previous;
+            result?;
+        }
+        Ok(id)
+    }
+
+    /// Complete fields while the caller holds the lexical record context.
+    fn complete_record(
+        &mut self,
+        id: usize,
+        kind: RecordKind,
+        declaration: &Node<ast::StructType>,
+    ) -> Result<(), Error> {
+        let declarations = declaration.node.declarations.as_ref().unwrap();
+        if self.unit.records[id].fields.is_some() {
+            return Err(Error::new(
+                declaration.span.start,
+                "record is defined more than once",
+            ));
+        }
+        let mut fields = Vec::new();
+        for declaration in declarations {
+            match &declaration.node {
+                ast::StructDeclaration::StaticAssert(assertion) => self.static_assert(assertion)?,
+                ast::StructDeclaration::Field(field) => {
+                    let dependency_field = !field.node.declarators.is_empty()
+                        && self
+                            .parameter_type_dependencies
+                            .as_ref()
+                            .is_some_and(|deps| {
+                                self.unit.records[id].scope == Scope::File || deps.active()
+                            });
+                    if dependency_field && let Some(deps) = &mut self.parameter_type_dependencies {
+                        deps.begin(field.span, false)?;
                     }
-                    ast::StructDeclaration::Field(field) => {
-                        let (base, attributes) =
-                            self.specifier_qualifiers(&field.node.specifiers, false)?;
-                        attributes.require_function_attributes(false)?;
-                        attributes.require_no_weak()?;
-                        attributes.require_no_transparent_union()?;
-                        if field.node.declarators.is_empty() {
-                            // GNU and Clang accept declarations without members,
-                            // including nested tag definitions. Only a directly
-                            // written unnamed record declares an anonymous member.
-                            if !matches!(base.kind, TypeKind::Record(id) if self.unit.records[id].name.is_none())
-                            {
-                                continue;
+                    let (mut base, mut attributes) =
+                        self.specifier_qualifiers(&field.node.specifiers, false)?;
+                    attributes.require_function_attributes(false)?;
+                    attributes.require_no_weak()?;
+                    attributes.require_no_transparent_union()?;
+                    if field.node.declarators.is_empty() {
+                        let Some(syntax) =
+                            anonymous_record_specifier(&field.node.specifiers, self.unit.target)
+                        else {
+                            continue;
+                        };
+                        match syntax {
+                            AnonymousRecordSpecifier::Direct => {
+                                let atomic = self.unit.atomic_value(&base)?;
+                                if atomic.is_some() && self.unit.compiler == Compiler::Gnu {
+                                    return Err(Error::new(
+                                        field.span.start,
+                                        "GNU atomic anonymous record members are unsupported",
+                                    ));
+                                }
+                                let TypeKind::Record(record) =
+                                    self.unit.resolve(atomic.unwrap_or(&base))?.kind
+                                else {
+                                    continue;
+                                };
+                                if self.unit.records[record].name.is_some() {
+                                    continue;
+                                }
+                                // Clang discards written qualifiers on direct
+                                // anonymous members; GNU retains const/volatile.
+                                if self.unit.compiler == Compiler::Clang {
+                                    base = Type::new(TypeKind::Record(record));
+                                }
                             }
-                            let field_alignment = self.check_declaration_alignment(
-                                &base,
-                                &attributes,
-                                &Attributes::default(),
-                                crate::object_alignment::AlignmentSubject::Field {
-                                    bitfield: false,
+                            AnonymousRecordSpecifier::MicrosoftTag
+                            | AnonymousRecordSpecifier::MicrosoftTypedef(_) => {
+                                let ty = match syntax {
+                                    AnonymousRecordSpecifier::MicrosoftTypedef(name) => self
+                                        .local_typedef(name)
+                                        .or_else(|| self.unit.typedefs.get(name))
+                                        .ok_or_else(|| {
+                                            Error::new(field.span.start, "unknown member typedef")
+                                        })?,
+                                    // Written qualifiers do not belong to the
+                                    // Microsoft anonymous field's storage type.
+                                    _ => self.unit.atomic_value(&base)?.unwrap_or(&base),
+                                };
+                                let TypeKind::Record(record) = self.unit.resolve(ty)?.kind else {
+                                    continue;
+                                };
+                                // Clang embeds the canonical record, dropping
+                                // typedef qualifiers/alignment and declaration
+                                // attributes. Attributes on the tag itself have
+                                // already been applied to its record identity.
+                                base = Type::new(TypeKind::Record(record));
+                                attributes = Attributes::default();
+                            }
+                        }
+                        let field_alignment = self.check_declaration_alignment(
+                            &base,
+                            &attributes,
+                            &Attributes::default(),
+                            crate::object_alignment::AlignmentSubject::Field { bitfield: false },
+                            field.span.start,
+                        )?;
+                        let member = Field {
+                            name: None,
+                            ty: base,
+                            bit_width: None,
+                            alignment: field_alignment
+                                .explicit()
+                                .map(|value| u64::from(value.get())),
+                            packed: attributes.packed,
+                        };
+                        if self.unit.records[id].scope == Scope::File
+                            && let Some(origins) = &mut self.documentation_origins
+                        {
+                            origins.push(
+                                crate::DocumentationTarget::Field {
+                                    record: id,
+                                    field: fields.len(),
                                 },
                                 field.span.start,
+                                field.span.start,
+                                false,
+                            )?;
+                        }
+                        if let Some(checked) = &mut self.checked {
+                            let site = checked.member_declaration(
+                                field,
+                                crate::checked::OccurrenceKind::Field,
+                                id,
+                                fields.len(),
+                                &member,
+                                None,
+                            )?;
+                            if let Some(site) = site {
+                                checked.attach_alignment(site, field_alignment, field_alignment)?;
+                            }
+                        }
+                        fields.push(member);
+                    } else {
+                        for declarator in &field.node.declarators {
+                            if dependency_field
+                                && let Some(deps) = &mut self.parameter_type_dependencies
+                            {
+                                deps.begin(
+                                    crate::checked::references::member_name_span(declarator)
+                                        .unwrap_or(declarator.span),
+                                    true,
+                                )?;
+                            }
+                            let (name, ty, extra) =
+                                if let Some(declarator) = &declarator.node.declarator {
+                                    self.declarator(base.clone(), declarator, &attributes)?
+                                } else {
+                                    (None, base.clone(), Attributes::default())
+                                };
+                            extra.require_function_attributes(false)?;
+                            extra.require_no_weak()?;
+                            extra.require_no_transparent_union()?;
+                            if name.as_ref().is_some_and(|name| {
+                                fields.iter().any(|field| field.name.as_ref() == Some(name))
+                            }) {
+                                return Err(Error::new(
+                                    declarator.span.start,
+                                    "duplicate field name",
+                                ));
+                            }
+                            let bit_width = declarator
+                                .node
+                                .bit_width
+                                .as_ref()
+                                .map(|expression| self.eval(expression)?.as_u64())
+                                .transpose()?;
+                            if let Some(width) = bit_width {
+                                if !matches!(
+                                    self.unit.resolve(&ty)?.kind,
+                                    TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
+                                ) {
+                                    return Err(Error::new(
+                                        declarator.span.start,
+                                        "bitfield requires an integer type",
+                                    ));
+                                }
+                                if width == 0 && name.is_some() {
+                                    return Err(Error::new(
+                                        declarator.span.start,
+                                        "zero-width bitfield must be unnamed",
+                                    ));
+                                }
+                                if width > self.unit.layout(&ty)?.size_bits {
+                                    return Err(Error::new(
+                                        declarator.span.start,
+                                        "bitfield is wider than its type",
+                                    ));
+                                }
+                            }
+                            let field_alignment = self.check_declaration_alignment(
+                                &ty,
+                                &attributes,
+                                &extra,
+                                crate::object_alignment::AlignmentSubject::Field {
+                                    bitfield: bit_width.is_some(),
+                                },
+                                declarator.span.start,
                             )?;
                             let member = Field {
-                                name: None,
-                                ty: base,
-                                bit_width: None,
+                                name,
+                                ty,
+                                bit_width,
                                 alignment: field_alignment
                                     .explicit()
                                     .map(|value| u64::from(value.get())),
-                                packed: attributes.packed,
+                                packed: extra.packed || attributes.packed,
                             };
+                            if self.unit.records[id].scope == Scope::File
+                                && let Some(origins) = &mut self.documentation_origins
+                            {
+                                origins.push(
+                                    crate::DocumentationTarget::Field {
+                                        record: id,
+                                        field: fields.len(),
+                                    },
+                                    field.span.start,
+                                    crate::checked::references::member_name_span(declarator)
+                                        .unwrap_or(declarator.span)
+                                        .start,
+                                    false,
+                                )?;
+                            }
                             if let Some(checked) = &mut self.checked {
                                 let site = checked.member_declaration(
-                                    field,
-                                    crate::checked::OccurrenceKind::Field,
+                                    declarator,
+                                    crate::checked::OccurrenceKind::StructDeclarator,
                                     id,
                                     fields.len(),
                                     &member,
-                                    None,
+                                    crate::checked::references::member_name_span(declarator),
                                 )?;
                                 if let Some(site) = site {
                                     checked.attach_alignment(
@@ -3593,142 +4505,65 @@ impl Analyzer {
                                     )?;
                                 }
                             }
-                            fields.push(member);
-                        } else {
-                            for declarator in &field.node.declarators {
-                                let (name, ty, extra) =
-                                    if let Some(declarator) = &declarator.node.declarator {
-                                        self.declarator(base.clone(), declarator, &attributes)?
-                                    } else {
-                                        (None, base.clone(), Attributes::default())
-                                    };
-                                extra.require_function_attributes(false)?;
-                                extra.require_no_weak()?;
-                                extra.require_no_transparent_union()?;
-                                if name.as_ref().is_some_and(|name| {
-                                    fields.iter().any(|field| field.name.as_ref() == Some(name))
-                                }) {
-                                    return Err(Error::new(
-                                        declarator.span.start,
-                                        "duplicate field name",
-                                    ));
-                                }
-                                let bit_width = declarator
-                                    .node
-                                    .bit_width
-                                    .as_ref()
-                                    .map(|expression| self.eval(expression)?.as_u64())
-                                    .transpose()?;
-                                if let Some(width) = bit_width {
-                                    if !matches!(
-                                        self.unit.resolve(&ty)?.kind,
-                                        TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
-                                    ) {
-                                        return Err(Error::new(
-                                            declarator.span.start,
-                                            "bitfield requires an integer type",
-                                        ));
-                                    }
-                                    if width == 0 && name.is_some() {
-                                        return Err(Error::new(
-                                            declarator.span.start,
-                                            "zero-width bitfield must be unnamed",
-                                        ));
-                                    }
-                                    if width > self.unit.layout(&ty)?.size_bits {
-                                        return Err(Error::new(
-                                            declarator.span.start,
-                                            "bitfield is wider than its type",
-                                        ));
-                                    }
-                                }
-                                let field_alignment = self.check_declaration_alignment(
-                                    &ty,
-                                    &attributes,
-                                    &extra,
-                                    crate::object_alignment::AlignmentSubject::Field {
-                                        bitfield: bit_width.is_some(),
-                                    },
-                                    declarator.span.start,
-                                )?;
-                                let member = Field {
-                                    name,
-                                    ty,
-                                    bit_width,
-                                    alignment: field_alignment
-                                        .explicit()
-                                        .map(|value| u64::from(value.get())),
-                                    packed: extra.packed || attributes.packed,
-                                };
-                                if let Some(checked) = &mut self.checked {
-                                    let site = checked.member_declaration(
-                                        declarator,
-                                        crate::checked::OccurrenceKind::StructDeclarator,
-                                        id,
-                                        fields.len(),
-                                        &member,
-                                        crate::checked::references::member_name_span(declarator),
-                                    )?;
-                                    if let Some(site) = site {
-                                        checked.attach_alignment(
-                                            site,
-                                            field_alignment,
-                                            field_alignment,
-                                        )?;
-                                    }
-                                }
-                                fields.push(member);
+                            if dependency_field
+                                && let Some(deps) = &mut self.parameter_type_dependencies
+                            {
+                                deps.record_field(id)?;
                             }
+                            fields.push(member);
                         }
                     }
-                }
-            }
-            let mut member_names = HashSet::new();
-            let mut has_named_member = false;
-            for (index, field) in fields.iter().enumerate() {
-                if self.unit.is_variably_modified(&field.ty)? {
-                    return Err(Error::new(
-                        declaration.span.start,
-                        "record members cannot have variably modified type",
-                    ));
-                }
-                if matches!(
-                    self.unit.resolve(&field.ty)?.kind,
-                    TypeKind::Array { length: None, .. }
-                ) {
-                    if kind == RecordKind::Union || index + 1 != fields.len() || !has_named_member {
-                        return Err(Error::new(
-                            declaration.span.start,
-                            "flexible array must be the final member after a named member",
-                        ));
+                    if dependency_field && let Some(deps) = &mut self.parameter_type_dependencies {
+                        deps.discard();
                     }
-                } else if !self.is_complete_object(&field.ty, 0)? {
+                }
+            }
+        }
+        let mut member_names = HashSet::new();
+        let mut has_named_member = false;
+        for (index, field) in fields.iter().enumerate() {
+            if self.unit.is_variably_modified(&field.ty)? {
+                return Err(Error::new(
+                    declaration.span.start,
+                    "record members cannot have variably modified type",
+                ));
+            }
+            if matches!(
+                self.unit.resolve(&field.ty)?.kind,
+                TypeKind::Array { length: None, .. }
+            ) {
+                if kind == RecordKind::Union || index + 1 != fields.len() || !has_named_member {
                     return Err(Error::new(
                         declaration.span.start,
-                        "field must have complete object type",
+                        "flexible array must be the final member after a named member",
                     ));
                 }
-                self.check_member_names(
-                    std::slice::from_ref(field),
-                    &mut member_names,
+            } else if !self.is_complete_object(&field.ty, 0)? {
+                return Err(Error::new(
                     declaration.span.start,
-                    0,
-                )?;
-                // GCC also counts anonymous records containing only unnamed bitfields.
-                has_named_member |= !member_names.is_empty()
-                    || (self.unit.compiler == toucan_target::Compiler::Gnu
-                        && field.name.is_none()
-                        && field.bit_width.is_none());
+                    "field must have complete object type",
+                ));
             }
-            self.unit.records[id].pack = self
-                .packs
-                .iter()
-                .take_while(|(offset, _)| *offset <= declaration.span.start)
-                .last()
-                .and_then(|(_, pack)| *pack);
-            self.unit.records[id].fields = Some(fields);
+            self.check_member_names(
+                std::slice::from_ref(field),
+                &mut member_names,
+                declaration.span.start,
+                0,
+            )?;
+            // GCC also counts anonymous records containing only unnamed bitfields.
+            has_named_member |= !member_names.is_empty()
+                || (self.unit.compiler == toucan_target::Compiler::Gnu
+                    && field.name.is_none()
+                    && field.bit_width.is_none());
         }
-        Ok(id)
+        self.unit.records[id].pack = self
+            .packs
+            .iter()
+            .take_while(|(offset, _)| *offset <= declaration.span.start)
+            .last()
+            .and_then(|(_, pack)| *pack);
+        self.unit.records[id].fields = Some(fields);
+        Ok(())
     }
 
     /// Anonymous members share their containing record's member namespace.
@@ -3846,6 +4681,8 @@ impl Analyzer {
                 declaration.node.enumerators.is_empty()
                     || binding.depth == self.lexical_scopes.len()
             });
+        let reference = binding.is_some() && declaration.node.enumerators.is_empty();
+        let introduced = binding.is_none();
         let id = if let Some(binding) = binding {
             let Tag::Enum(id) = binding.tag else {
                 return Err(Error::new(
@@ -3871,6 +4708,45 @@ impl Analyzer {
             }
             id
         };
+        self.note_lexical_tag(
+            Tag::Enum(id),
+            introduced,
+            !declaration.node.enumerators.is_empty(),
+            self.unit.enums[id].complete,
+            self.unit.enums[id].name.is_none(),
+            declaration.span.start,
+        )?;
+        if self.scope() == Scope::File
+            && let Some(origins) = &mut self.documentation_origins
+        {
+            origins.push(
+                crate::DocumentationTarget::Enum(id),
+                declaration.span.start,
+                declaration
+                    .node
+                    .identifier
+                    .as_ref()
+                    .map_or(declaration.span.start, |name| name.span.start),
+                reference
+                    || (self.lexical_record.is_none() && declaration.node.enumerators.is_empty()),
+            )?;
+        }
+        if self.scope() == Scope::File
+            && let Some(origins) = &mut self.declaration_origins
+        {
+            origins.push(
+                crate::DeclarationTarget::Enum(id),
+                declaration
+                    .node
+                    .identifier
+                    .as_ref()
+                    .map_or(declaration.span, |name| name.span),
+                !declaration.node.enumerators.is_empty(),
+                false,
+                reference,
+                false,
+            )?;
+        }
         if let Some(checked) = &mut self.checked {
             checked.tag(
                 declaration,
@@ -3889,6 +4765,32 @@ impl Analyzer {
                 "enum is defined more than once",
             ));
         }
+        let previous_doc = self.documentation_parent(
+            declaration
+                .node
+                .identifier
+                .as_ref()
+                .map_or(declaration.span.start, |name| name.span.start),
+        );
+        let result = self.complete_enum(id, declaration);
+        self.restore_documentation_parent(previous_doc);
+        result?;
+        Ok(id)
+    }
+
+    fn documentation_parent(&mut self, name: usize) -> Option<usize> {
+        self.documentation_origins
+            .as_mut()
+            .and_then(|origins| origins.parent_name.replace(name))
+    }
+
+    fn restore_documentation_parent(&mut self, previous: Option<usize>) {
+        if let Some(origins) = &mut self.documentation_origins {
+            origins.parent_name = previous;
+        }
+    }
+
+    fn complete_enum(&mut self, id: usize, declaration: &Node<ast::EnumType>) -> Result<(), Error> {
         let mut previous: Option<IntegerValue> = None;
         for enumerator in &declaration.node.enumerators {
             let mut attributes = Attributes::default();
@@ -3897,7 +4799,10 @@ impl Analyzer {
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
             let value = if let Some(expression) = &enumerator.node.expression {
-                self.eval(expression)?
+                let previous = std::mem::replace(&mut self.in_enum_expression, true);
+                let value = self.eval(expression);
+                self.in_enum_expression = previous;
+                value?
             } else if let Some(previous) = previous {
                 self.integer_add_one(previous, enumerator.span.start)?
             } else {
@@ -3932,6 +4837,34 @@ impl Analyzer {
             if let Some(scope) = self.lexical_scopes.last_mut() {
                 scope.constants.push((name.clone(), previous_binding));
             }
+            if self.scope() == Scope::File
+                && let Some(origins) = &mut self.declaration_origins
+            {
+                origins.push(
+                    crate::DeclarationTarget::Enumerator {
+                        enumeration: id,
+                        variant: self.unit.enums[id].variants.len(),
+                    },
+                    enumerator.node.identifier.span,
+                    true,
+                    false,
+                    false,
+                    false,
+                )?;
+            }
+            if self.scope() == Scope::File
+                && let Some(origins) = &mut self.documentation_origins
+            {
+                origins.push(
+                    crate::DocumentationTarget::Enumerator {
+                        enumeration: id,
+                        variant: self.unit.enums[id].variants.len(),
+                    },
+                    enumerator.span.start,
+                    enumerator.node.identifier.span.start,
+                    false,
+                )?;
+            }
             if let Some(checked) = &mut self.checked {
                 checked.enumerator(
                     enumerator,
@@ -3950,7 +4883,7 @@ impl Analyzer {
             self.finish_enum(id, declaration.span.start)?;
             self.defining_enums.remove(&id);
         }
-        Ok(id)
+        Ok(())
     }
 
     /// Clang lets a later unannotated declaration inherit an established ABI.
@@ -4102,32 +5035,60 @@ impl Analyzer {
         Ok(resolved)
     }
 
-    fn apply_tag_attributes(&mut self, ty: &Type, attributes: &Attributes) -> Result<(), Error> {
+    fn apply_tag_attributes(
+        &mut self,
+        ty: &Type,
+        attributes: &Attributes,
+        offset: usize,
+    ) -> Result<(), Error> {
         attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
         if let Some(span) = attributes.transparent_union {
             self.apply_transparent_record(ty, span.start)?;
         }
-        if !attributes.packed && attributes.alignment.is_none() {
+        if !attributes.packed && attributes.vendor_alignment().is_none() {
             return Ok(());
         }
         if let TypeKind::Record(id) = self.unit.resolve(ty)?.kind {
             let record = &mut self.unit.records[id];
             record.packed |= attributes.packed;
-            if attributes.alignment.is_some() {
-                record.alignment = attributes.alignment;
+            if attributes.vendor_alignment().is_some() {
+                record.alignment = if attributes.msvc_alignment.is_some() {
+                    record.alignment.max(attributes.vendor_alignment())
+                } else {
+                    attributes.alignment
+                };
             }
         } else if let TypeKind::Enum(id) = self.unit.resolve(ty)?.kind {
-            if attributes.alignment.is_some() {
-                return Err(Error::new(
-                    0,
-                    "alignment attributes on enum tags are unsupported",
-                ));
-            }
             self.unit.enums[id].packed |= attributes.packed;
-        } else if attributes.packed || attributes.alignment.is_some() {
+            if let Some(alignment) = attributes.vendor_alignment()
+                && self.unit.compiler == Compiler::Clang
+            {
+                // GCC ignores tag alignment. Clang preserves it independently
+                // of integer size, so an ordinary Rust integer is suitable
+                // only when the attribute leaves all storage rules unchanged.
+                if self.unit.target == Target::X86_64PcWindowsMsvc {
+                    return Err(Error::new(
+                        offset,
+                        "alignment attributes on Microsoft enum tags are unsupported",
+                    ));
+                }
+                if !self.unit.enums[id].complete {
+                    return Err(Error::new(
+                        offset,
+                        "alignment attributes on incomplete enum tags are unsupported",
+                    ));
+                }
+                if self.unit.layout(ty)?.alignment_bits / 8 != alignment {
+                    return Err(Error::new(
+                        offset,
+                        "enum alignment that changes storage layout is unsupported",
+                    ));
+                }
+            }
+        } else if attributes.packed || attributes.vendor_alignment().is_some() {
             return Err(Error::new(
-                0,
+                offset,
                 "layout attributes on a non-record type are unsupported",
             ));
         }
@@ -4162,6 +5123,9 @@ impl Analyzer {
                     )?);
                 }
                 ast::Extension::AvailabilityAttribute(_) => {}
+                ast::Extension::Declspec(attribute) => {
+                    self.declspec_attribute(attribute, extension.span, result, false)?;
+                }
                 ast::Extension::Attribute(attribute)
                 | ast::Extension::CallingConvention(attribute) => {
                     let name = attribute.name.node.trim_matches('_');
@@ -4223,6 +5187,19 @@ impl Analyzer {
                                 result.always_inline,
                                 Some((extension.span, !attribute.arguments.is_empty())),
                             )
+                        }
+                        Some(crate::attributes::Attribute::GnuInline) => {
+                            let arguments = !attribute.arguments.is_empty();
+                            if arguments && self.unit.compiler == Compiler::Gnu {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "gnu_inline takes no arguments",
+                                ));
+                            }
+                            result.gnu_inline = crate::target_features::merge_inline(
+                                result.gnu_inline,
+                                Some((extension.span, arguments)),
+                            );
                         }
                         Some(crate::attributes::Attribute::NoInline) => {
                             result.no_inline = crate::target_features::merge_inline(
@@ -4369,6 +5346,12 @@ impl Analyzer {
                                     ));
                                 }
                             };
+                            if value == 0 && self.unit.compiler == Compiler::Clang {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    "aligned attributes require a positive power of two",
+                                ));
+                            }
                             set_alignment(result, value, extension.span.start)?;
                         }
                         Some(crate::attributes::Attribute::Aarch64VectorPcs)
@@ -4605,24 +5588,6 @@ fn has_function_derivation(mut declaration: &Node<ast::Declarator>) -> bool {
             return false;
         }
     }
-}
-
-fn extended_float_name(float: &ast::TS18661FloatType) -> String {
-    let prefix = match float.format {
-        ast::TS18661FloatFormat::BinaryInterchange | ast::TS18661FloatFormat::BinaryExtended => {
-            "_Float"
-        }
-        _ => "_Decimal",
-    };
-    let suffix = if matches!(
-        float.format,
-        ast::TS18661FloatFormat::BinaryExtended | ast::TS18661FloatFormat::DecimalExtended
-    ) {
-        "x"
-    } else {
-        ""
-    };
-    format!("{prefix}{}{suffix}", float.width)
 }
 
 fn add_qualifier(
@@ -4916,4 +5881,38 @@ fn normalize_attributes(source: &str) -> (String, HashSet<usize>) {
         String::from_utf8(bytes).expect("attribute normalization preserves UTF-8"),
         record_attributes,
     )
+}
+
+#[derive(Clone, Copy)]
+pub(crate) enum AnonymousRecordSpecifier<'a> {
+    Direct,
+    MicrosoftTag,
+    /// The caller must resolve the unqualified written alias to a record.
+    MicrosoftTypedef(&'a str),
+}
+
+/// Classifies source forms that can introduce an anonymous record member.
+/// A Microsoft typedef still requires its original alias to denote a record;
+/// qualifiers written beside the alias do not change that decision.
+pub(crate) fn anonymous_record_specifier(
+    specifiers: &[Node<ast::SpecifierQualifier>],
+    target: Target,
+) -> Option<AnonymousRecordSpecifier<'_>> {
+    specifiers.iter().find_map(|specifier| {
+        let ast::SpecifierQualifier::TypeSpecifier(ty) = &specifier.node else {
+            return None;
+        };
+        match &ty.node {
+            ast::TypeSpecifier::Struct(record) if record.node.identifier.is_none() => {
+                Some(AnonymousRecordSpecifier::Direct)
+            }
+            ast::TypeSpecifier::Struct(_) if target == Target::X86_64PcWindowsMsvc => {
+                Some(AnonymousRecordSpecifier::MicrosoftTag)
+            }
+            ast::TypeSpecifier::TypedefName(name) if target == Target::X86_64PcWindowsMsvc => {
+                Some(AnonymousRecordSpecifier::MicrosoftTypedef(&name.node.name))
+            }
+            _ => None,
+        }
+    })
 }

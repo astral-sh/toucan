@@ -167,3 +167,27 @@ The [builder evidence](../corpus/evidence/astral-builder-a7fab44/summary.json)
 records the native Linux run and the source, lock, generated binding, selected
 artifact, and runtime hashes. It covers these two pinned consumer paths; it does
 not run either workspace's full test suite or measure application performance.
+
+The [combined frontend rerun](../corpus/evidence/astral-builder-a3256d6/summary.json)
+at `a3256d6` includes C90, Microsoft declaration attributes, allocation builtins,
+and compiler feature queries. Fresh replacement packages drive both unchanged
+project build scripts. Both ty vendored tests and all 19 uv extraction tests pass;
+CLI diagnostics, installed wheel bytes, and truncated-frame rejection match. All
+557 ty and 750 uv existing locked packages and dependency edges are preserved.
+This remains evidence for the recorded native Linux paths, not their complete
+workspace suites or other operating systems.
+
+The [frozen frontend refresh](../corpus/evidence/astral-builder-acfb815/summary.json)
+at `acfb815` runs the same unchanged zstd build scripts after the builder
+compatibility and documentation layers. Both ty vendored tests and all 19 uv
+extraction tests pass. Exact ty diagnostics, installed wheel bytes, and truncated
+zstd-response rejection match. All 557 ty and 750 uv original locked packages
+and dependency edges remain present, and Cargo artifacts identify the frozen
+frontend used by both builds.
+
+All 2,301 files in that source snapshot retained their original hashes. Concurrent
+native checks added one identified Python bytecode file; the evidence preserves
+the initial strict audit failure and records that generated file separately.
+This refresh covers the recorded native Linux zstd paths. AWS-LC and TLS retain
+their separately recorded consumer revisions; these runs do not refresh them or
+measure application performance.

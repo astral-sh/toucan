@@ -1,7 +1,40 @@
 //! Shared test helpers for distinguishing compiler diagnostics from tool failures.
 
 use std::fmt;
-use std::process::Output;
+use std::path::Path;
+use std::process::{Command, Output};
+
+/// Adds a compiled C fixture through Rust's native static-library link path.
+///
+/// A trailing `-C link-arg=object.o` places its libc references after the system
+/// libraries. That can leave compiler-generated references, such as AArch64's
+/// stack guard, unresolved. The archive is created beside the object using `AR`
+/// or `ar`, and Rust places it before the libraries that satisfy those references.
+pub fn link_c_object(rustc: &mut Command, object: &Path) {
+    let directory = object.parent().expect("C fixture directory");
+    let name = object
+        .file_stem()
+        .and_then(|s| s.to_str())
+        .expect("C fixture name");
+    let archive = directory.join(format!("lib{name}.a"));
+    let output = Command::new(std::env::var_os("AR").unwrap_or_else(|| "ar".into()))
+        .arg("crs")
+        .arg(&archive)
+        .arg(object)
+        .output()
+        .expect("archive C fixture");
+    assert!(
+        output.status.success(),
+        "archive {}: {}",
+        object.display(),
+        String::from_utf8_lossy(&output.stderr)
+    );
+    rustc
+        .arg("-L")
+        .arg(format!("native={}", directory.display()))
+        .arg("-l")
+        .arg(format!("static={name}"));
+}
 
 /// A compiler failed to finish normally, independently of whether the input is valid.
 #[derive(Clone, Debug, PartialEq, Eq)]

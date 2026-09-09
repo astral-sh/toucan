@@ -1,0 +1,101 @@
+name: Windows DLL consumers
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "scripts/verify_windows_dll_imports.py"
+      - ".github/workflows/windows-dll.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-dll-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native:
+    name: C DLLs and Rust consumers (x86_64 Windows)
+    runs-on: windows-2025
+    timeout-minutes: 30
+    env:
+      CARGO_INCREMENTAL: "0"
+      TOUCAN_WINDOWS_DLL_OUTPUT: ${{ github.workspace }}/results/windows-dll/probes
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: stable
+      - name: Select LLVM and install generated-code MSRV
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Force results/windows-dll | Out-Null
+          "ImageOS=$env:ImageOS`nImageVersion=$env:ImageVersion`nCommit=$env:GITHUB_SHA" |
+            Set-Content results/windows-dll/runner.txt
+          $clang = (Get-Command clang.exe -CommandType Application -ErrorAction Stop).Source
+          $readobj = Join-Path (Split-Path $clang) llvm-readobj.exe
+          if (!(Test-Path $readobj)) { throw "Missing LLVM object inspector: $readobj" }
+          "TOUCAN_CLANG=$clang" | Out-File -FilePath $env:GITHUB_ENV -Append
+          & $clang --version | Tee-Object results/windows-dll/clang.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          & $readobj --version | Tee-Object results/windows-dll/llvm-readobj.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          python --version | Tee-Object results/windows-dll/python.txt
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          rustup toolchain install 1.64.0 --profile minimal
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          $rustcs = @()
+          foreach ($toolchain in @('1.64.0', 'stable')) {
+            $rustc = rustup which --toolchain $toolchain rustc
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+            $rustcs += $rustc
+            & $rustc --version --verbose | Tee-Object "results/windows-dll/rustc-$toolchain.txt"
+            if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          }
+          $rustcsJson = ConvertTo-Json -InputObject $rustcs -Compress
+          "TOUCAN_WINDOWS_DLL_RUSTC_JSON=$rustcsJson" | Out-File -FilePath $env:GITHUB_ENV -Append
+          $vswhere = Join-Path ${env:ProgramFiles(x86)} 'Microsoft Visual Studio/Installer/vswhere.exe'
+          $visualStudio = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if ($LASTEXITCODE -or !$visualStudio) { throw 'No x64 MSVC installation found' }
+          "TOUCAN_VS=$visualStudio" | Out-File -FilePath $env:GITHUB_ENV -Append
+      - name: Run the native DLL test in the MSVC environment
+        shell: cmd
+        run: |
+          call "%TOUCAN_VS%\VC\Auxiliary\Build\vcvars64.bat" > results\windows-dll\msvc-setup.txt 2>&1
+          if errorlevel 1 exit /b 1
+          where link.exe > results\windows-dll\msvc-linker.txt
+          if errorlevel 1 exit /b 1
+          link.exe /? >> results\windows-dll\msvc-linker.txt 2>&1
+          cargo test --locked -p toucan_cli --test dll_libraries native_windows_dll_data_calls_and_addresses -- --ignored --exact --show-output > results\windows-dll\test.txt 2>&1
+          set "TOUCAN_TEST_STATUS=%ERRORLEVEL%"
+          type results\windows-dll\test.txt
+          exit /b %TOUCAN_TEST_STATUS%
+      - name: Require both compilers and every native consumer
+        shell: pwsh
+        run: |
+          $evidence = Get-Content "$env:TOUCAN_WINDOWS_DLL_OUTPUT/evidence.json" -Raw | ConvertFrom-Json
+          if ($evidence.status -ne 'passed' -or !$evidence.native_execution) {
+            throw 'The native DLL probe did not finish successfully'
+          }
+          if ($evidence.rustc.Count -ne 2 -or $evidence.rustc[0] -notmatch '^rustc 1\.64\.0 ' -or
+              $evidence.rustc[1] -match '^rustc 1\.64\.0 ') {
+            throw 'Expected actual Rust 1.64 and current Rust consumers'
+          }
+          if ($evidence.cases.Count -ne 12 -or @($evidence.cases | Where-Object { !$_.native_executed }).Count) {
+            throw 'Expected all 12 DLL consumers to execute on Windows'
+          }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: windows-dll-x86_64-${{ github.run_attempt }}
+          path: results/windows-dll/
+          retention-days: 90
+          if-no-files-found: error

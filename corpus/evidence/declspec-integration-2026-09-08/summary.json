@@ -1,0 +1,35 @@
+{
+  "status": "passed",
+  "reported_test_counts": {
+    "parser": {
+      "passed": 3,
+      "failed": 0,
+      "ignored": 0
+    },
+    "native": {
+      "passed": 5,
+      "failed": 0,
+      "ignored": 0
+    },
+    "workspace": {
+      "passed": 734,
+      "failed": 0,
+      "ignored": 190
+    }
+  },
+  "parser_regeneration_byte_identical": true,
+  "parser_loops": 83,
+  "parser_guards": 541,
+  "parser_rules": 243,
+  "checked_seed_pairs": 1826,
+  "accepted": 1275,
+  "matching_diagnostics": 551,
+  "original_header_outputs_equal": 4,
+  "musl_abi_outputs_equal": 4,
+  "windows_rust_versions": [
+    "1.64.0",
+    "1.98.1"
+  ],
+  "windows_execution": "cross-target LLVM and metadata only, O0/O3",
+  "source_sha256": "b4b4af2da1dee7346089e52993e520194b5c135f15c2612aefdffa7b450625d6"
+}

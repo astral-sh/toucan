@@ -160,10 +160,13 @@ fn written_sites_retain_messages_redeclarations_and_original_spans() {
         Target::X86_64UnknownLinuxGnu,
         &AnalysisOptions {
             retain_code: true,
+            retain_declaration_origins: false,
+            retain_object_values: false,
             limits: Limits {
                 payload_bytes: 2048,
                 ..Default::default()
             },
+            ..AnalysisOptions::default()
         },
     )
     .unwrap_err();

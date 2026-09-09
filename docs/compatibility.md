@@ -71,7 +71,8 @@ arithmetic, comparisons, and boolean conversions are supported. Integer casts of
 either NaN kind report an out-of-range value.
 
 Rust bindings emit `float` and `double` macro values as `f32` and `f64`
-using exact bit patterns. For Rust 1.83 and later, emission uses `from_bits`;
+using exact bit patterns. The same carriers support GNU `_Float32`, `_Float64`,
+and `_Float32x`; their C identities remain distinct during analysis. For Rust 1.83 and later, emission uses `from_bits`;
 Rust 1.64–1.82 uses an equal-width const transmute because `from_bits` was not yet
 const-stable. Every integer bit pattern is valid for the corresponding IEEE float.
 `long double` macro values remain explicitly unsupported in Rust bindings, even
@@ -82,6 +83,12 @@ Tests compare bit patterns against Clang for all five targets, including meaning
 `long double` bits, and execute generated constants against native GCC/Clang FFI
 calls with current Rust and Rust 1.64. These checks do not cover alternate rounding
 modes, excess-precision options, or floating-point environment access.
+
+## Size queries
+
+GNU and Clang profiles also accept [void and function size queries](size-queries.md).
+Their size is 1; they remain non-object types, and their pointers keep ordinary
+pointer storage and calling conventions.
 
 ## Variable-length arrays
 
@@ -95,6 +102,9 @@ pointer, and reject remaining runtime-sized array layers. The optional
 contexts, and typed bodies.
 
 ## Flexible-array initialization
+
+Scalar objects accept [empty initializers](empty-scalar-initializers.md) with
+compiler-specific atomic constraints and retained typed zero initialization.
 
 Named static objects may initialize a flexible array under the target compiler's
 GNU extension rules. `Declaration.flexible_array_storage` records the selected
@@ -141,8 +151,11 @@ GNU [`__auto_type`](auto-type.md) infers initialized object declarations with co
 constant evaluator returns one only for supported, valid constant folds; zero
 means this frontend did not prove the operand constant. This includes arithmetic
 constants, literal strings, supported pointer casts, and folded conditional or
-short-circuit expressions. Object-value propagation, statement-expression values,
-and compound-literal values are not proofs. This policy does not predict GCC or
+short-circuit expressions. Clang profiles also retain completed file-scope const
+scalar values for [static initializers and constant queries](const-object-initializers.md),
+with definition-order, linkage, volatility, and lexical-shadowing checks. General
+object-value propagation, statement-expression values, and compound-literal values
+are not proofs. This policy does not predict GCC or
 Clang optimization: both compilers can change a local-variable query from zero to
 one at `-O2`. The retained query preserves its operand and C array/function
 conversions. See [GCC's constant-query contract](https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html).
@@ -525,7 +538,9 @@ code for these operations.
   see [half types](half-types.md) for constant-precision and Rust ABI limits.
   [Binary128](binary128.md) has target-aware spelling, literal, machine-mode,
   semantic, layout, constant, and checked-code support. Its Rust storage/call ABI
-  remains unsupported. Other extended floating-point types retain their identity but do not have
+  remains unsupported. [GNU `_Float32`, `_Float64`, `_Float32x`, and `_Float64x`](gnu-float-types.md)
+  have nominal typing, target layout, and exact constants; the first three have
+  verified `f32`/`f64` binding carriers. Other extended floating-point types retain their identity but do not have
   supported layout or binding representations. `long double` has a target layout, but its Rust
   binding representation is not implemented.
 - Large enum constants follow the target's GCC or Clang profile, including their
@@ -614,6 +629,12 @@ lockfiles: the workspace, fuzzing, comparison tool, zstd consumer, and SQLite
 consumer. It records the database revision and lockfile checksums; yanked package
 status was not checked.
 
+The [September 9 audit](../corpus/evidence/dependency-audit-2026-09-09.json)
+checks all seven active lockfiles, adding the Builder benchmark and AWS-LC
+consumer. cargo-audit 0.22.2 reports no known advisories or informational warnings
+against the recorded RustSec database revision. The capture includes the fetched
+database identity, unfiltered reports, and unchanged lockfile checksums.
+
 The [body-checking fuzz campaigns](../fuzz/evidence/readiness-2026-09-08.json)
 processed 1,281,684 inputs across preprocessing, semantic analysis, and binding
 generation after fixing exponential record-member traversal and recursive parser
@@ -622,6 +643,14 @@ explicit input, time, and memory limits. The report records the tested sources;
 it does not cover subsequent changes or establish complete safety.
 
 ## Requirements for a production release
+
+The [September 9 native refresh](../corpus/evidence/native-validation-2026-09-09/README.md)
+passes all 1,215 workspace tests, including native probes, and Rustdoc with warnings
+denied. The recorded Linux x64/ARM, Windows package, musl, corpus, conformance, and
+lint jobs pass with zero macOS jobs. A separate 301-second AddressSanitizer campaign
+checks the optional object-value and documentation-origin metadata through 43,501
+executions without findings. The capture identifies each tested revision and its
+limits.
 
 Complete the declaration and expression conformance work; extend independent review
 and adversarial testing of the [parser resource limits](parser-limits.md); extend the target/header
@@ -1008,7 +1037,9 @@ arithmetic and variadic arguments.
 
 Tag attributes apply at the definition. Clang also retains attributes on a
 forward tag; GNU ignores them there. Packing a typedef or object does not change
-its enum tag. Direct enum alignment attributes remain unsupported. GNU
+its enum tag. GNU ignores enum tag alignment; non-Microsoft Clang accepts
+completed tags whose explicit alignment matches their natural storage alignment.
+[Other enum alignment forms](enum-alignment.md) retain explicit diagnostics. GNU
 `__alignof__(expression)` is a separate parser gap; type alignment queries work.
 
 Default bindings preserve the compatible integer domain. Optional Rust enums use
@@ -1026,10 +1057,14 @@ macOS and ARM calls remain CI gates.
 
 ### Language modes
 
-[C11 and GNU11](language-modes.md) select keywords, standard-mode macros, and
-trigraph defaults independently of the compiler family. GNU11 is the default;
-C11 does not imply pedantic diagnostics. C90 and GNU omitted-middle conditional
-expressions remain tracked gaps.
+[C90 through C17 and their GNU modes](language-modes.md) select syntax, declaration rules,
+standard-mode macros, and trigraph defaults independently of the compiler family.
+GNU11 is the default. C90 supports implicit-int declarations and ordinary
+implicit function declarations, including retained scope and call records.
+Implicit library builtin signatures remain a tracked gap. GNU
+[omitted-middle conditional expressions](conditional-expressions.md) preserve
+single evaluation, result conversions, and compiler-specific static pointer
+initializers. Selecting an ISO mode does not enable pedantic diagnostics.
 
 ### Clang `noescape` parameters
 
@@ -1056,3 +1091,22 @@ spans survive macro expansion. Late declarations preserve earlier call facts.
 Generated bindings keep the written C return type. See
 [non-returning declarations](noreturn.md) for lexical inheritance and the
 remaining control-flow diagnostic limits.
+
+### Allocation builtins
+
+The four C allocation builtins use target-correct prototypes, converted argument
+uses, and explicit library-symbol identity. See [allocation builtins](allocation-builtins.md)
+for GNU/Clang declaration rules and remaining ownership/deallocator-contract limits.
+
+Generic data prefetch uses compiler-specific constant checking and preserves
+argument effects; see [prefetch semantics](prefetch.md). GNU lowering obligations
+remain explicit when source checking cannot establish a constant hint.
+
+### Inline definition ownership
+
+[Inline function metadata](inline-functions.md) distinguishes external, internal,
+inline-only, optional weak, superseded, and Microsoft coalesced bodies. The checker validates
+redeclarations and GNU-inline attributes against compiler and language rules;
+retained bodies and written source annotations remain accessible after later
+declarations change ownership. Binding generation keeps its existing handling
+of definitions.

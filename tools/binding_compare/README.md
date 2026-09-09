@@ -45,11 +45,21 @@ bitfield storage cause a nonzero exit.
 
 ## What is compared
 
-- Foreign functions are identified by `link_name`, falling back to the Rust name.
-  Signatures preserve the calling convention, pointer constness, nullable callback
-  representation, return type, and variadic arguments. Parameter names are ignored.
+- Foreign functions and globals are grouped by `link_name`, falling back to the
+  Rust name. Every public Rust name in a group retains its own type; two names
+  sharing a symbol never replace each other. Declaration order is ignored, while
+  missing public names and changed linker mappings are differences. Duplicate
+  public foreign Rust names produce diagnostics.
+- Function signatures preserve the calling convention, pointer constness,
+  nullable callbacks, return type, and variadic arguments. Parameter names are
+  ignored. A global's outer pointer shape records `static` versus `static mut`
+  independently of the declared type's pointer qualifiers.
 - Primitive aliases resolve for the five targets supported by Toucan. `usize` and
   `isize` normalize to their 64-bit representation on those targets.
+- Explicit local type re-exports such as `pub use self::First as Later` count as
+  public aliases. Groups and alias chains resolve, including private intermediate
+  imports; private names do not become public exports. Unresolved public imports,
+  value imports, external paths, globs, and cycles remain unsupported diagnostics.
 - Records match through shared typedef identities and corresponding positions in
   function and record types. The mapping must be bijective. Field shapes and
   native layouts are compared after that mapping; matching names alone is not
@@ -78,6 +88,41 @@ are compared as opaque types and have no native layout claims.
 A passing comparison does not establish ABI register classification, validate
 actual foreign calls, or establish behavior for every C input. Run the native FFI
 corpus and differential frontend tests as well.
+
+## Analyzer and report schemas
+
+New analyzer inventories and comparison reports use schema version 2. The
+`functions` and `globals` maps retain linker-symbol keys; each value is now a list
+of exports, sorted by public Rust name, with `rust_name` and `shape` on every
+entry. Comparison results retain their existing category/map format, and compare
+all names and shapes within each symbol. Their shared-entry counts count linker
+symbols; the inventory lists every public export.
+
+Record correspondence uses matching public names within a shared symbol. A
+single export on each side can establish a record correspondence even if its
+Rust name changed, but that name difference still fails API equality. Ambiguous
+multiple-export groups are never paired by declaration order.
+
+The comparison driver rejects inventories without the current analyzer schema;
+rebuild an older `--analyzer` binary before generating new reports. Existing
+schema-1 reports remain historical evidence. They cannot recover public aliases
+that an older analyzer discarded. Record-only inventory consumers retain the
+same `records` schema.
+
+## Schema-2 replay evidence
+
+The [saved analyzer and object replay](../../corpus/evidence/binding-symbol-exports-schema2-2026-09-09.json.gz)
+records 11 Rust tests, 31 Python tests, and seven CLI controls. It also parses the
+unmodified outputs of all 49 multiple-object-name settings, retaining all 51
+foreign globals on each side. Every object name and shape matches after the
+explicitly Linux-only linker interpretation; two typedef differences and 11
+extra helper-record inventories remain visible.
+
+Raw linker spellings remain in the artifact. Bindgen's LLVM no-mangle marker and
+Toucan's ordinary spelling identify the same symbol on this Linux ELF target,
+whose default symbol prefix is empty. The qualified view does not infer Darwin
+or Windows behavior, and does not rewrite analyzer inventories. The original C
+FFI evidence is referenced by hash; this replay runs no additional C probes.
 
 ## Tests
 

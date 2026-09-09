@@ -92,7 +92,8 @@ its supported arguments and API subset; unsupported options produce errors.
 
 Each command accepts `--target`, `--compiler`, `--std`, `--sysroot`, `-I`, `-D`, and `-U`.
 Use `--compiler clang` for Clang on Linux; omitted selection preserves the target
-default. [Language modes](docs/language-modes.md) select C11 or GNU11 (the default).
+default. [Language modes](docs/language-modes.md) select C90, C99, C11, or C17,
+with an ISO or GNU mode for each standard. GNU11 is the default.
 See [compiler profiles](docs/compiler-profiles.md) for supported pairs.
 
 ```console

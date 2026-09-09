@@ -1,0 +1,62 @@
+{
+  "archive_sha256": "fbeb5596ae40f552785b849df64fbb5510f5094d9a6612665c29f4bf00ab3136",
+  "base": "daa1c0f2f1d53a9839821536ab9db1c02d717375",
+  "clippy": "all targets and all features, no warnings",
+  "format": "passed",
+  "native_query_matrix": {
+    "additional": [
+      "GCC 14.2.0 with explicit -U__has_feature -U__has_extension",
+      "Clang 18.1.3"
+    ],
+    "canonical": [
+      "GCC 13.3.0",
+      "Clang 18.1.3"
+    ],
+    "canonical_note": "The canonical run preceded test-only GCC14 oracle calibration; all four implementation source files are unchanged. The additional run exercises the final test harness, including raw availability capture and explicit GNU13 query-environment overrides.",
+    "cases": 245,
+    "clang_targets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc"
+    ],
+    "command_line_override_cases_per_run": 20,
+    "comparisons_per_run": 5880,
+    "mismatches": 0,
+    "modes": [
+      "c90",
+      "gnu90",
+      "c11",
+      "gnu11"
+    ],
+    "routes": 24
+  },
+  "not_claimed": [
+    "Full GNU14 operator semantics",
+    "Native Apple or Windows execution",
+    "Performance measurements",
+    "Sanitizer campaign",
+    "Complete C preprocessor conformance"
+  ],
+  "preprocessor_tests": {
+    "default_ignored": 5,
+    "default_passed": 57,
+    "native_comments_passed": 6,
+    "native_library_passed": 48,
+    "native_query_test_group_passed": 8
+  },
+  "remaining": [
+    "Expanded _Pragma directives inside query arguments are rejected; exact native probes are retained for the next layer.",
+    "Facade capability catalogs, fuzz mocks, and frontend scope-punctuator routing are owned by the integrating parent."
+  ],
+  "scope_contract": {
+    "frontend_configuration": "Clang or GNU language mode",
+    "independent_of_identity_macro_overrides": true,
+    "separated_or_substitution_joined_colons": "reject as namespace separator",
+    "standalone_default": false,
+    "strict_adjacent_colons": "preserve lexical adjacency for namespace recognition",
+    "strict_pasted_colons": "reject as invalid preprocessing token"
+  },
+  "source_manifest_sha256": "f588f139be8433af86b8cd572ee785f1df605995d100a4f51490990a6a7f79e1"
+}

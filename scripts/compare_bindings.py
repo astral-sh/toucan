@@ -21,6 +21,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
+ANALYZER_SCHEMA_VERSION = 2
+REPORT_SCHEMA_VERSION = 2
 RUST_KEYWORDS = {
     "as",
     "break",
@@ -135,6 +137,35 @@ def field_name(name: str, other_names: set[str]) -> str:
     return name
 
 
+def export_groups(api: dict, category: str) -> dict:
+    """Keep every public name and shape within its exact linker-symbol group."""
+    groups = {}
+    for symbol, exports in api[category].items():
+        if not isinstance(exports, list) or not exports:
+            raise RuntimeError(
+                f"invalid analyzer {category}.{symbol}: expected export list"
+            )
+        group = {}
+        for export in exports:
+            name = export["rust_name"]
+            if name in group:
+                raise RuntimeError(f"duplicate public foreign Rust name {name!r}")
+            group[name] = export["shape"]
+        groups[symbol] = group
+    return groups
+
+
+def validate_api(api: dict) -> None:
+    version = api.get("schema_version")
+    if version != ANALYZER_SCHEMA_VERSION:
+        raise RuntimeError(
+            f"unsupported binding analyzer schema {version!r}; "
+            f"expected {ANALYZER_SCHEMA_VERSION}. Rebuild the analyzer and regenerate inventories."
+        )
+    for category in ("functions", "globals"):
+        export_groups(api, category)
+
+
 def record_pairs(left: dict, right: dict) -> tuple[dict[str, str], list[dict]]:
     """Match records through shared typedefs and corresponding API access paths.
 
@@ -163,14 +194,30 @@ def record_pairs(left: dict, right: dict) -> tuple[dict[str, str], list[dict]]:
         for b, rrecord in right["records"].items():
             if lnames & {b, rrecord["rust_name"], *rrecord["aliases"]}:
                 add(a, b, "shared typedef or record name")
-    for category in ("functions", "globals", "aliases"):
-        for key in left[category].keys() & right[category].keys():
-            ltype = left[category][key]
-            rtype = right[category][key]
-            if category != "aliases":
-                ltype, rtype = ltype["shape"], rtype["shape"]
-            for a, b in shape_pairs(ltype, rtype):
-                add(a, b, f"{category}.{key}")
+    for key in left["aliases"].keys() & right["aliases"].keys():
+        for a, b in shape_pairs(left["aliases"][key], right["aliases"][key]):
+            add(a, b, f"aliases.{key}")
+    for category in ("functions", "globals"):
+        lgroups, rgroups = export_groups(left, category), export_groups(right, category)
+        for symbol in sorted(lgroups.keys() & rgroups.keys()):
+            lgroup, rgroup = lgroups[symbol], rgroups[symbol]
+            common = lgroup.keys() & rgroup.keys()
+            corresponding = [
+                (lgroup[name], rgroup[name], name) for name in sorted(common)
+            ]
+            if not common and len(lgroup) == len(rgroup) == 1:
+                # The linker symbol establishes this unique type correspondence.
+                # The different public Rust names still fail the API comparison.
+                corresponding = [
+                    (
+                        next(iter(lgroup.values())),
+                        next(iter(rgroup.values())),
+                        "singleton",
+                    )
+                ]
+            for ltype, rtype, name in corresponding:
+                for a, b in shape_pairs(ltype, rtype):
+                    add(a, b, f"{category}.{symbol}.{name}")
     visited = set()
     while new_pairs := pairs.keys() - visited:
         for a in sorted(new_pairs):
@@ -247,13 +294,15 @@ def parse_probe(output: str) -> dict:
     return result
 
 
-def native_probe(source: Path, output: Path, target: str, rustc: str) -> dict:
+def native_probe(
+    source: Path, output: Path, target: str, rustc: str, edition: str
+) -> dict:
     # Explicit target is required even on the host: this also exercises the
     # generated target guard. Executing a foreign-architecture binary will fail.
     run(
         [
             rustc,
-            "--edition=2024",
+            f"--edition={edition}",
             "--crate-name",
             "binding_probe",
             "--target",
@@ -317,6 +366,12 @@ def main() -> int:
     parser.add_argument("--output", required=True, type=Path)
     parser.add_argument("--analyzer", type=Path)
     parser.add_argument("--rustc", default="rustc")
+    parser.add_argument(
+        "--edition",
+        choices=("2015", "2018", "2021", "2024"),
+        default="2024",
+        help="Rust edition for the native probe including the generated bindings",
+    )
     parser.add_argument("--require-equivalent", action="store_true")
     parser.add_argument("--skip-native-probes", action="store_true")
     args = parser.parse_args()
@@ -368,19 +423,27 @@ def main() -> int:
             apis[tool] = json.loads(
                 run([str(analyzer), str(path), args.target, str(probe_path)])
             )
+            validate_api(apis[tool])
             if not args.skip_native_probes:
                 probes[tool] = native_probe(
-                    probe_path, directory / f"{tool}-probe", args.target, args.rustc
+                    probe_path,
+                    directory / f"{tool}-probe",
+                    args.target,
+                    args.rustc,
+                    args.edition,
                 )
         pairs, conflicts = record_pairs(apis["toucan"], apis["bindgen"])
         a, b, field_renames = normalize(apis["toucan"], apis["bindgen"], pairs)
         comparisons = {
-            key: compare_maps(
-                {n: v["shape"] for n, v in a[key].items()},
-                {n: v["shape"] for n, v in b[key].items()},
+            category: compare_maps(
+                export_groups(a, category), export_groups(b, category)
             )
-            for key in ("functions", "globals", "constants")
+            for category in ("functions", "globals")
         }
+        comparisons["constants"] = compare_maps(
+            {name: item["shape"] for name, item in a["constants"].items()},
+            {name: item["shape"] for name, item in b["constants"].items()},
+        )
         comparisons["aliases"] = compare_maps(a["aliases"], b["aliases"])
         comparisons["record_shapes"] = compare_maps(
             {k: record_shape(v) for k, v in a["records"].items()},
@@ -403,13 +466,15 @@ def main() -> int:
             for tool, api in apis.items()
         }
         report = {
-            "schema_version": 1,
+            "schema_version": REPORT_SCHEMA_VERSION,
+            "analyzer_schema_version": ANALYZER_SCHEMA_VERSION,
             "measured_at_utc": datetime.now(timezone.utc).isoformat(),
             "analyzer_sha256": digest(analyzer),
             "generation_dependency_sha256": dependencies,
             "target": args.target,
             "platform": platform.platform(),
             "rustc": run([args.rustc, "--version"]).strip(),
+            "rust_edition": args.edition,
             "commands": commands,
             "input_sha256": before_hashes,
             "inputs_unchanged": before_hashes

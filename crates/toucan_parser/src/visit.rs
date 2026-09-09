@@ -891,10 +891,9 @@ pub fn visit_conditional_expression<'ast, V: Visit<'ast> + ?Sized>(
         &conditional_expression.condition.node,
         &conditional_expression.condition.span,
     );
-    visitor.visit_expression(
-        &conditional_expression.then_expression.node,
-        &conditional_expression.then_expression.span,
-    );
+    if let Some(then_expression) = &conditional_expression.then_expression {
+        visitor.visit_expression(&then_expression.node, &then_expression.span);
+    }
     visitor.visit_expression(
         &conditional_expression.else_expression.node,
         &conditional_expression.else_expression.span,
@@ -1053,6 +1052,9 @@ pub fn visit_struct_type<'ast, V: Visit<'ast> + ?Sized>(
     _span: &'ast Span,
 ) {
     visitor.visit_struct_kind(&struct_type.kind.node, &struct_type.kind.span);
+    for extension in &struct_type.extensions {
+        visitor.visit_extension(&extension.node, &extension.span);
+    }
     if let Some(ref identifier) = struct_type.identifier {
         visitor.visit_identifier(&identifier.node, &identifier.span);
     }
@@ -1129,6 +1131,9 @@ pub fn visit_enum_type<'ast, V: Visit<'ast> + ?Sized>(
     enum_type: &'ast EnumType,
     _span: &'ast Span,
 ) {
+    for extension in &enum_type.extensions {
+        visitor.visit_extension(&extension.node, &extension.span);
+    }
     if let Some(ref identifier) = enum_type.identifier {
         visitor.visit_identifier(&identifier.node, &identifier.span);
     }
@@ -1596,9 +1601,9 @@ pub fn visit_extension<'ast, V: Visit<'ast> + ?Sized>(
     span: &'ast Span,
 ) {
     match *extension {
-        Extension::Attribute(ref a) | Extension::CallingConvention(ref a) => {
-            visitor.visit_attribute(a, span)
-        }
+        Extension::Attribute(ref a)
+        | Extension::CallingConvention(ref a)
+        | Extension::Declspec(ref a) => visitor.visit_attribute(a, span),
         Extension::AsmLabel(ref a) => visitor.visit_string_literal(&a.node, &a.span),
         Extension::AvailabilityAttribute(ref a) => {
             visitor.visit_availability_attribute(&a.node, &a.span)

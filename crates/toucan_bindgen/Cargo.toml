@@ -13,9 +13,12 @@ description = "A libclang-free binding builder for C build scripts"
 runtime = []
 
 [dependencies]
+cexpr = "=0.6.0"
+regex = "1.13.1"
 shlex = "2.0.1"
 thiserror.workspace = true
 toucan = { version = "0.0.1", path = "../toucan" }
+toucan_preprocessor = { version = "0.0.1", path = "../toucan_preprocessor" }
 
 [dev-dependencies]
 tempfile.workspace = true

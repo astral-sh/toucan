@@ -31,6 +31,7 @@ id!(BodyId);
 
 #[derive(Debug, Serialize)]
 pub struct FunctionBody {
+    pub(crate) definition_kind: crate::FunctionDefinitionKind,
     pub(crate) entity: EntityId,
     pub(crate) declaration: SiteId,
     pub(crate) statement: StatementId,
@@ -617,6 +618,10 @@ impl Analyzer {
         )?;
         let id = BodyId(builder.code.bodies.len() as u32);
         builder.code.bodies.push(FunctionBody {
+            definition_kind: match builder.code.entities[entity.index()].linkage {
+                super::Linkage::Internal => crate::FunctionDefinitionKind::Internal,
+                _ => crate::FunctionDefinitionKind::External,
+            },
             entity,
             declaration: function.declaration,
             statement,

@@ -60,6 +60,13 @@ use that compiler, including when evaluating binding macros. Manually modified
 translation units reject unsupported pairs through `profile()`, layout, and
 evaluation queries.
 
+The translation-unit audit detects GNU or Clang from the build compiler's default
+predefines before applying source macro overrides. It uses that profile for both
+fresh preprocessing and compiler-preprocessed input, and verifies the profile
+reported by the analysis probe. A successful analysis under a different profile
+fails the audit. Standalone `audit_translation_unit` requests accept an optional
+`compiler` field; older requests retain the target default.
+
 `Target::layout` and `Target::predefined_macros` retain their default behavior.
 Use the corresponding `CompilerProfile` methods for an explicit choice. Public
 x86 intrinsic signature and immediate-constraint queries and character-literal
@@ -73,23 +80,29 @@ inside function bodies, casts, and constant macros. Their unmodified C types are
 `char`, `short`, `int`, and `long long`. In particular, `__int8` retains plain
 `char` identity; `signed __int8` is `signed char`. These spellings remain ordinary
 identifiers on the other profiles. This support does not establish Windows SDK
-header coverage; Microsoft declaration attributes and calling-convention keywords
-have separate syntax and semantic requirements.
+header coverage. The profile also parses calling-convention keywords and checked
+Microsoft [declaration attributes](msvc-declarations.md); remaining SDK spellings
+still require separate syntax and semantic support.
 
-Compatibility version macros remain conservative: GNU 4.2.1 and, for Clang,
-Clang 4.0. They select supported header branches; they do not claim every feature
-of those releases or match the installed validation compiler. Capability queries
-such as `__has_builtin` retain their existing conservative policy. Compiler
-resource headers must match the selected compiler family. Preprocessed input
-must be checked with the family that produced it.
+Numeric version macros select GCC 13.3.0 or Clang 18.1.3 header branches.
+Non-Windows Clang profiles also define GNU compatibility version 4.2.1. These
+markers do not claim every feature of those releases or identify an installed
+compiler. Capability queries such as `__has_builtin` describe implemented
+features independently. Compiler resource headers must match the selected family.
+Preprocessed input must be checked with the family that produced it. The
+[version-profile validation](compiler-version-predefines.md) covers fresh system
+headers, real translation units, and generated GNU floating-point API calls.
 
-The Windows default now defines `__clang__` and its version markers consistently
-with its Clang semantics. Clang forward record-tag alignment and packing are also retained on
+The Windows default defines `__clang__` and its version markers consistently
+with its Clang semantics. It omits `__STDC__`, matching Clang in Microsoft mode,
+including explicit ISO C modes. Clang forward record-tag alignment and packing are also retained on
 Windows, correcting an earlier omission. Other existing default behavior is
 preserved. Flags such as `-fshort-enums`, optimization, optional instruction sets,
 and arbitrary compiler versions are not implied by a profile. Unsupported
-extensions continue to produce diagnostics. The layout adapter can represent
-aligned enum layouts, but source-level enum alignment attributes remain unsupported; packed enum attributes are supported.
+extensions continue to produce diagnostics. Packed enum attributes are supported.
+GNU ignores enum tag alignment, while non-Microsoft Clang admits explicit
+alignment that leaves a completed enum's storage unchanged.
+[Other enum alignment forms](enum-alignment.md) retain explicit diagnostics.
 
 The [profile evidence](../corpus/evidence/compiler-profiles-2026-09-08.json) records
 source and binary hashes, compiler commands, allocation samples, and the

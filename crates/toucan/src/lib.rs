@@ -10,11 +10,20 @@ use std::collections::{BTreeMap, BTreeSet};
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
-pub use toucan_bindings::{Bindings, MacroType, Options as BindingOptions, RustTarget};
+pub use toucan_bindings::{
+    BindingSelection, Bindings, DeriveOptions, Documentation as BindingDocumentation,
+    EnumConstantStyle, MacroType, MacroValue, Options as BindingOptions, RustTarget,
+    TypeDependencies,
+};
+pub use toucan_preprocessor::{
+    CommandLineMacroNormalizer, FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude,
+    LineComments, MacroDefinition, MacroRedefinition, MacroRedefinitionPolicy, OriginKind,
+    PredefinedMacroMode, QueryDialect, SourceLocation, SourceMapping,
+};
 pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
 pub use toucan_preprocessor::{
-    FeatureQueries, FeatureQuery, FeatureQueryProvider, ForcedInclude, LineComments, OriginKind,
-    PredefinedMacroMode, QueryDialect, SourceLocation, SourceMapping,
+    Documentation, DocumentationLocation, DocumentationMapping, DocumentationOptions,
+    DocumentationOrigin, DocumentationSource, DocumentationSourceId, RawComment,
 };
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};
 pub use toucan_semantic::{self as semantic, Analysis, AnalysisOptions, TranslationUnit};
@@ -56,7 +65,17 @@ impl Config {
         let target = profile.target();
         let mut preprocessor = PreprocessorConfig {
             feature_queries: Some(features::queries(profile)),
+            scope_punctuator: profile.compiler() == Compiler::Clang
+                || profile.language_mode().is_gnu(),
             trigraphs: profile.default_trigraphs(),
+            line_comments: if profile.language_mode() == LanguageMode::C90 {
+                match profile.compiler() {
+                    Compiler::Gnu => LineComments::GnuC90,
+                    Compiler::Clang => LineComments::ClangC90,
+                }
+            } else {
+                LineComments::Enabled
+            },
             predefined_macro_mode: match profile.compiler() {
                 Compiler::Gnu => PredefinedMacroMode::GnuCommandLine,
                 Compiler::Clang => PredefinedMacroMode::ClangCommandLine,
@@ -65,17 +84,6 @@ impl Config {
             defines: profile.predefined_macros(),
             ..PreprocessorConfig::default()
         };
-        // These predicates advertise only implemented syntax/semantics. They are
-        // independent of the GNU version used for header compatibility.
-        for name in [
-            "__has_feature(x)",
-            "__has_extension(x)",
-            "__has_c_attribute(x)",
-            "__has_declspec_attribute(x)",
-            "__building_module(x)",
-        ] {
-            preprocessor.defines.insert(name.into(), "0".into());
-        }
         if target != Target::X86_64PcWindowsMsvc {
             preprocessor.forced_includes.push(ForcedInclude {
                 path: "<builtin>/integer-types.h".into(),
@@ -181,6 +189,14 @@ pub fn parse_file(path: &Path, config: &Config) -> Result<Compilation, Error> {
     finish(preprocessed, config, start.elapsed())
 }
 
+/// Parse ordered headers: earlier paths are forced includes, and the last is the main file.
+/// See [`Preprocessor::preprocess_files`] for path lookup and shared macro-state rules.
+pub fn parse_files(paths: &[std::path::PathBuf], config: &Config) -> Result<Compilation, Error> {
+    let start = Instant::now();
+    let preprocessed = Preprocessor::new(config.preprocessor.clone()).preprocess_files(paths)?;
+    finish(preprocessed, config, start.elapsed())
+}
+
 pub fn parse_source(path: &Path, source: &str, config: &Config) -> Result<Compilation, Error> {
     let start = Instant::now();
     let preprocessed =
@@ -194,8 +210,10 @@ fn finish(
     preprocessing: Duration,
 ) -> Result<Compilation, Error> {
     let start = Instant::now();
+    let mut analysis_options = config.analysis;
+    analysis_options.retain_documentation_origins &= preprocessed.documentation().is_some();
     let analysis =
-        semantic::analyze_with_profile(&preprocessed.source, config.profile, &config.analysis)
+        semantic::analyze_with_profile(&preprocessed.source, config.profile, &analysis_options)
             .map_err(|error| SemanticError {
                 origin: preprocessed.resolve_location(error.offset).cloned(),
                 error,
@@ -210,6 +228,23 @@ fn finish(
     })
 }
 
+/// Where macro values came from, independently of checked C declarations.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "snake_case")]
+pub enum MacroEvaluation {
+    /// The frontend expanded and evaluated the final C macro environment.
+    #[default]
+    CExpression,
+    /// The caller supplied values; they were not evaluated as C expressions.
+    Provided,
+}
+
+impl MacroEvaluation {
+    fn is_c_expression(&self) -> bool {
+        *self == Self::CExpression
+    }
+}
+
 #[derive(Debug, serde::Serialize)]
 pub struct Report {
     pub target: String,
@@ -219,6 +254,9 @@ pub struct Report {
     pub rust_target: String,
     pub dependencies: Vec<PathBuf>,
     pub declarations: usize,
+    /// Macro values can be supplied independently of the checked declarations.
+    #[serde(skip_serializing_if = "MacroEvaluation::is_c_expression")]
+    pub macro_evaluation: MacroEvaluation,
     pub integer_macros: usize,
     pub floating_macros: usize,
     pub string_macros: usize,
@@ -231,6 +269,12 @@ pub struct Report {
     /// Caller-provided Rust, excluded from declaration counts and ABI validation.
     pub raw_lines: Vec<String>,
     pub skipped_macros: Vec<SkippedMacro>,
+    /// Incompatible macro definitions accepted by an explicit preprocessing policy.
+    #[serde(
+        skip_serializing_if = "Vec::is_empty",
+        serialize_with = "serialize_macro_redefinitions"
+    )]
+    pub macro_redefinitions: Vec<MacroRedefinition>,
     /// Enum constants use the compatible enum integer type in Rust. Their C
     /// expression types are retained here for independent compiler validation.
     pub enum_constants: Vec<toucan_bindings::EnumConstants>,
@@ -245,6 +289,34 @@ pub struct Report {
 pub struct SkippedMacro {
     pub name: String,
     pub reason: String,
+}
+
+/// Serialize borrowed physical locations without imposing serde on the preprocessor.
+fn serialize_macro_redefinitions<S: serde::Serializer>(
+    records: &[MacroRedefinition],
+    serializer: S,
+) -> Result<S::Ok, S::Error> {
+    #[derive(serde::Serialize)]
+    struct Location<'a> {
+        path: &'a Path,
+        accessed_path: Option<&'a Path>,
+        line: usize,
+        column: usize,
+    }
+    #[derive(serde::Serialize)]
+    struct Definition<'a> {
+        name: &'a str,
+        source: Option<Location<'a>>,
+    }
+    serializer.collect_seq(records.iter().map(|record| Definition {
+        name: record.name(),
+        source: record.location().map(|location| Location {
+            path: &location.path,
+            accessed_path: record.accessed_path(),
+            line: location.line,
+            column: location.column,
+        }),
+    }))
 }
 
 impl Compilation {
@@ -267,6 +339,23 @@ impl Compilation {
     /// Returns retained code when requested by [`Config::analysis`].
     pub fn checked(&self) -> Option<&semantic::checked::CheckedCode> {
         self.analysis.checked()
+    }
+    /// Returns file-scope declaration locations when requested independently of checked code.
+    pub fn declaration_origins(&self) -> Option<&semantic::DeclarationOrigins> {
+        self.analysis.declaration_origins()
+    }
+    /// Checked scalar values for written file object occurrences, when requested.
+    pub fn object_values(&self) -> Option<&semantic::ObjectValues> {
+        self.analysis.object_values()
+    }
+    /// Optional declaration and field coordinates used for comment attachment.
+    /// The facade skips this catalog when preprocessing retained no comments.
+    pub fn documentation_origins(&self) -> Option<&semantic::DocumentationDeclarations> {
+        self.analysis.documentation_origins()
+    }
+    /// Returns optional source dependencies erased by C parameter adjustment.
+    pub fn parameter_type_dependencies(&self) -> Option<&semantic::ParameterTypeDependencies> {
+        self.analysis.parameter_type_dependencies()
     }
     /// Resolves the token origins intersecting a retained source span.
     ///
@@ -307,6 +396,47 @@ impl Compilation {
         })?
     }
 
+    /// Emit caller-supplied macro values alongside this compilation's C declarations.
+    ///
+    /// This skips expansion and C evaluation of the final macro environment.
+    /// Values remain subject to root selection, name collision checks, and Rust
+    /// representation validation. `None` preserves an explicitly unavailable
+    /// macro; the caller supplies any omission diagnostics. Use `RustInteger`
+    /// and `RustFloat` for representations that do not claim a C expression type.
+    /// The report marks these values as provided independently of C analysis.
+    pub fn bindings_with_macros(
+        &self,
+        options: &BindingOptions,
+        macros: &BTreeMap<String, Option<MacroValue>>,
+        skipped_macros: Vec<SkippedMacro>,
+    ) -> Result<(String, Report), Error> {
+        semantic::with_parser_stack(|| {
+            let mut counts = (0, 0, 0);
+            for (name, value) in macros {
+                if !options.includes_macro(name) {
+                    continue;
+                }
+                match value {
+                    Some(MacroValue::Integer(_) | MacroValue::RustInteger { .. }) => counts.0 += 1,
+                    Some(MacroValue::Floating(_) | MacroValue::RustFloat(_)) => counts.1 += 1,
+                    Some(MacroValue::String(_) | MacroValue::WideString { .. }) => counts.2 += 1,
+                    None => {}
+                }
+            }
+            self.emit_bindings(
+                options,
+                macros,
+                skipped_macros,
+                counts,
+                MacroEvaluation::Provided,
+            )
+        })
+        .map_err(|error| SemanticError {
+            error,
+            origin: None,
+        })?
+    }
+
     fn bindings_on_parser_stack(
         &self,
         options: &BindingOptions,
@@ -338,10 +468,10 @@ impl Compilation {
         let mut floating_macros = 0;
         let mut string_macros = 0;
         for (name, definition) in &self.preprocessed.macros {
-            if !options.includes(name)
+            if !options.includes_macro(name)
                 || (name.starts_with("__")
                     && !declared_names.contains(name.as_str())
-                    && options.allowlist.is_empty())
+                    && options.selects_all())
             {
                 continue;
             }
@@ -401,7 +531,11 @@ impl Compilation {
                     Ok(semantic::ArithmeticConstant::Floating(value)) => {
                         if matches!(
                             value.kind(),
-                            semantic::FloatKind::Float | semantic::FloatKind::Double
+                            semantic::FloatKind::Float
+                                | semantic::FloatKind::Double
+                                | semantic::FloatKind::FLOAT32
+                                | semantic::FloatKind::FLOAT64
+                                | semantic::FloatKind::FLOAT32X
                         ) {
                             macros.insert(
                                 name.clone(),
@@ -413,6 +547,8 @@ impl Compilation {
                                 name: name.clone(),
                                 reason: if value.kind().is_narrow() {
                                     format!("{} macro constants have no Rust representation; use an explicit float or double cast", if value.kind() == semantic::FloatKind::BFloat16 {"__bf16"} else {"_Float16"})
+                                } else if value.kind() == semantic::FloatKind::FLOAT64X {
+                                    "_Float64x macro constants have no Rust representation; use an explicit float or double cast".into()
                                 } else if value.kind() == semantic::FloatKind::FLOAT128 {
                                     "binary128 macro constants have no verified Rust representation; use an explicit float or double cast".into()
                                 } else {
@@ -435,7 +571,25 @@ impl Compilation {
                 },
             }
         }
-        let bindings = toucan_bindings::generate_with_macros(self.unit(), options, &macros)?;
+        self.emit_bindings(
+            options,
+            &macros,
+            skipped_macros,
+            (integer_macros, floating_macros, string_macros),
+            MacroEvaluation::CExpression,
+        )
+    }
+
+    /// Assemble the same declaration report for frontend and caller-provided values.
+    fn emit_bindings(
+        &self,
+        options: &BindingOptions,
+        macros: &BTreeMap<String, Option<MacroValue>>,
+        skipped_macros: Vec<SkippedMacro>,
+        (integer_macros, floating_macros, string_macros): (usize, usize, usize),
+        macro_evaluation: MacroEvaluation,
+    ) -> Result<(String, Report), Error> {
+        let bindings = toucan_bindings::generate_with_macros(self.unit(), options, macros)?;
         let source = bindings.source;
         let report = Report {
             target: self.unit().target.triple().into(),
@@ -444,6 +598,7 @@ impl Compilation {
             rust_target: options.rust_target.to_string(),
             dependencies: self.preprocessed.dependencies.clone(),
             declarations: bindings.declarations,
+            macro_evaluation,
             integer_macros,
             floating_macros,
             string_macros,
@@ -452,6 +607,11 @@ impl Compilation {
             blocked_types: bindings.blocked_types,
             raw_lines: bindings.raw_lines,
             skipped_macros,
+            macro_redefinitions: self
+                .preprocessed
+                .macro_redefinitions()
+                .unwrap_or_default()
+                .to_vec(),
             enum_constants: bindings.enum_constants,
             renamed_macros: bindings.renamed_macros,
             macro_types: bindings.macro_types,

@@ -18,25 +18,62 @@ musl x86-64 and AArch64, then Clang on those two musl targets. Preprocessing has
 selector. Archived campaigns using modulo five or seven retain their selector contracts;
 replaying their exact bytes with the new harness can select a different profile.
 Record the harness source and selector count with each campaign. The same byte sum's
-`0x100` bit independently selects GNU11 (clear) or C11 (set). The preprocessing
-harness uses that bit to disable or enable trigraph replacement, and bit `1` selects
+bits 8 through 10 select GNU11, C11, GNU90, C90, GNU99, C99, GNU17, or C17:
+`(sum(input bytes) >> 8) & 7` indexes that order. This is language selector
+version 3. Older two-mode and four-mode campaigns retain their original contract; use their saved binary to reproduce it. No input
+prefix is consumed. The preprocessing
+harness uses bit 8 to disable or enable trigraph replacement, and bit 0 selects
 GNU (clear) or Clang (set) feature-query argument rules with a small test catalog.
 Preprocessing selector version 2 also uses `(sum(input bytes) >> 9) % 5` for
 line-comment handling: enabled, GCC C90 compilation, GCC C90 preprocessing,
 Clang C90 compilation, or Clang C90 preprocessing, in that order. The source
-bytes remain intact. The runner appends block-comment padding to cover all 20
-comment/query/trigraph combinations for every preprocessing seed. Older
+bytes remain intact. The runner appends block-comment padding to cover all 480
+comment/query/trigraph/scope/macro-history/redefinition/documentation combinations for every preprocessing seed. Older
 preprocessing campaigns always enabled line comments; replay their saved binary
-to preserve that behavior. This change does not alter the semantic targets'
-two-mode selector.
+to preserve that behavior. Its selectors are independent of the semantic targets'
+eight-mode selector. Scope-punctuator tokenization is selected independently by
+`sum(input bytes) & 2`; preprocessing selector version 3 records this addition.
+Version 4 adds `sum(input bytes) & 4` to enable or disable macro-definition history.
+The target validates captured definition locations and keeps the final environment
+checks active in both modes. Version 5 adds `sum(input bytes) & 8` to select
+strict redefinition errors or recorded incompatible replacements. The target
+checks retained redefinition locations and resets the same preprocessor after
+both success and failure. Padding preserves every original source byte.
+Version 6 adds `(sum(input bytes) >> 4) & 3` for documentation capture: zero
+disables capture, one retains documentation markers, and two or three retain all
+comments. The runner covers the three distinct configurations. Source, comment,
+and output-token coordinates are checked when a catalog is produced.
 It has no physical target profile. The campaign runner pads each seed with a comment to cover every compiler
-profile in both modes, including both trigraph settings and query dialects for preprocessing. The
+profile in all eight language modes, including all independent preprocessing settings. The
 reported profile count must match the compiled harness's `CompilerProfile::ALL`.
+The binding harness keeps its default generation pass and also requests Rust
+enums with trait selector version 1: `(sum(input bytes) >> 11) & 15` controls
+Copy, Debug, Default, and Eq with bits 0, 1, 2, and 3, respectively. This does not
+consume or rewrite source bytes. Ordinary campaign padding still covers the
+compiler/language pairs; the focused derive-storage replay additionally covers
+all 1,408 compiler/language/trait combinations for that fixture.
+The second generation also uses enum selector version 1: byte-sum bit 2 selects
+bindgen enum naming and bit 3 selects enum-name prefixes. This exercises lexical
+record ownership, shared anonymous numbering, and Rust-name collisions. The
+default generation remains active for every accepted input.
 Older archived sources retain their recorded selector contracts. The `checked`
 target compares analysis with and without retained code. Successful results must have
 identical declarations; invalid inputs must produce the same diagnostic, except
 when the separate retention limits are reached. It also exercises layout queries
-on the retained analysis owner. All targets reject invalid UTF-8, so saved reproducer
+on the retained analysis owner. It retains object initializer facts and documentation
+declaration locations alongside the checked graph. Object profiles, declaration
+identities and names, source ordering, and UTF-8 offset boundaries are checked;
+documentation targets must address existing declarations, records, enum variants,
+or fields. The optional metadata retains its separate occurrence, byte, and nesting
+limits. These checks cover direct semantic input, not preprocessor comment capture
+or the builder's documentation attachment and emission.
+The checked target also retains source parameter-type dependencies and validates
+their declaration identities, typedef names, and occurrence spans. Array aliases,
+redeclared callbacks, shadowed names, `typeof`, and expression-only type operands
+have seed coverage. The [deterministic capture](../corpus/evidence/parameter-expression-dependencies-2026-09-09.json.gz)
+checks catalog equality with and without retained code across 440 settings; it
+does not measure mutation-fuzzing coverage.
+All targets reject invalid UTF-8, so saved reproducer
 bytes are exactly the source used for preprocessing, analysis, binding generation,
 and target selection.
 Invalid input may return a diagnostic; panics, aborts,
@@ -237,3 +274,37 @@ The archive includes original starting corpora, compressed logs, exact source an
 binary hashes, commands, and toolchain versions. LeakSanitizer was disabled under
 ptrace. These runs precede explicit C11/GNU11 modes and use the archived single-mode
 harnesses. Execution counts include rejected inputs and do not establish conformance.
+
+## Inline ownership replay
+
+The [inline ownership evidence](evidence/inline-ownership-2026-09-08) preserves
+three runs. The first exposed an outdated harness assertion equating every body
+with the entity's latest body. The corrected invariant checks superseded bodies,
+their original declaration sites, the later canonical body, and inline source
+annotations. The core run passed 8,388 inputs; the final run including weak
+composition passed 6,834 inputs in 121.566 seconds with 602 MiB peak RSS and no
+artifacts. All 11 profiles and four language modes are seeded without changing
+source bytes. Each run retains its initial corpus, dictionary, source manifest,
+commands, and logs; the original failing input remains archived.
+
+## C99 and C17 campaign
+
+The runner verifies all 88 profile/mode settings for each of 137 seed files,
+preserving every original source byte. Eight preprocessing seeds retain their
+40 independent query, comment, trigraph, and scope-punctuator settings.
+
+The [recorded campaign](evidence/c99-c17-2026-09-08/mutations/evidence.json.gz)
+executes 22,764 inputs in 301 seconds, adds 792 corpus units, and reaches 624 MiB
+peak RSS without artifacts. The initial 7,834-input replay is preserved separately;
+its runtime was largely spent initializing the expanded seed set. Both runs retain
+source hashes, starting corpora, dictionaries, commands, and toolchain identities.
+
+## Optional semantic metadata
+
+The [September 9 checked-analysis campaign](../corpus/evidence/native-validation-2026-09-09/README.md)
+includes object values and documentation origins. At `02a68ee`, it completed
+43,501 executions in 301.133 seconds with AddressSanitizer and no findings, reaching
+621 MiB peak RSS. The capture preserves the initial corpus, dictionary, source
+manifest, commands, and logs. LeakSanitizer was disabled. Rejected inputs contribute
+to the execution count; Builder comment attachment and emission are outside this
+target.

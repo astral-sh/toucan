@@ -1,0 +1,55 @@
+{
+  "source": "const unsigned short *value=u\"ok\";\n",
+  "rows": [
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/c99-c17-probes/baseline-audit",
+        "/home/dev-user/.cache/toucan/c99-c17-probes/baseline-audit-control.request.json"
+      ],
+      "request": {
+        "input": "/home/dev-user/.cache/toucan/c99-c17-probes/audit-release-control.c",
+        "target": "x86_64-unknown-linux-gnu",
+        "compiler": "gcc",
+        "language_mode": "gnu99",
+        "include_dirs": [],
+        "definitions": [],
+        "retain_code": false,
+        "max_preprocessing_tokens": 2000000,
+        "retention_nodes": 2000000,
+        "retention_edges": 8000000,
+        "retention_payload_bytes": 134217728,
+        "operation": "analyze",
+        "output": "/home/dev-user/.cache/toucan/c99-c17-probes/baseline-audit-control.unit"
+      },
+      "exit_code": 2,
+      "stdout": "{\"diagnostic\":\"unknown variant `gnu99`, expected one of `c11`, `gnu11`, `c90`, `gnu90` at line 1 column 162\",\"status\":\"tool_error\"}",
+      "stderr": "",
+      "unit": null
+    },
+    {
+      "command": [
+        "/home/dev-user/.cache/toucan/c99-c17-probes/head-audit",
+        "/home/dev-user/.cache/toucan/c99-c17-probes/head-audit-control.request.json"
+      ],
+      "request": {
+        "input": "/home/dev-user/.cache/toucan/c99-c17-probes/audit-release-control.c",
+        "target": "x86_64-unknown-linux-gnu",
+        "compiler": "gcc",
+        "language_mode": "gnu99",
+        "include_dirs": [],
+        "definitions": [],
+        "retain_code": false,
+        "max_preprocessing_tokens": 2000000,
+        "retention_nodes": 2000000,
+        "retention_edges": 8000000,
+        "retention_payload_bytes": 134217728,
+        "operation": "analyze",
+        "output": "/home/dev-user/.cache/toucan/c99-c17-probes/head-audit-control.unit"
+      },
+      "exit_code": 0,
+      "stdout": "{\"compiler\":\"gcc\",\"counts\":null,\"declarations\":3,\"dependencies\":[\"/home/dev-user/.cache/toucan/c99-c17-probes/audit-release-control.c\"],\"language_mode\":\"gnu99\",\"retained\":false,\"status\":\"accepted\"}",
+      "stderr": "",
+      "unit": "TranslationUnit { target: X86_64UnknownLinuxGnu, compiler: Gnu, language_mode: Gnu99, declarations: [Declaration { function_definition_kind: None, alignment: DeclarationAlignment { gnu: None, msvc: None, c11: None, effective: None }, returns_twice: false, noreturn: false, symbol_binding: Strong, name: \"__int128_t\", ty: Type { alignment: None, kind: Integer(Int128), qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }, kind: Typedef, link_name: None, is_static: false, is_thread_local: false, is_definition: false, flexible_array_storage: None }, Declaration { function_definition_kind: None, alignment: DeclarationAlignment { gnu: None, msvc: None, c11: None, effective: None }, returns_twice: false, noreturn: false, symbol_binding: Strong, name: \"__uint128_t\", ty: Type { alignment: None, kind: Integer(UnsignedInt128), qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }, kind: Typedef, link_name: None, is_static: false, is_thread_local: false, is_definition: false, flexible_array_storage: None }, Declaration { function_definition_kind: None, alignment: DeclarationAlignment { gnu: None, msvc: None, c11: None, effective: None }, returns_twice: false, noreturn: false, symbol_binding: Strong, name: \"value\", ty: Type { alignment: None, kind: Pointer(Type { alignment: None, kind: Integer(UnsignedShort), qualifiers: Qualifiers { is_const: true, is_volatile: false, is_restrict: false } }), qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }, kind: Variable, link_name: None, is_static: false, is_thread_local: false, is_definition: true, flexible_array_storage: None }], function_options: {}, parameter_contracts: [], alignment_origins: [], records: [Record { transparent_union: false, name: Some(\"__toucan_va_list_tag\"), scope: File, kind: Struct, fields: Some([Field { name: Some(\"gp_offset\"), ty: Type { alignment: None, kind: Integer(UnsignedInt), qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }, bit_width: None, alignment: None, packed: false }, Field { name: Some(\"fp_offset\"), ty: Type { alignment: None, kind: Integer(UnsignedInt), qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }, bit_width: None, alignment: None, packed: false }, Field { name: Some(\"overflow_arg_area\"), ty: Type { alignment: None, kind: Pointer(Type { alignment: None, kind: Void, qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }), qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }, bit_width: None, alignment: None, packed: false }, Field { name: Some(\"reg_save_area\"), ty: Type { alignment: None, kind: Pointer(Type { alignment: None, kind: Void, qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }), qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }, bit_width: None, alignment: None, packed: false }]), packed: false, alignment: None, pack: None }], record_origins: {}, enums: [], typedefs: {\"__builtin_va_list\": Type { alignment: None, kind: Array { element: Type { alignment: None, kind: Record(0), qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }, length: Some(1) }, qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }, \"__int128_t\": Type { alignment: None, kind: Integer(Int128), qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }, \"__uint128_t\": Type { alignment: None, kind: Integer(UnsignedInt128), qualifiers: Qualifiers { is_const: false, is_volatile: false, is_restrict: false } }}, constants: {} }"
+    }
+  ]
+}

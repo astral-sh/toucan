@@ -17,15 +17,33 @@ pub enum QueryDialect {
 pub enum FeatureQuery {
     Builtin,
     Attribute,
+    Feature,
+    Extension,
+    CAttribute,
+    DeclspecAttribute,
+    BuildingModule,
 }
 
 impl FeatureQuery {
-    pub(crate) const ALL: [Self; 2] = [Self::Builtin, Self::Attribute];
+    pub(crate) const ALL: [Self; 7] = [
+        Self::Builtin,
+        Self::Attribute,
+        Self::Feature,
+        Self::Extension,
+        Self::CAttribute,
+        Self::DeclspecAttribute,
+        Self::BuildingModule,
+    ];
 
     pub fn name(self) -> &'static str {
         match self {
             Self::Builtin => "__has_builtin",
             Self::Attribute => "__has_attribute",
+            Self::Feature => "__has_feature",
+            Self::Extension => "__has_extension",
+            Self::CAttribute => "__has_c_attribute",
+            Self::DeclspecAttribute => "__has_declspec_attribute",
+            Self::BuildingModule => "__building_module",
         }
     }
 
@@ -33,6 +51,11 @@ impl FeatureQuery {
         match name {
             "__has_builtin" => Some(Self::Builtin),
             "__has_attribute" => Some(Self::Attribute),
+            "__has_feature" => Some(Self::Feature),
+            "__has_extension" => Some(Self::Extension),
+            "__has_c_attribute" => Some(Self::CAttribute),
+            "__has_declspec_attribute" => Some(Self::DeclspecAttribute),
+            "__building_module" => Some(Self::BuildingModule),
             _ => None,
         }
     }
@@ -65,13 +88,23 @@ pub struct FeatureQueries {
 }
 
 impl FeatureQueries {
-    /// Enable both supported operators with the supplied immutable catalog.
+    /// Enables the dialect's predefined operators with an immutable catalog.
+    /// GNU has builtin, GNU-attribute and C-attribute queries; Clang has all seven.
     pub fn new(dialect: QueryDialect, provider: Arc<dyn FeatureQueryProvider>) -> Self {
         Self {
             dialect,
             provider,
             enabled: FeatureQuery::ALL
                 .iter()
+                .filter(|kind| {
+                    dialect == QueryDialect::Clang
+                        || matches!(
+                            kind,
+                            FeatureQuery::Builtin
+                                | FeatureQuery::Attribute
+                                | FeatureQuery::CAttribute
+                        )
+                })
                 .fold(0, |bits, kind| bits | kind.bit()),
         }
     }
@@ -86,17 +119,42 @@ impl FeatureQueries {
     }
 
     pub(crate) fn expands_argument(&self, kind: FeatureQuery) -> bool {
-        kind == FeatureQuery::Attribute || self.dialect == QueryDialect::Gnu
+        matches!(
+            kind,
+            FeatureQuery::Attribute | FeatureQuery::CAttribute | FeatureQuery::DeclspecAttribute
+        ) || kind == FeatureQuery::Builtin && self.dialect == QueryDialect::Gnu
+    }
+
+    /// Namespace separators are read without expanding that token.
+    pub(crate) fn permits_namespace(&self, kind: FeatureQuery) -> bool {
+        kind == FeatureQuery::CAttribute
+            || kind == FeatureQuery::Attribute && self.dialect == QueryDialect::Gnu
+    }
+
+    /// Clang's shared feature-query evaluator uses a long literal for revision dates.
+    pub(crate) fn spelling(&self, value: u64) -> String {
+        if self.dialect == QueryDialect::Clang && value > 1 {
+            format!("{value}L")
+        } else {
+            value.to_string()
+        }
     }
 
     pub(crate) fn evaluate(&self, kind: FeatureQuery, tokens: &[Token]) -> Result<u64, String> {
         let (namespace, name) = match tokens {
             [name] if name.kind == Kind::Identifier => (None, name.text.as_str()),
-            [namespace, first, second, name]
-                if kind == FeatureQuery::Attribute
-                    && self.dialect == QueryDialect::Gnu
+            [namespace, scope, name]
+                if self.permits_namespace(kind)
                     && namespace.kind == Kind::Identifier
-                    && first.text == ":"
+                    && scope.text == "::"
+                    && name.kind == Kind::Identifier =>
+            {
+                (Some(namespace.text.as_str()), name.text.as_str())
+            }
+            [namespace, colon, second, name]
+                if self.permits_namespace(kind)
+                    && namespace.kind == Kind::Identifier
+                    && colon.colon_scope
                     && second.text == ":"
                     && name.kind == Kind::Identifier =>
             {
@@ -106,7 +164,7 @@ impl FeatureQueries {
                 return Err(format!(
                     "{} requires {}",
                     kind.name(),
-                    if kind == FeatureQuery::Attribute && self.dialect == QueryDialect::Gnu {
+                    if self.permits_namespace(kind) {
                         "an identifier or namespace::identifier"
                     } else {
                         "exactly one identifier"

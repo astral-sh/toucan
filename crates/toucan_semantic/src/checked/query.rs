@@ -95,6 +95,9 @@ impl Builder {
     }
 
     pub(super) fn query_use_effects(&self, value: &ExprUse) -> QuerySideEffects {
+        if value.context == super::expression::UseContext::ReusedValue {
+            return QuerySideEffects::Absent;
+        }
         let summary = self.expression_builder.query_summaries[value.expression.index()];
         if value
             .conversions
@@ -126,6 +129,7 @@ impl Builder {
             | ExprKind::ImaginaryFloat { .. }
             | ExprKind::String(_)
             | ExprKind::Name(_)
+            | ExprKind::BuiltinFunction(_)
             | ExprKind::SizeOfType(_)
             | ExprKind::SizeOfValue { .. }
             | ExprKind::AlignOf { .. }
@@ -180,6 +184,11 @@ impl Builder {
                 condition,
                 then_value,
                 else_value,
+            }
+            | ExprKind::OmittedConditional {
+                condition,
+                then_value,
+                else_value,
             } => self
                 .query_use_effects(condition)
                 .combine(self.query_use_effects(then_value))
@@ -207,7 +216,10 @@ impl Builder {
                 }
             }
             ExprKind::BuiltinCall {
-                builtin, arguments, ..
+                builtin,
+                arguments,
+                declaration,
+                ..
             } => match builtin {
                 Builtin::X86(intrinsic) => {
                     if intrinsic.has_side_effects() {
@@ -222,7 +234,8 @@ impl Builder {
                 | Builtin::HugeValue
                 | Builtin::HugeValueFloat
                 | Builtin::HugeValueLongDouble => Absent,
-                Builtin::Elementwise(_)
+                Builtin::Prefetch
+                | Builtin::Elementwise(_)
                 | Builtin::ConstantQuery
                 | Builtin::Complex
                 | Builtin::ComplexReal
@@ -258,7 +271,11 @@ impl Builder {
                     operands(arguments)
                 }
                 // Clang's object-size builtins do not carry the const attribute.
-                Builtin::Nontemporal(_)
+                Builtin::Allocation(_) if declaration.is_some() => {
+                    Unresolved.combine(operands(arguments))
+                }
+                Builtin::Allocation(_)
+                | Builtin::Nontemporal(_)
                 | Builtin::C11Atomic(_)
                 | Builtin::Atomic(_)
                 | Builtin::Sync(_)

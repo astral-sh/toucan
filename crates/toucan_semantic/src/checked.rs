@@ -13,15 +13,19 @@
 mod access;
 pub(crate) mod attributes;
 pub(crate) mod bounds;
+mod dll_storage;
 pub(crate) mod expression;
 mod inference;
 pub(crate) mod initializer;
+mod inline;
 mod ownership;
 mod query;
 pub(crate) mod references;
 mod shuffle;
 pub(crate) mod statement;
 pub(crate) mod target;
+
+pub use inline::FunctionInlineSite;
 
 pub use crate::alignof::{AlignmentKind, AlignmentOperand};
 pub use crate::atomic::AtomicOperation;
@@ -45,6 +49,7 @@ pub use bounds::{
     Bound, BoundEvaluation, BoundId, BoundInput, BoundSite, BoundValue, Extent, FunctionUse,
     TypeStep, TypeUse, TypeUseId,
 };
+pub use dll_storage::DllStorageSource;
 pub use expression::{
     Binary, Builtin, Conversion, ConversionStep, Coverage as ExpressionStatus, ExprId, ExprKind,
     ExprUse, Expression, ExpressionCoverage, GenericArm, OffsetMember, TypeNameOperand, Unary,
@@ -185,6 +190,8 @@ pub enum OccurrenceKind {
     Declarator,
     Parameter,
     OldStyleParameter,
+    /// A C90 function declaration implied by its first direct call in a scope.
+    ImplicitFunction,
     Field,
     StructDeclarator,
     Record,
@@ -268,6 +275,8 @@ impl From<DeclarationKind> for EntityKind {
 
 #[derive(Debug, Serialize)]
 pub struct Entity {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) dll_storage_class: Option<crate::DllStorageClass>,
     #[serde(skip_serializing_if = "crate::DeclarationAlignment::is_empty")]
     pub(crate) alignment: crate::DeclarationAlignment,
     #[serde(skip_serializing_if = "std::ops::Not::not")]
@@ -308,6 +317,8 @@ pub enum Linkage {
 
 #[derive(Debug, Serialize)]
 pub struct DeclarationSite {
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) dll_storage_class: Option<crate::DllStorageClass>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub(crate) alignment: Option<Box<SiteAlignment>>,
     #[serde(skip_serializing_if = "Option::is_none")]
@@ -378,6 +389,10 @@ pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> O
 
 #[derive(Debug, Serialize)]
 pub struct CheckedCode {
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) function_inline: BTreeMap<usize, inline::FunctionInlineSite>,
+    #[serde(skip_serializing_if = "BTreeMap::is_empty")]
+    pub(crate) dll_storage: BTreeMap<usize, dll_storage::DllStorageSource>,
     #[serde(skip_serializing_if = "BTreeMap::is_empty")]
     pub(crate) function_options: BTreeMap<usize, target::FunctionOptionSite>,
     #[serde(skip)]
@@ -479,6 +494,8 @@ impl Builder {
             expression_builder: expression::ExpressionBuilder::default(),
             statement_builder: statement::StatementBuilder::default(),
             code: CheckedCode {
+                function_inline: BTreeMap::new(),
+                dll_storage: BTreeMap::new(),
                 function_options: BTreeMap::new(),
                 function_option_entities: BTreeMap::new(),
                 inline_targets: BTreeMap::new(),
@@ -686,6 +703,7 @@ impl Builder {
         )?;
         let id = EntityId(self.code.entities.len() as u32);
         self.code.entities.push(Entity {
+            dll_storage_class: None,
             alignment: crate::DeclarationAlignment::default(),
             returns_twice: false,
             noreturn: false,
@@ -717,6 +735,7 @@ impl Builder {
         let id = SiteId(self.code.declarations.len() as u32);
         self.code.entities[entity.index()].storage = properties.storage;
         self.code.declarations.push(DeclarationSite {
+            dll_storage_class: None,
             type_inference: None,
             alignment: None,
             returns_twice: self.code.entities[entity.index()].returns_twice,
@@ -900,6 +919,43 @@ impl Builder {
         Ok(Some(site))
     }
 
+    pub(crate) fn implicit_function_declaration(
+        &mut self,
+        callee: &Node<ast::Expression>,
+        name: &str,
+        ty: &Type,
+    ) -> Result<(), Error> {
+        let original = self
+            .find(OccurrenceKind::Expression, callee)?
+            .ok_or_else(|| {
+                Error::new(
+                    callee.span.start,
+                    "implicit function has no retained callee occurrence",
+                )
+            })?;
+        let id = self.occurrence(OccurrenceKind::ImplicitFunction, &callee.node, callee.span)?;
+        self.code.occurrences[id.index()].type_owner =
+            self.code.occurrences[original.index()].type_owner;
+        self.code.occurrences[id.index()].attribute_argument =
+            self.code.occurrences[original.index()].attribute_argument;
+        self.local_declaration(
+            callee,
+            OccurrenceKind::ImplicitFunction,
+            LocalDeclaration {
+                name: Some(name),
+                name_span: Some(callee.span),
+                ty,
+                kind: EntityKind::Function,
+                storage: Storage::None,
+                linked: true,
+                register: false,
+                definition: false,
+                allocation: None,
+            },
+        )?;
+        Ok(())
+    }
+
     pub(crate) fn local_declaration<T>(
         &mut self,
         item: &Node<T>,
@@ -1037,6 +1093,7 @@ impl Builder {
         self.finish_diagnostic_attributes(offsets)?;
         self.finish_noescape_attributes(offsets)?;
         self.finish_function_option_spans(offsets)?;
+        self.finish_inline_spans(offsets)?;
         self.finish_initializer_coverage()?;
         self.finish_bounds(offsets)?;
         self.finish_type_ownership()?;
@@ -1080,6 +1137,7 @@ impl Builder {
                 "checked-code retention has an ambiguous source occurrence",
             ));
         }
+        self.finish_dll_storage(offsets)?;
         for (scope, span) in self.code.scopes.iter_mut().zip(self.scope_spans) {
             if scope.kind != ScopeKind::File {
                 scope.source = map_span(offsets, span, &mut self.budget)?;
@@ -1133,6 +1191,16 @@ fn unmapped_span(span: Span) -> SourceSpan {
 }
 
 fn map_span(offsets: &SourceMap, span: Span, budget: &mut Budget) -> Result<SourceSpan, Error> {
+    map_source_span(offsets, span, |edges, bytes| {
+        budget.charge(0, edges, bytes, span.start)
+    })
+}
+
+pub(crate) fn map_source_span(
+    offsets: &SourceMap,
+    span: Span,
+    mut charge: impl FnMut(usize, usize) -> Result<(), Error>,
+) -> Result<SourceSpan, Error> {
     let mut first: Option<Range<usize>> = None;
     let mut fragments = Vec::new();
     let mut anchor = None;
@@ -1140,16 +1208,16 @@ fn map_span(offsets: &SourceMap, span: Span, budget: &mut Budget) -> Result<Sour
         if range.is_empty() {
             anchor.get_or_insert(range.start);
         } else {
-            budget.charge(0, 1, 0, span.start)?;
+            charge(1, 0)?;
             if let Some(first) = &mut first {
                 if fragments.is_empty() && first.end == range.start {
                     first.end = range.end;
                 } else {
                     if fragments.is_empty() {
-                        budget.charge(0, 0, std::mem::size_of::<Range<usize>>(), span.start)?;
+                        charge(0, std::mem::size_of::<Range<usize>>())?;
                         fragments.push(first.clone());
                     }
-                    budget.charge(0, 0, std::mem::size_of::<Range<usize>>(), span.start)?;
+                    charge(0, std::mem::size_of::<Range<usize>>())?;
                     fragments.push(range);
                 }
             } else {

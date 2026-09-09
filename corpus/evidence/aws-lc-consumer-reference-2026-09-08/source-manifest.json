@@ -1,0 +1,8 @@
+{
+  "scripts/verify_aws_lc_consumer.py": "fdb9b903d4f9589d9c9451f7ee1de012c55077dd181adeb535c70c6b0836c378",
+  "tools/aws_lc_consumer/Cargo.toml": "92720b2afaf4e67e068791291c07d8355c419c81d9feb34d0c4e5980a847f525",
+  "tools/aws_lc_consumer/Cargo.lock": "3624fbd4ac18487530a2628770c6a710e26d1dde9ad7e4dfa2a3b77bf548ab5c",
+  "tools/aws_lc_consumer/src/main.rs": "5727884260d929c51cc6e8d12f5bec94b716b882f3a84641222afb764fae47e1",
+  "tools/aws_lc_consumer/layout.c": "816c33e42dcd5affa1858406d8e65381fb05f45bc08d8353918b566ce58d3f0b",
+  "docs/aws-lc-consumer.md": "f0177591dab5a0a207d74f0ca93c826e5f5de86aa67412ac3bbdcc08383fa042"
+}

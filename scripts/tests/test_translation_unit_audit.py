@@ -16,6 +16,16 @@ import audit_translation_units as audit
 
 
 class TranslationUnitAuditTests(unittest.TestCase):
+    def test_compiler_profile_prefers_clang_over_its_gnu_compatibility_macros(self):
+        self.assertEqual(audit.compiler_profile("#define __GNUC__ 13\n"), "gcc")
+        self.assertEqual(
+            audit.compiler_profile("#define __GNUC__ 4\n#define __clang__ 1\n"),
+            "clang",
+        )
+        for text in ("", "__clang__", "#define __GNUC_MINOR__ 3\n"):
+            with self.assertRaisesRegex(RuntimeError, "supported GNU or Clang"):
+                audit.compiler_profile(text)
+
     def test_cmake_selects_exact_target_and_keeps_quoted_definitions(self):
         with tempfile.TemporaryDirectory(prefix="toucan commands ") as temporary:
             root = Path(temporary)
@@ -90,17 +100,26 @@ class TranslationUnitAuditTests(unittest.TestCase):
             profile["definitions"],
             [["VALUE", "1"], ["VALUE", None], ["VALUE", "2"], ["NDEBUG", "1"]],
         )
-        self.assertEqual(profile["unmodeled_compiler_flags"], ["-std=c90"])
+        self.assertEqual(profile["unmodeled_compiler_flags"], [])
+        self.assertEqual(profile["language_mode"], "c90")
         for flag in ("-include", "-imacros", "-iquote", "-isystem", "-nostdinc"):
             with self.assertRaises(RuntimeError):
                 audit.toucan_flags([flag, "header"], Path.cwd())
 
-    def test_language_mode_mapping_does_not_relabel_c90(self):
+    def test_language_modes_preserve_last_option_and_unknown_flags(self):
         for flags, mode, unmodeled in [
             (["-std=c11"], "c11", []),
             (["-std=c11", "-std=gnu11"], "gnu11", []),
-            (["-std=c11", "-std=c90"], "gnu11", ["-std=c90"]),
-            (["-std=c90", "-std=c11"], "c11", ["-std=c90"]),
+            (["-std=c11", "-std=c90"], "c90", []),
+            (["-std=c90", "-std=c11"], "c11", []),
+            (["-std=c89"], "c90", []),
+            (["-std=gnu89"], "gnu90", []),
+            (["-std=iso9899:1990"], "c90", []),
+            (["-std=c23", "-std=c90"], "c90", ["-std=c23"]),
+            (["-std=c90", "-std=c23"], "gnu11", ["-std=c23"]),
+            (["-std=c90", "-std=c99"], "c99", []),
+            (["-std=gnu99", "-std=c18"], "c17", []),
+            (["-std=gnu18", "-std=iso9899:1999"], "c99", []),
         ]:
             profile = audit.toucan_flags(flags, Path.cwd())
             self.assertEqual(profile["language_mode"], mode)
@@ -159,6 +178,28 @@ class TranslationUnitAuditTests(unittest.TestCase):
                     {"output": str(root / "partial.unit")}, args, root, root, "normal"
                 )
             self.assertEqual(result["result"]["status"], "tool_error")
+            self.assertNotIn("declaration_sha256", result)
+
+    def test_success_from_another_profile_cannot_satisfy_the_request(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            output = root / "result.json"
+            output.write_text('{"status":"accepted","compiler":"gcc"}')
+            args = type("Args", (), {"probe": Path("probe"), "timeout": 1})()
+            with patch.object(
+                audit,
+                "run",
+                return_value={"stdout": str(output), "exit_code": 0, "timeout": False},
+            ):
+                result = audit.probe(
+                    {"compiler": "clang", "output": str(root / "wrong.unit")},
+                    args,
+                    root,
+                    root,
+                    "normal",
+                )
+            self.assertEqual(result["result"]["status"], "tool_error")
+            self.assertIn("compiler profile", result["result"]["diagnostic"])
             self.assertNotIn("declaration_sha256", result)
 
 

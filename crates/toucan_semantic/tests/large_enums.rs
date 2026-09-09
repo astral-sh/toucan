@@ -145,6 +145,7 @@ fn enumerator_types_change_only_after_the_definition() {
                     "{target}: {}: {name}",
                     case.source
                 );
+                assert_eq!(evaluate_integer(&unit, name).unwrap(), value);
             }
             assert_eq!(
                 c_type(evaluate_integer(&unit, "(enum E)0").unwrap()),

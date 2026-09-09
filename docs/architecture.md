@@ -57,6 +57,9 @@ type-checked without evaluating its arithmetic. Floating constants use a softwar
 APFloat evaluator with the selected target's format, including x87 and binary128
 `long double`. Arithmetic constant evaluation is separate from C's stricter integer
 constant-expression rules; no host floating representation substitutes for the target.
+[GNU interchange and extended types](gnu-float-types.md) separate nominal C
+identity from storage and argument-promotion behavior; supported binary32/binary64
+carriers have native C/Rust call checks.
 [Half and bfloat types](half-types.md) preserve separate nominal identities and
 encodings. GNU excess-precision constant cases that are not modeled fail explicitly.
 

@@ -1,0 +1,7 @@
+{
+  "crates/toucan/tests/dll_composition.rs": "f22327ee56016e042b57ea81f5d3e753530f9cd1214b9fcd195af757d7fc87dd",
+  "crates/toucan_semantic/src/allocation.rs": "25fce2dcfcb66dc97aeb3c0456d154e7c2928bceb5cd3a5344c585296d1cf823",
+  "crates/toucan_semantic/src/dll_storage.rs": "a16abcf0905e2b5fdf9ca1f88497010e084075b989924b9fd76e64585fa330d1",
+  "crates/toucan_semantic/src/prefetch.rs": "37aaf1cae5c3c21fe701bb068c4473ae4dff544b1cc1ee50b97e393627b14fbb",
+  "docs/msvc-dll-storage.md": "75f03ab2de7177186371db38426de8e82d35911caf5c8d25172e27978661f84e"
+}
