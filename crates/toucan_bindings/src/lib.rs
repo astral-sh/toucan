@@ -51,8 +51,7 @@ pub struct Options {
     pub generated_names: BTreeMap<String, String>,
     /// Selected written object occurrences, keyed by their original C names.
     /// Enables literal projection and preserves the selected occurrence's type.
-    /// An uninitialized internal object remains an extern declaration, whose
-    /// symbol may require a separately supplied C wrapper when linked.
+    /// Internal objects without a materialized constant are skipped and reported.
     pub object_bindings: BTreeMap<String, toucan_semantic::ObjectOccurrence>,
     /// Additional explicit Rust object names mapped to their checked occurrences.
     /// Each occurrence retains its original C declaration and linker identity.
@@ -571,19 +570,18 @@ pub fn generate_with_macros(
                 declaration.name
             )));
         }
-        if (declaration.is_static && !options.object_bindings.contains_key(&declaration.name))
+        if (declaration.is_static && !object_constant)
             || (declaration.kind == DeclarationKind::Function
                 && declaration.is_definition
                 && !options.emit_function_definitions
                 && declaration.dll_storage_class != Some(toucan_semantic::DllStorageClass::Import))
         {
-            if declaration.kind == DeclarationKind::Function
-                && options
-                    .selection
-                    .as_ref()
-                    .is_some_and(|roots| roots.retain_type_dependencies)
+            if options
+                .selection
+                .as_ref()
+                .is_some_and(|roots| roots.retain_type_dependencies)
             {
-                emitter.collect(&declaration.ty)?;
+                emitter.collect(emitter.object_type(declaration)?)?;
             }
             skipped.push(declaration.name.clone());
             continue;

@@ -23,9 +23,7 @@ fn scalar_initializers_preserve_declared_types_and_first_occurrences() {
         "pub const narrow: ::core::ffi::c_schar = -1;",
         "pub const yes: ::core::primitive::bool = true;",
         "pub const d: D",
-        "pub static e: E;",
         "pub const max: ::core::ffi::c_ulonglong = 18446744073709551615;",
-        "pub static expr: ::core::ffi::c_ulonglong;",
         "pub const atomic: ::core::ffi::c_int = 7;",
     ] {
         assert!(
@@ -34,6 +32,8 @@ fn scalar_initializers_preserve_declared_types_and_first_occurrences() {
         );
     }
     assert!(!bindings.contains("pub const early:"));
+    assert!(!bindings.contains("pub static e:"));
+    assert!(!bindings.contains("pub static expr:"));
 }
 
 #[derive(Debug)]
@@ -147,11 +147,12 @@ fn string_objects_project_terminated_prefixes_and_reject_unterminated_arrays() {
         "pub const embedded: &[::core::primitive::u8; 2] = &[97, 0, ];",
         "pub const padded: &[::core::primitive::u8; 4] = &[97, 98, 99, 0, ];",
         "pub const raw: &[::core::primitive::u8; 3] = &[255, 128, 0, ];",
-        "pub static mut parenthesized:",
-        "pub static braced:",
-        "pub static wide:",
     ] {
         assert!(source.contains(expected), "missing {expected}: {source}");
+    }
+    for name in ["parenthesized", "braced", "wide"] {
+        assert!(!source.contains(&format!("pub static {name}:")));
+        assert!(!source.contains(&format!("pub static mut {name}:")));
     }
     std::fs::write(&path, "static const char exact[3]=\"abc\";").unwrap();
     assert!(
@@ -161,6 +162,40 @@ fn string_objects_project_terminated_prefixes_and_reject_unterminated_arrays() {
             .to_string()
             .contains("no terminating NUL within its 3-byte C array")
     );
+}
+
+#[test]
+fn selected_internal_objects_keep_constants_and_report_unavailable_symbols() {
+    let dir = tempfile::tempdir().unwrap();
+    let path = dir.path().join("internal.h");
+    std::fs::write(
+        &path,
+        r#"
+static int hidden;
+static int scalar=7;
+static const char bytes[]="ok";
+static struct Aggregate {int x;} aggregate={7};
+static int *pointer=&scalar;
+static unsigned long long wide_literal=18446744073709551615ULL;
+static unsigned long long wide_binary=9223372036854775808ULL+1;
+static unsigned long long wide_cast=(unsigned long long)-1;
+static unsigned long long wide_unary=-1ULL;
+static int braced={7};
+"#,
+    )
+    .unwrap();
+    let bindings = builder(&path).allowlist_var(".*").generate().unwrap();
+    let source = bindings.to_string();
+    assert_eq!(
+        bindings.report().skipped_declarations,
+        ["hidden", "aggregate", "pointer", "wide_binary", "wide_cast"]
+    );
+    assert!(!source.contains("pub static"));
+    assert!(source.contains("pub struct Aggregate"));
+    for name in ["scalar", "bytes", "wide_literal", "wide_unary", "braced"] {
+        assert!(source.contains(&format!("pub const {name}:")), "{source}");
+    }
+    assert_eq!(source.matches("18446744073709551615;").count(), 2);
 }
 
 #[test]
