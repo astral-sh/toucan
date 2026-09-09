@@ -1,0 +1,86 @@
+name: ARMv7 GNU hard-float acceptance
+
+on:
+  push:
+    branches:
+      - charlie/codex-toucan-armv7-native-acceptance
+
+permissions:
+  contents: read
+
+concurrency:
+  group: armv7-native-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  qemu:
+    if: github.ref == 'refs/heads/charlie/codex-toucan-armv7-native-acceptance'
+    name: Clang/GCC C and Rust ARMv7 hard-float FFI
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    env:
+      CARGO_INCREMENTAL: "0"
+      CARGO_BUILD_JOBS: "2"
+      CARGO_PROFILE_DEV_DEBUG: "0"
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+      - name: Install ARMv7 hard-float tools and record the host
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p results/armv7
+          git rev-parse HEAD | tee results/armv7/commit.txt
+          uname -a | tee results/armv7/runner.txt
+          test "$(uname -m)" = x86_64
+          sudo apt-get update -qq 2>&1 | tee results/armv7/apt-update.log
+          sudo apt-get install -y --no-install-recommends \
+            gcc-arm-linux-gnueabihf libc6-dev-armhf-cross \
+            binutils-arm-linux-gnueabihf qemu-user clang \
+            2>&1 | tee results/armv7/apt-install.log
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: stable
+          targets: armv7-unknown-linux-gnueabihf
+      - name: Build the host frontend
+        shell: bash
+        run: |
+          set -euo pipefail
+          rustc --version --verbose | tee results/armv7/rust-toolchain.txt
+          rustup target list --installed | tee results/armv7/rust-targets.txt
+          grep -Fx armv7-unknown-linux-gnueabihf results/armv7/rust-targets.txt
+          cargo build --locked -p toucan_cli 2>&1 | tee results/armv7/frontend-build.log
+          python3 -B scripts/tests/test_verify_armv7_native.py \
+            2>&1 | tee results/armv7/harness-tests.log
+      - name: Check ARMv7 C layout and execute generated C/Rust FFI under QEMU
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 -B scripts/verify_armv7_native.py \
+            --toucan target/debug/toucan --output results/armv7/native \
+            2>&1 | tee results/armv7/acceptance.log
+          python3 - <<'PY'
+          import json
+          from pathlib import Path
+          evidence = json.loads(Path("results/armv7/native/evidence.json").read_text())
+          ffi = [run for run in evidence["runs"] if run["kind"] == "qemu-ffi"]
+          layout = [run for run in evidence["runs"] if run["kind"] == "qemu-layout"]
+          assert evidence["status"] == "passed" and evidence["qemu_execution"]
+          assert not evidence["native_hardware_execution"]
+          assert {(run["compiler"], run["optimization"]) for run in ffi} == {
+              ("gcc", 0), ("gcc", 2), ("clang", 0), ("clang", 2)
+          }
+          assert len(ffi) == 4 and len(layout) == 2
+          assert {run["compiler"] for run in layout} == {"gcc", "clang"}
+          assert all(run["rounds"] == 256 for run in ffi)
+          assert evidence["binding_sha256"] and evidence["rust_std_sha256"]
+          PY
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        if: always()
+        with:
+          name: armv7-native-${{ github.run_attempt }}
+          path: results/armv7/
+          retention-days: 14
+          if-no-files-found: error
