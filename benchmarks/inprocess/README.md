@@ -3,10 +3,9 @@
 This harness has two separate comparisons. `policy: "legacy_core"` preserves the
 older `toucan` core-library route and its signed macro, unprefixed enum, and
 comment-free bindgen reference. `policy: "builder"` compares `toucan-builder`
-with bindgen 0.72.1 through their Builder APIs. The new route requires exact
-physical header file roots on both sides. It does not reuse the older name-root
-scope or its output hashes. Toucan's Builder does not yet expose bindgen's
-name-based `allowlist_type`, `allowlist_function`, or `allowlist_var` methods.
+with bindgen 0.72.1 through their Builder APIs. The new route requires explicit
+physical file or category-specific name roots on both sides. It does not reuse
+the older name-root scope or its output hashes.
 
 ## Matched Builder policy
 
@@ -17,7 +16,7 @@ name-based `allowlist_type`, `allowlist_function`, or `allowlist_var` methods.
 | Comments | Enabled; a separate request may explicitly disable them |
 | Derives | Copy and Debug enabled; Default, Eq, PartialEq disabled |
 | Target and language | Explicit request target, `-x c -std=c11`, same sysroot and ordered `-I` paths |
-| Selection | The same anchored regex for each physical project header |
+| Selection | Identical physical file, type, function, and variable regexes |
 | Rust output | Rust 1.64, core paths, `size_t_is_usize(true)` |
 | Layout tests | Disabled; Toucan's compile-time layout assertions remain |
 | Formatting | `Formatter::None` on both sides |
@@ -78,6 +77,17 @@ macro evaluation. Otherwise use the matching Clang dependency command and
 Toucan's preprocessor accessed-file inventory separately, preserving their flags
 and limitations. Recheck all input and executable/library hashes after capture.
 
+To measure name selection, supply `allowlist_types`, `allowlist_functions`, or
+`allowlist_vars` arrays instead of, or alongside, `allowlist_files`. Both Builders
+receive the same category-specific patterns. For example, a zstd request can use
+`"allowlist_functions": ["ZSTD_.*"]`. Each selection is a separate workload and
+requires its own output comparisons and native checks before timing. The older
+`allowlist` and `bindgen_allowlist` fields remain exclusive to `legacy_core`.
+The [untimed control capture](../evidence/name-filter-controls-2026-09-09.json.gz)
+records matching type, function, variable, and combined selections, plus rejection
+of empty roots and mixed policies. It includes generated Rust and native Rust
+layout/value probes, without latency samples or C FFI executions.
+
 ## Untimed acceptance gate
 
 The `capture` command makes one generation and emits no timing samples:
@@ -129,7 +139,7 @@ Start timing after output validity and any stated limitations are recorded.
 
 The existing Python runner checks input hashes before generation, exact output
 hashes and captured configuration after every process, and inputs/binary again
-at the end. It refuses a Builder run without explicit file roots and captured
+at the end. It refuses a Builder run without explicit roots and captured
 configuration. Use a fresh output directory:
 
 ```console

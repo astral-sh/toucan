@@ -20,6 +20,8 @@ class InprocessBenchmarkTests(unittest.TestCase):
         builder=False,
         changed_configuration=False,
         missing_configuration=False,
+        builder_roots="allowlist_files",
+        empty_roots=False,
     ):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
@@ -54,7 +56,7 @@ class InprocessBenchmarkTests(unittest.TestCase):
                     **benchmark.request_from_reference(reference),
                     "policy": "builder",
                     "generate_comments": True,
-                    "allowlist_files": [str(header)],
+                    builder_roots: [] if empty_roots else [str(header)],
                 }
                 if not missing_configuration:
                     reference["configurations"] = {
@@ -108,12 +110,13 @@ class InprocessBenchmarkTests(unittest.TestCase):
                     or changed_header
                     or changed_configuration
                     or missing_configuration
+                    or empty_roots
                 )
                 if failed:
                     with self.assertRaisesRegex(
                         ValueError,
                         "captured configurations"
-                        if missing_configuration
+                        if missing_configuration or empty_roots
                         else "changed from reference",
                     ):
                         benchmark.main()
@@ -127,7 +130,7 @@ class InprocessBenchmarkTests(unittest.TestCase):
                 self.assertEqual(
                     run.call_count,
                     0
-                    if changed_header or missing_configuration
+                    if changed_header or missing_configuration or empty_roots
                     else 1
                     if changed_output or changed_configuration
                     else 6,
@@ -150,6 +153,14 @@ class InprocessBenchmarkTests(unittest.TestCase):
 
     def test_builder_configuration_is_required_before_measurement(self):
         self.run_case(builder=True, missing_configuration=True)
+
+    def test_builder_name_roots_use_captured_policy_and_outputs(self):
+        for category in ("allowlist_types", "allowlist_functions", "allowlist_vars"):
+            with self.subTest(category=category):
+                self.run_case(builder=True, builder_roots=category)
+
+    def test_builder_empty_selection_fails_before_measurement(self):
+        self.run_case(builder=True, empty_roots=True)
 
     def test_paired_summary_uses_process_medians_and_matching_pairs(self):
         # Pooling calls yields 3 and 4; process medians yield 2 and 4. The

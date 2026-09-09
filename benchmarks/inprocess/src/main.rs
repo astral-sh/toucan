@@ -23,6 +23,12 @@ struct Request {
     bindgen_allowlist: Vec<String>,
     #[serde(default)]
     allowlist_files: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    allowlist_types: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    allowlist_functions: Vec<String>,
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    allowlist_vars: Vec<String>,
     #[serde(default)]
     policy: Policy,
     #[serde(default)]
@@ -31,16 +37,24 @@ struct Request {
 
 fn generate(request: &Request, engine: &str) -> Result<String, Box<dyn std::error::Error>> {
     if request.policy == Policy::Builder
-        && (request.allowlist_files.is_empty()
+        && ((request.allowlist_files.is_empty()
+            && request.allowlist_types.is_empty()
+            && request.allowlist_functions.is_empty()
+            && request.allowlist_vars.is_empty())
             || !request.allowlist.is_empty()
             || !request.bindgen_allowlist.is_empty())
     {
         return Err(
-            "Builder policy requires explicit file roots and no legacy name filters".into(),
+            "Builder policy requires explicit file or name roots and no legacy name filters".into(),
         );
     }
-    if request.policy == Policy::LegacyCore && !request.allowlist_files.is_empty() {
-        return Err("legacy policy does not use file roots".into());
+    if request.policy == Policy::LegacyCore
+        && (!request.allowlist_files.is_empty()
+            || !request.allowlist_types.is_empty()
+            || !request.allowlist_functions.is_empty()
+            || !request.allowlist_vars.is_empty())
+    {
+        return Err("legacy policy does not use Builder selection roots".into());
     }
     if engine == "toucan" {
         if request.policy != Policy::LegacyCore || request.generate_comments.is_some() {
@@ -112,6 +126,15 @@ fn generate(request: &Request, engine: &str) -> Result<String, Box<dyn std::erro
                 }
                 for pattern in &request.allowlist_files {
                     builder = builder.allowlist_file(pattern);
+                }
+                for pattern in &request.allowlist_types {
+                    builder = builder.allowlist_type(pattern);
+                }
+                for pattern in &request.allowlist_functions {
+                    builder = builder.allowlist_function(pattern);
+                }
+                for pattern in &request.allowlist_vars {
+                    builder = builder.allowlist_var(pattern);
                 }
                 builder
             }};

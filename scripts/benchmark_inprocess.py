@@ -128,14 +128,22 @@ def main():
             configurations = reference.get("configurations")
             if args.toucan_engine == "toucan-builder" and (
                 request.get("policy") != "builder"
-                or not request.get("allowlist_files")
+                or not any(
+                    request.get(key)
+                    for key in (
+                        "allowlist_files",
+                        "allowlist_types",
+                        "allowlist_functions",
+                        "allowlist_vars",
+                    )
+                )
                 or request.get("allowlist")
                 or request.get("bindgen_allowlist")
                 or not configurations
                 or any(engine not in configurations for engine in engines)
             ):
                 raise ValueError(
-                    f"{project}: Builder timing requires file roots, no legacy name filters, and captured configurations"
+                    f"{project}: Builder timing requires explicit roots, no legacy name filters, and captured configurations"
                 )
             request_path = (args.output / f"{project}.request.json").resolve()
             request_path.write_text(json.dumps(request, indent=2) + "\n")
