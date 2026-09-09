@@ -1020,7 +1020,8 @@ impl Analyzer {
                         self.integer_type(&right_value, offset)?;
                         left_value.clone()
                     }
-                } else if operator == Op::Plus
+                } else if !assignment
+                    && operator == Op::Plus
                     && let TypeKind::Pointer(pointee) = &right_value.kind
                 {
                     self.require_complete_object(pointee, offset)?;

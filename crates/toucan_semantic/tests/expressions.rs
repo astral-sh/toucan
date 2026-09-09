@@ -1,8 +1,8 @@
 use std::io::Write;
 use std::process::{Command, Stdio};
 
-use toucan_semantic::{analyze, evaluate_integer};
-use toucan_target::Target;
+use toucan_semantic::{AnalysisOptions, analyze, analyze_with_profile, evaluate_integer};
+use toucan_target::{CompilerProfile, Target};
 
 const TARGET: Target = Target::X86_64UnknownLinuxGnu;
 const ENVIRONMENT: &str = r#"
@@ -107,6 +107,9 @@ fn expression_constraints_match_c11_compiler() {
         "vp + 1",
         "fp + 1",
         "i - p",
+        "i += p",
+        "i += arr",
+        "s.bits += p",
         "p == 1",
         "p == f",
         "p < 0",
@@ -166,6 +169,31 @@ fn expression_constraints_match_c11_compiler() {
     ] {
         assert!(!compile(source));
         analyze(source, TARGET).unwrap();
+    }
+}
+
+#[test]
+fn compound_pointer_addition_requires_a_pointer_destination() {
+    for profile in CompilerProfile::ALL {
+        for retain_code in [false, true] {
+            let options = AnalysisOptions {
+                retain_code,
+                ..Default::default()
+            };
+            for expression in ["i += p", "i += arr", "s.bits += p"] {
+                let source = format!("{ENVIRONMENT}\nvoid test(void) {{ {expression}; }}");
+                let error = analyze_with_profile(&source, profile, &options).unwrap_err();
+                assert!(
+                    error.to_string().contains("arithmetic"),
+                    "{profile:?}, retained={retain_code}: {expression}: {error}"
+                );
+            }
+            let source = format!(
+                "{ENVIRONMENT}\nvoid test(void) {{ p += i; p -= i; i + p; p + i; p - q; i += d; }}"
+            );
+            analyze_with_profile(&source, profile, &options)
+                .unwrap_or_else(|error| panic!("{profile:?}, retained={retain_code}: {error}"));
+        }
     }
 }
 
