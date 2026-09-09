@@ -103,6 +103,10 @@ impl Default for Builder {
                 size_t_is_usize: true,
                 macro_type: MacroType::Unsigned,
                 rust_target: RustTarget::default().0,
+                derives: toucan::DeriveOptions {
+                    debug: Some(true),
+                    ..Default::default()
+                },
                 ..BindingOptions::default()
             },
             allowlist_files: Vec::new(),

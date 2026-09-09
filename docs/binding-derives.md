@@ -19,10 +19,15 @@ let bindings = toucan_bindgen::Builder::default()
     .generate()?;
 ```
 
-Default options preserve the existing output: copyable records receive `Clone`
+The Builder requests `Debug` by default, matching bindgen. Ordinary records,
+opaque forward records, arrays, pointers, and supported callbacks receive it
+when eligible. `derive_debug(false)` suppresses it; the last explicit call wins.
+Unions and records containing ineligible storage still omit the trait.
+
+Core library defaults preserve the existing output: copyable records receive `Clone`
 and `Copy`, and Rust enums also receive `Debug`, `PartialEq`, `Eq`, and `Hash`.
 `DeriveOptions::debug: None` retains that per-kind behavior; the Builder's
-`derive_debug` method supplies an explicit override. Enabling Eq also requests
+default sets that field to `Some(true)`. Enabling Eq also requests
 PartialEq. Disabling Eq leaves an earlier PartialEq request intact; disabling
 PartialEq disables both requests. Rust enums retain Clone and their equality and
 hash traits independently, matching bindgen's compatibility policy.
@@ -76,7 +81,7 @@ bindgen represents these fields with a helper that omits those traits.
 Trait eligibility memoizes shared record graphs and does not follow pointer
 cycles into another object's storage. The walk has the existing 256-level type
 depth limit and a one-million-visit limit. Atomic and external containment queries
-use their prepared record caches. Default configuration needs no new trait cache
+use their prepared record caches. Core defaults need no new trait cache
 and keeps the existing borrowed derive attributes.
 
 The [evidence](../corpus/evidence/binding-derives-2026-09-08/README.md) records
@@ -85,3 +90,11 @@ actual AWS-LC header type inventory. That inventory selects type declarations
 from the wrapper's thirty allowed headers; it does not implement the separate
 function, callback, and file-selection policies of the complete build script.
 The full unchanged-source AWS-LC consumer remains an integration gate.
+
+The [Builder default capture](../corpus/evidence/builder-default-debug-2026-09-09.json.gz)
+compares default, explicit false/true, and repeated overrides with bindgen 0.72.1.
+Twenty generated Rust 1.64/current programs compile and run, including formatting
+ordinary and packed records. A separate atomic control retains Toucan's existing
+trait omission: bindgen emits an ordinary integer for `_Atomic(int)`, while
+Toucan preserves atomic storage. This correction does not copy that representation
+change or alter the core's default output.
