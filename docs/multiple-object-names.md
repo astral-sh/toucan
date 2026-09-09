@@ -27,12 +27,12 @@ extern-only declarations, definitions in either order, integers, floating
 values, complete/incomplete string arrays, enums, callback pointers, file/name
 unions and repeated callback names.
 
-The shared API analyzer keys globals by their C symbol. To compare each Rust
-name independently, this study analyzes derived copies with `link_name`
-attributes removed; raw outputs remain intact. Actual linkage is checked by 64
-Rust executions against GCC/Clang objects, on current Rust and Rust 1.64. The
-checks include mutating one extern alias and observing another, reading projected
-constants, string bytes, enum values and callback function pointers.
+The original study used derived copies with `link_name` attributes removed to
+work around an analyzer that kept only one Rust name per C symbol. Its 64 Rust
+executions against GCC/Clang objects separately validate actual linkage, on
+current Rust and Rust 1.64. Those checks include mutating one extern alias and
+observing another, projected constants, string bytes, enum values and callback
+function pointers. The original artifacts remain unchanged.
 
 The full export inventories retain two existing differences separately:
 
@@ -50,3 +50,27 @@ independent linkage guards. The original name-filter evidence remains unchanged.
 Two review regressions additionally reject internal objects without materialized
 constants and conflicting DLL import library rules across primary and additional
 projections. Additional internal scalar and string constants remain supported.
+
+## Full raw export replay
+
+The [schema-2 replay](../corpus/evidence/binding-symbol-exports-schema2-2026-09-09.json.gz)
+uses the unmodified generated Rust, including every `link_name` attribute. It
+retains 51 foreign global exports per side across all 49 settings. All 49 object
+contracts match in public name, kind, type, mutability, and effective Linux ELF
+symbol. The previous constant-value and C-linkage checks remain separate;
+this replay performs no new C executions. All 101 input artifact/source hashes
+are unchanged before and after the replay.
+
+The raw groups preserve a spelling difference: bindgen uses LLVM's no-mangle
+marker (`\u{1}shared`), while Toucan uses `shared`. The artifact includes both the
+exact raw comparison and a qualified view for this Linux target, where the
+default symbol prefix is empty. It does not apply that interpretation to macOS
+or Windows. Raw linker-group equality holds in eight settings; the qualified
+object comparison matches all 49.
+
+The complete inventory comparison remains false in 13 settings: two retain the
+typedef-spelling differences described above, and 11 unrestricted settings
+include Toucan's extra compiler `va_list` record. Consequently, 47 of 49 alias
+inventories and 36 of 49 full structural inventories match after the Linux
+linker interpretation. Those counts include every public export rather than a
+single representative per linker symbol.
