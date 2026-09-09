@@ -21,8 +21,8 @@ from pathlib import Path
 from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
-ANALYZER_SCHEMA_VERSION = 2
-REPORT_SCHEMA_VERSION = 2
+ANALYZER_SCHEMA_VERSION = 3
+REPORT_SCHEMA_VERSION = 3
 RUST_KEYWORDS = {
     "as",
     "break",
@@ -162,6 +162,8 @@ def validate_api(api: dict) -> None:
             f"unsupported binding analyzer schema {version!r}; "
             f"expected {ANALYZER_SCHEMA_VERSION}. Rebuild the analyzer and regenerate inventories."
         )
+    if not isinstance(api.get("enums"), dict):
+        raise TypeError("invalid analyzer enums: expected nominal enum inventory")
     for category in ("functions", "globals"):
         export_groups(api, category)
 
@@ -277,21 +279,43 @@ def record_shape(record: dict) -> dict:
 
 
 def parse_probe(output: str) -> dict:
-    result = {"records": {}, "fields": {}, "constants": {}}
+    result = {"records": {}, "fields": {}, "constants": {}, "enums": {}, "variants": {}}
     for line in output.splitlines():
         parts = line.split("\t")
-        if parts[0] == "record":
+        if parts[0] in ("record", "enum"):
             _, name, size, alignment = parts
-            result["records"][name] = {"size": int(size), "alignment": int(alignment)}
+            category = "records" if parts[0] == "record" else "enums"
+            result[category][name] = {"size": int(size), "alignment": int(alignment)}
         elif parts[0] == "field":
             _, record, field, offset = parts
             result["fields"][f"{record}.{field}"] = int(offset)
+        elif parts[0] == "variant":
+            _, enum, variant, value = parts
+            result["variants"][f"{enum}::{variant}"] = value
         elif parts[0] == "constant":
             _, name, value = parts
             result["constants"][name] = value
         else:
             raise ValueError(f"unknown probe output: {line!r}")
     return result
+
+
+def validate_enum_observations(api: dict, probe: dict) -> None:
+    """Check the bounded literal evaluator against compiled Rust discriminants."""
+    variants = {
+        f"{name}::{variant}": value
+        for name, enum in api["enums"].items()
+        for variant, value in enum["variants"].items()
+    }
+    if probe["variants"] != variants:
+        raise RuntimeError("native enum variants disagree with the analyzer inventory")
+    if probe["enums"].keys() != api["enums"].keys():
+        raise RuntimeError("native enum layouts do not cover the analyzer inventory")
+    for name, item in api["constants"].items():
+        if "enum_value" in item and probe["constants"].get(name) != item["enum_value"]:
+            raise RuntimeError(
+                f"native enum constant {name} disagrees with the analyzer inventory"
+            )
 
 
 def native_probe(
@@ -432,6 +456,8 @@ def main() -> int:
                     args.rustc,
                     args.edition,
                 )
+        for tool, observations in probes.items():
+            validate_enum_observations(apis[tool], observations)
         pairs, conflicts = record_pairs(apis["toucan"], apis["bindgen"])
         a, b, field_renames = normalize(apis["toucan"], apis["bindgen"], pairs)
         comparisons = {
@@ -449,11 +475,24 @@ def main() -> int:
             {k: record_shape(v) for k, v in a["records"].items()},
             {k: record_shape(v) for k, v in b["records"].items()},
         )
+        comparisons["enum_shapes"] = compare_maps(a["enums"], b["enums"])
+        comparisons["enum_constants"] = compare_maps(
+            {
+                name: item["enum_value"]
+                for name, item in a["constants"].items()
+                if "enum_value" in item
+            },
+            {
+                name: item["enum_value"]
+                for name, item in b["constants"].items()
+                if "enum_value" in item
+            },
+        )
         if probes:
             bp = normalized_probe(
                 probes["bindgen"], {v: k for k, v in pairs.items()}, field_renames
             )
-            for category in ("records", "fields", "constants"):
+            for category in ("records", "fields", "constants", "enums", "variants"):
                 comparisons[f"native_{category}"] = compare_maps(
                     probes["toucan"][category], bp[category]
                 )
@@ -492,6 +531,7 @@ def main() -> int:
                 "Typedefs expand to target primitive types; usize/isize normalize to their 64-bit representation on the supported 64-bit target profiles.",
                 "Record names match through shared typedefs and corresponding API type positions, bijectively; all resulting field shapes and native layouts are still compared.",
                 "Generated private padding, alignment and bitfield storage fields are listed but their field shapes are excluded. Bitfield accessor semantics require C/Rust differential tests.",
+                "Fixed-integer fieldless enums retain exact nominal names, representation, and variant discriminants. Associated aliases are separate qualified constant exports. Native probes cast only declared values; enum-to-integer and variant-to-constant changes remain differences.",
                 "Opaque records are compared as opaque types and excluded from native size/offset probes.",
                 "Macro constant signedness, width, values and byte-string reference shapes are reported without coercing away differences.",
                 "A successful comparison does not validate ABI register classification or every legal C input.",

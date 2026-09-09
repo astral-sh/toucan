@@ -11,7 +11,9 @@ use quote::ToTokens;
 use serde::Serialize;
 use syn::{ForeignItem, GenericArgument, Item, PathArguments, ReturnType, Type, Visibility};
 
-const API_SCHEMA_VERSION: u32 = 2;
+mod enumeration;
+
+const API_SCHEMA_VERSION: u32 = 3;
 
 type Result<T> = std::result::Result<T, Box<dyn Error>>;
 
@@ -20,6 +22,7 @@ type Result<T> = std::result::Result<T, Box<dyn Error>>;
 enum Shape {
     Primitive(String),
     Record(String),
+    Enum(String),
     Pointer { mutable: bool, pointee: Box<Shape> },
     Reference { mutable: bool, pointee: Box<Shape> },
     Array { element: Box<Shape>, length: String },
@@ -66,6 +69,8 @@ struct Constant {
     rust_name: String,
     shape: Shape,
     probe_kind: &'static str,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    enum_value: Option<String>,
 }
 
 #[derive(Default, Serialize)]
@@ -75,6 +80,7 @@ struct Api {
     globals: BTreeMap<String, Vec<Export<Shape>>>,
     aliases: BTreeMap<String, Shape>,
     records: BTreeMap<String, Record>,
+    enums: BTreeMap<String, enumeration::Enum>,
     constants: BTreeMap<String, Constant>,
     unsupported: Vec<String>,
 }
@@ -83,6 +89,7 @@ struct Context<'a> {
     aliases: BTreeMap<String, &'a Type>,
     public_aliases: BTreeSet<String>,
     records: BTreeSet<String>,
+    enums: BTreeSet<String>,
     record_names: BTreeMap<String, String>,
     opaque_arrays: BTreeMap<String, (&'a Type, &'a syn::Expr)>,
     target: &'a str,
@@ -267,6 +274,7 @@ impl<'a> Context<'a> {
             aliases: BTreeMap::new(),
             public_aliases: BTreeSet::new(),
             records: BTreeSet::new(),
+            enums: BTreeSet::new(),
             record_names: BTreeMap::new(),
             opaque_arrays: BTreeMap::new(),
             target,
@@ -281,6 +289,9 @@ impl<'a> Context<'a> {
                 }
                 Item::Struct(s) if !helper(&name(&s.ident)) => {
                     ctx.records.insert(name(&s.ident));
+                }
+                Item::Enum(e) if public(&e.vis) => {
+                    ctx.enums.insert(name(&e.ident));
                 }
                 Item::Union(u) => {
                     ctx.records.insert(name(&u.ident));
@@ -424,6 +435,8 @@ impl<'a> Context<'a> {
                     self.shape(self.aliases[&n], next)?
                 } else if p.path.segments.len() == 1 && self.record_names.contains_key(&n) {
                     Shape::Record(self.record_names[&n].clone())
+                } else if p.path.segments.len() == 1 && self.enums.contains(&n) {
+                    Shape::Enum(n)
                 } else if let Some(primitive) = self.primitive(&n) {
                     Shape::Primitive(primitive)
                 } else {
@@ -555,6 +568,7 @@ fn analyze(file: &syn::File, target: &str) -> Api {
         unsupported,
         ..Api::default()
     };
+    enumeration::collect(file, &ctx, &mut api);
     let mut foreign_names = BTreeSet::new();
     for item in file.items.iter().chain(&imports) {
         let result = (|| -> Result<()> {
@@ -636,7 +650,13 @@ fn analyze(file: &syn::File, target: &str) -> Api {
                 }
                 Item::Const(c) if public(&c.vis) => {
                     let shape = ctx.shape(&c.ty, 0)?;
+                    let enum_value = if let Shape::Enum(n) = &shape {
+                        Some(enumeration::value(&ctx, &api, &c.expr, n, false)?)
+                    } else {
+                        None
+                    };
                     let probe_kind = match &shape {
+                        Shape::Enum(_) => "enum",
                         Shape::Primitive(n)
                             if n.starts_with('i') || n.starts_with('u') || n == "bool" =>
                         {
@@ -658,11 +678,9 @@ fn analyze(file: &syn::File, target: &str) -> Api {
                             rust_name: name(&c.ident),
                             shape,
                             probe_kind,
+                            enum_value,
                         },
                     );
-                }
-                Item::Enum(e) if public(&e.vis) => {
-                    return Err(format!("Rust enum {} is not supported", e.ident).into());
                 }
                 _ => {}
             }
@@ -747,9 +765,22 @@ fn probe(api: &Api, bindings: &Path) -> String {
             s.push_str(&format!("println!(\"field\\t{{}}\\t{{}}\\t{{}}\", {key:?}, {:?}, ::std::mem::offset_of!({ty}, {field_name}));\n", field.name));
         }
     }
+    enumeration::probe(&api.enums, &mut s);
     for (key, c) in &api.constants {
-        let value = format!("bindings::{}", rust_ident(&c.rust_name));
+        let value = format!(
+            "bindings::{}",
+            c.rust_name
+                .split("::")
+                .map(rust_ident)
+                .collect::<Vec<_>>()
+                .join("::")
+        );
         match c.probe_kind {
+            "enum" => {
+                let Shape::Enum(n) = &c.shape else { unreachable!() };
+                let repr = &api.enums[n].repr;
+                s.push_str(&format!("println!(\"constant\\t{{}}\\t{{}}\", {key:?}, {value} as {repr});\n"));
+            }
             "integer" => s.push_str(&format!("println!(\"constant\\t{{}}\\t{{}}\", {key:?}, {value});\n")),
             "float" => s.push_str(&format!("println!(\"constant\\t{{}}\\t{{:016x}}\", {key:?}, ({value} as f64).to_bits());\n")),
             "bytes" => s.push_str(&format!("print!(\"constant\\t{{}}\\t\", {key:?}); for byte in {value} {{ print!(\"{{:02x}}\", byte); }} println!();\n")),

@@ -169,12 +169,12 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(compare.record_pairs(left, right), ({}, []))
 
     def test_analyzer_schema_and_duplicate_name_fail_closed(self):
-        for version in (None, 1, 3):
+        for version in (None, 1, 2, 4):
             with self.assertRaisesRegex(
                 RuntimeError, "unsupported binding analyzer schema"
             ):
                 compare.validate_api({"schema_version": version})
-        current = {"schema_version": 2, "functions": {}, "globals": {}}
+        current = {"schema_version": 3, "enums": {}, "functions": {}, "globals": {}}
         compare.validate_api(current)
         current["globals"] = {"symbol": {"rust_name": "old", "shape": {}}}
         with self.assertRaisesRegex(RuntimeError, "expected export list"):
@@ -195,6 +195,46 @@ class ComparisonTests(unittest.TestCase):
         self.assertEqual(result["constants"]["MAX"], str(2**128 - 1))
         self.assertEqual(result["records"]["S"], {"size": 16, "alignment": 8})
         self.assertEqual(result["fields"]["S.p"], 8)
+
+    def test_nominal_enum_shapes_do_not_use_record_renaming(self):
+        enum = {"kind": "enum", "value": "First"}
+        self.assertEqual(compare.rename_records(enum, {"First": "Second"}), enum)
+        self.assertEqual(
+            list(compare.shape_pairs(enum, {"kind": "enum", "value": "Second"})), []
+        )
+        self.assertFalse(
+            compare.matches(
+                compare.compare_maps(
+                    {"value": enum}, {"value": {"kind": "primitive", "value": "u32"}}
+                )
+            )
+        )
+
+    def test_enum_probe_inventory_requires_every_declared_value(self):
+        inventory = {
+            "enums": {"E": {"variants": {"Only": "2"}}},
+            "constants": {"E::Alias": {"enum_value": "2"}},
+        }
+        observations = compare.parse_probe(
+            "enum\tE\t4\t4\nvariant\tE\tOnly\t2\nconstant\tE::Alias\t2\n"
+        )
+        compare.validate_enum_observations(inventory, observations)
+        self.assertEqual(observations["enums"]["E"], {"size": 4, "alignment": 4})
+        for category, key, changed in (
+            ("variants", "E::Only", "0"),
+            ("constants", "E::Alias", "0"),
+        ):
+            broken = copy.deepcopy(observations)
+            broken[category][key] = changed
+            with self.assertRaisesRegex(RuntimeError, "disagree"):
+                compare.validate_enum_observations(inventory, broken)
+        del observations["enums"]["E"]
+        with self.assertRaisesRegex(RuntimeError, "do not cover"):
+            compare.validate_enum_observations(inventory, observations)
+
+    def test_schema_three_cannot_omit_enum_inventory(self):
+        with self.assertRaisesRegex(TypeError, "expected nominal enum inventory"):
+            compare.validate_api({"schema_version": 3, "functions": {}, "globals": {}})
 
 
 if __name__ == "__main__":

@@ -30,17 +30,21 @@ and memory accesses respect that restriction.
 The existing `rustified_enums: true` option, and Builder `rustified_enum(".*")`,
 select all enums. Default options continue to emit integer aliases and constants.
 
-Selectors use C names, not generated Rust names. Bindgen prefixes a lexically
-nested enum with its enclosing record name, such as `Holder_Nested`. Toucan's
-semantic enum identity does not currently retain that lexical owner. Those
-generated nested-name selectors and arbitrary regex syntax remain unsupported;
-Toucan does not infer an enclosing declaration from uses of the enum type.
+Builder selectors use the scoped enum names described in
+[enum constant names](enum-constant-names.md). For example, an enum `Nested`
+inside `struct Holder` can match `Holder_Nested`. The semantic owner metadata and
+bounded declaration discovery preserve these names independently of uses of the
+enum type. The core library's default enum style continues to match C tags or
+first typedef names; selecting its bindgen enum style enables the scoped names.
+Arbitrary regex syntax remains unsupported for Rust enum style selectors.
 
 ## Validation
 
 The [reference capture](../corpus/evidence/selective-enums-2026-09-08/README.md)
 contains thirteen bindgen 0.72.1 selection cases, complete commands and output,
-and the nested-name difference. Tests cover canonical tags, first typedefs,
+and the original nested-name difference. The later
+[lexical naming checks](enum-constant-names.md) cover scoped selectors. Tests
+cover canonical tags, first typedefs,
 later aliases, anonymous constants, selection roots, and enum bitfields across
 the supported targets. A native C/Rust test roundtrips all three AWS-LC
 point-conversion values alongside an integer enum through GCC and Clang objects.
