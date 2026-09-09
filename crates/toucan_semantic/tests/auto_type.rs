@@ -284,6 +284,7 @@ fn inferred_keyword_spans_and_retention_quotas_survive_adapters() {
                 retain_code: true,
                 retain_declaration_origins: false,
                 limits,
+                ..Default::default()
             },
         )
         .unwrap_err();

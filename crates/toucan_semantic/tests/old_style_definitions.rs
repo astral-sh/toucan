@@ -235,6 +235,7 @@ fn parameter_sites_survive_query_replay_and_c11_minimum_parameter_count() {
             &AnalysisOptions {
                 retain_code: true,
                 retain_declaration_origins: false,
+                retain_object_values: false,
                 limits: toucan_semantic::checked::Limits {
                     payload_bytes: 4096,
                     ..Default::default()

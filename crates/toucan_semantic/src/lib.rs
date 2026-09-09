@@ -49,6 +49,7 @@ mod noreturn;
 mod object_alignment;
 mod object_extent;
 mod object_size;
+mod object_values;
 mod old_style;
 mod overflow;
 mod parameters;
@@ -88,6 +89,7 @@ pub use literals::{
 };
 pub use noescape::{ParameterContracts, ParameterContractsId};
 pub use object_alignment::DeclarationAlignment;
+pub use object_values::{ObjectOccurrence, ObjectValues};
 pub use prefetch::PrefetchHint;
 pub use target_features::{FunctionOptions, FunctionTarget, X86TargetOption};
 pub use type_alignment::{AlignmentOrigin, AlignmentOriginId, AlignmentOriginKind, TypeAlignment};
@@ -128,11 +130,13 @@ pub struct AnalysisOptions {
     pub retain_code: bool,
     /// Retain file-scope declaration locations without retaining bodies or expressions.
     pub retain_declaration_origins: bool,
+    /// Retain file object occurrences and checked scalar initializer values.
+    pub retain_object_values: bool,
     /// Resource limits applied only when `retain_code` is enabled.
     pub limits: checked::Limits,
 }
 
-/// Owns declarations and, optionally, their immutable checked semantic graph.
+/// Owns declarations and optional checked code and declaration metadata.
 ///
 /// The source text need not outlive this value. Retained source ranges refer to
 /// byte offsets in that input, so keep it separately if source excerpts are needed.
@@ -148,13 +152,15 @@ pub struct AnalysisOptions {
 /// ```
 ///
 /// Node IDs refer only to this analysis. Consuming it with [`Self::into_unit`]
-/// discards the checked graph and declaration origins before returning mutable data.
+/// discards all optional metadata before returning mutable data.
 #[derive(Debug, serde::Serialize)]
 pub struct Analysis {
     unit: TranslationUnit,
     checked: Option<checked::CheckedCode>,
     #[serde(skip_serializing_if = "Option::is_none")]
     declaration_origins: Option<Box<DeclarationOrigins>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    object_values: Option<Box<ObjectValues>>,
 }
 
 impl Analysis {
@@ -170,7 +176,11 @@ impl Analysis {
     pub fn declaration_origins(&self) -> Option<&DeclarationOrigins> {
         self.declaration_origins.as_deref()
     }
-    /// Discards retained code and origins, returning the owned declaration representation.
+    /// File object occurrences, captured without retaining expressions or bodies.
+    pub fn object_values(&self) -> Option<&ObjectValues> {
+        self.object_values.as_deref()
+    }
+    /// Discards optional metadata, returning the owned declaration representation.
     pub fn into_unit(self) -> TranslationUnit {
         self.unit
     }

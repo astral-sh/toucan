@@ -341,6 +341,10 @@ impl Compilation {
     pub fn declaration_origins(&self) -> Option<&semantic::DeclarationOrigins> {
         self.analysis.declaration_origins()
     }
+    /// Checked scalar values for written file object occurrences, when requested.
+    pub fn object_values(&self) -> Option<&semantic::ObjectValues> {
+        self.analysis.object_values()
+    }
     /// Resolves the token origins intersecting a retained source span.
     ///
     /// Disjoint fragments retain their mapped order. Repeated origins can occur,

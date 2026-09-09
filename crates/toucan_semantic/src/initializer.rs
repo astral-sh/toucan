@@ -1568,3 +1568,60 @@ impl Analyzer {
         }
     }
 }
+
+impl Analyzer {
+    /// Retain destination-converted arithmetic values after ordinary C checking.
+    /// Address constants and enum objects have no scalar literal projection.
+    pub(crate) fn scalar_object_value(
+        &mut self,
+        ty: &Type,
+        initializer: &Node<ast::Initializer>,
+    ) -> Result<Option<crate::ArithmeticConstant>, Error> {
+        let destination = self.unit.atomic_value(ty)?.unwrap_or(ty).clone();
+        if !matches!(
+            self.unit.resolve(&destination)?.kind,
+            TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Float(_)
+        ) {
+            return Ok(None);
+        }
+        let mut initializer = initializer;
+        for _ in 0..128 {
+            match &initializer.node {
+                ast::Initializer::Expression(expression) => {
+                    if self.static_initializer(expression)? != ConstantKind::Arithmetic {
+                        return Ok(None);
+                    }
+                    let value = self.eval_arithmetic(expression)?;
+                    let value =
+                        self.convert_arithmetic(value, &destination, initializer.span.start)?;
+                    return value
+                        .into_constant(self.unit.target, initializer.span.start)
+                        .map(Some);
+                }
+                ast::Initializer::List(items) => {
+                    if items.is_empty() || self.empty_initializer_items(items) {
+                        let zero = crate::floating::ArithmeticValue::Integer(crate::IntegerValue {
+                            value: 0,
+                            bits: 32,
+                            signed: true,
+                            rank: 3,
+                        });
+                        let value =
+                            self.convert_arithmetic(zero, &destination, initializer.span.start)?;
+                        return value
+                            .into_constant(self.unit.target, initializer.span.start)
+                            .map(Some);
+                    }
+                    let [item] = items.as_slice() else {
+                        return Ok(None);
+                    };
+                    initializer = &item.node.initializer;
+                }
+            }
+        }
+        Err(Error::new(
+            initializer.span.start,
+            "object-value initializer nesting exceeds the 128-level limit",
+        ))
+    }
+}

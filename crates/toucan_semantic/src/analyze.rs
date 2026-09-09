@@ -44,18 +44,20 @@ pub fn analyze_with_profile(
     profile: CompilerProfile,
     options: &crate::AnalysisOptions,
 ) -> Result<crate::Analysis, Error> {
-    let (unit, checked, declaration_origins) = crate::with_parser_stack(|| {
+    let (unit, checked, declaration_origins, object_values) = crate::with_parser_stack(|| {
         analyze_on_parser_stack(
             source,
             profile,
             options.retain_code.then_some(options.limits),
             options.retain_declaration_origins,
+            options.retain_object_values,
         )
     })??;
     Ok(crate::Analysis {
         unit,
         checked,
         declaration_origins,
+        object_values,
     })
 }
 
@@ -70,8 +72,9 @@ pub(crate) fn analyze_inner(
             CompilerProfile::default_for(target),
             retention,
             false,
+            false,
         )
-        .map(|(unit, checked, _)| (unit, checked))
+        .map(|(unit, checked, _, _)| (unit, checked))
     })?
 }
 
@@ -79,6 +82,7 @@ type AnalysisParts = (
     TranslationUnit,
     Option<CheckedCode>,
     Option<Box<crate::DeclarationOrigins>>,
+    Option<Box<crate::ObjectValues>>,
 );
 
 fn analyze_on_parser_stack(
@@ -86,6 +90,7 @@ fn analyze_on_parser_stack(
     profile: CompilerProfile,
     retention: Option<CodeLimits>,
     retain_declaration_origins: bool,
+    retain_object_values: bool,
 ) -> Result<AnalysisParts, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
@@ -105,6 +110,8 @@ fn analyze_on_parser_stack(
     let mut analyzer = Analyzer::new(profile, packs);
     analyzer.declaration_origins =
         retain_declaration_origins.then(|| Box::new(crate::declaration_origins::Builder::new()));
+    analyzer.object_values =
+        retain_object_values.then(|| Box::new(crate::object_values::Builder::new()));
     analyzer.prepare_dll_storage(&source);
     analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
@@ -169,7 +176,11 @@ fn analyze_on_parser_stack(
             .take()
             .map(|builder| builder.finish(&parsed.offsets).map(Box::new))
             .transpose()?;
-        Ok((analyzer.unit, checked, declaration_origins))
+        let object_values = analyzer
+            .object_values
+            .take()
+            .map(|values| Box::new(values.finish(&parsed.offsets)));
+        Ok((analyzer.unit, checked, declaration_origins, object_values))
     })();
     result.map_err(|mut error: Error| {
         error.offset = parsed.offsets.original_offset(error.offset);
@@ -976,6 +987,7 @@ struct DeclaratorContext<'a> {
 }
 
 pub(crate) struct Analyzer {
+    pub(crate) object_values: Option<Box<crate::object_values::Builder>>,
     pub(crate) inline_registry: Option<Box<crate::inline::Registry>>,
     pub(crate) dll_registry: Option<Box<crate::dll_storage::Registry>>,
     pub(crate) allocation_uses: u8,
@@ -1087,6 +1099,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            object_values: None,
             inline_registry: None,
             dll_registry: None,
             allocation_uses: 0,
@@ -1887,6 +1900,15 @@ impl Analyzer {
                     &initializer_type,
                     initializer,
                     prechecked_initializer,
+                )?;
+            }
+            if kind == DeclarationKind::Variable && self.object_values.is_some() {
+                self.retain_object_value(
+                    declaration_index,
+                    declarator_name_span(&item.node.declarator)
+                        .unwrap_or(item.span)
+                        .start,
+                    item.node.initializer.as_ref(),
                 )?;
             }
             if let (Some(checked), Some(site)) = (&mut self.checked, checked_site) {

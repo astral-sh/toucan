@@ -161,6 +161,7 @@ fn written_sites_retain_messages_redeclarations_and_original_spans() {
         &AnalysisOptions {
             retain_code: true,
             retain_declaration_origins: false,
+            retain_object_values: false,
             limits: Limits {
                 payload_bytes: 2048,
                 ..Default::default()
