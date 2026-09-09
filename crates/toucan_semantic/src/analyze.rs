@@ -2113,8 +2113,8 @@ impl Analyzer {
         self.same_type_at::<true, false>(left, right, 0)
     }
 
-    /// Exact deduction also compares VLA identity and treats an array's element
-    /// qualifiers as its own. Ordinary C compatibility retains its existing rules.
+    /// Array qualification belongs to the element type for both identity and
+    /// compatibility. Exact deduction additionally compares VLA identity.
     fn same_type_at<const EXACT: bool, const ARRAY_ELEMENT: bool>(
         &self,
         left: &Type,
@@ -2128,8 +2128,7 @@ impl Analyzer {
             ));
         }
         if !ARRAY_ELEMENT
-            && self.identity_qualifiers::<EXACT>(left, depth)?
-                != self.identity_qualifiers::<EXACT>(right, depth)?
+            && self.identity_qualifiers(left, depth)? != self.identity_qualifiers(right, depth)?
         {
             return Ok(false);
         }
@@ -2149,7 +2148,7 @@ impl Analyzer {
                     element: b,
                     length: bl,
                 },
-            ) => al == bl && self.same_type_at::<EXACT, EXACT>(a, b, depth + 1)?,
+            ) => al == bl && self.same_type_at::<EXACT, true>(a, b, depth + 1)?,
             (
                 TypeKind::VariableArray {
                     element: a,
@@ -2159,7 +2158,7 @@ impl Analyzer {
                     element: b,
                     identity: bi,
                 },
-            ) => (!EXACT || ai == bi) && self.same_type_at::<EXACT, EXACT>(a, b, depth + 1)?,
+            ) => (!EXACT || ai == bi) && self.same_type_at::<EXACT, true>(a, b, depth + 1)?,
             (TypeKind::Function(a), TypeKind::Function(b)) => {
                 if a.noreturn != b.noreturn
                     || a.prototype != b.prototype
@@ -2193,35 +2192,45 @@ impl Analyzer {
         })
     }
 
-    fn identity_qualifiers<'a, const EXACT: bool>(
+    /// Collects qualification across an array chain without changing its stored
+    /// typedefs. Pointer pointees begin a separate qualification boundary.
+    fn identity_qualifiers<'a>(
         &'a self,
         mut ty: &'a Type,
         depth: usize,
     ) -> Result<Qualifiers, Error> {
         let mut result = self.unit.qualifiers(ty)?;
-        if EXACT {
-            let mut levels = depth;
-            while let TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } =
-                &self.unit.resolve(ty)?.kind
-            {
-                levels += 1;
-                if levels >= 128 {
-                    return Err(Error::new(
-                        0,
-                        "type identity nesting exceeds the 128-level limit",
-                    ));
-                }
-                ty = element;
-                let inner = self.unit.qualifiers(ty)?;
-                result.is_const |= inner.is_const;
-                result.is_volatile |= inner.is_volatile;
-                result.is_restrict |= inner.is_restrict;
+        let mut levels = depth;
+        while let TypeKind::Array { element, .. } | TypeKind::VariableArray { element, .. } =
+            &self.unit.resolve(ty)?.kind
+        {
+            levels += 1;
+            if levels >= 128 {
+                return Err(Error::new(
+                    0,
+                    "type identity nesting exceeds the 128-level limit",
+                ));
             }
+            ty = element;
+            let inner = self.unit.qualifiers(ty)?;
+            result.is_const |= inner.is_const;
+            result.is_volatile |= inner.is_volatile;
+            result.is_restrict |= inner.is_restrict;
         }
         Ok(result)
     }
 
     pub(crate) fn compatible_at(
+        &self,
+        left: &Type,
+        right: &Type,
+        depth: usize,
+    ) -> Result<bool, Error> {
+        self.compatible_array_at::<false>(left, right, depth)
+    }
+
+    /// Compares an array chain's qualifiers once, at its outermost layer.
+    fn compatible_array_at<const ARRAY_ELEMENT: bool>(
         &self,
         left: &Type,
         right: &Type,
@@ -2233,7 +2242,9 @@ impl Analyzer {
                 "type compatibility nesting exceeds the 128-level limit",
             ));
         }
-        if self.unit.qualifiers(left)? != self.unit.qualifiers(right)? {
+        if !ARRAY_ELEMENT
+            && self.identity_qualifiers(left, depth)? != self.identity_qualifiers(right, depth)?
+        {
             return Ok(false);
         }
         let left = self.unit.resolve(left)?;
@@ -2260,7 +2271,7 @@ impl Analyzer {
                     length: b,
                 },
             ) => Ok((a == b || a.is_none() || b.is_none())
-                && self.compatible_at(left, right, depth + 1)?),
+                && self.compatible_array_at::<true>(left, right, depth + 1)?),
             (
                 TypeKind::VariableArray { element: left, .. },
                 TypeKind::VariableArray { element: right, .. },
@@ -2272,7 +2283,7 @@ impl Analyzer {
             | (
                 TypeKind::Array { element: left, .. },
                 TypeKind::VariableArray { element: right, .. },
-            ) => self.compatible_at(left, right, depth + 1),
+            ) => self.compatible_array_at::<true>(left, right, depth + 1),
             (TypeKind::Function(left), TypeKind::Function(right)) => {
                 if left.calling_convention.for_target(self.unit.target)?
                     != right.calling_convention.for_target(self.unit.target)?
