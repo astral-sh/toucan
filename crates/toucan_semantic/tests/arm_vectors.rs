@@ -366,9 +366,11 @@ fn arm_vector_constraints_match_clang_and_type_only_uses_generate_code() {
             ]),
             PRELUDE,
         );
+        // Clang accepts SVE type spellings on Windows ARM64, even though
+        // the supported SVE procedure-call probes below exclude that ABI.
         assert_eq!(
             toucan_test_support::compiler_acceptance(&output),
-            Ok(ARM.contains(&target)),
+            Ok(ARM.contains(&target) || target == Target::Aarch64PcWindowsMsvc),
             "{target}: {}",
             String::from_utf8_lossy(&output.stderr)
         );

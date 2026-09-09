@@ -396,7 +396,8 @@ fn conventions_match_clang_target_ir() {
             );
             let ir = String::from_utf8(output.stdout).unwrap();
             let definition = ir.lines().find(|line| line.starts_with("define ")).unwrap();
-            let expected = if convention == "ms_abi" && target != Target::X86_64PcWindowsMsvc {
+            // Windows ARM64 uses the default C ABI for ms_abi, like Windows x64.
+            let expected = if convention == "ms_abi" && !target.is_windows() {
                 "win64cc"
             } else if convention == "sysv_abi" && target == Target::X86_64PcWindowsMsvc {
                 "x86_64_sysvcc"

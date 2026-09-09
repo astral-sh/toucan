@@ -174,7 +174,7 @@ fn advertised_language_features_match_native_source_acceptance() {
             if profile.compiler() == Compiler::Clang {
                 source.push_str(&format!(
                     "_Static_assert(__has_declspec_attribute(__align__) == {}, \"declspec\");\n",
-                    u8::from(profile.target() == Target::X86_64PcWindowsMsvc)
+                    u8::from(profile.target().is_windows())
                 ));
             }
             std::fs::write(&path, &source).unwrap();
