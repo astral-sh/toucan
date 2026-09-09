@@ -47,6 +47,10 @@ Cargo's selected dependency tree and compiler-artifact messages verify
 the active packages and features. `cargo metadata` alone is insufficient here:
 it includes the weak optional FIPS dependency even when that package is not
 built. The Toucan build must compile without bindgen, clang-sys, or libloading.
+The dependency audit removes only the sys crate's binding-generator build edge
+and compares the remaining active package versions, sources, checksums, features,
+and dependency edges. Generator-only dependencies can disappear; shared native
+build dependencies must remain unchanged.
 
 The upstream cfg named `use_bindgen_pregenerated` selects the freshly generated
 `OUT_DIR/bindings.rs`. The harness checks that emitted cfg and the sys crate's
@@ -86,5 +90,28 @@ passes on Linux x86-64 with bindgen 0.72.1, Clang 18.1.3, and Rust 1.98.1.
 It verifies 2,123 upstream files, 362 compiled native objects, 75 emitted layout
 tests, and 41 deterministic runtime artifacts. The adjacent archive preserves
 the commands, selected Cargo artifacts, generated bindings, and runtime results.
-This capture validates the reference fixture; the Toucan run remains pending
-the complete adapter API.
+This capture validates the reference fixture independently of later paired runs.
+
+## Recorded paired consumer
+
+The [paired Linux x86-64 run](../corpus/evidence/aws-lc-consumer-paired-2026-09-09.json.gz)
+passes with Clang 18.1.3 and Rust 1.98.1. Both generators compile the unchanged
+upstream Rust wrappers and produce identical results and all 41 runtime artifacts.
+The six C/Rust type layouts agree. The run verifies all 2,123 upstream files;
+only the Toucan copy's sys Cargo.toml changes. All 362 native object selections
+and normalized compiler settings match, as do the 13 consumer packages and 15
+dependency edges after excluding the binding generator. The candidate compiles
+without bindgen, clang-sys, or libloading. Its source remained immutable throughout
+the build and runtime checks.
+
+The reference runs 75 generated layout tests and Toucan runs 74. Their record
+identities match after mapping `__va_list_tag` to `__toucan_va_list_tag`, except
+for the reference's additional `_IO_FILE`. That type is unreferenced outside its
+own definition, test, and Default implementation; the upstream builder explicitly
+blocklists `FILE`. All generated tests pass.
+
+The captured Toucan source also repeats the `EVP_ENCODE_CTX` typedef's Doxygen
+comment on the later `evp_encode_ctx_st` definition. The reference emits that
+comment only on the typedef. This documented output difference does not change
+the runtime or layout result. The capture establishes this crypto-only consumer
+route; it does not establish complete public API or text equality.
