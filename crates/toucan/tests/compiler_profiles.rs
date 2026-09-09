@@ -3,7 +3,7 @@ use toucan::{Compiler, CompilerProfile, Config, Target, parse_source};
 
 #[test]
 fn profiles_validate_and_round_trip_without_changing_physical_targets() {
-    assert_eq!(CompilerProfile::ALL.len(), 12);
+    assert_eq!(CompilerProfile::ALL.len(), 14);
     for (index, target) in Target::ALL.into_iter().enumerate() {
         assert!(
             CompilerProfile::ALL.contains(&CompilerProfile::default_for(target)),
@@ -51,8 +51,16 @@ fn profile_macros_keep_linux_types_and_respect_caller_overrides() {
         assert_eq!(config.compiler(), profile.compiler());
         let source = format!(
             "_Static_assert(sizeof(__INT_FAST16_TYPE__)=={},\"fast16\"); _Static_assert(sizeof(__INT_FAST32_TYPE__)=={},\"fast32\");",
-            if clang { 2 } else { 8 },
-            if clang { 4 } else { 8 }
+            if clang {
+                2
+            } else {
+                profile.target().pointer_width() / 8
+            },
+            if clang {
+                4
+            } else {
+                profile.target().pointer_width() / 8
+            }
         );
         let mut source = source;
         if matches!(
@@ -63,6 +71,9 @@ fn profile_macros_keep_linux_types_and_respect_caller_overrides() {
                 | Target::Aarch64UnknownLinuxMusl
         ) {
             source.push_str("_Static_assert(_Generic((__INT64_TYPE__)0,long:1,default:0),\"Linux int64\"); _Static_assert(sizeof(long double)==16,\"Linux extended precision\");");
+        }
+        if profile.target() == Target::I686UnknownLinuxGnu {
+            source.push_str("_Static_assert(_Generic((__INT64_TYPE__)0,long long:1,default:0),\"i686 int64\"); _Static_assert(sizeof(long double)==12,\"i686 extended precision\");");
         }
         let compilation = parse_source(Path::new("profile.h"), &source, &config).unwrap();
         assert_eq!(compilation.unit().profile().unwrap(), profile);

@@ -984,6 +984,9 @@ fn generate_with_work_budget(
                     IntegerKind::UnsignedShort => ("u16", u32::from(u16::MAX), false),
                     IntegerKind::UnsignedInt => ("u32", u32::MAX, false),
                     IntegerKind::Int => ("i32", u32::MAX, true),
+                    // GCC uses `long int` for i686 wchar_t; its 32-bit code
+                    // units have the same Rust representation as signed int.
+                    IntegerKind::Long if unit.target.long_width() == 32 => ("i32", u32::MAX, true),
                     _ => {
                         return Err(Error(format!(
                             "wide string macro `{c_name}` has an unsupported element type"

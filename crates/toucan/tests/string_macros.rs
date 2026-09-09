@@ -231,6 +231,33 @@ fn public_wide_macro_values_cannot_truncate_or_claim_another_element_type() {
     }
 }
 
+#[test]
+fn i686_gcc_wide_long_macros_keep_signed_code_units() {
+    use toucan::semantic::IntegerKind;
+    use toucan_bindings::MacroValue;
+
+    let macros = [(
+        "M_WIDE_LONG".into(),
+        Some(MacroValue::WideString {
+            element_type: IntegerKind::Long,
+            code_units: vec![u32::MAX],
+        }),
+    )]
+    .into();
+    let i686 = toucan::semantic::analyze("", Target::I686UnknownLinuxGnu).unwrap();
+    let bindings = toucan_bindings::generate_with_macros(&i686, &options(), &macros).unwrap();
+    assert!(
+        bindings
+            .source
+            .contains("pub const M_WIDE_LONG: &[::core::primitive::i32; 2] = &[-1, 0];"),
+        "{}",
+        bindings.source
+    );
+
+    let x86_64 = toucan::semantic::analyze("", Target::X86_64UnknownLinuxGnu).unwrap();
+    assert!(toucan_bindings::generate_with_macros(&x86_64, &options(), &macros).is_err());
+}
+
 fn c_source(cases: &[Case]) -> String {
     let mut source = header(cases);
     for case in cases {

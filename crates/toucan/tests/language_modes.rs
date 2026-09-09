@@ -24,6 +24,7 @@ fn profile_defaults_and_caller_overrides_select_the_header_api() {
                     && matches!(
                         profile.target(),
                         Target::X86_64UnknownLinuxGnu
+                            | Target::I686UnknownLinuxGnu
                             | Target::X86_64UnknownLinuxMusl
                             | Target::Aarch64UnknownLinuxGnu
                             | Target::Aarch64UnknownLinuxMusl

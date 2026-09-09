@@ -36,7 +36,10 @@ const CASES: &[(&str, bool)] = &[
 
 #[test]
 fn calling_keywords_preserve_declarator_boundaries_and_profile_reservation() {
-    for profile in CompilerProfile::ALL {
+    for profile in CompilerProfile::ALL
+        .into_iter()
+        .filter(|profile| profile.target() != Target::I686UnknownLinuxGnu)
+    {
         for keyword in KEYWORDS {
             for &(template, valid) in CASES {
                 let source = template.replace("CC", keyword);
@@ -97,7 +100,7 @@ fn default_calling_keywords_generate_the_canonical_rust_api() {
     let source = "typedef int (CC *Callback)(int); int CC call(Callback, int);";
     for profile in CompilerProfile::ALL
         .into_iter()
-        .filter(|p| p.compiler() == Compiler::Clang)
+        .filter(|p| p.compiler() == Compiler::Clang && p.target() != Target::I686UnknownLinuxGnu)
     {
         let compile = |source: &str| {
             toucan::parse_source(Path::new("api.h"), source, &Config::with_profile(profile))
@@ -110,6 +113,35 @@ fn default_calling_keywords_generate_the_canonical_rust_api() {
         for keyword in KEYWORDS {
             assert_eq!(compile(&source.replace("CC", keyword)), canonical);
         }
+    }
+}
+
+#[test]
+fn i686_keywords_keep_distinct_calling_conventions_out_of_c_bindings() {
+    let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, Compiler::Clang).unwrap();
+    let config = Config::with_profile(profile);
+    let bindings = |source: &str| {
+        toucan::parse_source(Path::new("api.h"), source, &config)
+            .unwrap()
+            .bindings(&Default::default())
+            .unwrap()
+            .0
+    };
+    let canonical = bindings("typedef int (*Callback)(int); int call(Callback, int);");
+    for keyword in ["__cdecl", "__pascal"] {
+        let source =
+            format!("typedef int ({keyword} *Callback)(int); int {keyword} call(Callback, int);");
+        assert_eq!(bindings(&source), canonical, "{keyword}");
+    }
+    for keyword in ["__stdcall", "__fastcall", "__thiscall"] {
+        let source = format!("typedef int ({keyword} *Callback)(int);");
+        let error = toucan::parse_source(Path::new("api.h"), &source, &config)
+            .err()
+            .expect("i686 nondefault calling convention must be rejected");
+        assert!(
+            error.to_string().contains("unsupported on i686 GNU Linux"),
+            "{keyword}: {error}"
+        );
     }
 }
 
@@ -181,13 +213,13 @@ fn nondefault_x86_calling_keywords_have_explicit_diagnostics() {
 }
 
 #[test]
-#[ignore = "requires Clang's five target frontends"]
+#[ignore = "requires Clang's supported 64-bit target frontends"]
 fn calling_keyword_placement_matches_clang() {
     let dir = tempfile::tempdir().unwrap();
     let input = dir.path().join("calling.c");
     for profile in CompilerProfile::ALL
         .into_iter()
-        .filter(|p| p.compiler() == Compiler::Clang)
+        .filter(|p| p.compiler() == Compiler::Clang && p.target() != Target::I686UnknownLinuxGnu)
     {
         for keyword in KEYWORDS {
             for &(template, _) in CASES {
