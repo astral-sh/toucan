@@ -155,3 +155,22 @@ The subsequent [incomplete-tag name correction](../corpus/evidence/incomplete-re
 replays this frozen input and changes only the eight occurrences of that one
 public type name; it does not repeat the full AWS-LC consumer build. The other
 record-shape and alias differences remain.
+
+## SSL profile on frozen source
+
+The [paired native Linux x86-64 SSL run](../corpus/evidence/aws-lc-ssl-consumer-7db2b85-2026-09-09/README.md)
+uses the frozen `7db2b85` frontend and unchanged `aws-lc-sys` 0.44.0 and
+`aws-lc-rs` 1.18.0 build scripts. With `ssl` and `all-bindings` selected,
+both generators' 106 generated layout tests pass. Independently built C and
+Rust programs call `TLS_method`, allocate an SSL context and object, check
+minimum protocol setters and getters, and free both objects. All 41 recorded
+crypto runtime artifacts and six C/Rust layouts agree. Both builds explicitly
+use `CXX=clang++-18` because the upstream SSL C++ flags fail with GCC C++.
+
+The ELF-aware differential matches 3,230 functions, 60 globals, 4,894
+constants, and all 105 shared record layouts. Exact Rust API equality remains
+false for 15 extra aliases, four record field representations, and private
+padding or opaque storage. The paired test establishes selected native SSL
+calls, not a full TLS handshake or the FIPS and external-executable modes.
+The source used in this capture predates the subsequent incomplete-tag name
+correction; recheck full consumers on the intended release revision.
