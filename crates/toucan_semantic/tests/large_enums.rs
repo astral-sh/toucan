@@ -277,12 +277,37 @@ fn windows_sdk_enum_clang_cross_target_oracle() {
     std::fs::write(file.path(), WINDOWS_SDK_ENUMS).unwrap();
     for target in [Target::X86_64PcWindowsMsvc, Target::Aarch64PcWindowsMsvc] {
         for extensions in ["-fms-extensions", "-fno-ms-extensions"] {
-            let output = Command::new("clang")
-                .arg(format!("--target={}", target.triple()))
-                .args([extensions, "-std=c11", "-fsyntax-only", "-x", "c"])
-                .arg(file.path())
-                .output()
+            let compile = |source: &std::path::Path| {
+                Command::new("clang")
+                    .arg(format!("--target={}", target.triple()))
+                    .args([extensions, "-std=c11", "-fsyntax-only", "-x", "c"])
+                    .arg(source)
+                    .output()
+                    .unwrap()
+            };
+            #[cfg(target_os = "macos")]
+            if extensions == "-fno-ms-extensions" {
+                let probe = tempfile::NamedTempFile::new().unwrap();
+                std::fs::write(
+                    probe.path(),
+                    "enum E { NEG = -1, INTERNAL = 0x80000000, FORCE = 0xFFFFFFFF, PACKED = 0xFFFFFFFFU };",
+                )
                 .unwrap();
+                let output = compile(probe.path());
+                if !output.status.success() {
+                    let stderr = String::from_utf8_lossy(&output.stderr);
+                    assert!(
+                        stderr.contains(
+                            "enumerator value is not representable in the underlying type"
+                        ),
+                        "unexpected clang Windows enum probe failure for {target} {extensions}: {stderr}"
+                    );
+                    // Apple Clang rejects the SDK's 32-bit sentinels without
+                    // MS extensions even for this minimal enum.
+                    continue;
+                }
+            }
+            let output = compile(file.path());
             assert!(
                 output.status.success(),
                 "{target} {extensions}: {}",

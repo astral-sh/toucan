@@ -369,6 +369,14 @@ fn gcc_wide_enum_layouts() {
 fn clang_cross_target_layouts() {
     let directory = tempfile::tempdir().unwrap();
     for target in Target::ALL {
+        #[cfg(target_os = "macos")]
+        if target == Target::I686UnknownLinuxGnu
+            && !apple_clang_models_gnu_i686_alignment(directory.path())
+        {
+            // Apple Clang may use 8-byte long long/double alignment for its
+            // GNU i686 cross target, unlike the 4-byte GNU i686 ABI.
+            continue;
+        }
         let source = directory.path().join(format!("{target}.c"));
         std::fs::write(&source, assertions(target)).unwrap();
         let output = Command::new("clang")
@@ -388,6 +396,36 @@ fn clang_cross_target_layouts() {
             String::from_utf8_lossy(&output.stderr)
         );
     }
+}
+
+#[cfg(target_os = "macos")]
+fn apple_clang_models_gnu_i686_alignment(directory: &std::path::Path) -> bool {
+    const MARKER: &str = "GNU i686 scalar alignment";
+    let source = directory.join("gnu-i686-alignment.c");
+    std::fs::write(
+        &source,
+        format!("_Static_assert(_Alignof(long long) == 4 && _Alignof(double) == 4, \"{MARKER}\");"),
+    )
+    .unwrap();
+    let output = Command::new("clang")
+        .args([
+            "-target",
+            Target::I686UnknownLinuxGnu.triple(),
+            "-std=c11",
+            "-Werror",
+            "-fsyntax-only",
+        ])
+        .arg(source)
+        .output()
+        .expect("clang must be available for the i686 GNU ABI probe");
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(
+            stderr.contains("static assertion failed") && stderr.contains(MARKER),
+            "unexpected clang i686 GNU ABI probe failure: {stderr}"
+        );
+    }
+    output.status.success()
 }
 
 // GCC's -m32 selects the host x86 multilib ABI; a native AArch64 GCC cannot use it.
