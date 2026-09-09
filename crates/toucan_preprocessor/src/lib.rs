@@ -1658,35 +1658,18 @@ impl Preprocessor {
         tokens: &[Token],
         output: &mut String,
     ) -> Result<bool, String> {
-        let mut replaced = Vec::new();
-        let mut position = 0;
-        while position < tokens.len() {
-            if tokens[position].text != "defined" {
-                replaced.push(tokens[position].clone());
-                position += 1;
-                continue;
-            }
-            position += 1;
-            let parenthesized = tokens.get(position).is_some_and(|token| token.text == "(");
-            position += usize::from(parenthesized);
-            let name = tokens
-                .get(position)
-                .filter(|token| token.kind == Kind::Identifier)
-                .ok_or("defined requires an identifier")?;
-            let defined = self.is_defined(&name.text);
-            replaced.push(Token::new(Kind::Number, if defined { "1" } else { "0" }));
-            position += 1;
-            if parenthesized {
-                if tokens.get(position).is_none_or(|token| token.text != ")") {
-                    return Err("missing `)` after defined".into());
-                }
-                position += 1;
-            }
-        }
-        let replaced = self.has_include(path, input.accessed, include_origin, replaced)?;
-        let expanded = self.expand(path, replaced)?;
-        let mut ordinary = Vec::with_capacity(expanded.len());
-        for token in expanded {
+        let mut pending: VecDeque<_> = tokens.to_vec().into();
+        let mut ordinary = Vec::new();
+        while let Some(first) = pending.front() {
+            let mut expanded = self
+                .expand_with(path, (first.line, first.column), |expansion| {
+                    expansion.expand_condition(&mut pending)
+                })
+                .map_err(|error| error.message)?;
+            let Some(mut token) = expanded.pop() else {
+                break;
+            };
+            ordinary.extend(expanded);
             if token.kind == Kind::Pragma {
                 let clang = self.config.feature_queries.as_ref().map_or_else(
                     || self.macros.contains_key("__clang__"),
@@ -1722,6 +1705,31 @@ impl Preprocessor {
                         input.system,
                     );
                 }
+            } else if token.text == "defined" {
+                if token.expanded {
+                    return Err("defined cannot be produced by macro expansion".into());
+                }
+                let parenthesized = pending.front().is_some_and(|token| token.text == "(");
+                if parenthesized {
+                    pending.pop_front();
+                }
+                let name = pending
+                    .pop_front()
+                    .filter(|token| token.kind == Kind::Identifier)
+                    .ok_or("defined requires an identifier")?;
+                let defined = self.is_defined(&name.text);
+                if parenthesized && pending.pop_front().is_none_or(|token| token.text != ")") {
+                    return Err("missing `)` after defined".into());
+                }
+                token.kind = Kind::Number;
+                token.text = if defined { "1" } else { "0" }.into();
+                ordinary.push(token);
+            } else if matches!(token.text.as_str(), "__has_include" | "__has_include_next") {
+                let exists =
+                    self.has_include(path, input.accessed, include_origin, &token, &mut pending)?;
+                token.kind = Kind::Number;
+                token.text = if exists { "1" } else { "0" }.into();
+                ordinary.push(token);
             } else {
                 ordinary.push(token);
             }
@@ -1734,11 +1742,7 @@ impl Preprocessor {
                     .split_whitespace()
                     .any(|token| token == "unsigned")
         });
-        expression::evaluate(
-            &self.has_include(path, input.accessed, include_origin, expanded)?,
-            wchar_unsigned,
-            self.config.char_unsigned,
-        )
+        expression::evaluate(&expanded, wchar_unsigned, self.config.char_unsigned)
     }
 
     fn has_include(
@@ -1746,68 +1750,51 @@ impl Preprocessor {
         path: &Path,
         include_path: &Path,
         include_origin: Option<usize>,
-        expanded: Vec<Token>,
-    ) -> Result<Vec<Token>, String> {
-        let mut replaced = Vec::new();
-        let mut position = 0;
-        while position < expanded.len() {
-            let builtin = expanded[position].text.as_str();
-            if !matches!(builtin, "__has_include" | "__has_include_next") {
-                replaced.push(expanded[position].clone());
-                position += 1;
-                continue;
-            }
-            // Clang restarts include-next queries produced by macro expansion;
-            // direct queries retain the including file's search position.
-            let origin =
-                if self.macros.contains_key("__clang__") && !expanded[position].hidden.is_empty() {
-                    None
-                } else {
-                    include_origin
-                };
-            position += 1;
-            if expanded.get(position).is_none_or(|token| token.text != "(") {
-                return Err(format!("{builtin} requires parenthesized header name"));
-            }
-            position += 1;
-            let start = position;
-            while expanded
-                .get(position)
-                .is_some_and(|token| token.text != ")")
-            {
-                position += 1;
-            }
-            if position == expanded.len() {
-                return Err(format!("unterminated {builtin} expression"));
-            }
-            let (name, quoted) = if let Ok(header) = header_name(&expanded[start..position]) {
-                header
-            } else {
-                let tokens = self.expand(path, expanded[start..position].to_vec())?;
-                header_name(&tokens)?
-            };
-            let next = builtin == "__has_include_next";
-            let start = if next {
-                origin.map_or(0, |index| index + 1)
-            } else {
-                0
-            };
-            let exists = self
-                .find_include(
-                    include_path,
-                    &name,
-                    quoted && !next,
-                    start,
-                    include_origin,
-                    false,
-                )
-                .is_some()
-                || (start <= self.include_directory_count()
-                    && self.config.virtual_headers.contains_key(&name));
-            replaced.push(Token::new(Kind::Number, if exists { "1" } else { "0" }));
-            position += 1;
+        token: &Token,
+        pending: &mut VecDeque<Token>,
+    ) -> Result<bool, String> {
+        let builtin = token.text.as_str();
+        // Clang restarts include-next queries produced by macro expansion;
+        // direct queries retain the including file's search position.
+        let origin = if self.macros.contains_key("__clang__") && !token.hidden.is_empty() {
+            None
+        } else {
+            include_origin
+        };
+        if pending.pop_front().is_none_or(|token| token.text != "(") {
+            return Err(format!("{builtin} requires parenthesized header name"));
         }
-        Ok(replaced)
+        let mut argument = Vec::new();
+        while pending.front().is_some_and(|token| token.text != ")") {
+            argument.push(pending.pop_front().expect("peeked argument token"));
+        }
+        if pending.pop_front().is_none() {
+            return Err(format!("unterminated {builtin} expression"));
+        }
+        let (name, quoted) = if let Ok(header) = header_name(&argument) {
+            header
+        } else {
+            let tokens = self.expand(path, argument)?;
+            header_name(&tokens)?
+        };
+        let next = builtin == "__has_include_next";
+        let start = if next {
+            origin.map_or(0, |index| index + 1)
+        } else {
+            0
+        };
+        Ok(self
+            .find_include(
+                include_path,
+                &name,
+                quoted && !next,
+                start,
+                include_origin,
+                false,
+            )
+            .is_some()
+            || (start <= self.include_directory_count()
+                && self.config.virtual_headers.contains_key(&name)))
     }
 
     fn include_directory_count(&self) -> usize {

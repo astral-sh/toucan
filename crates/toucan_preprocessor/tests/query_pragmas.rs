@@ -65,6 +65,70 @@ fn query_pragmas_preserve_once_effects_and_reset_at_entry_points() {
     assert_eq!(result.source.matches("struct IncludedOnce {").count(), 1);
 }
 
+fn conditional_macro_sources() -> Vec<String> {
+    let mut sources = Vec::new();
+    for expression in [
+        "_Pragma(\"pop_macro(\\\"VALUE\\\")\") VALUE == 1",
+        "RESTORE VALUE == 1",
+        "PASS(RESTORE) VALUE == 1",
+        "RESTORE PASS(VALUE) == 1",
+        // Clang prescans VALUE before applying an argument's pragma.
+        "PASS(RESTORE VALUE) == 2",
+    ] {
+        sources.push(format!(
+            "#define VALUE 1\n#pragma push_macro(\"VALUE\")\n\
+             #undef VALUE\n#define VALUE 2\n\
+             #define RESTORE _Pragma(\"pop_macro(\\\"VALUE\\\")\")\n\
+             #define PASS(x) x\n\
+             #if 0\n#elif {expression}\nint correct;\n\
+             #else\n#error stale macro value\n#endif\n\
+             #if VALUE != 1\n#error missing pragma effect\n#endif\n"
+        ));
+    }
+    sources.extend([
+        "#pragma push_macro(\"__has_attribute\")\n#undef __has_attribute\n\
+         #define __has_attribute(x) 0\n\
+         #if _Pragma(\"pop_macro(\\\"__has_attribute\\\")\") __has_attribute(aligned)\n\
+         int correct;\n#else\n#error stale feature query\n#endif\n"
+            .into(),
+        "#pragma push_macro(\"ABSENT\")\n#define ABSENT 1\n\
+         #if defined(ABSENT) && _Pragma(\"pop_macro(\\\"ABSENT\\\")\") !defined ABSENT\n\
+         int correct;\n#else\n#error stale defined result\n#endif\n"
+            .into(),
+        "#define HEADER \"available.h\"\n#pragma push_macro(\"HEADER\")\n\
+         #undef HEADER\n#define HEADER \"missing.h\"\n\
+         #if !__has_include(HEADER) && _Pragma(\"pop_macro(\\\"HEADER\\\")\") \
+             __has_include(HEADER) && __has_include_next(HEADER)\n\
+         int correct;\n#else\n#error stale header query\n#endif\n"
+            .into(),
+        "#pragma push_macro(\"ABSENT\")\n#define ABSENT 1\n\
+         #if 0 && _Pragma(\"pop_macro(\\\"ABSENT\\\")\") 1\n#error evaluated branch\n#endif\n\
+         #if !defined(ABSENT)\nint correct;\n#else\n#error missing unevaluated pragma\n#endif\n"
+            .into(),
+        "#define VALUE 1\n#pragma push_macro(\"VALUE\")\n#undef VALUE\n#define VALUE 2\n\
+         #if 0\n#if _Pragma(\"pop_macro(\\\"VALUE\\\")\") 1\n#endif\n\
+         #elif 1\n#elif _Pragma(\"pop_macro(\\\"VALUE\\\")\") 1\n#endif\n\
+         #if VALUE == 2\nint correct;\n#else\n#error applied skipped pragma\n#endif\n"
+            .into(),
+    ]);
+    sources
+}
+
+#[test]
+fn conditional_macro_restoration_precedes_following_expansion() {
+    let mut config = config(QueryDialect::Clang, true, true);
+    config
+        .virtual_headers
+        .insert("available.h".into(), String::new());
+    let mut pp = Preprocessor::new(config);
+    for source in conditional_macro_sources() {
+        let result = pp
+            .preprocess_str(Path::new("condition.h"), &source)
+            .unwrap();
+        assert_eq!(compact(&result.source), "intcorrect;", "{source}");
+    }
+}
+
 #[test]
 fn raw_queries_and_scope_lookahead_do_not_consume_deferred_pragmas() {
     for query in [
@@ -297,6 +361,45 @@ fn query_pragma_handlers_match_native_compilation() {
     eprintln!(
         "{comparisons} native C query/pragma acceptance comparisons; accepted outputs also compared and compiled"
     );
+}
+
+#[test]
+#[ignore = "requires native GCC and Clang and a temporary header"]
+fn conditional_macro_restoration_matches_native_preprocessors() {
+    let path = std::env::temp_dir().join(format!("toucan-condition-pragma-{}", std::process::id()));
+    std::fs::create_dir_all(&path).unwrap();
+    std::fs::write(path.join("available.h"), "").unwrap();
+    for (compiler, dialect) in [("gcc", QueryDialect::Gnu), ("clang", QueryDialect::Clang)] {
+        let mut config = config(dialect, true, true);
+        config
+            .virtual_headers
+            .insert("available.h".into(), String::new());
+        let mut pp = Preprocessor::new(config);
+        for source in conditional_macro_sources() {
+            let native = native(
+                compiler,
+                "gnu11",
+                &source,
+                &["-I", path.to_str().unwrap(), "-E", "-P"],
+            );
+            let accepted = toucan_test_support::compiler_acceptance(&native).unwrap();
+            let actual = pp.preprocess_str(Path::new("condition.h"), &source);
+            assert_eq!(
+                actual.is_ok(),
+                accepted,
+                "{compiler}: {source}\n{actual:?}\n{}",
+                String::from_utf8_lossy(&native.stderr)
+            );
+            if let Ok(actual) = actual {
+                assert_eq!(
+                    compact(&actual.source),
+                    compact(&String::from_utf8_lossy(&native.stdout)),
+                    "{compiler}: {source}"
+                );
+            }
+        }
+    }
+    std::fs::remove_dir_all(path).unwrap();
 }
 
 #[test]
