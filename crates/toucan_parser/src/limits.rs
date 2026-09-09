@@ -98,8 +98,8 @@ pub(crate) struct Budget {
     backtracking_steps: u64,
     #[cfg(test)]
     verify_uncached: bool,
-    nodes: ::std::collections::HashMap<(u8, usize, usize), Measurement>,
-    external_nodes: ::std::collections::HashMap<(usize, usize), Measurement>,
+    nodes: ::rustc_hash::FxHashMap<(u8, usize, usize), Measurement>,
+    external_nodes: ::rustc_hash::FxHashMap<(usize, usize), Measurement>,
 }
 
 impl Budget {
@@ -113,8 +113,8 @@ impl Budget {
             backtracking_steps: 0,
             #[cfg(test)]
             verify_uncached: false,
-            nodes: ::std::collections::HashMap::new(),
-            external_nodes: ::std::collections::HashMap::new(),
+            nodes: ::rustc_hash::FxHashMap::default(),
+            external_nodes: ::rustc_hash::FxHashMap::default(),
         }
     }
 
@@ -326,7 +326,7 @@ impl Budget {
             }
             // Do not repeatedly scan an oversized allocation after a large function.
             if self.nodes.capacity() > 4 * self.nodes.len().max(32) {
-                self.nodes = ::std::collections::HashMap::new();
+                self.nodes = ::rustc_hash::FxHashMap::default();
             } else {
                 self.nodes.clear();
             }
