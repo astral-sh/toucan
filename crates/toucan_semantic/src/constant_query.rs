@@ -60,6 +60,18 @@ impl Analyzer {
                 }
             }
             ast::Expression::Cast(cast) => {
+                if self
+                    .null_base_member_offset(&cast.node.expression)?
+                    .is_some()
+                {
+                    let ty = self.type_name(&cast.node.type_name.node)?;
+                    if matches!(
+                        self.unit.resolve(&ty)?.kind,
+                        TypeKind::Integer(_) | TypeKind::Bool | TypeKind::Enum(_)
+                    ) {
+                        return Ok(self.eval(expression).is_ok());
+                    }
+                }
                 if !self.known_constant_operand(&cast.node.expression)? {
                     return Ok(false);
                 }
