@@ -63,6 +63,10 @@ Record and clear `MALLOC_*`, `_RJEM_MALLOC_CONF`, `MIMALLOC_*`, `JEMALLOC_*`,
 defaults. Require identical output before timing, and report process memory alongside generation time. Allocation
 counting and allocator timing belong in separate builds.
 
+The [optimization capture](../evidence/optimization-drafts-2026-09-09/README.md) compares nine frontend drafts individually. The accompanying [allocator capture](../evidence/optimization-drafts-2026-09-09/allocators/README.md) compares System, jemalloc, and mimalloc on both the baseline and complete stack. Both include raw measurements and output comparisons.
+
+### Input requests
+
 Start with the existing zlib 1.3.1, SQLite 3.45.1, zstd 1.5.7, and libgit2 1.9.1
 input paths, include order, target, and sysroot recorded in the earlier benchmark
 requests. Replace the inherited GCC 13 compiler-resource include directory with
