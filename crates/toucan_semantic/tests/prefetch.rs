@@ -87,8 +87,14 @@ fn optional_hints_keep_compiler_checking_stage() {
             "void f(void(*p)(void)){__builtin_prefetch(p);}",
             "void f(int n,int(*p)[n]){__builtin_prefetch(p++);}",
         ] {
-            if profile.target() == Target::I686UnknownLinuxGnu && source.contains("__int128") {
-                assert!(check(source, profile).is_err());
+            if (profile.target() == Target::I686UnknownLinuxGnu || profile.target().is_armv7())
+                && source.contains("__int128")
+            {
+                let error = check(source, profile).unwrap_err();
+                assert!(
+                    error.message.contains("__int128 is unavailable"),
+                    "{profile:?}: {error}"
+                );
                 continue;
             }
             check(source, profile).unwrap();

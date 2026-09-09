@@ -26,7 +26,7 @@ fn typedef_layouts_and_c_alignment_queries_preserve_record_identity() {
     for target in Target::ALL {
         let unit = analyze(SOURCE, target).unwrap();
         for (name, size, alignment) in [
-            ("Maximum", 4, 16),
+            ("Maximum", 4, if target.is_armv7() { 8 } else { 16 }),
             ("I1", 4, 1),
             ("I16", 4, 16),
             ("I2", 4, 2),

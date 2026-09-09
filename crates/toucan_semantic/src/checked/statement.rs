@@ -1354,6 +1354,22 @@ mod tests {
             .into_iter()
             .filter(|target| !target.is_windows())
         {
+            if target.is_armv7() {
+                for source in [source, "void f(void) { __asm__(\"nop\"); }"] {
+                    let plain = crate::analyze(source, target).unwrap_err();
+                    let retained =
+                        analyze_inner(source, target, Some(Limits::default())).unwrap_err();
+                    assert_eq!(
+                        plain.message,
+                        "GNU inline assembly is unsupported for this target"
+                    );
+                    assert_eq!(
+                        (plain.offset, plain.message),
+                        (retained.offset, retained.message)
+                    );
+                }
+                continue;
+            }
             let code = checked(source, target);
             let assemblies: Vec<_> = code
                 .statements

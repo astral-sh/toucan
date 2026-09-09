@@ -102,7 +102,9 @@ fn corresponding_real_storage_and_atomic_alignment() {
             );
             assert_eq!(
                 unit.alignment(&atomic).unwrap(),
-                if profile.target() == toucan_target::Target::I686UnknownLinuxGnu {
+                if profile.target().is_armv7() {
+                    8
+                } else if profile.target() == toucan_target::Target::I686UnknownLinuxGnu {
                     match kind {
                         FloatKind::LongDouble => 4,
                         FloatKind::Double if profile.compiler() == Compiler::Clang => 4,

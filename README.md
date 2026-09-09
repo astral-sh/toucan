@@ -325,8 +325,9 @@ Wide strings retain their typed arrays when this option is enabled.
 
 ### Inline assembly in headers
 
-GNU basic and extended `asm` statements are checked on the supported Linux and
-macOS targets. The frontend validates C operand expressions, writable outputs,
+GNU basic and extended `asm` statements are checked on the supported x86 and
+AArch64 Linux and macOS targets. ARMv7 inline assembly is unsupported.
+The frontend validates C operand expressions, writable outputs,
 memory addressability, symbolic names, matching constraints, alternative counts,
 template references, and a target-specific set of clobbers. Read/write outputs
 count twice toward the 30-operand limit. Integer immediates, generic register and

@@ -76,7 +76,8 @@ fn floating_macros_keep_types_and_report_unsupported_values() {
     let source = "#define FLOAT 0.1f\n#define DOUBLE (-0.0)\n#define INTEGER (int)(1.0 + 2.0)\n#define COMPARE (1.0 < 2.0)\n#define TEXT \"same\"\n#define OLD_INTEGER 7U\n#define WIDE 1.0L\n#define OVERFLOW 1e9999\n#define DIVZERO (1.0 / 0.0)\n#define NAN_VALUE __builtin_nanf(\"\")\n#define INFINITY_VALUE __builtin_inf()\n";
     for target in Target::ALL {
         let compilation = parse(source, target);
-        for minor in [64, 82, 83, 96] {
+        let minimum = if target.is_armv7() { 78 } else { 64 };
+        for minor in [minimum, 82, 83, 96] {
             let (bindings, report) = compilation
                 .bindings(&BindingOptions {
                     rust_target: RustTarget::stable(minor).unwrap(),

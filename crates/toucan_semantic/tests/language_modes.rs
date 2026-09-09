@@ -9,7 +9,7 @@ fn language_modes_preserve_identifiers_extensions_and_retained_parity() {
         for mode in LanguageMode::ALL {
             let profile = profile.with_language_mode(mode);
             let standard = !mode.is_gnu();
-            let assembly = !profile.target().is_windows();
+            let assembly = !profile.target().is_windows() && !profile.target().is_armv7();
             for (source, accepted) in [
                 (
                     "int asm;int typeof;int f(void){asm=1;return typeof+asm;}",

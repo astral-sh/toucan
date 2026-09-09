@@ -113,7 +113,9 @@ fn wide_packed_enums_keep_the_existing_compiler_range_rules() {
             } else {
                 let kind = if profile.target().is_windows() {
                     IntegerKind::Int
-                } else if profile.target() == Target::I686UnknownLinuxGnu {
+                } else if profile.target() == Target::I686UnknownLinuxGnu
+                    || profile.target().is_armv7()
+                {
                     match kind {
                         IntegerKind::UnsignedLong => IntegerKind::UnsignedLongLong,
                         IntegerKind::Long => IntegerKind::LongLong,

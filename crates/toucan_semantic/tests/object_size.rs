@@ -84,7 +84,7 @@ fn object_size_queries_check_parameters_modes_and_target_result_type() {
                     gnu_target(target)
                 );
             }
-            let size_type = if target == Target::I686UnknownLinuxGnu {
+            let size_type = if target == Target::I686UnknownLinuxGnu || target.is_armv7() {
                 "unsigned int"
             } else if target.is_windows() {
                 "unsigned long long"

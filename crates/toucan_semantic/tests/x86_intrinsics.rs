@@ -166,7 +166,9 @@ fn exact_mmx_signatures_and_retained_operands() {
             let err = check("void f(void){__builtin_ia32_emms();}", target).unwrap_err();
             let message = if matches!(
                 target,
-                Target::Aarch64PcWindowsMsvc | Target::I686UnknownLinuxGnu
+                Target::Aarch64PcWindowsMsvc
+                    | Target::I686UnknownLinuxGnu
+                    | Target::Armv7UnknownLinuxGnueabihf
             ) {
                 "unavailable in the selected compiler profile"
             } else {

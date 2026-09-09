@@ -546,10 +546,38 @@ fn native_stores_and_predicate_effects_match_the_retained_operations() {
         .unwrap();
     let (int128, after) = guarded.split_once("#endif\n").unwrap();
     for target in Target::ALL {
-        let parsed = if target == Target::I686UnknownLinuxGnu {
+        let with_int128 = format!("{before}{int128}{after}");
+        let parsed = if matches!(
+            target,
+            Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+        ) {
+            let error = check(&with_int128, target).unwrap_err();
+            assert!(
+                error.message.contains("__int128 is unavailable"),
+                "{target}: {error}"
+            );
+            let output = compiler_input(
+                Command::new("clang").args([
+                    "-target",
+                    target.triple(),
+                    "-std=gnu11",
+                    "-fsyntax-only",
+                    "-x",
+                    "c",
+                    "-",
+                ]),
+                &with_int128,
+            );
+            assert_eq!(toucan_test_support::compiler_acceptance(&output), Ok(false));
+            assert!(
+                String::from_utf8_lossy(&output.stderr)
+                    .contains("__int128 is not supported on this target"),
+                "{target}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
             format!("{before}{after}")
         } else {
-            format!("{before}{int128}{after}")
+            with_int128
         };
         check(&parsed, target).unwrap();
     }

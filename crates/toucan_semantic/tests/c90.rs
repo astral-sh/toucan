@@ -84,6 +84,7 @@ fn decimal_types_follow_c90_candidate_order_and_preserve_large_values() {
             assert!(!large.signed);
             let expected = if profile.target().is_windows()
                 || profile.target() == Target::I686UnknownLinuxGnu
+                || profile.target().is_armv7()
             {
                 "unsigned long long"
             } else {

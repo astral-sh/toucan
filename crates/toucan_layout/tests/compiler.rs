@@ -147,6 +147,7 @@ fn unvalidated_compiler_overrides_are_errors() {
                         target,
                         Target::X86_64UnknownLinuxGnu
                             | Target::I686UnknownLinuxGnu
+                            | Target::Armv7UnknownLinuxGnueabihf
                             | Target::X86_64UnknownLinuxMusl
                             | Target::Aarch64UnknownLinuxGnu
                             | Target::Aarch64UnknownLinuxMusl

@@ -8,12 +8,12 @@ fn compiler_integer_types_are_available_to_system_headers() {
     for target in Target::ALL {
         let mut config = Config::new(target);
         config.preprocessor.allow_filesystem = false;
-        if target.is_windows() || target == Target::I686UnknownLinuxGnu {
+        if target.is_windows() || target == Target::I686UnknownLinuxGnu || target.is_armv7() {
             let result = toucan::parse_source(Path::new("empty.h"), "", &config).unwrap();
             assert!(!result.unit().typedefs.contains_key("__int128_t"));
             assert!(!result.unit().typedefs.contains_key("__uint128_t"));
-            if target == Target::I686UnknownLinuxGnu {
-                // GCC and Clang do not provide 128-bit integer types on i686.
+            if target == Target::I686UnknownLinuxGnu || target.is_armv7() {
+                // GCC and Clang do not provide 128-bit integer types on these 32-bit targets.
                 assert!(
                     toucan::parse_source(
                         Path::new("system.h"),
