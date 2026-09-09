@@ -644,6 +644,14 @@ it does not cover subsequent changes or establish complete safety.
 
 ## Requirements for a production release
 
+The [September 9 native refresh](../corpus/evidence/native-validation-2026-09-09/README.md)
+passes all 1,215 workspace tests, including native probes, and Rustdoc with warnings
+denied. The recorded Linux x64/ARM, Windows package, musl, corpus, conformance, and
+lint jobs pass with zero macOS jobs. A separate 301-second AddressSanitizer campaign
+checks the optional object-value and documentation-origin metadata through 43,501
+executions without findings. The capture identifies each tested revision and its
+limits.
+
 Complete the declaration and expression conformance work; extend independent review
 and adversarial testing of the [parser resource limits](parser-limits.md); extend the target/header
 matrix; run sustained fuzzing and independent safety review; validate distribution

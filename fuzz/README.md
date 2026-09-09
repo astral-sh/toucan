@@ -292,3 +292,13 @@ executes 22,764 inputs in 301 seconds, adds 792 corpus units, and reaches 624 Mi
 peak RSS without artifacts. The initial 7,834-input replay is preserved separately;
 its runtime was largely spent initializing the expanded seed set. Both runs retain
 source hashes, starting corpora, dictionaries, commands, and toolchain identities.
+
+## Optional semantic metadata
+
+The [September 9 checked-analysis campaign](../corpus/evidence/native-validation-2026-09-09/README.md)
+includes object values and documentation origins. At `02a68ee`, it completed
+43,501 executions in 301.133 seconds with AddressSanitizer and no findings, reaching
+621 MiB peak RSS. The capture preserves the initial corpus, dictionary, source
+manifest, commands, and logs. LeakSanitizer was disabled. Rejected inputs contribute
+to the execution count; Builder comment attachment and emission are outside this
+target.
