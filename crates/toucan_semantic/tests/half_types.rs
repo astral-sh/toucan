@@ -260,6 +260,8 @@ fn i686_rejects_narrow_scalar_types_but_accepts_ordinary_floats() {
 fn i686_f16_literal_suffix_matches_compiler_acceptance() {
     let directory = tempfile::tempdir().unwrap();
     let source = directory.path().join("literal.c");
+    let apple_clang_accepts_f16 = cfg!(target_os = "macos")
+        && toucan_test_support::clang_accepts_i686("float f(void){return (float)1.5f16;}");
     for compiler in [Compiler::Gnu, Compiler::Clang] {
         if compiler == Compiler::Gnu && !cfg!(all(target_os = "linux", target_arch = "x86_64")) {
             continue;
@@ -269,6 +271,15 @@ fn i686_f16_literal_suffix_matches_compiler_acceptance() {
             ("float f(void){return 1.5f;}", true),
             ("float f(void){return (float)1.5f16;}", false),
         ] {
+            assert_eq!(
+                check(input, profile).is_ok(),
+                accepted,
+                "{profile:?}: {input}"
+            );
+            if compiler == Compiler::Clang && apple_clang_accepts_f16 && !accepted {
+                // Apple Clang exposes f16 on an i686 Linux cross target.
+                continue;
+            }
             std::fs::write(&source, input).unwrap();
             let mut command = if compiler == Compiler::Gnu {
                 let mut command = std::process::Command::new(
@@ -292,11 +303,6 @@ fn i686_f16_literal_suffix_matches_compiler_acceptance() {
                 "{profile:?}: {input}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );
-            assert_eq!(
-                check(input, profile).is_ok(),
-                accepted,
-                "{profile:?}: {input}"
-            );
         }
     }
 }
@@ -307,6 +313,8 @@ fn declarations_and_constraints_match_compiler_profiles() {
     let directory = tempfile::tempdir().unwrap();
     let path = directory.path().join("half.c");
     std::fs::write(&path, SOURCE).unwrap();
+    let apple_clang_accepts_i686_narrow = cfg!(target_os = "macos")
+        && toucan_test_support::clang_accepts_i686("typedef _Float16 H; typedef __bf16 B;");
     for profile in CompilerProfile::ALL {
         let mut command = if profile.compiler() == Compiler::Clang {
             let mut c = std::process::Command::new("clang");
@@ -326,6 +334,9 @@ fn declarations_and_constraints_match_compiler_profiles() {
             .output()
             .unwrap();
         if !supports_narrow_types(profile) {
+            if profile.compiler() == Compiler::Clang && apple_clang_accepts_i686_narrow {
+                continue;
+            }
             let errors = String::from_utf8_lossy(&result.stderr);
             assert!(
                 !result.status.success(),

@@ -322,6 +322,8 @@ fn checked_type_operands_do_not_redeclare_scopes() {
 fn compiler_type_constraints_and_native_numeric_conversions() {
     let d = tempfile::tempdir().unwrap();
     let file = d.path().join("case.c");
+    let apple_clang_accepts_i686_half =
+        cfg!(target_os = "macos") && toucan_test_support::clang_accepts_i686("typedef _Float16 H;");
     for profile in CompilerProfile::ALL {
         if profile.compiler() == Compiler::Gnu
             && !((cfg!(all(target_os = "linux", target_arch = "x86_64"))
@@ -338,7 +340,24 @@ fn compiler_type_constraints_and_native_numeric_conversions() {
             continue;
         }
         for &(name, source, gnu, clang) in CASES {
-            std::fs::write(&file, source).unwrap();
+            // The shared fixture declares H4 even when the case does not use it.
+            // Apple Clang accepts that typedef on i686, while native Linux Clang
+            // rejects it. Remove the unused typedef to retain the conversion
+            // comparison; only the case that actually uses H4 lacks an oracle.
+            let source = if apple_clang_accepts_i686_half
+                && profile.compiler() == Compiler::Clang
+                && profile.target() == Target::I686UnknownLinuxGnu
+            {
+                let without_half =
+                    source.replace("typedef _Float16 H4 __attribute__((vector_size(8)));", "");
+                if without_half.contains("H4") {
+                    continue;
+                }
+                without_half
+            } else {
+                source.to_owned()
+            };
+            std::fs::write(&file, &source).unwrap();
             let mut command = if profile.compiler() == Compiler::Gnu {
                 std::process::Command::new(
                     std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into()),
