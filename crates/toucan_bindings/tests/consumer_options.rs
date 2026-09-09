@@ -1,0 +1,430 @@
+use std::process::Command;
+
+use toucan_bindings::{Options, generate};
+use toucan_semantic::analyze;
+use toucan_target::Target;
+
+#[test]
+fn size_t_requires_a_matching_unsigned_c_type() {
+    for source in ["typedef int size_t;", "typedef unsigned short size_t;"] {
+        let unit = analyze(source, Target::X86_64UnknownLinuxGnu).unwrap();
+        assert!(
+            generate(
+                &unit,
+                &Options {
+                    size_t_is_usize: true,
+                    ..Options::default()
+                }
+            )
+            .is_err()
+        );
+    }
+}
+
+#[test]
+fn long_double_macro_values_are_not_lowered_to_rust_floats() {
+    for target in Target::ALL {
+        let unit = analyze("", target).unwrap();
+        let toucan_semantic::ArithmeticConstant::Floating(value) =
+            toucan_semantic::evaluate_arithmetic(&unit, "1.0L").unwrap()
+        else {
+            panic!("floating value");
+        };
+        let macros = std::collections::BTreeMap::from([(
+            "VALUE".into(),
+            Some(toucan_bindings::MacroValue::Floating(value)),
+        )]);
+        let error =
+            toucan_bindings::generate_with_macros(&unit, &Options::default(), &macros).unwrap_err();
+        assert!(error.to_string().contains("long double"));
+    }
+}
+
+#[test]
+#[ignore = "requires native C compilers, ar, and rustc; run with --include-ignored"]
+fn rust_enum_variants_and_usize_match_native_c_calls() {
+    let target = match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") => Target::X86_64UnknownLinuxGnu,
+        ("aarch64", "linux") => Target::Aarch64UnknownLinuxGnu,
+        ("x86_64", "macos") => Target::X86_64AppleDarwin,
+        ("aarch64", "macos") => Target::Aarch64AppleDarwin,
+        _ => return,
+    };
+    let source = "typedef unsigned long size_t;\n\
+        typedef enum { FIRST = -1, NEXT = 7, ALIAS = 7 } Mode;\n\
+        enum Tagged { OFF = 0, ON = 1 };\n\
+        Mode echo_mode(Mode); enum Tagged echo_tag(enum Tagged); size_t echo_size(size_t);\n";
+    let unit = analyze(
+        &format!("{source}\nvoid local(enum Local {{ self = 1, __toucan_self = 2 }} value);"),
+        target,
+    )
+    .unwrap();
+    let bindings = generate(
+        &unit,
+        &Options {
+            rustified_enums: true,
+            size_t_is_usize: true,
+            ..Options::default()
+        },
+    )
+    .unwrap();
+    let directory = tempfile::tempdir().unwrap();
+    std::fs::write(directory.path().join("bindings.rs"), bindings.source).unwrap();
+    std::fs::write(directory.path().join("probe.c"), format!("{source}\nMode echo_mode(Mode x) {{ return x; }}\nenum Tagged echo_tag(enum Tagged x) {{ return x; }}\nsize_t echo_size(size_t x) {{ return x; }}\n")).unwrap();
+    std::fs::write(
+        directory.path().join("probe.rs"),
+        r#"
+        #![allow(dead_code, non_camel_case_types)]
+        include!("bindings.rs");
+        fn main() {
+            use Mode::*;
+            use Tagged::*;
+            assert_eq!(Mode::ALIAS, NEXT);
+            unsafe {
+                assert_eq!(echo_mode(FIRST), FIRST);
+                assert_eq!(echo_mode(Mode::ALIAS), NEXT);
+                assert_eq!(echo_tag(ON), ON);
+                let length: usize = echo_size(usize::MAX);
+                assert_eq!(length, usize::MAX);
+            }
+        }
+    "#,
+    )
+    .unwrap();
+    let mut checked = 0;
+    for compiler in ["gcc", "clang"] {
+        if Command::new(compiler).arg("--version").output().is_err() {
+            continue;
+        }
+        for (program, arguments) in [
+            (
+                compiler,
+                vec![
+                    "-std=c11", "-O2", "-Wall", "-Wextra", "-Werror", "-c", "probe.c", "-o",
+                    "probe.o",
+                ],
+            ),
+            ("ar", vec!["rcs", "libprobe.a", "probe.o"]),
+            (
+                "rustc",
+                vec![
+                    "--edition=2024",
+                    "probe.rs",
+                    "-L",
+                    ".",
+                    "-l",
+                    "static=probe",
+                    "-o",
+                    "probe",
+                ],
+            ),
+        ] {
+            let output = Command::new(program)
+                .args(arguments)
+                .current_dir(directory.path())
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{program}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+        assert!(
+            Command::new(directory.path().join("probe"))
+                .status()
+                .unwrap()
+                .success()
+        );
+        checked += 1;
+    }
+    assert!(
+        checked > 0,
+        "a C compiler is required for this differential test"
+    );
+}
+
+#[test]
+fn helper_namespaces_reject_invalid_identifiers() {
+    let unit = analyze(
+        "typedef struct { int value; } Item;",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    for namespace in ["", "9prefix", "a::b", "a-b", "é", "x\n"] {
+        assert!(
+            generate(
+                &unit,
+                &Options {
+                    helper_namespace: Some(namespace.into()),
+                    ..Options::default()
+                }
+            )
+            .unwrap_err()
+            .to_string()
+            .contains("ASCII identifier")
+        );
+    }
+}
+
+#[test]
+fn implicit_size_t_is_inlined_only_when_requested() {
+    let unit = analyze(
+        "typedef unsigned long size_t; size_t length(size_t value);",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    for normalize in [false, true] {
+        for explicit in [false, true] {
+            let mut allowlist = vec!["length".into()];
+            if explicit {
+                allowlist.push("size_t".into());
+            }
+            let bindings = generate(
+                &unit,
+                &Options {
+                    allowlist,
+                    size_t_is_usize: normalize,
+                    ..Options::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                bindings.source.contains("pub type size_t"),
+                !normalize || explicit
+            );
+            assert_eq!(
+                bindings.source.contains("arg0: ::core::primitive::usize"),
+                normalize && !explicit
+            );
+        }
+    }
+    let invalid = analyze(
+        "typedef int size_t; size_t length(void);",
+        Target::X86_64UnknownLinuxGnu,
+    )
+    .unwrap();
+    assert!(
+        generate(
+            &invalid,
+            &Options {
+                allowlist: vec!["length".into()],
+                size_t_is_usize: true,
+                ..Options::default()
+            }
+        )
+        .is_err()
+    );
+}
+
+#[test]
+#[ignore = "requires native rustc; run with --include-ignored"]
+fn independent_binding_files_share_a_module_without_helper_collisions() {
+    let target = match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") => Target::X86_64UnknownLinuxGnu,
+        ("aarch64", "linux") => Target::Aarch64UnknownLinuxGnu,
+        ("x86_64", "macos") => Target::X86_64AppleDarwin,
+        ("aarch64", "macos") => Target::Aarch64AppleDarwin,
+        ("x86_64", "windows") => Target::X86_64PcWindowsMsvc,
+        _ => return,
+    };
+    let directory = tempfile::tempdir().unwrap();
+    for prefix in ["first", "second"] {
+        let source = format!(
+            "typedef {size_type} size_t;\n\
+             typedef int __toucan_{prefix}_record_1;\n\
+             typedef int __toucan_{prefix}_enum_0;\n\
+             void __toucan_{prefix}_layout_1(void);\n\
+             typedef struct {{ size_t count; struct {{ long long value; }} nested;\n\
+                 unsigned low:3; unsigned high:5; enum {{ {prefix}_off, {prefix}_on }} state;\n\
+                 union {{ int integer; float floating; }}; }} {prefix}_Item;\n\
+             typedef {prefix}_Item {prefix}_Alias;\n",
+            size_type = if target == Target::X86_64PcWindowsMsvc {
+                "unsigned long long"
+            } else {
+                "unsigned long"
+            }
+        );
+        let unit = analyze(&source, target).unwrap();
+        let bindings = generate(
+            &unit,
+            &Options {
+                allowlist: vec![format!("{prefix}_*"), format!("__toucan_{prefix}_*")],
+                helper_namespace: Some(prefix.into()),
+                size_t_is_usize: true,
+                rust_target: toucan_bindings::RustTarget::RUST_1_64,
+                ..Options::default()
+            },
+        )
+        .unwrap();
+        assert!(
+            bindings
+                .source
+                .contains(&format!("pub struct __toucan_{prefix}_record_1_")),
+            "{}",
+            bindings.source
+        );
+        assert!(
+            bindings
+                .source
+                .contains(&format!("fn __toucan_{prefix}_layout_1_"))
+        );
+        std::fs::write(
+            directory.path().join(format!("{prefix}.rs")),
+            bindings.source,
+        )
+        .unwrap();
+    }
+    let source = r#"
+        #![allow(dead_code, non_camel_case_types, non_snake_case, non_upper_case_globals)]
+        include!("first.rs");
+        include!("second.rs");
+        #[test]
+        fn independent_records() {
+            let mut first: first_Alias = unsafe { core::mem::zeroed() };
+            let mut second: second_Item = unsafe { core::mem::zeroed() };
+            first.count = usize::MAX;
+            second.count = 42;
+            first.nested.value = -123;
+            second.nested.value = 456;
+            first.set_low(7); second.set_low(3);
+            assert_eq!(first.low(), 7); assert_eq!(second.low(), 3);
+            assert_eq!(first.count, usize::MAX); assert_eq!(second.count, 42);
+            assert_eq!(first.nested.value, -123); assert_eq!(second.nested.value, 456);
+        }
+    "#;
+    let input = directory.path().join("combined.rs");
+    let executable = directory.path().join("combined");
+    std::fs::write(&input, source).unwrap();
+    let mut command = match std::env::var("TOUCAN_TEST_RUST_TOOLCHAIN") {
+        Ok(toolchain) => {
+            let mut command = Command::new("rustup");
+            command.args(["run", &toolchain, "rustc"]);
+            command
+        }
+        Err(_) => Command::new("rustc"),
+    };
+    let result = command
+        .args(["--edition=2021", "--test", "-D", "improper_ctypes"])
+        .arg(&input)
+        .arg("-o")
+        .arg(&executable)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(Command::new(executable).status().unwrap().success());
+}
+
+#[test]
+fn normalized_size_t_discards_only_unused_alias_dependencies() {
+    for target in Target::ALL {
+        let integer = if target == Target::X86_64PcWindowsMsvc {
+            "unsigned long long"
+        } else {
+            "unsigned long"
+        };
+        let source = format!(
+            "typedef {integer} __darwin_size_t; typedef __darwin_size_t intermediary; typedef intermediary size_t; size_t ZSTD_length(size_t); __darwin_size_t raw_length(__darwin_size_t);"
+        );
+        let unit = analyze(&source, target).unwrap();
+        for normalize in [false, true] {
+            let bindings = generate(
+                &unit,
+                &Options {
+                    allowlist: vec!["ZSTD*".into()],
+                    size_t_is_usize: normalize,
+                    ..Options::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                bindings.source.contains("pub type __darwin_size_t"),
+                !normalize,
+                "{target:?}"
+            );
+            assert_eq!(
+                bindings.source.contains("pub type intermediary"),
+                !normalize
+            );
+            assert_eq!(bindings.source.contains("pub type size_t"), !normalize);
+            assert_eq!(
+                bindings.source.contains("arg0: ::core::primitive::usize"),
+                normalize
+            );
+        }
+        for extra in ["raw_length", "__darwin_size_t", "size_t"] {
+            let bindings = generate(
+                &unit,
+                &Options {
+                    allowlist: vec!["ZSTD*".into(), extra.into()],
+                    size_t_is_usize: true,
+                    ..Options::default()
+                },
+            )
+            .unwrap();
+            assert_eq!(
+                bindings.source.contains("pub type __darwin_size_t"),
+                extra != "size_t"
+            );
+            assert_eq!(
+                bindings.source.contains("pub type size_t"),
+                extra == "size_t"
+            );
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires rustc; run with --include-ignored"]
+fn split_bindings_with_darwin_size_t_chains_compile_together() {
+    let target = match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") => Target::X86_64UnknownLinuxGnu,
+        ("aarch64", "linux") => Target::Aarch64UnknownLinuxGnu,
+        ("x86_64", "macos") => Target::X86_64AppleDarwin,
+        ("aarch64", "macos") => Target::Aarch64AppleDarwin,
+        ("x86_64", "windows") => Target::X86_64PcWindowsMsvc,
+        _ => return,
+    };
+    let integer = if target == Target::X86_64PcWindowsMsvc {
+        "unsigned long long"
+    } else {
+        "unsigned long"
+    };
+    let directory = tempfile::tempdir().unwrap();
+    for (prefix, file) in [("ZSTD", "zstd.rs"), ("ZDICT", "zdict.rs")] {
+        let unit = analyze(&format!("typedef {integer} __darwin_size_t; typedef __darwin_size_t size_t; size_t {prefix}_length(size_t);"), target).unwrap();
+        let bindings = generate(
+            &unit,
+            &Options {
+                allowlist: vec![format!("{prefix}*")],
+                size_t_is_usize: true,
+                helper_namespace: Some(prefix.to_ascii_lowercase()),
+                ..Options::default()
+            },
+        )
+        .unwrap();
+        std::fs::write(directory.path().join(file), bindings.source).unwrap();
+    }
+    let source = r#"#![allow(dead_code, non_camel_case_types)]
+        include!("zstd.rs"); include!("zdict.rs");
+        const _: unsafe extern "C" fn(usize) -> usize = ZSTD_length;
+        const _: unsafe extern "C" fn(usize) -> usize = ZDICT_length;
+    "#;
+    std::fs::write(directory.path().join("combined.rs"), source).unwrap();
+    let output = Command::new("rustc")
+        .args(["--edition=2021", "--crate-type=lib", "--emit=metadata"])
+        .arg(directory.path().join("combined.rs"))
+        .arg("-o")
+        .arg(directory.path().join("combined.rmeta"))
+        .output()
+        .unwrap();
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
+}

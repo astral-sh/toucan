@@ -1,0 +1,54 @@
+name: Fuzz smoke tests
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "fuzz/**"
+      - ".github/workflows/fuzz.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: fuzz-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  smoke:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: nightly-2026-09-07
+      - run: cargo install cargo-fuzz --version 0.13.2 --locked
+      - name: Exercise each boundary
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p fuzz/logs
+          for fuzz_target in preprocess semantic bindings checked; do
+            mkdir -p "fuzz/corpus/$fuzz_target"
+            cp "fuzz/seeds/$fuzz_target/"*.h "fuzz/corpus/$fuzz_target/"
+            cargo fuzz run "$fuzz_target" "fuzz/corpus/$fuzz_target" -- \
+              -max_total_time=60 -timeout=5 -rss_limit_mb=1024 -print_final_stats=1 \
+              2>&1 | tee "fuzz/logs/$fuzz_target.log"
+          done
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: fuzz-evidence
+          path: |
+            fuzz/logs/
+            fuzz/artifacts/
+          if-no-files-found: warn
+          retention-days: 14

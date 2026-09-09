@@ -1,0 +1,636 @@
+{
+  "scope": "GNU clz/ctz and l/ll variants: C argument conversion, int results, retained operands and nonzero constant evaluation. Undefined zero has no fabricated folded value; native runtime zero is not executed. This is a focused intrinsic regression, not full C compiler conformance or a performance benchmark.",
+  "contract": "https://gcc.gnu.org/onlinedocs/gcc/Bit-Operation-Builtins.html",
+  "source_base": "2aa09f6a032eacc23281417c7951a3764c8a95e8",
+  "integration_baseline_patches": {
+    "/tmp/toucan-size-t-collection.patch": "c2d0a9767f4dce1d7bfbe899c3536331c394a0b7fe720b1bd7b90155c7597373",
+    "/tmp/toucan-size-t-alignment-regression.patch": "c8fe7cb0b66bbc0435f319d8cf07cb9c0ba62f6d3a20e1a100eaa12ac034e056"
+  },
+  "source_sha256": {
+    "crates/toucan_semantic/src/builtins.rs": "3c5563f723bb3475c3247477a46d848d90f25738b47f9fb1cfe51cd7b1acadd7",
+    "crates/toucan_semantic/src/integer.rs": "7a4cf9a40a40f05a48b6276e941845378ec9b64eeabb0f38ff56b4d8602552da",
+    "crates/toucan_semantic/src/checked/expression.rs": "7ae43e1d88a155e888d4b44c415ee87e6af3de0bab7b3d0d23bedeaa524b7da8",
+    "crates/toucan_semantic/tests/bit_count_intrinsics.rs": "1455c14c3db3144bcc94a7e5ba4c20dd73ad1f0513a2c118f95f60b5789f012d"
+  },
+  "tools": {
+    "gcc": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+    "clang": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin",
+    "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8"
+  },
+  "test_binary": {
+    "path": "/home/dev-user/.cache/toucan/bit-count-target/debug/deps/bit_count_intrinsics-000f1d89d6a60763",
+    "sha256": "59e729ec4d339f61ce1783da35ec3a6cbdfd83980181e0edda0900f81e6fa834"
+  },
+  "validation": {
+    "working_directory": "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics",
+    "environment": {
+      "CARGO_HOME": "/home/dev-user/.cache/toucan/cargo",
+      "CARGO_TARGET_DIR": "/home/dev-user/.cache/toucan/bit-count-target"
+    },
+    "commands": [
+      "taskset -c 2,3 cargo test -p toucan_semantic --offline",
+      "taskset -c 2,3 cargo test -p toucan_semantic --test bit_count_intrinsics --offline -- --include-ignored",
+      "taskset -c 2,3 cargo test -p toucan_semantic --lib bit_counts_retain --offline",
+      "taskset -c 2,3 cargo clippy -p toucan_semantic --all-targets --offline -- -D warnings",
+      "taskset -c 2,3 cargo fmt --all --check"
+    ],
+    "semantic_tests_passed": 183,
+    "semantic_tests_ignored": 48,
+    "native_bit_count_test_count": 3,
+    "compiler_constant_assertions": 1946,
+    "compiler_result_type_assertions": 36,
+    "compiler_constraint_cases": {
+      "accepted": 54,
+      "rejected": 192
+    },
+    "clippy": "passed",
+    "format": "passed",
+    "logs": {
+      "/tmp/toucan-bit-count-tests.log": "6e587526c2187e7393b4ca7a15ea82ecca53077236abac2987121d42d4296501",
+      "/tmp/toucan-bit-count-all-semantic.log": "b30b2ae6a748974e1160e33e6e85622fb0a1897be9b4598fc3b54a0b8c8e4b50",
+      "/tmp/toucan-bit-count-retained.log": "892e8cdcaf3b234b9c45981a89252f3d969de1021fe4082f207cdbd6c990e18d",
+      "/tmp/toucan-bit-count-clippy.log": "0e86940c3cdff64403870353fab74e8edbdd87706294ff7e1b92bc7d2ae71165",
+      "/tmp/toucan-bit-count-fmt.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "/tmp/toucan-bit-count-tu-audit.log": "e4fdd4ce2cdfad433226009c99b09d4f31afabcba36fb15bdf00a6be7c6870ba"
+    }
+  },
+  "checked_seeds": [
+    {
+      "source": "fuzz/seeds/checked/bit_counts_lp64.h",
+      "sha256": "e6b3a348a779c4c1ee904ac375a6eb5724ccd928536578678bd9f0fe3405c69d",
+      "target": "x86_64-unknown-linux-gnu",
+      "selector_target": "x86_64-unknown-linux-gnu",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/bit_counts_lp64.h",
+        "--checked-code",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/bit_counts_lp64-x86_64-unknown-linux-gnu.json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "checked_output_sha256": "2729b81a828d94b9112ad4280d21048328e828230627c9cfe057a9862b76f7e8"
+    },
+    {
+      "source": "fuzz/seeds/checked/bit_counts_lp64.h",
+      "sha256": "e6b3a348a779c4c1ee904ac375a6eb5724ccd928536578678bd9f0fe3405c69d",
+      "target": "aarch64-unknown-linux-gnu",
+      "selector_target": "x86_64-unknown-linux-gnu",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/bit_counts_lp64.h",
+        "--checked-code",
+        "--target",
+        "aarch64-unknown-linux-gnu",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/bit_counts_lp64-aarch64-unknown-linux-gnu.json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "checked_output_sha256": "07e9f373181b76ce55f434d4cab29ce7c823181879e37f6e8b7b365b4683521e"
+    },
+    {
+      "source": "fuzz/seeds/checked/bit_counts_lp64.h",
+      "sha256": "e6b3a348a779c4c1ee904ac375a6eb5724ccd928536578678bd9f0fe3405c69d",
+      "target": "x86_64-apple-darwin",
+      "selector_target": "x86_64-unknown-linux-gnu",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/bit_counts_lp64.h",
+        "--checked-code",
+        "--target",
+        "x86_64-apple-darwin",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/bit_counts_lp64-x86_64-apple-darwin.json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "checked_output_sha256": "92f7aa4bc6c9022da11caa3c1dc4621f00eff6cb10c2eb6eb09c60c328883e41"
+    },
+    {
+      "source": "fuzz/seeds/checked/bit_counts_lp64.h",
+      "sha256": "e6b3a348a779c4c1ee904ac375a6eb5724ccd928536578678bd9f0fe3405c69d",
+      "target": "aarch64-apple-darwin",
+      "selector_target": "x86_64-unknown-linux-gnu",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/bit_counts_lp64.h",
+        "--checked-code",
+        "--target",
+        "aarch64-apple-darwin",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/bit_counts_lp64-aarch64-apple-darwin.json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "checked_output_sha256": "9466fad915b5dffd6b70220ec19c589f552e5e35c933f4f1392a63f8669e3ac0"
+    },
+    {
+      "source": "fuzz/seeds/checked/bit_counts_lp64.h",
+      "sha256": "e6b3a348a779c4c1ee904ac375a6eb5724ccd928536578678bd9f0fe3405c69d",
+      "target": "x86_64-pc-windows-msvc",
+      "selector_target": "x86_64-unknown-linux-gnu",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/bit_counts_lp64.h",
+        "--checked-code",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/bit_counts_lp64-x86_64-pc-windows-msvc.json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "checked_output_sha256": "c25bca129380755ad22583c6cc8c63e12707ddbe00207c3f3cf99eafc0fd5273"
+    },
+    {
+      "source": "fuzz/seeds/checked/bit_counts_llp64.h",
+      "sha256": "23012c6221f243332121ea370e6c64d43aeeed469cd2f721d52c827f43a6020a",
+      "target": "x86_64-unknown-linux-gnu",
+      "selector_target": "x86_64-pc-windows-msvc",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/bit_counts_llp64.h",
+        "--checked-code",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/bit_counts_llp64-x86_64-unknown-linux-gnu.json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "checked_output_sha256": "c942013a243403495e76f5f95da9207428695a9e633c504cc31d5ff86477551d"
+    },
+    {
+      "source": "fuzz/seeds/checked/bit_counts_llp64.h",
+      "sha256": "23012c6221f243332121ea370e6c64d43aeeed469cd2f721d52c827f43a6020a",
+      "target": "aarch64-unknown-linux-gnu",
+      "selector_target": "x86_64-pc-windows-msvc",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/bit_counts_llp64.h",
+        "--checked-code",
+        "--target",
+        "aarch64-unknown-linux-gnu",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/bit_counts_llp64-aarch64-unknown-linux-gnu.json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "checked_output_sha256": "54c7bcc2a60c39522d950724cd4cfa2680cc26135dab3532428e8d00d955ffa8"
+    },
+    {
+      "source": "fuzz/seeds/checked/bit_counts_llp64.h",
+      "sha256": "23012c6221f243332121ea370e6c64d43aeeed469cd2f721d52c827f43a6020a",
+      "target": "x86_64-apple-darwin",
+      "selector_target": "x86_64-pc-windows-msvc",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/bit_counts_llp64.h",
+        "--checked-code",
+        "--target",
+        "x86_64-apple-darwin",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/bit_counts_llp64-x86_64-apple-darwin.json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "checked_output_sha256": "f2baf138990619f7603040b8051d1c357a8b2909ae0a9b8081fb5ef2898dee1d"
+    },
+    {
+      "source": "fuzz/seeds/checked/bit_counts_llp64.h",
+      "sha256": "23012c6221f243332121ea370e6c64d43aeeed469cd2f721d52c827f43a6020a",
+      "target": "aarch64-apple-darwin",
+      "selector_target": "x86_64-pc-windows-msvc",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/bit_counts_llp64.h",
+        "--checked-code",
+        "--target",
+        "aarch64-apple-darwin",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/bit_counts_llp64-aarch64-apple-darwin.json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "checked_output_sha256": "fd3133cc4fcfbec6b2a1eac19d3d92b4a750d961239dc5d913149e69b77528a2"
+    },
+    {
+      "source": "fuzz/seeds/checked/bit_counts_llp64.h",
+      "sha256": "23012c6221f243332121ea370e6c64d43aeeed469cd2f721d52c827f43a6020a",
+      "target": "x86_64-pc-windows-msvc",
+      "selector_target": "x86_64-pc-windows-msvc",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/bit_counts_llp64.h",
+        "--checked-code",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/bit_counts_llp64-x86_64-pc-windows-msvc.json"
+      ],
+      "exit_code": 0,
+      "stderr": "",
+      "checked_output_sha256": "1e1a65b1bcf7a02cb78c87bde0a8989d88fdaf48e8a6a2ea18bb450c7c1e6877"
+    },
+    {
+      "source": "fuzz/seeds/checked/undefined_bit_count.h",
+      "sha256": "a635d8b16021543e4db72f89cf0b1750621366e100785c3fefc6f2f42832e95e",
+      "target": "x86_64-unknown-linux-gnu",
+      "selector_target": "x86_64-pc-windows-msvc",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/undefined_bit_count.h",
+        "--checked-code",
+        "--target",
+        "x86_64-unknown-linux-gnu",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/undefined_bit_count-x86_64-unknown-linux-gnu.json"
+      ],
+      "exit_code": 1,
+      "stderr": "error: /home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/undefined_bit_count.h:1:26: __builtin_ctz has an undefined result for zero (preprocessed byte 153)\n"
+    },
+    {
+      "source": "fuzz/seeds/checked/undefined_bit_count.h",
+      "sha256": "a635d8b16021543e4db72f89cf0b1750621366e100785c3fefc6f2f42832e95e",
+      "target": "aarch64-unknown-linux-gnu",
+      "selector_target": "x86_64-pc-windows-msvc",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/undefined_bit_count.h",
+        "--checked-code",
+        "--target",
+        "aarch64-unknown-linux-gnu",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/undefined_bit_count-aarch64-unknown-linux-gnu.json"
+      ],
+      "exit_code": 1,
+      "stderr": "error: /home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/undefined_bit_count.h:1:26: __builtin_ctz has an undefined result for zero (preprocessed byte 153)\n"
+    },
+    {
+      "source": "fuzz/seeds/checked/undefined_bit_count.h",
+      "sha256": "a635d8b16021543e4db72f89cf0b1750621366e100785c3fefc6f2f42832e95e",
+      "target": "x86_64-apple-darwin",
+      "selector_target": "x86_64-pc-windows-msvc",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/undefined_bit_count.h",
+        "--checked-code",
+        "--target",
+        "x86_64-apple-darwin",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/undefined_bit_count-x86_64-apple-darwin.json"
+      ],
+      "exit_code": 1,
+      "stderr": "error: /home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/undefined_bit_count.h:1:26: __builtin_ctz has an undefined result for zero (preprocessed byte 153)\n"
+    },
+    {
+      "source": "fuzz/seeds/checked/undefined_bit_count.h",
+      "sha256": "a635d8b16021543e4db72f89cf0b1750621366e100785c3fefc6f2f42832e95e",
+      "target": "aarch64-apple-darwin",
+      "selector_target": "x86_64-pc-windows-msvc",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/undefined_bit_count.h",
+        "--checked-code",
+        "--target",
+        "aarch64-apple-darwin",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/undefined_bit_count-aarch64-apple-darwin.json"
+      ],
+      "exit_code": 1,
+      "stderr": "error: /home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/undefined_bit_count.h:1:26: __builtin_ctz has an undefined result for zero (preprocessed byte 153)\n"
+    },
+    {
+      "source": "fuzz/seeds/checked/undefined_bit_count.h",
+      "sha256": "a635d8b16021543e4db72f89cf0b1750621366e100785c3fefc6f2f42832e95e",
+      "target": "x86_64-pc-windows-msvc",
+      "selector_target": "x86_64-pc-windows-msvc",
+      "command": [
+        "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+        "inspect",
+        "/home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/undefined_bit_count.h",
+        "--checked-code",
+        "--target",
+        "x86_64-pc-windows-msvc",
+        "-o",
+        "/home/dev-user/.cache/toucan/bit-count-tu-audit/undefined_bit_count-x86_64-pc-windows-msvc.json"
+      ],
+      "exit_code": 1,
+      "stderr": "error: /home/dev-user/.codex/worktrees/toucan-bit-count-intrinsics/fuzz/seeds/checked/undefined_bit_count.h:1:26: __builtin_ctz has an undefined result for zero (preprocessed byte 25)\n"
+    }
+  ],
+  "project_translation_units": {
+    "binary": "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+    "binary_sha256": "2631ff196b57955df8a0ffd932301b98acd7da98b9060e0541810b255e7c1e74",
+    "cases": [
+      {
+        "case": "zlib-adler32",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1/adler32.c",
+          "-D_LARGEFILE64_SOURCE=1",
+          "-I/home/dev-user/.cache/toucan/corpus/build/zlib",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "exit_code": 0,
+        "seconds": 0.057311904998641694,
+        "stderr": "Analyzed 563 declarations for x86_64-unknown-linux-gnu\n",
+        "stdout": "",
+        "source_sha256": "9cd1443a24ff2a3053961695bd432035c58347386a420d3388232376ebabe211",
+        "preprocessed_sha256": "dc1b73277ba848e7c926b0f3f9ce0f901386e3446237ddfb2093ed0eb86d8f0a"
+      },
+      {
+        "case": "zlib-adler32",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zlib-adler32/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "exit_code": 1,
+        "seconds": 0.03945320600178093,
+        "stderr": "error: /usr/include/x86_64-linux-gnu/bits/unistd.h:28:13: unknown identifier `__builtin_constant_p` (preprocessed byte 40721)\n",
+        "stdout": "",
+        "source_sha256": "9cd1443a24ff2a3053961695bd432035c58347386a420d3388232376ebabe211",
+        "preprocessed_sha256": "dc1b73277ba848e7c926b0f3f9ce0f901386e3446237ddfb2093ed0eb86d8f0a"
+      },
+      {
+        "case": "zlib-deflate",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1/deflate.c",
+          "-D_LARGEFILE64_SOURCE=1",
+          "-I/home/dev-user/.cache/toucan/corpus/build/zlib",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/zlib-1.3.1",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "exit_code": 0,
+        "seconds": 0.08542711699919892,
+        "stderr": "Analyzed 595 declarations for x86_64-unknown-linux-gnu\n",
+        "stdout": "",
+        "source_sha256": "3b956337350f94c34987750f785587ef33d9c89ceaebb7c2afb189c956360cbe",
+        "preprocessed_sha256": "c4bdb26c5290aa468d897575e77e663bc11eee3ed4d95a8e969730018faa273f"
+      },
+      {
+        "case": "zlib-deflate",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zlib-deflate/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/zlib",
+        "exit_code": 1,
+        "seconds": 0.05721828999958234,
+        "stderr": "error: /usr/include/x86_64-linux-gnu/bits/unistd.h:28:13: unknown identifier `__builtin_constant_p` (preprocessed byte 40721)\n",
+        "stdout": "",
+        "source_sha256": "3b956337350f94c34987750f785587ef33d9c89ceaebb7c2afb189c956360cbe",
+        "preprocessed_sha256": "c4bdb26c5290aa468d897575e77e663bc11eee3ed4d95a8e969730018faa273f"
+      },
+      {
+        "case": "libgit2-alloc",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util/alloc.c",
+          "-DSHA1DC_CUSTOM_INCLUDE_SHA1_C=\"git2_util.h\"",
+          "-DSHA1DC_CUSTOM_INCLUDE_UBC_CHECK_C=\"git2_util.h\"",
+          "-DSHA1DC_NO_STANDARD_INCLUDES=1",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/llhttp",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/pcre",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/xdiff",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/zlib",
+          "-D_GNU_SOURCE",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+        "exit_code": 1,
+        "seconds": 0.14829312499932712,
+        "stderr": "error: /usr/include/pthread.h:753:22: unsupported C attribute `weak`; its ABI effect is not assumed (preprocessed byte 107389)\n",
+        "stdout": "",
+        "source_sha256": "d647f270fdcaec18eef23a64adeb2b73ea89e4cbe2d06b7205cd999cdc24dd42",
+        "preprocessed_sha256": "a4aabdfa71b288fa62db020b95fa94d2e2547e3b6bf411cd6d9e01e60ced4496"
+      },
+      {
+        "case": "libgit2-alloc",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/libgit2-alloc/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+        "exit_code": 1,
+        "seconds": 0.07493307600088883,
+        "stderr": "error: /usr/include/x86_64-linux-gnu/bits/stdlib.h:39:15: unknown identifier `__builtin_dynamic_object_size` (preprocessed byte 43395)\n",
+        "stdout": "",
+        "source_sha256": "d647f270fdcaec18eef23a64adeb2b73ea89e4cbe2d06b7205cd999cdc24dd42",
+        "preprocessed_sha256": "a4aabdfa71b288fa62db020b95fa94d2e2547e3b6bf411cd6d9e01e60ced4496"
+      },
+      {
+        "case": "libgit2-repository",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/libgit2/repository.c",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/libgit2",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/include",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/llhttp",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/pcre",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/xdiff",
+          "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/zlib",
+          "-D_GNU_SOURCE",
+          "-DNDEBUG",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/libgit2",
+        "exit_code": 1,
+        "seconds": 0.39504044800196425,
+        "stderr": "error: /usr/include/pthread.h:753:22: unsupported C attribute `weak`; its ABI effect is not assumed (preprocessed byte 107037)\n",
+        "stdout": "",
+        "source_sha256": "2d7ce5f5914816dd369c5336ee0e19fb11d7a0b9c3223696006344b26e133852",
+        "preprocessed_sha256": "04628515f6865b42ad22a803c0d22da6d4d28328ea6ba834b17136b03089ae73"
+      },
+      {
+        "case": "libgit2-repository",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/libgit2-repository/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/libgit2",
+        "exit_code": 1,
+        "seconds": 0.18373337400043965,
+        "stderr": "error: /usr/include/x86_64-linux-gnu/bits/stdlib.h:39:15: unknown identifier `__builtin_dynamic_object_size` (preprocessed byte 43395)\n",
+        "stdout": "",
+        "source_sha256": "2d7ce5f5914816dd369c5336ee0e19fb11d7a0b9c3223696006344b26e133852",
+        "preprocessed_sha256": "04628515f6865b42ad22a803c0d22da6d4d28328ea6ba834b17136b03089ae73"
+      },
+      {
+        "case": "zstd-zstd_common",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/common/zstd_common.c",
+          "-DXXH_NAMESPACE=ZSTD_",
+          "-DDEBUGLEVEL=0",
+          "-DZSTD_LEGACY_SUPPORT=5",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "exit_code": 1,
+        "seconds": 0.09338347800076008,
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/common/zstd_trace.h:123:1: unsupported C attribute `weak`; its ABI effect is not assumed (macro invocation; preprocessed byte 127125)\n",
+        "stdout": "",
+        "source_sha256": "f49eb8023a90d3de925373bd9ee0d36ed46b26c529840b64220397446cd73795",
+        "preprocessed_sha256": "aacbd5d25076268a1cf1ed37c2fe5d4deb8cd9fe768248e033324a56f763b4fc"
+      },
+      {
+        "case": "zstd-zstd_common",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "exit_code": 1,
+        "seconds": 0.06523878000007244,
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/common/bitstream.h:273:51: C syntax error: unexpected token at \"\" line 240 column 1107, expected '<typedef_name>' (preprocessed byte 232701)\n",
+        "stdout": "",
+        "source_sha256": "f49eb8023a90d3de925373bd9ee0d36ed46b26c529840b64220397446cd73795",
+        "preprocessed_sha256": "aacbd5d25076268a1cf1ed37c2fe5d4deb8cd9fe768248e033324a56f763b4fc"
+      },
+      {
+        "case": "zstd-zstd_compress",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/compress/zstd_compress.c",
+          "-DXXH_NAMESPACE=ZSTD_",
+          "-DDEBUGLEVEL=0",
+          "-DZSTD_LEGACY_SUPPORT=5",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "exit_code": 1,
+        "seconds": 0.27425206499901833,
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/common/zstd_trace.h:123:1: unsupported C attribute `weak`; its ABI effect is not assumed (macro invocation; preprocessed byte 128707)\n",
+        "stdout": "",
+        "source_sha256": "10c315ae609d49b2fc431521aa95908086e69fd917991c5ed9a875af3d1208e8",
+        "preprocessed_sha256": "199680e00b6f0d87c8b1b0bf4f863722af176cc3dba141f1c2243b1784d98aff"
+      },
+      {
+        "case": "zstd-zstd_compress",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_compress/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+        "exit_code": 1,
+        "seconds": 0.09993947200200637,
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/compress/../common/bitstream.h:273:51: C syntax error: unexpected token at \"\" line 252 column 1107, expected '<typedef_name>' (preprocessed byte 233338)\n",
+        "stdout": "",
+        "source_sha256": "10c315ae609d49b2fc431521aa95908086e69fd917991c5ed9a875af3d1208e8",
+        "preprocessed_sha256": "199680e00b6f0d87c8b1b0bf4f863722af176cc3dba141f1c2243b1784d98aff"
+      },
+      {
+        "case": "sqlite-sqlite3",
+        "mode": "native_preprocessor",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/corpus/build/sqlite/sqlite3.c",
+          "-DSQLITE_THREADSAFE=0",
+          "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+          "-I/usr/local/include",
+          "-I/usr/include/x86_64-linux-gnu",
+          "-I/usr/include"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/sqlite",
+        "exit_code": 1,
+        "seconds": 1.6355715270001383,
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/build/sqlite/sqlite3.c:35192:19: unknown identifier `__builtin_inff` (macro invocation; preprocessed byte 414920)\n",
+        "stdout": "",
+        "source_sha256": "8498ec863ccdbaacc6cfa243d34153c02c96b110cf6bae4dbcd63fc7635d9881",
+        "preprocessed_sha256": "08e2344f85325fc453ef7098d65a1533d3d6823d7c7fc4adec445544832de4ce"
+      },
+      {
+        "case": "sqlite-sqlite3",
+        "mode": "gcc_preprocessed",
+        "command": [
+          "/home/dev-user/.cache/toucan/bit-count-target/release/toucan",
+          "check",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/sqlite-sqlite3/native.i"
+        ],
+        "cwd": "/home/dev-user/.cache/toucan/corpus/build/sqlite",
+        "exit_code": 1,
+        "seconds": 0.38461687000017264,
+        "stderr": "error: /home/dev-user/.cache/toucan/corpus/build/sqlite/sqlite3.c:24064:50: C syntax error: unexpected token at \"\" line 487 column 337, expected '<typedef_name>' (preprocessed byte 232133)\n",
+        "stdout": "",
+        "source_sha256": "8498ec863ccdbaacc6cfa243d34153c02c96b110cf6bae4dbcd63fc7635d9881",
+        "preprocessed_sha256": "08e2344f85325fc453ef7098d65a1533d3d6823d7c7fc4adec445544832de4ce"
+      }
+    ]
+  }
+}

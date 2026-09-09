@@ -1,0 +1,62 @@
+name: C acceptance conformance
+
+on:
+  pull_request:
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "corpus/conformance/c-testsuite.json"
+      - "scripts/audit_c_testsuite.py"
+      - "tools/binding_compare/tests/test_c_testsuite.py"
+      - ".github/workflows/conformance.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: conformance-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  strict-c11:
+    name: Pedantic C11 acceptance (GCC and Clang)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.96.0"
+      - name: Install independent compiler oracles
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends python3.12 gcc-13 clang-18
+          python3.12 --version
+          gcc-13 --version
+          clang-18 --version
+      - name: Test the acceptance gate
+        run: python3.12 -m unittest discover -s tools/binding_compare/tests -p test_c_testsuite.py
+      - name: Build the frontend
+        run: cargo build --locked --release -p toucan_cli --no-default-features
+      - name: Require acceptance of pedantic-positive cases
+        run: |
+          python3.12 scripts/audit_c_testsuite.py \
+            --toucan target/release/toucan \
+            --gcc gcc-13 --clang clang-18 \
+            --target x86_64-unknown-linux-gnu \
+            --workers 4 --fail-on-strict-difference \
+            --output corpus/results/conformance
+      - name: Upload acceptance results and diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: c-testsuite-conformance
+          path: corpus/results/conformance/
+          if-no-files-found: warn
+          retention-days: 14

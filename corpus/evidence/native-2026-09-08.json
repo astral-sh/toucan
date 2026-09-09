@@ -1,0 +1,495 @@
+{
+  "schema_version": 1,
+  "kind": "native-corpus-summary",
+  "scope": "Historical native C/Rust constant and selected-record probes with real library FFI. This run predates enum constant projection, prototype-scope changes, bindgen API comparison, and the all-record layout probes.",
+  "github": {
+    "run_id": 34174435203,
+    "run_url": "https://github.com/astral-sh/toucan/actions/runs/34174435203",
+    "conclusion": "success",
+    "pull_request": 15,
+    "head_sha": "b5f37739ae3ebd3b7b1de84d253f28b7604b939a",
+    "checkout_sha": "ca3c4353fc638a2c4da62096680ac9b270415f5f",
+    "base_sha": "e39a556096964da0b72f112a97615b87a5434315",
+    "checkout_source": "Each job logs this checkout SHA after actions/checkout checks out refs/remotes/pull/15/merge.",
+    "downloaded_run_log_sha256": "a8795ad656b8c9008449a4d5724a8533722fe4996d10a2a969a4caabf6119c96",
+    "artifact_retention_days": 14
+  },
+  "projects": [
+    {
+      "name": "libgit2",
+      "version": "1.9.1",
+      "commit": "0060d9cf5666f015b1067129bd874c6cc4c9c7ac",
+      "archive_sha256": "4a7944d8439cccac187ef0ff4085556f198d85225eef55686b3dfb3413e0d0f1",
+      "header_sha256": "04b93d6a4dac32d661a56c3ca222ba62e8896f8148774ed52565d631ebf8d0e0"
+    },
+    {
+      "name": "sqlite",
+      "version": "3.45.1",
+      "commit": "189e44dfecdc7868bb860dfb5d98eab371318c37",
+      "archive_sha256": "c05d9dc99e90c35f021ebf0b6b0a36d44714088ba77f84022eb22784d6123c7e",
+      "header_sha256": "41e066ccd4f89e938f136ceb48c996c54dc381b59fe566dea48864c3750b779e"
+    },
+    {
+      "name": "zlib",
+      "version": "1.3.1",
+      "commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+      "archive_sha256": "2c547ae1e001c09db5d0a9d0e157f75dc55151757923cc611a08630391af81bc",
+      "header_sha256": "8a5579af72ea4f427ff00a4150f0ccb3fc5c1e4379f726e101133b1ab9fc600c"
+    },
+    {
+      "name": "zstd",
+      "version": "1.5.7",
+      "commit": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+      "archive_sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+      "header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b"
+    }
+  ],
+  "targets": [
+    {
+      "target": "aarch64-apple-darwin",
+      "status": "passed",
+      "recorded_at": "2026-09-08T00:58:08.013389+00:00",
+      "host": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+      "sysroot": "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+      "cc": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+      "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+      "toucan_sha256": "d26ccbbf3b87ca09ebd527b31e6a1b7bdbbf1455bdfc4b7d4df2384766d3235c",
+      "artifact": {
+        "digest": "sha256:2e66fe817048ef6570f90bbb6fe7a77f134c4f77e02622cdbc730de985248ef8",
+        "id": 10036956175,
+        "name": "corpus-aarch64-apple-darwin",
+        "size_in_bytes": 2203756
+      },
+      "evidence_path_in_artifact": "results/native/evidence.json",
+      "evidence_sha256": "b33b630fbeb96a08d85d5eb19c23810e0933a702010aac6597218509a7b5c04f",
+      "counts": {
+        "declarations": 1648,
+        "integer_constants": 1319,
+        "string_constants": 7,
+        "records": 17,
+        "field_offsets": 88,
+        "comparisons": 4086,
+        "omitted_macros": 110,
+        "skipped_declarations": 0
+      },
+      "projects": [
+        {
+          "name": "libgit2",
+          "status": "passed",
+          "counts": {
+            "declarations": 1138,
+            "integer_constants": 711,
+            "string_constants": 3,
+            "records": 8,
+            "field_offsets": 26,
+            "comparisons": 2178,
+            "omitted_macros": 68,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "27071c8004693debf51e359404c3314b497c2c5f2a7a616d76f0c1548cf6d3db",
+          "libraries_sha256": {
+            "libgit2.a": "fd65147eddadabd5a93e24c5a752c0a745ba98dbfbd6d84998b88d6d92048b4e"
+          },
+          "ffi_fixture": "corpus/ffi/libgit2.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "sqlite",
+          "status": "passed",
+          "counts": {
+            "declarations": 326,
+            "integer_constants": 461,
+            "string_constants": 2,
+            "records": 4,
+            "field_offsets": 26,
+            "comparisons": 1419,
+            "omitted_macros": 12,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "615e86421c13dc1a930ef467c2f72375fb0ab84f6498398f2d002f6e299d2d81",
+          "libraries_sha256": {
+            "libsqlite3.a": "3494e672c58c95802cb060f4b553698668b3f172e5512182a6695a8701f50a21"
+          },
+          "ffi_fixture": "corpus/ffi/sqlite.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "zlib",
+          "status": "passed",
+          "counts": {
+            "declarations": 101,
+            "integer_constants": 36,
+            "string_constants": 1,
+            "records": 2,
+            "field_offsets": 27,
+            "comparisons": 140,
+            "omitted_macros": 17,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "dfac398bb6c58ca6c2aaf71f5a33aa2a9bc703d46cf37a7e281add251a39c811",
+          "libraries_sha256": {
+            "libz.a": "419e7b5b58469f895d3507c3d715669d280a88bfd7f45ca4e53ea295f9ca7c61"
+          },
+          "ffi_fixture": "corpus/ffi/zlib.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "zstd",
+          "status": "passed",
+          "counts": {
+            "declarations": 83,
+            "integer_constants": 111,
+            "string_constants": 1,
+            "records": 3,
+            "field_offsets": 9,
+            "comparisons": 349,
+            "omitted_macros": 13,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "af2ae43738926c6f3192384496e2d25efbf9127aafb565ae126dc0d7bc3ac9b8",
+          "libraries_sha256": {
+            "libzstd.a": "6f92112752cda6d3f54641fedb941b100c5cadb1e53642ddcdadebc29bb95607"
+          },
+          "ffi_fixture": "corpus/ffi/zstd.rs",
+          "ffi_exit_code": 0
+        }
+      ]
+    },
+    {
+      "target": "aarch64-unknown-linux-gnu",
+      "status": "passed",
+      "recorded_at": "2026-09-08T00:49:00.681678+00:00",
+      "host": "Linux-6.17.0-1022-azure-aarch64-with-glibc2.39",
+      "sysroot": "/",
+      "cc": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+      "toucan_sha256": "f8d62a57bb240cabb8518ad90f5f959690b982564355399f04f3666dffe0992a",
+      "artifact": {
+        "digest": "sha256:7008aa2cb3fc4090da91e24faeda765a16ad498801d6e4b435a78c1cd8dc9c3a",
+        "id": 10036798549,
+        "name": "corpus-aarch64-unknown-linux-gnu",
+        "size_in_bytes": 5981552
+      },
+      "evidence_path_in_artifact": "results/native/evidence.json",
+      "evidence_sha256": "765f11fec6c27ce507489de53289cb12266f3e2852d8d7d9ae638b410b31afac",
+      "counts": {
+        "declarations": 1648,
+        "integer_constants": 1319,
+        "string_constants": 7,
+        "records": 17,
+        "field_offsets": 88,
+        "comparisons": 4086,
+        "omitted_macros": 111,
+        "skipped_declarations": 0
+      },
+      "projects": [
+        {
+          "name": "libgit2",
+          "status": "passed",
+          "counts": {
+            "declarations": 1138,
+            "integer_constants": 711,
+            "string_constants": 3,
+            "records": 8,
+            "field_offsets": 26,
+            "comparisons": 2178,
+            "omitted_macros": 68,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "e8c4d1b7f740016ea3253c850cf32d0b06738d38af3ed110ee1663086ff7d65c",
+          "libraries_sha256": {
+            "libgit2.a": "4815eeb5ee62459b3bc227d8dba9412bb9914a6d89f735da7095b36ac639a713"
+          },
+          "ffi_fixture": "corpus/ffi/libgit2.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "sqlite",
+          "status": "passed",
+          "counts": {
+            "declarations": 326,
+            "integer_constants": 461,
+            "string_constants": 2,
+            "records": 4,
+            "field_offsets": 26,
+            "comparisons": 1419,
+            "omitted_macros": 12,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "93eb8dce452d64821531d69ba20a604b09b6d898500da0d486f89ed89e3ceffb",
+          "libraries_sha256": {
+            "libsqlite3.a": "b3cd8aceca97f85b63d08816ff9a5a084b58297298ca4b9550fc367392764b83"
+          },
+          "ffi_fixture": "corpus/ffi/sqlite.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "zlib",
+          "status": "passed",
+          "counts": {
+            "declarations": 101,
+            "integer_constants": 36,
+            "string_constants": 1,
+            "records": 2,
+            "field_offsets": 27,
+            "comparisons": 140,
+            "omitted_macros": 18,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "331e1e97bc041514c9e310430561e151bfa73edbeeaef84a9235b026721c3be8",
+          "libraries_sha256": {
+            "libz.a": "74900879f213daaa59c3da24fbfda81390c3c9fcaa2bc4f02195c225ef852f69"
+          },
+          "ffi_fixture": "corpus/ffi/zlib.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "zstd",
+          "status": "passed",
+          "counts": {
+            "declarations": 83,
+            "integer_constants": 111,
+            "string_constants": 1,
+            "records": 3,
+            "field_offsets": 9,
+            "comparisons": 349,
+            "omitted_macros": 13,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "5b4fcc78d389adbbd4cbc62bc2f8d91e30841801cfbd80ab2f56ac86df375229",
+          "libraries_sha256": {
+            "libzstd.a": "6d7e7cfc09ba12253610dc725eee2c1900a3e9ffe3122201d09e58a22b846abf"
+          },
+          "ffi_fixture": "corpus/ffi/zstd.rs",
+          "ffi_exit_code": 0
+        }
+      ]
+    },
+    {
+      "target": "x86_64-apple-darwin",
+      "status": "passed",
+      "recorded_at": "2026-09-08T00:57:28.461785+00:00",
+      "host": "macOS-15.7.9-x86_64-i386-64bit-Mach-O",
+      "sysroot": "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+      "cc": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+      "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+      "toucan_sha256": "a3d5a8bb0e1fb9b73709663186ab96ba32c03c88a9777ec4753993786eb439ee",
+      "artifact": {
+        "digest": "sha256:105416d01c5cf62aac36baf78e908691d4ab717c46a5ba147f278731aedf97e3",
+        "id": 10036945312,
+        "name": "corpus-x86_64-apple-darwin",
+        "size_in_bytes": 2345671
+      },
+      "evidence_path_in_artifact": "results/native/evidence.json",
+      "evidence_sha256": "48b70dd54187b2d882bbf9ebd7c1d8a8b1a88652e86fbf8ed44b99b7e65dd635",
+      "counts": {
+        "declarations": 1648,
+        "integer_constants": 1319,
+        "string_constants": 7,
+        "records": 17,
+        "field_offsets": 88,
+        "comparisons": 4086,
+        "omitted_macros": 110,
+        "skipped_declarations": 0
+      },
+      "projects": [
+        {
+          "name": "libgit2",
+          "status": "passed",
+          "counts": {
+            "declarations": 1138,
+            "integer_constants": 711,
+            "string_constants": 3,
+            "records": 8,
+            "field_offsets": 26,
+            "comparisons": 2178,
+            "omitted_macros": 68,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "8059bb07cff32d640cf83929028aac3765873029d7e6143b9e690b187378dcff",
+          "libraries_sha256": {
+            "libgit2.a": "d67bbd056e992a1729d27a3c27904019dd04a6e484bb964cd12c903e951bb899"
+          },
+          "ffi_fixture": "corpus/ffi/libgit2.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "sqlite",
+          "status": "passed",
+          "counts": {
+            "declarations": 326,
+            "integer_constants": 461,
+            "string_constants": 2,
+            "records": 4,
+            "field_offsets": 26,
+            "comparisons": 1419,
+            "omitted_macros": 12,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "f833667224f31a61b233e6696f52b49633a9f906d1f874e595e3498ba6258992",
+          "libraries_sha256": {
+            "libsqlite3.a": "52e3a7d800fb31cefc3171952655c755d7eeec7d6f5736db044504f09a62f96c"
+          },
+          "ffi_fixture": "corpus/ffi/sqlite.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "zlib",
+          "status": "passed",
+          "counts": {
+            "declarations": 101,
+            "integer_constants": 36,
+            "string_constants": 1,
+            "records": 2,
+            "field_offsets": 27,
+            "comparisons": 140,
+            "omitted_macros": 17,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "b74f814c95cc607513cbeeadc2b18b0d92f03a244c4a241a5b10a2add911d159",
+          "libraries_sha256": {
+            "libz.a": "2d2ac081d3348ad86922a4f30572745acada7b794ef274e98026bf627771b21b"
+          },
+          "ffi_fixture": "corpus/ffi/zlib.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "zstd",
+          "status": "passed",
+          "counts": {
+            "declarations": 83,
+            "integer_constants": 111,
+            "string_constants": 1,
+            "records": 3,
+            "field_offsets": 9,
+            "comparisons": 349,
+            "omitted_macros": 13,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "cb95a78c2deca4d7807011924dca6ff1d283ec512fd40fc15dc280208170ab4d",
+          "libraries_sha256": {
+            "libzstd.a": "289cc49f8e781ad507a4cf177370efbd771bd9ed422e290a1976fb19475253a5"
+          },
+          "ffi_fixture": "corpus/ffi/zstd.rs",
+          "ffi_exit_code": 0
+        }
+      ]
+    },
+    {
+      "target": "x86_64-unknown-linux-gnu",
+      "status": "passed",
+      "recorded_at": "2026-09-08T00:49:09.525286+00:00",
+      "host": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+      "sysroot": "/",
+      "cc": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+      "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+      "toucan_sha256": "5f1cf359b1fc81dfaa15755920741b3faa4ae2eeebf7c4c50f7b4b14e32e5e2e",
+      "artifact": {
+        "digest": "sha256:09066521b0fb84b38d618c7ba64fb98e361944e0db3c7faad7dbdef52be10193",
+        "id": 10036800551,
+        "name": "corpus-x86_64-unknown-linux-gnu",
+        "size_in_bytes": 6750423
+      },
+      "evidence_path_in_artifact": "results/native/evidence.json",
+      "evidence_sha256": "db004f537ccc9246a1bd8a6a11e81d4a2ac0f4f996c8d4a24d7bf0aa15d13ffc",
+      "counts": {
+        "declarations": 1648,
+        "integer_constants": 1319,
+        "string_constants": 7,
+        "records": 17,
+        "field_offsets": 88,
+        "comparisons": 4086,
+        "omitted_macros": 111,
+        "skipped_declarations": 0
+      },
+      "projects": [
+        {
+          "name": "libgit2",
+          "status": "passed",
+          "counts": {
+            "declarations": 1138,
+            "integer_constants": 711,
+            "string_constants": 3,
+            "records": 8,
+            "field_offsets": 26,
+            "comparisons": 2178,
+            "omitted_macros": 68,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "88687e55b3541886a1bcdc30edc7e48f595e8dee9e77550ef960ff25c71986df",
+          "libraries_sha256": {
+            "libgit2.a": "3485cd43d17bf33c4d59370fd62abc6506f82d00a0d0db2a392658ed9818dfc9"
+          },
+          "ffi_fixture": "corpus/ffi/libgit2.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "sqlite",
+          "status": "passed",
+          "counts": {
+            "declarations": 326,
+            "integer_constants": 461,
+            "string_constants": 2,
+            "records": 4,
+            "field_offsets": 26,
+            "comparisons": 1419,
+            "omitted_macros": 12,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "744ba02bf897b15541d51e40a30fbb6c130341074d0203bb001db5c3c55e17e7",
+          "libraries_sha256": {
+            "libsqlite3.a": "082d302ebad67f0a849416618cd018a927d70a0c3419ff955fde664410300b0e"
+          },
+          "ffi_fixture": "corpus/ffi/sqlite.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "zlib",
+          "status": "passed",
+          "counts": {
+            "declarations": 101,
+            "integer_constants": 36,
+            "string_constants": 1,
+            "records": 2,
+            "field_offsets": 27,
+            "comparisons": 140,
+            "omitted_macros": 18,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "34aa1a0731a7302b263d9f79fc70a842208a5911f18d1531c07baf08ee459854",
+          "libraries_sha256": {
+            "libz.a": "797cd3b9f0938fa72303d8f97831827c2fdd67c3dcf46a54365aae45ab59ae34"
+          },
+          "ffi_fixture": "corpus/ffi/zlib.rs",
+          "ffi_exit_code": 0
+        },
+        {
+          "name": "zstd",
+          "status": "passed",
+          "counts": {
+            "declarations": 83,
+            "integer_constants": 111,
+            "string_constants": 1,
+            "records": 3,
+            "field_offsets": 9,
+            "comparisons": 349,
+            "omitted_macros": 13,
+            "skipped_declarations": 0
+          },
+          "bindings_sha256": "9d023cfd5dbd23daa13ed1eeaff12276d1cd4b0a929f7d96d5dd4ea8a74be16a",
+          "libraries_sha256": {
+            "libzstd.a": "d25677fad2689f1fee28e29a13c187f626e3c8ef04256d25cfc3c9bba35b0193"
+          },
+          "ffi_fixture": "corpus/ffi/zstd.rs",
+          "ffi_exit_code": 0
+        }
+      ]
+    }
+  ],
+  "totals": {
+    "native_targets": 4,
+    "passed_project_runs": 16,
+    "comparisons": 16344,
+    "skipped_declarations": 0
+  }
+}

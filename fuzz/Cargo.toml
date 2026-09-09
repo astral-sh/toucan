@@ -1,0 +1,43 @@
+[package]
+name = "toucan-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2024"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+toucan = { path = "../crates/toucan" }
+
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "preprocess"
+path = "fuzz_targets/preprocess.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "semantic"
+path = "fuzz_targets/semantic.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "bindings"
+path = "fuzz_targets/bindings.rs"
+test = false
+doc = false
+bench = false
+
+[[bin]]
+name = "checked"
+path = "fuzz_targets/checked.rs"
+test = false
+doc = false
+bench = false

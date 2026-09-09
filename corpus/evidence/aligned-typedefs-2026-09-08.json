@@ -1,0 +1,417 @@
+{
+  "schema_version": 1,
+  "date": "2026-09-08",
+  "baseline_commit": "fd0420853651b4f9efab9624bd43be7b6f7d3573",
+  "scope": [
+    "GNU aligned typedef metadata, target layout/query rules, and fail-closed Rust alias projection.",
+    "GCC/Clang arithmetic typedef identity is explicitly unsupported when alignment could be changed; profile probes are included for the next layer.",
+    "Real translation units advance beyond their aligned typedef failures but still reject unrelated unsupported attributes or intrinsics."
+  ],
+  "validation": {
+    "workspace_tests": "passed",
+    "clippy_warnings_denied": "passed",
+    "semantic_alignment_tests": 6,
+    "binding_policy_tests": 2,
+    "native_int128_tests": 2,
+    "clang_targets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc"
+    ],
+    "layout_constants_per_compiler_target": 39,
+    "native_layout_compiler": "GCC x86_64 Linux",
+    "native_ffi": "GCC and Clang x86_64 Linux, including C and Win64 calling conventions; redundant aligned(16) aliases exercise the existing int128 calls/callbacks/records oracle."
+  },
+  "commands": {
+    "layout": "cargo test -p toucan_semantic --test aligned_typedefs --offline -- --include-ignored",
+    "bindings": "cargo test -p toucan_bindings --test aligned_typedefs --offline",
+    "ffi": "cargo test -p toucan_bindings --test int128 --offline -- --include-ignored",
+    "workspace": "cargo test --workspace --offline",
+    "clippy": "cargo clippy --workspace --all-targets --offline -- -D warnings",
+    "release": "cargo build -p toucan_cli -p toucan_semantic --release --offline",
+    "affinity": "Build/tests CPU2,3; baseline build CPU4,5; measurement harnesses CPU2.",
+    "measurement_script": "from pathlib import Path\nimport subprocess,json,hashlib\ncache=Path('/home/dev-user/.cache/toucan')\ndef matching_target(root):\n    probe=Path('/tmp/toucan-alignment-crate-probe.rs')\n    probe.write_text('fn main(){toucan_semantic::analyze(\"\",toucan_target::Target::X86_64UnknownLinuxGnu).unwrap();}')\n    for target in (root/'deps').glob('libtoucan_target-*.rlib'):\n        command=['rustc','--edition=2024','--emit=metadata',str(probe),'--extern',f'toucan_semantic={root}/libtoucan_semantic.rlib','--extern',f'toucan_target={target}','-L',f'dependency={root}/deps','-o','/tmp/toucan-alignment-crate-probe.rmeta']\n        if subprocess.run(command,capture_output=True).returncode == 0:return target\n    raise RuntimeError(f'no matching target artifact in {root}')\nfor label,folder in [('baseline','aligned-typedef-baseline-target'),('changed','aligned-typedefs-target')]:\n root=cache/folder/'release';deps=root/'deps';target=matching_target(root)\n for name,source in [('alloc','/tmp/toucan-checked-allocations.rs'),('size','/tmp/toucan-type-size.rs')]:\n  output=f'/tmp/toucan-aligned-typedef-{name}-{label}'\n  command=['rustc','--edition=2024','-O',source,'--extern',f'toucan_semantic={root}/libtoucan_semantic.rlib','--extern',f'toucan_target={target}','-L',f'dependency={deps}','-o',output]\n  subprocess.run(command,check=True)\n  result=subprocess.check_output(['taskset','-c','2',output],text=True)\n  Path(output+'.txt').write_text(result);print(label,name,result.strip(),flush=True)\nroot=cache/'aligned-typedefs-target/release';deps=root/'deps';target=matching_target(root)\nfor name,source in [('corpus','/tmp/toucan-type-ownership-corpus.rs'),('semantic','/home/dev-user/.cache/toucan/translation-unit-audit/semantic_probe.rs')]:\n output=f'/tmp/toucan-aligned-typedef-{name}'\n command=['rustc','--edition=2024','-O',source,'--extern',f'toucan_semantic={root}/libtoucan_semantic.rlib','--extern',f'toucan_target={target}','-L',f'dependency={deps}','-o',output]\n subprocess.run(command,check=True)\n if name=='corpus':\n  result=subprocess.check_output(['taskset','-c','2',output],text=True);Path(output+'.log').write_text(result);print(result,flush=True)\noriginal=json.loads((cache/'translation-unit-audit/evidence.json').read_text());rows=[]\nfor case in original['cases']:\n if case['id'] not in ['libgit2-alloc','libgit2-repository','zstd-zstd_common']:continue\n for retain in [False,True]:\n  command=['/tmp/toucan-aligned-typedef-semantic',case['preprocessed']]+(['--retain'] if retain else [])\n  result=subprocess.run(['taskset','-c','2',*command],text=True,capture_output=True,timeout=30)\n  row={'case':case['id'],'mode':'direct_semantic','retention':retain,'command':command,'input_sha256':hashlib.sha256(Path(case['preprocessed']).read_bytes()).hexdigest(),'exit_code':result.returncode,'stdout':result.stdout,'stderr':result.stderr};rows.append(row);print(case['id'],retain,result.returncode,(result.stderr+result.stdout).strip(),flush=True)\n(cache/'aligned-typedef-tu-audit/direct-semantic.json').write_text(json.dumps(rows,indent=2)+'\\n')\n"
+  },
+  "tools": {
+    "rustc": {
+      "path": "/home/dev-user/.cargo/bin/rustup",
+      "sha256": "dda7234360b7f578ca8b0ddcb80145646fa61a67c1720a5abc7051b35c9fcb71",
+      "version": "rustc 1.98.1 (48a229cea 2026-09-01)\nbinary: rustc\ncommit-hash: 48a229ceaefd4985c50990b14116b6d856af0985\ncommit-date: 2026-09-01\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1\nLLVM version: 22.1.8"
+    },
+    "gcc": {
+      "path": "/usr/bin/x86_64-linux-gnu-gcc-13",
+      "sha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26",
+      "version": "gcc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE."
+    },
+    "clang": {
+      "path": "/usr/lib/llvm-18/bin/clang",
+      "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+      "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/bin"
+    }
+  },
+  "default_resource_check": {
+    "type_size_bytes_before": 40,
+    "type_size_bytes_after": 40,
+    "results": [
+      {
+        "workload": "declarations",
+        "baseline_calls": 90,
+        "changed_calls": 90,
+        "baseline_requested_bytes": 25085,
+        "changed_requested_bytes": 25085
+      },
+      {
+        "workload": "VLA and nested scopes",
+        "baseline_calls": 283,
+        "changed_calls": 283,
+        "baseline_requested_bytes": 52024,
+        "changed_requested_bytes": 52024
+      },
+      {
+        "workload": "100 function bodies",
+        "baseline_calls": 13460,
+        "changed_calls": 13460,
+        "baseline_requested_bytes": 2444578,
+        "changed_requested_bytes": 2444578
+      }
+    ],
+    "allocation_harness": "use std::alloc::{GlobalAlloc, Layout, System};\nuse std::sync::atomic::{AtomicUsize, Ordering};\nstatic CALLS: AtomicUsize = AtomicUsize::new(0);\nstatic BYTES: AtomicUsize = AtomicUsize::new(0);\nstruct Counter;\nunsafe impl GlobalAlloc for Counter {\n    unsafe fn alloc(&self, layout: Layout) -> *mut u8 {\n        CALLS.fetch_add(1, Ordering::Relaxed);\n        BYTES.fetch_add(layout.size(), Ordering::Relaxed);\n        unsafe { System.alloc(layout) }\n    }\n    unsafe fn alloc_zeroed(&self, layout: Layout) -> *mut u8 {\n        CALLS.fetch_add(1, Ordering::Relaxed);\n        BYTES.fetch_add(layout.size(), Ordering::Relaxed);\n        unsafe { System.alloc_zeroed(layout) }\n    }\n    unsafe fn realloc(&self, ptr: *mut u8, layout: Layout, size: usize) -> *mut u8 {\n        CALLS.fetch_add(1, Ordering::Relaxed);\n        BYTES.fetch_add(size, Ordering::Relaxed);\n        unsafe { System.realloc(ptr, layout, size) }\n    }\n    unsafe fn dealloc(&self, ptr: *mut u8, layout: Layout) { unsafe { System.dealloc(ptr, layout) } }\n}\n#[global_allocator]\nstatic ALLOCATOR: Counter = Counter;\nfn main() {\n    let target = toucan_target::Target::X86_64UnknownLinuxGnu;\n    let mut sources = vec![String::from(\"typedef int T; struct S {int x;}; extern int f(T);\"), String::from(\"int f(int n) { typedef int A[n]; A a; { long n; n=2; } for(int i=0;i<3;i++){ int x=i; } return sizeof a; }\")];\n    sources.push((0..100).map(|i| format!(\"int f{i}(int n) {{ int x = n+1; {{ int x=2; }} return x; }}\\n\")).collect());\n    for (index, source) in sources.iter().enumerate() {\n        drop(toucan_semantic::analyze(source, target).unwrap());\n        CALLS.store(0, Ordering::Relaxed); BYTES.store(0, Ordering::Relaxed);\n        let unit = toucan_semantic::analyze(source, target).unwrap();\n        let calls = CALLS.load(Ordering::Relaxed); let bytes = BYTES.load(Ordering::Relaxed);\n        println!(\"{index}: {calls} allocations, {bytes} bytes; {} declarations\", unit.declarations.len());\n    }\n}\n",
+    "baseline_binary": {
+      "path": "/tmp/toucan-aligned-typedef-alloc-baseline",
+      "sha256": "242334be0d500acc171d4401cc44d28db3378e6fb5ae1a13c141b08aa9cb2ecd"
+    },
+    "changed_binary": {
+      "path": "/tmp/toucan-aligned-typedef-alloc-changed",
+      "sha256": "7452830e63613e05d37767b31812e34349686215aec74cb80601e04ccc5738ab"
+    },
+    "limitation": "System allocator requested sizes on three inputs, not peak RSS, wall-clock performance, or a universal overhead claim."
+  },
+  "external_corpus": {
+    "accepted_identical_unit_outputs": 219,
+    "identical_constraint_rejections": 1,
+    "pinned_manifest": "../conformance/c-testsuite.json",
+    "harness_source": "use std::path::Path;\nuse toucan_semantic::{AnalysisOptions, analyze, analyze_with_options};\nuse toucan_target::Target;\nfn main() {\n    let corpus = Path::new(\"/home/dev-user/.cache/toucan/conformance/c-testsuite-audit\");\n    let mut paths: Vec<_> = std::fs::read_dir(corpus).unwrap().map(|entry| entry.unwrap().path().join(\"source.i\")).filter(|path| path.is_file()).collect();\n    paths.sort();\n    let mut accepted = 0; let mut rejected = 0;\n    for path in paths {\n        let source = std::fs::read_to_string(&path).unwrap();\n        let plain = analyze(&source, Target::X86_64UnknownLinuxGnu);\n        let retained = analyze_with_options(&source, Target::X86_64UnknownLinuxGnu, &AnalysisOptions { retain_code: true, ..AnalysisOptions::default() });\n        match (plain, retained) {\n            (Ok(plain), Ok(retained)) => { assert_eq!(format!(\"{plain:?}\"), format!(\"{:?}\",retained.unit()), \"{}\", path.display()); assert!(retained.checked().is_some()); accepted += 1; }\n            (Err(plain), Err(retained)) => { assert_eq!(plain.to_string(), retained.to_string(), \"{}\", path.display()); rejected += 1; }\n            (plain, retained) => panic!(\"{}: default={plain:?}, retained={retained:?}\", path.display()),\n        }\n    }\n    println!(\"{accepted} accepted cases with identical unit output; {rejected} identical constraint rejections\");\n    assert_eq!((accepted,rejected),(219,1));\n}\n",
+    "binary": {
+      "path": "/tmp/toucan-aligned-typedef-corpus",
+      "sha256": "86d48d8155538bf8971402403efcd529c2dc8b5de7ee55923cabc48b96c50218"
+    },
+    "limitation": "Retained/ordinary analysis parity on the pinned preprocessed x86_64 Linux corpus."
+  },
+  "real_translation_units": {
+    "original_audit": "/home/dev-user/.cache/toucan/translation-unit-audit/evidence.json",
+    "original_audit_sha256": "22472b79101478b8e190ebde020c36a81af74a5f79e28bff2303d7b890233566",
+    "native_preprocessor": {
+      "binary": "/home/dev-user/.cache/toucan/aligned-typedefs-target/release/toucan",
+      "binary_sha256": "f46bcfbb5ab172b35e3bd92f9057daa113e504eeebbf2ee4c9714b9fdda9ef32",
+      "cases": [
+        {
+          "case": "libgit2-alloc",
+          "mode": "native_preprocessor",
+          "command": [
+            "/home/dev-user/.cache/toucan/aligned-typedefs-target/release/toucan",
+            "check",
+            "/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util/alloc.c",
+            "-DSHA1DC_CUSTOM_INCLUDE_SHA1_C=\"git2_util.h\"",
+            "-DSHA1DC_CUSTOM_INCLUDE_UBC_CHECK_C=\"git2_util.h\"",
+            "-DSHA1DC_NO_STANDARD_INCLUDES=1",
+            "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+            "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/include",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/include",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/llhttp",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/pcre",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/xdiff",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/zlib",
+            "-D_GNU_SOURCE",
+            "-DNDEBUG",
+            "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+            "-I/usr/local/include",
+            "-I/usr/include/x86_64-linux-gnu",
+            "-I/usr/include"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+          "exit_code": 1,
+          "seconds": 0.14839767100056633,
+          "stderr": "error: /usr/include/pthread.h:753:22: unsupported C attribute `weak`; its ABI effect is not assumed (preprocessed byte 107389)\n",
+          "stdout": "",
+          "source_sha256": "d647f270fdcaec18eef23a64adeb2b73ea89e4cbe2d06b7205cd999cdc24dd42",
+          "preprocessed_sha256": "a4aabdfa71b288fa62db020b95fa94d2e2547e3b6bf411cd6d9e01e60ced4496"
+        },
+        {
+          "case": "libgit2-repository",
+          "mode": "native_preprocessor",
+          "command": [
+            "/home/dev-user/.cache/toucan/aligned-typedefs-target/release/toucan",
+            "check",
+            "/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/libgit2/repository.c",
+            "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/src/util",
+            "-I/home/dev-user/.cache/toucan/corpus/build/libgit2/include",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/libgit2",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/src/util",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/include",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/llhttp",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/pcre",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/xdiff",
+            "-I/home/dev-user/.cache/toucan/corpus/sources/libgit2-1.9.1/deps/zlib",
+            "-D_GNU_SOURCE",
+            "-DNDEBUG",
+            "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+            "-I/usr/local/include",
+            "-I/usr/include/x86_64-linux-gnu",
+            "-I/usr/include"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/corpus/build/libgit2/src/libgit2",
+          "exit_code": 1,
+          "seconds": 0.3939550319992122,
+          "stderr": "error: /usr/include/pthread.h:753:22: unsupported C attribute `weak`; its ABI effect is not assumed (preprocessed byte 107037)\n",
+          "stdout": "",
+          "source_sha256": "2d7ce5f5914816dd369c5336ee0e19fb11d7a0b9c3223696006344b26e133852",
+          "preprocessed_sha256": "04628515f6865b42ad22a803c0d22da6d4d28328ea6ba834b17136b03089ae73"
+        },
+        {
+          "case": "zstd-zstd_common",
+          "mode": "native_preprocessor",
+          "command": [
+            "/home/dev-user/.cache/toucan/aligned-typedefs-target/release/toucan",
+            "check",
+            "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/common/zstd_common.c",
+            "-DXXH_NAMESPACE=ZSTD_",
+            "-DDEBUGLEVEL=0",
+            "-DZSTD_LEGACY_SUPPORT=5",
+            "-I/usr/lib/gcc/x86_64-linux-gnu/13/include",
+            "-I/usr/local/include",
+            "-I/usr/include/x86_64-linux-gnu",
+            "-I/usr/include"
+          ],
+          "cwd": "/home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib",
+          "exit_code": 1,
+          "seconds": 0.09127722500124946,
+          "stderr": "error: /home/dev-user/.cache/toucan/corpus/sources/zstd-1.5.7/lib/common/bits.h:44:22: unknown identifier `__builtin_ctz` (preprocessed byte 100850)\n",
+          "stdout": "",
+          "source_sha256": "f49eb8023a90d3de925373bd9ee0d36ed46b26c529840b64220397446cd73795",
+          "preprocessed_sha256": "aacbd5d25076268a1cf1ed37c2fe5d4deb8cd9fe768248e033324a56f763b4fc"
+        }
+      ]
+    },
+    "direct_semantic": [
+      {
+        "case": "libgit2-alloc",
+        "mode": "direct_semantic",
+        "retention": false,
+        "command": [
+          "/tmp/toucan-aligned-typedef-semantic",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/libgit2-alloc/native.i"
+        ],
+        "input_sha256": "a4aabdfa71b288fa62db020b95fa94d2e2547e3b6bf411cd6d9e01e60ced4496",
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "unknown identifier `__builtin_bswap16` at byte 28296\n"
+      },
+      {
+        "case": "libgit2-alloc",
+        "mode": "direct_semantic",
+        "retention": true,
+        "command": [
+          "/tmp/toucan-aligned-typedef-semantic",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/libgit2-alloc/native.i",
+          "--retain"
+        ],
+        "input_sha256": "a4aabdfa71b288fa62db020b95fa94d2e2547e3b6bf411cd6d9e01e60ced4496",
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "unknown identifier `__builtin_bswap16` at byte 28296\n"
+      },
+      {
+        "case": "libgit2-repository",
+        "mode": "direct_semantic",
+        "retention": false,
+        "command": [
+          "/tmp/toucan-aligned-typedef-semantic",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/libgit2-repository/native.i"
+        ],
+        "input_sha256": "04628515f6865b42ad22a803c0d22da6d4d28328ea6ba834b17136b03089ae73",
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "unknown identifier `__builtin_bswap16` at byte 28666\n"
+      },
+      {
+        "case": "libgit2-repository",
+        "mode": "direct_semantic",
+        "retention": true,
+        "command": [
+          "/tmp/toucan-aligned-typedef-semantic",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/libgit2-repository/native.i",
+          "--retain"
+        ],
+        "input_sha256": "04628515f6865b42ad22a803c0d22da6d4d28328ea6ba834b17136b03089ae73",
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "unknown identifier `__builtin_bswap16` at byte 28666\n"
+      },
+      {
+        "case": "zstd-zstd_common",
+        "mode": "direct_semantic",
+        "retention": false,
+        "command": [
+          "/tmp/toucan-aligned-typedef-semantic",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i"
+        ],
+        "input_sha256": "aacbd5d25076268a1cf1ed37c2fe5d4deb8cd9fe768248e033324a56f763b4fc",
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "C syntax error: unexpected token at \"\" line 3323 column 40, expected '!=', '%', '%=', '&', '&&', '&=', '(', '*', '*=', '+', '++', '+=', ',', '-', '--', '-=', '->', '.', '/', '/=', ';', '<', '<<', '<<=', '<=', '=', '==', '>', '>=', '>>', '>>=', '?', '[', '^', '^=', '|', '|=', '||' at byte 96681\n"
+      },
+      {
+        "case": "zstd-zstd_common",
+        "mode": "direct_semantic",
+        "retention": true,
+        "command": [
+          "/tmp/toucan-aligned-typedef-semantic",
+          "/home/dev-user/.cache/toucan/translation-unit-audit/zstd-zstd_common/native.i",
+          "--retain"
+        ],
+        "input_sha256": "aacbd5d25076268a1cf1ed37c2fe5d4deb8cd9fe768248e033324a56f763b4fc",
+        "exit_code": 1,
+        "stdout": "",
+        "stderr": "C syntax error: unexpected token at \"\" line 3323 column 40, expected '!=', '%', '%=', '&', '&&', '&=', '(', '*', '*=', '+', '++', '+=', ',', '-', '--', '-=', '->', '.', '/', '/=', ';', '<', '<<', '<<=', '<=', '=', '==', '>', '>=', '>>', '>>=', '?', '[', '^', '^=', '|', '|=', '||' at byte 96681\n"
+      }
+    ],
+    "direct_semantic_binary": {
+      "path": "/tmp/toucan-aligned-typedef-semantic",
+      "sha256": "5adfcc57d9acdc5071942c79a29220e2992c2c734b697fe26efdcbf50448ef17"
+    },
+    "notes": [
+      "Native preprocessing uses the shipped GNU4.2.1 profile with unchanged explicit build include/define arguments.",
+      "Direct semantic inputs are untouched GCC13 .i output from the actual native compile flags; this bypasses the separate CLI #line-marker preprocessing limitation.",
+      "These are early-rejection progress checks, not completed-analysis throughput or complete real-source acceptance."
+    ]
+  },
+  "arithmetic_profile_probe": {
+    "source": "typedef int A __attribute__((aligned(1))); typedef int B __attribute__((aligned(1))); typedef int C __attribute__((aligned(2))); A a,b; B other; C c; int plain;\nunsigned long long results[] = {_Alignof(typeof(a+b)),_Alignof(typeof(a+other)),_Alignof(typeof(other+a)),_Alignof(typeof(a+c)),_Alignof(typeof(c+a)),_Alignof(typeof(a+plain)),_Alignof(typeof(plain+a)),_Alignof(typeof(a+1)),_Alignof(typeof(1+a)),_Alignof(typeof(1?a:b)),_Alignof(typeof(1?a:other)),_Alignof(typeof(+a)),_Alignof(typeof(a<<1)),_Alignof(typeof(a=plain)),_Alignof(typeof(a++)),_Alignof(typeof((plain,a)))};\nextern int printf(const char *,...); int main(void) { for(unsigned i=0;i<sizeof(results)/sizeof(results[0]);i++) printf(\"%llu \",results[i]); }\n",
+    "source_sha256": "9bc39866b05c90a972ce2a3d6d84865f5d627e2879cdf81f9647ace27b0f1c34",
+    "results": [
+      {
+        "compiler": "gcc",
+        "command": [
+          "gcc",
+          "-std=gnu11",
+          "-O2",
+          "/tmp/toucan-aligned-arithmetic-profile.c",
+          "-o",
+          "/tmp/toucan-aligned-arithmetic-gcc"
+        ],
+        "stderr": "",
+        "values": {
+          "a+b": 1,
+          "a+other": 1,
+          "other+a": 1,
+          "a+c": 2,
+          "c+a": 1,
+          "a+plain": 4,
+          "plain+a": 1,
+          "a+1": 4,
+          "1+a": 1,
+          "1?a:b": 1,
+          "1?a:other": 4,
+          "+a": 1,
+          "a<<1": 1,
+          "a=plain": 1,
+          "a++": 1,
+          "(plain,a)": 1
+        }
+      },
+      {
+        "compiler": "clang",
+        "command": [
+          "clang",
+          "-std=gnu11",
+          "-O2",
+          "/tmp/toucan-aligned-arithmetic-profile.c",
+          "-o",
+          "/tmp/toucan-aligned-arithmetic-clang"
+        ],
+        "stderr": "",
+        "values": {
+          "a+b": 1,
+          "a+other": 4,
+          "other+a": 4,
+          "a+c": 4,
+          "c+a": 4,
+          "a+plain": 4,
+          "plain+a": 4,
+          "a+1": 4,
+          "1+a": 4,
+          "1?a:b": 1,
+          "1?a:other": 4,
+          "+a": 1,
+          "a<<1": 1,
+          "a=plain": 1,
+          "a++": 1,
+          "(plain,a)": 1
+        }
+      }
+    ]
+  },
+  "primary_reference": "https://gcc.gnu.org/onlinedocs/gcc/Common-Type-Attributes.html",
+  "source_sha256": {
+    "crates/toucan_bindings/src/lib.rs": "c57483b2ec7529cc6ee8f2d9f7524cbb08a6c55ab7808a176ad5be4630a56800",
+    "crates/toucan_bindings/tests/int128.rs": "515db12a542f0bb92468dce97ada594e1a75a30e5305ff20f62cdbcd0e45f03c",
+    "crates/toucan_semantic/src/analyze.rs": "323698f4f9cebe758d742787c977fcc7d68eac2c47290aecc66bae30dc8704c2",
+    "crates/toucan_semantic/src/expression.rs": "ba273195638730f566478a281577f201413043a49565e108ca88f5db011c159b",
+    "crates/toucan_semantic/src/initializer.rs": "8b91866614a7863bf3e89b0b7553ff8c4cef06619741891ef29711e709404a8c",
+    "crates/toucan_semantic/src/ir.rs": "d68ae6b0bd128b8dfcab9d3e6fa95f3ab3c384bee594705a0e67ec142e083f02",
+    "crates/toucan_semantic/src/statement.rs": "1524e41cc4079d3a6a619b094aec56f5c631c97b4f5f703eb212c4ef59a2ca8b",
+    "crates/toucan_target/src/lib.rs": "6ecd27e54c4b398803df1e04fd7e513a9dcbb5fa0328cdaa502947d40247124c",
+    "docs/compatibility.md": "c5d47d52594503cdb54a516904fd493730342a9f3d413472cd8ef35c99d4341b",
+    "crates/toucan_bindings/tests/aligned_typedefs.rs": "c8d36d03abb17e61547cfccd76ab905d78443c4370d4b1a6f061620237ac5f4b",
+    "crates/toucan_semantic/tests/aligned_typedefs.rs": "c14d42f97c1ced94dd7b8a04b3d9b42f217a72a2f45e6f40ffdf03235cc3279f"
+  },
+  "release_library": {
+    "path": "/home/dev-user/.cache/toucan/aligned-typedefs-target/release/libtoucan_semantic.rlib",
+    "sha256": "e424b726c6faf736e9c5d995843a7eec6210d0c65de643718372209f3a50f276"
+  },
+  "raw_logs": {
+    "workspace_tests": {
+      "path": "/tmp/toucan-aligned-typedef-workspace-tests.log",
+      "sha256": "92bf815b0c7e7b4e14ae361f256d0a1a6c2cb082384dae6c6bdeecab663df3e8"
+    },
+    "layout_tests": {
+      "path": "/tmp/toucan-aligned-typedef-tests.log",
+      "sha256": "3cfc586a9aa87ef63cbb0ee3785d13d84d26dd2da715af528587f48a52eb56ce"
+    },
+    "binding_tests": {
+      "path": "/tmp/toucan-aligned-typedef-binding-tests.log",
+      "sha256": "9449867f6deaf669d8213655ecb2580b1177ceda0a3216e62394854eb1192fbf"
+    },
+    "native_ffi": {
+      "path": "/tmp/toucan-aligned-typedef-ffi.log",
+      "sha256": "8fda2123c8947a89bc354f108521d89e6913478158efd19ef58e65cedf696b07"
+    },
+    "clippy": {
+      "path": "/tmp/toucan-aligned-typedef-clippy.log",
+      "sha256": "fecede7c2157efe2f16c8c8b9dce94b0fb4dd384dca8207046c8bf7636eb0ffe"
+    },
+    "allocation_baseline": {
+      "path": "/tmp/toucan-aligned-typedef-alloc-baseline.txt",
+      "sha256": "f15ca47e1e604c300c78c4794c73661d3911b3c088afc3fef15937e7557dcca2"
+    },
+    "allocation_changed": {
+      "path": "/tmp/toucan-aligned-typedef-alloc-changed.txt",
+      "sha256": "f15ca47e1e604c300c78c4794c73661d3911b3c088afc3fef15937e7557dcca2"
+    },
+    "type_size_baseline": {
+      "path": "/tmp/toucan-aligned-typedef-size-baseline.txt",
+      "sha256": "b21e3b3b54c78e236e25641796c7c0cf66370b5094292202f9d4781bf590f695"
+    },
+    "type_size_changed": {
+      "path": "/tmp/toucan-aligned-typedef-size-changed.txt",
+      "sha256": "b21e3b3b54c78e236e25641796c7c0cf66370b5094292202f9d4781bf590f695"
+    },
+    "corpus": {
+      "path": "/tmp/toucan-aligned-typedef-corpus.log",
+      "sha256": "099e7a22c4bf1de072d234a4242c135d446da361188d85549a5875f10b74dbe7"
+    }
+  }
+}

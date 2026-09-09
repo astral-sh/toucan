@@ -1,0 +1,3790 @@
+{
+  "schema_version": 1,
+  "kind": "native-differential-summary",
+  "summarized_at_utc": "2026-09-08T01:40:55.754311+00:00",
+  "scope": "Native C/FFI, bindgen API comparison, and independently compiled all-record layout probes on four pinned library projects. Cross-target unit tests are recorded separately.",
+  "workflow": {
+    "id": 34176518153,
+    "name": "Upstream corpus",
+    "html_url": "https://github.com/astral-sh/toucan/actions/runs/34176518153",
+    "event": "pull_request",
+    "head_sha": "b9f27b39c01d62cff7620f9960e0380565d30f4c",
+    "status": "completed",
+    "conclusion": "success",
+    "created_at": "2026-09-08T01:24:05Z",
+    "updated_at": "2026-09-08T01:38:36Z"
+  },
+  "metadata_sha256": {
+    "run": "f7dcb7072748c7cc5db7fbffc82e50d5281af857812bf0bc9b55d97c644d3ab4",
+    "jobs": "9f5f97cefb253173fc2579d370f440a933405c51c4fff4f4e238312756671dd0",
+    "artifacts": "20e3e303a4f11b5523fba93783c86370f6890c60999c797bd74e927bd50f9334"
+  },
+  "targets": [
+    {
+      "target": "x86_64-unknown-linux-gnu",
+      "status": "passed",
+      "job": {
+        "id": 101906898353,
+        "name": "Native corpus (x86_64-unknown-linux-gnu)",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34176518153/job/101906898353",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:24:08Z",
+        "completed_at": "2026-09-08T01:28:59Z",
+        "checkout": {
+          "log_sha256": "58cc5145e978312b59b78a3acaeb2c84d77a9e24aa7f19c97893814b5a0ce4ba",
+          "log_file": "34176518153-job-101906898353.log",
+          "merged_head_sha": "b9f27b39c01d62cff7620f9960e0380565d30f4c",
+          "base_sha": "34791a86c4f35f22e4bfa7ba48f49cffc003f117",
+          "checkout_sha": "8c434c12a074c647671433be6017f51374a67df1",
+          "status": "verified from checkout log"
+        }
+      },
+      "artifact": {
+        "id": 10037521281,
+        "name": "corpus-x86_64-unknown-linux-gnu",
+        "digest": "sha256:fe7c749bc81204f0838f7d421cbd0b5dea51655cc6449c832e82d33269f3c349",
+        "size_in_bytes": 795704,
+        "created_at": "2026-09-08T01:28:58Z",
+        "expires_at": "2026-09-22T01:28:57Z",
+        "expired": false
+      },
+      "downloaded_artifact_directory": "/home/dev-user/.cache/toucan/native-ci-34176518153/x86_64",
+      "environment": {
+        "recorded_at": "2026-09-08T01:26:40.170615+00:00",
+        "host": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+        "sysroot": "/",
+        "cc": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)"
+      },
+      "tool_sha256": {
+        "toucan": "23c744627c7d0703ca88e8ca61016aa8e813acd9ed90697da5e458aa373cc5e0",
+        "bindgen": "ab339e76e85af65f720a69a01c1fb832fd8902f862acd029fefa18b5ca757476",
+        "analyzer": "9b4f200e375f2e8eafa18fa4373d2d434b68a260a381006192462bf5c99384bf"
+      },
+      "source_evidence": {
+        "native": {
+          "path_in_artifact": "results/native/evidence.json",
+          "sha256": "12065b3e9399571f3fad436ec71bdbc50876436810089ef0e902db83b91dd4f7",
+          "status": "passed"
+        },
+        "equivalence": {
+          "path_in_artifact": "results/equivalence/evidence.json",
+          "sha256": "8078d052831755603a6bf697056a552b3a684a59edc79b12106894ca3d630fa7",
+          "status": "passed"
+        },
+        "record-layouts": {
+          "path_in_artifact": "results/record-layouts/evidence.json",
+          "sha256": "3cdd04699b5237c1dc5b0cd930353eaec8224628ee5dafd84e5a30f81256eee8",
+          "status": "passed"
+        }
+      },
+      "prepared_sha256": "eada89341fa676d7fb1b257fa833f6ee1d4e3639f782252d571cd1f928c3e4a4",
+      "exact_equivalence": false,
+      "projects": [
+        {
+          "name": "libgit2",
+          "version": "1.9.1",
+          "commit": "0060d9cf5666f015b1067129bd874c6cc4c9c7ac",
+          "archive_sha256": "4a7944d8439cccac187ef0ff4085556f198d85225eef55686b3dfb3413e0d0f1",
+          "header_sha256": "04b93d6a4dac32d661a56c3ca222ba62e8896f8148774ed52565d631ebf8d0e0",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+            "bindgen": "8e8f818e14459442a615f359fd7b24f9001f89c6c4fd980c1459c11d9f133e94"
+          },
+          "library_sha256": {
+            "libgit2.a": "3485cd43d17bf33c4d59370fd62abc6506f82d00a0d0db2a392658ed9818dfc9"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/libgit2/probe.rs": "cde92a89a1f23cb608972f0530fb5e2603d1ea5cde4507e48a24d40e4896ea5e",
+            "results/native/libgit2/bindings.rs": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+            "results/native/libgit2/probe.c": "1801284d9b72b0ef0df1bf7d04d2c55a098d22d55eb6ecb5a4a47c5a20f18676",
+            "results/equivalence/libgit2/bindings.rs": "505d0d94f08f7df439571edeea1ffdad21a32578a3abd4d9a7da4004418a22bc",
+            "results/equivalence/libgit2/bindgen.rs": "8e8f818e14459442a615f359fd7b24f9001f89c6c4fd980c1459c11d9f133e94",
+            "results/equivalence/libgit2/oracle.c": "0d0c473efe51bebd8ff00ea21f30574c583be9407074247f2dc5b9effea708a5",
+            "results/record-layouts/libgit2/records.rs": "212b77fa4e12f70731f9edc4835d8c8513eee7aab9d77689670ad6fbbeca57a9",
+            "results/record-layouts/libgit2/records.c": "73a235f77e109cd13ab32d812dd6d6105e0f11059d9e75019e1c89749069737d"
+          },
+          "comparison_sha256": "7ed071900c69c324eaa1eba21a99d566ebfd73d4fe6d0ddd1cd6ff1a0395d135",
+          "inventory_sha256": "331bb23aea1011e95162e46b23a547a9b1fccb4791b495fd4652ad766b2f1280",
+          "oracle_sha256": "f87d624542b0d4416e6fa8649f6f9e6fe91c0da943cae0ea2e037815116453e4",
+          "compiled_oracle_source_sha256": "0d0c473efe51bebd8ff00ea21f30574c583be9407074247f2dc5b9effea708a5",
+          "counts": {
+            "native": {
+              "integer_constants": 711,
+              "enum_constants": 582,
+              "anonymous_enum_projections": 0,
+              "string_constants": 3,
+              "records": 8,
+              "field_offsets": 26,
+              "comparisons": 3342,
+              "declarations": 1138,
+              "omitted_macros": 68,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 844,
+                "equal": 844
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 666,
+                "equal": 661
+              },
+              "aliases": {
+                "common": 158,
+                "equal": 158
+              },
+              "record_shapes": {
+                "common": 141,
+                "equal": 141
+              },
+              "native_records": {
+                "common": 85,
+                "equal": 85
+              },
+              "native_fields": {
+                "common": 432,
+                "equal": 432
+              },
+              "native_constants": {
+                "common": 666,
+                "equal": 665
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 85,
+              "offset_count": 432,
+              "comparisons": 602
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "GIT_ATTR_FALSE_T",
+                "GIT_ATTR_TRUE_T",
+                "GIT_ATTR_UNSPECIFIED_T",
+                "GIT_ATTR_VALUE_T",
+                "GIT_BLOB_FILTER_ATTTRIBUTES_FROM_HEAD",
+                "GIT_CREDTYPE_DEFAULT",
+                "GIT_CREDTYPE_SSH_CUSTOM",
+                "GIT_CREDTYPE_SSH_INTERACTIVE",
+                "GIT_CREDTYPE_SSH_KEY",
+                "GIT_CREDTYPE_SSH_MEMORY",
+                "GIT_CREDTYPE_USERNAME",
+                "GIT_CREDTYPE_USERPASS_PLAINTEXT",
+                "GIT_CVAR_FALSE",
+                "GIT_CVAR_INT32",
+                "GIT_CVAR_STRING",
+                "GIT_CVAR_TRUE",
+                "GIT_ERROR_SHA1",
+                "GIT_IDXENTRY_EXTENDED",
+                "GIT_IDXENTRY_EXTENDED_FLAGS",
+                "GIT_IDXENTRY_INTENT_TO_ADD",
+                "GIT_IDXENTRY_SKIP_WORKTREE",
+                "GIT_IDXENTRY_VALID",
+                "GIT_INDEXCAP_FROM_OWNER",
+                "GIT_INDEXCAP_IGNORE_CASE",
+                "GIT_INDEXCAP_NO_FILEMODE",
+                "GIT_INDEXCAP_NO_SYMLINKS",
+                "GIT_OBJECT_SIZE_MAX",
+                "GIT_OBJ_ANY",
+                "GIT_OBJ_BAD",
+                "GIT_OBJ_BLOB",
+                "GIT_OBJ_COMMIT",
+                "GIT_OBJ_OFS_DELTA",
+                "GIT_OBJ_REF_DELTA",
+                "GIT_OBJ_TAG",
+                "GIT_OBJ_TREE",
+                "GIT_OID_DEFAULT",
+                "GIT_REF_FORMAT_ALLOW_ONELEVEL",
+                "GIT_REF_FORMAT_NORMAL",
+                "GIT_REF_FORMAT_REFSPEC_PATTERN",
+                "GIT_REF_FORMAT_REFSPEC_SHORTHAND",
+                "GIT_REF_INVALID",
+                "GIT_REF_LISTALL",
+                "GIT_REF_OID",
+                "GIT_REF_SYMBOLIC",
+                "GIT_REVPARSE_MERGE_BASE",
+                "GIT_REVPARSE_RANGE",
+                "GIT_REVPARSE_SINGLE",
+                "GIT_STATUS_OPT_DEFAULTS"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C macro expression type differs from bindgen's inferred Rust constant type",
+              "names": [
+                "GIT_PATH_LIST_SEPARATOR",
+                "GIT_SUBMODULE_STATUS__INDEX_FLAGS",
+                "GIT_SUBMODULE_STATUS__IN_FLAGS",
+                "GIT_SUBMODULE_STATUS__WD_FLAGS"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "GIT_REBASE_NO_OPERATION"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__int32_t",
+                "__int64_t",
+                "__toucan_enum_0",
+                "__toucan_enum_1",
+                "__toucan_enum_10",
+                "__toucan_enum_11",
+                "__toucan_enum_12",
+                "__toucan_enum_13",
+                "__toucan_enum_14",
+                "__toucan_enum_15",
+                "__toucan_enum_16",
+                "__toucan_enum_17",
+                "__toucan_enum_18",
+                "__toucan_enum_19",
+                "__toucan_enum_2",
+                "__toucan_enum_20",
+                "__toucan_enum_21",
+                "__toucan_enum_22",
+                "__toucan_enum_23",
+                "__toucan_enum_24",
+                "__toucan_enum_25",
+                "__toucan_enum_26",
+                "__toucan_enum_27",
+                "__toucan_enum_28",
+                "__toucan_enum_29",
+                "__toucan_enum_3",
+                "__toucan_enum_30",
+                "__toucan_enum_31",
+                "__toucan_enum_33",
+                "__toucan_enum_34",
+                "__toucan_enum_35",
+                "__toucan_enum_36",
+                "__toucan_enum_37",
+                "__toucan_enum_38",
+                "__toucan_enum_39",
+                "__toucan_enum_4",
+                "__toucan_enum_40",
+                "__toucan_enum_41",
+                "__toucan_enum_42",
+                "__toucan_enum_43",
+                "__toucan_enum_44",
+                "__toucan_enum_45",
+                "__toucan_enum_46",
+                "__toucan_enum_47",
+                "__toucan_enum_48",
+                "__toucan_enum_49",
+                "__toucan_enum_5",
+                "__toucan_enum_50",
+                "__toucan_enum_51",
+                "__toucan_enum_52",
+                "__toucan_enum_53",
+                "__toucan_enum_55",
+                "__toucan_enum_56",
+                "__toucan_enum_57",
+                "__toucan_enum_58",
+                "__toucan_enum_59",
+                "__toucan_enum_6",
+                "__toucan_enum_60",
+                "__toucan_enum_61",
+                "__toucan_enum_62",
+                "__toucan_enum_63",
+                "__toucan_enum_64",
+                "__toucan_enum_65",
+                "__toucan_enum_66",
+                "__toucan_enum_67",
+                "__toucan_enum_68",
+                "__toucan_enum_69",
+                "__toucan_enum_7",
+                "__toucan_enum_70",
+                "__toucan_enum_71",
+                "__toucan_enum_72",
+                "__toucan_enum_73",
+                "__toucan_enum_74",
+                "__toucan_enum_75",
+                "__toucan_enum_76",
+                "__toucan_enum_77",
+                "__toucan_enum_78",
+                "__toucan_enum_79",
+                "__toucan_enum_8",
+                "__toucan_enum_80",
+                "__toucan_enum_81",
+                "__toucan_enum_82",
+                "__toucan_enum_83",
+                "__toucan_enum_9",
+                "__uint16_t",
+                "__uint32_t",
+                "__uint64_t",
+                "int32_t",
+                "int64_t",
+                "size_t",
+                "uint16_t",
+                "uint32_t",
+                "uint64_t"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "typedef represented by the corresponding named Rust record",
+              "names": [
+                "git_apply_options",
+                "git_attr_options",
+                "git_blob_filter_options",
+                "git_buf",
+                "git_cert_hostkey",
+                "git_cert_x509",
+                "git_checkout_perfdata",
+                "git_cherrypick_options",
+                "git_commit_create_options",
+                "git_configmap",
+                "git_describe_format_options",
+                "git_diff_binary",
+                "git_diff_binary_file",
+                "git_diff_delta",
+                "git_diff_file",
+                "git_diff_find_options",
+                "git_diff_format_email_options",
+                "git_diff_hunk",
+                "git_diff_line",
+                "git_diff_options",
+                "git_diff_parse_options",
+                "git_diff_similarity_metric",
+                "git_email_create_options",
+                "git_error",
+                "git_fetch_options",
+                "git_filter_options",
+                "git_index_time",
+                "git_merge_file_input",
+                "git_merge_file_options",
+                "git_merge_file_result",
+                "git_merge_options",
+                "git_message_trailer",
+                "git_message_trailer_array",
+                "git_odb_backend_loose_options",
+                "git_odb_backend_pack_options",
+                "git_odb_options",
+                "git_proxy_options",
+                "git_push_options",
+                "git_push_update",
+                "git_rebase_operation",
+                "git_rebase_options",
+                "git_remote_connect_options",
+                "git_repository_init_options",
+                "git_revert_options",
+                "git_revspec",
+                "git_status_entry",
+                "git_status_options",
+                "git_tree_update"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "deprecated C typedef omitted by bindgen; C type identity checked",
+              "names": [
+                "git_attr_t",
+                "git_revparse_mode_t"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "GIT_ATTR_FALSE_T",
+                "GIT_ATTR_TRUE_T",
+                "GIT_ATTR_UNSPECIFIED_T",
+                "GIT_ATTR_VALUE_T",
+                "GIT_BLOB_FILTER_ATTTRIBUTES_FROM_HEAD",
+                "GIT_CREDTYPE_DEFAULT",
+                "GIT_CREDTYPE_SSH_CUSTOM",
+                "GIT_CREDTYPE_SSH_INTERACTIVE",
+                "GIT_CREDTYPE_SSH_KEY",
+                "GIT_CREDTYPE_SSH_MEMORY",
+                "GIT_CREDTYPE_USERNAME",
+                "GIT_CREDTYPE_USERPASS_PLAINTEXT",
+                "GIT_CVAR_FALSE",
+                "GIT_CVAR_INT32",
+                "GIT_CVAR_STRING",
+                "GIT_CVAR_TRUE",
+                "GIT_ERROR_SHA1",
+                "GIT_IDXENTRY_EXTENDED",
+                "GIT_IDXENTRY_EXTENDED_FLAGS",
+                "GIT_IDXENTRY_INTENT_TO_ADD",
+                "GIT_IDXENTRY_SKIP_WORKTREE",
+                "GIT_IDXENTRY_VALID",
+                "GIT_INDEXCAP_FROM_OWNER",
+                "GIT_INDEXCAP_IGNORE_CASE",
+                "GIT_INDEXCAP_NO_FILEMODE",
+                "GIT_INDEXCAP_NO_SYMLINKS",
+                "GIT_OBJECT_SIZE_MAX",
+                "GIT_OBJ_ANY",
+                "GIT_OBJ_BAD",
+                "GIT_OBJ_BLOB",
+                "GIT_OBJ_COMMIT",
+                "GIT_OBJ_OFS_DELTA",
+                "GIT_OBJ_REF_DELTA",
+                "GIT_OBJ_TAG",
+                "GIT_OBJ_TREE",
+                "GIT_OID_DEFAULT",
+                "GIT_REF_FORMAT_ALLOW_ONELEVEL",
+                "GIT_REF_FORMAT_NORMAL",
+                "GIT_REF_FORMAT_REFSPEC_PATTERN",
+                "GIT_REF_FORMAT_REFSPEC_SHORTHAND",
+                "GIT_REF_INVALID",
+                "GIT_REF_LISTALL",
+                "GIT_REF_OID",
+                "GIT_REF_SYMBOLIC",
+                "GIT_REVPARSE_MERGE_BASE",
+                "GIT_REVPARSE_RANGE",
+                "GIT_REVPARSE_SINGLE",
+                "GIT_STATUS_OPT_DEFAULTS"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "GIT_REBASE_NO_OPERATION"
+              ]
+            },
+            {
+              "category": "excluded_storage_fields",
+              "reason": "bitfield helper storage; C/Rust setter and getter FFI checked",
+              "names": [
+                "git_commit_create_options",
+                "git_commit_create_options"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "sqlite",
+          "version": "3.45.1",
+          "commit": "189e44dfecdc7868bb860dfb5d98eab371318c37",
+          "archive_sha256": "c05d9dc99e90c35f021ebf0b6b0a36d44714088ba77f84022eb22784d6123c7e",
+          "header_sha256": "41e066ccd4f89e938f136ceb48c996c54dc381b59fe566dea48864c3750b779e",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+            "bindgen": "b1256b05045b851fddd96870c77d47a532c04d009420eca3a7b47a11c56e6532"
+          },
+          "library_sha256": {
+            "libsqlite3.a": "082d302ebad67f0a849416618cd018a927d70a0c3419ff955fde664410300b0e"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/sqlite/probe.rs": "1ec7c0af46a4598009fab47acb33b09534fa1d5d2b77bd00889d9619d05f42f7",
+            "results/native/sqlite/bindings.rs": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+            "results/native/sqlite/probe.c": "167230f5ea77375b352bbe7d183165b8c179f2f1a6d59f9ea4631e2524044c97",
+            "results/equivalence/sqlite/bindings.rs": "3e1b404f965a26c5deba2ad5b831b01aa2e42c72c93bab64c96635418fa27c63",
+            "results/equivalence/sqlite/bindgen.rs": "b1256b05045b851fddd96870c77d47a532c04d009420eca3a7b47a11c56e6532",
+            "results/equivalence/sqlite/oracle.c": "6e4aaa9cbb91cc7da572825e1acc05ef340e873476be61b6c0718a18f017762c",
+            "results/record-layouts/sqlite/records.rs": "ecedba44a30db08f184fdfe56841d09a2c9fc818e011b0d0ef8712207581b6b8",
+            "results/record-layouts/sqlite/records.c": "de06e46bc8da61f8171cd1e4f63499b37d477eb8f17073199a29f961d19aa6a8"
+          },
+          "comparison_sha256": "c8984abf44eea9a6b2ed040286dfc8057e381551c1a466024d2eb9b3083295d4",
+          "inventory_sha256": "89c81d3b4333896261862ea4220263fb7fe9404b561fabb42e91c2cbb79f9b8c",
+          "oracle_sha256": "6bbff73156f8eeded89327a178168bc567ef303c8a90c7940e2d93dc42bc77fe",
+          "compiled_oracle_source_sha256": "6e4aaa9cbb91cc7da572825e1acc05ef340e873476be61b6c0718a18f017762c",
+          "counts": {
+            "native": {
+              "integer_constants": 461,
+              "enum_constants": 0,
+              "anonymous_enum_projections": 0,
+              "string_constants": 2,
+              "records": 4,
+              "field_offsets": 26,
+              "comparisons": 1419,
+              "declarations": 326,
+              "omitted_macros": 12,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 291,
+                "equal": 291
+              },
+              "globals": {
+                "common": 3,
+                "equal": 3
+              },
+              "constants": {
+                "common": 463,
+                "equal": 463
+              },
+              "aliases": {
+                "common": 9,
+                "equal": 9
+              },
+              "record_shapes": {
+                "common": 29,
+                "equal": 28
+              },
+              "native_records": {
+                "common": 19,
+                "equal": 19
+              },
+              "native_fields": {
+                "common": 161,
+                "equal": 161
+              },
+              "native_constants": {
+                "common": 463,
+                "equal": 463
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 19,
+              "offset_count": 161,
+              "comparisons": 199
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__builtin_va_list",
+                "__gnuc_va_list",
+                "va_list"
+              ]
+            },
+            {
+              "category": "record_shapes",
+              "reason": "C xDlSym returns void (*)(void); bindgen repeats the lookup parameters",
+              "names": [
+                "sqlite3_vfs"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "zlib",
+          "version": "1.3.1",
+          "commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+          "archive_sha256": "2c547ae1e001c09db5d0a9d0e157f75dc55151757923cc611a08630391af81bc",
+          "header_sha256": "8a5579af72ea4f427ff00a4150f0ccb3fc5c1e4379f726e101133b1ab9fc600c",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+            "bindgen": "034eca198db1f6376cf6ab7d01fe2d84d553ebfb6d244214089dce8806b5f89a"
+          },
+          "library_sha256": {
+            "libz.a": "797cd3b9f0938fa72303d8f97831827c2fdd67c3dcf46a54365aae45ab59ae34"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/zlib/probe.rs": "a47c5cbd352225244a012f733ec35439593176e22b1b3dc6903cc8e0b4b2a9f0",
+            "results/native/zlib/bindings.rs": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+            "results/native/zlib/probe.c": "665836eb1a7c6db09009c0e98f86e3646597c2c9cf15d7fc26d4ccaff3d843b9",
+            "results/equivalence/zlib/bindings.rs": "4b92417f2229c590de27157bcdc9570348f6758d595059f625e7ff3e9ffc3d88",
+            "results/equivalence/zlib/bindgen.rs": "034eca198db1f6376cf6ab7d01fe2d84d553ebfb6d244214089dce8806b5f89a",
+            "results/record-layouts/zlib/records.rs": "a47262f7d232087af1c13d36eb905a17c3af99d1a428affb75757f447ff63b2e",
+            "results/record-layouts/zlib/records.c": "47c47af9efd1e30fcaa8e32cfb76ccdc15f5d7ce2977b04f931f746d4bf1eee9"
+          },
+          "comparison_sha256": "85f6c7a1f2213dd06b19f94192a074dce2231f97d81842e79cb6a281f0f46817",
+          "inventory_sha256": "a711acea6f2b28d1ddd8ca74f6d50b484f79c09a26fed7d383af83f1610c2297",
+          "oracle_sha256": null,
+          "compiled_oracle_source_sha256": null,
+          "counts": {
+            "native": {
+              "integer_constants": 36,
+              "enum_constants": 0,
+              "anonymous_enum_projections": 0,
+              "string_constants": 1,
+              "records": 2,
+              "field_offsets": 27,
+              "comparisons": 140,
+              "declarations": 101,
+              "omitted_macros": 18,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 81,
+                "equal": 81
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 37,
+                "equal": 37
+              },
+              "aliases": {
+                "common": 22,
+                "equal": 22
+              },
+              "record_shapes": {
+                "common": 5,
+                "equal": 5
+              },
+              "native_records": {
+                "common": 4,
+                "equal": 4
+              },
+              "native_fields": {
+                "common": 34,
+                "equal": 34
+              },
+              "native_constants": {
+                "common": 37,
+                "equal": 37
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 4,
+              "offset_count": 34,
+              "comparisons": 42
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "size_t",
+                "__builtin_va_list",
+                "__gnuc_va_list",
+                "va_list"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "zstd",
+          "version": "1.5.7",
+          "commit": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+          "archive_sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+          "header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+            "bindgen": "559220a3dc71b2a7d96fa61f1fb032f3c5e305414077c805c6c322b28ef80459"
+          },
+          "library_sha256": {
+            "libzstd.a": "d25677fad2689f1fee28e29a13c187f626e3c8ef04256d25cfc3c9bba35b0193"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/zstd/probe.rs": "00dfba1ee786e469239ea90cf248acdfdac38785d709f338eb3ec878549a6ce4",
+            "results/native/zstd/bindings.rs": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+            "results/native/zstd/probe.c": "ccfa0048b8f4547141fb2f639de570272e2ac76b4b6aa179405c09a854e88184",
+            "results/equivalence/zstd/bindings.rs": "6b0958ed26e87ea1dc7cde6d6254e89fecd17e0a40e75d2da8644a0536f736ab",
+            "results/equivalence/zstd/bindgen.rs": "559220a3dc71b2a7d96fa61f1fb032f3c5e305414077c805c6c322b28ef80459",
+            "results/equivalence/zstd/oracle.c": "aed24c8e32a6ad65055d206913670c79bce57868ee870635f5756cb521e381dd",
+            "results/record-layouts/zstd/records.rs": "42aefef71ffb76a95cd4f209af0cf134c7d3f7bc9020af944fb8a1020ee2a327",
+            "results/record-layouts/zstd/records.c": "ce2f7d58d06ae65bfb6c69834ff0f5c098af1a99440f74cfe87aef011b05adff"
+          },
+          "comparison_sha256": "2110fddfe1331423720cc70ab995e4c07593d05df091a3600d3618ff40d53a6f",
+          "inventory_sha256": "8ccc882e19fc13031c41f96516043cfe609ccb0d07bc7f9f8aa854b27b1c6af5",
+          "oracle_sha256": "6beb4f003c4c3259deb2fa3ee2c12590968643ca5649ed8c1acf5269e7ea62b2",
+          "compiled_oracle_source_sha256": "aed24c8e32a6ad65055d206913670c79bce57868ee870635f5756cb521e381dd",
+          "counts": {
+            "native": {
+              "integer_constants": 111,
+              "enum_constants": 97,
+              "anonymous_enum_projections": 0,
+              "string_constants": 1,
+              "records": 3,
+              "field_offsets": 9,
+              "comparisons": 543,
+              "declarations": 83,
+              "omitted_macros": 13,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 68,
+                "equal": 68
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 110,
+                "equal": 105
+              },
+              "aliases": {
+                "common": 14,
+                "equal": 14
+              },
+              "record_shapes": {
+                "common": 7,
+                "equal": 7
+              },
+              "native_records": {
+                "common": 3,
+                "equal": 3
+              },
+              "native_fields": {
+                "common": 9,
+                "equal": 9
+              },
+              "native_constants": {
+                "common": 110,
+                "equal": 108
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 3,
+              "offset_count": 9,
+              "comparisons": 15
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "ZSTD_MAX_INPUT_SIZE",
+                "ZSTD_VERSION_STRING"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "ZSTD_CONTENTSIZE_ERROR",
+                "ZSTD_CONTENTSIZE_UNKNOWN"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C macro expression type differs from bindgen's inferred Rust constant type",
+              "names": [
+                "ZSTD_MAGICNUMBER",
+                "ZSTD_MAGIC_DICTIONARY",
+                "ZSTD_MAGIC_SKIPPABLE_MASK"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "typedef represented by the corresponding named Rust record",
+              "names": [
+                "ZSTD_bounds"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__toucan_enum_0",
+                "__toucan_enum_1",
+                "__toucan_enum_2",
+                "__toucan_enum_3",
+                "__toucan_enum_4",
+                "__toucan_enum_5",
+                "size_t"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "ZSTD_MAX_INPUT_SIZE",
+                "ZSTD_VERSION_STRING"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "ZSTD_CONTENTSIZE_ERROR",
+                "ZSTD_CONTENTSIZE_UNKNOWN"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        }
+      ],
+      "counts": {
+        "native": {
+          "integer_constants": 1319,
+          "enum_constants": 679,
+          "anonymous_enum_projections": 0,
+          "string_constants": 7,
+          "records": 17,
+          "field_offsets": 88,
+          "comparisons": 5444,
+          "declarations": 1648,
+          "omitted_macros": 111,
+          "skipped_declarations": 0
+        },
+        "api_comparison": {
+          "functions": {
+            "common": 1284,
+            "equal": 1284
+          },
+          "globals": {
+            "common": 3,
+            "equal": 3
+          },
+          "constants": {
+            "common": 1276,
+            "equal": 1266
+          },
+          "aliases": {
+            "common": 203,
+            "equal": 203
+          },
+          "record_shapes": {
+            "common": 182,
+            "equal": 181
+          },
+          "native_records": {
+            "common": 111,
+            "equal": 111
+          },
+          "native_fields": {
+            "common": 636,
+            "equal": 636
+          },
+          "native_constants": {
+            "common": 1276,
+            "equal": 1273
+          }
+        },
+        "all_record_layouts": {
+          "record_count": 111,
+          "offset_count": 636,
+          "comparisons": 858
+        }
+      },
+      "tool_versions": {
+        "bindgen": [
+          "0.72.1"
+        ],
+        "bindgen_version_source": "Generated binding banner",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+        "cc": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+      },
+      "verification_problems": []
+    },
+    {
+      "target": "aarch64-unknown-linux-gnu",
+      "status": "passed",
+      "job": {
+        "id": 101906898121,
+        "name": "Native corpus (aarch64-unknown-linux-gnu)",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34176518153/job/101906898121",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:24:11Z",
+        "completed_at": "2026-09-08T01:28:08Z",
+        "checkout": {
+          "log_sha256": "cd10980566db7d06f6069446f9385e84ef3d3106eaa829ab2105e0911a606d18",
+          "log_file": "34176518153-job-101906898121.log",
+          "merged_head_sha": "b9f27b39c01d62cff7620f9960e0380565d30f4c",
+          "base_sha": "34791a86c4f35f22e4bfa7ba48f49cffc003f117",
+          "checkout_sha": "8c434c12a074c647671433be6017f51374a67df1",
+          "status": "verified from checkout log"
+        }
+      },
+      "artifact": {
+        "id": 10037505028,
+        "name": "corpus-aarch64-unknown-linux-gnu",
+        "digest": "sha256:138894827d4c1bd129e061ad49903d213d2fd7ce1a9ff97cff32a33771347507",
+        "size_in_bytes": 800052,
+        "created_at": "2026-09-08T01:28:07Z",
+        "expires_at": "2026-09-22T01:28:05Z",
+        "expired": false
+      },
+      "downloaded_artifact_directory": "/home/dev-user/.cache/toucan/native-ci-34176518153/arm",
+      "environment": {
+        "recorded_at": "2026-09-08T01:26:12.320500+00:00",
+        "host": "Linux-6.17.0-1022-azure-aarch64-with-glibc2.39",
+        "sysroot": "/",
+        "cc": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)"
+      },
+      "tool_sha256": {
+        "toucan": "161af6afde11237b65c928d972c9f6a98b9ffbe900af2bd98f56f66dc94043be",
+        "bindgen": "565d560ec9256139a23a843652578a68ab066ceb125f61d8ea3d47f45a396f83",
+        "analyzer": "e208a5d209cd31ef44d38bf8115fc78fa8541ab04c11b0d1d4d6c6647a170ac8"
+      },
+      "source_evidence": {
+        "native": {
+          "path_in_artifact": "results/native/evidence.json",
+          "sha256": "228620cb5fdac0351c649787b5231ed3de09d64109ee77eb2627666a7fead39f",
+          "status": "passed"
+        },
+        "equivalence": {
+          "path_in_artifact": "results/equivalence/evidence.json",
+          "sha256": "fc1d2949e8616a367d2b5936dcbc93092acf8d3d20942ca054344772ef758a46",
+          "status": "passed"
+        },
+        "record-layouts": {
+          "path_in_artifact": "results/record-layouts/evidence.json",
+          "sha256": "6ba80be98522c3f97d5e4d3d7a7903bae358c44fee1c7ec388331e186c20b0a7",
+          "status": "passed"
+        }
+      },
+      "prepared_sha256": "bd1d8532ef554d3e63c89b5ca1a9e9bfd1a6fcd00fbeeb918a7effd0ad60a3b7",
+      "exact_equivalence": false,
+      "projects": [
+        {
+          "name": "libgit2",
+          "version": "1.9.1",
+          "commit": "0060d9cf5666f015b1067129bd874c6cc4c9c7ac",
+          "archive_sha256": "4a7944d8439cccac187ef0ff4085556f198d85225eef55686b3dfb3413e0d0f1",
+          "header_sha256": "04b93d6a4dac32d661a56c3ca222ba62e8896f8148774ed52565d631ebf8d0e0",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "aff91667391d46440701181d5f81849da48f8393fc3323938a841b92be7fe9bf",
+            "bindgen": "8e8f818e14459442a615f359fd7b24f9001f89c6c4fd980c1459c11d9f133e94"
+          },
+          "library_sha256": {
+            "libgit2.a": "4815eeb5ee62459b3bc227d8dba9412bb9914a6d89f735da7095b36ac639a713"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/libgit2/probe.rs": "cde92a89a1f23cb608972f0530fb5e2603d1ea5cde4507e48a24d40e4896ea5e",
+            "results/native/libgit2/bindings.rs": "aff91667391d46440701181d5f81849da48f8393fc3323938a841b92be7fe9bf",
+            "results/native/libgit2/probe.c": "1801284d9b72b0ef0df1bf7d04d2c55a098d22d55eb6ecb5a4a47c5a20f18676",
+            "results/equivalence/libgit2/bindings.rs": "aff91667391d46440701181d5f81849da48f8393fc3323938a841b92be7fe9bf",
+            "results/equivalence/libgit2/bindgen.rs": "8e8f818e14459442a615f359fd7b24f9001f89c6c4fd980c1459c11d9f133e94",
+            "results/equivalence/libgit2/oracle.c": "0d0c473efe51bebd8ff00ea21f30574c583be9407074247f2dc5b9effea708a5",
+            "results/record-layouts/libgit2/records.rs": "212b77fa4e12f70731f9edc4835d8c8513eee7aab9d77689670ad6fbbeca57a9",
+            "results/record-layouts/libgit2/records.c": "73a235f77e109cd13ab32d812dd6d6105e0f11059d9e75019e1c89749069737d"
+          },
+          "comparison_sha256": "ca33f9a2b4613bd55f18513dc305168b768bcb41cc482950cd43cc0c9411572b",
+          "inventory_sha256": "04ca93e8c8f68e01fc9e44f21ec4f88928d0e60f534b7e6fd045235d4587ea2d",
+          "oracle_sha256": "f87d624542b0d4416e6fa8649f6f9e6fe91c0da943cae0ea2e037815116453e4",
+          "compiled_oracle_source_sha256": "0d0c473efe51bebd8ff00ea21f30574c583be9407074247f2dc5b9effea708a5",
+          "counts": {
+            "native": {
+              "integer_constants": 711,
+              "enum_constants": 582,
+              "anonymous_enum_projections": 0,
+              "string_constants": 3,
+              "records": 8,
+              "field_offsets": 26,
+              "comparisons": 3342,
+              "declarations": 1138,
+              "omitted_macros": 68,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 844,
+                "equal": 844
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 666,
+                "equal": 661
+              },
+              "aliases": {
+                "common": 158,
+                "equal": 158
+              },
+              "record_shapes": {
+                "common": 141,
+                "equal": 141
+              },
+              "native_records": {
+                "common": 85,
+                "equal": 85
+              },
+              "native_fields": {
+                "common": 432,
+                "equal": 432
+              },
+              "native_constants": {
+                "common": 666,
+                "equal": 665
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 85,
+              "offset_count": 432,
+              "comparisons": 602
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "GIT_ATTR_FALSE_T",
+                "GIT_ATTR_TRUE_T",
+                "GIT_ATTR_UNSPECIFIED_T",
+                "GIT_ATTR_VALUE_T",
+                "GIT_BLOB_FILTER_ATTTRIBUTES_FROM_HEAD",
+                "GIT_CREDTYPE_DEFAULT",
+                "GIT_CREDTYPE_SSH_CUSTOM",
+                "GIT_CREDTYPE_SSH_INTERACTIVE",
+                "GIT_CREDTYPE_SSH_KEY",
+                "GIT_CREDTYPE_SSH_MEMORY",
+                "GIT_CREDTYPE_USERNAME",
+                "GIT_CREDTYPE_USERPASS_PLAINTEXT",
+                "GIT_CVAR_FALSE",
+                "GIT_CVAR_INT32",
+                "GIT_CVAR_STRING",
+                "GIT_CVAR_TRUE",
+                "GIT_ERROR_SHA1",
+                "GIT_IDXENTRY_EXTENDED",
+                "GIT_IDXENTRY_EXTENDED_FLAGS",
+                "GIT_IDXENTRY_INTENT_TO_ADD",
+                "GIT_IDXENTRY_SKIP_WORKTREE",
+                "GIT_IDXENTRY_VALID",
+                "GIT_INDEXCAP_FROM_OWNER",
+                "GIT_INDEXCAP_IGNORE_CASE",
+                "GIT_INDEXCAP_NO_FILEMODE",
+                "GIT_INDEXCAP_NO_SYMLINKS",
+                "GIT_OBJECT_SIZE_MAX",
+                "GIT_OBJ_ANY",
+                "GIT_OBJ_BAD",
+                "GIT_OBJ_BLOB",
+                "GIT_OBJ_COMMIT",
+                "GIT_OBJ_OFS_DELTA",
+                "GIT_OBJ_REF_DELTA",
+                "GIT_OBJ_TAG",
+                "GIT_OBJ_TREE",
+                "GIT_OID_DEFAULT",
+                "GIT_REF_FORMAT_ALLOW_ONELEVEL",
+                "GIT_REF_FORMAT_NORMAL",
+                "GIT_REF_FORMAT_REFSPEC_PATTERN",
+                "GIT_REF_FORMAT_REFSPEC_SHORTHAND",
+                "GIT_REF_INVALID",
+                "GIT_REF_LISTALL",
+                "GIT_REF_OID",
+                "GIT_REF_SYMBOLIC",
+                "GIT_REVPARSE_MERGE_BASE",
+                "GIT_REVPARSE_RANGE",
+                "GIT_REVPARSE_SINGLE",
+                "GIT_STATUS_OPT_DEFAULTS"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C macro expression type differs from bindgen's inferred Rust constant type",
+              "names": [
+                "GIT_PATH_LIST_SEPARATOR",
+                "GIT_SUBMODULE_STATUS__INDEX_FLAGS",
+                "GIT_SUBMODULE_STATUS__IN_FLAGS",
+                "GIT_SUBMODULE_STATUS__WD_FLAGS"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "GIT_REBASE_NO_OPERATION"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__int32_t",
+                "__int64_t",
+                "__toucan_enum_0",
+                "__toucan_enum_1",
+                "__toucan_enum_10",
+                "__toucan_enum_11",
+                "__toucan_enum_12",
+                "__toucan_enum_13",
+                "__toucan_enum_14",
+                "__toucan_enum_15",
+                "__toucan_enum_16",
+                "__toucan_enum_17",
+                "__toucan_enum_18",
+                "__toucan_enum_19",
+                "__toucan_enum_2",
+                "__toucan_enum_20",
+                "__toucan_enum_21",
+                "__toucan_enum_22",
+                "__toucan_enum_23",
+                "__toucan_enum_24",
+                "__toucan_enum_25",
+                "__toucan_enum_26",
+                "__toucan_enum_27",
+                "__toucan_enum_28",
+                "__toucan_enum_29",
+                "__toucan_enum_3",
+                "__toucan_enum_30",
+                "__toucan_enum_31",
+                "__toucan_enum_33",
+                "__toucan_enum_34",
+                "__toucan_enum_35",
+                "__toucan_enum_36",
+                "__toucan_enum_37",
+                "__toucan_enum_38",
+                "__toucan_enum_39",
+                "__toucan_enum_4",
+                "__toucan_enum_40",
+                "__toucan_enum_41",
+                "__toucan_enum_42",
+                "__toucan_enum_43",
+                "__toucan_enum_44",
+                "__toucan_enum_45",
+                "__toucan_enum_46",
+                "__toucan_enum_47",
+                "__toucan_enum_48",
+                "__toucan_enum_49",
+                "__toucan_enum_5",
+                "__toucan_enum_50",
+                "__toucan_enum_51",
+                "__toucan_enum_52",
+                "__toucan_enum_53",
+                "__toucan_enum_55",
+                "__toucan_enum_56",
+                "__toucan_enum_57",
+                "__toucan_enum_58",
+                "__toucan_enum_59",
+                "__toucan_enum_6",
+                "__toucan_enum_60",
+                "__toucan_enum_61",
+                "__toucan_enum_62",
+                "__toucan_enum_63",
+                "__toucan_enum_64",
+                "__toucan_enum_65",
+                "__toucan_enum_66",
+                "__toucan_enum_67",
+                "__toucan_enum_68",
+                "__toucan_enum_69",
+                "__toucan_enum_7",
+                "__toucan_enum_70",
+                "__toucan_enum_71",
+                "__toucan_enum_72",
+                "__toucan_enum_73",
+                "__toucan_enum_74",
+                "__toucan_enum_75",
+                "__toucan_enum_76",
+                "__toucan_enum_77",
+                "__toucan_enum_78",
+                "__toucan_enum_79",
+                "__toucan_enum_8",
+                "__toucan_enum_80",
+                "__toucan_enum_81",
+                "__toucan_enum_82",
+                "__toucan_enum_83",
+                "__toucan_enum_9",
+                "__uint16_t",
+                "__uint32_t",
+                "__uint64_t",
+                "int32_t",
+                "int64_t",
+                "size_t",
+                "uint16_t",
+                "uint32_t",
+                "uint64_t"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "typedef represented by the corresponding named Rust record",
+              "names": [
+                "git_apply_options",
+                "git_attr_options",
+                "git_blob_filter_options",
+                "git_buf",
+                "git_cert_hostkey",
+                "git_cert_x509",
+                "git_checkout_perfdata",
+                "git_cherrypick_options",
+                "git_commit_create_options",
+                "git_configmap",
+                "git_describe_format_options",
+                "git_diff_binary",
+                "git_diff_binary_file",
+                "git_diff_delta",
+                "git_diff_file",
+                "git_diff_find_options",
+                "git_diff_format_email_options",
+                "git_diff_hunk",
+                "git_diff_line",
+                "git_diff_options",
+                "git_diff_parse_options",
+                "git_diff_similarity_metric",
+                "git_email_create_options",
+                "git_error",
+                "git_fetch_options",
+                "git_filter_options",
+                "git_index_time",
+                "git_merge_file_input",
+                "git_merge_file_options",
+                "git_merge_file_result",
+                "git_merge_options",
+                "git_message_trailer",
+                "git_message_trailer_array",
+                "git_odb_backend_loose_options",
+                "git_odb_backend_pack_options",
+                "git_odb_options",
+                "git_proxy_options",
+                "git_push_options",
+                "git_push_update",
+                "git_rebase_operation",
+                "git_rebase_options",
+                "git_remote_connect_options",
+                "git_repository_init_options",
+                "git_revert_options",
+                "git_revspec",
+                "git_status_entry",
+                "git_status_options",
+                "git_tree_update"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "deprecated C typedef omitted by bindgen; C type identity checked",
+              "names": [
+                "git_attr_t",
+                "git_revparse_mode_t"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "GIT_ATTR_FALSE_T",
+                "GIT_ATTR_TRUE_T",
+                "GIT_ATTR_UNSPECIFIED_T",
+                "GIT_ATTR_VALUE_T",
+                "GIT_BLOB_FILTER_ATTTRIBUTES_FROM_HEAD",
+                "GIT_CREDTYPE_DEFAULT",
+                "GIT_CREDTYPE_SSH_CUSTOM",
+                "GIT_CREDTYPE_SSH_INTERACTIVE",
+                "GIT_CREDTYPE_SSH_KEY",
+                "GIT_CREDTYPE_SSH_MEMORY",
+                "GIT_CREDTYPE_USERNAME",
+                "GIT_CREDTYPE_USERPASS_PLAINTEXT",
+                "GIT_CVAR_FALSE",
+                "GIT_CVAR_INT32",
+                "GIT_CVAR_STRING",
+                "GIT_CVAR_TRUE",
+                "GIT_ERROR_SHA1",
+                "GIT_IDXENTRY_EXTENDED",
+                "GIT_IDXENTRY_EXTENDED_FLAGS",
+                "GIT_IDXENTRY_INTENT_TO_ADD",
+                "GIT_IDXENTRY_SKIP_WORKTREE",
+                "GIT_IDXENTRY_VALID",
+                "GIT_INDEXCAP_FROM_OWNER",
+                "GIT_INDEXCAP_IGNORE_CASE",
+                "GIT_INDEXCAP_NO_FILEMODE",
+                "GIT_INDEXCAP_NO_SYMLINKS",
+                "GIT_OBJECT_SIZE_MAX",
+                "GIT_OBJ_ANY",
+                "GIT_OBJ_BAD",
+                "GIT_OBJ_BLOB",
+                "GIT_OBJ_COMMIT",
+                "GIT_OBJ_OFS_DELTA",
+                "GIT_OBJ_REF_DELTA",
+                "GIT_OBJ_TAG",
+                "GIT_OBJ_TREE",
+                "GIT_OID_DEFAULT",
+                "GIT_REF_FORMAT_ALLOW_ONELEVEL",
+                "GIT_REF_FORMAT_NORMAL",
+                "GIT_REF_FORMAT_REFSPEC_PATTERN",
+                "GIT_REF_FORMAT_REFSPEC_SHORTHAND",
+                "GIT_REF_INVALID",
+                "GIT_REF_LISTALL",
+                "GIT_REF_OID",
+                "GIT_REF_SYMBOLIC",
+                "GIT_REVPARSE_MERGE_BASE",
+                "GIT_REVPARSE_RANGE",
+                "GIT_REVPARSE_SINGLE",
+                "GIT_STATUS_OPT_DEFAULTS"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "GIT_REBASE_NO_OPERATION"
+              ]
+            },
+            {
+              "category": "excluded_storage_fields",
+              "reason": "bitfield helper storage; C/Rust setter and getter FFI checked",
+              "names": [
+                "git_commit_create_options",
+                "git_commit_create_options"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "sqlite",
+          "version": "3.45.1",
+          "commit": "189e44dfecdc7868bb860dfb5d98eab371318c37",
+          "archive_sha256": "c05d9dc99e90c35f021ebf0b6b0a36d44714088ba77f84022eb22784d6123c7e",
+          "header_sha256": "41e066ccd4f89e938f136ceb48c996c54dc381b59fe566dea48864c3750b779e",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "bf25b4d2e1c45f542b64d7b47e417705f2a634e41e2d58f2e509805c109025c3",
+            "bindgen": "d88bf69cc99c9c357e3250c31b9c3dae4d2c59fc21c01888c08707b679d9dfa0"
+          },
+          "library_sha256": {
+            "libsqlite3.a": "b3cd8aceca97f85b63d08816ff9a5a084b58297298ca4b9550fc367392764b83"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/sqlite/probe.rs": "1ec7c0af46a4598009fab47acb33b09534fa1d5d2b77bd00889d9619d05f42f7",
+            "results/native/sqlite/bindings.rs": "bf25b4d2e1c45f542b64d7b47e417705f2a634e41e2d58f2e509805c109025c3",
+            "results/native/sqlite/probe.c": "167230f5ea77375b352bbe7d183165b8c179f2f1a6d59f9ea4631e2524044c97",
+            "results/equivalence/sqlite/bindings.rs": "bf25b4d2e1c45f542b64d7b47e417705f2a634e41e2d58f2e509805c109025c3",
+            "results/equivalence/sqlite/va-list-oracle.c": "bf9cfcf1b2c407633e89ffbffd15369befa9159c1ccb4bedd3e27821767c7b1b",
+            "results/equivalence/sqlite/bindgen.rs": "d88bf69cc99c9c357e3250c31b9c3dae4d2c59fc21c01888c08707b679d9dfa0",
+            "results/equivalence/sqlite/oracle.c": "6e4aaa9cbb91cc7da572825e1acc05ef340e873476be61b6c0718a18f017762c",
+            "results/record-layouts/sqlite/records.rs": "e68533d653d01a8fbed4756220ed1297aee1bfa20e8c87f432d356fe55172d52",
+            "results/record-layouts/sqlite/records.c": "56a1ba0fa8df2c99e997d0dff9936208f55d7c9154831e9348b160c8ddecaf1f"
+          },
+          "comparison_sha256": "8164df70772585156accbb50c4a36cfc4a332b84683669a8c11b578cf632c3d8",
+          "inventory_sha256": "a7ed00d3a81921b8c67f460b6b633e56447fef8060b08dd95a143eb0610686b4",
+          "oracle_sha256": "6bbff73156f8eeded89327a178168bc567ef303c8a90c7940e2d93dc42bc77fe",
+          "compiled_oracle_source_sha256": "6e4aaa9cbb91cc7da572825e1acc05ef340e873476be61b6c0718a18f017762c",
+          "counts": {
+            "native": {
+              "integer_constants": 461,
+              "enum_constants": 0,
+              "anonymous_enum_projections": 0,
+              "string_constants": 2,
+              "records": 4,
+              "field_offsets": 26,
+              "comparisons": 1419,
+              "declarations": 326,
+              "omitted_macros": 12,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 291,
+                "equal": 291
+              },
+              "globals": {
+                "common": 3,
+                "equal": 3
+              },
+              "constants": {
+                "common": 463,
+                "equal": 463
+              },
+              "aliases": {
+                "common": 11,
+                "equal": 11
+              },
+              "record_shapes": {
+                "common": 29,
+                "equal": 27
+              },
+              "native_records": {
+                "common": 19,
+                "equal": 19
+              },
+              "native_fields": {
+                "common": 157,
+                "equal": 157
+              },
+              "native_constants": {
+                "common": 463,
+                "equal": 463
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 19,
+              "offset_count": 162,
+              "comparisons": 200
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__builtin_va_list"
+              ]
+            },
+            {
+              "category": "record_shapes",
+              "reason": "C va_list fields represented by opaque array storage in bindgen; native and C layouts checked",
+              "names": [
+                "__builtin_va_list_record"
+              ]
+            },
+            {
+              "category": "record_shapes",
+              "reason": "C xDlSym returns void (*)(void); bindgen repeats the lookup parameters",
+              "names": [
+                "sqlite3_vfs"
+              ]
+            },
+            {
+              "category": "native_fields",
+              "reason": "C va_list fields represented by opaque array storage in bindgen; native and C layouts checked",
+              "names": [
+                "__builtin_va_list_record.__gr_offs",
+                "__builtin_va_list_record.__gr_top",
+                "__builtin_va_list_record.__stack",
+                "__builtin_va_list_record.__vr_offs",
+                "__builtin_va_list_record.__vr_top",
+                "__builtin_va_list_record.0"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "zlib",
+          "version": "1.3.1",
+          "commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+          "archive_sha256": "2c547ae1e001c09db5d0a9d0e157f75dc55151757923cc611a08630391af81bc",
+          "header_sha256": "8a5579af72ea4f427ff00a4150f0ccb3fc5c1e4379f726e101133b1ab9fc600c",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "bfd2cab9798242bee896da3483fff5facc95c8ed2a258db2a1f5d84610a078c8",
+            "bindgen": "d7a94f1576bf232f670bbb55248059ef14ca97514eb1f5486ab811e5d365234e"
+          },
+          "library_sha256": {
+            "libz.a": "74900879f213daaa59c3da24fbfda81390c3c9fcaa2bc4f02195c225ef852f69"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/zlib/probe.rs": "a47c5cbd352225244a012f733ec35439593176e22b1b3dc6903cc8e0b4b2a9f0",
+            "results/native/zlib/bindings.rs": "bfd2cab9798242bee896da3483fff5facc95c8ed2a258db2a1f5d84610a078c8",
+            "results/native/zlib/probe.c": "665836eb1a7c6db09009c0e98f86e3646597c2c9cf15d7fc26d4ccaff3d843b9",
+            "results/equivalence/zlib/bindings.rs": "bfd2cab9798242bee896da3483fff5facc95c8ed2a258db2a1f5d84610a078c8",
+            "results/equivalence/zlib/va-list-oracle.c": "618970f78121268bd4fa86ca86472543b36edb7986a3401cf43046c404a6397c",
+            "results/equivalence/zlib/bindgen.rs": "d7a94f1576bf232f670bbb55248059ef14ca97514eb1f5486ab811e5d365234e",
+            "results/record-layouts/zlib/records.rs": "3e01195d81da5bddf9384f7cfa0d4a8a7da1408cd018fb2167c39cf63a40cfde",
+            "results/record-layouts/zlib/records.c": "30bed6c848fef0abdd04d8ebaec2c481c37c55b59192c0c9b2bf2588f2e3fb03"
+          },
+          "comparison_sha256": "b47c3305d62366f61b3fd0a9ad456d69dd9f81b5312abf3587e66f3a26474466",
+          "inventory_sha256": "463f2d468c590409017690b96c1521269472f64378a0ba6e0af80a8445afc7d0",
+          "oracle_sha256": null,
+          "compiled_oracle_source_sha256": null,
+          "counts": {
+            "native": {
+              "integer_constants": 36,
+              "enum_constants": 0,
+              "anonymous_enum_projections": 0,
+              "string_constants": 1,
+              "records": 2,
+              "field_offsets": 27,
+              "comparisons": 140,
+              "declarations": 101,
+              "omitted_macros": 18,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 81,
+                "equal": 81
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 37,
+                "equal": 37
+              },
+              "aliases": {
+                "common": 24,
+                "equal": 24
+              },
+              "record_shapes": {
+                "common": 5,
+                "equal": 4
+              },
+              "native_records": {
+                "common": 4,
+                "equal": 4
+              },
+              "native_fields": {
+                "common": 30,
+                "equal": 30
+              },
+              "native_constants": {
+                "common": 37,
+                "equal": 37
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 4,
+              "offset_count": 35,
+              "comparisons": 43
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__builtin_va_list",
+                "size_t"
+              ]
+            },
+            {
+              "category": "record_shapes",
+              "reason": "C va_list fields represented by opaque array storage in bindgen; native and C layouts checked",
+              "names": [
+                "__builtin_va_list_record"
+              ]
+            },
+            {
+              "category": "native_fields",
+              "reason": "C va_list fields represented by opaque array storage in bindgen; native and C layouts checked",
+              "names": [
+                "__builtin_va_list_record.__gr_offs",
+                "__builtin_va_list_record.__gr_top",
+                "__builtin_va_list_record.__stack",
+                "__builtin_va_list_record.__vr_offs",
+                "__builtin_va_list_record.__vr_top",
+                "__builtin_va_list_record.0"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "zstd",
+          "version": "1.5.7",
+          "commit": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+          "archive_sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+          "header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "837b42f296f3e4646747aecaf3973d19c25c6fbdd411f51a25125099a1e15855",
+            "bindgen": "559220a3dc71b2a7d96fa61f1fb032f3c5e305414077c805c6c322b28ef80459"
+          },
+          "library_sha256": {
+            "libzstd.a": "6d7e7cfc09ba12253610dc725eee2c1900a3e9ffe3122201d09e58a22b846abf"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/zstd/probe.rs": "00dfba1ee786e469239ea90cf248acdfdac38785d709f338eb3ec878549a6ce4",
+            "results/native/zstd/bindings.rs": "837b42f296f3e4646747aecaf3973d19c25c6fbdd411f51a25125099a1e15855",
+            "results/native/zstd/probe.c": "ccfa0048b8f4547141fb2f639de570272e2ac76b4b6aa179405c09a854e88184",
+            "results/equivalence/zstd/bindings.rs": "837b42f296f3e4646747aecaf3973d19c25c6fbdd411f51a25125099a1e15855",
+            "results/equivalence/zstd/bindgen.rs": "559220a3dc71b2a7d96fa61f1fb032f3c5e305414077c805c6c322b28ef80459",
+            "results/equivalence/zstd/oracle.c": "aed24c8e32a6ad65055d206913670c79bce57868ee870635f5756cb521e381dd",
+            "results/record-layouts/zstd/records.rs": "42aefef71ffb76a95cd4f209af0cf134c7d3f7bc9020af944fb8a1020ee2a327",
+            "results/record-layouts/zstd/records.c": "ce2f7d58d06ae65bfb6c69834ff0f5c098af1a99440f74cfe87aef011b05adff"
+          },
+          "comparison_sha256": "b9c049c0f3a03b5cbed97c835f2118b9e40632633ea724ed6e983750f4310990",
+          "inventory_sha256": "874ca0c2a9bc8f33d8cb125da6fd31394b00082480fec54c3a118b89474de8ca",
+          "oracle_sha256": "6beb4f003c4c3259deb2fa3ee2c12590968643ca5649ed8c1acf5269e7ea62b2",
+          "compiled_oracle_source_sha256": "aed24c8e32a6ad65055d206913670c79bce57868ee870635f5756cb521e381dd",
+          "counts": {
+            "native": {
+              "integer_constants": 111,
+              "enum_constants": 97,
+              "anonymous_enum_projections": 0,
+              "string_constants": 1,
+              "records": 3,
+              "field_offsets": 9,
+              "comparisons": 543,
+              "declarations": 83,
+              "omitted_macros": 13,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 68,
+                "equal": 68
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 110,
+                "equal": 105
+              },
+              "aliases": {
+                "common": 14,
+                "equal": 14
+              },
+              "record_shapes": {
+                "common": 7,
+                "equal": 7
+              },
+              "native_records": {
+                "common": 3,
+                "equal": 3
+              },
+              "native_fields": {
+                "common": 9,
+                "equal": 9
+              },
+              "native_constants": {
+                "common": 110,
+                "equal": 108
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 3,
+              "offset_count": 9,
+              "comparisons": 15
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "ZSTD_MAX_INPUT_SIZE",
+                "ZSTD_VERSION_STRING"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "ZSTD_CONTENTSIZE_ERROR",
+                "ZSTD_CONTENTSIZE_UNKNOWN"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C macro expression type differs from bindgen's inferred Rust constant type",
+              "names": [
+                "ZSTD_MAGICNUMBER",
+                "ZSTD_MAGIC_DICTIONARY",
+                "ZSTD_MAGIC_SKIPPABLE_MASK"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "typedef represented by the corresponding named Rust record",
+              "names": [
+                "ZSTD_bounds"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__toucan_enum_0",
+                "__toucan_enum_1",
+                "__toucan_enum_2",
+                "__toucan_enum_3",
+                "__toucan_enum_4",
+                "__toucan_enum_5",
+                "size_t"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "ZSTD_MAX_INPUT_SIZE",
+                "ZSTD_VERSION_STRING"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "ZSTD_CONTENTSIZE_ERROR",
+                "ZSTD_CONTENTSIZE_UNKNOWN"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        }
+      ],
+      "counts": {
+        "native": {
+          "integer_constants": 1319,
+          "enum_constants": 679,
+          "anonymous_enum_projections": 0,
+          "string_constants": 7,
+          "records": 17,
+          "field_offsets": 88,
+          "comparisons": 5444,
+          "declarations": 1648,
+          "omitted_macros": 111,
+          "skipped_declarations": 0
+        },
+        "api_comparison": {
+          "functions": {
+            "common": 1284,
+            "equal": 1284
+          },
+          "globals": {
+            "common": 3,
+            "equal": 3
+          },
+          "constants": {
+            "common": 1276,
+            "equal": 1266
+          },
+          "aliases": {
+            "common": 207,
+            "equal": 207
+          },
+          "record_shapes": {
+            "common": 182,
+            "equal": 179
+          },
+          "native_records": {
+            "common": 111,
+            "equal": 111
+          },
+          "native_fields": {
+            "common": 628,
+            "equal": 628
+          },
+          "native_constants": {
+            "common": 1276,
+            "equal": 1273
+          }
+        },
+        "all_record_layouts": {
+          "record_count": 111,
+          "offset_count": 638,
+          "comparisons": 860
+        }
+      },
+      "tool_versions": {
+        "bindgen": [
+          "0.72.1"
+        ],
+        "bindgen_version_source": "Generated binding banner",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+        "cc": "cc (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0"
+      },
+      "verification_problems": []
+    },
+    {
+      "target": "x86_64-apple-darwin",
+      "status": "passed",
+      "job": {
+        "id": 101906898347,
+        "name": "Native corpus (x86_64-apple-darwin)",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34176518153/job/101906898347",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:30:27Z",
+        "completed_at": "2026-09-08T01:35:57Z",
+        "checkout": {
+          "log_sha256": "9c0c6fbc5d9ca1965576ad91f35814833d36d8b68a574abe6cbbeaddc3262182",
+          "log_file": "34176518153-job-101906898347.log",
+          "merged_head_sha": "b9f27b39c01d62cff7620f9960e0380565d30f4c",
+          "base_sha": "34791a86c4f35f22e4bfa7ba48f49cffc003f117",
+          "checkout_sha": "8c434c12a074c647671433be6017f51374a67df1",
+          "status": "verified from checkout log"
+        }
+      },
+      "artifact": {
+        "id": 10037647975,
+        "name": "corpus-x86_64-apple-darwin",
+        "digest": "sha256:9a931313a1a7a48f87ab150c195caa61bab79bb1331aaea5d73738d00f6cd1b0",
+        "size_in_bytes": 815643,
+        "created_at": "2026-09-08T01:35:54Z",
+        "expires_at": "2026-09-22T01:35:52Z",
+        "expired": false
+      },
+      "downloaded_artifact_directory": "/home/dev-user/.cache/toucan/native-ci-34176518153/x86_64-apple",
+      "environment": {
+        "recorded_at": "2026-09-08T01:33:40.641313+00:00",
+        "host": "macOS-15.7.9-x86_64-i386-64bit-Mach-O",
+        "sysroot": "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+        "cc": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)"
+      },
+      "tool_sha256": {
+        "toucan": "f7d24b8c0cf20edce1d9e50be348b69a47fe76688d82c48b4c0682938a088722",
+        "bindgen": "7a3dc3806a179dc882ad9998b51d66691f4dcac1795d9d336c3e77b63923fc8f",
+        "analyzer": "3493d1d4b68435929402b16c3f962c44152d135f4cd2e29c28bbbef29b3f8373"
+      },
+      "source_evidence": {
+        "native": {
+          "path_in_artifact": "results/native/evidence.json",
+          "sha256": "4e90e935909b4ab9f6550ddded78858c426404614c1c47b40b8ddad66edb6635",
+          "status": "passed"
+        },
+        "equivalence": {
+          "path_in_artifact": "results/equivalence/evidence.json",
+          "sha256": "d90e81654ff4e4b3a8caaf514c624a6065d6c4b96f678d5ef4aed6e6113fa7af",
+          "status": "passed"
+        },
+        "record-layouts": {
+          "path_in_artifact": "results/record-layouts/evidence.json",
+          "sha256": "7deaee3013938d795dd9b4fb394b05774bdce2adf92c0a46ed38668adddf12eb",
+          "status": "passed"
+        }
+      },
+      "prepared_sha256": "25a0beef631714d2c2b6d8e1004c1cfc3efd89680b3d880aa362146060b1990d",
+      "exact_equivalence": false,
+      "projects": [
+        {
+          "name": "libgit2",
+          "version": "1.9.1",
+          "commit": "0060d9cf5666f015b1067129bd874c6cc4c9c7ac",
+          "archive_sha256": "4a7944d8439cccac187ef0ff4085556f198d85225eef55686b3dfb3413e0d0f1",
+          "header_sha256": "04b93d6a4dac32d661a56c3ca222ba62e8896f8148774ed52565d631ebf8d0e0",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "e10bb41c55b3f4268295c1cf599343dd70360bfe84b344772570c2c2ba97d827",
+            "bindgen": "51613c9629ad49ac2676a66ba640e4188b99479505d631c6edf60027555470b3"
+          },
+          "library_sha256": {
+            "libgit2.a": "1956ea196f35dc7d2c83af45fd2013ddc643f252a2dec68bf97559a7866e8dfa"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/libgit2/probe.rs": "cde92a89a1f23cb608972f0530fb5e2603d1ea5cde4507e48a24d40e4896ea5e",
+            "results/native/libgit2/bindings.rs": "e10bb41c55b3f4268295c1cf599343dd70360bfe84b344772570c2c2ba97d827",
+            "results/native/libgit2/probe.c": "1aec046dc3a295faf69e90d521cb237c79096fa2262dd66e6e35bf513151662c",
+            "results/equivalence/libgit2/bindings.rs": "e10bb41c55b3f4268295c1cf599343dd70360bfe84b344772570c2c2ba97d827",
+            "results/equivalence/libgit2/bindgen.rs": "51613c9629ad49ac2676a66ba640e4188b99479505d631c6edf60027555470b3",
+            "results/equivalence/libgit2/oracle.c": "ec5d4d5edb84a4c0454a699a587a60e58e35dd45b688a4eb72b0abde9df1c436",
+            "results/record-layouts/libgit2/records.rs": "1e65c46abc95bc7830aab89eef21df08b6ff871c05161b0348ac150d19135322",
+            "results/record-layouts/libgit2/records.c": "66371b6130de8b4bb5a4135c73909283800ce14d678bba551ecc7276f5656cd8"
+          },
+          "comparison_sha256": "fe563c0b32e1326965465239db6db367b3b4460b94ec30060db18742d01a11b0",
+          "inventory_sha256": "8e5f5c00049f122d336377417300589a572c2a3e78a8e4f30500e8467fc4a862",
+          "oracle_sha256": "f87d624542b0d4416e6fa8649f6f9e6fe91c0da943cae0ea2e037815116453e4",
+          "compiled_oracle_source_sha256": "ec5d4d5edb84a4c0454a699a587a60e58e35dd45b688a4eb72b0abde9df1c436",
+          "counts": {
+            "native": {
+              "integer_constants": 711,
+              "enum_constants": 582,
+              "anonymous_enum_projections": 0,
+              "string_constants": 3,
+              "records": 8,
+              "field_offsets": 26,
+              "comparisons": 3342,
+              "declarations": 1138,
+              "omitted_macros": 68,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 844,
+                "equal": 844
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 667,
+                "equal": 661
+              },
+              "aliases": {
+                "common": 158,
+                "equal": 158
+              },
+              "record_shapes": {
+                "common": 141,
+                "equal": 141
+              },
+              "native_records": {
+                "common": 85,
+                "equal": 85
+              },
+              "native_fields": {
+                "common": 432,
+                "equal": 432
+              },
+              "native_constants": {
+                "common": 667,
+                "equal": 665
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 85,
+              "offset_count": 432,
+              "comparisons": 602
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "GIT_ATTR_FALSE_T",
+                "GIT_ATTR_TRUE_T",
+                "GIT_ATTR_UNSPECIFIED_T",
+                "GIT_ATTR_VALUE_T",
+                "GIT_BLOB_FILTER_ATTTRIBUTES_FROM_HEAD",
+                "GIT_CREDTYPE_DEFAULT",
+                "GIT_CREDTYPE_SSH_CUSTOM",
+                "GIT_CREDTYPE_SSH_INTERACTIVE",
+                "GIT_CREDTYPE_SSH_KEY",
+                "GIT_CREDTYPE_SSH_MEMORY",
+                "GIT_CREDTYPE_USERNAME",
+                "GIT_CREDTYPE_USERPASS_PLAINTEXT",
+                "GIT_CVAR_FALSE",
+                "GIT_CVAR_INT32",
+                "GIT_CVAR_STRING",
+                "GIT_CVAR_TRUE",
+                "GIT_ERROR_SHA1",
+                "GIT_IDXENTRY_EXTENDED",
+                "GIT_IDXENTRY_EXTENDED_FLAGS",
+                "GIT_IDXENTRY_INTENT_TO_ADD",
+                "GIT_IDXENTRY_SKIP_WORKTREE",
+                "GIT_IDXENTRY_VALID",
+                "GIT_INDEXCAP_FROM_OWNER",
+                "GIT_INDEXCAP_IGNORE_CASE",
+                "GIT_INDEXCAP_NO_FILEMODE",
+                "GIT_INDEXCAP_NO_SYMLINKS",
+                "GIT_OBJ_ANY",
+                "GIT_OBJ_BAD",
+                "GIT_OBJ_BLOB",
+                "GIT_OBJ_COMMIT",
+                "GIT_OBJ_OFS_DELTA",
+                "GIT_OBJ_REF_DELTA",
+                "GIT_OBJ_TAG",
+                "GIT_OBJ_TREE",
+                "GIT_OID_DEFAULT",
+                "GIT_REF_FORMAT_ALLOW_ONELEVEL",
+                "GIT_REF_FORMAT_NORMAL",
+                "GIT_REF_FORMAT_REFSPEC_PATTERN",
+                "GIT_REF_FORMAT_REFSPEC_SHORTHAND",
+                "GIT_REF_INVALID",
+                "GIT_REF_LISTALL",
+                "GIT_REF_OID",
+                "GIT_REF_SYMBOLIC",
+                "GIT_REVPARSE_MERGE_BASE",
+                "GIT_REVPARSE_RANGE",
+                "GIT_REVPARSE_SINGLE",
+                "GIT_STATUS_OPT_DEFAULTS"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "GIT_OBJECT_SIZE_MAX",
+                "GIT_REBASE_NO_OPERATION"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C macro expression type differs from bindgen's inferred Rust constant type",
+              "names": [
+                "GIT_PATH_LIST_SEPARATOR",
+                "GIT_SUBMODULE_STATUS__INDEX_FLAGS",
+                "GIT_SUBMODULE_STATUS__IN_FLAGS",
+                "GIT_SUBMODULE_STATUS__WD_FLAGS"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__darwin_size_t",
+                "__toucan_enum_10",
+                "__toucan_enum_11",
+                "__toucan_enum_12",
+                "__toucan_enum_13",
+                "__toucan_enum_14",
+                "__toucan_enum_15",
+                "__toucan_enum_16",
+                "__toucan_enum_17",
+                "__toucan_enum_18",
+                "__toucan_enum_19",
+                "__toucan_enum_2",
+                "__toucan_enum_20",
+                "__toucan_enum_21",
+                "__toucan_enum_22",
+                "__toucan_enum_23",
+                "__toucan_enum_24",
+                "__toucan_enum_25",
+                "__toucan_enum_26",
+                "__toucan_enum_27",
+                "__toucan_enum_28",
+                "__toucan_enum_29",
+                "__toucan_enum_3",
+                "__toucan_enum_30",
+                "__toucan_enum_31",
+                "__toucan_enum_32",
+                "__toucan_enum_33",
+                "__toucan_enum_35",
+                "__toucan_enum_36",
+                "__toucan_enum_37",
+                "__toucan_enum_38",
+                "__toucan_enum_39",
+                "__toucan_enum_4",
+                "__toucan_enum_40",
+                "__toucan_enum_41",
+                "__toucan_enum_42",
+                "__toucan_enum_43",
+                "__toucan_enum_44",
+                "__toucan_enum_45",
+                "__toucan_enum_46",
+                "__toucan_enum_47",
+                "__toucan_enum_48",
+                "__toucan_enum_49",
+                "__toucan_enum_5",
+                "__toucan_enum_50",
+                "__toucan_enum_51",
+                "__toucan_enum_52",
+                "__toucan_enum_53",
+                "__toucan_enum_54",
+                "__toucan_enum_55",
+                "__toucan_enum_57",
+                "__toucan_enum_58",
+                "__toucan_enum_59",
+                "__toucan_enum_6",
+                "__toucan_enum_60",
+                "__toucan_enum_61",
+                "__toucan_enum_62",
+                "__toucan_enum_63",
+                "__toucan_enum_64",
+                "__toucan_enum_65",
+                "__toucan_enum_66",
+                "__toucan_enum_67",
+                "__toucan_enum_68",
+                "__toucan_enum_69",
+                "__toucan_enum_7",
+                "__toucan_enum_70",
+                "__toucan_enum_71",
+                "__toucan_enum_72",
+                "__toucan_enum_73",
+                "__toucan_enum_74",
+                "__toucan_enum_75",
+                "__toucan_enum_76",
+                "__toucan_enum_77",
+                "__toucan_enum_78",
+                "__toucan_enum_79",
+                "__toucan_enum_8",
+                "__toucan_enum_80",
+                "__toucan_enum_81",
+                "__toucan_enum_82",
+                "__toucan_enum_83",
+                "__toucan_enum_84",
+                "__toucan_enum_85",
+                "__toucan_enum_9",
+                "int32_t",
+                "int64_t",
+                "size_t",
+                "uint16_t",
+                "uint32_t",
+                "uint64_t"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "typedef represented by the corresponding named Rust record",
+              "names": [
+                "git_apply_options",
+                "git_attr_options",
+                "git_blob_filter_options",
+                "git_buf",
+                "git_cert_hostkey",
+                "git_cert_x509",
+                "git_checkout_perfdata",
+                "git_cherrypick_options",
+                "git_commit_create_options",
+                "git_configmap",
+                "git_describe_format_options",
+                "git_diff_binary",
+                "git_diff_binary_file",
+                "git_diff_delta",
+                "git_diff_file",
+                "git_diff_find_options",
+                "git_diff_format_email_options",
+                "git_diff_hunk",
+                "git_diff_line",
+                "git_diff_options",
+                "git_diff_parse_options",
+                "git_diff_similarity_metric",
+                "git_email_create_options",
+                "git_error",
+                "git_fetch_options",
+                "git_filter_options",
+                "git_index_time",
+                "git_merge_file_input",
+                "git_merge_file_options",
+                "git_merge_file_result",
+                "git_merge_options",
+                "git_message_trailer",
+                "git_message_trailer_array",
+                "git_odb_backend_loose_options",
+                "git_odb_backend_pack_options",
+                "git_odb_options",
+                "git_proxy_options",
+                "git_push_options",
+                "git_push_update",
+                "git_rebase_operation",
+                "git_rebase_options",
+                "git_remote_connect_options",
+                "git_repository_init_options",
+                "git_revert_options",
+                "git_revspec",
+                "git_status_entry",
+                "git_status_options",
+                "git_tree_update"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "deprecated C typedef omitted by bindgen; C type identity checked",
+              "names": [
+                "git_attr_t",
+                "git_revparse_mode_t"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "GIT_ATTR_FALSE_T",
+                "GIT_ATTR_TRUE_T",
+                "GIT_ATTR_UNSPECIFIED_T",
+                "GIT_ATTR_VALUE_T",
+                "GIT_BLOB_FILTER_ATTTRIBUTES_FROM_HEAD",
+                "GIT_CREDTYPE_DEFAULT",
+                "GIT_CREDTYPE_SSH_CUSTOM",
+                "GIT_CREDTYPE_SSH_INTERACTIVE",
+                "GIT_CREDTYPE_SSH_KEY",
+                "GIT_CREDTYPE_SSH_MEMORY",
+                "GIT_CREDTYPE_USERNAME",
+                "GIT_CREDTYPE_USERPASS_PLAINTEXT",
+                "GIT_CVAR_FALSE",
+                "GIT_CVAR_INT32",
+                "GIT_CVAR_STRING",
+                "GIT_CVAR_TRUE",
+                "GIT_ERROR_SHA1",
+                "GIT_IDXENTRY_EXTENDED",
+                "GIT_IDXENTRY_EXTENDED_FLAGS",
+                "GIT_IDXENTRY_INTENT_TO_ADD",
+                "GIT_IDXENTRY_SKIP_WORKTREE",
+                "GIT_IDXENTRY_VALID",
+                "GIT_INDEXCAP_FROM_OWNER",
+                "GIT_INDEXCAP_IGNORE_CASE",
+                "GIT_INDEXCAP_NO_FILEMODE",
+                "GIT_INDEXCAP_NO_SYMLINKS",
+                "GIT_OBJ_ANY",
+                "GIT_OBJ_BAD",
+                "GIT_OBJ_BLOB",
+                "GIT_OBJ_COMMIT",
+                "GIT_OBJ_OFS_DELTA",
+                "GIT_OBJ_REF_DELTA",
+                "GIT_OBJ_TAG",
+                "GIT_OBJ_TREE",
+                "GIT_OID_DEFAULT",
+                "GIT_REF_FORMAT_ALLOW_ONELEVEL",
+                "GIT_REF_FORMAT_NORMAL",
+                "GIT_REF_FORMAT_REFSPEC_PATTERN",
+                "GIT_REF_FORMAT_REFSPEC_SHORTHAND",
+                "GIT_REF_INVALID",
+                "GIT_REF_LISTALL",
+                "GIT_REF_OID",
+                "GIT_REF_SYMBOLIC",
+                "GIT_REVPARSE_MERGE_BASE",
+                "GIT_REVPARSE_RANGE",
+                "GIT_REVPARSE_SINGLE",
+                "GIT_STATUS_OPT_DEFAULTS"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "GIT_OBJECT_SIZE_MAX",
+                "GIT_REBASE_NO_OPERATION"
+              ]
+            },
+            {
+              "category": "excluded_storage_fields",
+              "reason": "bitfield helper storage; C/Rust setter and getter FFI checked",
+              "names": [
+                "git_commit_create_options",
+                "git_commit_create_options"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "sqlite",
+          "version": "3.45.1",
+          "commit": "189e44dfecdc7868bb860dfb5d98eab371318c37",
+          "archive_sha256": "c05d9dc99e90c35f021ebf0b6b0a36d44714088ba77f84022eb22784d6123c7e",
+          "header_sha256": "41e066ccd4f89e938f136ceb48c996c54dc381b59fe566dea48864c3750b779e",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "b9b4bf5f1a44bfb518224527279eb63ff8464757faa486236f477c14d7231969",
+            "bindgen": "e9ddc49018c42f60d83c26de354acf3ffb862c4de3cf226db57c408043dbbbb7"
+          },
+          "library_sha256": {
+            "libsqlite3.a": "204bbcf44ddc8e5d9be89ec425e411579438fc22cdc52d895d9f8d86140c564d"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/sqlite/probe.rs": "1ec7c0af46a4598009fab47acb33b09534fa1d5d2b77bd00889d9619d05f42f7",
+            "results/native/sqlite/bindings.rs": "b9b4bf5f1a44bfb518224527279eb63ff8464757faa486236f477c14d7231969",
+            "results/native/sqlite/probe.c": "1f5e003c24e97da4fa654c98c5cbbfc1535c2fd020a27dc330cc2c50f3661535",
+            "results/equivalence/sqlite/bindings.rs": "b9b4bf5f1a44bfb518224527279eb63ff8464757faa486236f477c14d7231969",
+            "results/equivalence/sqlite/bindgen.rs": "e9ddc49018c42f60d83c26de354acf3ffb862c4de3cf226db57c408043dbbbb7",
+            "results/equivalence/sqlite/oracle.c": "a44544a07ee7f23456f8ba12dd714fd0faa5676f9e7404412605a3c2eb4a456d",
+            "results/record-layouts/sqlite/records.rs": "152c6f530dfae9d96983730c2c0b603629bffd53c5fb071178530f09252a3447",
+            "results/record-layouts/sqlite/records.c": "3189ee9a6707bf1a93903eef6f167fb124389551e7b9b7f559d6a58d98440d1e"
+          },
+          "comparison_sha256": "0c76290748d2a9973ce1f42775be818a5428eeeea0ce07d2692270345225fb4c",
+          "inventory_sha256": "89c81d3b4333896261862ea4220263fb7fe9404b561fabb42e91c2cbb79f9b8c",
+          "oracle_sha256": "6bbff73156f8eeded89327a178168bc567ef303c8a90c7940e2d93dc42bc77fe",
+          "compiled_oracle_source_sha256": "a44544a07ee7f23456f8ba12dd714fd0faa5676f9e7404412605a3c2eb4a456d",
+          "counts": {
+            "native": {
+              "integer_constants": 461,
+              "enum_constants": 0,
+              "anonymous_enum_projections": 0,
+              "string_constants": 2,
+              "records": 4,
+              "field_offsets": 26,
+              "comparisons": 1419,
+              "declarations": 326,
+              "omitted_macros": 12,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 291,
+                "equal": 291
+              },
+              "globals": {
+                "common": 3,
+                "equal": 3
+              },
+              "constants": {
+                "common": 463,
+                "equal": 463
+              },
+              "aliases": {
+                "common": 9,
+                "equal": 9
+              },
+              "record_shapes": {
+                "common": 29,
+                "equal": 28
+              },
+              "native_records": {
+                "common": 19,
+                "equal": 19
+              },
+              "native_fields": {
+                "common": 161,
+                "equal": 161
+              },
+              "native_constants": {
+                "common": 463,
+                "equal": 463
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 19,
+              "offset_count": 161,
+              "comparisons": 199
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__builtin_va_list",
+                "va_list"
+              ]
+            },
+            {
+              "category": "record_shapes",
+              "reason": "C xDlSym returns void (*)(void); bindgen repeats the lookup parameters",
+              "names": [
+                "sqlite3_vfs"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "zlib",
+          "version": "1.3.1",
+          "commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+          "archive_sha256": "2c547ae1e001c09db5d0a9d0e157f75dc55151757923cc611a08630391af81bc",
+          "header_sha256": "8a5579af72ea4f427ff00a4150f0ccb3fc5c1e4379f726e101133b1ab9fc600c",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "1fe6ba3e03d2a47dc5ea1a79e05c2b5a8f8185e7599973bcc5ab8fb5cc0a21d6",
+            "bindgen": "65e6c545c55e3bc57c202ed853a2754749bb856fb433193b6a16d6a92a49fc5b"
+          },
+          "library_sha256": {
+            "libz.a": "10f47f9f124763fbd77f1b30ffbeecfb1a166808ed795b75e0a3fd30a665c732"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/zlib/probe.rs": "a47c5cbd352225244a012f733ec35439593176e22b1b3dc6903cc8e0b4b2a9f0",
+            "results/native/zlib/bindings.rs": "1fe6ba3e03d2a47dc5ea1a79e05c2b5a8f8185e7599973bcc5ab8fb5cc0a21d6",
+            "results/native/zlib/probe.c": "f7584fb9d7443f86c7380de7e5242baca0e6f23e13a7e154b35911088c14163c",
+            "results/equivalence/zlib/bindings.rs": "1fe6ba3e03d2a47dc5ea1a79e05c2b5a8f8185e7599973bcc5ab8fb5cc0a21d6",
+            "results/equivalence/zlib/bindgen.rs": "65e6c545c55e3bc57c202ed853a2754749bb856fb433193b6a16d6a92a49fc5b",
+            "results/record-layouts/zlib/records.rs": "e43df1adf6d74808178c84dad036050c18b3c17cf6ad6caa472e37fef2b31c18",
+            "results/record-layouts/zlib/records.c": "091a1570a393f32d92ac6483c2d929938055787143e01e3bd4743d5289bf029d"
+          },
+          "comparison_sha256": "7c08215ee2fcd6e6ed4aacc4d73ce4844c06a701736bacb17643d8d94044fedc",
+          "inventory_sha256": "ddc30a515e14da3b8ee6c84e5e21f10abd316273f118914c29f9d87e04f11879",
+          "oracle_sha256": null,
+          "compiled_oracle_source_sha256": null,
+          "counts": {
+            "native": {
+              "integer_constants": 36,
+              "enum_constants": 0,
+              "anonymous_enum_projections": 0,
+              "string_constants": 1,
+              "records": 2,
+              "field_offsets": 27,
+              "comparisons": 140,
+              "declarations": 101,
+              "omitted_macros": 17,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 81,
+                "equal": 81
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 37,
+                "equal": 37
+              },
+              "aliases": {
+                "common": 23,
+                "equal": 23
+              },
+              "record_shapes": {
+                "common": 5,
+                "equal": 5
+              },
+              "native_records": {
+                "common": 4,
+                "equal": 4
+              },
+              "native_fields": {
+                "common": 34,
+                "equal": 34
+              },
+              "native_constants": {
+                "common": 37,
+                "equal": 37
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 4,
+              "offset_count": 34,
+              "comparisons": 42
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "size_t",
+                "__builtin_va_list",
+                "va_list"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "zstd",
+          "version": "1.5.7",
+          "commit": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+          "archive_sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+          "header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "e05b7be91532dab700ed5f21a7e2ccf4816e2f7dc298fc66985dd68950ee2e69",
+            "bindgen": "559220a3dc71b2a7d96fa61f1fb032f3c5e305414077c805c6c322b28ef80459"
+          },
+          "library_sha256": {
+            "libzstd.a": "58c04a75a74dc87a307674036a629966b75eb28097e48df2216e5280ae3970a6"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/zstd/probe.rs": "00dfba1ee786e469239ea90cf248acdfdac38785d709f338eb3ec878549a6ce4",
+            "results/native/zstd/bindings.rs": "e05b7be91532dab700ed5f21a7e2ccf4816e2f7dc298fc66985dd68950ee2e69",
+            "results/native/zstd/probe.c": "75c9aab9102918c3de9961afc4610f68846483e824b4129b14b8c9d320d3ad1b",
+            "results/equivalence/zstd/bindings.rs": "e05b7be91532dab700ed5f21a7e2ccf4816e2f7dc298fc66985dd68950ee2e69",
+            "results/equivalence/zstd/bindgen.rs": "559220a3dc71b2a7d96fa61f1fb032f3c5e305414077c805c6c322b28ef80459",
+            "results/equivalence/zstd/oracle.c": "9d7cd53d00195b5f985698c713999293a8ee792d07b01c95aba4b4a14402cd7b",
+            "results/record-layouts/zstd/records.rs": "37ab32792dafc531b9e0e138f4c50e2f07ff2ef068fd0049a1f3ecc83be2f938",
+            "results/record-layouts/zstd/records.c": "93bea614df1f592cb5826cabfca5d415c8a95972790b271959bde5bc82c3838e"
+          },
+          "comparison_sha256": "322f892c9e0a90fe57a30fc88247e5c3294a11b5f0b7da1eb78ce157e0d78a90",
+          "inventory_sha256": "ae8f7c6cd7716a27aa1e0ba84125f18cc83b86e5ec622b28defb12f2e27d53cb",
+          "oracle_sha256": "6beb4f003c4c3259deb2fa3ee2c12590968643ca5649ed8c1acf5269e7ea62b2",
+          "compiled_oracle_source_sha256": "9d7cd53d00195b5f985698c713999293a8ee792d07b01c95aba4b4a14402cd7b",
+          "counts": {
+            "native": {
+              "integer_constants": 111,
+              "enum_constants": 97,
+              "anonymous_enum_projections": 0,
+              "string_constants": 1,
+              "records": 3,
+              "field_offsets": 9,
+              "comparisons": 543,
+              "declarations": 83,
+              "omitted_macros": 13,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 68,
+                "equal": 68
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 110,
+                "equal": 105
+              },
+              "aliases": {
+                "common": 14,
+                "equal": 14
+              },
+              "record_shapes": {
+                "common": 7,
+                "equal": 7
+              },
+              "native_records": {
+                "common": 3,
+                "equal": 3
+              },
+              "native_fields": {
+                "common": 9,
+                "equal": 9
+              },
+              "native_constants": {
+                "common": 110,
+                "equal": 108
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 3,
+              "offset_count": 9,
+              "comparisons": 15
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "ZSTD_MAX_INPUT_SIZE",
+                "ZSTD_VERSION_STRING"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "ZSTD_CONTENTSIZE_ERROR",
+                "ZSTD_CONTENTSIZE_UNKNOWN"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C macro expression type differs from bindgen's inferred Rust constant type",
+              "names": [
+                "ZSTD_MAGICNUMBER",
+                "ZSTD_MAGIC_DICTIONARY",
+                "ZSTD_MAGIC_SKIPPABLE_MASK"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "typedef represented by the corresponding named Rust record",
+              "names": [
+                "ZSTD_bounds"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__toucan_enum_0",
+                "__toucan_enum_1",
+                "__toucan_enum_2",
+                "__toucan_enum_3",
+                "__toucan_enum_4",
+                "__toucan_enum_5",
+                "size_t"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "ZSTD_MAX_INPUT_SIZE",
+                "ZSTD_VERSION_STRING"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "ZSTD_CONTENTSIZE_ERROR",
+                "ZSTD_CONTENTSIZE_UNKNOWN"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        }
+      ],
+      "counts": {
+        "native": {
+          "integer_constants": 1319,
+          "enum_constants": 679,
+          "anonymous_enum_projections": 0,
+          "string_constants": 7,
+          "records": 17,
+          "field_offsets": 88,
+          "comparisons": 5444,
+          "declarations": 1648,
+          "omitted_macros": 110,
+          "skipped_declarations": 0
+        },
+        "api_comparison": {
+          "functions": {
+            "common": 1284,
+            "equal": 1284
+          },
+          "globals": {
+            "common": 3,
+            "equal": 3
+          },
+          "constants": {
+            "common": 1277,
+            "equal": 1266
+          },
+          "aliases": {
+            "common": 204,
+            "equal": 204
+          },
+          "record_shapes": {
+            "common": 182,
+            "equal": 181
+          },
+          "native_records": {
+            "common": 111,
+            "equal": 111
+          },
+          "native_fields": {
+            "common": 636,
+            "equal": 636
+          },
+          "native_constants": {
+            "common": 1277,
+            "equal": 1273
+          }
+        },
+        "all_record_layouts": {
+          "record_count": 111,
+          "offset_count": 636,
+          "comparisons": 858
+        }
+      },
+      "tool_versions": {
+        "bindgen": [
+          "0.72.1"
+        ],
+        "bindgen_version_source": "Generated binding banner",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+        "cc": "Apple clang version 17.0.0 (clang-1700.0.13.5)"
+      },
+      "verification_problems": []
+    },
+    {
+      "target": "aarch64-apple-darwin",
+      "status": "passed",
+      "job": {
+        "id": 101906898244,
+        "name": "Native corpus (aarch64-apple-darwin)",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34176518153/job/101906898244",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:35:05Z",
+        "completed_at": "2026-09-08T01:38:35Z",
+        "checkout": {
+          "log_sha256": "692a9e6b019885fe862e0c5a064a0a0ba990686df91a7b171ec149af6700850c",
+          "log_file": "34176518153-job-101906898244.log",
+          "merged_head_sha": "b9f27b39c01d62cff7620f9960e0380565d30f4c",
+          "base_sha": "34791a86c4f35f22e4bfa7ba48f49cffc003f117",
+          "checkout_sha": "8c434c12a074c647671433be6017f51374a67df1",
+          "status": "verified from checkout log"
+        }
+      },
+      "artifact": {
+        "id": 10037694991,
+        "name": "corpus-aarch64-apple-darwin",
+        "digest": "sha256:9f56e16fd5ec07b387a9e681ddb7a19443761f6d307fac34ee59c9fb8258df6c",
+        "size_in_bytes": 812889,
+        "created_at": "2026-09-08T01:38:31Z",
+        "expires_at": "2026-09-22T01:38:29Z",
+        "expired": false
+      },
+      "downloaded_artifact_directory": "/home/dev-user/.cache/toucan/native-ci-34176518153/corpus-aarch64-apple-darwin",
+      "environment": {
+        "recorded_at": "2026-09-08T01:36:50.811800+00:00",
+        "host": "macOS-15.7.9-arm64-arm-64bit-Mach-O",
+        "sysroot": "/Applications/Xcode_16.4.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX.sdk",
+        "cc": "Apple clang version 17.0.0 (clang-1700.0.13.5)",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)"
+      },
+      "tool_sha256": {
+        "toucan": "cc8729debb4f8684c38ebdb08a861955c426580ae878e9879e2420c107a991e5",
+        "bindgen": "7e0f4c2681ad37911a2f2146859c3bbcd21c219098c72bd7dfb480062e31ec30",
+        "analyzer": "784ea76bfd9490f20b6d1907848296774ed7a2cb03fe317e3c917777caa18bb1"
+      },
+      "source_evidence": {
+        "native": {
+          "path_in_artifact": "results/native/evidence.json",
+          "sha256": "8d93a6f9562fa5aa143324209e2d2eebef4bb4a5f412fb93f436752fdf8f2bbb",
+          "status": "passed"
+        },
+        "equivalence": {
+          "path_in_artifact": "results/equivalence/evidence.json",
+          "sha256": "3cfd0a014d19c1a9da76883a9d27e745a1b4a28fc37f7b5c20e8b5c8934f8dfa",
+          "status": "passed"
+        },
+        "record-layouts": {
+          "path_in_artifact": "results/record-layouts/evidence.json",
+          "sha256": "7f776a7f8ee04ba0332ee073d48e211f52c489e9fcd1bd86562d5411131c0f59",
+          "status": "passed"
+        }
+      },
+      "prepared_sha256": "60c6dee7bf01b72a8ea303cb6cdd63ece6d02f0ba06127598116b9b35a8c39f0",
+      "exact_equivalence": false,
+      "projects": [
+        {
+          "name": "libgit2",
+          "version": "1.9.1",
+          "commit": "0060d9cf5666f015b1067129bd874c6cc4c9c7ac",
+          "archive_sha256": "4a7944d8439cccac187ef0ff4085556f198d85225eef55686b3dfb3413e0d0f1",
+          "header_sha256": "04b93d6a4dac32d661a56c3ca222ba62e8896f8148774ed52565d631ebf8d0e0",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "dcb6e54b77ffc88470d016d6761e715616fe9c89a8d98a0aa96aaec26467fa25",
+            "bindgen": "51613c9629ad49ac2676a66ba640e4188b99479505d631c6edf60027555470b3"
+          },
+          "library_sha256": {
+            "libgit2.a": "70c128e8f742594b3ee5bde098f00ba6b4564f6ac0c284efa4fb394231c985ea"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/libgit2/probe.rs": "cde92a89a1f23cb608972f0530fb5e2603d1ea5cde4507e48a24d40e4896ea5e",
+            "results/native/libgit2/bindings.rs": "dcb6e54b77ffc88470d016d6761e715616fe9c89a8d98a0aa96aaec26467fa25",
+            "results/native/libgit2/probe.c": "1aec046dc3a295faf69e90d521cb237c79096fa2262dd66e6e35bf513151662c",
+            "results/equivalence/libgit2/bindings.rs": "dcb6e54b77ffc88470d016d6761e715616fe9c89a8d98a0aa96aaec26467fa25",
+            "results/equivalence/libgit2/bindgen.rs": "51613c9629ad49ac2676a66ba640e4188b99479505d631c6edf60027555470b3",
+            "results/equivalence/libgit2/oracle.c": "ec5d4d5edb84a4c0454a699a587a60e58e35dd45b688a4eb72b0abde9df1c436",
+            "results/record-layouts/libgit2/records.rs": "27e37bdc351afbd0c377fd39723b46fca5f20cc9c2fbaee65d22cf67b383694f",
+            "results/record-layouts/libgit2/records.c": "66371b6130de8b4bb5a4135c73909283800ce14d678bba551ecc7276f5656cd8"
+          },
+          "comparison_sha256": "3f5ee39980b6e90f1ceff48043b154b3097be1e99f064549ee2e9f4b9852eaf9",
+          "inventory_sha256": "05334554bda546d9948595c06b1714ce212ff8cb8211101db6c0e65af22d818b",
+          "oracle_sha256": "f87d624542b0d4416e6fa8649f6f9e6fe91c0da943cae0ea2e037815116453e4",
+          "compiled_oracle_source_sha256": "ec5d4d5edb84a4c0454a699a587a60e58e35dd45b688a4eb72b0abde9df1c436",
+          "counts": {
+            "native": {
+              "integer_constants": 711,
+              "enum_constants": 582,
+              "anonymous_enum_projections": 0,
+              "string_constants": 3,
+              "records": 8,
+              "field_offsets": 26,
+              "comparisons": 3342,
+              "declarations": 1138,
+              "omitted_macros": 68,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 844,
+                "equal": 844
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 667,
+                "equal": 661
+              },
+              "aliases": {
+                "common": 158,
+                "equal": 158
+              },
+              "record_shapes": {
+                "common": 141,
+                "equal": 141
+              },
+              "native_records": {
+                "common": 85,
+                "equal": 85
+              },
+              "native_fields": {
+                "common": 432,
+                "equal": 432
+              },
+              "native_constants": {
+                "common": 667,
+                "equal": 665
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 85,
+              "offset_count": 432,
+              "comparisons": 602
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "GIT_ATTR_FALSE_T",
+                "GIT_ATTR_TRUE_T",
+                "GIT_ATTR_UNSPECIFIED_T",
+                "GIT_ATTR_VALUE_T",
+                "GIT_BLOB_FILTER_ATTTRIBUTES_FROM_HEAD",
+                "GIT_CREDTYPE_DEFAULT",
+                "GIT_CREDTYPE_SSH_CUSTOM",
+                "GIT_CREDTYPE_SSH_INTERACTIVE",
+                "GIT_CREDTYPE_SSH_KEY",
+                "GIT_CREDTYPE_SSH_MEMORY",
+                "GIT_CREDTYPE_USERNAME",
+                "GIT_CREDTYPE_USERPASS_PLAINTEXT",
+                "GIT_CVAR_FALSE",
+                "GIT_CVAR_INT32",
+                "GIT_CVAR_STRING",
+                "GIT_CVAR_TRUE",
+                "GIT_ERROR_SHA1",
+                "GIT_IDXENTRY_EXTENDED",
+                "GIT_IDXENTRY_EXTENDED_FLAGS",
+                "GIT_IDXENTRY_INTENT_TO_ADD",
+                "GIT_IDXENTRY_SKIP_WORKTREE",
+                "GIT_IDXENTRY_VALID",
+                "GIT_INDEXCAP_FROM_OWNER",
+                "GIT_INDEXCAP_IGNORE_CASE",
+                "GIT_INDEXCAP_NO_FILEMODE",
+                "GIT_INDEXCAP_NO_SYMLINKS",
+                "GIT_OBJ_ANY",
+                "GIT_OBJ_BAD",
+                "GIT_OBJ_BLOB",
+                "GIT_OBJ_COMMIT",
+                "GIT_OBJ_OFS_DELTA",
+                "GIT_OBJ_REF_DELTA",
+                "GIT_OBJ_TAG",
+                "GIT_OBJ_TREE",
+                "GIT_OID_DEFAULT",
+                "GIT_REF_FORMAT_ALLOW_ONELEVEL",
+                "GIT_REF_FORMAT_NORMAL",
+                "GIT_REF_FORMAT_REFSPEC_PATTERN",
+                "GIT_REF_FORMAT_REFSPEC_SHORTHAND",
+                "GIT_REF_INVALID",
+                "GIT_REF_LISTALL",
+                "GIT_REF_OID",
+                "GIT_REF_SYMBOLIC",
+                "GIT_REVPARSE_MERGE_BASE",
+                "GIT_REVPARSE_RANGE",
+                "GIT_REVPARSE_SINGLE",
+                "GIT_STATUS_OPT_DEFAULTS"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "GIT_OBJECT_SIZE_MAX",
+                "GIT_REBASE_NO_OPERATION"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C macro expression type differs from bindgen's inferred Rust constant type",
+              "names": [
+                "GIT_PATH_LIST_SEPARATOR",
+                "GIT_SUBMODULE_STATUS__INDEX_FLAGS",
+                "GIT_SUBMODULE_STATUS__IN_FLAGS",
+                "GIT_SUBMODULE_STATUS__WD_FLAGS"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__darwin_size_t",
+                "__toucan_enum_10",
+                "__toucan_enum_11",
+                "__toucan_enum_12",
+                "__toucan_enum_13",
+                "__toucan_enum_14",
+                "__toucan_enum_15",
+                "__toucan_enum_16",
+                "__toucan_enum_17",
+                "__toucan_enum_18",
+                "__toucan_enum_19",
+                "__toucan_enum_2",
+                "__toucan_enum_20",
+                "__toucan_enum_21",
+                "__toucan_enum_22",
+                "__toucan_enum_23",
+                "__toucan_enum_24",
+                "__toucan_enum_25",
+                "__toucan_enum_26",
+                "__toucan_enum_27",
+                "__toucan_enum_28",
+                "__toucan_enum_29",
+                "__toucan_enum_3",
+                "__toucan_enum_30",
+                "__toucan_enum_31",
+                "__toucan_enum_32",
+                "__toucan_enum_33",
+                "__toucan_enum_35",
+                "__toucan_enum_36",
+                "__toucan_enum_37",
+                "__toucan_enum_38",
+                "__toucan_enum_39",
+                "__toucan_enum_4",
+                "__toucan_enum_40",
+                "__toucan_enum_41",
+                "__toucan_enum_42",
+                "__toucan_enum_43",
+                "__toucan_enum_44",
+                "__toucan_enum_45",
+                "__toucan_enum_46",
+                "__toucan_enum_47",
+                "__toucan_enum_48",
+                "__toucan_enum_49",
+                "__toucan_enum_5",
+                "__toucan_enum_50",
+                "__toucan_enum_51",
+                "__toucan_enum_52",
+                "__toucan_enum_53",
+                "__toucan_enum_54",
+                "__toucan_enum_55",
+                "__toucan_enum_57",
+                "__toucan_enum_58",
+                "__toucan_enum_59",
+                "__toucan_enum_6",
+                "__toucan_enum_60",
+                "__toucan_enum_61",
+                "__toucan_enum_62",
+                "__toucan_enum_63",
+                "__toucan_enum_64",
+                "__toucan_enum_65",
+                "__toucan_enum_66",
+                "__toucan_enum_67",
+                "__toucan_enum_68",
+                "__toucan_enum_69",
+                "__toucan_enum_7",
+                "__toucan_enum_70",
+                "__toucan_enum_71",
+                "__toucan_enum_72",
+                "__toucan_enum_73",
+                "__toucan_enum_74",
+                "__toucan_enum_75",
+                "__toucan_enum_76",
+                "__toucan_enum_77",
+                "__toucan_enum_78",
+                "__toucan_enum_79",
+                "__toucan_enum_8",
+                "__toucan_enum_80",
+                "__toucan_enum_81",
+                "__toucan_enum_82",
+                "__toucan_enum_83",
+                "__toucan_enum_84",
+                "__toucan_enum_85",
+                "__toucan_enum_9",
+                "int32_t",
+                "int64_t",
+                "size_t",
+                "uint16_t",
+                "uint32_t",
+                "uint64_t"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "typedef represented by the corresponding named Rust record",
+              "names": [
+                "git_apply_options",
+                "git_attr_options",
+                "git_blob_filter_options",
+                "git_buf",
+                "git_cert_hostkey",
+                "git_cert_x509",
+                "git_checkout_perfdata",
+                "git_cherrypick_options",
+                "git_commit_create_options",
+                "git_configmap",
+                "git_describe_format_options",
+                "git_diff_binary",
+                "git_diff_binary_file",
+                "git_diff_delta",
+                "git_diff_file",
+                "git_diff_find_options",
+                "git_diff_format_email_options",
+                "git_diff_hunk",
+                "git_diff_line",
+                "git_diff_options",
+                "git_diff_parse_options",
+                "git_diff_similarity_metric",
+                "git_email_create_options",
+                "git_error",
+                "git_fetch_options",
+                "git_filter_options",
+                "git_index_time",
+                "git_merge_file_input",
+                "git_merge_file_options",
+                "git_merge_file_result",
+                "git_merge_options",
+                "git_message_trailer",
+                "git_message_trailer_array",
+                "git_odb_backend_loose_options",
+                "git_odb_backend_pack_options",
+                "git_odb_options",
+                "git_proxy_options",
+                "git_push_options",
+                "git_push_update",
+                "git_rebase_operation",
+                "git_rebase_options",
+                "git_remote_connect_options",
+                "git_repository_init_options",
+                "git_revert_options",
+                "git_revspec",
+                "git_status_entry",
+                "git_status_options",
+                "git_tree_update"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "deprecated C typedef omitted by bindgen; C type identity checked",
+              "names": [
+                "git_attr_t",
+                "git_revparse_mode_t"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "GIT_ATTR_FALSE_T",
+                "GIT_ATTR_TRUE_T",
+                "GIT_ATTR_UNSPECIFIED_T",
+                "GIT_ATTR_VALUE_T",
+                "GIT_BLOB_FILTER_ATTTRIBUTES_FROM_HEAD",
+                "GIT_CREDTYPE_DEFAULT",
+                "GIT_CREDTYPE_SSH_CUSTOM",
+                "GIT_CREDTYPE_SSH_INTERACTIVE",
+                "GIT_CREDTYPE_SSH_KEY",
+                "GIT_CREDTYPE_SSH_MEMORY",
+                "GIT_CREDTYPE_USERNAME",
+                "GIT_CREDTYPE_USERPASS_PLAINTEXT",
+                "GIT_CVAR_FALSE",
+                "GIT_CVAR_INT32",
+                "GIT_CVAR_STRING",
+                "GIT_CVAR_TRUE",
+                "GIT_ERROR_SHA1",
+                "GIT_IDXENTRY_EXTENDED",
+                "GIT_IDXENTRY_EXTENDED_FLAGS",
+                "GIT_IDXENTRY_INTENT_TO_ADD",
+                "GIT_IDXENTRY_SKIP_WORKTREE",
+                "GIT_IDXENTRY_VALID",
+                "GIT_INDEXCAP_FROM_OWNER",
+                "GIT_INDEXCAP_IGNORE_CASE",
+                "GIT_INDEXCAP_NO_FILEMODE",
+                "GIT_INDEXCAP_NO_SYMLINKS",
+                "GIT_OBJ_ANY",
+                "GIT_OBJ_BAD",
+                "GIT_OBJ_BLOB",
+                "GIT_OBJ_COMMIT",
+                "GIT_OBJ_OFS_DELTA",
+                "GIT_OBJ_REF_DELTA",
+                "GIT_OBJ_TAG",
+                "GIT_OBJ_TREE",
+                "GIT_OID_DEFAULT",
+                "GIT_REF_FORMAT_ALLOW_ONELEVEL",
+                "GIT_REF_FORMAT_NORMAL",
+                "GIT_REF_FORMAT_REFSPEC_PATTERN",
+                "GIT_REF_FORMAT_REFSPEC_SHORTHAND",
+                "GIT_REF_INVALID",
+                "GIT_REF_LISTALL",
+                "GIT_REF_OID",
+                "GIT_REF_SYMBOLIC",
+                "GIT_REVPARSE_MERGE_BASE",
+                "GIT_REVPARSE_RANGE",
+                "GIT_REVPARSE_SINGLE",
+                "GIT_STATUS_OPT_DEFAULTS"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "GIT_OBJECT_SIZE_MAX",
+                "GIT_REBASE_NO_OPERATION"
+              ]
+            },
+            {
+              "category": "excluded_storage_fields",
+              "reason": "bitfield helper storage; C/Rust setter and getter FFI checked",
+              "names": [
+                "git_commit_create_options",
+                "git_commit_create_options"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "sqlite",
+          "version": "3.45.1",
+          "commit": "189e44dfecdc7868bb860dfb5d98eab371318c37",
+          "archive_sha256": "c05d9dc99e90c35f021ebf0b6b0a36d44714088ba77f84022eb22784d6123c7e",
+          "header_sha256": "41e066ccd4f89e938f136ceb48c996c54dc381b59fe566dea48864c3750b779e",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "9d80e2b99ab6941c814cb76147c36ee0001349f28f30f668d437aa4987cb4bb7",
+            "bindgen": "1ad900b88c5380cf3c8151563fd16f3eaf86159100bb703e9558c4521d51f690"
+          },
+          "library_sha256": {
+            "libsqlite3.a": "d1abf04f23fe3f945e30ca42e059fc7b50b1d2193bcba6aaaa6fe535b778f303"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/sqlite/probe.rs": "1ec7c0af46a4598009fab47acb33b09534fa1d5d2b77bd00889d9619d05f42f7",
+            "results/native/sqlite/bindings.rs": "9d80e2b99ab6941c814cb76147c36ee0001349f28f30f668d437aa4987cb4bb7",
+            "results/native/sqlite/probe.c": "1f5e003c24e97da4fa654c98c5cbbfc1535c2fd020a27dc330cc2c50f3661535",
+            "results/equivalence/sqlite/bindings.rs": "9d80e2b99ab6941c814cb76147c36ee0001349f28f30f668d437aa4987cb4bb7",
+            "results/equivalence/sqlite/bindgen.rs": "1ad900b88c5380cf3c8151563fd16f3eaf86159100bb703e9558c4521d51f690",
+            "results/equivalence/sqlite/oracle.c": "a44544a07ee7f23456f8ba12dd714fd0faa5676f9e7404412605a3c2eb4a456d",
+            "results/record-layouts/sqlite/records.rs": "f8acfb5325954a3a528572632f031abd8c57d3950802003512cc04a61b758cef",
+            "results/record-layouts/sqlite/records.c": "2b3a57215910778e8d6bbee334346704a5023640843cbc5347ce94c637de7def"
+          },
+          "comparison_sha256": "6df353a1418ef09c221e893cb2914f5b7b9ae6e3e431f2676085b37e10529c88",
+          "inventory_sha256": "19b6598e2deda8896f02bce148a75cae815557d18c09db5c00819b2a52dfc1de",
+          "oracle_sha256": "6bbff73156f8eeded89327a178168bc567ef303c8a90c7940e2d93dc42bc77fe",
+          "compiled_oracle_source_sha256": "a44544a07ee7f23456f8ba12dd714fd0faa5676f9e7404412605a3c2eb4a456d",
+          "counts": {
+            "native": {
+              "integer_constants": 461,
+              "enum_constants": 0,
+              "anonymous_enum_projections": 0,
+              "string_constants": 2,
+              "records": 4,
+              "field_offsets": 26,
+              "comparisons": 1419,
+              "declarations": 326,
+              "omitted_macros": 12,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 291,
+                "equal": 291
+              },
+              "globals": {
+                "common": 3,
+                "equal": 3
+              },
+              "constants": {
+                "common": 463,
+                "equal": 463
+              },
+              "aliases": {
+                "common": 11,
+                "equal": 11
+              },
+              "record_shapes": {
+                "common": 28,
+                "equal": 27
+              },
+              "native_records": {
+                "common": 18,
+                "equal": 18
+              },
+              "native_fields": {
+                "common": 157,
+                "equal": 157
+              },
+              "native_constants": {
+                "common": 463,
+                "equal": 463
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 18,
+              "offset_count": 157,
+              "comparisons": 193
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "record_shapes",
+              "reason": "C xDlSym returns void (*)(void); bindgen repeats the lookup parameters",
+              "names": [
+                "sqlite3_vfs"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "zlib",
+          "version": "1.3.1",
+          "commit": "51b7f2abdade71cd9bb0e7a373ef2610ec6f9daf",
+          "archive_sha256": "2c547ae1e001c09db5d0a9d0e157f75dc55151757923cc611a08630391af81bc",
+          "header_sha256": "8a5579af72ea4f427ff00a4150f0ccb3fc5c1e4379f726e101133b1ab9fc600c",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "fe46ad825b33318317185169fd5e1b4f13d0a51fd56fd499db5c2278b8f3509f",
+            "bindgen": "346523056bfae0b41a5b2727a7939310c2370071f800ee60b5888f4b10133d58"
+          },
+          "library_sha256": {
+            "libz.a": "384bb79fed71deb94c464c0b569de60f1389ba1de14dc58e26fa1589283f805a"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/zlib/probe.rs": "a47c5cbd352225244a012f733ec35439593176e22b1b3dc6903cc8e0b4b2a9f0",
+            "results/native/zlib/bindings.rs": "fe46ad825b33318317185169fd5e1b4f13d0a51fd56fd499db5c2278b8f3509f",
+            "results/native/zlib/probe.c": "f7584fb9d7443f86c7380de7e5242baca0e6f23e13a7e154b35911088c14163c",
+            "results/equivalence/zlib/bindings.rs": "fe46ad825b33318317185169fd5e1b4f13d0a51fd56fd499db5c2278b8f3509f",
+            "results/equivalence/zlib/bindgen.rs": "346523056bfae0b41a5b2727a7939310c2370071f800ee60b5888f4b10133d58",
+            "results/record-layouts/zlib/records.rs": "6ad21341812f3bb9aaf2cf657dd41a932b09a17291ba037c3b1a170cf15e529c",
+            "results/record-layouts/zlib/records.c": "b59bd90ad0ed04fb280bcec550b8a1348ca4e4203c7a98ea26680633f6609a1f"
+          },
+          "comparison_sha256": "7248edddeb5c4725a170bee130fa07b43a3e2a490ec25229b61ea72a4d805f92",
+          "inventory_sha256": "da0fc2301219c6d44a059518f141e3ea7500e09da32efb8082ba95082709cacd",
+          "oracle_sha256": null,
+          "compiled_oracle_source_sha256": null,
+          "counts": {
+            "native": {
+              "integer_constants": 36,
+              "enum_constants": 0,
+              "anonymous_enum_projections": 0,
+              "string_constants": 1,
+              "records": 2,
+              "field_offsets": 27,
+              "comparisons": 140,
+              "declarations": 101,
+              "omitted_macros": 17,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 81,
+                "equal": 81
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 37,
+                "equal": 37
+              },
+              "aliases": {
+                "common": 25,
+                "equal": 25
+              },
+              "record_shapes": {
+                "common": 4,
+                "equal": 4
+              },
+              "native_records": {
+                "common": 3,
+                "equal": 3
+              },
+              "native_fields": {
+                "common": 30,
+                "equal": 30
+              },
+              "native_constants": {
+                "common": 37,
+                "equal": 37
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 3,
+              "offset_count": 30,
+              "comparisons": 36
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "size_t"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        },
+        {
+          "name": "zstd",
+          "version": "1.5.7",
+          "commit": "f8745da6ff1ad1e7bab384bd1f9d742439278e99",
+          "archive_sha256": "71bf8072ac109e90d9e48a939546a84d3eac33e7e8d4156b826f455de3122b67",
+          "header_sha256": "9b4bc8245565c98ccfc61c07749928b57e7c0f6fddb0530c4f6aa1971893d88b",
+          "scope_status": {
+            "native": "passed",
+            "equivalence": "passed",
+            "record-layouts": "passed"
+          },
+          "binding_sha256": {
+            "toucan": "0c2b5c52f0917feaf9e385abeb65f0fdc3dc6bb048040d3931a0a89ff42243b1",
+            "bindgen": "559220a3dc71b2a7d96fa61f1fb032f3c5e305414077c805c6c322b28ef80459"
+          },
+          "library_sha256": {
+            "libzstd.a": "3d2bd8dbfaf1874fe411d222d0388a6f24e484fb0f7d9a4205be1efb0cf05ac2"
+          },
+          "probe_and_binding_source_sha256": {
+            "results/native/zstd/probe.rs": "00dfba1ee786e469239ea90cf248acdfdac38785d709f338eb3ec878549a6ce4",
+            "results/native/zstd/bindings.rs": "0c2b5c52f0917feaf9e385abeb65f0fdc3dc6bb048040d3931a0a89ff42243b1",
+            "results/native/zstd/probe.c": "75c9aab9102918c3de9961afc4610f68846483e824b4129b14b8c9d320d3ad1b",
+            "results/equivalence/zstd/bindings.rs": "0c2b5c52f0917feaf9e385abeb65f0fdc3dc6bb048040d3931a0a89ff42243b1",
+            "results/equivalence/zstd/bindgen.rs": "559220a3dc71b2a7d96fa61f1fb032f3c5e305414077c805c6c322b28ef80459",
+            "results/equivalence/zstd/oracle.c": "9d7cd53d00195b5f985698c713999293a8ee792d07b01c95aba4b4a14402cd7b",
+            "results/record-layouts/zstd/records.rs": "14c893e2a31a7df62601e29be44289495f9a41c90548ce36f523015ffd7c6dab",
+            "results/record-layouts/zstd/records.c": "93bea614df1f592cb5826cabfca5d415c8a95972790b271959bde5bc82c3838e"
+          },
+          "comparison_sha256": "c6e1a69ff6d077efcaf8ea6acac854856170982a1b9abfaa74b4be980e362078",
+          "inventory_sha256": "f91bc13cb8cc4508f29a36e88977e59523d4dd95dc97a4c510ba53ee0dfcc395",
+          "oracle_sha256": "6beb4f003c4c3259deb2fa3ee2c12590968643ca5649ed8c1acf5269e7ea62b2",
+          "compiled_oracle_source_sha256": "9d7cd53d00195b5f985698c713999293a8ee792d07b01c95aba4b4a14402cd7b",
+          "counts": {
+            "native": {
+              "integer_constants": 111,
+              "enum_constants": 97,
+              "anonymous_enum_projections": 0,
+              "string_constants": 1,
+              "records": 3,
+              "field_offsets": 9,
+              "comparisons": 543,
+              "declarations": 83,
+              "omitted_macros": 13,
+              "skipped_declarations": 0
+            },
+            "api_comparison": {
+              "functions": {
+                "common": 68,
+                "equal": 68
+              },
+              "globals": {
+                "common": 0,
+                "equal": 0
+              },
+              "constants": {
+                "common": 110,
+                "equal": 105
+              },
+              "aliases": {
+                "common": 14,
+                "equal": 14
+              },
+              "record_shapes": {
+                "common": 7,
+                "equal": 7
+              },
+              "native_records": {
+                "common": 3,
+                "equal": 3
+              },
+              "native_fields": {
+                "common": 9,
+                "equal": 9
+              },
+              "native_constants": {
+                "common": 110,
+                "equal": 108
+              }
+            },
+            "all_record_layouts": {
+              "record_count": 3,
+              "offset_count": 9,
+              "comparisons": 15
+            }
+          },
+          "differences": {
+            "native": {},
+            "unexpected_api": [],
+            "record-layouts": {}
+          },
+          "accepted_differences": [
+            {
+              "category": "constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "ZSTD_MAX_INPUT_SIZE",
+                "ZSTD_VERSION_STRING"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "ZSTD_CONTENTSIZE_ERROR",
+                "ZSTD_CONTENTSIZE_UNKNOWN"
+              ]
+            },
+            {
+              "category": "constants",
+              "reason": "C macro expression type differs from bindgen's inferred Rust constant type",
+              "names": [
+                "ZSTD_MAGICNUMBER",
+                "ZSTD_MAGIC_DICTIONARY",
+                "ZSTD_MAGIC_SKIPPABLE_MASK"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "typedef represented by the corresponding named Rust record",
+              "names": [
+                "ZSTD_bounds"
+              ]
+            },
+            {
+              "category": "aliases",
+              "reason": "helper alias outside the selected public API",
+              "names": [
+                "__toucan_enum_0",
+                "__toucan_enum_1",
+                "__toucan_enum_2",
+                "__toucan_enum_3",
+                "__toucan_enum_4",
+                "__toucan_enum_5",
+                "size_t"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "additional Toucan constant checked against C; not exact API equivalence",
+              "names": [
+                "ZSTD_MAX_INPUT_SIZE",
+                "ZSTD_VERSION_STRING"
+              ]
+            },
+            {
+              "category": "native_constants",
+              "reason": "C unsigned 64-bit sentinel emitted as a signed 32-bit constant by bindgen",
+              "names": [
+                "ZSTD_CONTENTSIZE_ERROR",
+                "ZSTD_CONTENTSIZE_UNKNOWN"
+              ]
+            }
+          ],
+          "exact_equivalence": false,
+          "native_ffi_exit_code": 0
+        }
+      ],
+      "counts": {
+        "native": {
+          "integer_constants": 1319,
+          "enum_constants": 679,
+          "anonymous_enum_projections": 0,
+          "string_constants": 7,
+          "records": 17,
+          "field_offsets": 88,
+          "comparisons": 5444,
+          "declarations": 1648,
+          "omitted_macros": 110,
+          "skipped_declarations": 0
+        },
+        "api_comparison": {
+          "functions": {
+            "common": 1284,
+            "equal": 1284
+          },
+          "globals": {
+            "common": 3,
+            "equal": 3
+          },
+          "constants": {
+            "common": 1277,
+            "equal": 1266
+          },
+          "aliases": {
+            "common": 208,
+            "equal": 208
+          },
+          "record_shapes": {
+            "common": 180,
+            "equal": 179
+          },
+          "native_records": {
+            "common": 109,
+            "equal": 109
+          },
+          "native_fields": {
+            "common": 628,
+            "equal": 628
+          },
+          "native_constants": {
+            "common": 1277,
+            "equal": 1273
+          }
+        },
+        "all_record_layouts": {
+          "record_count": 109,
+          "offset_count": 628,
+          "comparisons": 846
+        }
+      },
+      "tool_versions": {
+        "bindgen": [
+          "0.72.1"
+        ],
+        "bindgen_version_source": "Generated binding banner",
+        "rustc": "rustc 1.96.0 (ac68faa20 2026-05-25)",
+        "cc": "Apple clang version 17.0.0 (clang-1700.0.13.5)"
+      },
+      "verification_problems": []
+    }
+  ],
+  "limitations": [
+    "Only targets with complete successful jobs, checkout-log provenance, and all three matching evidence scopes are marked passed.",
+    "Exact API equivalence remains false; accepted differences are retained by category, reason, and name.",
+    "Native corpus, API comparison, and all-record checks overlap and must not be added as counts of unique assertions.",
+    "AArch64 va_list storage fields are checked by independent C record probes, while corresponding private bindgen fields are excluded from shared-field comparison; optimized native FFI tests are separate.",
+    "Counts are per project and may include the same helper record in more than one project.",
+    "These pinned headers and selected FFI calls do not establish complete C conformance or production readiness."
+  ],
+  "passed_targets": [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin"
+  ],
+  "status": "passed",
+  "separate_unit_and_tooling_run": {
+    "scope": "Workspace tests (including optimized C va_list FFI) on four native hosts, lint, and Rust 1.96 compatibility. This is separate from the corpus workflow.",
+    "workflow": {
+      "id": 34177031459,
+      "name": "CI",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34177031459",
+      "head_sha": "64c0261ea8f2dd4cbb174f4f9bc7bd00bc0dde98",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "jobs": [
+      {
+        "verified_named_tests": [
+          "generated_va_list_crosses_c_and_rust_call_boundaries"
+        ],
+        "id": 101908372290,
+        "name": "Test (ubuntu-24.04-arm)",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34177031459/job/101908372290",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:33:16Z",
+        "completed_at": "2026-09-08T01:34:05Z",
+        "checkout": {
+          "log_sha256": "06eafc2f568144f0e947c0e43366ec1ac69f2f87bb6834c4edd1ad5d0e1e6878",
+          "log_file": "34177031459-job-101908372290.log",
+          "merged_head_sha": "64c0261ea8f2dd4cbb174f4f9bc7bd00bc0dde98",
+          "base_sha": "3baea880a02799ceeb9dbe6875c4dd501a3b1091",
+          "checkout_sha": "67a35d74de9323266cab611ba7f9b853bfbee7ec",
+          "status": "verified from checkout log"
+        }
+      },
+      {
+        "id": 101908372304,
+        "name": "Rust 1.96",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34177031459/job/101908372304",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:33:24Z",
+        "completed_at": "2026-09-08T01:33:52Z",
+        "checkout": {
+          "log_sha256": "e14e4d68c2d99ca1106a84e8074117dbe4cffd3ea0172f356d103180cec53fc5",
+          "log_file": "34177031459-job-101908372304.log",
+          "merged_head_sha": "64c0261ea8f2dd4cbb174f4f9bc7bd00bc0dde98",
+          "base_sha": "3baea880a02799ceeb9dbe6875c4dd501a3b1091",
+          "checkout_sha": "67a35d74de9323266cab611ba7f9b853bfbee7ec",
+          "status": "verified from checkout log"
+        }
+      },
+      {
+        "verified_named_tests": [
+          "generated_va_list_crosses_c_and_rust_call_boundaries"
+        ],
+        "id": 101908372335,
+        "name": "Test (ubuntu-24.04)",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34177031459/job/101908372335",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:33:13Z",
+        "completed_at": "2026-09-08T01:34:00Z",
+        "checkout": {
+          "log_sha256": "7b40db7d1bc22c1bfd16f95f90922c813a1629baccecad8a9f0c578a33171e48",
+          "log_file": "34177031459-job-101908372335.log",
+          "merged_head_sha": "64c0261ea8f2dd4cbb174f4f9bc7bd00bc0dde98",
+          "base_sha": "3baea880a02799ceeb9dbe6875c4dd501a3b1091",
+          "checkout_sha": "67a35d74de9323266cab611ba7f9b853bfbee7ec",
+          "status": "verified from checkout log"
+        }
+      },
+      {
+        "verified_named_tests": [
+          "generated_va_list_crosses_c_and_rust_call_boundaries"
+        ],
+        "id": 101908372349,
+        "name": "Test (macos-15)",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34177031459/job/101908372349",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:34:29Z",
+        "completed_at": "2026-09-08T01:35:02Z",
+        "checkout": {
+          "log_sha256": "55ac6e0c73083fe264cb4e6a6e7a8362e5d52909c6c6a5221c79164e7f23aa58",
+          "log_file": "34177031459-job-101908372349.log",
+          "merged_head_sha": "64c0261ea8f2dd4cbb174f4f9bc7bd00bc0dde98",
+          "base_sha": "3baea880a02799ceeb9dbe6875c4dd501a3b1091",
+          "checkout_sha": "67a35d74de9323266cab611ba7f9b853bfbee7ec",
+          "status": "verified from checkout log"
+        }
+      },
+      {
+        "id": 101908372359,
+        "name": "Lint",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34177031459/job/101908372359",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:33:14Z",
+        "completed_at": "2026-09-08T01:33:42Z",
+        "checkout": {
+          "log_sha256": "a0395bff4d1ad9faa54a33428f3b6ef7070de58b007294773428e647839b4f85",
+          "log_file": "34177031459-job-101908372359.log",
+          "merged_head_sha": "64c0261ea8f2dd4cbb174f4f9bc7bd00bc0dde98",
+          "base_sha": "3baea880a02799ceeb9dbe6875c4dd501a3b1091",
+          "checkout_sha": "67a35d74de9323266cab611ba7f9b853bfbee7ec",
+          "status": "verified from checkout log"
+        }
+      },
+      {
+        "verified_named_tests": [
+          "generated_va_list_crosses_c_and_rust_call_boundaries"
+        ],
+        "id": 101908372361,
+        "name": "Test (macos-15-intel)",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34177031459/job/101908372361",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:33:36Z",
+        "completed_at": "2026-09-08T01:34:52Z",
+        "checkout": {
+          "log_sha256": "dbabfc8a6859cd1d51790cff83315e667173fe697781210850dcd0d3d31131d2",
+          "log_file": "34177031459-job-101908372361.log",
+          "merged_head_sha": "64c0261ea8f2dd4cbb174f4f9bc7bd00bc0dde98",
+          "base_sha": "3baea880a02799ceeb9dbe6875c4dd501a3b1091",
+          "checkout_sha": "67a35d74de9323266cab611ba7f9b853bfbee7ec",
+          "status": "verified from checkout log"
+        }
+      }
+    ],
+    "metadata_sha256": {
+      "run": "686b3303a350c00822fcf812338e2631e220cc903a687dea240a3f8b669eb8a1",
+      "jobs": "2c85fd4fcc6a11d6e6a753bfcf9cee051ddeee9df3fba24d2197f4b7f90a94ff"
+    }
+  },
+  "separate_fuzz_smoke_run": {
+    "scope": "CI fuzz smoke workflow using its default sanitizer configuration; separate from the local semantic run with LeakSanitizer disabled.",
+    "workflow": {
+      "id": 34177031461,
+      "name": "Fuzz smoke tests",
+      "html_url": "https://github.com/astral-sh/toucan/actions/runs/34177031461",
+      "head_sha": "64c0261ea8f2dd4cbb174f4f9bc7bd00bc0dde98",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    "jobs": [
+      {
+        "id": 101908372136,
+        "name": "smoke",
+        "html_url": "https://github.com/astral-sh/toucan/actions/runs/34177031461/job/101908372136",
+        "status": "completed",
+        "conclusion": "success",
+        "started_at": "2026-09-08T01:33:13Z",
+        "completed_at": "2026-09-08T01:38:09Z",
+        "checkout": {
+          "log_sha256": "00408ac787249c841eabfd3bda3c4e0746681d7f48f466c263421b327ba551d9",
+          "log_file": "34177031461-job-101908372136.log",
+          "merged_head_sha": "64c0261ea8f2dd4cbb174f4f9bc7bd00bc0dde98",
+          "base_sha": "3baea880a02799ceeb9dbe6875c4dd501a3b1091",
+          "checkout_sha": "67a35d74de9323266cab611ba7f9b853bfbee7ec",
+          "status": "verified from checkout log"
+        }
+      }
+    ],
+    "metadata_sha256": {
+      "run": "ccca4b6161d0341ceee196168a8040f3003795e82d6e18c25e900cae1ce18278",
+      "jobs": "d16b2034817f4aae489b78db311bec74fcc9bfe23fb1cd5add48a3da05ba27d5"
+    }
+  }
+}

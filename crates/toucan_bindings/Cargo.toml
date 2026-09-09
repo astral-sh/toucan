@@ -1,0 +1,20 @@
+[package]
+name = "toucan_bindings"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Rust binding generation from Toucan's C semantic model"
+
+[dependencies]
+serde.workspace = true
+thiserror.workspace = true
+toucan_semantic = { version = "0.0.1", path = "../toucan_semantic" }
+toucan_target = { version = "0.0.1", path = "../toucan_target" }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

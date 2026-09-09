@@ -1,0 +1,8 @@
+/target/
+/fuzz/target/
+/fuzz/artifacts/
+/fuzz/corpus/
+/corpus/cache/
+/benchmark-results/
+*.profraw
+__pycache__/

@@ -1,0 +1,15 @@
+[package]
+name = "toucan-zstd-consumer"
+version = "0.0.0"
+edition = "2021"
+rust-version = "1.64"
+publish = false
+
+[workspace]
+
+[features]
+experimental = ["zstd/experimental"]
+zstdmt = ["zstd/zstdmt"]
+
+[dependencies]
+zstd = "=0.13.3"

@@ -1,0 +1,21 @@
+[package]
+name = "toucan_semantic"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "C types, expression checking, and constant evaluation for Toucan"
+
+[dependencies]
+rustc_apfloat.workspace = true
+lang-c.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+toucan_target = { version = "0.0.1", path = "../toucan_target" }
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

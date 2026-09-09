@@ -1,0 +1,19 @@
+[package]
+name = "toucan_target"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Target descriptions and C object layouts for Toucan"
+
+[dependencies]
+repc.workspace = true
+serde.workspace = true
+thiserror.workspace = true
+
+[dev-dependencies]
+tempfile.workspace = true
+
+[lints]
+workspace = true

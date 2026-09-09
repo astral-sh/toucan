@@ -1,0 +1,109 @@
+{
+  "schema_version": 1,
+  "recorded_at": "2026-09-08T01:15:14.918743+00:00",
+  "tool": "cargo-audit 0.22.2",
+  "advisory_database_commit": "8a1eb4f933fb5821add5b4e98601ebd90b8b3538",
+  "options": [
+    "--no-fetch",
+    "--no-yanked"
+  ],
+  "scope": "Known RustSec advisories for locked dependencies. Yanked package status was not checked. This does not establish absence of vulnerabilities.",
+  "reports": {
+    "workspace": {
+      "lockfile": "Cargo.lock",
+      "lockfile_sha256": "faa9638e696f30ee833c4818960cd64aff6d2edc2d8a3a43a967d1c6c3a7c8ec",
+      "report_sha256": "de6a80f8ff517787f91ea4878b78eeb417be6037e8562a214791746cf31b80be",
+      "report": {
+        "database": {
+          "advisory-count": 1242,
+          "last-commit": null,
+          "last-updated": null
+        },
+        "lockfile": {
+          "dependency-count": 59
+        },
+        "settings": {
+          "target_arch": [],
+          "target_os": [],
+          "severity": null,
+          "ignore": [],
+          "informational_warnings": [
+            "unmaintained",
+            "unsound",
+            "notice"
+          ]
+        },
+        "vulnerabilities": {
+          "found": false,
+          "count": 0,
+          "list": []
+        },
+        "warnings": {}
+      }
+    },
+    "fuzz": {
+      "lockfile": "fuzz/Cargo.lock",
+      "lockfile_sha256": "4c98dc3fe28c1bbe45a65b7559ba1b761da433af0ccf0dc3a0e505422295e124",
+      "report_sha256": "5912b279704c96e4292579daf681bedb764ec009ff771d6db5f57fc6965ae660",
+      "report": {
+        "database": {
+          "advisory-count": 1242,
+          "last-commit": null,
+          "last-updated": null
+        },
+        "lockfile": {
+          "dependency-count": 29
+        },
+        "settings": {
+          "target_arch": [],
+          "target_os": [],
+          "severity": null,
+          "ignore": [],
+          "informational_warnings": [
+            "unmaintained",
+            "unsound",
+            "notice"
+          ]
+        },
+        "vulnerabilities": {
+          "found": false,
+          "count": 0,
+          "list": []
+        },
+        "warnings": {}
+      }
+    },
+    "comparison": {
+      "lockfile": "tools/binding_compare/Cargo.lock",
+      "lockfile_sha256": "b9412786b1b9cd0191ba018ec5f6791545c47088b6cc31945cf45620914422f7",
+      "report_sha256": "9163629b757cf283a99499d1957ff23a61d75ee2652205a7b9f4186b241ec490",
+      "report": {
+        "database": {
+          "advisory-count": 1242,
+          "last-commit": null,
+          "last-updated": null
+        },
+        "lockfile": {
+          "dependency-count": 13
+        },
+        "settings": {
+          "target_arch": [],
+          "target_os": [],
+          "severity": null,
+          "ignore": [],
+          "informational_warnings": [
+            "unmaintained",
+            "unsound",
+            "notice"
+          ]
+        },
+        "vulnerabilities": {
+          "found": false,
+          "count": 0,
+          "list": []
+        },
+        "warnings": {}
+      }
+    }
+  }
+}

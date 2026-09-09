@@ -1,0 +1,67 @@
+{
+  "schema_version": 1,
+  "recorded_date": "2026-09-07",
+  "platform": "x86_64-unknown-linux-gnu",
+  "rustc": "rustc 1.100.0-nightly (5a2be9f5f 2026-09-06)",
+  "cargo_fuzz": "0.13.2",
+  "scope": "Short smoke tests, not sustained fuzzing or a safety certification.",
+  "sanitizers": {
+    "address": true,
+    "leak": false,
+    "reason": "LeakSanitizer cannot inspect processes in this ptrace-based local environment."
+  },
+  "corpus": "Seeds plus locally discovered inputs from earlier smoke runs; mutation corpora are not versioned.",
+  "findings_fixed": [
+    "A run of unary operators before an invalid token caused exponential parser backtracking. A preparse limit and semantic regression now reject it."
+  ],
+  "runs": [
+    {
+      "target": "preprocess",
+      "status": "passed",
+      "executions": 382661,
+      "seconds": 61,
+      "stats": {
+        "number_of_executed_units": 382661,
+        "average_exec_per_sec": 6273,
+        "new_units_added": 1658,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 471
+      },
+      "log_sha256": "815e3366f8048f8b7967c0d6f21e7fe5b3282bdc222fcb5f4edd774da005c814",
+      "binary_sha256": "a598a8b583c1aefa4845b4d4979f1a9b99b1a2813c44aab8323b31b09a0f3305",
+      "command": "ASAN_OPTIONS=detect_leaks=0 cargo +nightly-2026-09-07 fuzz run preprocess fuzz/corpus/preprocess -- -max_total_time=60 -timeout=5 -rss_limit_mb=1024 -print_final_stats=1"
+    },
+    {
+      "target": "semantic",
+      "status": "passed",
+      "executions": 446536,
+      "seconds": 61,
+      "stats": {
+        "number_of_executed_units": 446536,
+        "average_exec_per_sec": 7320,
+        "new_units_added": 3928,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 476
+      },
+      "log_sha256": "9243164bd4be4b742ea6d7236ba7158dec18b164b1e3eef9247ceaf59112e775",
+      "binary_sha256": "60d66cb5b3591768c2d30fc6a16d09b53c522572b5fa1f88fca49f2006a86b08",
+      "command": "ASAN_OPTIONS=detect_leaks=0 cargo +nightly-2026-09-07 fuzz run semantic fuzz/corpus/semantic -- -max_total_time=60 -timeout=5 -rss_limit_mb=1024 -print_final_stats=1"
+    },
+    {
+      "target": "bindings",
+      "status": "passed",
+      "executions": 25192,
+      "seconds": 61,
+      "stats": {
+        "number_of_executed_units": 25192,
+        "average_exec_per_sec": 412,
+        "new_units_added": 1371,
+        "slowest_unit_time_sec": 0,
+        "peak_rss_mb": 499
+      },
+      "log_sha256": "6597a69602a51aaec5b354486c69094a0d8dfc19031195090996168fec206465",
+      "binary_sha256": "f59400c8a7b8aebc980254453aa9c4234082e415ff55164810be5c6375d281c1",
+      "command": "ASAN_OPTIONS=detect_leaks=0 cargo +nightly-2026-09-07 fuzz run bindings fuzz/corpus/bindings -- -max_total_time=60 -timeout=5 -rss_limit_mb=1024 -print_final_stats=1"
+    }
+  ]
+}

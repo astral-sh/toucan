@@ -1,0 +1,27 @@
+{
+  "zlib": [
+    {"c": "z_stream", "rust": "z_stream", "fields": ["next_in", "avail_in", "total_in", "next_out", "avail_out", "total_out", "msg", "state", "zalloc", "zfree", "opaque", "data_type", "adler", "reserved"]},
+    {"c": "gz_header", "rust": "gz_header", "fields": ["text", "time", "xflags", "os", "extra", "extra_len", "extra_max", "name", "name_max", "comment", "comm_max", "hcrc", "done"]}
+  ],
+  "sqlite": [
+    {"c": "sqlite3_file", "rust": "sqlite3_file", "fields": ["pMethods"]},
+    {"c": "sqlite3_io_methods", "rust": "sqlite3_io_methods", "fields": ["iVersion", "xClose", "xRead", "xWrite", "xFileSize", "xFetch", "xUnfetch"]},
+    {"c": "sqlite3_vfs", "rust": "sqlite3_vfs", "fields": ["iVersion", "szOsFile", "mxPathname", "pNext", "zName", "pAppData", "xOpen", "xDelete", "xAccess", "xFullPathname"]},
+    {"c": "sqlite3_mem_methods", "rust": "sqlite3_mem_methods", "fields": ["xMalloc", "xFree", "xRealloc", "xSize", "xRoundup", "xInit", "xShutdown", "pAppData"]}
+  ],
+  "zstd": [
+    {"c": "ZSTD_inBuffer", "rust": "ZSTD_inBuffer", "fields": ["src", "size", "pos"]},
+    {"c": "ZSTD_outBuffer", "rust": "ZSTD_outBuffer", "fields": ["dst", "size", "pos"]},
+    {"c": "ZSTD_bounds", "rust": "ZSTD_bounds", "fields": ["error", "lowerBound", "upperBound"]}
+  ],
+  "libgit2": [
+    {"c": "git_oid", "rust": "git_oid", "fields": ["id"]},
+    {"c": "git_buf", "rust": "git_buf", "fields": ["ptr", "reserved", "size"]},
+    {"c": "git_strarray", "rust": "git_strarray", "fields": ["strings", "count"]},
+    {"c": "git_time", "rust": "git_time", "fields": ["time", "offset", "sign"]},
+    {"c": "git_signature", "rust": "git_signature", "fields": ["name", "email", "when"]},
+    {"c": "git_oidarray", "rust": "git_oidarray", "fields": ["ids", "count"]},
+    {"c": "git_repository_init_options", "rust": "git_repository_init_options", "fields": ["version", "flags", "mode", "workdir_path", "description", "template_path", "initial_head", "origin_url"]},
+    {"c": "git_commit_create_options", "rust": "git_commit_create_options", "fields": ["version", "author", "committer", "message_encoding"]}
+  ]
+}
