@@ -301,7 +301,7 @@ impl Expansion<'_> {
                     )?;
                 }
                 replacement.hidden.extend(hidden.iter().cloned());
-                replacement.hidden.insert(token.text.to_string());
+                replacement.hidden.insert(token.text.clone());
                 replacement.depth = replacement.depth.max(token.depth + 1);
                 replacement.line = token.line;
                 replacement.column = token.column;
