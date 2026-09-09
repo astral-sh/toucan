@@ -18,12 +18,16 @@
   "local_capture_unique_contents": 94,
   "files": {
     "README.md": {
-      "sha256": "876da76fe78219a76eea196cda2880feda2cb8e040baaba64c5cac99f1a47039",
-      "bytes": 7617
+      "sha256": "33e8622312551272a34f5996b996d8abd1012bf69f3a613d1319b81a01d77355",
+      "bytes": 7728
     },
     "assembly-verification.json": {
       "sha256": "acb75b9222457c6a3d9207176038a5f5de073af7727f73414caa61e4423413ef",
       "bytes": 1366
+    },
+    "final-independent-review.json": {
+      "sha256": "14ff114e6259aab1e99c78da43f0393aec5e257029c25793b25b7c598677da21",
+      "bytes": 7898
     },
     "git-source-verification.json": {
       "sha256": "982d666599ec2ebe5ab6e263010cbc8da6edc1dcae82af06ba31baac44eeb121",
@@ -290,8 +294,8 @@
       "bytes": 944
     },
     "verify.py": {
-      "sha256": "77fe23545e0ad6701e1f280183197800635100973da2b161188fccb787dcd74f",
-      "bytes": 15187
+      "sha256": "c2ae981481f64ea48804f76ef31645b4c856e8a97439263d38e7ad797220a0b7",
+      "bytes": 16843
     }
   },
   "git_matching_source": "6c66ec7266165c1be28e372edb2bfdccee252a01",

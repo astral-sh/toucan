@@ -105,7 +105,9 @@ verified artifact contents.
 - `stable-ci/` retains all 15 complete CI job logs, final API metadata, ten
   command result streams and its independently usable verifier.
 - `local-independent-review.json.gz` preserves the independent local package
-  audit; `verifier-controls.json` records three altered-copy rejection checks.
+  audit; `final-independent-review.json` checks the combined package and CI
+  addition. Both passed without findings. `verifier-controls.json` records three
+  altered-copy rejection checks.
 - `git-source-verification.json`, `local-source-parity.json` and
   `merge-summary.json` record source identity separately from test outcomes.
 - `assembly-verification.json` records the checks performed while assembling

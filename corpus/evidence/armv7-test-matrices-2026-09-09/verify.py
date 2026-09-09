@@ -312,6 +312,48 @@ def main():
     runpy.run_path(str(ROOT / "stable-ci" / "verify.py"), run_name="__main__")
     stable = load("stable-ci/summary.json")
     source = stable["source"]
+    api_runs, api_jobs = {}, {}
+    for record in stable["api_records"]:
+        response = compressed(f"stable-ci/{record['path']}")
+        if "workflow_runs" in response:
+            api_runs.update({row["id"]: row for row in response["workflow_runs"]})
+        if "jobs" in response:
+            api_jobs.update({row["id"]: row for row in response["jobs"]})
+        if record["path"] == "api/merge-commit.json.gz":
+            require(
+                response["sha"] == source["checkout_sha"]
+                and response["tree"]["sha"] == source["checkout_tree_sha"],
+                "raw API merge identity",
+            )
+        if record["path"] == "api/pull-344.json.gz":
+            require(
+                response["head"]["sha"] == source["head_sha"]
+                and response["merge_commit_sha"] == source["checkout_sha"],
+                "raw API PR identity",
+            )
+    require(set(api_runs) == {row["id"] for row in stable["runs"]}, "raw API run set")
+    require(set(api_jobs) == {row["id"] for row in stable["jobs"]}, "raw API job set")
+    for run in stable["runs"]:
+        require(
+            all(api_runs[run["id"]][key] == value for key, value in run.items()),
+            "raw API run metadata",
+        )
+    augmented = {
+        "workflow",
+        "checkout_sha",
+        "checkout_tree_sha",
+        "log",
+        "rust_version_observations",
+    }
+    for job in stable["jobs"]:
+        require(
+            all(
+                api_jobs[job["id"]][key] == value
+                for key, value in job.items()
+                if key not in augmented
+            ),
+            "raw API job metadata",
+        )
     require(source["head_sha"] == identity["head"], "CI/local Git head")
     require(source["checkout_sha"] == merge["merge_sha"], "CI merge identity")
     require(source["checkout_tree_sha"] == parity["head_tree_sha"], "CI tree identity")
