@@ -180,3 +180,20 @@ padding or opaque storage. The paired test establishes selected native SSL
 calls, not a full TLS handshake or the FIPS and external-executable modes.
 The source used in this capture predates the subsequent incomplete-tag name
 correction; recheck full consumers on the intended release revision.
+
+## External executable on frozen source
+
+The [native Linux x86-64 external-executable run](../corpus/evidence/aws-lc-external-cli-317756d/README.md)
+sets `AWS_LC_SYS_EXTERNAL_BINDGEN=1` and places Toucan's standalone `bindgen`
+executable on `PATH`. The unchanged `aws-lc-sys` build script generates and
+compiles fresh crypto bindings. The resulting consumer matches the 41 archived
+crypto artifacts, passes six C/Rust layouts, and passes all 98 generated layout
+tests. A same-command comparison matches 2,618 functions and 3,851 constants.
+
+Exact Rust API equality remains false. The reference `bindgen` executable leaves
+60 global linker names unprefixed despite `--prefix-link-name`; Toucan prefixes
+them, and a native probe links one against the actual library. Thirteen extra
+aliases and four record shapes also differ. This run does not cover SSL, FIPS,
+other targets, or the later stack head. The unchanged upstream manifest still
+compiles `bindgen`, `clang-sys`, and `libloading` as build dependencies even
+though it launches Toucan for generation.

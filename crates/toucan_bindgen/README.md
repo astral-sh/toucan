@@ -198,8 +198,10 @@ representations. Unsupported expressions and out-of-range characters appear in
 evaluation as `MacroEvaluation::Provided` and retain accepted incompatible
 redefinitions with their physical locations. The core library's C constant
 evaluation remains a separate API. See [macro values](../../docs/macro-value-compatibility.md)
-for the grammar, bounds, and differential evidence. `push_macro` and `pop_macro`
-remain unsupported.
+for the grammar, bounds, and differential evidence. The preprocessor applies
+`push_macro` and `pop_macro` before expanding subsequent tokens, including when
+they appear through `_Pragma`. The Builder's written-definition value history
+remains a separate policy.
 
 The Builder emits ordinary externally linked C function definitions and excludes
 inline candidates. Its default path uses compact declaration-time inline facts,

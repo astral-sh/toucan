@@ -37,6 +37,11 @@ assert_eq!(result.expand_object_macro("COUNT")?.as_deref(), Some("4"));
 - `_Pragma` operators, including macro-generated directives, share `pragma once`
   handling and `pragma pack` preservation with ordinary directives. Diagnostic and message pragmas
   are accepted without changing the generated source.
+- `push_macro` and `pop_macro` pragmas save and restore definitions on per-name
+  stacks, including names that were undefined when pushed. They work across
+  included headers and through `_Pragma`; restoration takes effect before the
+  following tokens expand. An unmatched pop produces a diagnostic. Retained
+  snapshots share the configured source-byte limit.
 
 The `__clang__` predefined macro selects Clang's `include_next` behavior for quoted
 local helper headers. Otherwise, these headers use GCC's search behavior. Standard
@@ -214,7 +219,8 @@ A fresh run resets the catalog, and the default configuration allocates none of
 it. Existing source, include, token, and expansion limits still apply. Clang's
 first-name cache shares the ordinary dependency index and retains an additional
 path only when the first name differs from its canonical identity. `push_macro`
-and `pop_macro` remain unsupported directives.
+and `pop_macro` restore the saved definition's origin and access spelling; a
+restored undefined name has no definition origin.
 
 ### Optional macro definition history
 

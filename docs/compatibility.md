@@ -391,7 +391,7 @@ compiler ABI is used; flags such as `-fshort-enums` are not implied.
 | Target | Layout model | Native validation |
 | --- | --- | --- |
 | `x86_64-unknown-linux-gnu` | Implemented; GCC and Clang probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
-| `i686-unknown-linux-gnu` | Implemented; GCC and Clang cross-target probes | [Untouched zstd header and C layout probes passed](../corpus/evidence/i686-target-2026-09-09/README.md); [native C/Rust FFI passed](../corpus/evidence/i686-native-af0d174-2026-09-09/README.md) at O0/O2 on Ubuntu 24.04 |
+| `i686-unknown-linux-gnu` | Implemented; GCC and Clang cross-target probes | [Untouched zstd header and C layout probes passed](../corpus/evidence/i686-target-2026-09-09/README.md); [native C/Rust FFI passed](../corpus/evidence/i686-native-af0d174-2026-09-09/README.md) with GCC and Clang at O0/O2 for the default ABI on Ubuntu 24.04; full consumer builds remain untested |
 | `aarch64-unknown-linux-gnu` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
 | `x86_64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |
 | `aarch64-apple-darwin` | Implemented; Clang cross-target probes | [C/FFI and differential checks passed](../corpus/evidence/native-06cefbe/summary.json) |

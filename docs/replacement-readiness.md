@@ -2,8 +2,9 @@
 
 Toucan is experimental. We have proved specific pinned build-script paths, but
 have not established a universal replacement for bindgen in Ruff, ty, uv, or
-other consumers. This document ties the release decision to the tests actually
-run on the combined source `7db2b850` and names the remaining gates.
+other consumers. The checks below identify their own tested revisions, including
+the combined-source baseline `7db2b850`. The remaining gates apply to the
+eventual release revision.
 
 ## Pinned consumer paths
 
