@@ -46,9 +46,10 @@ The remaining rows have explicit qualifications:
 
 - Two Rust enum rows compile, but the shared API analyzer does not model Rust
   enums. Their selected export inventories match.
-- One bare function typedef preserves Toucan's existing non-null function type;
-  bindgen instead wraps that typedef in `Option`. The comparison retains this
-  difference rather than erasing callback nullability.
+- One bare function typedef captures the initial non-null versus `Option`
+  difference. The saved comparison retains that observation; the subsequent
+  [function-typedef layer](function-typedef-bindings.md) matches bindgen's
+  nullable callback aliases.
 - Two cases select multiple callback names for a single object. The captured
   initial layer diagnoses this unsupported projection. The subsequent
   [multiple-object-name layer](multiple-object-names.md) supports both exports.

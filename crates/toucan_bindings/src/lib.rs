@@ -5,6 +5,7 @@
 //! value, field-level alignment, and long double. Incomplete records and records
 //! containing bitfields are available behind pointers.
 
+mod alias_dependencies;
 mod atomic;
 mod complex;
 mod derives;
@@ -64,6 +65,10 @@ pub struct Options {
     /// Exclude functions whose file declarations are all inline, or that have an
     /// inline body, including a replaced GNU body. This is independent of linkage.
     pub exclude_inline_functions: bool,
+    /// Project C function typedefs as nullable Rust callbacks, as bindgen does.
+    /// Function pointers still have one nullable layer; C function types are unchanged.
+    /// Defaults to false. The Builder adapter enables this compatibility policy.
+    pub nullable_function_typedefs: bool,
     /// Emit Rust enums with named variants instead of integer aliases. Values
     /// outside the declared variants are invalid Rust enum values.
     pub rustified_enums: bool,
@@ -662,6 +667,7 @@ pub fn generate_with_macros(
         }
     }
     emitter.prepare_additional_objects()?;
+    emitter.validate_alias_dependencies()?;
     emitter.validate_generated_collisions(&selected, macros)?;
     emitter.prepare_atomic_records()?;
     emitter.prepare_external_records()?;
@@ -713,13 +719,20 @@ pub fn generate_with_macros(
                 continue;
             }
             rust_type
+        } else if options.nullable_function_typedefs && matches!(ty.kind, TypeKind::Typedef(_)) {
+            emitter.ty(ty)?
         } else if let TypeKind::Function(function) = &unit.resolve(ty)?.kind {
             emitter.check_function(function)?;
-            format!(
+            let function = format!(
                 "unsafe extern \"{}\" fn{}",
                 emitter.abi(function)?,
                 emitter.signature(function)?
-            )
+            );
+            if options.nullable_function_typedefs {
+                format!("::core::option::Option<{function}>")
+            } else {
+                function
+            }
         } else {
             emitter.ty(ty)?
         };
@@ -1726,11 +1739,17 @@ impl Emitter<'_> {
             TypeKind::Pointer(pointee) => {
                 if let TypeKind::Function(function) = &self.unit.resolve(pointee)?.kind {
                     self.check_function_at(function, depth + 1)?;
-                    format!(
-                        "::core::option::Option<unsafe extern \"{}\" fn{}>",
-                        self.abi(function)?,
-                        self.signature_at(function, depth + 1)?
-                    )
+                    if self.options.nullable_function_typedefs
+                        && matches!(pointee.kind, TypeKind::Typedef(_))
+                    {
+                        self.ty_at(pointee, depth + 1)?
+                    } else {
+                        format!(
+                            "::core::option::Option<unsafe extern \"{}\" fn{}>",
+                            self.abi(function)?,
+                            self.signature_at(function, depth + 1)?
+                        )
+                    }
                 } else {
                     format!(
                         "*{} {}",
@@ -1761,11 +1780,13 @@ impl Emitter<'_> {
             TypeKind::Record(id) => self.record_name(*id)?,
             TypeKind::Enum(id) => self.enum_name(*id)?,
             TypeKind::Typedef(name) => {
-                // A C function typedef denotes the function, not a nullable pointer.
+                // The core preserves C function identity; Builder aliases represent callbacks.
                 if self.options.size_t_is_usize && name == "size_t" && !self.options.includes_typedef(name)
                 {
                     self.size_t_type(ty)?
-                } else if let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind {
+                } else if !self.options.nullable_function_typedefs
+                    && let TypeKind::Function(function) = &self.unit.resolve(ty)?.kind
+                {
                     self.check_function_at(function, depth + 1)?;
                     format!(
                         "unsafe extern \"{}\" fn{}",
@@ -2692,8 +2713,21 @@ mod tests {
                 calling_convention: toucan_semantic::CallingConvention::C,
             }))),
         );
-        let error = generate(&unit, &Options::default()).unwrap_err();
-        assert!(error.0.contains("type nesting"));
+        for nullable_function_typedefs in [false, true] {
+            let error = generate(
+                &unit,
+                &Options {
+                    nullable_function_typedefs,
+                    ..Default::default()
+                },
+            )
+            .unwrap_err();
+            assert!(error.0.contains(if nullable_function_typedefs {
+                "cyclic Rust type alias"
+            } else {
+                "type nesting"
+            }));
+        }
     }
 
     #[test]

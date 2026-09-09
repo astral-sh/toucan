@@ -91,6 +91,13 @@ for nonnegative integer macros, core paths, and Rust 1.64 syntax. Select enum
 variants explicitly: Rust enums cannot represent arbitrary integer values.
 Unsupported C syntax and unproved Rust calling ABIs remain generation errors.
 
+Bare function typedefs use bindgen's nullable callback representation. For
+`typedef int Callback(int);`, the Rust alias is `Option<unsafe extern "C" fn(...)>`.
+A C `Callback *` uses that alias directly; `Callback **` becomes a raw pointer
+to the alias. This preserves typed `None` values in existing Rust consumers.
+See [function typedef bindings](../../docs/function-typedef-bindings.md) for
+alias chains, nested callbacks, external replacements and native evidence.
+
 ## Targets and arguments
 
 Cargo's `TARGET` selects the target. An explicit `--target` or `-target` overrides

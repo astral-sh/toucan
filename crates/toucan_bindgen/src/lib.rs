@@ -105,6 +105,7 @@ impl Default for Builder {
                 prepend_enum_name: true,
                 enum_constant_style: toucan::EnumConstantStyle::Bindgen,
                 size_t_is_usize: true,
+                nullable_function_typedefs: true,
                 macro_type: MacroType::Unsigned,
                 rust_target: RustTarget::default().0,
                 derives: toucan::DeriveOptions {
