@@ -629,6 +629,12 @@ lockfiles: the workspace, fuzzing, comparison tool, zstd consumer, and SQLite
 consumer. It records the database revision and lockfile checksums; yanked package
 status was not checked.
 
+The [September 9 audit](../corpus/evidence/dependency-audit-2026-09-09.json)
+checks all seven active lockfiles, adding the Builder benchmark and AWS-LC
+consumer. cargo-audit 0.22.2 reports no known advisories or informational warnings
+against the recorded RustSec database revision. The capture includes the fetched
+database identity, unfiltered reports, and unchanged lockfile checksums.
+
 The [body-checking fuzz campaigns](../fuzz/evidence/readiness-2026-09-08.json)
 processed 1,281,684 inputs across preprocessing, semantic analysis, and binding
 generation after fixing exponential record-member traversal and recursive parser
