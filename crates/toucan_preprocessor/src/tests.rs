@@ -16,6 +16,34 @@ const TIMESTAMPS: &[(u64, &str, &str)] = &[
     (253_402_300_799, "Dec 31 9999", "23:59:59"),
 ];
 
+const MS_PRAGMA_SOURCE: &str = concat!(
+    "#define N 1\n#define PUSH(N) __pragma(pack(push, N))\n",
+    "#define POP __pragma(pack(pop))\n",
+    "#define PAREN (pack(push, 2))\n",
+    "#if 0\n__pragma(pack(push, 4))\n#endif\n",
+    "PUSH(N)\nstruct Packed { char c; int i; };\nPOP\n",
+    "__pragma PAREN\nstruct FromParen { char c; int i; };\n__pragma(pack(pop))\n",
+    "struct Ordinary { char c; int i; };\n",
+    "_Static_assert(sizeof(struct Packed) == 5, \"packed\");\n",
+    "_Static_assert(sizeof(struct FromParen) == 6, \"parenthesized\");\n",
+    "_Static_assert(sizeof(struct Ordinary) == 8, \"restored\");\n",
+    "#define A 1\n#pragma push_macro(\"A\")\n#undef A\n#define A 2\n",
+    "#define RESTORE __pragma(pop_macro(\"A\")) int restored = A;\n",
+    "RESTORE\nint still_restored = A;\n",
+);
+
+const MS_PRAGMA_SHADOW_SOURCE: &str = concat!(
+    "#if !defined(__pragma)\n#error missing MS builtin\n#endif\n",
+    "#pragma push_macro(\"__pragma\")\n#undef __pragma\n",
+    "#if defined(__pragma)\n#error undef did not disable builtin\n#endif\n",
+    "#define __pragma(x) 42\nint shadowed = __pragma(pack(push, 1));\n",
+    "#pragma pop_macro(\"__pragma\")\n",
+    "#if !defined(__pragma)\n#error pop did not restore builtin\n#endif\n",
+    "__pragma(pack(push, 2))\nstruct Restored { char c; int i; };\n",
+    "__pragma(pack(pop))\n",
+    "_Static_assert(sizeof(struct Restored) == 6, \"restored builtin\");\n",
+);
+
 #[test]
 fn date_time_formats_validated_utc_timestamps() {
     for &(seconds, date, time) in TIMESTAMPS {
@@ -1357,6 +1385,131 @@ fn pragma_pop_macro_expansion_matches_clang() {
             &crate::token::lex(&String::from_utf8(output.stdout).unwrap()).unwrap(),
         );
         assert_eq!(actual, expected, "Clang {target:?}");
+    }
+}
+
+#[test]
+fn msvc_pragma_operator_orders_pack_and_macro_stack_effects() {
+    let config = Config {
+        ms_extensions: true,
+        ..Config::default()
+    };
+    let mut processor = Preprocessor::new(config);
+    let result = processor
+        .preprocess_str(Path::new("msvc.h"), MS_PRAGMA_SOURCE)
+        .unwrap();
+    let source = &result.source;
+    for (before, after) in [
+        ("#pragma pack ( push , 1 )", "struct Packed"),
+        ("#pragma pack ( pop )", "#pragma pack ( push , 2 )"),
+        ("#pragma pack ( push , 2 )", "struct FromParen"),
+        ("struct FromParen", "struct Ordinary"),
+        ("int restored = 1", "int still_restored = 1"),
+    ] {
+        assert!(source.find(before).unwrap() < source.find(after).unwrap());
+    }
+    assert_eq!(source.matches("#pragma pack ( push").count(), 2);
+    assert!(result.is_defined("__pragma"));
+    assert_eq!(result.macros["A"].replacement, "1");
+
+    let result = processor
+        .preprocess_str(Path::new("shadow.h"), MS_PRAGMA_SHADOW_SOURCE)
+        .unwrap();
+    assert!(result.source.contains("int shadowed = 42 ;"));
+    assert_eq!(result.source.matches("#pragma pack ( push").count(), 1);
+    assert!(result.is_defined("__pragma"));
+    assert!(!result.macros.contains_key("__pragma"));
+    let result = processor
+        .preprocess_str(Path::new("reset.h"), "#if defined(__pragma)\n1\n#endif\n")
+        .unwrap();
+    assert_eq!(result.source, "1\n");
+
+    let ordinary = Preprocessor::new(Config::default())
+        .preprocess_str(
+            Path::new("ordinary.h"),
+            "#if defined(__pragma)\n#error builtin\n#endif\n__pragma(pack(push, 1))\n",
+        )
+        .unwrap();
+    assert!(ordinary.source.contains("__pragma"));
+
+    let error = Preprocessor::new(Config {
+        ms_extensions: true,
+        max_tokens: 40,
+        ..Config::default()
+    })
+    .preprocess_str(
+        Path::new("budget.h"),
+        "#define P __pragma(pack(push, 1))\n#define FOUR P P P P\n#define SIXTEEN FOUR FOUR FOUR FOUR\nSIXTEEN\n",
+    )
+    .unwrap_err();
+    assert!(error.message.contains("token limit"), "{error}");
+    for source in [
+        "__pragma\n",
+        "__pragma pack(push, 1)\n",
+        "__pragma(pack(push, 1)\n",
+    ] {
+        assert!(
+            Preprocessor::new(Config {
+                ms_extensions: true,
+                ..Config::default()
+            })
+            .preprocess_str(Path::new("invalid.h"), source)
+            .is_err(),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+#[ignore = "requires Clang with MS extensions for an ARM64 Windows oracle"]
+fn msvc_pragma_operator_matches_clang_arm64() {
+    use std::io::Write;
+    use std::process::{Command, Stdio};
+
+    let clang = |source: &str, mode: &str| {
+        let mut child = Command::new("clang")
+            .args(["--target=aarch64-pc-windows-msvc", "-fms-extensions", mode])
+            .args((mode == "-E").then_some("-P"))
+            .args(["-std=gnu11", "-x", "c", "-"])
+            .stdin(Stdio::piped())
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .spawn()
+            .expect("Clang is required for this differential test");
+        child
+            .stdin
+            .take()
+            .unwrap()
+            .write_all(source.as_bytes())
+            .unwrap();
+        child.wait_with_output().unwrap()
+    };
+    for source in [MS_PRAGMA_SOURCE, MS_PRAGMA_SHADOW_SOURCE] {
+        let preprocessed = Preprocessor::new(Config {
+            ms_extensions: true,
+            ..Config::default()
+        })
+        .preprocess_str(Path::new("msvc.c"), source)
+        .unwrap();
+        let output = clang(source, "-E");
+        assert!(
+            output.status.success(),
+            "{}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        let spelling = |source| crate::token::render(&crate::token::lex(source).unwrap());
+        assert_eq!(
+            spelling(&preprocessed.source),
+            spelling(&String::from_utf8(output.stdout).unwrap())
+        );
+        for input in [source, preprocessed.source.as_str()] {
+            let output = clang(input, "-fsyntax-only");
+            assert!(
+                output.status.success(),
+                "{input}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
     }
 }
 

@@ -64,6 +64,7 @@ impl Config {
     pub fn with_profile(profile: CompilerProfile) -> Self {
         let target = profile.target();
         let mut preprocessor = PreprocessorConfig {
+            ms_extensions: target.is_windows() && profile.compiler() == Compiler::Clang,
             feature_queries: Some(features::queries(profile)),
             scope_punctuator: profile.compiler() == Compiler::Clang
                 || profile.language_mode().is_gnu(),

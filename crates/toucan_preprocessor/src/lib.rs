@@ -50,6 +50,9 @@ use token::{Kind, Token, lex_limited, lex_with_scope, normalize, render};
 /// Include search paths, predefined macros, and per-translation-unit resource limits.
 #[derive(Clone, Debug)]
 pub struct Config {
+    /// Enable MSVC preprocessing operators such as `__pragma`.
+    /// Clang's Windows/MSVC profiles enable this extension by default.
+    pub ms_extensions: bool,
     /// Record physical header paths and final macro-definition origins for file selection.
     pub record_file_origins: bool,
     /// Capture successful written definitions in order, including later-undefined macros.
@@ -108,6 +111,7 @@ pub struct Config {
 impl Default for Config {
     fn default() -> Self {
         Self {
+            ms_extensions: false,
             record_file_origins: false,
             record_macro_definitions: false,
             documentation: None,
@@ -176,6 +180,7 @@ pub struct Preprocessed {
     documentation: Option<Box<Documentation>>,
     config: Config,
     active_queries: u8,
+    ms_pragma_active: bool,
     path: PathBuf,
 }
 
@@ -213,6 +218,7 @@ impl Preprocessed {
     pub fn is_defined(&self, name: &str) -> bool {
         self.macros.contains_key(name)
             || is_builtin(name)
+            || name == "__pragma" && self.ms_pragma_active
             || query_active(self.active_queries, name).is_some()
     }
 
@@ -253,6 +259,7 @@ impl Preprocessed {
         let mut expansion = Expansion {
             macros: &self.macros,
             active_queries: self.active_queries,
+            ms_pragma_active: self.ms_pragma_active,
             config: &self.config,
             file: &self.path,
             produced: 0,
@@ -320,6 +327,7 @@ pub struct Preprocessor {
     config: Config,
     include_search: Option<Box<include_search::SearchOrder>>,
     active_queries: u8,
+    ms_pragma_active: bool,
     macros: BTreeMap<String, Macro>,
     macro_stacks: BTreeMap<String, Vec<PushedMacro>>,
     macro_stack_bytes: usize,
@@ -345,6 +353,7 @@ struct PushedMacro {
     file_origin: Option<file_origins::MacroOrigin>,
     documentation: Option<Vec<Option<documentation::OriginId>>>,
     query_active: bool,
+    ms_pragma_active: bool,
     retained_bytes: usize,
 }
 
@@ -419,10 +428,12 @@ fn accessed_parent(path: &Path) -> Option<std::borrow::Cow<'_, Path>> {
 impl Preprocessor {
     /// Configure include resolution and macro expansion without invoking a compiler.
     pub fn new(config: Config) -> Self {
+        let ms_pragma_active = config.ms_extensions;
         Self {
             config,
             include_search: None,
             active_queries: 0,
+            ms_pragma_active,
             macros: BTreeMap::new(),
             macro_stacks: BTreeMap::new(),
             macro_stack_bytes: 0,
@@ -596,6 +607,7 @@ impl Preprocessor {
             .feature_queries
             .as_ref()
             .map_or(0, |queries| queries.enabled);
+        self.ms_pragma_active = self.config.ms_extensions;
         self.dependencies.clear();
         self.once.clear();
         self.hardlinks.clear();
@@ -675,6 +687,7 @@ impl Preprocessor {
             documentation: self.documentation.take(),
             config: self.config.clone(),
             active_queries: self.active_queries,
+            ms_pragma_active: self.ms_pragma_active,
             path: path.to_owned(),
         }
     }
@@ -1041,6 +1054,9 @@ impl Preprocessor {
                     if is_builtin(name) {
                         return Err(fail("cannot undefine a builtin macro".into()));
                     }
+                    if name == "__pragma" {
+                        self.ms_pragma_active = false;
+                    }
                     self.macros.remove(name);
                     if let Some(docs) = &mut self.documentation {
                         docs.undefine(name);
@@ -1272,6 +1288,7 @@ impl Preprocessor {
                 file_origin,
                 documentation,
                 query_active,
+                ms_pragma_active: name == "__pragma" && self.ms_pragma_active,
                 retained_bytes: bytes,
             });
         self.macro_stack_bytes = total;
@@ -1304,6 +1321,9 @@ impl Preprocessor {
             } else {
                 self.active_queries &= !kind.bit();
             }
+        }
+        if name == "__pragma" {
+            self.ms_pragma_active = snapshot.ms_pragma_active;
         }
         Ok(())
     }
@@ -1586,6 +1606,7 @@ impl Preprocessor {
         let mut expansion = Expansion {
             macros: &self.macros,
             active_queries: self.active_queries,
+            ms_pragma_active: self.ms_pragma_active,
             config: &self.config,
             file: path,
             produced: self.expansion_tokens,
@@ -1630,6 +1651,7 @@ impl Preprocessor {
                 .ok_or("defined requires an identifier")?;
             let defined = self.macros.contains_key(&name.text)
                 || is_builtin(&name.text)
+                || name.text == "__pragma" && self.ms_pragma_active
                 || query_active(self.active_queries, &name.text).is_some();
             replaced.push(Token::new(Kind::Number, if defined { "1" } else { "0" }));
             position += 1;
@@ -1951,6 +1973,9 @@ impl Preprocessor {
         }
         if let Some(kind) = FeatureQuery::from_name(&name.text) {
             self.active_queries &= !kind.bit();
+        }
+        if name.text == "__pragma" {
+            self.ms_pragma_active = false;
         }
         if let Some(docs) = &mut self.documentation {
             docs.define(&name.text, replacement, self.config.max_source_bytes)?;

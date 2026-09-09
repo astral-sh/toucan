@@ -7,6 +7,7 @@ use crate::{Config, FeatureQuery, Macro, QueryDialect};
 pub(crate) struct Expansion<'a> {
     pub macros: &'a BTreeMap<String, Macro>,
     pub active_queries: u8,
+    pub ms_pragma_active: bool,
     pub config: &'a Config,
     pub file: &'a Path,
     pub produced: usize,
@@ -104,6 +105,32 @@ impl Expansion<'_> {
                 let mut directive = token;
                 directive.kind = Kind::Pragma;
                 directive.text = crate::token::render(&payload);
+                output.push(directive);
+                self.location = previous_location;
+                if STOP_ON_PRAGMA {
+                    break;
+                }
+                continue;
+            }
+            if token.text == "__pragma" && self.ms_pragma_active {
+                let previous_location = self.location;
+                self.location = Some((token.line, token.column));
+                // Macro aliases may supply the opening parenthesis, as in
+                // `#define PACK (pack(push, 1)` followed by `__pragma PACK)`.
+                let open = if pending.front().is_some_and(|token| token.text == "(") {
+                    pending.pop_front()
+                } else {
+                    self.expand_first(pending)?
+                };
+                if open.is_none_or(|token| token.text != "(") {
+                    return Err("__pragma requires a parenthesized pragma".into());
+                }
+                let (arguments, _, _) = arguments(pending, 1, false)?;
+                let argument = self.expand(arguments.into_iter().next().expect("one argument"))?;
+                self.charge(&argument)?;
+                let mut directive = token;
+                directive.kind = Kind::Pragma;
+                directive.text = crate::token::render(&argument);
                 output.push(directive);
                 self.location = previous_location;
                 if STOP_ON_PRAGMA {
