@@ -97,6 +97,14 @@ adapter documents its supported arguments and API subset; unsupported options
 produce errors. See [replacement readiness](docs/replacement-readiness.md) for
 the tested consumer paths and release blockers.
 
+Installing `toucan_cli` also installs a standalone `bindgen` executable. With
+that executable first on `PATH`, the pinned `aws-lc-sys` build script selects it
+when `AWS_LC_SYS_EXTERNAL_BINDGEN=1`. The [native crypto consumer
+proof](corpus/evidence/aws-lc-external-cli-317756d/README.md) checks the unchanged
+build script and generated bindings; the executable rejects unsupported options.
+This route has not been validated for SSL or FIPS, and the unchanged upstream
+manifest still compiles its `bindgen` and `clang-sys` build dependencies.
+
 ## Analyze headers
 
 Each command accepts `--target`, `--compiler`, `--std`, `--sysroot`, `-I`, `-D`, and `-U`.
