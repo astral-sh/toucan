@@ -321,6 +321,8 @@ pub struct Preprocessor {
     include_search: Option<Box<include_search::SearchOrder>>,
     active_queries: u8,
     macros: BTreeMap<String, Macro>,
+    macro_stacks: BTreeMap<String, Vec<PushedMacro>>,
+    macro_stack_bytes: usize,
     dependencies: BTreeMap<PathBuf, Option<Arc<Path>>>,
     once: BTreeSet<PathBuf>,
     hardlinks: BTreeMap<(u64, u64), Arc<Path>>,
@@ -336,6 +338,14 @@ pub struct Preprocessor {
     macro_redefinitions: Option<Box<MacroRedefinitions>>,
     documentation: Option<Box<Documentation>>,
     documentation_system: bool,
+}
+
+struct PushedMacro {
+    definition: Option<Macro>,
+    file_origin: Option<file_origins::MacroOrigin>,
+    documentation: Option<Vec<Option<documentation::OriginId>>>,
+    query_active: bool,
+    retained_bytes: usize,
 }
 
 /// Separates the read path, shared file identity, access spelling, and main-file rules.
@@ -414,6 +424,8 @@ impl Preprocessor {
             include_search: None,
             active_queries: 0,
             macros: BTreeMap::new(),
+            macro_stacks: BTreeMap::new(),
+            macro_stack_bytes: 0,
             dependencies: BTreeMap::new(),
             once: BTreeSet::new(),
             hardlinks: BTreeMap::new(),
@@ -577,6 +589,8 @@ impl Preprocessor {
         self.include_search = None;
         self.include_search = include_search::SearchOrder::resolve(&self.config)?;
         self.macros.clear();
+        self.macro_stacks.clear();
+        self.macro_stack_bytes = 0;
         self.active_queries = self
             .config
             .feature_queries
@@ -1196,6 +1210,104 @@ impl Preprocessor {
         self.flush(&logical_path, input, &mut pending, output)
     }
 
+    fn push_macro(&mut self, name: &str) -> Result<(), &'static str> {
+        let definition = self.macros.get(name);
+        let file_origin = self
+            .file_origins
+            .as_ref()
+            .and_then(|origins| origins.macro_origin(name));
+        let documentation = self
+            .documentation
+            .as_ref()
+            .and_then(|docs| docs.macro_origins(name));
+        // Each stack slot owns a copy of the definition and optional provenance.
+        // Source-token limits alone cannot bound repeated pushes of one macro.
+        let mut bytes = size_of::<PushedMacro>()
+            .checked_add(size_of::<(String, Vec<PushedMacro>)>())
+            .and_then(|bytes| bytes.checked_add(name.len()))
+            .ok_or("macro stack byte limit exceeded")?;
+        let mut charge = |amount: usize| {
+            bytes = bytes
+                .checked_add(amount)
+                .ok_or("macro stack byte limit exceeded")?;
+            Ok::<(), &'static str>(())
+        };
+        if let Some(definition) = definition {
+            charge(definition.replacement.len())?;
+            for parameter in definition.parameters.iter().flatten() {
+                charge(
+                    size_of::<String>()
+                        .checked_add(parameter.len())
+                        .ok_or("macro stack byte limit exceeded")?,
+                )?;
+            }
+            if let Some(parameter) = &definition.variadic_parameter {
+                charge(parameter.len())?;
+            }
+        }
+        if let Some((location, accessed)) = &file_origin {
+            charge(location.path.as_os_str().len())?;
+            charge(accessed.as_os_str().len())?;
+        }
+        if let Some(origins) = &documentation {
+            charge(
+                origins
+                    .len()
+                    .checked_mul(size_of::<Option<documentation::OriginId>>())
+                    .ok_or("macro stack byte limit exceeded")?,
+            )?;
+        }
+        let total = self
+            .macro_stack_bytes
+            .checked_add(bytes)
+            .filter(|&bytes| bytes <= self.config.max_source_bytes)
+            .ok_or("macro stack byte limit exceeded")?;
+        let query_active =
+            FeatureQuery::from_name(name).is_some_and(|kind| self.active_queries & kind.bit() != 0);
+        self.macro_stacks
+            .entry(name.to_owned())
+            .or_default()
+            .push(PushedMacro {
+                definition: definition.cloned(),
+                file_origin,
+                documentation,
+                query_active,
+                retained_bytes: bytes,
+            });
+        self.macro_stack_bytes = total;
+        Ok(())
+    }
+
+    fn pop_macro(&mut self, name: &str) -> Result<(), &'static str> {
+        let Some(stack) = self.macro_stacks.get_mut(name) else {
+            return Err("pop_macro has no matching push_macro");
+        };
+        let snapshot = stack.pop().ok_or("pop_macro has no matching push_macro")?;
+        if stack.is_empty() {
+            self.macro_stacks.remove(name);
+        }
+        self.macro_stack_bytes -= snapshot.retained_bytes;
+        if let Some(definition) = snapshot.definition {
+            self.macros.insert(name.to_owned(), definition);
+        } else {
+            self.macros.remove(name);
+        }
+        if let Some(origins) = &mut self.file_origins {
+            origins.restore_macro(name, snapshot.file_origin);
+        }
+        if let Some(docs) = &mut self.documentation {
+            docs.restore_macro(name, snapshot.documentation);
+        }
+        if let Some(kind) = FeatureQuery::from_name(name) {
+            if snapshot.query_active {
+                self.active_queries |= kind.bit();
+            } else {
+                self.active_queries &= !kind.bit();
+            }
+        }
+        Ok(())
+    }
+
     fn pragma(
         &mut self,
         input: InputFile<'_>,
@@ -1265,6 +1377,21 @@ impl Preprocessor {
                 let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
                 if !msvc_warning_pragma(&expanded) {
                     return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
+                }
+            }
+            Some("push_macro" | "pop_macro") => {
+                let name = pragma_macro_name(tokens).ok_or_else(|| {
+                    Error::at(
+                        &origin.path,
+                        origin.line,
+                        origin.column,
+                        format!("unsupported pragma: {}", render(tokens)),
+                    )
+                })?;
+                if tokens[0].text == "push_macro" {
+                    self.push_macro(name).map_err(fail)?;
+                } else {
+                    self.pop_macro(name).map_err(fail)?;
                 }
             }
             // These delimit regions in the Visual Studio editor and do not
@@ -1798,6 +1925,21 @@ impl Preprocessor {
         }
         self.macros.insert(name.text.clone(), definition);
         Ok(())
+    }
+}
+
+fn pragma_macro_name(tokens: &[Token]) -> Option<&str> {
+    let [_, open, literal, close] = tokens else {
+        return None;
+    };
+    if open.text != "(" || close.text != ")" || literal.kind != Kind::String {
+        return None;
+    }
+    let name = literal.text.strip_prefix('"')?.strip_suffix('"')?;
+    let lexed = lex_with_scope(name, false).ok()?;
+    match lexed.as_slice() {
+        [token] if token.kind == Kind::Identifier && token.text == name => Some(name),
+        _ => None,
     }
 }
 

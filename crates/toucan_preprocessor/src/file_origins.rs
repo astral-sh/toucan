@@ -56,6 +56,8 @@ pub struct FileOrigins {
     paths: PathNames,
 }
 
+pub(crate) type MacroOrigin = (SourceLocation, Arc<Path>);
+
 impl FileOrigins {
     /// Ordered ranges, coalesced when paths and initial include class match.
     pub fn mappings(&self) -> &[FileMapping] {
@@ -165,6 +167,18 @@ impl FileOrigins {
 
     pub(crate) fn undefine(&mut self, name: &str) {
         self.macros.remove(name);
+    }
+
+    pub(crate) fn macro_origin(&self, name: &str) -> Option<MacroOrigin> {
+        self.macros.get(name).cloned()
+    }
+
+    pub(crate) fn restore_macro(&mut self, name: &str, origin: Option<MacroOrigin>) {
+        if let Some(origin) = origin {
+            self.macros.insert(name.to_owned(), origin);
+        } else {
+            self.macros.remove(name);
+        }
     }
 }
 

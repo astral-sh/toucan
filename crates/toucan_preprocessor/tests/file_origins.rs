@@ -51,7 +51,7 @@ fn physical_files_and_macro_definitions_survive_diagnostic_remapping() {
 }
 
 #[test]
-fn file_origin_catalog_resets_and_preserves_unsupported_pragma_diagnostics() {
+fn file_origin_catalog_resets_and_preserves_macro_stack_diagnostics() {
     let mut config = Config {
         record_file_origins: true,
         ..Default::default()
@@ -89,13 +89,27 @@ fn file_origin_catalog_resets_and_preserves_unsupported_pragma_diagnostics() {
         second.file_origins().unwrap().source_file(0),
         Some(Path::new("second.h"))
     );
-    for pragma in ["push_macro", "pop_macro"] {
-        let source = format!("#pragma {pragma}(\"ONE\")\n");
-        let error = processor
-            .preprocess_str(Path::new("unsupported.h"), &source)
-            .unwrap_err();
-        assert!(error.to_string().contains("unsupported pragma"));
-    }
+    let saved = processor
+        .preprocess_str(Path::new("saved.h"), "#pragma push_macro(\"ONE\")\n")
+        .unwrap();
+    assert!(
+        saved
+            .file_origins()
+            .unwrap()
+            .macro_definition("ONE")
+            .is_none()
+    );
+    let error = processor
+        .preprocess_str(Path::new("unmatched.h"), "#pragma pop_macro(\"ONE\")\n")
+        .unwrap_err();
+    assert!(error.to_string().contains("no matching push_macro"));
+    let error = processor
+        .preprocess_str(
+            Path::new("unsupported.h"),
+            "#pragma unsupported_macro_abi(\"ONE\")\n",
+        )
+        .unwrap_err();
+    assert!(error.to_string().contains("unsupported pragma"));
 }
 
 #[test]

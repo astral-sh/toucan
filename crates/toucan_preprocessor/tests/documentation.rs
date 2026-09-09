@@ -77,6 +77,37 @@ fn macro_output_keeps_invocation_and_final_replacement_coordinates() {
 }
 
 #[test]
+fn pop_macro_restores_original_replacement_spelling() {
+    let source = concat!(
+        "#define X /** original */ 1\n",
+        "#pragma push_macro(\"X\")\n",
+        "#undef X\n#define X /** temporary */ 2\n",
+        "X\n#pragma pop_macro(\"X\")\nX\n",
+    );
+    let output = Preprocessor::new(config())
+        .preprocess_str(Path::new("macro.h"), source)
+        .unwrap();
+    assert_eq!(output.source, "2\n1\n");
+    let docs = output.documentation().unwrap();
+    assert_eq!(
+        docs.resolve(output.source.find('2').unwrap())
+            .unwrap()
+            .spelling()
+            .unwrap()
+            .offset(),
+        source.find(" 2\n").unwrap() + 1
+    );
+    assert_eq!(
+        docs.resolve(output.source.find('1').unwrap())
+            .unwrap()
+            .spelling()
+            .unwrap()
+            .offset(),
+        source.find(" 1\n").unwrap() + 1
+    );
+}
+
+#[test]
 fn physical_splices_and_line_remapping_do_not_change_comment_spelling() {
     let source = "/** physical\\\n spelling */\n#line 70 \"logical.h\"\nint value;\n";
     let output = Preprocessor::new(config())

@@ -1237,6 +1237,83 @@ fn msvc_warning_pragmas_expand_runtime_header_warning_lists() {
 }
 
 #[test]
+fn push_and_pop_macro_restore_nested_definitions_and_absence_across_headers() {
+    let config = Config {
+        allow_filesystem: false,
+        record_file_origins: true,
+        record_macro_definitions: true,
+        virtual_headers: BTreeMap::from([("base.h".into(), "#define VALUE(x) x + 1\n".into())]),
+        ..Config::default()
+    };
+    let mut processor = Preprocessor::new(config);
+    let source = concat!(
+        "#include <base.h>\n",
+        "#pragma push_macro(\"VALUE\")\n",
+        "#undef VALUE\n#define VALUE(x) x * 2\nVALUE(3)\n",
+        "#pragma push_macro(\"VALUE\")\n",
+        "#undef VALUE\n#define VALUE(x) x - 1\nVALUE(3)\n",
+        "#pragma pop_macro(\"VALUE\")\nVALUE(3)\n",
+        "#pragma pop_macro(\"VALUE\")\nVALUE(3)\n",
+        "#pragma push_macro(\"ABSENT\")\n#define ABSENT 7\nABSENT\n",
+        "#pragma pop_macro(\"ABSENT\")\n",
+        "#ifdef ABSENT\n#error absent macro was not restored\n#endif\n",
+    );
+    let result = processor
+        .preprocess_str(Path::new("main.h"), source)
+        .unwrap();
+    assert_eq!(result.source, "3 * 2\n3 - 1\n3 * 2\n3 + 1\n7\n");
+    assert_eq!(result.macros["VALUE"].replacement, "x + 1");
+    assert!(!result.macros.contains_key("ABSENT"));
+    assert_eq!(
+        result
+            .macro_definitions()
+            .unwrap()
+            .iter()
+            .filter(|definition| definition.name() == "VALUE")
+            .count(),
+        3
+    );
+    let origins = result.file_origins().unwrap();
+    assert_eq!(
+        origins.macro_definition("VALUE").unwrap().path.as_ref(),
+        Path::new("<builtin>/base.h")
+    );
+    assert!(origins.macro_definition("ABSENT").is_none());
+    let error = processor
+        .preprocess_str(Path::new("other.h"), "#pragma pop_macro(\"VALUE\")\n")
+        .unwrap_err();
+    assert!(error.message.contains("no matching push_macro"));
+}
+
+#[test]
+fn macro_stack_pragmas_check_syntax_and_limit_retained_state() {
+    for source in [
+        "#pragma push_macro(NAME)\n",
+        "#pragma push_macro(\"not a macro\")\n",
+        "#pragma push_macro(\"X\", \"Y\")\n",
+        "#pragma pop_macro(\"X\")\n",
+    ] {
+        assert!(
+            Preprocessor::new(Config::default())
+                .preprocess_str(Path::new("invalid.h"), source)
+                .is_err(),
+            "{source}"
+        );
+    }
+    let source = format!(
+        "#define NAME 1\n#define SAVE _Pragma(\"push_macro(\\\"NAME\\\")\")\n{}",
+        "SAVE\n#pragma message\n".repeat(100)
+    );
+    let error = Preprocessor::new(Config {
+        max_source_bytes: 4096,
+        ..Config::default()
+    })
+    .preprocess_str(Path::new("limit.h"), &source)
+    .unwrap_err();
+    assert!(error.message.contains("macro stack byte limit"), "{error}");
+}
+
+#[test]
 fn malformed_msvc_warning_pragmas_and_other_unknown_pragmas_still_fail() {
     for pragma in [
         "warning",
