@@ -5,7 +5,6 @@
   "commit": "43867b9272a0b1278e076525805e1af0a7b15ac4",
   "source": "/home/dev-user/.cache/toucan/selection-final-source-2026-09-09",
   "source_equivalent_commit": "00ec563b1c5d583d0b852ed707a13ff719a9d7ee",
-  "review": "Ready with the recorded structural API and native sentinel differences; final timing authorization belongs to the parent task.",
   "binary": {
     "path": "/home/dev-user/.cache/toucan/selection-builder-preflight-target-2026-09-09/release/toucan-inprocess-benchmark",
     "sha256": "1ed955e687c3c79b77cef87654ed93c2d09be574fa042e622575cce82b0fa4e5"
