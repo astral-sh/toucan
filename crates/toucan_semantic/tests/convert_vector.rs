@@ -210,7 +210,9 @@ fn vector_conversion_constraints_match_compiler_profiles() {
         for &(name, source, gnu, clang) in CASES {
             assert_eq!(
                 check(source, profile).is_ok(),
-                if profile.compiler() == Compiler::Gnu {
+                if profile.target() == Target::I686UnknownLinuxGnu && source.contains("_Float16") {
+                    false
+                } else if profile.compiler() == Compiler::Gnu {
                     gnu
                 } else {
                     clang
@@ -227,6 +229,10 @@ fn static_conversion_has_an_explicit_frontend_limitation() {
     let source = include_str!("fixtures/static_convert_vector.c");
     for profile in CompilerProfile::ALL {
         let error = check(source, profile).unwrap_err();
+        if profile.target() == Target::I686UnknownLinuxGnu {
+            assert!(error.message.contains("_Float16 is unavailable"));
+            continue;
+        }
         assert!(
             error.message.contains(
                 "numeric vector conversion is not a static initializer in this compiler profile"
@@ -349,7 +355,9 @@ fn compiler_type_constraints_and_native_numeric_conversions() {
                 .unwrap();
             assert_eq!(
                 toucan_test_support::compiler_acceptance(&out).unwrap(),
-                if profile.compiler() == Compiler::Gnu {
+                if profile.target() == Target::I686UnknownLinuxGnu && source.contains("_Float16") {
+                    false
+                } else if profile.compiler() == Compiler::Gnu {
                     gnu
                 } else {
                     clang

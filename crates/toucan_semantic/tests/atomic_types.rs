@@ -1,5 +1,7 @@
-use toucan_semantic::{Analysis, AnalysisOptions, TypeKind, analyze, analyze_with_options};
-use toucan_target::Target;
+use toucan_semantic::{
+    Analysis, AnalysisOptions, TypeKind, analyze, analyze_with_options, analyze_with_profile,
+};
+use toucan_target::{Compiler, CompilerProfile, Target};
 fn check(source: &str, target: Target) -> Result<Analysis, toucan_semantic::Error> {
     let ordinary = analyze(source, target);
     let retained = analyze_with_options(
@@ -277,12 +279,33 @@ fn atomic_layouts_match_the_target_compiler_profiles() {
         if gnu(target) && !cfg!(target_os = "linux") {
             continue;
         }
+        let cross_i686 = target == Target::I686UnknownLinuxGnu
+            && !cfg!(any(target_arch = "x86", target_arch = "x86_64"));
         let mut source = String::new();
         for (index, ty) in types.iter().enumerate() {
+            if target == Target::I686UnknownLinuxGnu && ty == "__int128" {
+                assert!(
+                    check("typedef __int128 Unsupported;", target)
+                        .unwrap_err()
+                        .message
+                        .contains("__int128 is unavailable on i686 GNU Linux")
+                );
+                continue;
+            }
             let declaration = format!(
                 "typedef _Atomic({ty}) A{index}; struct H{index}{{char prefix;A{index} value;}};"
             );
-            let unit = analyze(&declaration, target).unwrap();
+            let unit = if cross_i686 {
+                analyze_with_profile(
+                    &declaration,
+                    CompilerProfile::new(target, Compiler::Clang).unwrap(),
+                    &AnalysisOptions::default(),
+                )
+                .unwrap()
+                .into_unit()
+            } else {
+                analyze(&declaration, target).unwrap()
+            };
             let atomic = unit.layout(&unit.typedefs[&format!("A{index}")]).unwrap();
             let host = unit
                 .records
@@ -295,10 +318,23 @@ fn atomic_layouts_match_the_target_compiler_profiles() {
             source.push_str(&declaration);
             source.push_str(&format!("_Static_assert(sizeof(A{index})=={},\"size\");_Static_assert(_Alignof(A{index})=={},\"alignment\");_Static_assert(__builtin_offsetof(struct H{index},value)=={},\"field offset\");",atomic.size_bytes(),atomic.alignment_bytes(),host.fields[1].as_ref().unwrap().offset_bits/8));
         }
-        check(&source, target).unwrap();
-        let output = if gnu(target) {
+        if cross_i686 {
+            analyze_with_profile(
+                &source,
+                CompilerProfile::new(target, Compiler::Clang).unwrap(),
+                &AnalysisOptions::default(),
+            )
+            .unwrap();
+        } else {
+            check(&source, target).unwrap();
+        }
+        let output = if gnu(target) && !cross_i686 {
+            let mut command = Command::new(&gcc);
+            if target == Target::I686UnknownLinuxGnu {
+                command.arg("-m32");
+            }
             compiler_input(
-                Command::new(&gcc).args(["-std=gnu11", "-fsyntax-only", "-x", "c", "-"]),
+                command.args(["-std=gnu11", "-fsyntax-only", "-x", "c", "-"]),
                 &source,
             )
         } else {

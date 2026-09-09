@@ -8,7 +8,8 @@ fn supported(profile: CompilerProfile) -> bool {
     profile.compiler() == Compiler::Clang
         && matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin
                 | Target::X86_64PcWindowsMsvc

@@ -590,11 +590,14 @@ impl X86Intrinsic {
         let descriptor = self.descriptor();
         match (target, profile.compiler()) {
             (
-                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl,
+                Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl,
                 toucan_target::Compiler::Gnu,
             ) => descriptor.gcc,
             (
-                Target::X86_64UnknownLinuxGnu
+                Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin
                 | Target::X86_64PcWindowsMsvc,

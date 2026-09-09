@@ -111,6 +111,12 @@ fn cases() -> Vec<(String, bool)> {
     }
     cases
 }
+fn valid_for_profile(source: &str, valid: bool, profile: CompilerProfile) -> bool {
+    valid
+        && profile.compiler() == Compiler::Clang
+        && !(profile.target() == Target::I686UnknownLinuxGnu
+            && (source.contains("_Float16") || source.contains("__bf16")))
+}
 #[test]
 fn memory_types_and_constraints_match_profile_rules() {
     for profile in CompilerProfile::ALL {
@@ -118,7 +124,7 @@ fn memory_types_and_constraints_match_profile_rules() {
             let result = check(&source, profile);
             assert_eq!(
                 result.is_ok(),
-                valid && profile.compiler() == Compiler::Clang,
+                valid_for_profile(&source, valid, profile),
                 "{profile:?} {source}: {result:?}"
             );
         }
@@ -297,7 +303,7 @@ fn native_constraint_matrix() {
             let result = cc.output().unwrap();
             assert_eq!(
                 toucan_test_support::compiler_acceptance(&result).unwrap(),
-                valid && p.compiler() == Compiler::Clang,
+                valid_for_profile(&source, valid, p),
                 "{p:?} {source}: {}",
                 String::from_utf8_lossy(&result.stderr)
             );

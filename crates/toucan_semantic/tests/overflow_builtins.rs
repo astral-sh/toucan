@@ -540,9 +540,18 @@ fn native_stores_and_predicate_effects_match_the_retained_operations() {
         }
         source.push_str("}\n");
     }
-    source.push_str("unsigned __int128 x=~(unsigned __int128)0,r=0;if(!__builtin_mul_overflow(x,x,&r)||r!=1)return 3;if(__builtin_add_overflow(x,-1,&r)||r!=x-1)return 4;signed char small=0;if(!__builtin_sub_overflow(-128,1,&small)||small!=127)return 5;volatile int observed=0;if(__builtin_add_overflow(1,2,&observed)||observed!=3)return 6;return 0;}\n");
+    source.push_str("#if defined(__SIZEOF_INT128__)\nunsigned __int128 x=~(unsigned __int128)0,r=0;if(!__builtin_mul_overflow(x,x,&r)||r!=1)return 3;if(__builtin_add_overflow(x,-1,&r)||r!=x-1)return 4;\n#endif\nsigned char small=0;if(!__builtin_sub_overflow(-128,1,&small)||small!=127)return 5;volatile int observed=0;if(__builtin_add_overflow(1,2,&observed)||observed!=3)return 6;return 0;}\n");
+    let (before, guarded) = source
+        .split_once("#if defined(__SIZEOF_INT128__)\n")
+        .unwrap();
+    let (int128, after) = guarded.split_once("#endif\n").unwrap();
     for target in Target::ALL {
-        check(&source, target).unwrap();
+        let parsed = if target == Target::I686UnknownLinuxGnu {
+            format!("{before}{after}")
+        } else {
+            format!("{before}{int128}{after}")
+        };
+        check(&parsed, target).unwrap();
     }
     let predicate = "struct S{signed b:3;unsigned u:3;};int predicate(void){int a=1,b=2,c=3,n=1;int r=__builtin_add_overflow_p(a++,b++,c++);if(a!=2||b!=3||c!=4||r)return 7;__builtin_add_overflow_p(1,2,sizeof(int[n++]));if(n!=2)return 8;__builtin_add_overflow_p(1,2,0&&n++);if(n!=2)return 9;struct S s={0,0};if(!__builtin_add_overflow_p(3,1,s.b)||__builtin_add_overflow_p(-4,0,s.b)||!__builtin_add_overflow_p(7,1,s.u))return 10;int value=0;const int*p=&value;if(__builtin_sadd_overflow(1,2,p)||value!=3)return 11;return 0;}";
     check(predicate, Target::X86_64UnknownLinuxGnu).unwrap();

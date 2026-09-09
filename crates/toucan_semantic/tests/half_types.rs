@@ -2,7 +2,12 @@ use toucan_semantic::{
     Analysis, AnalysisOptions, ArithmeticConstant, Error, FloatKind, FloatingFormat, TypeKind,
     analyze_with_profile, evaluate_arithmetic,
 };
-use toucan_target::{Compiler, CompilerProfile};
+use toucan_target::{Compiler, CompilerProfile, Target};
+
+fn supports_narrow_types(profile: CompilerProfile) -> bool {
+    // Both Clang targeting i686 and GCC -m32 reject _Float16 and __bf16.
+    profile.target() != Target::I686UnknownLinuxGnu
+}
 
 fn check(source: &str, profile: CompilerProfile) -> Result<Analysis, Error> {
     let plain = analyze_with_profile(source, profile, &AnalysisOptions::default());
@@ -54,7 +59,10 @@ const SOURCE: &str = r#"
 
 #[test]
 fn half_types_keep_distinct_storage_and_nominal_arithmetic_types() {
-    for profile in CompilerProfile::ALL {
+    for profile in CompilerProfile::ALL
+        .into_iter()
+        .filter(|profile| supports_narrow_types(*profile))
+    {
         let a = check(SOURCE, profile).unwrap_or_else(|e| panic!("{profile:?}: {e}"));
         let u = a.unit();
         assert_eq!(
@@ -108,7 +116,10 @@ fn apfloat_conversions_preserve_narrow_bits_and_integer_ranges() {
         ("-__builtin_inf()", 0xfc00, 0xff80),
         ("__builtin_nan(\"0\")", 0x7e00, 0x7fc0),
     ];
-    for profile in CompilerProfile::ALL {
+    for profile in CompilerProfile::ALL
+        .into_iter()
+        .filter(|profile| supports_narrow_types(*profile))
+    {
         let a = check("", profile).unwrap();
         let u = a.unit();
         for (expression, half, brain) in values {
@@ -156,7 +167,10 @@ fn apfloat_conversions_preserve_narrow_bits_and_integer_ranges() {
 
 #[test]
 fn constant_arithmetic_respects_the_compiler_excess_precision_boundary() {
-    for profile in CompilerProfile::ALL {
+    for profile in CompilerProfile::ALL
+        .into_iter()
+        .filter(|profile| supports_narrow_types(*profile))
+    {
         let a = check("", profile).unwrap();
         for source in [
             "(_Float16)1+(_Float16)0x1p-11-(_Float16)1",
@@ -209,6 +223,27 @@ fn invalid_narrow_type_operations_keep_constraint_diagnostics() {
 }
 
 #[test]
+fn i686_rejects_narrow_scalar_types_but_accepts_ordinary_floats() {
+    for compiler in [Compiler::Gnu, Compiler::Clang] {
+        let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap();
+        for (name, message) in [
+            ("_Float16", "_Float16 is unavailable on i686 GNU Linux"),
+            ("__bf16", "__bf16 is unavailable on i686 GNU Linux"),
+        ] {
+            let source = format!("typedef {name} Narrow;");
+            assert!(
+                check(&source, profile)
+                    .unwrap_err()
+                    .message
+                    .contains(message),
+                "{profile:?}: {source}"
+            );
+        }
+        check("typedef float Single; typedef double Double;", profile).unwrap();
+    }
+}
+
+#[test]
 #[ignore = "requires Clang's five target backends and native GNU GCC on Linux"]
 fn declarations_and_constraints_match_compiler_profiles() {
     let directory = tempfile::tempdir().unwrap();
@@ -232,6 +267,18 @@ fn declarations_and_constraints_match_compiler_profiles() {
             .arg(&path)
             .output()
             .unwrap();
+        if !supports_narrow_types(profile) {
+            let errors = String::from_utf8_lossy(&result.stderr);
+            assert!(
+                !result.status.success(),
+                "{profile:?}: narrow scalars accepted"
+            );
+            assert!(
+                errors.contains("_Float16") && errors.contains("__bf16"),
+                "{errors}"
+            );
+            continue;
+        }
         assert!(
             result.status.success(),
             "{profile:?}: {}",

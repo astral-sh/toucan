@@ -390,6 +390,9 @@ fn clang_cross_target_layouts() {
     }
 }
 
+// GCC's -m32 selects the host x86 multilib ABI; a native AArch64 GCC cannot use it.
+// clang_cross_target_layouts still checks i686 GNU Linux on other hosts.
+#[cfg(all(target_os = "linux", any(target_arch = "x86", target_arch = "x86_64")))]
 #[test]
 #[ignore = "requires GCC with -m32 support; run with --include-ignored"]
 fn gcc_i686_cross_target_layouts() {

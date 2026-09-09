@@ -182,10 +182,7 @@ impl TranslationUnit {
             }
             if let Some(target) = &options.target {
                 if !is_x86(self.target) {
-                    return Err(Error::new(
-                        0,
-                        "x86 function options require an x86-64 target",
-                    ));
+                    return Err(Error::new(0, "x86 function options require an x86 target"));
                 }
                 if target.options.len() > 256 {
                     return Err(Error::new(
@@ -240,7 +237,8 @@ impl TranslationUnit {
 fn is_x86(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu
+        Target::I686UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxGnu
             | Target::X86_64UnknownLinuxMusl
             | Target::X86_64AppleDarwin
             | Target::X86_64PcWindowsMsvc

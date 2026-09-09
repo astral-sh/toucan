@@ -2940,7 +2940,15 @@ impl Analyzer {
                             let inner = self.type_name(&name.node)?;
                             self.atomic_type(inner, true, ty.span.start)?.kind
                         }
-                        ast::TypeSpecifier::BFloat16 => TypeKind::Float(FloatKind::BFloat16),
+                        ast::TypeSpecifier::BFloat16 => {
+                            if self.unit.target == toucan_target::Target::I686UnknownLinuxGnu {
+                                return Err(Error::new(
+                                    ty.span.start,
+                                    "__bf16 is unavailable on i686 GNU Linux",
+                                ));
+                            }
+                            TypeKind::Float(FloatKind::BFloat16)
+                        }
                         ast::TypeSpecifier::Float128 => {
                             if !matches!(
                                 self.unit.target,
@@ -2957,6 +2965,15 @@ impl Analyzer {
                             TypeKind::Float(FloatKind::FLOAT128)
                         }
                         ast::TypeSpecifier::TS18661Float(float) => {
+                            if self.unit.target == toucan_target::Target::I686UnknownLinuxGnu
+                                && float.format == ast::TS18661FloatFormat::BinaryInterchange
+                                && float.width == 16
+                            {
+                                return Err(Error::new(
+                                    ty.span.start,
+                                    "_Float16 is unavailable on i686 GNU Linux",
+                                ));
+                            }
                             if matches!(
                                 float.format,
                                 ast::TS18661FloatFormat::BinaryInterchange

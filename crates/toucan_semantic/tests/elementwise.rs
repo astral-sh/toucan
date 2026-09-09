@@ -893,11 +893,22 @@ fn scalar_queries_are_not_constant_folds_and_dead_operands_stay_checked() {
 #[ignore = "requires Clang18 and native C callers"]
 fn native_saturation_and_integer_ordering() {
     let source = include_str!("fixtures/elementwise/access.c");
+    let (before, guarded) = source
+        .split_once("#if defined(__SIZEOF_INT128__)\n")
+        .unwrap();
+    let (int128, after) = guarded.split_once("#endif\n").unwrap();
     for profile in CompilerProfile::ALL
         .into_iter()
         .filter(|p| p.compiler() == Compiler::Clang)
     {
-        check(source, profile).unwrap();
+        // Semantic analysis receives C after preprocessing; the native caller
+        // receives the original guarded fixture for each compiler target.
+        let parsed = if profile.target() == Target::I686UnknownLinuxGnu {
+            format!("{before}{after}")
+        } else {
+            format!("{before}{int128}{after}")
+        };
+        check(&parsed, profile).unwrap();
     }
     let d = tempfile::tempdir().unwrap();
     let access = d.path().join("access.c");

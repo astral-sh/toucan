@@ -8,7 +8,8 @@ fn profiles() -> impl Iterator<Item = CompilerProfile> {
     CompilerProfile::ALL.into_iter().filter(|profile| {
         matches!(
             profile.target(),
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::X86_64AppleDarwin
                 | Target::X86_64PcWindowsMsvc
@@ -578,12 +579,44 @@ fn function_targets_match_compiler_codegen() {
         } else {
             continue;
         };
+        if profile.target() == Target::I686UnknownLinuxGnu {
+            // i686's baseline CPU lacks MMX. Use the same enabled ISA as the
+            // x86-64 cases while testing target-attribute overrides.
+            if profile.compiler() == Compiler::Gnu {
+                command.arg("-m32");
+            }
+            command.arg("-mmmx");
+        }
         command
             .args(["-std=gnu11", "-O0", "-S"])
             .arg(&input)
             .arg("-o")
             .arg(&output);
-        for &(source, gnu, clang) in NATIVE_CASES {
+        let i686_cases: &[(&str, bool, bool)] = &[
+            (
+                r#"__attribute__((target("mmx"))) void f(void){__builtin_ia32_emms();}"#,
+                true,
+                true,
+            ),
+            (
+                r#"__attribute__((target("no-mmx"))) void f(void){__builtin_ia32_emms();}"#,
+                false,
+                false,
+            ),
+            (
+                r#"__attribute__((target("no-mmx"))) void f(void){(void)sizeof((__builtin_ia32_emms(),0));}"#,
+                true,
+                true,
+            ),
+        ];
+        let cases = if profile.target() == Target::I686UnknownLinuxGnu {
+            // A narrower codegen oracle exercises enabled, disabled and
+            // unevaluated MMX; the x86-64 matrix assumes mandatory baseline MMX.
+            i686_cases
+        } else {
+            NATIVE_CASES
+        };
+        for &(source, gnu, clang) in cases {
             std::fs::write(&input, source).unwrap();
             let result = command.output().unwrap();
             assert_eq!(

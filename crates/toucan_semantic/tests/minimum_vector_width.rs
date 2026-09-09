@@ -302,11 +302,12 @@ fn native_arguments_subjects_and_hint_lowering() {
             .arg(&input)
             .arg("-o")
             .arg(&output);
-        let extra = if profile.target().is_windows() {
-            Some(u32::MAX)
-        } else {
-            None
-        };
+        let extra =
+            if profile.target().is_windows() || profile.target() == Target::I686UnknownLinuxGnu {
+                Some(u32::MAX)
+            } else {
+                None
+            };
         for &(expression, expected) in VALUES.iter().chain(std::iter::once(&("-1L", extra))) {
             let source =
                 format!("__attribute__((min_vector_width({expression}))) int f(void){{return 0;}}");
@@ -314,7 +315,9 @@ fn native_arguments_subjects_and_hint_lowering() {
             let result = cc.output().unwrap();
             assert_eq!(
                 toucan_test_support::compiler_acceptance(&result).unwrap(),
-                !clang || expected.is_some(),
+                (!clang || expected.is_some())
+                    && !(profile.target() == Target::I686UnknownLinuxGnu
+                        && expression.contains("__int128")),
                 "{profile:?} {source}: {}",
                 String::from_utf8_lossy(&result.stderr)
             );

@@ -5,7 +5,7 @@ use toucan_semantic::{
     IntegerKind, StringEncoding, analyze, decode_character_literal, decode_string_literals,
     evaluate_integer,
 };
-use toucan_target::Target;
+use toucan_target::{Compiler, Target};
 
 const GNU: Target = Target::X86_64UnknownLinuxGnu;
 
@@ -211,10 +211,11 @@ const INVALID: &[&str] = &[
     r#"int x = '\x100';"#,
 ];
 
-fn wide_source(target: Target) -> String {
+fn wide_source(target: Target, compiler: Compiler) -> String {
     let ty = if target.wchar_width() == 16 {
         "unsigned short"
-    } else if target == Target::I686UnknownLinuxGnu {
+    } else if target == Target::I686UnknownLinuxGnu && compiler == Compiler::Gnu {
+        // GCC -m32 uses long for L-prefixed literals; cross-Clang uses int.
         "long int"
     } else if target.wchar_is_signed() {
         "int"
@@ -236,7 +237,7 @@ fn wide_source(target: Target) -> String {
 #[test]
 fn literal_types_check_initializers_on_every_target() {
     for target in Target::ALL {
-        let wide = wide_source(target);
+        let wide = wide_source(target, Compiler::Gnu);
         for source in VALID.iter().copied().chain(std::iter::once(wide.as_str())) {
             analyze(source, target).unwrap_or_else(|error| panic!("{target}: {source}: {error}"));
         }
@@ -295,7 +296,11 @@ fn literal_constraints_match_native_compilers() {
                 );
             }
         }
-        let output = compile(compiler, &wide_source(target), &["-fsyntax-only"]);
+        let output = compile(
+            compiler,
+            &wide_source(target, Compiler::Gnu),
+            &["-fsyntax-only"],
+        );
         assert!(
             output.status.success(),
             "{compiler}: {}",
@@ -308,7 +313,7 @@ fn literal_constraints_match_native_compilers() {
 #[ignore = "requires Clang with all five target backends; run with --include-ignored"]
 fn literal_types_match_clang_on_every_target() {
     for target in Target::ALL {
-        let wide = wide_source(target);
+        let wide = wide_source(target, Compiler::Clang);
         for source in VALID.iter().copied().chain(std::iter::once(wide.as_str())) {
             let output = compile(
                 "clang",

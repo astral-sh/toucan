@@ -336,38 +336,47 @@ fn mmx_signatures_match_compiler_descriptors() {
     );
     let architecture = Command::new(&gcc).arg("-dumpmachine").output().unwrap();
     if String::from_utf8_lossy(&architecture.stdout).starts_with("x86_64") {
-        let mut source = signature_source(Target::X86_64UnknownLinuxGnu);
-        for intrinsic in INTRINSICS {
-            let signature = intrinsic.signature(Target::X86_64UnknownLinuxGnu).unwrap();
-            let parameters = signature
-                .parameters()
-                .iter()
-                .map(spelling)
-                .collect::<Vec<_>>()
-                .join(",");
-            let parameters = if parameters.is_empty() {
-                "void"
-            } else {
-                &parameters
-            };
-            source.push_str(&format!("_Static_assert(__builtin_types_compatible_p(__typeof__({}),{}({parameters})),\"formal signature\");\n",intrinsic.name(),spelling(signature.result())));
+        for (target, flag) in [
+            (Target::X86_64UnknownLinuxGnu, None),
+            (Target::I686UnknownLinuxGnu, Some("-m32")),
+        ] {
+            let mut source = signature_source(target);
+            for intrinsic in INTRINSICS {
+                let signature = intrinsic.signature(target).unwrap();
+                let parameters = signature
+                    .parameters()
+                    .iter()
+                    .map(spelling)
+                    .collect::<Vec<_>>()
+                    .join(",");
+                let parameters = if parameters.is_empty() {
+                    "void"
+                } else {
+                    &parameters
+                };
+                source.push_str(&format!("_Static_assert(__builtin_types_compatible_p(__typeof__({}),{}({parameters})),\"formal signature\");\n",intrinsic.name(),spelling(signature.result())));
+            }
+            let mut command = Command::new(&gcc);
+            if let Some(flag) = flag {
+                command.args([flag, "-mmmx"]);
+            }
+            let output = compiler_input(
+                command.args([
+                    "-std=gnu11",
+                    "-pedantic-errors",
+                    "-fsyntax-only",
+                    "-x",
+                    "c",
+                    "-",
+                ]),
+                &source,
+            );
+            assert!(
+                output.status.success(),
+                "{target}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
         }
-        let output = compiler_input(
-            Command::new(&gcc).args([
-                "-std=gnu11",
-                "-pedantic-errors",
-                "-fsyntax-only",
-                "-x",
-                "c",
-                "-",
-            ]),
-            &source,
-        );
-        assert!(
-            output.status.success(),
-            "{}",
-            String::from_utf8_lossy(&output.stderr)
-        );
     }
     for target in Target::ALL {
         let supported = X86Intrinsic::Emms.signature(target).is_some();

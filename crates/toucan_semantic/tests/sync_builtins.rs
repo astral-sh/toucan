@@ -291,7 +291,6 @@ fn sync_signatures_match_native_gcc_and_cross_target_clang() {
             );
         }
         for target in Target::ALL {
-            check(&source, target).unwrap();
             let output = compiler_input(
                 Command::new("clang").args([
                     "-target",
@@ -306,6 +305,21 @@ fn sync_signatures_match_native_gcc_and_cross_target_clang() {
                 ]),
                 &source,
             );
+            if ty == "__int128" && target == Target::I686UnknownLinuxGnu {
+                assert!(
+                    check(&source, target)
+                        .unwrap_err()
+                        .message
+                        .contains("__int128 is unavailable on i686 GNU Linux")
+                );
+                assert!(!output.status.success());
+                assert!(
+                    String::from_utf8_lossy(&output.stderr)
+                        .contains("__int128 is not supported on this target")
+                );
+                continue;
+            }
+            check(&source, target).unwrap();
             assert!(
                 output.status.success(),
                 "{target} {ty}: {}",
