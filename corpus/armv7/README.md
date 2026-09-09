@@ -27,3 +27,15 @@ standard library or cross GCC. Its evidence is marked `preflight-only`, with
 source, tool, binding, command, and binary hashes plus C/Rust results in
 `results/armv7/native/evidence.json`. A green QEMU run establishes emulated
 ARMv7 execution; native ARM hardware is outside this gate.
+
+## Recorded result
+
+At `8c8e74c`, [run 34385182838](https://github.com/astral-sh/toucan/actions/runs/34385182838)
+passed two C layout executions and four C/Rust FFI executions under QEMU on
+x86-64 Ubuntu. GCC and Clang each passed 256 FFI rounds at O0 and O2.
+All twelve retained objects and executables have ARMv7/VFP signatures; all six
+executables carry the hard-float ABI flag. Binding generation used no exclusions
+and skipped no declarations or macros. The [preserved evidence](../evidence/armv7-qemu-2026-09-09/README.md)
+records the exact source, commands, hashes, and independent archive checks.
+This uses Toucan's Clang frontend profile and does not establish native ARM
+hardware or full consumer acceptance.

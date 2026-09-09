@@ -39,8 +39,10 @@ loaded libraries; it does not measure the memory of a full application build.
    and x86-64 and ARM64 Windows MSVC. The pinned
    [uv platform policy](https://github.com/astral-sh/uv/blob/d28a3ee3d0f7122b0da64b0226d2e173e7d23747/docs/reference/policies/platforms.md)
    also ships Linux PPC64LE, RISC-V64, and s390x, which remain unsupported. ARMv7
-   has compiler layout and predefined-macro checks; its [QEMU C/Rust gate](../corpus/armv7/README.md)
-   still needs a successful run. ARMv7 output requires Rust 1.78 to guard its
+   has compiler layout and predefined-macro checks, plus [GCC/Clang C/Rust
+   execution under QEMU](../corpus/evidence/armv7-qemu-2026-09-09/README.md) at
+   O0/O2 with 256 rounds per compiler/optimization pair. Native ARM hardware
+   and full uv/ty consumer builds remain unvalidated. ARMv7 output requires Rust 1.78 to guard its
    hard-float ABI. i686 has
    [cross-target C layout evidence](../corpus/evidence/i686-target-2026-09-09/README.md)
    and [native 32-bit C/Rust FFI evidence](../corpus/evidence/i686-native-af0d174-2026-09-09/README.md)
