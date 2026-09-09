@@ -117,12 +117,21 @@ fn options() -> BindingOptions {
     }
 }
 
+fn options_for_target(target: Target) -> BindingOptions {
+    let mut options = options();
+    if target == Target::Armv7UnknownLinuxGnueabihf {
+        // The hard-float ABI guard uses cfg(target_abi), stabilized in Rust 1.78.
+        options.rust_target = RustTarget::stable(78).unwrap();
+    }
+    options
+}
+
 #[test]
 fn strings_preserve_target_types_and_all_code_units() {
     for target in Target::ALL {
         let cases = cases(target);
         let compilation = parse(&header(&cases), target);
-        let (source, report) = compilation.bindings(&options()).unwrap();
+        let (source, report) = compilation.bindings(&options_for_target(target)).unwrap();
         assert_eq!(report.string_macros, cases.len());
         assert_eq!(report.integer_macros, 0);
         assert!(
@@ -401,7 +410,9 @@ fn rust_run(source: &str) {
 fn emitted_arrays_and_cstr_match_native_c_and_compile_as_rust() {
     for target in Target::ALL {
         let cases = cases(target);
-        let (bindings, _) = parse(&header(&cases), target).bindings(&options()).unwrap();
+        let (bindings, _) = parse(&header(&cases), target)
+            .bindings(&options_for_target(target))
+            .unwrap();
         // Constant arrays are portable Rust. Check each target's projection on
         // the host independently of the full bindings' deliberate target guard.
         let mut rust = bindings
