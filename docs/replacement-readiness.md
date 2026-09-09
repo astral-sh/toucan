@@ -18,17 +18,17 @@ eventual release revision.
 | `aws-lc-sys` external `bindgen` executable | [Native build through the unchanged upstream script](../corpus/evidence/aws-lc-external-cli-317756d/README.md) passes 41 crypto artifacts, six C/Rust layouts, and 98 generated layout tests. The same-command reference agrees on all 2,618 functions and 3,851 constants. | Native Linux x86-64 crypto only. Bindgen-cli leaves 60 globals unprefixed despite `--prefix-link-name`; Toucan prefixes them and all 60 symbols exist in the native archive. The original AWS-LC manifest still compiles bindgen and clang-sys as build dependencies. |
 | `aws-lc-fips-sys` external `bindgen` executable | [Native FIPS build through the unchanged upstream script](../corpus/evidence/aws-lc-external-fips-2026-09-09/README.md) invokes Toucan, consumes its generated Rust, and passes an actual integrity-check FFI call, 41 reference-matching crypto artifacts, six C/Rust layouts, and 97 generated layout tests. | Native Linux x86-64 only. FIPS certification and full API coverage are not established. Toucan fixes a C-validated unprefixed integrity symbol that bindgen-cli also links incorrectly. The upstream script still calls libclang. |
 | `uv` HTTPS through AWS-LC | [Paired binaries](../corpus/evidence/uv-tls-builder-7db2b85/summary.json) install the same payload with TLS 1.2 and 1.3, and both reject an unrelated CA or wrong hostname before making a request. | Native x86-64 Linux, the recorded provider and selected features. |
-| Four untouched public-header projects | [Combined-source preflight](../benchmarks/evidence/builder-preflight-callbacks/README.md) checks zlib, SQLite, zstd, and libgit2 with native C probes, generated Rust, and actual FFI calls. | Zlib and zstd pass structural API equality. SQLite's corrected returned callback, ten extra libgit2 aliases, and three signed sentinels remain recorded differences. |
+| Four untouched public-header projects | [Fresh preflight at `66c87396`](../benchmarks/evidence/builder-66c8739/README.md#validation) checks zlib, SQLite, zstd, and libgit2 with native C probes, generated Rust, and actual FFI calls. All eight outputs match the earlier preflight byte for byte. | Zlib and zstd pass structural API equality. SQLite's corrected returned callback, ten extra libgit2 aliases, and three signed sentinels remain recorded differences. |
 
 The [native validation](../corpus/evidence/native-callbacks-2026-09-09/README.md)
 records 1,268 passing workspace tests, Rustdoc, three bounded AddressSanitizer
 campaigns, and eight successful GitHub workflows. The enum analyzer at the same
 source also matches seven pinned zstd/AWS enums and 100 C discriminants; see the
 [schema-3 evidence](../corpus/evidence/binding-rustified-enums-schema3-2026-09-09.json.gz).
-The [Builder benchmark](../benchmarks/evidence/builder-callback-final/README.md)
+The [Builder benchmark at `66c87396`](../benchmarks/evidence/builder-66c8739/README.md)
 measures generation on these four projects. It does not measure application build
 time or establish speed on other headers. A separate [peak resident memory run](../benchmarks/evidence/builder-peak-rss-callbacks/README.md)
-measures the same frozen binary and requests in fresh Linux processes, including
+measures the earlier `7db2b850` binary in fresh Linux processes, including
 loaded libraries; it does not measure the memory of a full application build.
 
 ## Gates for a general drop-in release

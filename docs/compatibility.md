@@ -679,8 +679,10 @@ AddressSanitizer campaigns, and successful Linux x64/ARM and Windows GitHub jobs
 It identifies the tested source for each result and records zero macOS allocations.
 The original local test process exit code was unavailable after its tool session
 ended; every planned test binary and doctest group has a passing final result.
-The [latest Builder comparison](../benchmarks/evidence/builder-callback-final/README.md)
-measures the combined source after checking four pinned real-header projects.
+The [Builder comparison at `66c87396`](../benchmarks/evidence/builder-66c8739/README.md)
+measures a fresh release build after checking four pinned real-header projects
+with independent C probes and generated Rust FFI calls. All eight outputs match
+the earlier preflight byte for byte; the recorded API differences remain.
 
 Complete the declaration and expression conformance work; extend independent review
 and adversarial testing of the [parser resource limits](parser-limits.md); extend the target/header
