@@ -4,8 +4,60 @@ use std::path::Path;
 use crate::token::{Kind, Token, lex_with_scope, replace_comments};
 use crate::{Config, FeatureQuery, Macro, QueryDialect};
 
+/// Token templates for active definitions, bounded separately from expansion work.
+/// Cached templates have no invocation-specific hide sets or documentation origins.
+#[derive(Default)]
+pub(crate) struct ReplacementCache {
+    entries: BTreeMap<String, (Box<[Token]>, usize)>,
+    bytes: usize,
+}
+
+impl ReplacementCache {
+    pub(crate) fn clear(&mut self) {
+        self.entries.clear();
+        self.bytes = 0;
+    }
+
+    pub(crate) fn remove(&mut self, name: &str) {
+        if let Some((_, bytes)) = self.entries.remove(name) {
+            self.bytes -= bytes;
+        }
+    }
+
+    fn tokens(
+        &mut self,
+        name: &str,
+        text: &str,
+        scope_punctuator: bool,
+        max_bytes: usize,
+    ) -> Result<Vec<Token>, String> {
+        if let Some((tokens, _)) = self.entries.get(name) {
+            return Ok(tokens.to_vec());
+        }
+        let tokens = replacement_tokens(text, scope_punctuator)?;
+        let bytes = tokens.iter().fold(
+            name.len()
+                .saturating_add(size_of::<(String, Box<[Token]>, usize)>()),
+            |bytes, token| {
+                bytes
+                    .saturating_add(size_of::<Token>())
+                    .saturating_add(token.text.len())
+            },
+        );
+        // A full cache falls back to lexing; it never rejects accepted input or
+        // changes per-invocation expansion token and byte charges.
+        if bytes <= max_bytes.saturating_sub(self.bytes) {
+            self.entries
+                .insert(name.to_owned(), (tokens.clone().into_boxed_slice(), bytes));
+            self.bytes += bytes;
+        }
+        Ok(tokens)
+    }
+}
+
 pub(crate) struct Expansion<'a> {
     pub macros: &'a BTreeMap<String, Macro>,
+    pub replacement_cache: Option<&'a mut ReplacementCache>,
     pub active_queries: u8,
     pub ms_pragma_active: bool,
     pub config: &'a Config,
@@ -446,8 +498,17 @@ impl Expansion<'_> {
         paste(substituted, self.config.scope_punctuator)
     }
 
-    fn replacement_tokens(&self, name: &str, text: &str) -> Result<Vec<Token>, String> {
-        let mut tokens = replacement_tokens(text, self.config.scope_punctuator)?;
+    fn replacement_tokens(&mut self, name: &str, text: &str) -> Result<Vec<Token>, String> {
+        let mut tokens = if let Some(cache) = &mut self.replacement_cache {
+            cache.tokens(
+                name,
+                text,
+                self.config.scope_punctuator,
+                self.config.max_source_bytes,
+            )?
+        } else {
+            replacement_tokens(text, self.config.scope_punctuator)?
+        };
         if let Some(docs) = &self.documentation {
             docs.replacements(name, &mut tokens);
         }

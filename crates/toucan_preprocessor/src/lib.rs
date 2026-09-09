@@ -258,6 +258,7 @@ impl Preprocessed {
         }
         let mut expansion = Expansion {
             macros: &self.macros,
+            replacement_cache: None,
             active_queries: self.active_queries,
             ms_pragma_active: self.ms_pragma_active,
             config: &self.config,
@@ -329,6 +330,7 @@ pub struct Preprocessor {
     active_queries: u8,
     ms_pragma_active: bool,
     macros: BTreeMap<String, Macro>,
+    replacement_cache: expand::ReplacementCache,
     macro_stacks: BTreeMap<String, Vec<PushedMacro>>,
     macro_stack_bytes: usize,
     dependencies: BTreeMap<PathBuf, Option<Arc<Path>>>,
@@ -435,6 +437,7 @@ impl Preprocessor {
             active_queries: 0,
             ms_pragma_active,
             macros: BTreeMap::new(),
+            replacement_cache: expand::ReplacementCache::default(),
             macro_stacks: BTreeMap::new(),
             macro_stack_bytes: 0,
             dependencies: BTreeMap::new(),
@@ -607,6 +610,7 @@ impl Preprocessor {
         self.include_search = None;
         self.include_search = include_search::SearchOrder::resolve(&self.config)?;
         self.macros.clear();
+        self.replacement_cache.clear();
         self.macro_stacks.clear();
         self.macro_stack_bytes = 0;
         self.active_queries = self
@@ -680,6 +684,7 @@ impl Preprocessor {
     }
 
     fn finish(&mut self, path: &Path, source: String) -> Preprocessed {
+        self.replacement_cache.clear();
         if let Some(documentation) = &mut self.documentation {
             documentation.finish();
         }
@@ -1063,6 +1068,7 @@ impl Preprocessor {
                         self.ms_pragma_active = false;
                     }
                     self.macros.remove(name);
+                    self.replacement_cache.remove(name);
                     if let Some(docs) = &mut self.documentation {
                         docs.undefine(name);
                     }
@@ -1309,6 +1315,7 @@ impl Preprocessor {
             self.macro_stacks.remove(name);
         }
         self.macro_stack_bytes -= snapshot.retained_bytes;
+        self.replacement_cache.remove(name);
         if let Some(definition) = snapshot.definition {
             self.macros.insert(name.to_owned(), definition);
         } else {
@@ -1629,6 +1636,7 @@ impl Preprocessor {
     ) -> Result<T, Error> {
         let mut expansion = Expansion {
             macros: &self.macros,
+            replacement_cache: Some(&mut self.replacement_cache),
             active_queries: self.active_queries,
             ms_pragma_active: self.ms_pragma_active,
             config: &self.config,
@@ -2001,6 +2009,7 @@ impl Preprocessor {
         if let Some(docs) = &mut self.documentation {
             docs.define(&name.text, replacement, self.config.max_source_bytes)?;
         }
+        self.replacement_cache.remove(&name.text);
         self.macros.insert(name.text.to_string(), definition);
         Ok(())
     }

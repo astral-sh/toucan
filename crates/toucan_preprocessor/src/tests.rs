@@ -738,6 +738,11 @@ fn differential_macro_corpus_matches_native_c_preprocessor() {
     use std::process::{Command, Stdio};
 
     let corpus = [
+        concat!(
+            "#define A 1\nA A\n#pragma push_macro(\"A\")\n",
+            "#undef A\n#define A 2\nA A\n#pragma pop_macro(\"A\")\nA A\n",
+            "#undef A\n#define A(x) #x x\nA(3) A(4)\n",
+        ),
         "#define A 3\n#define F(x) (x+A)\n#define G F\nG(G(2))\n",
         "#define F() 1\nF _Pragma(\"pack(1)\") ()\n",
         "#define E(x)\n#define F(x) E(x)\nF(_Pragma(\"pack(1)\"))\n",
@@ -2063,4 +2068,24 @@ fn compiler_preprocessed_output_can_be_read_with_line_markers() {
             assert_eq!(location.line, line, "{compiler}");
         }
     }
+}
+
+#[test]
+fn full_replacement_cache_preserves_expansion_and_acceptance() {
+    let source = (0..8)
+        .map(|index| format!("#define A{index} {index} + __COUNTER__\nA{index} A{index}\n"))
+        .collect::<String>();
+    let expected = preprocess(&source);
+    let mut preprocessor = Preprocessor::new(Config {
+        max_source_bytes: 1024,
+        ..Config::default()
+    });
+    let result = preprocessor
+        .preprocess_str(Path::new("limited.h"), &source)
+        .unwrap();
+    assert_eq!(result.source, expected);
+    let repeated = preprocessor
+        .preprocess_str(Path::new("repeated.h"), &source)
+        .unwrap();
+    assert_eq!(repeated.source, expected);
 }
