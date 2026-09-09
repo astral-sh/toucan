@@ -207,7 +207,89 @@ fn gnu_widens_extended_enums_and_apple_rejects_lossy_recovery() {
             .is_err()
         );
     }
-    assert!(analyze("enum E { A = 0xffffffffU };", Target::X86_64PcWindowsMsvc).is_err());
+    assert!(
+        analyze(
+            "enum E { A = 0x100000000ULL };",
+            Target::X86_64PcWindowsMsvc
+        )
+        .is_err()
+    );
+}
+
+const WINDOWS_SDK_ENUMS: &str = r#"
+typedef enum {
+    DISPLAYCONFIG_OUTPUT_TECHNOLOGY_OTHER = -1,
+    DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INTERNAL = 0x80000000,
+    DISPLAYCONFIG_OUTPUT_TECHNOLOGY_FORCE_UINT32 = 0xFFFFFFFF
+} DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY;
+typedef enum {
+    DISPLAYCONFIG_SCALING_IDENTITY = 1,
+    DISPLAYCONFIG_SCALING_FORCE_UINT32 = 0xFFFFFFFF
+} DISPLAYCONFIG_SCALING;
+enum __attribute__((packed)) PackedSentinel { PACKED_ZERO = 0, PACKED_FORCE = 0xFFFFFFFFU };
+_Static_assert(sizeof(enum PackedSentinel) == 4 && _Alignof(enum PackedSentinel) == 4,
+               "packed sentinel layout");
+_Static_assert((long long)PACKED_FORCE == -1LL, "packed sentinel value");
+_Static_assert(sizeof(DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY) == 4 &&
+               _Alignof(DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY) == 4, "mixed layout");
+_Static_assert(sizeof(DISPLAYCONFIG_SCALING) == 4 &&
+               _Alignof(DISPLAYCONFIG_SCALING) == 4, "sentinel layout");
+_Static_assert(_Generic((DISPLAYCONFIG_VIDEO_OUTPUT_TECHNOLOGY)0, int:1, default:0), "mixed type");
+_Static_assert(_Generic(DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INTERNAL, int:1, default:0), "internal type");
+_Static_assert(_Generic(DISPLAYCONFIG_OUTPUT_TECHNOLOGY_FORCE_UINT32, int:1, default:0), "force type");
+_Static_assert((long long)DISPLAYCONFIG_OUTPUT_TECHNOLOGY_OTHER == -1LL, "other value");
+_Static_assert((long long)DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INTERNAL == -2147483648LL, "internal value");
+_Static_assert((long long)DISPLAYCONFIG_OUTPUT_TECHNOLOGY_FORCE_UINT32 == -1LL, "force value");
+_Static_assert(_Generic(DISPLAYCONFIG_SCALING_FORCE_UINT32, int:1, default:0), "scaling type");
+_Static_assert((long long)DISPLAYCONFIG_SCALING_FORCE_UINT32 == -1LL, "scaling value");
+"#;
+
+#[test]
+fn windows_sdk_enums_reinterpret_unsigned_32_bit_sentinels() {
+    for target in [Target::X86_64PcWindowsMsvc, Target::Aarch64PcWindowsMsvc] {
+        let unit = analyze(WINDOWS_SDK_ENUMS, target).unwrap();
+        for (name, expected) in [
+            ("DISPLAYCONFIG_OUTPUT_TECHNOLOGY_OTHER", -1),
+            ("DISPLAYCONFIG_OUTPUT_TECHNOLOGY_INTERNAL", i32::MIN as i128),
+            ("DISPLAYCONFIG_OUTPUT_TECHNOLOGY_FORCE_UINT32", -1),
+            ("DISPLAYCONFIG_SCALING_FORCE_UINT32", -1),
+            ("PACKED_FORCE", -1),
+        ] {
+            let value = unit.constants[name];
+            assert_eq!(c_type(value), "int", "{target}: {name}");
+            assert_eq!(value.signed_value(), expected, "{target}: {name}");
+        }
+    }
+    let unit = analyze(
+        "enum E { NEGATIVE = -1, FORCE = 0xffffffffU };",
+        Target::Aarch64UnknownLinuxGnu,
+    )
+    .unwrap();
+    assert_eq!(unit.constants["FORCE"].signed_value(), u32::MAX as i128);
+}
+
+#[test]
+#[ignore = "requires Clang with Windows MSVC targets"]
+fn windows_sdk_enum_clang_cross_target_oracle() {
+    use std::process::Command;
+
+    let file = tempfile::NamedTempFile::new().unwrap();
+    std::fs::write(file.path(), WINDOWS_SDK_ENUMS).unwrap();
+    for target in [Target::X86_64PcWindowsMsvc, Target::Aarch64PcWindowsMsvc] {
+        for extensions in ["-fms-extensions", "-fno-ms-extensions"] {
+            let output = Command::new("clang")
+                .arg(format!("--target={}", target.triple()))
+                .args([extensions, "-std=c11", "-fsyntax-only", "-x", "c"])
+                .arg(file.path())
+                .output()
+                .unwrap();
+            assert!(
+                output.status.success(),
+                "{target} {extensions}: {}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+        }
+    }
 }
 
 const COMPLETENESS: &[(&str, bool)] = &[

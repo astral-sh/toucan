@@ -104,14 +104,16 @@ fn wide_packed_enums_keep_the_existing_compiler_range_rules() {
         ] {
             let source = format!("enum __attribute__((packed)) E{{{values}}};");
             let result = parity(&source, profile);
-            if profile.target().is_windows()
+            if (profile.target().is_windows() && kind != IntegerKind::UnsignedInt)
                 || (kind == IntegerKind::Int128
                     && (profile.compiler() == Compiler::Clang
                         || profile.target() == Target::I686UnknownLinuxGnu))
             {
                 assert!(result.is_err(), "{profile:?}: {source}");
             } else {
-                let kind = if profile.target() == Target::I686UnknownLinuxGnu {
+                let kind = if profile.target().is_windows() {
+                    IntegerKind::Int
+                } else if profile.target() == Target::I686UnknownLinuxGnu {
                     match kind {
                         IntegerKind::UnsignedLong => IntegerKind::UnsignedLongLong,
                         IntegerKind::Long => IntegerKind::LongLong,

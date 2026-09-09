@@ -657,9 +657,10 @@ impl Analyzer {
         let wider_than_int = variants.iter().any(|variant| !variant.value.fits_int());
         for variant in variants {
             let value = variant.value;
-            // Some compiler extensions recover from an unrepresentable enum by
-            // truncating its values. We reject that recovery instead of emitting
-            // constants whose values changed silently.
+            // The Windows MSVC enum ABI uses signed int even for unsigned
+            // 32-bit enumerators. Clang and MSVC reinterpret SDK sentinels
+            // such as 0xffffffff as -1 when the definition closes. Preserve
+            // this bounded conversion, but reject wider lossy recoveries.
             let converted = convert(value, destination);
             let representable = if value.signed && value.signed_value() < 0 {
                 converted.signed && value.signed_value() == converted.signed_value()
@@ -667,7 +668,12 @@ impl Analyzer {
                 (!converted.signed || converted.signed_value() >= 0)
                     && value.value == converted.value
             };
-            if !representable {
+            let windows_u32_sentinel = self.unit.target.is_windows()
+                && destination.bits == 32
+                && destination.signed
+                && !value.signed
+                && value.value <= u128::from(u32::MAX);
+            if !representable && !windows_u32_sentinel {
                 return Err(Error::new(
                     offset,
                     "enum value is not representable in its compatible integer type",
