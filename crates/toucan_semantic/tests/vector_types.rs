@@ -308,13 +308,21 @@ fn vector_masks_and_lane_constraints_follow_target_profiles() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::Aarch64UnknownLinuxGnu
                 | Target::Aarch64UnknownLinuxMusl
         );
         let (byte, wide) = if gnu {
-            ("signed char", "long")
+            (
+                "signed char",
+                if target.long_width() == 64 {
+                    "long"
+                } else {
+                    "long long"
+                },
+            )
         } else {
             ("char", "long long")
         };

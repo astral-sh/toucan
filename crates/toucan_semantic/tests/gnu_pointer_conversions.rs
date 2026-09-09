@@ -88,7 +88,8 @@ fn conditional_pointer_qualifiers_follow_the_compiler_profile() {
     for target in Target::ALL {
         let gnu = matches!(
             target,
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::Aarch64UnknownLinuxGnu
                 | Target::Aarch64UnknownLinuxMusl

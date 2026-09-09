@@ -11,6 +11,7 @@ output types, and validation for unsupported inputs.
 | Target | `char` | `long` | `wchar_t` | `long double` size / alignment |
 | --- | --- | --- | --- | --- |
 | `x86_64-unknown-linux-gnu` | signed | 64 bits | signed, 32 bits | 16 / 16 bytes |
+| `i686-unknown-linux-gnu` | signed | 32 bits | signed, 32 bits | 12 / 4 bytes |
 | `aarch64-unknown-linux-gnu` | unsigned | 64 bits | unsigned, 32 bits | 16 / 16 bytes |
 | `x86_64-unknown-linux-musl` | signed | 64 bits | signed, 32 bits | 16 / 16 bytes |
 | `aarch64-unknown-linux-musl` | unsigned | 64 bits | unsigned, 32 bits | 16 / 16 bytes |
@@ -19,13 +20,16 @@ output types, and validation for unsupported inputs.
 | `x86_64-pc-windows-msvc` | signed | 32 bits | unsigned, 16 bits | 8 / 8 bytes |
 | `aarch64-pc-windows-msvc` | signed | 32 bits | unsigned, 16 bits | 8 / 8 bytes |
 
-All supported profiles have eight-bit bytes, little-endian storage, and 64-bit pointers.
+All supported profiles have eight-bit bytes and little-endian storage. Pointers
+are 32 bits on i686 and 64 bits on the other targets.
 `CompilerProfile` selects GCC or Clang independently of these physical properties.
 The defaults are GCC on Linux and Clang on Darwin/Windows; Clang is also available
-on both Linux targets. Windows uses the Microsoft layout route.
+on the Linux targets. Windows uses the Microsoft layout route.
 `CompilerProfile::new(target, compiler)` rejects unsupported combinations.
 Target selection never falls back to the build host. Compiler options that change the ABI,
 including `-fshort-enums`, `-fpack-struct`, and `-funsigned-char`, are not part of these profiles.
+The i686 profile rejects `__int128` and enum ranges requiring 128 bits, as both
+GCC and Clang do for this target.
 
 ## Layouts
 

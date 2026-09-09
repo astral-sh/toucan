@@ -135,7 +135,9 @@ fn argument_bits_and_subjects_follow_clang_without_affecting_gnu() {
             let a = check(&source, profile);
             assert_eq!(
                 a.is_ok(),
-                profile.compiler() == Compiler::Gnu || expected.is_some(),
+                (profile.compiler() == Compiler::Gnu || expected.is_some())
+                    && !(profile.target() == Target::I686UnknownLinuxGnu
+                        && value.contains("__int128")),
                 "{profile:?} {source}: {a:?}"
             );
             if let Ok(a) = a {
@@ -162,7 +164,9 @@ fn argument_bits_and_subjects_follow_clang_without_affecting_gnu() {
         );
         assert_eq!(
             a.is_ok(),
-            profile.compiler() == Compiler::Gnu || profile.target().is_windows()
+            profile.compiler() == Compiler::Gnu
+                || profile.target().is_windows()
+                || profile.target() == Target::I686UnknownLinuxGnu
         );
     }
 }

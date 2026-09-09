@@ -37,8 +37,13 @@ const TYPES: &[(&str, FloatKind, u64)] = &[
 fn gnu_types_are_distinct_with_target_storage() {
     for p in profiles() {
         for &(name, kind, size) in TYPES {
+            let (size, alignment) = if p.target() == Target::I686UnknownLinuxGnu {
+                (if name == "_Float64x" { 12 } else { size }, 4)
+            } else {
+                (size, size)
+            };
             let source = format!(
-                "{name} value; _Static_assert(sizeof({name})=={size} && _Alignof({name})=={size},\"layout\");"
+                "{name} value; _Static_assert(sizeof({name})=={size} && _Alignof({name})=={alignment},\"layout\");"
             );
             let result = check(&source, p);
             assert_eq!(
@@ -216,6 +221,11 @@ fn clang_float_names_remain_ordinary_types() {
 fn complex_atomic_and_vector_storage_keep_corresponding_real_types() {
     for p in profiles().filter(|p| p.compiler() == Compiler::Gnu) {
         for &(name, kind, size) in TYPES {
+            let size = if p.target() == Target::I686UnknownLinuxGnu && name == "_Float64x" {
+                12
+            } else {
+                size
+            };
             let source = format!(
                 "typedef _Complex {name} C;_Static_assert(sizeof(C)=={size}*2,\"complex\");_Atomic({name}) object;C f(C x,{name} y){{return x+y;}}"
             );

@@ -65,6 +65,29 @@ fn data_models_are_explicit() {
         Target::parse("riscv64gc-unknown-linux-musl"),
         Err(LayoutError::UnsupportedTarget(_))
     ));
+    let i686 = Target::I686UnknownLinuxGnu;
+    assert_eq!((i686.pointer_width(), i686.long_width()), (32, 32));
+    assert_eq!(i686.builtin_layout(B::Double).unwrap().alignment_bytes(), 4);
+    assert_eq!(
+        (
+            i686.builtin_layout(B::LongDouble).unwrap().size_bytes(),
+            i686.builtin_layout(B::LongDouble)
+                .unwrap()
+                .alignment_bytes()
+        ),
+        (12, 4)
+    );
+    assert!(matches!(
+        i686.layout(&record(vec![field(B::Int128)])),
+        Err(LayoutError::UnsupportedBuiltin { .. })
+    ));
+    assert!(matches!(
+        i686.layout(&Type {
+            annotations: vec![],
+            variant: TypeVariant::Enum(vec![-1, i128::from(u64::MAX)]),
+        }),
+        Err(LayoutError::UnsupportedEnumRange(_))
+    ));
 }
 
 #[test]
@@ -94,7 +117,17 @@ fn packing_changes_offsets_and_alignment() {
     let mut ty = record(vec![field(B::Char), field(B::Int), field(B::Double)]);
     for target in Target::ALL {
         let natural = target.layout(&ty).unwrap();
-        assert_eq!((natural.size_bytes(), natural.alignment_bytes()), (16, 8));
+        assert_eq!(
+            (natural.size_bytes(), natural.alignment_bytes()),
+            (
+                16,
+                if target == Target::I686UnknownLinuxGnu {
+                    4
+                } else {
+                    8
+                }
+            )
+        );
         assert_eq!(natural.fields[1].unwrap().offset_bits, 32);
         ty.annotations = vec![Annotation::Packed];
         let packed = target.layout(&ty).unwrap();
@@ -140,7 +173,15 @@ fn union_and_array_layouts() {
     };
     for target in Target::ALL {
         let union = target.layout(&ty).unwrap();
-        assert_eq!((union.size_bytes(), union.alignment_bytes()), (8, 8));
+        let expected_alignment = if target == Target::I686UnknownLinuxGnu {
+            4
+        } else {
+            8
+        };
+        assert_eq!(
+            (union.size_bytes(), union.alignment_bytes()),
+            (8, expected_alignment)
+        );
         assert!(
             union
                 .fields
@@ -155,7 +196,10 @@ fn union_and_array_layouts() {
             },
         };
         let layout = target.layout(&array).unwrap();
-        assert_eq!((layout.size_bytes(), layout.alignment_bytes()), (56, 8));
+        assert_eq!(
+            (layout.size_bytes(), layout.alignment_bytes()),
+            (56, expected_alignment)
+        );
     }
 }
 
@@ -237,7 +281,14 @@ fn enum_layouts_cover_signed_and_unsigned_boundaries() {
             let layout = target.layout(&ty).unwrap();
             assert_eq!(
                 (layout.size_bits, layout.alignment_bits),
-                (bits, bits),
+                (
+                    bits,
+                    if bits == 64 && target == Target::I686UnknownLinuxGnu {
+                        32
+                    } else {
+                        bits
+                    }
+                ),
                 "{target}: {minimum}..={maximum}, packed={packed}"
             );
         }

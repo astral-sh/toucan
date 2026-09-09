@@ -608,6 +608,11 @@ fn host_target() -> Option<Target> {
             target_os = "linux",
             target_env = "gnu"
         )),
+        Target::I686UnknownLinuxGnu => cfg!(all(
+            target_arch = "x86",
+            target_os = "linux",
+            target_env = "gnu"
+        )),
         Target::Aarch64UnknownLinuxGnu => cfg!(all(
             target_arch = "aarch64",
             target_os = "linux",

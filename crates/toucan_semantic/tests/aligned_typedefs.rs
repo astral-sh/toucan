@@ -33,7 +33,7 @@ fn typedef_layouts_and_c_alignment_queries_preserve_record_identity() {
             ("Chain", 4, 1),
             ("Arr", 12, 16),
             ("S1", 8, 1),
-            ("P16", 8, 16),
+            ("P16", target.pointer_width() / 8, 16),
         ] {
             let ty = Type::new(TypeKind::Typedef(name.into()));
             let layout = unit.layout(&ty).unwrap();

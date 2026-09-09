@@ -27,7 +27,9 @@ pub(crate) fn predefined_type(name: &str, target: Target, compiler: Compiler) ->
     (name == "__float128"
         && matches!(
             target,
-            Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
         )
         && compiler == Compiler::Gnu)
         .then_some(FloatKind::FLOAT128)
@@ -61,9 +63,9 @@ impl crate::analyze::Analyzer {
             "DC" => (FloatKind::Double, true),
             "TF" | "TC" => {
                 let kind = match self.unit.target {
-                    Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl => {
-                        FloatKind::FLOAT128
-                    }
+                    Target::X86_64UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxMusl
+                    | Target::I686UnknownLinuxGnu => FloatKind::FLOAT128,
                     Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => {
                         FloatKind::LongDouble
                     }

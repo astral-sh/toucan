@@ -29,14 +29,16 @@ loaded libraries; it does not measure the memory of a full application build.
 ## Gates for a general drop-in release
 
 1. **Target coverage.** [`Target::parse`](../crates/toucan_target/src/lib.rs) accepts
-   eight 64-bit triples: x86-64 and AArch64 Linux with GNU or musl libc, both
-   macOS architectures, and x86-64 and ARM64 Windows MSVC. The pinned
+   nine triples: x86-64 and AArch64 Linux with GNU or musl libc, i686 GNU Linux,
+   both macOS architectures, and x86-64 and ARM64 Windows MSVC. The pinned
    [uv platform policy](https://github.com/astral-sh/uv/blob/d28a3ee3d0f7122b0da64b0226d2e173e7d23747/docs/reference/policies/platforms.md)
-   also ships Linux ARMv7, i686, PPC64LE, RISC-V64, and s390x.
+   also ships Linux ARMv7, PPC64LE, RISC-V64, and s390x. i686 has
+   [cross-target C layout evidence](../corpus/evidence/i686-target-2026-09-09/README.md),
+   but native 32-bit C/Rust FFI has not been checked yet.
    Enabling source generation unconditionally across those distributions would
    fail at target selection. Add and validate each required ABI and header
    environment before switching that distribution, or explicitly limit adoption
-   to the eight supported targets and retain the existing generator elsewhere.
+   to the nine supported targets and retain the existing generator elsewhere.
 2. **Current-source platform and consumer validation.** The published combined
    source passed Linux x64/ARM corpus and Windows packaging; the latest paired
    application checks ran on Linux x64. Earlier macOS C/FFI evidence covers an

@@ -73,7 +73,7 @@ fn memory_intrinsics_check_the_target_prototypes_and_shadowing() {
             evaluate_integer(&unit, "sizeof(__builtin_memcpy(0,0,0))")
                 .unwrap()
                 .value,
-            8
+            u128::from(target.pointer_width() / 8)
         );
     }
 }

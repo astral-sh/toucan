@@ -92,7 +92,11 @@ impl Analyzer {
 
 /// The shipped compiler profiles promote small atomic storage differently.
 /// This changes the wrapper only, leaving canonical record layouts intact.
-pub(crate) fn atomic_layout(compiler: Compiler, mut inner: Layout) -> Result<Layout, Error> {
+pub(crate) fn atomic_layout(
+    target: toucan_target::Target,
+    compiler: Compiler,
+    mut inner: Layout,
+) -> Result<Layout, Error> {
     let gnu = compiler == Compiler::Gnu;
     let size = inner.size_bits;
     let (size, alignment) = if gnu {
@@ -110,7 +114,17 @@ pub(crate) fn atomic_layout(compiler: Compiler, mut inner: Layout) -> Result<Lay
         let size = size
             .checked_next_power_of_two()
             .ok_or_else(|| Error::new(0, "atomic storage size overflows"))?;
-        (size, size)
+        // Clang's i386 ABI promotes one-to-eight-byte atomics, but a
+        // 16-byte aggregate retains its field alignment rather than gaining
+        // x86-64's 16-byte alignment.
+        (
+            size,
+            if target == toucan_target::Target::I686UnknownLinuxGnu && size > 64 {
+                inner.alignment_bits
+            } else {
+                size
+            },
+        )
     } else {
         (size, inner.alignment_bits)
     };

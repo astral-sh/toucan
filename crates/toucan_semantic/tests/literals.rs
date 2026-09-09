@@ -101,6 +101,8 @@ fn unicode_scalars_use_each_targets_execution_encoding() {
             wide.element_type,
             if target.wchar_width() == 16 {
                 IntegerKind::UnsignedShort
+            } else if target == Target::I686UnknownLinuxGnu {
+                IntegerKind::Long
             } else if target.wchar_is_signed() {
                 IntegerKind::Int
             } else {
@@ -144,6 +146,7 @@ fn character_values_and_types_follow_the_target_profile() {
         let gnu = matches!(
             target,
             Target::X86_64UnknownLinuxGnu
+                | Target::I686UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::Aarch64UnknownLinuxGnu
                 | Target::Aarch64UnknownLinuxMusl
@@ -211,6 +214,8 @@ const INVALID: &[&str] = &[
 fn wide_source(target: Target) -> String {
     let ty = if target.wchar_width() == 16 {
         "unsigned short"
+    } else if target == Target::I686UnknownLinuxGnu {
+        "long int"
     } else if target.wchar_is_signed() {
         "int"
     } else {

@@ -799,7 +799,9 @@ const CASES: &[(&str, &str, &str, [bool; 5])] = &[
 ];
 fn target_index(target: Target) -> usize {
     match target {
-        Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl => 0,
+        Target::X86_64UnknownLinuxGnu
+        | Target::X86_64UnknownLinuxMusl
+        | Target::I686UnknownLinuxGnu => 0,
         Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => 1,
         Target::X86_64AppleDarwin => 2,
         Target::Aarch64AppleDarwin => 3,
@@ -822,7 +824,9 @@ fn source_constraints_and_scoped_limits_match_clang18() {
             } else {
                 assert_eq!(
                     result.is_ok(),
-                    profile.compiler() == Compiler::Clang && native[target_index(profile.target())],
+                    profile.compiler() == Compiler::Clang
+                        && native[target_index(profile.target())]
+                        && !(profile.target() == Target::I686UnknownLinuxGnu && name == "int128"),
                     "{operation}/{name}/{profile:?}: {result:?}"
                 );
             }
@@ -969,7 +973,8 @@ fn native_type_constraints_include_valid_unsupported_forms() {
                 .unwrap();
             assert_eq!(
                 toucan_test_support::compiler_acceptance(&output).unwrap(),
-                native[target_index(profile.target())],
+                native[target_index(profile.target())]
+                    && !(profile.target() == Target::I686UnknownLinuxGnu && name == "int128"),
                 "{operation}/{name}/{profile:?}: {}",
                 String::from_utf8_lossy(&output.stderr)
             );

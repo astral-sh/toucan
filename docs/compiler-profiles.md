@@ -18,6 +18,7 @@ by the GNU profile cannot be used with a Clang-built library; see
 | Physical target | Default | Other supported compiler |
 | --- | --- | --- |
 | x86_64-unknown-linux-gnu | GCC | Clang |
+| i686-unknown-linux-gnu | GCC | Clang |
 | aarch64-unknown-linux-gnu | GCC | Clang |
 | x86_64-unknown-linux-musl | GCC | Clang |
 | aarch64-unknown-linux-musl | GCC | Clang |

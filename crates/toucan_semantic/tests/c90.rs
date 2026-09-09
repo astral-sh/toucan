@@ -82,7 +82,9 @@ fn decimal_types_follow_c90_candidate_order_and_preserve_large_values() {
             let large = evaluate_integer(unit, "9223372036854775808").unwrap();
             assert_eq!(large.as_u64().unwrap(), 1u64 << 63);
             assert!(!large.signed);
-            let expected = if profile.target().is_windows() {
+            let expected = if profile.target().is_windows()
+                || profile.target() == Target::I686UnknownLinuxGnu
+            {
                 "unsigned long long"
             } else {
                 "unsigned long"

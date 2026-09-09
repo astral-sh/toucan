@@ -2816,6 +2816,12 @@ impl Analyzer {
             .any(|ty| matches!(ty.node, ast::TypeSpecifier::MsvcInteger(16)));
         for ty in types {
             if self.int128_specifiers.contains(&ty.span.start) {
+                if self.unit.target == Target::I686UnknownLinuxGnu {
+                    return Err(Error::new(
+                        ty.span.start,
+                        "__int128 is unavailable on i686 GNU Linux",
+                    ));
+                }
                 if std::mem::replace(&mut int128, true) {
                     return Err(Error::new(
                         ty.span.start,
@@ -2938,7 +2944,8 @@ impl Analyzer {
                         ast::TypeSpecifier::Float128 => {
                             if !matches!(
                                 self.unit.target,
-                                toucan_target::Target::X86_64UnknownLinuxGnu
+                                toucan_target::Target::I686UnknownLinuxGnu
+                                    | toucan_target::Target::X86_64UnknownLinuxGnu
                                     | toucan_target::Target::X86_64UnknownLinuxMusl
                             ) {
                                 return Err(Error::new(
@@ -5409,6 +5416,16 @@ impl Analyzer {
                         | Some(crate::attributes::Attribute::Thiscall)
                         | Some(crate::attributes::Attribute::MsAbi)
                         | Some(crate::attributes::Attribute::SysvAbi) => {
+                            if self.unit.target == Target::I686UnknownLinuxGnu
+                                && matches!(name, "stdcall" | "fastcall" | "thiscall")
+                            {
+                                return Err(Error::new(
+                                    extension.span.start,
+                                    format!(
+                                        "{name} calling convention is unsupported on i686 GNU Linux"
+                                    ),
+                                ));
+                            }
                             if !attribute.arguments.is_empty() {
                                 return Err(Error::new(
                                     extension.span.start,
@@ -5417,9 +5434,14 @@ impl Analyzer {
                             }
                             let convention = match name {
                                 "ms_abi" => Some(CallingConvention::Win64),
-                                // Clang accepts and ignores the x86-64 System V
-                                // ABI attribute on Windows ARM64.
-                                "sysv_abi" if self.unit.target == Target::Aarch64PcWindowsMsvc => {
+                                // On i686 GNU Linux, sysv_abi names the default
+                                // C ABI. Clang also ignores it on Windows ARM64.
+                                "sysv_abi"
+                                    if matches!(
+                                        self.unit.target,
+                                        Target::I686UnknownLinuxGnu | Target::Aarch64PcWindowsMsvc
+                                    ) =>
+                                {
                                     None
                                 }
                                 "sysv_abi" => Some(CallingConvention::SysV64),

@@ -32,7 +32,8 @@ const OPS: &[(&str, SyncOperation, usize)] = &[
 fn gnu(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu
+        Target::I686UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxGnu
             | Target::X86_64UnknownLinuxMusl
             | Target::Aarch64UnknownLinuxGnu
             | Target::Aarch64UnknownLinuxMusl
@@ -156,6 +157,10 @@ fn gcc_and_clang_overload_rules_are_explicit() {
             "void f(_Bool*p){__sync_lock_release(p);}",
             "int f(int (*__sync_fetch_and_add)(int,int)){return __sync_fetch_and_add(1,2);}",
         ] {
+            if target == Target::I686UnknownLinuxGnu && source.contains("__int128") {
+                assert!(check(source, target).is_err(), "{target}: {source}");
+                continue;
+            }
             check(source, target).unwrap_or_else(|error| panic!("{target}: {source}: {error}"));
         }
         for (name, _, count) in OPS.iter().filter(|(_, _, n)| *n == 2) {

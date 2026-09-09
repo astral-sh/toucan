@@ -690,6 +690,7 @@ fn generate_with_work_budget(
     );
     let (arch, os, environment) = match unit.target.triple() {
         "x86_64-unknown-linux-gnu" => ("x86_64", "linux", ", target_env = \"gnu\""),
+        "i686-unknown-linux-gnu" => ("x86", "linux", ", target_env = \"gnu\""),
         "aarch64-unknown-linux-gnu" => ("aarch64", "linux", ", target_env = \"gnu\""),
         "x86_64-apple-darwin" => ("x86_64", "macos", ""),
         "aarch64-apple-darwin" => ("aarch64", "macos", ""),

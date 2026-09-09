@@ -279,6 +279,12 @@ fn legacy_conventions_have_the_platform_abi_on_supported_targets() {
             let source = format!(
                 "int __attribute__(({convention})) f(int value) {{ return value; }} int (*p)(int) = f;"
             );
+            if target == Target::I686UnknownLinuxGnu
+                && matches!(convention, "stdcall" | "fastcall" | "thiscall")
+            {
+                assert!(analyze(&source, target).is_err(), "{target}: {convention}");
+                continue;
+            }
             let unit = analyze(&source, target).unwrap();
             assert_eq!(
                 function(&unit.declarations[0].ty)
@@ -354,7 +360,7 @@ fn convention_constraints_match_native_compilers() {
 }
 
 #[test]
-#[ignore = "requires Clang with all five targets; run with --include-ignored"]
+#[ignore = "requires Clang with all supported targets; run with --include-ignored"]
 fn conventions_match_clang_target_ir() {
     use std::io::Write;
     use std::process::{Command, Stdio};
@@ -396,8 +402,12 @@ fn conventions_match_clang_target_ir() {
             );
             let ir = String::from_utf8(output.stdout).unwrap();
             let definition = ir.lines().find(|line| line.starts_with("define ")).unwrap();
-            // Windows ARM64 uses the default C ABI for ms_abi, like Windows x64.
-            let expected = if convention == "ms_abi" && !target.is_windows() {
+            // Windows ARM64 uses the default C ABI for ms_abi, like Windows x64;
+            // i686 GNU Linux does not provide a distinct win64 calling ABI.
+            let expected = if convention == "ms_abi"
+                && !target.is_windows()
+                && target != Target::I686UnknownLinuxGnu
+            {
                 "win64cc"
             } else if convention == "sysv_abi" && target == Target::X86_64PcWindowsMsvc {
                 "x86_64_sysvcc"
@@ -414,6 +424,17 @@ fn conventions_match_clang_target_ir() {
                 expected == "x86_64_sysvcc",
                 "{target:?}: {definition}"
             );
+            if target == Target::I686UnknownLinuxGnu {
+                let x86_32_cc = match convention {
+                    "stdcall" => "x86_stdcallcc",
+                    "fastcall" => "x86_fastcallcc",
+                    "thiscall" => "x86_thiscallcc",
+                    _ => "",
+                };
+                if !x86_32_cc.is_empty() {
+                    assert!(definition.contains(x86_32_cc), "{target:?}: {definition}");
+                }
+            }
             let result = analyze(&source, target);
             if matches!(
                 target,
@@ -421,13 +442,10 @@ fn conventions_match_clang_target_ir() {
                     | Target::Aarch64UnknownLinuxMusl
                     | Target::Aarch64AppleDarwin
             ) && matches!(convention, "ms_abi" | "sysv_abi")
+                || target == Target::I686UnknownLinuxGnu
+                    && matches!(convention, "stdcall" | "fastcall" | "thiscall" | "ms_abi")
             {
-                assert!(
-                    result
-                        .unwrap_err()
-                        .message
-                        .contains("unsupported on this target")
-                );
+                assert!(result.unwrap_err().message.contains("unsupported on"));
             } else {
                 let unit = result.unwrap();
                 let convention = function(&unit.declarations[0].ty)

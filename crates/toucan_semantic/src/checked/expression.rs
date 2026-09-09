@@ -2451,7 +2451,9 @@ mod tests {
                 scalar(
                     &code,
                     arguments[2].effective_type,
-                    if target.long_width() == 64 {
+                    if target.pointer_width() == 32 {
+                        IntegerKind::UnsignedInt
+                    } else if target.pointer_width() == target.long_width() {
                         IntegerKind::UnsignedLong
                     } else {
                         IntegerKind::UnsignedLongLong
@@ -2938,7 +2940,8 @@ mod tests {
         for target in Target::ALL {
             let gnu = matches!(
                 target,
-                Target::X86_64UnknownLinuxGnu
+                Target::I686UnknownLinuxGnu
+                    | Target::X86_64UnknownLinuxGnu
                     | Target::X86_64UnknownLinuxMusl
                     | Target::Aarch64UnknownLinuxGnu
                     | Target::Aarch64UnknownLinuxMusl

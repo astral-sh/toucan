@@ -114,7 +114,8 @@ fn thread_storage_constraints_preserve_analysis_parity() {
         // Clang accepts reversed GNU spelling as an extension, with a warning.
         let clang = !matches!(
             target,
-            Target::X86_64UnknownLinuxGnu
+            Target::I686UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
                 | Target::Aarch64UnknownLinuxGnu
                 | Target::Aarch64UnknownLinuxMusl

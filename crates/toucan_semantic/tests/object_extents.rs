@@ -34,11 +34,20 @@ fn options() -> AnalysisOptions {
 fn gnu(target: Target) -> bool {
     matches!(
         target,
-        Target::X86_64UnknownLinuxGnu
+        Target::I686UnknownLinuxGnu
+            | Target::X86_64UnknownLinuxGnu
             | Target::X86_64UnknownLinuxMusl
             | Target::Aarch64UnknownLinuxGnu
             | Target::Aarch64UnknownLinuxMusl
     )
+}
+
+fn unknown_extent(target: Target) -> u128 {
+    if target.pointer_width() == 32 {
+        u128::from(u32::MAX)
+    } else {
+        u128::from(u64::MAX)
+    }
 }
 
 #[test]
@@ -52,7 +61,7 @@ fn direct_object_extents_and_target_string_widths_are_known() {
                     let value = evaluate_integer(&unit, &query)
                         .unwrap_or_else(|e| panic!("{target}: {query}: {e}"));
                     assert_eq!(value.value, u128::from(*expected), "{target}: {query}");
-                    assert_eq!(value.bits, 64);
+                    assert_eq!(u64::from(value.bits), target.pointer_width());
                     assert!(!value.signed);
                 }
             }
@@ -226,7 +235,7 @@ fn known_frontend_folds_suppress_type_effects_but_later_folds_do_not() {
                 panic!()
             };
             if gnu(target) {
-                assert_eq!(value.value, u128::from(u64::MAX));
+                assert_eq!(value.value, unknown_extent(target));
                 assert!(is_default);
             } else {
                 assert_eq!(value.value, if pointer == "a" { 10 } else { 4 });
@@ -297,7 +306,7 @@ fn pointer_aliases_vlas_and_default_values_are_not_object_extents() {
             );
         }
         assert!(
-            matches!(proofs[2].result(),ObjectSizeResult::Constant{value,is_default:true,..} if value.value==u128::from(u64::MAX))
+            matches!(proofs[2].result(),ObjectSizeResult::Constant{value,is_default:true,..} if value.value==unknown_extent(target))
         );
         assert_eq!(
             code.bounds().next().unwrap().1.evaluation(),

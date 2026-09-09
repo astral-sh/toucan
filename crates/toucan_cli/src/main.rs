@@ -199,6 +199,7 @@ impl Input {
             let include = sysroot.join("usr/include");
             let multiarch = match target.triple() {
                 "x86_64-unknown-linux-gnu" => Some("x86_64-linux-gnu"),
+                "i686-unknown-linux-gnu" => Some("i386-linux-gnu"),
                 "aarch64-unknown-linux-gnu" => Some("aarch64-linux-gnu"),
                 "x86_64-unknown-linux-musl" => Some("x86_64-linux-musl"),
                 "aarch64-unknown-linux-musl" => Some("aarch64-linux-musl"),
@@ -271,6 +272,11 @@ fn host_target() -> Result<Target> {
         .find(|target| match target.triple() {
             "x86_64-unknown-linux-gnu" => cfg!(all(
                 target_arch = "x86_64",
+                target_os = "linux",
+                target_env = "gnu"
+            )),
+            "i686-unknown-linux-gnu" => cfg!(all(
+                target_arch = "x86",
                 target_os = "linux",
                 target_env = "gnu"
             )),

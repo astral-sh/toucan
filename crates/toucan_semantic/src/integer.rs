@@ -493,7 +493,9 @@ impl Analyzer {
             u128::from(value),
             bits,
             false,
-            if self.unit.target.long_width() == u64::from(bits) {
+            if bits == 32 {
+                3
+            } else if self.unit.target.long_width() == u64::from(bits) {
                 4
             } else {
                 5

@@ -22,6 +22,8 @@ use thiserror::Error;
 pub enum Target {
     /// The System V AMD64 ABI with GNU/Linux headers.
     X86_64UnknownLinuxGnu,
+    /// The System V i386 ABI with GNU/Linux headers.
+    I686UnknownLinuxGnu,
     /// The AArch64 ELF ABI with GNU/Linux headers.
     Aarch64UnknownLinuxGnu,
     /// The Intel macOS ABI.
@@ -40,7 +42,7 @@ pub enum Target {
 
 impl Target {
     /// All supported targets, in a stable order.
-    pub const ALL: [Self; 8] = [
+    pub const ALL: [Self; 9] = [
         Self::X86_64UnknownLinuxGnu,
         Self::Aarch64UnknownLinuxGnu,
         Self::X86_64AppleDarwin,
@@ -49,6 +51,7 @@ impl Target {
         Self::X86_64UnknownLinuxMusl,
         Self::Aarch64UnknownLinuxMusl,
         Self::Aarch64PcWindowsMsvc,
+        Self::I686UnknownLinuxGnu,
     ];
 
     /// Parses a canonical target triple. Unknown triples are rejected.
@@ -63,6 +66,7 @@ impl Target {
     pub const fn triple(self) -> &'static str {
         match self {
             Self::X86_64UnknownLinuxGnu => "x86_64-unknown-linux-gnu",
+            Self::I686UnknownLinuxGnu => "i686-unknown-linux-gnu",
             Self::Aarch64UnknownLinuxGnu => "aarch64-unknown-linux-gnu",
             Self::X86_64AppleDarwin => "x86_64-apple-darwin",
             Self::Aarch64AppleDarwin => "aarch64-apple-darwin",
@@ -78,6 +82,7 @@ impl Target {
         matches!(
             self,
             Self::X86_64UnknownLinuxGnu
+                | Self::I686UnknownLinuxGnu
                 | Self::Aarch64UnknownLinuxGnu
                 | Self::X86_64UnknownLinuxMusl
                 | Self::Aarch64UnknownLinuxMusl
@@ -124,6 +129,7 @@ impl Target {
     pub const fn default_maximum_alignment(self) -> u32 {
         match self {
             Self::X86_64UnknownLinuxGnu
+            | Self::I686UnknownLinuxGnu
             | Self::Aarch64UnknownLinuxGnu
             | Self::X86_64UnknownLinuxMusl
             | Self::Aarch64UnknownLinuxMusl
@@ -144,12 +150,20 @@ impl Target {
 
     /// Returns the width of object and function pointers, in bits.
     pub const fn pointer_width(self) -> u64 {
-        64
+        if matches!(self, Self::I686UnknownLinuxGnu) {
+            32
+        } else {
+            64
+        }
     }
 
     /// Returns the width of `long`, in bits.
     pub const fn long_width(self) -> u64 {
-        if self.is_windows() { 32 } else { 64 }
+        if self.is_windows() || matches!(self, Self::I686UnknownLinuxGnu) {
+            32
+        } else {
+            64
+        }
     }
 
     /// Returns the width of `wchar_t`, in bits.
@@ -185,6 +199,7 @@ impl Target {
     const fn abi_target(self) -> repc::Target {
         match self {
             Self::X86_64UnknownLinuxGnu => repc::Target::X86_64UnknownLinuxGnu,
+            Self::I686UnknownLinuxGnu => repc::Target::I686UnknownLinuxGnu,
             Self::Aarch64UnknownLinuxGnu => repc::Target::Aarch64UnknownLinuxGnu,
             Self::X86_64UnknownLinuxMusl => repc::Target::X86_64UnknownLinuxMusl,
             Self::Aarch64UnknownLinuxMusl => repc::Target::Aarch64UnknownLinuxMusl,
@@ -211,22 +226,27 @@ impl Target {
                 if !annotations.is_empty() {
                     return Err(LayoutError::AnnotatedLongDouble);
                 }
-                let bits = if matches!(
-                    self,
+                let (size_bits, alignment_bits) = match self {
                     Self::Aarch64AppleDarwin
-                        | Self::X86_64PcWindowsMsvc
-                        | Self::Aarch64PcWindowsMsvc
-                ) {
-                    64
-                } else {
-                    128
+                    | Self::X86_64PcWindowsMsvc
+                    | Self::Aarch64PcWindowsMsvc => (64, 64),
+                    Self::I686UnknownLinuxGnu => (96, 32),
+                    _ => (128, 128),
                 };
                 abi::TypeVariant::Opaque(abi::TypeLayout {
-                    size_bits: bits,
-                    field_alignment_bits: bits,
-                    pointer_alignment_bits: bits,
+                    size_bits,
+                    field_alignment_bits: alignment_bits,
+                    pointer_alignment_bits: alignment_bits,
                     required_alignment_bits: 8,
                 })
+            }
+            TypeVariant::Builtin(builtin @ (BuiltinType::Int128 | BuiltinType::UnsignedInt128))
+                if self == Self::I686UnknownLinuxGnu =>
+            {
+                return Err(LayoutError::UnsupportedBuiltin {
+                    target: self,
+                    builtin: *builtin,
+                });
             }
             TypeVariant::Builtin(builtin) => abi::TypeVariant::Builtin(builtin.to_abi()?),
             TypeVariant::Record(record) => {
@@ -274,11 +294,12 @@ impl Target {
                 } else {
                     i128::from(u64::MAX)
                 };
-                if compiler == Compiler::Clang
-                    && !self.is_windows()
+                if ((compiler == Compiler::Clang && !self.is_windows())
+                    || self == Self::I686UnknownLinuxGnu)
                     && (minimum < i128::from(i64::MIN) || maximum > maximum_64)
                 {
-                    // Clang only offers a lossy, diagnosed recovery for larger enum ranges.
+                    // Neither i686 compiler supports 128-bit enum types. Clang on
+                    // the other non-MSVC targets diagnoses lossy recovery.
                     return Err(LayoutError::UnsupportedEnumRange(self));
                 }
                 let mut values = values.clone();

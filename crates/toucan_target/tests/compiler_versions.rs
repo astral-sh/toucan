@@ -47,6 +47,48 @@ fn version_markers_identify_the_header_profile_in_every_c_mode() {
 }
 
 #[test]
+fn i686_macros_use_ilp32_and_compiler_specific_integer_types() {
+    for compiler in [Compiler::Gnu, Compiler::Clang] {
+        let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap();
+        let macros = profile.predefined_macros();
+        for (name, value) in [
+            ("__ILP32__", "1"),
+            ("__i386__", "1"),
+            ("__i686__", "1"),
+            ("__SIZEOF_POINTER__", "4"),
+            ("__POINTER_WIDTH__", "32"),
+            ("__SIZEOF_LONG__", "4"),
+            ("__SIZEOF_LONG_DOUBLE__", "12"),
+            ("__INTPTR_TYPE__", "int"),
+            ("__INT64_TYPE__", "long long int"),
+            ("__INTMAX_TYPE__", "long long int"),
+            ("__BIGGEST_ALIGNMENT__", "16"),
+        ] {
+            assert_eq!(&macros[name], value, "{compiler}: {name}");
+        }
+        assert!(!macros.contains_key("__LP64__"));
+        assert!(!macros.contains_key("__x86_64__"));
+        assert!(!macros.contains_key("__SIZEOF_INT128__"));
+        assert_eq!(
+            &macros["__WCHAR_TYPE__"],
+            if compiler == Compiler::Gnu {
+                "long int"
+            } else {
+                "int"
+            }
+        );
+        assert_eq!(
+            &macros["__INT_FAST16_TYPE__"],
+            if compiler == Compiler::Gnu {
+                "int"
+            } else {
+                "short"
+            }
+        );
+    }
+}
+
+#[test]
 #[ignore = "requires Clang with the supported cross targets"]
 fn clang_standard_and_compatibility_markers_match_native_targets() {
     use std::process::Command;

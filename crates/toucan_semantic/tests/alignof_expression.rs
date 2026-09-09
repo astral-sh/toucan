@@ -101,7 +101,14 @@ fn alignment_queries_follow_declarations_members_and_pointer_origins() {
         for spelling in ["_Alignof", "__alignof__"] {
             for (declaration, expression, gnu, clang) in cases {
                 let expected = if profile.compiler() == Compiler::Gnu {
-                    gnu
+                    if profile.target() == Target::I686UnknownLinuxGnu
+                        && expression == "(T)0"
+                        && declaration.starts_with("typedef int *T ")
+                    {
+                        4
+                    } else {
+                        gnu
+                    }
                 } else {
                     clang
                 };
@@ -115,7 +122,9 @@ fn alignment_queries_follow_declarations_members_and_pointer_origins() {
             let expected = if profile.compiler() == Compiler::Gnu
                 && matches!(
                     profile.target(),
-                    Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl
+                    Target::X86_64UnknownLinuxGnu
+                        | Target::X86_64UnknownLinuxMusl
+                        | Target::I686UnknownLinuxGnu
                 ) {
                 1
             } else {
@@ -264,15 +273,16 @@ int identifier_list(parameter) int parameter __attribute__((aligned(32))); {
 }
 "#;
 
-fn component_alignment_assertions(gnu: bool) -> String {
+fn component_alignment_assertions(gnu: bool, i686: bool) -> String {
     let scalar = if gnu { 32 } else { 4 };
+    let component = if i686 && !gnu { 4 } else { 8 };
     format!(
         r#"
 volatile double _Complex complex_value __attribute__((aligned(32)));
 int scalar_value __attribute__((aligned(32)));
 _Static_assert(_Alignof(complex_value)==32,"complex object");
-_Static_assert(_Alignof(__real__ complex_value)==8,"real component");
-_Static_assert(_Alignof(__imag__ complex_value)==8,"imaginary component");
+_Static_assert(_Alignof(__real__ complex_value)=={component},"real component");
+_Static_assert(_Alignof(__imag__ complex_value)=={component},"imaginary component");
 _Static_assert(_Alignof(__real__ scalar_value)=={scalar},"real scalar");
 _Static_assert(_Alignof(__imag__ scalar_value)==4,"imaginary scalar");
 "#
@@ -283,7 +293,10 @@ _Static_assert(_Alignof(__imag__ scalar_value)==4,"imaginary scalar");
 fn complex_components_use_component_alignment_and_scalar_queries_keep_profile_rules() {
     for profile in CompilerProfile::ALL {
         check(
-            &component_alignment_assertions(profile.compiler() == Compiler::Gnu),
+            &component_alignment_assertions(
+                profile.compiler() == Compiler::Gnu,
+                profile.target() == Target::I686UnknownLinuxGnu,
+            ),
             profile,
         );
     }
@@ -312,7 +325,7 @@ fn alignment_queries_do_not_execute_operand_effects() {
         } else {
             ""
         };
-        let components = component_alignment_assertions(compiler != "clang");
+        let components = component_alignment_assertions(compiler != "clang", false);
         std::fs::write(
             &input,
             format!("{EFFECTS}\n{parameters}\n{components}\nint main(void){{return f(3)!=4;}}"),

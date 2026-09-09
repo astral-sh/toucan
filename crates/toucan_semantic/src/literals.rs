@@ -48,6 +48,16 @@ pub fn decode_string_literals(
     target: Target,
     offset: usize,
 ) -> Result<DecodedString, Error> {
+    decode_string_literals_with_profile(strings, CompilerProfile::default_for(target), offset)
+}
+
+/// Decodes adjacent string tokens with the selected compiler's character types.
+pub fn decode_string_literals_with_profile(
+    strings: &[String],
+    profile: CompilerProfile,
+    offset: usize,
+) -> Result<DecodedString, Error> {
+    let target = profile.target();
     if strings.is_empty() {
         return Err(Error::new(offset, "expected a string literal"));
     }
@@ -80,7 +90,7 @@ pub fn decode_string_literals(
             '"',
             encoding,
             target,
-            CompilerProfile::default_for(target).compiler() == Compiler::Gnu,
+            profile.compiler() == Compiler::Gnu,
             offset,
             &mut code_units,
         )?;
@@ -88,7 +98,7 @@ pub fn decode_string_literals(
     code_units.push(0);
     Ok(DecodedString {
         encoding,
-        element_type: element_type(encoding, target),
+        element_type: element_type(encoding, target, profile.compiler()),
         code_units,
     })
 }
@@ -151,21 +161,27 @@ pub fn decode_character_literal_with_profile(
         ));
     }
     let value = u128::from(*units.last().expect("nonempty character constant"));
-    let (bits, signed, rank) = match element_type(encoding, target) {
+    let (bits, signed, rank) = match element_type(encoding, target, profile.compiler()) {
         IntegerKind::UnsignedShort => (16, false, 2),
         IntegerKind::UnsignedInt => (32, false, 3),
         IntegerKind::Int => (32, true, 3),
+        IntegerKind::Long => (32, true, 4),
         _ => unreachable!("wide encoding has a fixed integer representation"),
     };
     Ok(IntegerValue::new(value, bits, signed, rank))
 }
 
-fn element_type(encoding: StringEncoding, target: Target) -> IntegerKind {
+fn element_type(encoding: StringEncoding, target: Target, compiler: Compiler) -> IntegerKind {
     match encoding {
         StringEncoding::Ordinary | StringEncoding::Utf8 => IntegerKind::Char,
         StringEncoding::Utf16 => IntegerKind::UnsignedShort,
         StringEncoding::Utf32 => IntegerKind::UnsignedInt,
         StringEncoding::Wide if target.wchar_width() == 16 => IntegerKind::UnsignedShort,
+        StringEncoding::Wide
+            if target == Target::I686UnknownLinuxGnu && compiler == Compiler::Gnu =>
+        {
+            IntegerKind::Long
+        }
         StringEncoding::Wide if target.wchar_is_signed() => IntegerKind::Int,
         StringEncoding::Wide => IntegerKind::UnsignedInt,
     }
@@ -450,9 +466,9 @@ impl crate::analyze::Analyzer {
         literal: &lang_c::span::Node<lang_c::ast::StringLiteral>,
         offset: usize,
     ) -> Result<DecodedString, Error> {
-        decode_string_literals(
+        decode_string_literals_with_profile(
             self.string_literal_tokens(literal),
-            self.unit.target,
+            self.unit.profile()?,
             offset,
         )
     }

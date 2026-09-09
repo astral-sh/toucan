@@ -105,10 +105,21 @@ fn wide_packed_enums_keep_the_existing_compiler_range_rules() {
             let source = format!("enum __attribute__((packed)) E{{{values}}};");
             let result = parity(&source, profile);
             if profile.target().is_windows()
-                || (kind == IntegerKind::Int128 && profile.compiler() == Compiler::Clang)
+                || (kind == IntegerKind::Int128
+                    && (profile.compiler() == Compiler::Clang
+                        || profile.target() == Target::I686UnknownLinuxGnu))
             {
                 assert!(result.is_err(), "{profile:?}: {source}");
             } else {
+                let kind = if profile.target() == Target::I686UnknownLinuxGnu {
+                    match kind {
+                        IntegerKind::UnsignedLong => IntegerKind::UnsignedLongLong,
+                        IntegerKind::Long => IntegerKind::LongLong,
+                        other => other,
+                    }
+                } else {
+                    kind
+                };
                 assert_eq!(result.unwrap().unit().enum_integer_kind(0).unwrap(), kind);
             }
         }
@@ -282,7 +293,30 @@ fn alignment_forwards_and_late_declarations_keep_their_distinct_constraints() {
         }
         parity("enum E{A=1};enum __attribute__((aligned(16))) E;_Static_assert(_Alignof(enum E)==4,\"late ignored\");",profile).unwrap();
         if !profile.target().is_windows() {
-            parity("enum E{A=0x100000000ULL} __attribute__((aligned(8)));_Static_assert(sizeof(enum E)==8 && _Alignof(enum E)==8,\"wide\");",profile).unwrap();
+            let alignment = if profile.target() == Target::I686UnknownLinuxGnu
+                && profile.compiler() == Compiler::Gnu
+            {
+                4
+            } else {
+                8
+            };
+            let source = format!(
+                "enum E{{A=0x100000000ULL}} __attribute__((aligned(8)));_Static_assert(sizeof(enum E)==8 && _Alignof(enum E)=={alignment},\"wide\");"
+            );
+            let result = parity(&source, profile);
+            if profile.target() == Target::I686UnknownLinuxGnu
+                && profile.compiler() == Compiler::Clang
+            {
+                assert!(
+                    result
+                        .unwrap_err()
+                        .message
+                        .contains("enum alignment that changes storage layout"),
+                    "{source}"
+                );
+            } else {
+                result.unwrap();
+            }
         }
     }
 }

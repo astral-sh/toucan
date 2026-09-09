@@ -38,7 +38,11 @@ const INVALID: &[&str] = &[
 
 #[test]
 fn int128_types_use_integer_semantics_in_every_context() {
-    for target in Target::ALL {
+    // i686 has neither an integer TI machine mode nor the __int128 spelling.
+    for target in Target::ALL
+        .into_iter()
+        .filter(|target| *target != Target::I686UnknownLinuxGnu)
+    {
         for source in VALID {
             analyze(source, target).unwrap_or_else(|error| panic!("{target}: {source}: {error}"));
         }
@@ -77,6 +81,7 @@ fn int128_types_match_compiler_acceptance_on_all_targets() {
     for (compiler, target) in std::iter::once(("gcc", None)).chain(
         Target::ALL
             .into_iter()
+            .filter(|target| *target != Target::I686UnknownLinuxGnu)
             .map(|target| ("clang", Some(target))),
     ) {
         for (sources, accepted) in [(VALID, true), (INVALID, false)] {

@@ -5,7 +5,9 @@ use toucan_semantic::{AnalysisOptions, Type, TypeKind, analyze_with_profile, eva
 use toucan_target::{Compiler, CompilerProfile, Target};
 
 fn source(profile: CompilerProfile) -> String {
-    let function = if profile.compiler() == Compiler::Gnu && profile.target().is_x86_64() {
+    let function = if profile.compiler() == Compiler::Gnu
+        && (profile.target().is_x86_64() || profile.target() == Target::I686UnknownLinuxGnu)
+    {
         1
     } else {
         4
@@ -48,9 +50,21 @@ fn source(profile: CompilerProfile) -> String {
         ("explicit_function", 1, 8),
         ("__typeof__(explicit_function)", 1, function_alias),
         ("low", 1, low_function),
-        ("fp", 8, 8),
-        ("fap", 8, 8),
-        ("(1,f)", 8, 8),
+        (
+            "fp",
+            profile.target().pointer_width() / 8,
+            profile.target().pointer_width() / 8,
+        ),
+        (
+            "fap",
+            profile.target().pointer_width() / 8,
+            profile.target().pointer_width() / 8,
+        ),
+        (
+            "(1,f)",
+            profile.target().pointer_width() / 8,
+            profile.target().pointer_width() / 8,
+        ),
         ("__builtin_prefetch((void*)0)", 1, 1),
         ("__builtin_free((void*)0)", 1, 1),
     ] {

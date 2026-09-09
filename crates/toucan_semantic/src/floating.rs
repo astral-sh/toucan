@@ -105,7 +105,9 @@ impl Format {
             FloatKind::Float | FloatKind::FLOAT32 => Self::Binary32,
             FloatKind::Double | FloatKind::FLOAT64 | FloatKind::FLOAT32X => Self::Binary64,
             FloatKind::FLOAT64X => match target {
-                Target::X86_64UnknownLinuxGnu | Target::X86_64UnknownLinuxMusl => Self::X87,
+                Target::X86_64UnknownLinuxGnu
+                | Target::X86_64UnknownLinuxMusl
+                | Target::I686UnknownLinuxGnu => Self::X87,
                 Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => Self::Binary128,
                 _ => {
                     return Err(Error::new(
@@ -117,6 +119,7 @@ impl Format {
             FloatKind::LongDouble => match target {
                 Target::X86_64UnknownLinuxGnu
                 | Target::X86_64UnknownLinuxMusl
+                | Target::I686UnknownLinuxGnu
                 | Target::X86_64AppleDarwin => Self::X87,
                 Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => Self::Binary128,
                 Target::Aarch64AppleDarwin

@@ -862,7 +862,7 @@ impl TranslationUnit {
                 .profile()?
                 .layout(&inner)
                 .map_err(|e| Error::new(0, e.to_string()))?;
-            let layout = crate::atomic_type::atomic_layout(self.compiler, inner)?;
+            let layout = crate::atomic_type::atomic_layout(self.target, self.compiler, inner)?;
             return Ok(aligned_layout_type(
                 target::Type::opaque_layout(&layout),
                 ty.alignment.bytes(),

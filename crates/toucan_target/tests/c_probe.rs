@@ -144,7 +144,10 @@ fn fixtures() -> Vec<(&'static str, &'static str, Type, Vec<&'static str>)> {
 
 fn assertions(target: Target) -> String {
     let mut source = String::new();
-    for (name, declaration, ty, fields) in fixtures() {
+    for (name, declaration, ty, fields) in fixtures()
+        .into_iter()
+        .filter(|(name, _, _, _)| target != Target::I686UnknownLinuxGnu || !name.contains("int128"))
+    {
         writeln!(source, "{declaration}").unwrap();
         let layout = target.layout(&ty).unwrap();
         writeln!(
@@ -362,7 +365,7 @@ fn gcc_wide_enum_layouts() {
 }
 
 #[test]
-#[ignore = "requires clang with all five target backends; run with --include-ignored"]
+#[ignore = "requires Clang with the supported cross-target backends; run with --include-ignored"]
 fn clang_cross_target_layouts() {
     let directory = tempfile::tempdir().unwrap();
     for target in Target::ALL {
@@ -385,6 +388,24 @@ fn clang_cross_target_layouts() {
             String::from_utf8_lossy(&output.stderr)
         );
     }
+}
+
+#[test]
+#[ignore = "requires GCC with -m32 support; run with --include-ignored"]
+fn gcc_i686_cross_target_layouts() {
+    let directory = tempfile::tempdir().unwrap();
+    let path = directory.path().join("i686-unknown-linux-gnu.c");
+    std::fs::write(&path, assertions(Target::I686UnknownLinuxGnu)).unwrap();
+    let output = Command::new("gcc")
+        .args(["-m32", "-std=c11", "-Werror", "-fsyntax-only"])
+        .arg(path)
+        .output()
+        .expect("GCC must be available for the i686 GNU ABI probe");
+    assert!(
+        output.status.success(),
+        "{}",
+        String::from_utf8_lossy(&output.stderr)
+    );
 }
 
 #[cfg(all(

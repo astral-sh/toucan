@@ -645,6 +645,7 @@ impl Analyzer {
                     | IntegerKind::UnsignedChar
                     | IntegerKind::UnsignedShort
                     | IntegerKind::Int
+                    | IntegerKind::Long
                     | IntegerKind::UnsignedInt
             ) | TypeKind::Enum(_)
         ))

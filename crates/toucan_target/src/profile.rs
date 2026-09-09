@@ -58,7 +58,7 @@ impl TryFrom<ProfileFields> for CompilerProfile {
 impl CompilerProfile {
     /// Supported profiles. The original seven entries retain their order; musl
     /// profiles follow them. Fuzz campaign manifests record the selector count.
-    pub const ALL: [Self; 12] = [
+    pub const ALL: [Self; 14] = [
         Self::default_for(Target::X86_64UnknownLinuxGnu),
         Self::default_for(Target::Aarch64UnknownLinuxGnu),
         Self::default_for(Target::X86_64AppleDarwin),
@@ -87,6 +87,12 @@ impl CompilerProfile {
             language_mode: LanguageMode::Gnu11,
         },
         Self::default_for(Target::Aarch64PcWindowsMsvc),
+        Self::default_for(Target::I686UnknownLinuxGnu),
+        Self {
+            target: Target::I686UnknownLinuxGnu,
+            compiler: Compiler::Clang,
+            language_mode: LanguageMode::Gnu11,
+        },
     ];
     /// Rejects compiler/target pairs whose semantics and ABI have not been validated.
     pub fn new(target: Target, compiler: Compiler) -> Result<Self, LayoutError> {

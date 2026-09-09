@@ -84,7 +84,7 @@ impl Config {
             defines: profile.predefined_macros(),
             ..PreprocessorConfig::default()
         };
-        if !target.is_windows() {
+        if !target.is_windows() && target != Target::I686UnknownLinuxGnu {
             preprocessor.forced_includes.push(ForcedInclude {
                 path: "<builtin>/integer-types.h".into(),
                 source: include_str!("../resources/integer-types.h").into(),
@@ -508,7 +508,11 @@ impl Compilation {
                 macros.remove(name);
                 continue;
             }
-            match string_literal(&expression, self.unit().target) {
+            let profile = self.unit().profile().map_err(|error| SemanticError {
+                error,
+                origin: None,
+            })?;
+            match string_literal(&expression, profile) {
                 Ok(Some(value)) => {
                     macros.insert(name.clone(), Some(value));
                     string_macros += 1;
@@ -625,7 +629,7 @@ impl Compilation {
 /// decoder owns escape validation, concatenation, and target character encoding.
 fn string_literal(
     source: &str,
-    target: Target,
+    profile: CompilerProfile,
 ) -> Result<Option<toucan_bindings::MacroValue>, semantic::Error> {
     let bytes = source.as_bytes();
     let mut offset = 0;
@@ -667,7 +671,7 @@ fn string_literal(
     if tokens.is_empty() {
         return Ok(None);
     }
-    let mut decoded = semantic::decode_string_literals(&tokens, target, 0)?;
+    let mut decoded = semantic::decode_string_literals_with_profile(&tokens, profile, 0)?;
     if let Some(mut bytes) = decoded.to_bytes() {
         bytes.pop();
         Ok(Some(toucan_bindings::MacroValue::String(bytes)))
@@ -686,19 +690,46 @@ mod tests {
 
     #[test]
     fn recognizes_entire_string_replacements() {
-        let Some(toucan_bindings::MacroValue::String(bytes)) =
-            string_literal(r#""a\n" "\x62\143""#, Target::X86_64UnknownLinuxGnu).unwrap()
-        else {
+        let Some(toucan_bindings::MacroValue::String(bytes)) = string_literal(
+            r#""a\n" "\x62\143""#,
+            CompilerProfile::default_for(Target::X86_64UnknownLinuxGnu),
+        )
+        .unwrap() else {
             panic!("expected byte string")
         };
         assert_eq!(bytes, b"a\nbc");
-        assert!(string_literal(r#""\x100""#, Target::X86_64UnknownLinuxGnu).is_err());
+        assert!(
+            string_literal(
+                r#""\x100""#,
+                CompilerProfile::default_for(Target::X86_64UnknownLinuxGnu)
+            )
+            .is_err()
+        );
         for source in [r#""a" + 1"#, r#"u8 + "x""#, r#""x" [0]"#, "5", ""] {
             assert!(
-                string_literal(source, Target::X86_64UnknownLinuxGnu)
-                    .unwrap()
-                    .is_none()
+                string_literal(
+                    source,
+                    CompilerProfile::default_for(Target::X86_64UnknownLinuxGnu)
+                )
+                .unwrap()
+                .is_none()
             );
+        }
+    }
+
+    #[test]
+    fn wide_string_macro_uses_the_selected_i686_compiler_profile() {
+        for (compiler, expected) in [
+            (Compiler::Gnu, semantic::IntegerKind::Long),
+            (Compiler::Clang, semantic::IntegerKind::Int),
+        ] {
+            let profile = CompilerProfile::new(Target::I686UnknownLinuxGnu, compiler).unwrap();
+            let Some(MacroValue::WideString { element_type, .. }) =
+                string_literal("L\"A\"", profile).unwrap()
+            else {
+                panic!("expected wide string macro");
+            };
+            assert_eq!(element_type, expected, "{compiler}");
         }
     }
 }

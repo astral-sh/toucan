@@ -343,7 +343,11 @@ fn invalid_lanes_effects_and_unimplemented_forms_remain_diagnostics() {
 fn extended_lanes_round_in_their_target_format() {
     use toucan_semantic::FloatingFormat;
     use toucan_target::Target;
-    for profile in CompilerProfile::ALL {
+    for profile in CompilerProfile::ALL.into_iter().filter(|profile| {
+        // This fixture declares __int128 vectors and 16-byte long double
+        // vectors, neither of which exists in the i686 compiler profile.
+        profile.target() != Target::I686UnknownLinuxGnu
+    }) {
         let prefix = "typedef _Float16 H4 __attribute__((vector_size(8))); typedef __bf16 B4 __attribute__((vector_size(8))); typedef float F4 __attribute__((vector_size(16))); typedef long double L __attribute__((vector_size(16))); typedef __int128 I __attribute__((vector_size(16))); typedef unsigned __int128 U __attribute__((vector_size(16)));";
         let analysis = check(prefix, profile).unwrap();
         let unit = analysis.unit();
@@ -389,6 +393,7 @@ fn extended_lanes_round_in_their_target_format() {
         let (format, expected) = match profile.target() {
             Target::X86_64UnknownLinuxGnu
             | Target::X86_64UnknownLinuxMusl
+            | Target::I686UnknownLinuxGnu
             | Target::X86_64AppleDarwin => (FloatingFormat::X87, 0x3fff_c000000000000000),
             Target::Aarch64UnknownLinuxGnu | Target::Aarch64UnknownLinuxMusl => (
                 FloatingFormat::Binary128,

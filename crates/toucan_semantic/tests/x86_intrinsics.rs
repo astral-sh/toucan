@@ -160,7 +160,10 @@ fn exact_mmx_signatures_and_retained_operands() {
     for target in Target::ALL {
         if X86Intrinsic::Emms.signature(target).is_none() {
             let err = check("void f(void){__builtin_ia32_emms();}", target).unwrap_err();
-            let message = if target == Target::Aarch64PcWindowsMsvc {
+            let message = if matches!(
+                target,
+                Target::Aarch64PcWindowsMsvc | Target::I686UnknownLinuxGnu
+            ) {
                 "unavailable in the selected compiler profile"
             } else {
                 "x86-64 target"
