@@ -20,6 +20,7 @@ mod renaming;
 mod selection;
 mod tag_discovery;
 mod type_dependencies;
+mod work_budget;
 pub use type_dependencies::TypeDependencies;
 
 pub use selection::BindingSelection;
@@ -380,6 +381,15 @@ pub fn generate_with_macros(
     options: &Options,
     macros: &BTreeMap<String, Option<MacroValue>>,
 ) -> Result<Bindings, Error> {
+    generate_with_work_budget(unit, options, macros, &work_budget::WorkBudget::default())
+}
+
+fn generate_with_work_budget(
+    unit: &TranslationUnit,
+    options: &Options,
+    macros: &BTreeMap<String, Option<MacroValue>>,
+    work_budget: &work_budget::WorkBudget,
+) -> Result<Bindings, Error> {
     unit.validate_function_options()?;
     unit.validate_parameter_contracts()?;
     if let Some(dependencies) = &options.type_dependencies {
@@ -476,6 +486,7 @@ pub fn generate_with_macros(
     }
     let mut emitter = Emitter {
         unit,
+        work_budget,
         options,
         names: Names::new(
             unit.declarations
@@ -1192,6 +1203,7 @@ fn convert_enum_constant(
 
 struct Emitter<'a> {
     unit: &'a TranslationUnit,
+    work_budget: &'a work_budget::WorkBudget,
     options: &'a Options,
     names: Names,
     records: BTreeSet<usize>,
@@ -1657,7 +1669,7 @@ impl Emitter<'_> {
     }
 
     fn ty_at(&self, ty: &Type, depth: usize) -> Result<String, Error> {
-        check_depth(depth)?;
+        self.work_budget.charge(depth)?;
         if let Some(name) = self.external_name(ty)? {
             return Ok(name);
         }
@@ -1861,7 +1873,7 @@ impl Emitter<'_> {
     }
 
     fn signature_at(&self, function: &FunctionType, depth: usize) -> Result<String, Error> {
-        check_depth(depth)?;
+        self.work_budget.charge(depth)?;
         let no_escape = function
             .parameter_contracts
             .map(|id| {
@@ -1922,7 +1934,7 @@ impl Emitter<'_> {
     }
 
     fn check_function_at(&self, function: &FunctionType, depth: usize) -> Result<(), Error> {
-        check_depth(depth)?;
+        self.work_budget.charge(depth)?;
         self.abi(function)?;
         if !function.prototype {
             return Err(Error("C function declaration without a prototype cannot be represented by a Rust function signature".into()));
@@ -1950,7 +1962,7 @@ impl Emitter<'_> {
         active: &mut BTreeSet<usize>,
         depth: usize,
     ) -> Result<(), Error> {
-        check_depth(depth)?;
+        self.work_budget.charge(depth)?;
         match &self.unit.resolve(ty)?.kind {
             TypeKind::Atomic(_) => return Err(Error("records containing atomic storage cannot cross an FFI call by value; expose C pointer accessors".into())),
             TypeKind::Record(id) => {

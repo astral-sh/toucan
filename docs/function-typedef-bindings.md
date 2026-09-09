@@ -76,3 +76,19 @@ The core default returns before allocating validation state.
 The [focused graph checks](../corpus/evidence/function-typedef-cycles-2026-09-09.json.gz)
 cover both projection policies, mutual aliases, and shared record/callback types.
 They supplement the native API capture above.
+
+## Recursive work limit
+
+Binding generation shares a four-million-entry allowance across recursive type
+rendering, signature rendering, function ABI checks, and by-value record checks.
+Each generation starts with a fresh private counter, under both callback
+projection policies. The existing depth diagnostic takes precedence. This
+bounds repeated traversal of shared type graphs; it is not a global output-byte
+limit or a limit on all frontend work.
+
+The [work-budget capture](../corpus/evidence/binding-work-budget-2026-09-09.json.gz)
+checks unchanged output for core and Builder routes on zlib, SQLite, zstd, and
+libgit2. All eight comparisons match their preceding output hashes. The largest
+case uses 11,368 entries, or 0.2842% of the allowance. A separate instrumented
+binary records counts; production code contains only the private counter.
+Small injected-budget tests check both rejection and unchanged output.
