@@ -15,7 +15,12 @@ Toucan is experimental and is not yet a production-ready replacement for bindgen
 
 ## Installation
 
-Build from this checkout with Rust 1.96 or later:
+Install a published binary release for macOS, Linux, or Windows from
+[GitHub Releases](https://github.com/astral-sh/toucan/releases). Releases include
+x86-64 and ARM64 binaries, checksums, and shell and PowerShell installers.
+See the [installation guide](docs/usage.md#installation) for commands.
+
+Or build from this checkout with Rust 1.96 or later:
 
 ```console
 cargo install --path crates/toucan_cli --bin toucan --locked
