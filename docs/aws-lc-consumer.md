@@ -143,3 +143,11 @@ crypto-only capture; six C/Rust layouts and a C/Rust memory-BIO call agree. The
 build artifact and dep-info audit confirms the freshly generated bindings were
 consumed. This Linux x86-64 run does not enable SSL or FIPS, prove full binding
 API equality, or validate another target.
+
+The [full generated-binding differential](../corpus/evidence/aws-lc-all-bindings-differential-7db2b85/README.md)
+matches 2,618 functions, 60 globals, 3,851 constants, 98 shared compiled Rust
+record layouts, and 441 shared field offsets after canonicalizing Linux ELF
+linker symbols. Complete public Rust API equality is false: Toucan emits 13
+additional aliases, does not expose the same short name for one incomplete
+nested tag, and leaves three private padding fields implicit. The direct type
+name can matter to downstream Rust code even when function signatures agree.

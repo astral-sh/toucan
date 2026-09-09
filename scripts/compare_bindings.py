@@ -168,6 +168,33 @@ def validate_api(api: dict) -> None:
         export_groups(api, category)
 
 
+def canonical_elf_symbols(api: dict, target: str) -> dict[str, int]:
+    """Discard LLVM's mangling escape when comparing ELF linker symbol names.
+
+    On ELF targets, a leading \x01 in a Rust link_name suppresses mangling;
+    the escape itself is not part of the symbol emitted into the object file.
+    Preserve every other byte and reject names that would collide after this
+    conversion rather than silently combining two public export groups.
+    """
+    counts = {"functions": 0, "globals": 0}
+    if not target.endswith(("-linux-gnu", "-linux-musl")):
+        return counts
+    for category in counts:
+        groups = {}
+        for raw, exports in api[category].items():
+            symbol = raw.removeprefix("\x01")
+            if not symbol:
+                raise RuntimeError(f"empty ELF linker symbol in {category}")
+            if symbol in groups:
+                raise RuntimeError(
+                    f"ELF linker symbol collision in {category}: {symbol!r}"
+                )
+            groups[symbol] = exports
+            counts[category] += symbol != raw
+        api[category] = groups
+    return counts
+
+
 def record_pairs(left: dict, right: dict) -> tuple[dict[str, str], list[dict]]:
     """Match records through shared typedefs and corresponding API access paths.
 
@@ -458,6 +485,9 @@ def main() -> int:
                 )
         for tool, observations in probes.items():
             validate_enum_observations(apis[tool], observations)
+        elf_symbol_counts = {
+            tool: canonical_elf_symbols(api, args.target) for tool, api in apis.items()
+        }
         pairs, conflicts = record_pairs(apis["toucan"], apis["bindgen"])
         a, b, field_renames = normalize(apis["toucan"], apis["bindgen"], pairs)
         comparisons = {
@@ -516,6 +546,7 @@ def main() -> int:
             "rust_edition": args.edition,
             "commands": commands,
             "input_sha256": before_hashes,
+            "elf_mangling_escape_counts": elf_symbol_counts,
             "inputs_unchanged": before_hashes
             == {tool: digest(path) for tool, path in paths.items()},
             "comparisons": comparisons,
@@ -535,6 +566,7 @@ def main() -> int:
                 "Opaque records are compared as opaque types and excluded from native size/offset probes.",
                 "Macro constant signedness, width, values and byte-string reference shapes are reported without coercing away differences.",
                 "A successful comparison does not validate ABI register classification or every legal C input.",
+                "Only Linux ELF linker-symbol groups remove the leading LLVM mangling escape; the report counts each removal and rejects collisions.",
             ],
         }
         report["equivalent"] = (

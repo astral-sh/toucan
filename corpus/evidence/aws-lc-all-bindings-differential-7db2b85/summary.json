@@ -1,0 +1,143 @@
+{
+  "schema_version": 1,
+  "target": "x86_64-unknown-linux-gnu",
+  "frontend_commit": "7db2b85027108be1515ad76263720e665cba2ab9",
+  "recorded_at_utc": "2026-09-09T13:33:59.773881+00:00",
+  "rustc": "rustc 1.98.1 (48a229cea 2026-09-01)",
+  "rust_edition": "2021",
+  "inputs_sha256": {
+    "toucan": "551021c8faea0add7c55e54ac068797bf2d13b2212e55ac1435b9323fe059d0c",
+    "bindgen": "873cc163bd8a7129b02b38f767f239b0b5d7927cc28b27928a89cdacc300ae4f"
+  },
+  "analyzer_sha256": "f0f98c95eccef9ac43927b86ca3034f8c67a2b6637156ef710efb758c0323b14",
+  "comparator_sha256": "3f5f56e931463053e24a9d9149b81840e61d07292e1f019d032e3d48ab2126c1",
+  "report_sha256": "fcd0c8a140056a9b3920bffa876636099dcb6d8a242a80b9258ad225649aad87",
+  "archive_sha256": "7f3e5263d85ea6593c55f1187222cea482f612dc59d04dd36ca04aaa44d625ff",
+  "elf_mangling_escape_counts": {
+    "toucan": {
+      "functions": 0,
+      "globals": 0
+    },
+    "bindgen": {
+      "functions": 2617,
+      "globals": 60
+    }
+  },
+  "comparisons": {
+    "functions": {
+      "shared": 2618,
+      "equal": 2618,
+      "toucan_only": 0,
+      "bindgen_only": 0,
+      "different": 0
+    },
+    "globals": {
+      "shared": 60,
+      "equal": 60,
+      "toucan_only": 0,
+      "bindgen_only": 0,
+      "different": 0
+    },
+    "constants": {
+      "shared": 3851,
+      "equal": 3851,
+      "toucan_only": 0,
+      "bindgen_only": 0,
+      "different": 0
+    },
+    "aliases": {
+      "shared": 403,
+      "equal": 403,
+      "toucan_only": 13,
+      "bindgen_only": 0,
+      "different": 0
+    },
+    "record_shapes": {
+      "shared": 232,
+      "equal": 228,
+      "toucan_only": 0,
+      "bindgen_only": 0,
+      "different": 4
+    },
+    "enum_shapes": {
+      "shared": 1,
+      "equal": 1,
+      "toucan_only": 0,
+      "bindgen_only": 0,
+      "different": 0
+    },
+    "enum_constants": {
+      "shared": 0,
+      "equal": 0,
+      "toucan_only": 0,
+      "bindgen_only": 0,
+      "different": 0
+    },
+    "native_records": {
+      "shared": 98,
+      "equal": 98,
+      "toucan_only": 0,
+      "bindgen_only": 1,
+      "different": 0
+    },
+    "native_fields": {
+      "shared": 441,
+      "equal": 441,
+      "toucan_only": 0,
+      "bindgen_only": 4,
+      "different": 0
+    },
+    "native_constants": {
+      "shared": 3851,
+      "equal": 3851,
+      "toucan_only": 0,
+      "bindgen_only": 0,
+      "different": 0
+    },
+    "native_enums": {
+      "shared": 1,
+      "equal": 1,
+      "toucan_only": 0,
+      "bindgen_only": 0,
+      "different": 0
+    },
+    "native_variants": {
+      "shared": 3,
+      "equal": 3,
+      "toucan_only": 0,
+      "bindgen_only": 0,
+      "different": 0
+    }
+  },
+  "remaining_record_shapes": [
+    "CRYPTO_dynlock_CRYPTO_dynlock_value",
+    "cbb_buffer_st",
+    "cbb_child_st",
+    "static_assertion_at_line_224_error_is_pointer_size_must_be_8_bytes_for_64_bit"
+  ],
+  "toucan_only_aliases": [
+    "__int64_t",
+    "__int8_t",
+    "__uint16_t",
+    "__uint32_t",
+    "__uint64_t",
+    "__uint8_t",
+    "int64_t",
+    "int8_t",
+    "ptrdiff_t",
+    "uint16_t",
+    "uint32_t",
+    "uint64_t",
+    "uint8_t"
+  ],
+  "native_bindgen_only_records": [
+    "CRYPTO_dynlock_CRYPTO_dynlock_value"
+  ],
+  "native_bindgen_only_fields": [
+    "CRYPTO_dynlock_CRYPTO_dynlock_value._address",
+    "cbb_buffer_st.__bindgen_padding_0",
+    "cbb_child_st.__bindgen_padding_0",
+    "static_assertion_at_line_224_error_is_pointer_size_must_be_8_bytes_for_64_bit.__bindgen_padding_0"
+  ],
+  "equivalent": false
+}
