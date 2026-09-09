@@ -20,7 +20,7 @@ The [summary](summary.json) and [capture](capture.json.gz) record:
 
 Exact API equality holds for zstd. zlib and SQLite lack two array-parameter
 typedef dependencies in Toucan's output: `va_list` and `__builtin_va_list`.
-libgit2 includes 12 additional typedef aliases. SQLite also contains the existing
+libgit2 includes 10 additional typedef aliases. SQLite also contains the existing
 C-validated callback-result signature difference. These differences remain in
 the raw comparison; this capture does not establish complete API equality.
 
@@ -40,3 +40,10 @@ All 2,301 original snapshot files retain their hashes. One generated Python
 bytecode file from concurrent validation is recorded separately. The capture
 contains no timing results and does not establish complete documentation text,
 trait equality, C conformance, or coverage of other native targets.
+
+The [re-export correction](../../../corpus/evidence/comparison-reexports-2026-09-09.json.gz)
+recognizes two libgit2 aliases that the original analyzer ignored. The corrected
+comparison finds 160 matching aliases and ten additional aliases. All four
+comparisons and native Rust probes were rerun against the same generated files.
+The original capture remains preserved, and the summary retains the prior
+classification alongside the correction.

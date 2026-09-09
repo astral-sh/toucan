@@ -50,6 +50,10 @@ bitfield storage cause a nonzero exit.
   representation, return type, and variadic arguments. Parameter names are ignored.
 - Primitive aliases resolve for the five targets supported by Toucan. `usize` and
   `isize` normalize to their 64-bit representation on those targets.
+- Explicit local type re-exports such as `pub use self::First as Later` count as
+  public aliases. Groups and alias chains resolve, including private intermediate
+  imports; private names do not become public exports. Unresolved public imports,
+  value imports, external paths, globs, and cycles remain unsupported diagnostics.
 - Records match through shared typedef identities and corresponding positions in
   function and record types. The mapping must be bijective. Field shapes and
   native layouts are compared after that mapping; matching names alone is not

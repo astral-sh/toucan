@@ -78,6 +78,7 @@ struct Api {
 
 struct Context<'a> {
     aliases: BTreeMap<String, &'a Type>,
+    public_aliases: BTreeSet<String>,
     records: BTreeSet<String>,
     record_names: BTreeMap<String, String>,
     opaque_arrays: BTreeMap<String, (&'a Type, &'a syn::Expr)>,
@@ -166,19 +167,114 @@ fn direct_path(ty: &Type) -> Option<String> {
     None
 }
 
+/// Preserve local type imports as aliases, including bindgen's `pub use` output.
+/// Public imports outside this supported form must remain visible as unsupported.
+fn imported_types(file: &syn::File) -> (Vec<Item>, Vec<String>) {
+    fn flatten(
+        tree: &syn::UseTree,
+        local: bool,
+        depth: usize,
+        names: &mut Vec<(syn::Ident, syn::Ident)>,
+    ) -> Result<()> {
+        if depth > 128 {
+            return Err("type import nesting exceeds 128 levels".into());
+        }
+        match tree {
+            syn::UseTree::Path(path) if !local && path.ident == "self" => {
+                flatten(&path.tree, true, depth + 1, names)?;
+            }
+            syn::UseTree::Name(item) if item.ident != "self" => {
+                names.push((item.ident.clone(), item.ident.clone()));
+            }
+            syn::UseTree::Rename(item) if item.ident != "self" && item.rename != "_" => {
+                names.push((item.ident.clone(), item.rename.clone()));
+            }
+            syn::UseTree::Group(group) => {
+                for item in &group.items {
+                    flatten(item, local, depth + 1, names)?;
+                }
+            }
+            _ => return Err("only explicit local type imports are supported".into()),
+        }
+        Ok(())
+    }
+
+    let declared: BTreeSet<_> = file
+        .items
+        .iter()
+        .filter_map(|item| match item {
+            Item::Type(item) => Some(name(&item.ident)),
+            Item::Struct(item) => Some(name(&item.ident)),
+            Item::Union(item) => Some(name(&item.ident)),
+            Item::Enum(item) => Some(name(&item.ident)),
+            _ => None,
+        })
+        .collect();
+    let mut candidates = Vec::new();
+    let mut unsupported = Vec::new();
+    for item in &file.items {
+        let Item::Use(import) = item else { continue };
+        let mut names = Vec::new();
+        let result = if import.leading_colon.is_some() {
+            Err("absolute type imports are not supported".into())
+        } else {
+            flatten(&import.tree, false, 0, &mut names)
+        };
+        match result {
+            Ok(()) => {
+                candidates.extend(
+                    names
+                        .into_iter()
+                        .map(|(target, alias)| (import, target, alias)),
+                );
+            }
+            Err(error) if public(&import.vis) => {
+                unsupported.push(format!(
+                    "public re-export {}: {error}",
+                    import.to_token_stream()
+                ));
+            }
+            Err(_) => {}
+        }
+    }
+    let available: BTreeSet<_> = declared
+        .iter()
+        .cloned()
+        .chain(candidates.iter().map(|(_, _, alias)| name(alias)))
+        .collect();
+    let mut aliases = Vec::new();
+    for (import, target, alias) in candidates {
+        if !available.contains(&name(&target)) || declared.contains(&name(&alias)) {
+            if public(&import.vis) {
+                unsupported.push(format!(
+                    "unresolved or conflicting public type re-export {alias}"
+                ));
+            }
+            continue;
+        }
+        let visibility = &import.vis;
+        aliases.push(syn::parse_quote!(#visibility type #alias = #target;));
+    }
+    (aliases, unsupported)
+}
+
 impl<'a> Context<'a> {
-    fn new(file: &'a syn::File, target: &'a str) -> Self {
+    fn new(file: &'a syn::File, imports: &'a [Item], target: &'a str) -> Self {
         let mut ctx = Self {
             aliases: BTreeMap::new(),
+            public_aliases: BTreeSet::new(),
             records: BTreeSet::new(),
             record_names: BTreeMap::new(),
             opaque_arrays: BTreeMap::new(),
             target,
         };
-        for item in &file.items {
+        for item in file.items.iter().chain(imports) {
             match item {
                 Item::Type(t) => {
                     ctx.aliases.insert(name(&t.ident), &t.ty);
+                    if public(&t.vis) {
+                        ctx.public_aliases.insert(name(&t.ident));
+                    }
                 }
                 Item::Struct(s) if !helper(&name(&s.ident)) => {
                     ctx.records.insert(name(&s.ident));
@@ -195,7 +291,10 @@ impl<'a> Context<'a> {
             } else if record.starts_with("__toucan_record_") {
                 ctx.aliases
                     .iter()
-                    .filter(|(_, ty)| ctx.record_target(ty, 0).as_ref() == Some(record))
+                    .filter(|(name, ty)| {
+                        ctx.public_aliases.contains(*name)
+                            && ctx.record_target(ty, 0).as_ref() == Some(record)
+                    })
                     .map(|(n, _)| n)
                     .min_by_key(|n| (n.len(), *n))
                     .cloned()
@@ -381,7 +480,10 @@ fn record(
     let aliases = ctx
         .aliases
         .iter()
-        .filter(|(_, t)| ctx.record_target(t, 0).as_ref() == Some(&rust_name))
+        .filter(|(name, t)| {
+            ctx.public_aliases.contains(*name)
+                && ctx.record_target(t, 0).as_ref() == Some(&rust_name)
+        })
         .map(|(n, _)| n.clone())
         .collect();
     let mut result = Record {
@@ -424,9 +526,13 @@ fn record(
 }
 
 fn analyze(file: &syn::File, target: &str) -> Api {
-    let ctx = Context::new(file, target);
-    let mut api = Api::default();
-    for item in &file.items {
+    let (imports, unsupported) = imported_types(file);
+    let ctx = Context::new(file, &imports, target);
+    let mut api = Api {
+        unsupported,
+        ..Api::default()
+    };
+    for item in file.items.iter().chain(&imports) {
         let result = (|| -> Result<()> {
             match item {
                 Item::ForeignMod(m) => {
@@ -735,5 +841,54 @@ mod tests {
             api("pub type A = B; pub type B = A; unsafe extern \"C\" { pub fn f(p: Missing); }");
         assert_eq!(parsed.unsupported.len(), 3);
         assert!(parsed.functions.is_empty());
+    }
+
+    #[test]
+    fn local_type_reexports_preserve_public_aliases_and_uses() {
+        let left = api("pub type First = u32;
+             #[repr(C)] pub struct Record { pub value: First }
+             pub use self::{First as Later, Record as Renamed};
+             use self::Later as Private;
+             use self::Record as PrivateRecord;
+             pub type Last = Private;
+             pub use self::Later as Chained;
+             unsafe extern \"C\" { pub fn consume(value: Last, record: *const Renamed); }");
+        let right = api("pub type First = u32;
+             #[repr(C)] pub struct Record { pub value: First }
+             pub type Later = First; pub type Renamed = Record; pub type Last = Later;
+             pub type Chained = Later;
+             unsafe extern \"C\" { pub fn consume(value: Last, record: *const Renamed); }");
+        assert!(left.unsupported.is_empty(), "{:?}", left.unsupported);
+        assert!(right.unsupported.is_empty(), "{:?}", right.unsupported);
+        assert_eq!(left.aliases, right.aliases);
+        assert!(!left.aliases.contains_key("Private"));
+        assert!(
+            !left.records["Record"]
+                .aliases
+                .contains(&"PrivateRecord".into())
+        );
+        assert_eq!(
+            left.functions["consume"].shape,
+            right.functions["consume"].shape
+        );
+        assert_eq!(
+            left.records["Record"].aliases,
+            right.records["Record"].aliases
+        );
+    }
+
+    #[test]
+    fn unresolved_public_imports_and_cycles_are_reported() {
+        for source in [
+            "pub use external::Type as Alias;",
+            "pub use self::missing as Alias;",
+            "pub use self::*;",
+            "pub use ::external::Type as Alias;",
+            "pub const VALUE: u32 = 1; pub use self::VALUE as Alias;",
+            "pub use self::B as A; pub use self::A as B;",
+        ] {
+            let parsed = api(source);
+            assert!(!parsed.unsupported.is_empty(), "{source}");
+        }
     }
 }

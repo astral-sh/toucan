@@ -52,7 +52,7 @@ run. The previously recorded generated Python bytecode remains a separate extra.
 
 Exact API comparison passes for zstd. The baseline omits `va_list` and
 `__builtin_va_list` aliases in zlib and SQLite, retains a C-validated correction to
-SQLite's returned callback, and emits twelve additional libgit2 aliases. Three
+SQLite's returned callback, and emits ten additional libgit2 aliases. Three
 sentinel constants use bindgen-compatible signed Rust values and require an
 explicit unsigned conversion to equal the native C value. The preflight retains
 the native probes and every difference. These results do not establish complete
@@ -64,3 +64,11 @@ environment and source identities, and artifact checksums. The
 outputs, input hashes, build provenance, and loaded libclang identity. The earlier
 core-route measurements use different selection and output policies and remain a
 separate workload.
+
+The [re-export correction](../../../corpus/evidence/comparison-reexports-2026-09-09.json.gz)
+reruns all four API comparisons and native Rust probes against these unchanged
+outputs. The original analyzer ignored two libgit2 `pub use` aliases,
+`git_attr_t` and `git_revparse_mode_t`, and reported twelve additional aliases.
+The corrected comparison finds 160 matching aliases and ten additional aliases.
+The original capture and all timing samples remain preserved; the summaries record
+the prior classification and correction.

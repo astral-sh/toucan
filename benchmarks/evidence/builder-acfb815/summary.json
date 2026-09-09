@@ -402,11 +402,54 @@
   },
   "preflight": "../builder-preflight-acfb815/README.md",
   "complete_api_equivalence": false,
-  "qualification": "Baseline for the matched Builder file-selection and output policy. Exact API comparison passes for zstd; zlib and SQLite omit two array-parameter typedef aliases, SQLite has a C-validated callback correction, and libgit2 emits twelve additional aliases. Three shared sentinel constants require explicit unsigned conversion to match the native C value. Native probes and actual FFI calls pass within the documented preflight scope. These timings measure generation, not compilation or complete application performance. They are not comparable as a revision speedup against the earlier core-route workload.",
+  "qualification": "Baseline for the matched Builder file-selection and output policy. Exact API comparison passes for zstd; zlib and SQLite omit two array-parameter typedef aliases, SQLite has a C-validated callback correction, and libgit2 emits ten additional aliases. Three shared sentinel constants require explicit unsigned conversion to match the native C value. Native probes and actual FFI calls pass within the documented preflight scope. These timings measure generation, not compilation or complete application performance. They are not comparable as a revision speedup against the earlier core-route workload.",
   "artifact": {
     "path": "capture.json.gz",
     "sha256": "f6fdc04ecc9372513dc4d7a9883531c58f53fb4318e63be215ed5fc739030862",
     "bytes": 2372310
   },
-  "raw_directory": "/home/dev-user/.cache/toucan/builder-timing-acfb815-2026-09-09"
+  "raw_directory": "/home/dev-user/.cache/toucan/builder-timing-acfb815-2026-09-09",
+  "api_comparison_correction": {
+    "qualification": "The previous analyzer ignored public use re-exports. git_attr_t and git_revparse_mode_t are present in both generated files. Original generated source and timings are unchanged; the original capture archive remains preserved.",
+    "previous_libgit2_alias_comparison": {
+      "common": 158,
+      "equal": 158,
+      "toucan_only": [
+        "__int32_t",
+        "__int64_t",
+        "__uint16_t",
+        "__uint32_t",
+        "__uint64_t",
+        "git_attr_t",
+        "git_revparse_mode_t",
+        "int32_t",
+        "int64_t",
+        "uint16_t",
+        "uint32_t",
+        "uint64_t"
+      ],
+      "bindgen_only": [],
+      "different": {}
+    },
+    "corrected_libgit2_alias_comparison": {
+      "common": 160,
+      "equal": 160,
+      "toucan_only": [
+        "__int32_t",
+        "__int64_t",
+        "__uint16_t",
+        "__uint32_t",
+        "__uint64_t",
+        "int32_t",
+        "int64_t",
+        "uint16_t",
+        "uint32_t",
+        "uint64_t"
+      ],
+      "bindgen_only": [],
+      "different": {}
+    },
+    "analyzer_sha256": "b2a9bc5f2b205ad435a0a8bbdff113d79056da4ddcaf2c7a1dfb54a2ca0aa86d",
+    "evidence": "../../../corpus/evidence/comparison-reexports-2026-09-09.json.gz"
+  }
 }
