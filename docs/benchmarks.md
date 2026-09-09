@@ -1,5 +1,36 @@
 # Benchmarks
 
+## Builder API baseline
+
+The [September 9 Builder comparison](../benchmarks/evidence/builder-acfb815/README.md)
+measures the actual Builder APIs on the same public-header roots and output policy,
+including comments and default derives. The frozen `acfb815` source produces these
+results against bindgen 0.72.1 with libclang 18.1.3:
+
+| Project | Toucan Builder | bindgen | Median paired speedup |
+| --- | ---: | ---: | ---: |
+| zlib 1.3.1 | 21.82 ms | 116.11 ms | 5.30× |
+| SQLite 3.45.1 | 25.67 ms | 154.34 ms | 6.27× |
+| zstd 1.5.7 | 9.09 ms | 103.56 ms | 11.53× |
+| libgit2 1.9.1 | 192.71 ms | 261.73 ms | 1.37× |
+
+Times are medians of seven process medians; speedups are medians of seven matched
+pair ratios. Each process discards its first call and measures ten subsequent
+calls, for 560 measured generations on CPU 3 of a shared Linux host. All output
+and input hashes pass. The evidence preserves raw samples, spread, first-call
+costs, exact commands, and toolchain identities.
+
+The [untimed preflight](../benchmarks/evidence/builder-preflight-acfb815/README.md)
+passes the shared signature, constant, layout, and native FFI checks. Exact API
+equality holds for zstd. Missing array-parameter aliases in zlib and SQLite,
+additional libgit2 aliases, and C-validated callback and sentinel differences
+remain recorded. This baseline precedes the alias fix. It measures generation,
+with the shared-host limits described in the capture; it does not measure complete
+application performance. The older core-route results below use a different
+workload and cannot establish a revision speedup for this Builder route.
+
+## Subprocess harness
+
 `scripts/benchmark.py` measures subprocess startup and binding generation against
 a supplied header. It records every sample's iteration, tool order, output hash,
 stderr, size, time, and Linux peak resident memory. The JSON also records tool
