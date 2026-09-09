@@ -293,10 +293,21 @@ fn omitted_symbols_keep_selected_type_dependencies_and_cycles_terminate() {
 #[test]
 #[ignore = "requires rustc"]
 fn selected_bindings_compile_as_rust() {
+    let version = std::process::Command::new("rustc")
+        .arg("-vV")
+        .output()
+        .unwrap();
+    assert!(version.status.success());
+    let version = String::from_utf8(version.stdout).unwrap();
+    let target = version
+        .lines()
+        .find_map(|line| line.strip_prefix("host: "))
+        .expect("rustc host target");
     let (dir, path) = input(
         "typedef int Scalar; struct Shared {Scalar x;}; void call(struct Shared*); enum {ANON_A=1, ANON_B=2};\n#define MACRO 4\n",
     );
     let source = builder(&path)
+        .clang_arg(format!("--target={target}"))
         .allowlist_function("call")
         .allowlist_var("ANON_A|MACRO")
         .generate()
