@@ -13,6 +13,28 @@ zero and has the size of `int`. Toucan preserves that layout instead of adding
 storage for `source`'s type. Direct anonymous structs and unions retain their
 member storage and promoted field names.
 
+## Qualifiers on direct anonymous members
+
+For a directly written anonymous struct or union, GNU preserves `const` and
+`volatile` on the member. Clang discards the outer qualifiers, including a written
+`_Atomic` qualifier. Qualifiers on the record's own named fields remain in effect,
+and both compiler families reject `restrict` on these record declarations.
+
+GNU atomic anonymous members currently return an explicit unsupported diagnostic.
+Their atomic storage cannot be erased: for an anonymous struct containing two
+`int` fields followed by another `int`, GCC produces size 16 and alignment 8;
+Clang produces size 12 and alignment 4. Toucan rejects the unsupported GNU form
+before returning a translation unit or generating bindings. Supporting it also
+requires atomic-aware initializer and promoted-member paths.
+
+The [direct qualifier evidence](../corpus/evidence/direct-anonymous-qualifiers-2026-09-09.json.gz)
+records GCC/Clang layout and assignment controls, 704 native checks, and ordinary/
+retained parity across 1,408 profile/mode/qualifier configurations. The 64 native
+GNU atomic layout observations remain an explicit frontend support gap. Clang
+bindings retain their target guards and pass layout compilation with Rust 1.64
+and 1.98.1 for Linux and Windows; the Linux bindings also execute their generated
+layout tests on the native host.
+
 The [native evidence](../corpus/evidence/anonymous-typeof-member-2026-09-09.json.gz)
 compares GCC and Clang and checks all Clang physical targets.
 
@@ -72,3 +94,5 @@ and field offsets in optimized LLVM output for the four member forms. These are
 Windows compilation checks, not Windows execution results.
 
 The [combined-source validation](../corpus/evidence/ms-anonymous-members-root-integration-2026-09-09.json.gz) repeats the semantic and native checks, compiles and runs the host bindings with Rust 1.64 and 1.98.1, and compiles all four Windows layouts with both toolchains. Workspace Clippy passes.
+
+The [combined qualifier validation](../corpus/evidence/direct-anonymous-qualifiers-root-integration-2026-09-09.json.gz) repeats all focused native and retained-analysis checks. Generated Clang layouts compile for Linux and Windows under Rust 1.64 and 1.98.1; both Linux layout tests execute. Workspace Clippy passes.

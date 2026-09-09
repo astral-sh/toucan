@@ -4053,9 +4053,25 @@ impl Analyzer {
                         };
                         match syntax {
                             AnonymousRecordSpecifier::Direct => {
-                                if !matches!(base.kind, TypeKind::Record(id) if self.unit.records[id].name.is_none())
-                                {
+                                let atomic = self.unit.atomic_value(&base)?;
+                                if atomic.is_some() && self.unit.compiler == Compiler::Gnu {
+                                    return Err(Error::new(
+                                        field.span.start,
+                                        "GNU atomic anonymous record members are unsupported",
+                                    ));
+                                }
+                                let TypeKind::Record(record) =
+                                    self.unit.resolve(atomic.unwrap_or(&base))?.kind
+                                else {
                                     continue;
+                                };
+                                if self.unit.records[record].name.is_some() {
+                                    continue;
+                                }
+                                // Clang discards written qualifiers on direct
+                                // anonymous members; GNU retains const/volatile.
+                                if self.unit.compiler == Compiler::Clang {
+                                    base = Type::new(TypeKind::Record(record));
                                 }
                             }
                             AnonymousRecordSpecifier::MicrosoftTag
