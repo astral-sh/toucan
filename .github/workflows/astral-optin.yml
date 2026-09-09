@@ -1,20 +1,23 @@
 name: uv and ty Toucan feature acceptance
 
 on:
-  push:
-    branches:
-      - charlie/codex-toucan-astral-optin-clean-build
+  workflow_dispatch:
+  pull_request:
+    types: [labeled]
 
 permissions:
   contents: read
 
 concurrency:
-  group: astral-optin-${{ github.ref }}
+  # Unrelated labels cannot cancel a requested application build.
+  group: astral-optin-${{ (github.event_name == 'workflow_dispatch' || github.event.label.name == 'run-astral-optin') && 'requested' || github.run_id }}
   cancel-in-progress: true
 
 jobs:
   consumer:
-    if: github.ref == 'refs/heads/charlie/codex-toucan-astral-optin-clean-build'
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'pull_request' && github.event.label.name == 'run-astral-optin')
     name: ${{ matrix.project }} without libclang
     runs-on: ubuntu-24.04
     timeout-minutes: 50

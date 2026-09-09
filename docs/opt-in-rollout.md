@@ -59,7 +59,7 @@ inventories, lockfile changes, Cargo features, compiler artifacts, and consumed
 binding files. These are full application builds with selected tests and runtime
 checks; the complete upstream workspace suites were not run.
 
-The branch-scoped [Linux acceptance workflow](../.github/workflows/astral-optin.yml)
+The explicitly requested [Linux acceptance workflow](../.github/workflows/astral-optin.yml)
 runs [verify_astral_optin.py](../scripts/verify_astral_optin.py) in a pinned Ubuntu
 container with a native C toolchain and no libclang. It compares the untouched
 upstream default build with the patched feature build, verifies source and lock
@@ -67,6 +67,14 @@ inventories, and audits both ty dependency instances. The gate has one bounded
 job per application and no macOS runner. The successful run validates the
 prepared patches against that exact source. Changes to the frontend, patches,
 application revisions, or selected profiles need another acceptance run.
+
+Request it with `workflow_dispatch` on the intended branch or by applying the
+`run-astral-optin` pull-request label. A label request validates the checked-out
+PR merge commit, which the artifacts record. New commits do not automatically
+repeat the run: dispatch again or remove and reapply the label. The two Linux
+jobs share one request group, so a new explicit request cancels an older one;
+unrelated label events cannot cancel it. Opening or updating a stack PR does
+not allocate an application runner.
 
 ## Landing the opt-in
 
