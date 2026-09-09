@@ -2,7 +2,7 @@
 use std::ops::Not;
 
 use crate::layout::{Annotation, Array, BuiltinType, Record, RecordField, Type, TypeLayout};
-use crate::result::{err, Error, ErrorType, Result};
+use crate::result::{err, ErrorType, Result};
 use crate::target::{system_compiler, Compiler, Target};
 use crate::util::BITS_PER_BYTE;
 use crate::visitor::{
@@ -64,16 +64,16 @@ pub fn compute_layout_with_compiler(
     }
 }
 
+/// Checks the complete type tree, returning the last error in visitation order.
 fn pre_validate(ty: &Type<()>) -> Result<()> {
-    let mut pv = PreValidator(vec![]);
+    let mut pv = PreValidator { result: Ok(()) };
     pv.visit_type(ty);
-    match pv.0.pop() {
-        Some(e) => Err(e),
-        None => Ok(()),
-    }
+    pv.result
 }
 
-struct PreValidator(Vec<Error>);
+struct PreValidator {
+    result: Result<()>,
+}
 
 impl Visitor<()> for PreValidator {
     fn visit_annotations(&mut self, a: &[Annotation]) {
@@ -89,26 +89,26 @@ impl Visitor<()> for PreValidator {
             }
         }
         if num_pragma_packed > 1 {
-            self.0.push(err(ErrorType::MultiplePragmaPackedAnnotations));
+            self.result = Err(err(ErrorType::MultiplePragmaPackedAnnotations));
         }
     }
 
     fn visit_builtin_type(&mut self, bi: BuiltinType, ty: &Type<()>) {
         if ty.annotations.is_empty().not() {
-            self.0.push(err(ErrorType::AnnotatedBuiltinType));
+            self.result = Err(err(ErrorType::AnnotatedBuiltinType));
         }
         visit_builtin_type(self, bi, ty);
     }
 
     fn visit_record_field(&mut self, field: &RecordField<()>, rt: &Record<()>, ty: &Type<()>) {
         match (field.bit_width, field.named) {
-            (Some(0), true) => self.0.push(err(ErrorType::NamedZeroSizeBitField)),
-            (None, false) => self.0.push(err(ErrorType::UnnamedRegularField)),
+            (Some(0), true) => self.result = Err(err(ErrorType::NamedZeroSizeBitField)),
+            (None, false) => self.result = Err(err(ErrorType::UnnamedRegularField)),
             _ => {}
         }
         for a in &field.annotations {
             if let Annotation::PragmaPack(_) = a {
-                self.0.push(err(ErrorType::PragmaPackedField));
+                self.result = Err(err(ErrorType::PragmaPackedField));
             }
         }
         visit_record_field(self, field, rt, ty);
@@ -116,17 +116,17 @@ impl Visitor<()> for PreValidator {
 
     fn visit_array(&mut self, at: &Array<()>, ty: &Type<()>) {
         if ty.annotations.is_empty().not() {
-            self.0.push(err(ErrorType::AnnotatedArray));
+            self.result = Err(err(ErrorType::AnnotatedArray));
         }
         visit_array(self, at, ty);
     }
 
     fn visit_opaque_type(&mut self, layout: TypeLayout, ty: &Type<()>) {
         if ty.annotations.is_empty().not() {
-            self.0.push(err(ErrorType::AnnotatedOpaqueType));
+            self.result = Err(err(ErrorType::AnnotatedOpaqueType));
         }
         if !layout.size_bits.is_multiple_of(BITS_PER_BYTE) {
-            self.0.push(err(ErrorType::SubByteSize));
+            self.result = Err(err(ErrorType::SubByteSize));
         }
         self.validate_alignment(layout.field_alignment_bits);
         self.validate_alignment(layout.pointer_alignment_bits);
@@ -138,10 +138,10 @@ impl Visitor<()> for PreValidator {
 impl PreValidator {
     fn validate_alignment(&mut self, a: u64) {
         if a < BITS_PER_BYTE {
-            self.0.push(err(ErrorType::SubByteAlignment));
+            self.result = Err(err(ErrorType::SubByteAlignment));
         }
         if a.is_power_of_two().not() {
-            self.0.push(err(ErrorType::PowerOfTwoAlignment));
+            self.result = Err(err(ErrorType::PowerOfTwoAlignment));
         }
     }
 }
