@@ -1259,6 +1259,10 @@ impl Preprocessor {
                 }
             }
             Some("message") => {}
+            Some("warning") if msvc_warning_pragma(&tokens[1..]) => {}
+            // These delimit regions in the Visual Studio editor and do not
+            // affect the preprocessed translation unit.
+            Some("region" | "endregion") => {}
             _ => {
                 return Err(Error::at(
                     &origin.path,
@@ -1787,6 +1791,73 @@ impl Preprocessor {
         }
         self.macros.insert(name.text.clone(), definition);
         Ok(())
+    }
+}
+
+/// Warning pragmas change only the compiler's warning state, which this
+/// preprocessor does not emit. Validate the MSVC syntax before discarding it.
+fn msvc_warning_pragma(tokens: &[Token]) -> bool {
+    if tokens.len() < 3 || tokens[0].text != "(" || tokens[tokens.len() - 1].text != ")" {
+        return false;
+    }
+    let mut arguments = &tokens[1..tokens.len() - 1];
+    match arguments {
+        [action] if matches!(action.text.as_str(), "push" | "pop") => return true,
+        [action, comma, level]
+            if action.text == "push"
+                && comma.text == ","
+                && matches!(level.text.as_str(), "1" | "2" | "3" | "4") =>
+        {
+            return true;
+        }
+        _ => {}
+    }
+
+    loop {
+        let Some((specifier, rest)) = arguments.split_first() else {
+            return false;
+        };
+        if !matches!(
+            specifier.text.as_str(),
+            "1" | "2" | "3" | "4" | "default" | "disable" | "error" | "once" | "suppress"
+        ) || rest.first().is_none_or(|token| token.text != ":")
+        {
+            return false;
+        }
+        arguments = &rest[1..];
+        let mut count = 0;
+        while let Some(number) = arguments.first() {
+            if number.kind != Kind::Number || !number.text.bytes().all(|byte| byte.is_ascii_digit())
+            {
+                break;
+            }
+            count += 1;
+            arguments = &arguments[1..];
+        }
+        if count == 0 {
+            return false;
+        }
+        if arguments.first().is_some_and(|token| token.text == ",") {
+            if count != 1 || !matches!(specifier.text.as_str(), "disable" | "suppress") {
+                return false;
+            }
+            let [comma, justification, colon, literal, rest @ ..] = arguments else {
+                return false;
+            };
+            if comma.text != ","
+                || justification.text != "justification"
+                || colon.text != ":"
+                || literal.kind != Kind::String
+            {
+                return false;
+            }
+            arguments = rest;
+        }
+        match arguments {
+            [] => return true,
+            [semicolon, rest @ ..] if semicolon.text == ";" => arguments = rest,
+            _ => return false,
+        }
     }
 }
 

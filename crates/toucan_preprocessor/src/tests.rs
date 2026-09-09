@@ -1177,6 +1177,56 @@ fn pragma_operators_preserve_order_and_share_pragma_once_identity() {
 }
 
 #[test]
+fn msvc_sdk_warning_and_editor_pragmas_leave_declarations_untouched() {
+    let source = concat!(
+        "#pragma warning ( push )\n",
+        "#pragma warning(push, 4)\n",
+        "#pragma warning(disable: 4668 4005; once: 4385; error: 164)\n",
+        "#pragma warning(suppress: 6273, justification: \"SDK annotation\")\n",
+        "#pragma region Input Buffer SAL 1 compatibility macros\n",
+        "#pragma pack(push, 1)\n",
+        "struct Packed { char first; int second; };\n",
+        "#pragma pack(pop)\n",
+        "#pragma endregion Input Buffer SAL 1 compatibility macros\n",
+        "#pragma warning(pop)\n",
+        "#define DISABLE _Pragma(\"warning(disable: 4996)\")\n",
+        "DISABLE\n",
+        "int after;\n",
+    );
+    assert_eq!(
+        preprocess(source),
+        "#pragma pack ( push , 1 )\nstruct Packed { char first ; int second ; } ;\n#pragma pack ( pop )\nint after ;\n"
+    );
+}
+
+#[test]
+fn malformed_msvc_warning_pragmas_and_other_unknown_pragmas_still_fail() {
+    for pragma in [
+        "warning",
+        "warning(push, 5)",
+        "warning(pop, 1)",
+        "warning(disable)",
+        "warning(disable: not_a_number)",
+        "warning(disable: 4668;)",
+        "warning(disable: 4668, justification: 1)",
+        "warning(disable: 4668 4005, justification: \"multiple\")",
+        "warning(unknown: 4668)",
+        "warning(push) garbage",
+        "other_abi(push)",
+    ] {
+        let source = format!("#pragma {pragma}\n");
+        let error = Preprocessor::new(Config::default())
+            .preprocess_str(Path::new("sdk.h"), &source)
+            .unwrap_err();
+        assert!(
+            error.message.contains("unsupported pragma"),
+            "{pragma}: {error}"
+        );
+        assert_eq!((error.path.as_path(), error.line), (Path::new("sdk.h"), 1));
+    }
+}
+
+#[test]
 fn counter_expands_each_argument_once_and_resets_per_translation_unit() {
     let mut preprocessor = Preprocessor::new(Config::default());
     let source = "#define F(x) x x\n#define S(x) #x\n#define IGNORE(x)\nF(F(__COUNTER__)) IGNORE(__COUNTER__) __COUNTER__ S(__COUNTER__) __COUNTER__\n";
