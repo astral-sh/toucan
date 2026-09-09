@@ -31,6 +31,9 @@ dbg_macro = "warn"
 lto = "fat"
 codegen-units = 1
 
+[profile.dist]
+inherits = "release"
+
 [profile.profiling]
 inherits = "release"
 debug = true

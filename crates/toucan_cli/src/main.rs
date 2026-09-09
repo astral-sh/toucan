@@ -418,24 +418,8 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 .collect::<Result<Vec<_>, _>>()?;
             let compilation = toucan::parse_file(&input.header, &input.config(arguments, false)?)?;
             let (source, metadata) = compilation.bindings(&BindingOptions {
-                type_dependencies: None,
-                selection: None,
-                object_bindings: Default::default(),
-                additional_objects: Default::default(),
-                documentation: None,
-                generated_names: Default::default(),
-                link_name_prefix: None,
-                link_name_overrides: Default::default(),
-                emit_function_definitions: false,
-                exclude_inline_functions: false,
-                nullable_function_typedefs: false,
-                no_layout_tests: false,
                 allowlist,
                 rustified_enums,
-                rustified_enum_patterns: Vec::new(),
-                prepend_enum_name: false,
-                enum_constant_style: Default::default(),
-                derives: Default::default(),
                 size_t_is_usize,
                 helper_namespace,
                 macro_type_overrides,
@@ -450,6 +434,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
                 } else {
                     MacroType::C
                 },
+                ..BindingOptions::default()
             })?;
             if let Some(report) = report {
                 write_output(

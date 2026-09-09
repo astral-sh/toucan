@@ -1,5 +1,19 @@
 # Development
 
+## Workspace and checks
+
+See [architecture](architecture.md) for the crate inventory and component
+boundaries. Run the workspace checks from the repository root:
+
+```console
+cargo test --workspace
+cargo clippy --workspace --all-targets -- -D warnings
+cargo fmt --all --check
+```
+
+C compilers are used by validation tools as an independent reference. See
+[validation](validation.md) for recorded results and their scope.
+
 ## Scope
 
 Build an integrated C frontend for preprocessing, parsing, declaration semantics,
@@ -59,6 +73,37 @@ outside this checkout. CI packages every crate and tests `--all-features` on Lin
 macOS, and Windows, including the CLI's jemalloc or mimalloc configuration. Compiler
 oracle tests run separately on the native Linux and macOS jobs with
 `--include-ignored`.
+
+## Binary releases
+
+We use [cargo-dist](https://axodotdev.github.io/cargo-dist/) 0.32.0 to build
+GitHub Releases. Install that version of `dist`, then regenerate the workflow
+after changing `dist-workspace.toml` or `crates/toucan_cli/dist.toml`:
+
+```console
+dist generate
+dist generate --check
+dist plan
+dist build --target x86_64-unknown-linux-gnu
+```
+
+Use your host target for the local build. The generated
+[`Release` workflow](../.github/workflows/release.yml) builds all six targets and
+uploads archives, checksums, and installers on pull requests. PRs do not publish
+a release. macOS builds use Apple Silicon runners for both architectures;
+Windows ARM64 is cross-compiled on an x86-64 Windows runner. Linux builds use
+Ubuntu 22.04 on each architecture.
+
+To publish, first update the workspace version, local dependency versions, and
+lockfile together and merge the change. Run `Release` from `main` in GitHub
+Actions with `tag` set to that version, such as `v0.0.1`. Use `dry-run` to build
+and upload artifacts without publishing. After successful builds, the workflow
+creates the tag and GitHub Release. Tags with a prerelease suffix produce a
+prerelease. Pushing a tag alone does not start this workflow.
+
+Only the `toucan` executable is distributed. The parser's debugging executable
+and the experimental AWS-LC `bindgen` adapter are excluded. This workflow does
+not publish crates to crates.io; package publication is a separate step.
 
 ## macOS CI
 

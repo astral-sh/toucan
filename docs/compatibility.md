@@ -336,6 +336,25 @@ escapes have compiler-specific interpretations and produce unsupported-feature
 diagnostics. Nonfunction attachments also produce diagnostics. Clang's
 `diagnose_if` and `enable_if` call constraints remain unsupported and are rejected.
 
+## Inline assembly in headers
+
+GNU basic and extended `asm` statements are checked on the supported x86 and
+AArch64 Linux and macOS targets. ARMv7 inline assembly is unsupported.
+The frontend validates C operand expressions, writable outputs,
+memory addressability, symbolic names, matching constraints, alternative counts,
+template references, and a target-specific set of clobbers. Read/write outputs
+count twice toward the 30-operand limit. Integer immediates, generic register and
+memory constraints, and the x86 `a`, `b`, `c`, `d`, `S`, and `D` register classes
+are supported. Unsupported constraint classes and modifiers produce diagnostics.
+
+Machine instructions and register allocation are outside this frontend check,
+as described in [GCC's extended asm contract](https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html).
+Floating-point register classes, asm inline/goto, stack-pointer clobbers, delayed or
+address-valued immediates, embedded NUL bytes, and non-UTF-8 assembler text remain
+unsupported. The native regressions compare operand acceptance against GCC and
+Clang and call optimized C byte-swap wrappers through Toucan-generated bindings.
+Apple's byte-order header is covered by the macOS corpus jobs.
+
 ## Calling conventions
 
 Clang profiles recognize the `__cdecl`, `__stdcall`, `__fastcall`, and

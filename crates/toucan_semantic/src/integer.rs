@@ -102,16 +102,7 @@ impl Analyzer {
                     )?
             }
             ast::Expression::SizeOfTy(size) => {
-                let checkpoint = self.sve_feature_checkpoint();
-                let allocation_context = self.allocation_context(false);
-                let ty = self.type_name(&size.node.0.node);
-                let ty =
-                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
-                        analyzer.unit.is_variable_length_array(ty)
-                    })?;
-                if !self.unit.is_variable_length_array(&ty)? {
-                    self.discard_sve_feature_uses(checkpoint);
-                }
+                let ty = self.sizeof_type_name(&size.node.0.node)?;
                 !self.unit.is_variable_length_array(&ty)?
             }
             ast::Expression::SizeOfVal(size) => {
@@ -411,16 +402,7 @@ impl Analyzer {
                 Ok(convert(value, destination))
             }
             ast::Expression::SizeOfTy(size) => {
-                let checkpoint = self.sve_feature_checkpoint();
-                let allocation_context = self.allocation_context(false);
-                let ty = self.type_name(&size.node.0.node);
-                let ty =
-                    self.finish_allocation_operand(allocation_context, ty, |analyzer, ty| {
-                        analyzer.unit.is_variable_length_array(ty)
-                    })?;
-                if !self.unit.is_variable_length_array(&ty)? {
-                    self.discard_sve_feature_uses(checkpoint);
-                }
+                let ty = self.sizeof_type_name(&size.node.0.node)?;
                 self.size_of(&ty, offset)
             }
             ast::Expression::SizeOfVal(size) => self.sizeof_expression(&size.node.0),

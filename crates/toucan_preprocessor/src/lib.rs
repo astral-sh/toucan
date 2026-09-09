@@ -1765,7 +1765,21 @@ impl Preprocessor {
             return Err(format!("{builtin} requires parenthesized header name"));
         }
         let mut argument = Vec::new();
-        while pending.front().is_some_and(|token| token.text != ")") {
+        let mut nesting = 0;
+        let mut angle_header = pending.front().is_some_and(|token| token.text == "<");
+        while let Some(token) = pending.front() {
+            // Parentheses in a literal header name are ordinary characters;
+            // elsewhere, keep complete function-macro arguments for expansion.
+            if angle_header {
+                angle_header = token.text != ">";
+            } else {
+                match token.text.as_str() {
+                    "(" => nesting += 1,
+                    ")" if nesting == 0 => break,
+                    ")" => nesting -= 1,
+                    _ => {}
+                }
+            }
             argument.push(pending.pop_front().expect("peeked argument token"));
         }
         if pending.pop_front().is_none() {
@@ -2242,7 +2256,6 @@ fn header_name(tokens: &[Token]) -> Result<(String, bool), String> {
     Err("#include requires a quoted or angle-bracket header name".into())
 }
 
-/// Decode the string literal used by `#line`, which follows ordinary C escape rules.
 /// GNU preprocessor output carries source locations as numeric directives.
 /// Its flags describe include transitions, warning policy, and C++ linkage;
 /// they do not affect this C frontend's token stream or constraint checking.
@@ -2299,6 +2312,7 @@ fn line_marker(tokens: &[Token]) -> Result<LineMarker, String> {
     })
 }
 
+/// Decode the string literal used by `#line`, which follows ordinary C escape rules.
 fn line_filename(literal: &str) -> Result<String, String> {
     let mut output = Vec::new();
     let mut chars = literal[1..literal.len() - 1].chars().peekable();

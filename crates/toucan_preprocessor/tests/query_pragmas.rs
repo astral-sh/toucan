@@ -97,8 +97,9 @@ fn conditional_macro_sources() -> Vec<String> {
             .into(),
         "#define HEADER \"available.h\"\n#pragma push_macro(\"HEADER\")\n\
          #undef HEADER\n#define HEADER \"missing.h\"\n\
-         #if !__has_include(HEADER) && _Pragma(\"pop_macro(\\\"HEADER\\\")\") \
-             __has_include(HEADER) && __has_include_next(HEADER)\n\
+         #define ID(x) x\n\
+         #if !__has_include(ID(ID(HEADER))) && _Pragma(\"pop_macro(\\\"HEADER\\\")\") \
+             __has_include(ID(ID(HEADER))) && __has_include_next(ID(ID(HEADER)))\n\
          int correct;\n#else\n#error stale header query\n#endif\n"
             .into(),
         "#pragma push_macro(\"ABSENT\")\n#define ABSENT 1\n\

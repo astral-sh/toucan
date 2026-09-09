@@ -57,7 +57,6 @@ pub(super) fn configuration(
     Ok((config, comments))
 }
 
-/// Resolve the target before applying arguments so predefined macros match it.
 #[cfg(test)]
 pub(super) fn from_arguments(
     arguments: &[String],
@@ -66,17 +65,18 @@ pub(super) fn from_arguments(
     from_arguments_and_comments(arguments, cargo_target).map(|(config, _)| config)
 }
 
+/// Resolve the final target and language mode before applying macros in argument order.
+/// Operands are skipped in the first pass so flag-like paths and macro values stay literal.
 fn from_arguments_and_comments(
     arguments: &[String],
     cargo_target: Option<&str>,
 ) -> Result<(Config, crate::documentation::Options), BindgenError> {
     let mut comments = crate::documentation::Options::default();
-    let mut target = cargo_target.map(str::to_owned);
+    let mut target = cargo_target;
     let mut mode = LanguageMode::Gnu11;
     let mut trigraph_override = None;
-    let mut index = 0;
-    while index < arguments.len() {
-        let argument = &arguments[index];
+    let mut remaining = arguments.iter();
+    while let Some(argument) = remaining.next() {
         if let Some(value) = argument.strip_prefix("-std=") {
             mode = value
                 .parse()
@@ -88,29 +88,26 @@ fn from_arguments_and_comments(
         ) {
             trigraph_override = Some(argument != "-fno-trigraphs");
         } else if matches!(argument.as_str(), "--target" | "-target") {
-            index += 1;
             target = Some(
-                arguments
-                    .get(index)
+                remaining
+                    .next()
                     .ok_or_else(|| error(format!("{argument} requires a value")))?
-                    .clone(),
+                    .as_str(),
             );
         } else if let Some(value) = argument
             .strip_prefix("--target=")
             .or_else(|| argument.strip_prefix("-target="))
         {
-            target = Some(value.into());
+            target = Some(value);
         } else if matches!(
             argument.as_str(),
             "-I" | "-D" | "-U" | "-isystem" | "--sysroot" | "-isysroot" | "-include" | "-x"
         ) {
             // A path or macro value can itself begin with --target=.
-            index += 1;
-            arguments
-                .get(index)
+            remaining
+                .next()
                 .ok_or_else(|| error(format!("{argument} requires a value")))?;
         }
-        index += 1;
     }
     let target: Target = match target {
         Some(target) => target
@@ -126,38 +123,38 @@ fn from_arguments_and_comments(
     }
     let mut macros = (config.preprocessor.line_comments == toucan::LineComments::ClangC90)
         .then(|| toucan::CommandLineMacroNormalizer::new(&config.preprocessor));
-    let mut system_dirs = Vec::new();
     let mut sysroot = None;
     let mut arguments = arguments.iter();
     while let Some(argument) = arguments.next() {
-        let value = |arguments: &mut std::slice::Iter<'_, String>| {
+        let mut value = || {
             arguments
                 .next()
-                .cloned()
                 .ok_or_else(|| error(format!("{argument} requires a value")))
         };
         if matches!(argument.as_str(), "--target" | "-target") {
-            value(&mut arguments)?;
+            value()?;
         } else if argument.starts_with("--target=") || argument.starts_with("-target=") {
             // Already resolved above.
         } else if matches!(argument.as_str(), "-I" | "-D" | "-U") {
-            let operand = value(&mut arguments)?;
-            apply_short(&mut config, &mut macros, argument, &operand)?;
+            apply_short(&mut config, &mut macros, argument, value()?)?;
         } else if argument.starts_with("-I")
             || argument.starts_with("-D")
             || argument.starts_with("-U")
         {
             apply_short(&mut config, &mut macros, &argument[..2], &argument[2..])?;
         } else if argument == "-isystem" {
-            system_dirs.push(PathBuf::from(value(&mut arguments)?));
+            config
+                .preprocessor
+                .system_include_dirs
+                .push(value()?.into());
         } else if let Some(path) = argument.strip_prefix("-isystem") {
-            system_dirs.push(PathBuf::from(path));
+            config.preprocessor.system_include_dirs.push(path.into());
         } else if matches!(argument.as_str(), "--sysroot" | "-isysroot") {
-            sysroot = Some(PathBuf::from(value(&mut arguments)?));
+            sysroot = Some(PathBuf::from(value()?));
         } else if let Some(path) = argument.strip_prefix("--sysroot=") {
             sysroot = Some(PathBuf::from(path));
         } else if argument == "-include" {
-            let path = value(&mut arguments)?;
+            let path = value()?;
             if path.is_empty() || path.contains(['"', '\n', '\r', '\0']) {
                 return Err(error("invalid forced-include header name"));
             }
@@ -166,7 +163,7 @@ fn from_arguments_and_comments(
                 source: format!("#include \"{path}\"\n"),
             });
         } else if argument == "-x" {
-            let language = value(&mut arguments)?;
+            let language = value()?;
             if language != "c" {
                 return Err(error(format!(
                     "language `{language}` is unsupported; expected c"
@@ -179,7 +176,7 @@ fn from_arguments_and_comments(
         } else if argument.starts_with("-std=")
             || matches!(
                 argument.as_str(),
-                "-xc" | "-std=c11" | "-std=gnu11" | "-trigraphs" | "-ftrigraphs" | "-fno-trigraphs"
+                "-xc" | "-trigraphs" | "-ftrigraphs" | "-fno-trigraphs"
             )
         {
             // Language and trigraph options were resolved before applying macros.
@@ -190,7 +187,6 @@ fn from_arguments_and_comments(
     if macros.is_some() {
         config.preprocessor.predefined_macro_mode = toucan::PredefinedMacroMode::Tokens;
     }
-    config.preprocessor.system_include_dirs.extend(system_dirs);
     if let Some(sysroot) = sysroot {
         if sysroot.as_os_str().is_empty() {
             return Err(error("sysroot cannot be empty"));

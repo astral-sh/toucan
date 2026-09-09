@@ -50,11 +50,13 @@ pub(super) struct ExternalTypes {
 }
 
 impl Emitter<'_> {
+    /// Identify a blocklisted definition. The first typedef names an anonymous
+    /// tag; later aliases share that external definition rather than introducing one.
     pub(super) fn external_key(&self, ty: &Type) -> Result<Option<Key>, Error> {
         if self.options.blocklist_types.is_empty() {
             return Ok(None);
         }
-        let anonymous = match &ty.kind {
+        let origin = match &ty.kind {
             TypeKind::Typedef(name) => {
                 return Ok(self
                     .options
@@ -70,7 +72,7 @@ impl Emitter<'_> {
                 if let Some(name) = &record.name {
                     return Ok(self.options.blocks_type(name).then_some(Key::Record(*id)));
                 }
-                true
+                self.unit.lexical_tags.records.get(id)
             }
             TypeKind::Enum(id) => {
                 let enumeration = self
@@ -81,32 +83,23 @@ impl Emitter<'_> {
                 if let Some(name) = &enumeration.name {
                     return Ok(self.options.blocks_type(name).then_some(Key::Enum(*id)));
                 }
-                true
+                self.unit.lexical_tags.enums.get(id)
             }
-            _ => false,
+            _ => return Ok(None),
         };
-        // The first typedef gives an anonymous definition its public name.
-        // Later aliases refer to that same external definition, not a new type.
-        if anonymous {
-            if self.options.enum_constant_style == crate::EnumConstantStyle::Bindgen {
-                let origin = match ty.kind {
-                    TypeKind::Record(id) => self.unit.lexical_tags.records.get(&id),
-                    TypeKind::Enum(id) => self.unit.lexical_tags.enums.get(&id),
-                    _ => None,
-                };
-                return Ok(crate::lexical_names::Names::typedef_name(self.unit, origin)
-                    .filter(|name| self.options.blocks_type(name))
-                    .map(|name| Key::Typedef(name.to_owned())));
-            }
-            for declaration in &self.unit.declarations {
-                if declaration.kind == DeclarationKind::Typedef
-                    && self.unit.resolve(&declaration.ty)?.kind == ty.kind
-                {
-                    return Ok(self
-                        .options
-                        .blocks_type(&declaration.name)
-                        .then(|| Key::Typedef(declaration.name.clone())));
-                }
+        if self.options.enum_constant_style == crate::EnumConstantStyle::Bindgen {
+            return Ok(crate::lexical_names::Names::typedef_name(self.unit, origin)
+                .filter(|name| self.options.blocks_type(name))
+                .map(|name| Key::Typedef(name.to_owned())));
+        }
+        for declaration in &self.unit.declarations {
+            if declaration.kind == DeclarationKind::Typedef
+                && self.unit.resolve(&declaration.ty)?.kind == ty.kind
+            {
+                return Ok(self
+                    .options
+                    .blocks_type(&declaration.name)
+                    .then(|| Key::Typedef(declaration.name.clone())));
             }
         }
         Ok(None)

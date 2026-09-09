@@ -109,6 +109,8 @@ impl DocumentationSource {
     pub fn comments(&self) -> &[RawComment] {
         &self.comments
     }
+    /// System-header status at a physical byte offset, including pragma and line-marker changes.
+    /// The source's end offset is valid; larger offsets return `None`.
     pub fn is_system_at(&self, offset: usize) -> Option<bool> {
         if offset > self.len {
             return None;
@@ -199,6 +201,8 @@ impl Documentation {
             .get(mapping.origin.0.get() as usize - 1)
             .copied()
     }
+    /// Resolve an output token's provenance; whitespace and tokens without captured origins
+    /// return `None`. Offsets are bytes in [`crate::Preprocessed::source`].
     pub fn resolve(&self, offset: usize) -> Option<DocumentationOrigin> {
         let i = self
             .mappings
@@ -252,6 +256,8 @@ impl Documentation {
         });
         Ok(id)
     }
+    /// Retain a physical comment, merging across at most one newline when trailing status agrees.
+    /// An aligned ordinary comment can also continue a trailing group on the next line.
     pub(crate) fn comment(
         &mut self,
         id: DocumentationSourceId,
@@ -316,6 +322,8 @@ impl Documentation {
         }
         Ok(())
     }
+    /// Bound later comment attachment by the next raw punctuation barrier.
+    /// This scan intentionally does not interpret tokens, strings, or conditional activity.
     pub(crate) fn finish_source(&mut self, id: DocumentationSourceId, raw: &str) {
         let mut barrier = 0;
         for comment in &mut self.sources[id.0 as usize].comments {
@@ -363,6 +371,9 @@ impl Documentation {
             NonZeroU32::new(self.origins.len() as u32).expect("one-based origin"),
         ))
     }
+    /// Preserve the outer invocation while taking the replacement token's physical spelling.
+    /// Nested expansions keep their existing spelling; unexpanded tokens use their own location.
+    /// No origin is allocated when neither input carries provenance.
     pub(crate) fn expanded(
         &mut self,
         invocation: Option<OriginId>,
