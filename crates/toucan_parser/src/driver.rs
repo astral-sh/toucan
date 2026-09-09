@@ -161,9 +161,9 @@ impl SyntaxError {
         list.sort();
         for (i, t) in list.iter().enumerate() {
             if i > 0 {
-                try!(write!(fmt, ", "));
+                write!(fmt, ", ")?;
             }
-            try!(write!(fmt, "'{}'", t));
+            write!(fmt, "'{}'", t)?;
         }
 
         Ok(())
@@ -184,14 +184,14 @@ impl fmt::Display for SyntaxError {
                 resource, loc.file, loc.line, self.column
             );
         }
-        try!(write!(
+        write!(
             fmt,
             "unexpected token at \"{}\" line {} column {}, expected ",
             loc.file, loc.line, self.column
-        ));
-        try!(self.format_expected(fmt));
+        )?;
+        self.format_expected(fmt)?;
         for loc in inc {
-            try!(write!(fmt, "\n  included from {}:{}", loc.file, loc.line));
+            write!(fmt, "\n  included from {}:{}", loc.file, loc.line)?;
         }
         Ok(())
     }
@@ -199,12 +199,8 @@ impl fmt::Display for SyntaxError {
 
 /// Parse a C file
 pub fn parse<P: AsRef<Path>>(config: &Config, source: P) -> Result<Parse, Error> {
-    let processed = match preprocess(config, source.as_ref()) {
-        Ok(s) => s,
-        Err(e) => return Err(Error::PreprocessorError(e)),
-    };
-
-    Ok(try!(parse_preprocessed(config, processed)))
+    let processed = preprocess(config, source.as_ref()).map_err(Error::PreprocessorError)?;
+    parse_preprocessed(config, processed).map_err(Error::SyntaxError)
 }
 
 pub fn parse_preprocessed(config: &Config, source: String) -> Result<Parse, SyntaxError> {
@@ -329,21 +325,13 @@ pub fn with_parser_stack<T: Send>(operation: impl FnOnce() -> T + Send) -> io::R
 }
 
 fn preprocess(config: &Config, source: &Path) -> io::Result<String> {
-    let mut cmd = Command::new(&config.cpp_command);
-
-    for item in &config.cpp_options {
-        cmd.arg(item);
-    }
-
-    cmd.arg(source);
-
-    let output = try!(cmd.output());
+    let output = Command::new(&config.cpp_command)
+        .args(&config.cpp_options)
+        .arg(source)
+        .output()?;
 
     if output.status.success() {
-        match String::from_utf8(output.stdout) {
-            Ok(s) => Ok(s),
-            Err(e) => Err(io::Error::other(e)),
-        }
+        String::from_utf8(output.stdout).map_err(io::Error::other)
     } else {
         match String::from_utf8(output.stderr) {
             Ok(s) => Err(io::Error::other(s)),
