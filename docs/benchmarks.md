@@ -1,5 +1,55 @@
 # Benchmarks
 
+## CodSpeed regression benchmarks
+
+The `toucan_benchmark` crate follows
+[Ruff's benchmark setup](https://github.com/astral-sh/ruff/tree/a02a6b88216021f67381b4eb296f81d054b8e225/crates/ruff_benchmark).
+The [Benchmarks workflow](../.github/workflows/benchmarks.yml) runs CodSpeed CPU
+simulation and memory profiling on relevant pull requests, pushes to `main`, and
+manual dispatches. It uses the existing `profiling` Cargo profile and OIDC
+authentication; no `CODSPEED_TOKEN` secret is needed. The repository must be
+enabled in the [CodSpeed GitHub integration](https://codspeed.io/docs/integrations/ci/github-actions).
+
+The four `bindings` benchmarks generate bindings through `toucan_bindgen::Builder`
+for the pinned zlib, SQLite, zstd, and libgit2 public headers in
+`corpus/manifest.json`. Each iteration clones the configured Builder, reads and
+preprocesses headers, parses and analyzes declarations, and generates a Rust
+string. Comments and default derives are enabled; rustfmt and layout tests are
+disabled. File allowlists select the reached project headers and their dependencies,
+including the headers behind libgit2's umbrella. An untimed generation rejects
+skipped declarations and checks a known public entry point before each benchmark.
+
+Corpus download/build, configuration setup, and the initial generation happen
+outside measurement. These track Toucan regressions; the bindgen comparisons
+below remain separate workloads. CPU simulation measures computational work,
+not filesystem latency or end-to-end consumer build time.
+
+To run locally on Linux x86-64, install Clang 18, CMake, Tcl, Python 3.12+, and the
+GitHub CLI, then prepare the corpus and run ordinary Criterion benchmarks:
+
+```console
+python3 scripts/prepare_corpus.py
+SOURCE_DATE_EPOCH=0 cargo bench -p toucan_benchmark --bench bindings
+```
+
+Set `TOUCAN_BENCH_CORPUS` to reuse another `prepared.json`, or
+`TOUCAN_BENCH_CLANG_INCLUDE` to override `/usr/lib/llvm-18/lib/clang/18/include`.
+Relative corpus paths are resolved from the repository root.
+The target is fixed to `x86_64-unknown-linux-gnu` with the host `/` sysroot.
+Missing projects or metadata that differs from the pinned manifest fail the run.
+To smoke-test each workload once, append `-- --test` to `cargo bench`.
+
+To check the same instrumented build used in CI:
+
+```console
+cargo install cargo-codspeed --version 5.0.1 --locked
+cargo codspeed build -m simulation -m memory --features codspeed --profile profiling -p toucan_benchmark --bench bindings --locked
+SOURCE_DATE_EPOCH=0 cargo codspeed run
+```
+
+Local CodSpeed runs check that the benchmarks execute; the GitHub action collects
+and uploads the performance measurements.
+
 ## Builder API comparison
 
 The [September 9 Builder refresh](../benchmarks/evidence/builder-66c8739/README.md)
