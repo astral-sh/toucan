@@ -151,3 +151,7 @@ linker symbols. Complete public Rust API equality is false: Toucan emits 13
 additional aliases, does not expose the same short name for one incomplete
 nested tag, and leaves three private padding fields implicit. The direct type
 name can matter to downstream Rust code even when function signatures agree.
+The subsequent [incomplete-tag name correction](../corpus/evidence/incomplete-record-names/README.md)
+replays this frozen input and changes only the eight occurrences of that one
+public type name; it does not repeat the full AWS-LC consumer build. The other
+record-shape and alias differences remain.

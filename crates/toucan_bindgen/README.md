@@ -242,6 +242,11 @@ categories select their union. A nonmatching pattern selects no roots; invalid
 expressions fail generation. Required types are included recursively.
 
 Type patterns match typedefs and lexical tag names such as `Outer_Inner`.
+Named incomplete tags introduced by record members keep their file-scope names:
+`struct Owner { struct T *data; };` exposes `T`, while a definition inside
+`Owner` exposes `Owner_T`. An unrelated `typedef int T` keeps the qualified
+opaque name `Owner_T` to avoid a Rust type-name collision. Prototype-scope tags
+remain separate types, and incomplete records expose no public storage fields.
 Function patterns match functions only, even when a C tag shares that spelling.
 Variable patterns match objects and written object macros. An enumerator of an
 anonymous top-level enum without a typedef selects that whole enum; enumerators
