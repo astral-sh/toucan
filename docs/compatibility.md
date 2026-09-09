@@ -151,8 +151,11 @@ GNU [`__auto_type`](auto-type.md) infers initialized object declarations with co
 constant evaluator returns one only for supported, valid constant folds; zero
 means this frontend did not prove the operand constant. This includes arithmetic
 constants, literal strings, supported pointer casts, and folded conditional or
-short-circuit expressions. Object-value propagation, statement-expression values,
-and compound-literal values are not proofs. This policy does not predict GCC or
+short-circuit expressions. Clang profiles also retain completed file-scope const
+scalar values for [static initializers and constant queries](const-object-initializers.md),
+with definition-order, linkage, volatility, and lexical-shadowing checks. General
+object-value propagation, statement-expression values, and compound-literal values
+are not proofs. This policy does not predict GCC or
 Clang optimization: both compilers can change a local-variable query from zero to
 one at `-O2`. The retained query preserves its operand and C array/function
 conversions. See [GCC's constant-query contract](https://gcc.gnu.org/onlinedocs/gcc/Other-Builtins.html).

@@ -72,7 +72,9 @@ redeclarations, selection, and the native comparison.
 
 The `derive_copy`, `derive_debug`, `derive_default`, `derive_eq`, and
 `derive_partialeq` options request traits where the emitted storage supports them.
-Defaults require a valid zero representation; a nonzero Rust enum inside a struct
+The Builder requests `Copy` and `Debug` by default. Explicit overrides take
+precedence, and ineligible records omit the corresponding trait. A generated
+`Default` implementation requires a valid zero representation; a nonzero Rust enum inside a struct
 prevents a generated Default implementation. See [binding traits](../../docs/binding-derives.md)
 for unions, non-Copy members, callbacks, and the measured bindgen differences.
 
