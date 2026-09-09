@@ -386,8 +386,9 @@ def audit(args: argparse.Namespace, output: Path) -> dict:
     expected_sys = source_proof["aws-lc-sys"]["files"]
     if args.bindings != "pregenerated":
         manifest = (original_sys / "Cargo.toml").read_text()
-        assert manifest.count("prebuilt-nasm = []") == 1
-        manifest = manifest.replace("prebuilt-nasm = []", 'prebuilt-nasm = ["bindgen"]')
+        feature = "\nprebuilt-nasm = []\n"
+        assert manifest.count(feature) == 1
+        manifest = manifest.replace(feature, '\nprebuilt-nasm = ["bindgen"]\n')
         if args.bindings == "toucan":
             tested = tomllib.loads((sys_source / "Cargo.toml").read_text())[
                 "build-dependencies"

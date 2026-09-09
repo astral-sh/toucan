@@ -98,3 +98,5 @@ confirms the compiled AWS-LC provider and selected wrapper versions. The adjacen
 archive preserves the source and Cargo audit, public test certificates, TLS
 observations, and installed-file hashes. Generated bindgen and Toucan uv builds
 remain separate required checks.
+
+The [generated-bindgen reference](../corpus/evidence/uv-tls-generated-reference-2026-09-09/freeze.json) also passes all six cases. Its isolated uv build preserves all 750 original locked packages and dependency edges, and the Cargo audit verifies consumption of freshly generated AWS-LC bindings. The tested sys manifest changes only the exact `prebuilt-nasm` feature, leaving `disable-prebuilt-nasm` intact. This build uses Rust 1.98.1 with development debug information disabled; it is a functionality check, not a timing comparison. The Toucan generated-binding build remains pending.
