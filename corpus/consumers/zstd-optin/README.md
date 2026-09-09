@@ -61,6 +61,15 @@ registry packages. It verifies the archives and the 630-file frontend inventory,
 extracts fresh scratch copies, checks patch applicability, and records every
 patch checksum.
 
+Set `TOUCAN_OPTIN_SOURCE` to an immutable checkout or extracted source archive at
+`66c87396bbe03b22085339a87b8c350c90be280b` or
+`85bf1ad6dcbc5840ade11bf8798785b6da13260a`. A current checkout can differ from the
+historical inventory, including in test files, and must then fail this check.
+For local application reproduction, pass the same path to
+`scripts/verify_astral_optin.py --toucan-source "$TOUCAN_OPTIN_SOURCE"`.
+That driver's local mode defaults to its own checkout for backward compatibility;
+the default is usable only while its files match the historical inventory.
+
 Fixture manifests are stored as `Cargo.toml.in` and restored only in the scratch
 tree. They must not participate in Cargo's discovery of Git dependency packages.
 

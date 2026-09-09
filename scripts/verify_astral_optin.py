@@ -100,6 +100,11 @@ def main() -> None:
     parser.add_argument("--prepare-only", action="store_true")
     parser.add_argument("--frontend-mode", choices=["local", "git"], default="local")
     parser.add_argument("--git-source-report", type=Path)
+    parser.add_argument(
+        "--toucan-source",
+        type=Path,
+        help="Immutable source matching the trial inventory (local mode; defaults to this checkout)",
+    )
     args = parser.parse_args()
     require(
         __debug__,
@@ -110,6 +115,11 @@ def main() -> None:
         (args.frontend_mode == "git") == (args.git_source_report is not None),
         "Git mode requires --git-source-report; local mode does not use it",
     )
+    require(
+        args.frontend_mode == "local" or args.toucan_source is None,
+        "Git mode does not accept --toucan-source",
+    )
+    local_source = (args.toucan_source or ROOT).resolve()
     require(
         not os.environ.get("TOUCAN_GIT_TOKEN"),
         "run application builds without the Git fetch token",
@@ -129,7 +139,10 @@ def main() -> None:
         "keep scratch project sources outside the Toucan checkout",
     )
     require(
-        not any(c.isspace() for c in str(args.cache) + str(args.output) + str(ROOT)),
+        not any(
+            c.isspace()
+            for c in str(args.cache) + str(args.output) + str(ROOT) + str(local_source)
+        ),
         "dep-info audit requires paths without whitespace",
     )
     require(
@@ -343,7 +356,7 @@ def main() -> None:
             *(
                 ["--git-source-report", str(args.git_source_report.resolve())]
                 if prefetched
-                else ["--toucan-source", str(ROOT)]
+                else ["--toucan-source", str(local_source)]
             ),
             "--ruff-archive" if name == "ty" else "--uv-archive",
             str(project_archive),

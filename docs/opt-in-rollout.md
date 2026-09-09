@@ -70,8 +70,11 @@ prepared patches against that exact source. Changes to the frontend, patches,
 application revisions, or selected profiles need another acceptance run.
 
 Request it with `workflow_dispatch` on the intended branch or by applying the
-`run-astral-optin` pull-request label. A label request validates the checked-out
-PR merge commit, which the artifacts record. New commits do not automatically
+`run-astral-optin` pull-request label. A label request uses the driver and integration
+patches from the checked-out PR merge commit, which the artifacts record. The
+frontend still comes from the separate Git pin `85bf1ad`. Repeating this fixed-pin
+run cannot validate newer frontend code; that needs a separately reviewed pin and
+source inventory, followed by another acceptance run. New commits do not automatically
 repeat the run: dispatch again or remove and reapply the label. The two Linux
 jobs share one request group, so a new explicit request cancels an older one;
 unrelated label events cannot cancel it. Opening or updating a stack PR does
