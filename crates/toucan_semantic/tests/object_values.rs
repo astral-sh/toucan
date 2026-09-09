@@ -85,3 +85,41 @@ fn declarations_keep_bounds_scalar_types_and_literal_fallback_facts() {
         matches!(values[4].value(), Some(ArithmeticConstant::Integer(value)) if value.signed_value()==3)
     );
 }
+
+#[test]
+fn optional_capture_preserves_existing_initializer_admission_and_semantics() {
+    let controls = [
+        "int object; static _Bool known=&object;",
+        "static int known=__builtin_constant_p(3+4);",
+        "static int chosen=__builtin_choose_expr(1,7,9);",
+        "static int selected=_Generic(1,int:3,default:9);",
+        "static int hidden=sizeof(enum Hidden { VALUE=3 });",
+        "static int omitted=3?:9;",
+        "static double rounded=__builtin_inf();",
+        "static double payload=__builtin_nan(\"3\");",
+        "int data[8]; static int *offset=data+2;",
+        "struct S {int x;}; static struct S record={3};",
+    ];
+    for source in controls {
+        let plain = analyze_with_options(
+            source,
+            Target::X86_64UnknownLinuxGnu,
+            &AnalysisOptions::default(),
+        )
+        .unwrap_or_else(|error| panic!("control must already admit: {source}: {error}"));
+        let kept = analyze_with_options(
+            source,
+            Target::X86_64UnknownLinuxGnu,
+            &AnalysisOptions {
+                retain_object_values: true,
+                ..Default::default()
+            },
+        )
+        .unwrap_or_else(|error| panic!("capture changed admission: {source}: {error}"));
+        assert_eq!(
+            format!("{:?}", plain.unit()),
+            format!("{:?}", kept.unit()),
+            "{source}"
+        );
+    }
+}

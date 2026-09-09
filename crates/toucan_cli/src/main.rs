@@ -401,6 +401,7 @@ fn run(cli: Cli, arguments: &ArgMatches) -> Result<()> {
             let compilation = toucan::parse_file(&input.header, &input.config(arguments, false)?)?;
             let (source, metadata) = compilation.bindings(&BindingOptions {
                 selection: None,
+                object_bindings: Default::default(),
                 generated_names: Default::default(),
                 emit_function_definitions: false,
                 exclude_inline_functions: false,

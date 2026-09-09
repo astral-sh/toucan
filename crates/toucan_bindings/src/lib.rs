@@ -12,6 +12,7 @@ mod enum_constants;
 mod enumeration;
 mod external;
 mod lexical_names;
+mod objects;
 mod renaming;
 mod selection;
 mod tag_discovery;
@@ -40,6 +41,11 @@ pub struct Options {
     /// Rust names for functions and external objects, keyed by original C spelling.
     /// Native symbol names remain unchanged. Selected value-name collisions are errors.
     pub generated_names: BTreeMap<String, String>,
+    /// Selected written object occurrences, keyed by their original C names.
+    /// Enables literal projection and preserves the selected occurrence's type.
+    /// An uninitialized internal object remains an extern declaration, whose
+    /// symbol may require a separately supplied C wrapper when linked.
+    pub object_bindings: BTreeMap<String, toucan_semantic::ObjectOccurrence>,
     /// Emit externally linked functions even when their C definition is present.
     /// The caller must still link the C object providing that definition.
     pub emit_function_definitions: bool,
@@ -361,6 +367,7 @@ pub fn generate_with_macros(
     unit.validate_parameter_contracts()?;
     options.validate_dll_import_libraries()?;
     options.validate_generated_names(unit)?;
+    options.validate_object_bindings(unit)?;
     if let Some(selection) = &options.selection {
         selection.validate(unit)?;
     }
@@ -516,19 +523,21 @@ pub fn generate_with_macros(
             blocked_functions.push(declaration.name.clone());
             continue;
         }
+        let object_constant = emitter.object_constant(declaration)?.is_some();
         if declaration.returns_twice {
             return Err(Error(format!(
                 "returns_twice function `{}` requires a C wrapper that keeps repeated returns inside C",
                 declaration.name
             )));
         }
-        if declaration.symbol_binding == toucan_semantic::SymbolBinding::Weak {
+        if !object_constant && declaration.symbol_binding == toucan_semantic::SymbolBinding::Weak {
             return Err(Error(format!(
                 "weak symbol `{}` requires unsupported optional-symbol linkage in Rust bindings",
                 declaration.name
             )));
         }
-        if declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
+        if !object_constant
+            && declaration.dll_storage_class == Some(toucan_semantic::DllStorageClass::Import)
             && declaration.kind == DeclarationKind::Variable
             && options.dll_import_library(&declaration.name).is_none()
         {
@@ -537,7 +546,7 @@ pub fn generate_with_macros(
                 declaration.name
             )));
         }
-        if declaration.is_static
+        if (declaration.is_static && !options.object_bindings.contains_key(&declaration.name))
             || (declaration.kind == DeclarationKind::Function
                 && declaration.is_definition
                 && !options.emit_function_definitions
@@ -546,7 +555,7 @@ pub fn generate_with_macros(
             skipped.push(declaration.name.clone());
             continue;
         }
-        if declaration.is_thread_local {
+        if declaration.is_thread_local && !object_constant {
             return Err(Error(format!(
                 "thread-local object `{}` requires Rust TLS support; expose C accessor functions for stable Rust bindings",
                 declaration.name
@@ -561,7 +570,7 @@ pub fn generate_with_macros(
                 false,
             )?;
         } else {
-            emitter.collect(&declaration.ty)?;
+            emitter.collect(emitter.object_type(declaration)?)?;
         }
         selected.push(declaration);
     }
@@ -742,6 +751,9 @@ pub fn generate_with_macros(
             source.push_str(&integer_constant_named(&rust_name, value)?);
         }
     }
+    for declaration in &selected {
+        emitter.emit_object_constant(declaration, &mut source)?;
+    }
     let extern_keyword = if options.rust_target.minor >= 82 {
         "unsafe extern"
     } else {
@@ -749,6 +761,9 @@ pub fn generate_with_macros(
     };
     let mut active_block = None;
     for declaration in &selected {
+        if emitter.object_constant(declaration)?.is_some() {
+            continue;
+        }
         let name = emitter.generated_name(&declaration.name)?;
         let abi = match declaration.kind {
             DeclarationKind::Typedef => continue,
@@ -804,7 +819,7 @@ pub fn generate_with_macros(
                 if name != *link_name {
                     writeln!(source, "    #[link_name = {link_name:?}]").unwrap();
                 }
-                let mutable = if emitter.is_const(&declaration.ty)? {
+                let mutable = if emitter.is_const(emitter.object_type(declaration)?)? {
                     ""
                 } else {
                     "mut "
@@ -812,7 +827,7 @@ pub fn generate_with_macros(
                 writeln!(
                     source,
                     "    pub static {mutable}{name}: {};",
-                    emitter.ty(&declaration.ty)?
+                    emitter.ty(emitter.object_type(declaration)?)?
                 )
                 .unwrap();
             }
@@ -993,6 +1008,23 @@ fn floating_bits_constant_named(
     bits: u128,
     rust_target: RustTarget,
 ) -> String {
+    floating_bits_constant_typed(
+        name,
+        &format!("::core::primitive::f{width}"),
+        width,
+        bits,
+        rust_target,
+    )
+}
+
+/// Preserve a C scalar typedef while rendering its underlying IEEE bit pattern.
+fn floating_bits_constant_typed(
+    name: &str,
+    declared_type: &str,
+    width: usize,
+    bits: u128,
+    rust_target: RustTarget,
+) -> String {
     let rust_type = format!("::core::primitive::f{width}");
     let bits = format!("0x{bits:0digits$x}", digits = width / 4);
     let expression = if rust_target.minor >= 83 {
@@ -1011,7 +1043,7 @@ fn floating_bits_constant_named(
     } else {
         ""
     };
-    format!("{safety}pub const {name}: {rust_type} = {expression};\n")
+    format!("{safety}pub const {name}: {declared_type} = {expression};\n")
 }
 
 fn normalize_macro(value: IntegerValue, policy: MacroType) -> Result<IntegerValue, Error> {

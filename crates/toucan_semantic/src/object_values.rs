@@ -13,6 +13,7 @@ const MAX_BYTES: usize = 64 * 1024 * 1024;
 /// One written file object declaration, before later declarations complete its type.
 #[derive(Clone, Debug, Serialize)]
 pub struct ObjectOccurrence {
+    profile: toucan_target::CompilerProfile,
     declaration: usize,
     name: String,
     offset: usize,
@@ -24,6 +25,10 @@ pub struct ObjectOccurrence {
 }
 
 impl ObjectOccurrence {
+    /// Compiler and target under which the initializer was checked.
+    pub fn profile(&self) -> toucan_target::CompilerProfile {
+        self.profile
+    }
     /// Index in the owning analysis's declaration array.
     pub fn declaration(&self) -> usize {
         self.declaration
@@ -167,6 +172,7 @@ impl Analyzer {
             .expect("object retention enabled")
             .entries
             .push(ObjectOccurrence {
+                profile: self.unit.profile()?,
                 declaration: index,
                 name,
                 offset,

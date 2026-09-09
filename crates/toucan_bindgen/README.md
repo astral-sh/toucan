@@ -186,3 +186,11 @@ available to file patterns. Ordered headers use native `-include` processing for
 all but the last main header. Dependencies keep canonical filesystem identities;
 symlink-relative lookup and compiler-visible access spelling follow the selected
 compiler's file-name rules.
+
+## Scalar object constants
+
+Supported scalar object initializers emit Rust constants with their declared C
+primitive or typedef type. The first declaration in a selected header controls
+constant-versus-extern emission. Internal objects use their original name;
+external objects retain name callback behavior. See [scalar object bindings](../../docs/static-object-bindings.md)
+for conversion, redeclaration, string/const-read boundaries, and native value checks.

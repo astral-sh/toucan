@@ -12,6 +12,7 @@ mod formatting;
 mod macro_compat;
 mod macro_projection;
 mod macro_values;
+mod objects;
 mod selection;
 
 use std::fmt;
@@ -337,6 +338,7 @@ impl Builder {
         }
         let files = selection::file_patterns(&self.allowlist_files)?;
         let mut config = arguments::configuration(&self.arguments)?;
+        config.analysis.retain_object_values = true;
         config.analysis.retain_declaration_origins = files.is_some() || !self.callbacks.is_empty();
         config.preprocessor.record_file_origins = files.is_some();
         config.preprocessor.record_macro_definitions = true;
@@ -363,6 +365,7 @@ impl Builder {
                 &mut self.options,
             )?;
         }
+        objects::select(&compilation, files.as_ref(), &mut self.options)?;
         let macros = macro_compat::evaluate(
             &compilation,
             files.as_ref(),
