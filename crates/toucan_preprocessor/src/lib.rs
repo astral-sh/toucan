@@ -1423,6 +1423,14 @@ impl Preprocessor {
                     return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
                 }
             }
+            Some("deprecated") => {
+                // MSVC warns on uses of these names (including macro names),
+                // without attaching deprecation attributes to declarations.
+                let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
+                if !msvc_deprecated_pragma(&expanded) {
+                    return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
+                }
+            }
             Some("intrinsic" | "function") => {
                 // These control code generation for calls in C function bodies;
                 // they do not affect the declarations emitted as bindings.
@@ -2038,6 +2046,46 @@ fn msvc_function_pragma(tokens: &[Token]) -> bool {
         }
     }
     true
+}
+
+/// Validate names for MSVC's name-based deprecation diagnostic.
+fn msvc_deprecated_pragma(tokens: &[Token]) -> bool {
+    let [open, rest @ .., close] = tokens else {
+        return false;
+    };
+    if open.text != "(" || close.text != ")" {
+        return false;
+    }
+    let mut names = rest.iter();
+    if !names.next().is_some_and(msvc_deprecated_name) {
+        return false;
+    }
+    while let Some(comma) = names.next() {
+        if comma.text != "," || !names.next().is_some_and(msvc_deprecated_name) {
+            return false;
+        }
+    }
+    true
+}
+
+fn msvc_deprecated_name(name: &Token) -> bool {
+    if name.kind == Kind::Identifier {
+        return true;
+    }
+    if name.kind != Kind::String {
+        return false;
+    }
+    let Some(spelling) = name
+        .text
+        .strip_prefix('"')
+        .and_then(|text| text.strip_suffix('"'))
+    else {
+        return false;
+    };
+    let Ok(tokens) = lex_with_scope(spelling, false) else {
+        return false;
+    };
+    matches!(tokens.as_slice(), [token] if token.kind == Kind::Identifier && token.text == spelling)
 }
 
 /// Validate PREfast warning suppression without retaining analyzer-only state.
