@@ -13,10 +13,8 @@ the upstream builder. The Rust wrapper requires Rust 1.71; the harness records
 the actual compiler used and does not infer an older compiler result.
 
 The separate [`AWS_LC_SYS_EXTERNAL_BINDGEN=1` path](external-bindgen-cli.md)
-has [native Linux x86-64 crypto-only evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-external-cli-317756d/README.md)
-from an unchanged upstream build script and all 98 generated layout tests.
-The paired consumer runs below use the Cargo Builder adapter; they do not
-exercise the standalone executable.
+uses the standalone executable. The paired consumer runner below exercises the
+Cargo Builder adapter.
 
 ## Run
 
@@ -89,79 +87,37 @@ signature is verified in each run and excluded from the byte comparison.
 These are consumer and FFI checks; they do not establish complete API equality,
 full cryptographic test-suite coverage, or performance results.
 
-## All-bindings profile
+## Other feature selections
 
-The [paired `all-bindings` capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-all-bindings-7db2b85/README.md)
-uses the same frozen `7db2b850` frontend with unchanged upstream build scripts
-and Rust wrappers. Both builds enable the same sys crate features and run 98
-emitted layout tests. The 41 crypto artifacts match each other and the previous
-crypto-only capture; six C/Rust layouts and a C/Rust memory-BIO call agree. The
-build artifact and dep-info audit confirms the freshly generated bindings were
-consumed. This Linux x86-64 run does not enable SSL or FIPS, prove full binding
-API equality, or validate another target.
+The maintained runner selects crypto-only features. It does not provide an
+`all-bindings`, SSL, or FIPS switch. Validate those configurations separately
+with the intended Toucan revision and target.
 
-The [full generated-binding differential](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-all-bindings-differential-7db2b85/README.md)
-matches 2,618 functions, 60 globals, 3,851 constants, 98 shared compiled Rust
-record layouts, and 441 shared field offsets after canonicalizing Linux ELF
-linker symbols. Complete public Rust API equality is false: Toucan emits 13
-additional aliases, does not expose the same short name for one incomplete
-nested tag, and leaves three private padding fields implicit. The direct type
-name can matter to downstream Rust code even when function signatures agree.
-The subsequent [incomplete-tag name correction](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/incomplete-record-names/README.md)
-replays this frozen input and changes only the eight occurrences of that one
-public type name; it does not repeat the full AWS-LC consumer build. The other
-record-shape and alias differences remain.
+Historical Linux x86-64 runs exercised the Builder adapter with `all-bindings`
+and with SSL. The SSL fixture called `TLS_method`, allocated and freed SSL
+objects, and checked protocol setters and getters; it did not perform a TLS
+handshake. The pinned upstream SSL build needed `CXX=clang++-18` because its C++
+flags failed with GCC C++.
 
-## SSL profile on frozen source
+Those comparisons did not establish identical public Rust APIs. Extra aliases,
+record field representations, and private padding differed even where function
+signatures and native layouts agreed. Downstream code that names types or fields
+needs its own compile check.
 
-The [paired native Linux x86-64 SSL run](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-ssl-consumer-7db2b85-2026-09-09/README.md)
-uses the frozen `7db2b85` frontend and unchanged `aws-lc-sys` 0.44.0 and
-`aws-lc-rs` 1.18.0 build scripts. With `ssl` and `all-bindings` selected,
-both generators' 106 generated layout tests pass. Independently built C and
-Rust programs call `TLS_method`, allocate an SSL context and object, check
-minimum protocol setters and getters, and free both objects. All 41 recorded
-crypto runtime artifacts and six C/Rust layouts agree. Both builds explicitly
-use `CXX=clang++-18` because the upstream SSL C++ flags fail with GCC C++.
+## External executable limits
 
-The ELF-aware differential matches 3,230 functions, 60 globals, 4,894
-constants, and all 105 shared record layouts. Exact Rust API equality remains
-false for 15 extra aliases, four record field representations, and private
-padding or opaque storage. The paired test establishes selected native SSL
-calls, not a full TLS handshake or the FIPS and external-executable modes.
-The source used in this capture predates the subsequent incomplete-tag name
-correction; recheck full consumers on the intended release revision.
+The [external interface guide](external-bindgen-cli.md) describes commands and
+supported options. The unchanged upstream manifest still compiles bindgen,
+clang-sys, and libloading. The FIPS build script also calls
+`bindgen::clang_version()`, so that path still requires libclang at runtime.
+Selecting Toucan's executable does not remove those upstream dependencies.
 
-## External executable on frozen source
+The pinned `aws-lc-sys` script rejects external mode with `ssl` before launching
+the executable. The FIPS external path can generate bindings and call
+`BORINGSSL_integrity_test`; this does not establish FIPS certification. Its symbol
+list leaves that function unprefixed, which Toucan preserves.
 
-The [native Linux x86-64 external-executable run](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-external-cli-317756d/README.md)
-sets `AWS_LC_SYS_EXTERNAL_BINDGEN=1` and places Toucan's standalone `bindgen`
-executable on `PATH`. The unchanged `aws-lc-sys` build script generates and
-compiles fresh crypto bindings. The resulting consumer matches the 41 archived
-crypto artifacts, passes six C/Rust layouts, and passes all 98 generated layout
-tests. A same-command comparison matches 2,618 functions and 3,851 constants.
-
-Exact Rust API equality remains false. The reference `bindgen` executable leaves
-60 global linker names unprefixed despite `--prefix-link-name`; Toucan prefixes
-them, and a native probe links one against the actual library. Thirteen extra
-aliases and four record shapes also differ. This run does not cover SSL, FIPS,
-other targets, or the later stack head. The unchanged upstream manifest still
-compiles `bindgen`, `clang-sys`, and `libloading` as build dependencies even
-though it launches Toucan for generation.
-
-## External FIPS executable and external SSL limit
-
-The [native `aws-lc-fips-sys 0.14.2` run](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-external-fips-2026-09-09/README.md)
-uses the unchanged upstream FIPS build script and a traced standalone Toucan
-`bindgen` executable. The generated file is compiled and consumed by
-`aws-lc-rs/fips`: all 97 generated layouts pass, 41 crypto artifacts equal the
-prior reference, six layouts match a C11 probe, and a direct native Rust call
-to `BORINGSSL_integrity_test` succeeds. The FIPS symbol list leaves that
-function unprefixed; Toucan now follows the C definition, unlike the
-same-command bindgen-cli output. Full generated API equality remains false.
-The build does not establish FIPS certification or other targets. The unchanged
-upstream script still calls `bindgen::clang_version()`, so this functional FIPS
-path does not remove its libclang requirement.
-
-The same external selection with `aws-lc-sys 0.44.0` and `ssl` fails in the
-unchanged upstream script *before* it launches the executable. The earlier
-successful SSL run uses the Cargo Builder adapter, a distinct build path.
+[Historical consumer captures](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence)
+retain the all-bindings, SSL, external-executable, and FIPS build logs, API
+differences, and runtime results. They apply to their recorded revisions and
+configurations; rerun the required consumer path for a release candidate.
