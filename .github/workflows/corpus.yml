@@ -49,7 +49,7 @@ concurrency:
 jobs:
   native:
     name: Native corpus (${{ matrix.target }})
-    runs-on: ${{ matrix.runner }}
+    runs-on: ${{ github.repository_owner == 'astral-sh' && matrix.runner == 'ubuntu-24.04' && 'github-ubuntu-24.04-x86_64-4' || matrix.runner }}
     timeout-minutes: 40
     strategy:
       fail-fast: false

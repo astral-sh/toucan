@@ -34,7 +34,7 @@ jobs:
           - os: ubuntu-24.04-arm
             target: aarch64-unknown-linux-musl
             arch: aarch64
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ github.repository_owner == 'astral-sh' && matrix.os == 'ubuntu-24.04' && 'github-ubuntu-24.04-x86_64-4' || matrix.os }}
     timeout-minutes: 35
     env:
       MUSL_TARGET: ${{ matrix.target }}
