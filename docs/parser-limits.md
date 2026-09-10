@@ -77,6 +77,11 @@ derived modifier, since a flat `********p` parser declarator creates a nested ow
 semantic type. Parser-inserted syntax and native line markers retain the existing
 source-remapping path for diagnostics.
 
+Anonymous record member validation allows one million field visits per containing
+record. Microsoft anonymous tag and typedef members can share nested record
+definitions, so this work bound also counts repeated visits through that graph.
+Exceptionally expensive valid member graphs return a resource diagnostic.
+
 Tests run hostile unary, postfix, binary, declarator, label/control, conditional,
 and malformed-prefix inputs in separate worker processes. They also clone and drop
 accepted deep ASTs on a 2 MiB caller stack, sweep work failures across backtracking

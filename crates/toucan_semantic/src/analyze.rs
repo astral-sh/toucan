@@ -4813,6 +4813,7 @@ impl Analyzer {
         }
         let mut member_names = HashSet::new();
         let mut has_named_member = false;
+        let mut remaining_member_work = 1_000_000;
         for (index, field) in fields.iter().enumerate() {
             if self.unit.is_variably_modified(&field.ty)? {
                 return Err(Error::new(
@@ -4841,6 +4842,7 @@ impl Analyzer {
                 &mut member_names,
                 declaration.span.start,
                 0,
+                &mut remaining_member_work,
             )?;
             // GCC also counts anonymous records containing only unnamed bitfields.
             has_named_member |= !member_names.is_empty()
@@ -4865,6 +4867,7 @@ impl Analyzer {
         names: &mut HashSet<&'a str>,
         offset: usize,
         depth: usize,
+        remaining: &mut usize,
     ) -> Result<(), Error> {
         if depth >= 128 {
             return Err(Error::new(
@@ -4873,6 +4876,11 @@ impl Analyzer {
             ));
         }
         for field in fields {
+            // Microsoft anonymous tag and typedef members can share a record
+            // graph. A depth bound alone does not limit repeated field visits.
+            *remaining = remaining.checked_sub(1).ok_or_else(|| {
+                Error::new(offset, "anonymous member validation work limit exceeded")
+            })?;
             if let Some(name) = &field.name {
                 if !names.insert(name) {
                     return Err(Error::new(offset, format!("duplicate field name `{name}`")));
@@ -4886,7 +4894,7 @@ impl Analyzer {
                     .get(id)
                     .ok_or_else(|| Error::new(offset, "invalid record identity"))?;
                 if let Some(fields) = &record.fields {
-                    self.check_member_names(fields, names, offset, depth + 1)?;
+                    self.check_member_names(fields, names, offset, depth + 1, remaining)?;
                 }
             }
         }
