@@ -2188,12 +2188,21 @@ impl Analyzer {
                     || a.parameters.len() != b.parameters.len()
                     || a.calling_convention.for_target(self.unit.target)?
                         != b.calling_convention.for_target(self.unit.target)?
-                    || !self.same_type_at::<EXACT, false>(
-                        &a.return_type,
-                        &b.return_type,
+                {
+                    return Ok(false);
+                }
+                // GCC ignores ordinary return qualifiers for function identity
+                // as well as compatibility. Pointees and atomic wrappers remain.
+                let same_return = if self.unit.compiler == Compiler::Gnu {
+                    self.same_type_at::<EXACT, false>(
+                        &self.unqualified(&a.return_type)?,
+                        &self.unqualified(&b.return_type)?,
                         depth + 1,
                     )?
-                {
+                } else {
+                    self.same_type_at::<EXACT, false>(&a.return_type, &b.return_type, depth + 1)?
+                };
+                if !same_return {
                     return Ok(false);
                 }
                 for (a, b) in a.parameters.iter().zip(&b.parameters) {
