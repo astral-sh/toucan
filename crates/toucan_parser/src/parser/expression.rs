@@ -432,13 +432,19 @@ impl Parser<'_, '_> {
         let start = self.position();
         self.expect("sizeof")?;
         if self.eat("(")? {
+            let opening = self.end() - 1;
             if self.starts_type_name() {
                 let type_name = self.nested(|parser| parser.type_name())?;
                 self.expect(")")?;
+                if self.at("{") {
+                    let expression = self.compound_literal(opening, type_name)?;
+                    let expression = self.postfix_tail(expression)?;
+                    let value = self.node(SizeOfVal(Box::new(expression)), start)?;
+                    return self.node(Expression::SizeOfVal(Box::new(value)), start);
+                }
                 let value = self.node(SizeOfTy(type_name), start)?;
                 return self.node(Expression::SizeOfTy(Box::new(value)), start);
             }
-            let opening = self.end() - 1;
             let expression = self.parenthesized_primary(opening)?;
             let expression = self.postfix_tail(expression)?;
             let value = self.node(SizeOfVal(Box::new(expression)), start)?;
@@ -462,7 +468,12 @@ impl Parser<'_, '_> {
             if self.starts_type_name() {
                 let type_name = self.nested(|parser| parser.type_name())?;
                 self.expect(")")?;
-                AlignOfOperand::TypeName(Box::new(type_name))
+                if self.at("{") {
+                    let expression = self.compound_literal(opening, type_name)?;
+                    AlignOfOperand::Expression(Box::new(self.postfix_tail(expression)?))
+                } else {
+                    AlignOfOperand::TypeName(Box::new(type_name))
+                }
             } else {
                 let expression = self.parenthesized_primary(opening)?;
                 AlignOfOperand::Expression(Box::new(self.postfix_tail(expression)?))
