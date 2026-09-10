@@ -1,0 +1,70 @@
+{
+  "status": "passed",
+  "timestamp_utc": "2026-09-10T02:07:31Z",
+  "implementation_commit": "0dded605d79fc265aac3fc3c231b4a1fa5f64fdc",
+  "candidate_source_matches_current_production_files": true,
+  "nonproduction_source_changes_since_build": [
+    "crates/toucan_semantic/tests/semantics.rs"
+  ],
+  "uname": {
+    "system": "Linux",
+    "node": "charlie-oss-6",
+    "release": "6.8.0-106-generic",
+    "version": "#106-Ubuntu SMP PREEMPT_DYNAMIC Fri Mar  6 07:58:08 UTC 2026",
+    "machine": "x86_64",
+    "processor": "x86_64"
+  },
+  "libc": [
+    "glibc",
+    "2.39"
+  ],
+  "cpu": {
+    "vendor_id": "AuthenticAMD",
+    "cpu family": "25",
+    "model": "1",
+    "model name": "AMD EPYC-Milan Processor",
+    "stepping": "1",
+    "microcode": "0x1000065",
+    "cpu MHz": "2445.424",
+    "cache size": "512 KB",
+    "siblings": "32",
+    "cpu cores": "32"
+  },
+  "cpu_affinity": [
+    0,
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    7,
+    8,
+    9,
+    10,
+    11,
+    12,
+    13,
+    14,
+    15,
+    16,
+    17,
+    18,
+    19,
+    20,
+    21,
+    22,
+    23,
+    24,
+    25,
+    26,
+    27,
+    28,
+    29,
+    30,
+    31
+  ],
+  "timing_cpu": 30,
+  "build_manifest_sha256": "ca8ac4e6a050d89fbe0e65171054cf6c128b32e88298129ffd5cdee8f85b5452",
+  "qualification": "Shared virtual machine; CPU frequency, memory bandwidth, and unrelated tenant activity are uncontrolled. Local compilation, native probes, fuzzing, and evidence compression must stop before timing."
+}

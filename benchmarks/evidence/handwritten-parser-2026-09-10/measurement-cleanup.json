@@ -1,0 +1,12 @@
+{
+  "status": "passed",
+  "archive": "/home/dev-user/.codex/worktrees/c877/toucan/benchmarks/evidence/handwritten-parser-2026-09-10/measurement-artifacts.tar.gz",
+  "archive_sha256": "ed09a6b4bd55fdf44c527778e6333cb2b5a6fb14bbecc41d9a3ea3608f298fe5",
+  "removed_files": 1344,
+  "reclaimed_bytes": 474680775,
+  "retained_files": [
+    "timing-validated/capture.json",
+    "allocations-validated/capture.json"
+  ],
+  "qualification": "Only original files whose exact bytes were reverified in the durable SHA256 blob archive were removed."
+}
