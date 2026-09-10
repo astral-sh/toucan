@@ -2046,6 +2046,11 @@ impl Emitter<'_> {
                     return Err(Error("records combining packing and explicit alignment need a separate call-ABI proof".into()));
                 }
                 let fields = record.fields.as_ref().ok_or_else(|| Error("incomplete record passed by value".into()))?;
+                if matches!(self.unit.target, toucan_target::Target::I686UnknownLinuxGnu | toucan_target::Target::Aarch64PcWindowsMsvc)
+                    && record.kind == RecordKind::Union && fields.is_empty()
+                {
+                    return Err(Error(format!("empty unions cannot cross an FFI call by value on {}; expose C pointer accessors", self.unit.target)));
+                }
                 for field in fields {
                     if field.alignment.is_some() || field.packed {
                         return Err(Error("records with field-level alignment or packing need a separate call-ABI proof".into()));
@@ -2174,6 +2179,16 @@ impl Emitter<'_> {
             repr.join(", ")
         )
         .unwrap();
+        if record.kind == RecordKind::Union && fields.is_empty() {
+            // Rust unions require a field. Preserve any target-specific padding
+            // without requiring the otherwise empty C value to initialize it.
+            writeln!(
+                source,
+                "    _private: ::core::mem::MaybeUninit<[::core::primitive::u8; {}]>,",
+                layout.size_bytes()
+            )
+            .unwrap();
+        }
         let union_storage = if union_bits {
             let storage = helper_field(fields, "__toucan_union_bits");
             writeln!(

@@ -592,6 +592,10 @@ code for these operations.
   value, including through callbacks or containing records and unions. Their C
   and Rust call ABIs can differ even when size and alignment match. Storage and
   pointer-based access remain supported; use C pointer accessors for calls.
+- Empty unions use private uninitialized byte storage to preserve their target
+  layout, including nonzero storage under MSVC. On i686 Linux and AArch64 MSVC,
+  empty unions and containing records cannot cross calls by value because C and
+  Rust use different call conventions. Use pointer-based access on those targets.
 - Function-like macros and object macros that are not supported integer,
   `float`/`double`, or string constants are reported as omitted. SQLite's `SQLITE_STATIC` and
   `SQLITE_TRANSIENT` destructor macros are examples. No invalid function pointer is
