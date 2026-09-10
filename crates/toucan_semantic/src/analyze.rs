@@ -2298,7 +2298,8 @@ impl Analyzer {
                         && *kind == IntegerKind::Int
                         && self.unit.qualifiers(left)? == Qualifiers::default());
                 }
-                Ok(self.integer_type(left, 0)? == self.integer_type(right, 0)?)
+                // Plain char is distinct from equally sized signed/unsigned char.
+                Ok(self.unit.enum_integer_kind(*id)? == *kind)
             }
             (TypeKind::Pointer(left), TypeKind::Pointer(right))
             | (TypeKind::Atomic(left), TypeKind::Atomic(right)) => {
