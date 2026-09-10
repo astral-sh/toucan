@@ -7,7 +7,10 @@ use lang_c::{
 };
 use serde::Serialize;
 
-use crate::{Error, TranslationUnit, Type, TypeKind, analyze::Analyzer};
+use crate::{
+    Error, TranslationUnit, Type, TypeKind,
+    analyze::{Analyzer, Syntax},
+};
 
 /// An opaque variable-array type identity within one analysis result.
 ///
@@ -34,13 +37,13 @@ pub(crate) struct Registry {
 }
 
 impl Registry {
-    fn collect(ast: &ast::TranslationUnit, unit: &TranslationUnit) -> Result<Self, Error> {
+    fn collect(ast: Syntax<'_>, unit: &TranslationUnit) -> Result<Self, Error> {
         let mut collector = Collector {
             spans: Vec::new(),
             work: 0,
             error: None,
         };
-        collector.visit_translation_unit(ast);
+        ast.visit(&mut collector);
         if let Some(error) = collector.error {
             return Err(error);
         }
@@ -109,10 +112,10 @@ impl Registry {
 impl Analyzer {
     pub(crate) fn prepare_array_identities(
         &mut self,
-        ast: &ast::TranslationUnit,
+        ast: Syntax<'_>,
         source: &str,
     ) -> Result<(), Error> {
-        if source.as_bytes().contains(&b'[') {
+        if source.as_bytes().contains(&b'[') || source.contains("<:") {
             self.array_identities = Registry::collect(ast, &self.unit)?;
         }
         Ok(())
@@ -260,14 +263,14 @@ mod tests {
         }
         assert!(previous > 0);
         let source = ast("int n;int a[n];int b[n];");
-        let registry = Registry::collect(&source, &unit).unwrap();
+        let registry = Registry::collect(Syntax::Unit(&source), &unit).unwrap();
         assert_eq!(registry.spans.len(), 2);
         let first = registry.lookup(registry.spans[0]).unwrap();
         let second = registry.lookup(registry.spans[1]).unwrap();
         assert!(first.value() > previous);
         assert_ne!(first, second);
         assert_eq!(first, registry.lookup(registry.spans[0]).unwrap());
-        let again = Registry::collect(&source, &unit).unwrap();
+        let again = Registry::collect(Syntax::Unit(&source), &unit).unwrap();
         assert_eq!(first, again.lookup(registry.spans[0]).unwrap());
         assert!(
             registry
@@ -286,7 +289,7 @@ mod tests {
         let mut duplicated = source.clone();
         duplicated.0.push(source.0[1].clone());
         assert!(
-            Registry::collect(&duplicated, &unit)
+            Registry::collect(Syntax::Unit(&duplicated), &unit)
                 .err()
                 .unwrap()
                 .message
@@ -302,14 +305,14 @@ mod tests {
         }
         for source in ["int x;", "int x[3];", "int x[];"] {
             assert!(
-                Registry::collect(&ast(source), &unit)
+                Registry::collect(Syntax::Unit(&ast(source)), &unit)
                     .unwrap()
                     .spans
                     .is_empty()
             );
         }
         assert!(
-            Registry::collect(&ast("int x[n];"), &unit)
+            Registry::collect(Syntax::Unit(&ast("int x[n];")), &unit)
                 .err()
                 .unwrap()
                 .message

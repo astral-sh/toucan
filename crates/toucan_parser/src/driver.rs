@@ -7,11 +7,12 @@ use std::io;
 use std::path::Path;
 use std::process::Command;
 
-use ast::TranslationUnit;
+use ast::{Expression, TranslationUnit};
 use env::Env;
 use limits::{ParseLimits, ParseStatistics, ResourceKind, ResourceLimit, MAX_RULE_DEPTH};
 use loc;
-use parser::translation_unit_with_limits;
+use parser::{expression_with_limits, translation_unit_with_limits, ParseError};
+use span::Node;
 
 /// Parser configuration
 #[derive(Clone, Debug)]
@@ -100,6 +101,17 @@ pub struct Parse {
     pub source: String,
     /// Root of the abstract syntax tree
     pub unit: TranslationUnit,
+    /// Resource counters for this parser invocation.
+    pub statistics: ParseStatistics,
+}
+
+/// One complete expression, with spans relative to the supplied source.
+#[derive(Clone, Debug)]
+pub struct ExpressionParse {
+    /// Preprocessed source text.
+    pub source: String,
+    /// Root of the expression's abstract syntax tree.
+    pub expression: Node<Expression>,
     /// Resource counters for this parser invocation.
     pub statistics: ParseStatistics,
 }
@@ -231,6 +243,52 @@ pub fn parse_preprocessed_with_limits(
     source: String,
     limits: ParseLimits,
 ) -> Result<Parse, SyntaxError> {
+    parse_with(config, source, limits, translation_unit_with_limits).map(
+        |(source, unit, statistics)| Parse {
+            source,
+            unit,
+            statistics,
+        },
+    )
+}
+
+/// Parse exactly one preprocessed expression in an existing typedef environment.
+///
+/// The lookup is called only for identifier tokens; local declarations can shadow
+/// inherited names. Preprocessor directives and trailing tokens are rejected.
+pub fn parse_expression(
+    config: &Config,
+    source: String,
+    is_typedef: impl FnMut(&str) -> bool + Send,
+) -> Result<ExpressionParse, SyntaxError> {
+    parse_expression_with_limits(config, source, is_typedef, ParseLimits::default())
+}
+
+/// Parse an expression with the same resource and stack limits as a translation
+/// unit. Typedef lookups are charged per identifier byte; work performed inside
+/// the caller's lookup is outside the parser's resource accounting.
+pub fn parse_expression_with_limits(
+    config: &Config,
+    source: String,
+    is_typedef: impl FnMut(&str) -> bool + Send,
+    limits: ParseLimits,
+) -> Result<ExpressionParse, SyntaxError> {
+    parse_with(config, source, limits, |source, env, limits| {
+        expression_with_limits(source, env, limits, is_typedef)
+    })
+    .map(|(source, expression, statistics)| ExpressionParse {
+        source,
+        expression,
+        statistics,
+    })
+}
+
+fn parse_with<T: Send>(
+    config: &Config,
+    source: String,
+    limits: ParseLimits,
+    parse: impl FnOnce(&str, &mut Env, ParseLimits) -> Result<(T, ParseStatistics), ParseError> + Send,
+) -> Result<(String, T, ParseStatistics), SyntaxError> {
     let failure = if limits.max_rule_depth > MAX_RULE_DEPTH {
         Some(ResourceLimit {
             kind: ResourceKind::RuleDepth,
@@ -270,14 +328,10 @@ pub fn parse_preprocessed_with_limits(
         env.set_gnu_keywords(config.gnu_keywords);
         env.set_standard(config.standard);
         env.set_msvc_extensions(config.extensions_msvc);
-        translation_unit_with_limits(&source, &mut env, limits)
+        parse(&source, &mut env, limits)
     });
     match parsed {
-        Ok(Ok((unit, statistics))) => Ok(Parse {
-            source,
-            unit,
-            statistics,
-        }),
+        Ok(Ok((value, statistics))) => Ok((source, value, statistics)),
         Ok(Err(err)) => Err(SyntaxError {
             source,
             line: err.line,

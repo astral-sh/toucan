@@ -133,7 +133,6 @@ fn analyze_on_parser_stack(
     let (source, packs) = prepare_source(source)?;
     let parsed = parse(
         &source,
-        0,
         profile.target(),
         profile.compiler(),
         profile.language_mode(),
@@ -150,18 +149,18 @@ fn analyze_on_parser_stack(
     analyzer.prepare_dll_storage(&source);
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
-    analyzer.prepare_typedef_alignments(&parsed.unit, &source)?;
-    analyzer.prepare_array_identities(&parsed.unit, &source)?;
-    analyzer.prepare_late_function_targets(&parsed.unit, &source)?;
-    analyzer.prepare_inline_definitions(&parsed.unit, &source)?;
+    analyzer.prepare_typedef_alignments(Syntax::Unit(&parsed.node), &source)?;
+    analyzer.prepare_array_identities(Syntax::Unit(&parsed.node), &source)?;
+    analyzer.prepare_late_function_targets(Syntax::Unit(&parsed.node), &source)?;
+    analyzer.prepare_inline_definitions(&parsed.node, &source)?;
     if let Some(limits) = retention {
         analyzer.checked = Some(Box::new(CodeBuilder::new(
-            &parsed.unit,
+            &parsed.node,
             source.len(),
             limits,
         )?));
     }
-    for external in parsed.unit.0 {
+    for external in parsed.node.0 {
         match external.node {
             ast::ExternalDeclaration::Declaration(declaration) => {
                 analyzer.declaration(&declaration, false)?
@@ -187,12 +186,11 @@ fn analyze_on_parser_stack(
         // Only this rare compatibility case needs a second, bounded syntax walk.
         let syntax = parse(
             &source,
-            0,
             profile.target(),
             profile.compiler(),
             profile.language_mode(),
         )?;
-        analyzer.unit.tag_discovery = crate::tag_discovery::discover(&analyzer.unit, &syntax.unit)?;
+        analyzer.unit.tag_discovery = crate::tag_discovery::discover(&analyzer.unit, &syntax.node)?;
     }
     let checked = analyzer
         .checked
@@ -281,80 +279,37 @@ fn evaluate_on_parser_stack<Value>(
 ) -> Result<Value, Error> {
     let profile = unit.profile()?;
     unit.validate_function_options()?;
-    let identifiers = validate_expression_source(expression, unit.compiler, unit.language_mode)?;
     for value in unit.constants.values() {
         value.validate()?;
     }
-    // Only typedef names occurring in the expression matter to the parser. The
-    // semantic environment below retains every real type, including dependencies
-    // of these typedefs, without reparsing unrelated names for every macro.
-    let mut source = String::new();
-    let mut expected_declarations = 1;
     for name in unit.typedefs.keys() {
-        if name != "__builtin_va_list" {
-            if !name
+        if name != "__builtin_va_list"
+            && (!name
                 .as_bytes()
                 .first()
                 .is_some_and(|byte| byte.is_ascii_alphabetic() || matches!(*byte, b'_' | b'$'))
                 || !name
                     .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$'))
-            {
-                return Err(Error::new(
-                    0,
-                    "invalid typedef identifier in evaluation environment",
-                ));
-            }
-            if !identifiers.contains(name.as_str()) {
-                continue;
-            }
-            source.push_str("typedef int ");
-            source.push_str(name);
-            source.push_str(";\n");
-            expected_declarations += 1;
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$')))
+        {
+            return Err(Error::new(
+                0,
+                "invalid typedef identifier in evaluation environment",
+            ));
         }
     }
-    let expression_offset = source.len() + "int __toucan_expression = (".len();
-    source.push_str("int __toucan_expression = (");
-    source.push_str(expression);
-    source.push_str(");\n");
-    let parsed = parse(
-        &source,
-        expression_offset,
+    let parsed = parse_source(
+        expression,
         unit.target,
         unit.compiler,
         unit.language_mode,
-    )
-    .map_err(|mut error| {
-        error.offset = error.offset.saturating_sub(expression_offset);
-        error
-    })?;
-    if parsed.unit.0.len() != expected_declarations {
-        return Err(Error::new(0, "input is not a single integer expression"));
-    }
-    let last = parsed
-        .unit
-        .0
-        .last()
-        .ok_or_else(|| Error::new(0, "missing integer expression"))?;
-    let ast::ExternalDeclaration::Declaration(declaration) = &last.node else {
-        return Err(Error::new(0, "invalid integer expression"));
-    };
-    let [declarator] = declaration.node.declarators.as_slice() else {
-        return Err(Error::new(0, "input is not a single integer expression"));
-    };
-    if !matches!(&declarator.node.declarator.node.kind.node, ast::DeclaratorKind::Identifier(identifier) if identifier.node.name == "__toucan_expression")
-    {
-        return Err(Error::new(0, "input is not a single integer expression"));
-    }
-    let initializer = &declarator.node.initializer;
-    let Some(Node {
-        node: ast::Initializer::Expression(expression),
-        ..
-    }) = initializer
-    else {
-        return Err(Error::new(0, "expected integer expression"));
-    };
+        |config, source| {
+            driver::parse_expression(config, source, |name| unit.typedefs.contains_key(name))
+                .map(|parsed| parsed.expression)
+        },
+    )?;
+    let source = expression;
+    let expression = &parsed.node;
     unit.validate_parameter_contracts()?;
     // Literals and known enumerator values do not need declaration identities.
     // Keep validating the public environment above, and copy only the values
@@ -376,23 +331,17 @@ fn evaluate_on_parser_stack<Value>(
     } else {
         Analyzer::from_unit(unit.clone())
     };
-    analyzer.prepare_dll_storage(&source);
+    analyzer.prepare_dll_storage(source);
     analyzer.evaluation = crate::evaluation::Context::constant_query();
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
-    analyzer
-        .prepare_array_identities(&parsed.unit, &source)
-        .and_then(|()| analyzer.prepare_typedef_alignments(&parsed.unit, &source))
-        .and_then(|()| analyzer.prepare_late_function_targets(&parsed.unit, &source))
-        .and_then(|()| evaluate(&mut analyzer, expression))
-        .and_then(|value| {
-            analyzer.validate_sve_features()?;
-            Ok(value)
-        })
-        .map_err(|mut error| {
-            error.offset = error.offset.saturating_sub(expression_offset);
-            error
-        })
+    let syntax = Syntax::Expression(expression);
+    analyzer.prepare_array_identities(syntax, source)?;
+    analyzer.prepare_typedef_alignments(syntax, source)?;
+    analyzer.prepare_late_function_targets(syntax, source)?;
+    let value = evaluate(&mut analyzer, expression)?;
+    analyzer.validate_sve_features()?;
+    Ok(value)
 }
 
 /// Collects the owner-independent values referenced by an expression that cannot
@@ -475,19 +424,48 @@ fn value_expression<'a>(
     }
 }
 
-struct Parsed {
-    unit: ast::TranslationUnit,
+/// Syntax roots accepted by the preparatory semantic visitors.
+#[derive(Clone, Copy)]
+pub(crate) enum Syntax<'a> {
+    Unit(&'a ast::TranslationUnit),
+    Expression(&'a Node<ast::Expression>),
+}
+
+impl<'a> Syntax<'a> {
+    pub(crate) fn visit(self, visitor: &mut impl lang_c::visit::Visit<'a>) {
+        match self {
+            Self::Unit(unit) => visitor.visit_translation_unit(unit),
+            Self::Expression(expression) => {
+                visitor.visit_expression(&expression.node, &expression.span)
+            }
+        }
+    }
+}
+
+struct Parsed<T> {
+    node: T,
     character_literals: HashMap<usize, String>,
     string_literals: HashMap<usize, Vec<String>>,
 }
 
 fn parse(
     source: &str,
-    diagnostic_offset: usize,
     target: Target,
     compiler: Compiler,
     language_mode: toucan_target::LanguageMode,
-) -> Result<Parsed, Error> {
+) -> Result<Parsed<ast::TranslationUnit>, Error> {
+    parse_source(source, target, compiler, language_mode, |config, source| {
+        driver::parse_preprocessed(config, source).map(|parsed| parsed.unit)
+    })
+}
+
+fn parse_source<T>(
+    source: &str,
+    target: Target,
+    compiler: Compiler,
+    language_mode: toucan_target::LanguageMode,
+    parse: impl FnOnce(&driver::Config, String) -> Result<T, driver::SyntaxError>,
+) -> Result<Parsed<T>, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
@@ -519,7 +497,7 @@ fn parse(
         },
     };
     let (source, literal_spellings) = crate::literals::normalize_literal_escapes(source);
-    let parsed = driver::parse_preprocessed(&config, source).map_err(|mut error| {
+    let node = parse(&config, source).map_err(|mut error| {
         error.source = original.to_owned();
         error.line = original[..error.offset]
             .bytes()
@@ -530,22 +508,10 @@ fn parse(
             .rfind('\n')
             .map_or(0, |newline| newline + 1);
         error.column = original[line_start..error.offset].chars().count() + 1;
-        let offset = error.offset;
-        if diagnostic_offset != 0 && offset >= diagnostic_offset {
-            // Macro parse wrappers must not leak into the displayed line/column.
-            // Keep the AST offset until the caller adjusts it alongside semantic
-            // errors, but format the parser's message relative to the expression.
-            error.source.drain(..diagnostic_offset);
-            error.offset -= diagnostic_offset;
-            let line_start = error.source[..error.offset]
-                .rfind('\n')
-                .map_or(0, |newline| newline + 1);
-            error.column = error.source[line_start..error.offset].chars().count() + 1;
-        }
-        Error::new(offset, format!("C syntax error: {error}"))
+        Error::new(error.offset, format!("C syntax error: {error}"))
     })?;
     Ok(Parsed {
-        unit: parsed.unit,
+        node,
         character_literals: literal_spellings.characters,
         string_literals: literal_spellings.strings,
     })
@@ -578,7 +544,7 @@ impl SourceComments {
     }
 }
 
-/// lang-c expects comments to have been replaced in translation phase three.
+/// The parser expects comments to have been replaced in translation phase three.
 fn strip_comments(
     source: &str,
     compiler: Compiler,
@@ -627,117 +593,6 @@ fn strip_comments(
         index += 1;
     }
     Ok(String::from_utf8(bytes).expect("replacing comment bytes preserves UTF-8"))
-}
-
-/// Keeps a macro replacement inside the expression wrapper used to parse it.
-/// Balanced delimiters and the absence of declaration separators are checked
-/// independently of the parser, including comments and quoted literals. Returns
-/// identifier tokens so the parser can recognize referenced typedef names.
-fn validate_expression_source(
-    expression: &str,
-    compiler: Compiler,
-    mode: toucan_target::LanguageMode,
-) -> Result<HashSet<&str>, Error> {
-    let bytes = expression.as_bytes();
-    let mut comments = SourceComments::new(compiler, mode);
-    let mut index = 0;
-    let mut delimiters = Vec::new();
-    let mut identifiers = HashSet::new();
-    while index < bytes.len() {
-        match bytes[index] {
-            b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'$' => {
-                let start = index;
-                while bytes.get(index + 1).is_some_and(|byte| {
-                    byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'$')
-                }) {
-                    index += 1;
-                }
-                let identifier = &expression[start..=index];
-                // A literal's encoding prefix is not an identifier token.
-                if !(matches!(identifier, "L" | "u" | "U" | "u8")
-                    && matches!(bytes.get(index + 1), Some(b'\'' | b'"')))
-                {
-                    identifiers.insert(identifier);
-                }
-            }
-            b'0'..=b'9' => {
-                // Consume preprocessing numbers together, including suffixes and
-                // exponent signs, rather than treating their letters as names.
-                while bytes.get(index + 1).is_some_and(|byte| {
-                    byte.is_ascii_alphanumeric()
-                        || matches!(byte, b'_' | b'$' | b'.')
-                        || (matches!(byte, b'+' | b'-')
-                            && matches!(bytes[index], b'e' | b'E' | b'p' | b'P'))
-                }) {
-                    index += 1;
-                }
-            }
-            b'\'' | b'"' => {
-                let quote = bytes[index];
-                index += 1;
-                while index < bytes.len() && bytes[index] != quote {
-                    if bytes[index] == b'\\' {
-                        index += 1;
-                    }
-                    index += 1;
-                }
-                if index >= bytes.len() {
-                    return Err(Error::new(
-                        index,
-                        "unterminated literal in integer expression",
-                    ));
-                }
-            }
-            b'/' if comments.starts(bytes, index) => {
-                while index < bytes.len() && bytes[index] != b'\n' {
-                    index += 1;
-                }
-            }
-            b'/' if bytes.get(index + 1) == Some(&b'*') => {
-                index += 2;
-                while index + 1 < bytes.len() && !(bytes[index] == b'*' && bytes[index + 1] == b'/')
-                {
-                    index += 1;
-                }
-                if index + 1 >= bytes.len() {
-                    return Err(Error::new(
-                        index,
-                        "unterminated comment in integer expression",
-                    ));
-                }
-                index += 1;
-            }
-            b'(' | b'[' | b'{' => delimiters.push(bytes[index]),
-            b')' | b']' | b'}' => {
-                let expected = match bytes[index] {
-                    b')' => b'(',
-                    b']' => b'[',
-                    _ => b'{',
-                };
-                if delimiters.pop() != Some(expected) {
-                    return Err(Error::new(
-                        index,
-                        "unbalanced delimiter in integer expression",
-                    ));
-                }
-            }
-            b';' | b'#' => {
-                return Err(Error::new(
-                    index,
-                    "declarations and statements are not integer expressions",
-                ));
-            }
-            _ => {}
-        }
-        index += 1;
-    }
-    if !delimiters.is_empty() {
-        return Err(Error::new(
-            expression.len(),
-            "unbalanced delimiter in integer expression",
-        ));
-    }
-    Ok(identifiers)
 }
 
 #[derive(Clone, Debug, Default)]

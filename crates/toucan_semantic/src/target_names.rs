@@ -9,21 +9,24 @@ use lang_c::{
 };
 use toucan_target::Compiler;
 
-use crate::{Error, analyze::Analyzer};
+use crate::{
+    Error,
+    analyze::{Analyzer, Syntax},
+};
 
 impl Analyzer {
     /// Only potentially annotated callees need deferred GNU feature checks in
     /// ordinary functions. Clang instead uses declarations visible at each call.
     pub(crate) fn prepare_late_function_targets(
         &mut self,
-        ast: &ast::TranslationUnit,
+        ast: Syntax<'_>,
         source: &str,
     ) -> Result<(), Error> {
         if self.unit.compiler != Compiler::Gnu || !source.contains("target") {
             return Ok(());
         }
         let mut collector = Collector::default();
-        collector.visit_translation_unit(ast);
+        ast.visit(&mut collector);
         if let Some(error) = collector.error {
             return Err(error);
         }
