@@ -70,20 +70,26 @@ oracle tests run separately on the native Linux and macOS jobs with
 ## Binary releases
 
 We use [cargo-dist](https://axodotdev.github.io/cargo-dist/) 0.32.0 to build
-GitHub Releases. Install that version of `dist`, then regenerate the workflow
-after changing `dist-workspace.toml` or `crates/toucan_cli/dist.toml`:
+GitHub Releases. The workflow has local pull-request path filters because this
+cargo-dist version cannot configure them. `allow-dirty = ["ci"]` preserves these
+edits and disables cargo-dist's generated-workflow freshness check.
+
+After changing `dist-workspace.toml` or `crates/toucan_cli/dist.toml`, install that
+version of `dist`, temporarily remove `allow-dirty`, and regenerate:
 
 ```console
 dist generate
-dist generate --check
 dist plan
 dist build --target x86_64-unknown-linux-gnu
 ```
 
-Use your host target for the local build. The generated
+Restore the pull-request path filters and `allow-dirty` afterward, and review the
+workflow diff. Use your host target for the local build. The
 [`Release` workflow](../.github/workflows/release.yml) builds all six targets and
-uploads archives, checksums, and installers on pull requests. PRs do not publish
-a release. macOS builds use Apple Silicon runners for both architectures;
+uploads archives, checksums, and installers when a PR changes source, build
+configuration, or packaged README/license files. Changes confined to guides,
+consumer fixtures, scripts, or fuzz inputs skip this release matrix. PRs do not
+publish a release. macOS builds use Apple Silicon runners for both architectures;
 Windows ARM64 is cross-compiled on an x86-64 Windows runner. Linux builds use
 Ubuntu 22.04 on each architecture.
 

@@ -6,12 +6,28 @@ on:
       - "Cargo.toml"
       - "Cargo.lock"
       - "crates/**"
-      - "fuzz/**"
+      - "fuzz/Cargo.toml"
+      - "fuzz/Cargo.lock"
+      - "fuzz/c.dict"
+      - "fuzz/fuzz_targets/**"
+      - "fuzz/seeds/**"
       - "scripts/run_fuzz_campaign.py"
       - "scripts/tests/test_fuzz_campaign.py"
       - ".github/workflows/fuzz.yml"
   push:
     branches: [main]
+    paths:
+      - "Cargo.toml"
+      - "Cargo.lock"
+      - "crates/**"
+      - "fuzz/Cargo.toml"
+      - "fuzz/Cargo.lock"
+      - "fuzz/c.dict"
+      - "fuzz/fuzz_targets/**"
+      - "fuzz/seeds/**"
+      - "scripts/run_fuzz_campaign.py"
+      - "scripts/tests/test_fuzz_campaign.py"
+      - ".github/workflows/fuzz.yml"
   workflow_dispatch:
   schedule:
     - cron: "43 2 * * *"
