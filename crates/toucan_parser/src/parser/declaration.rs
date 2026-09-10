@@ -2,6 +2,7 @@
 
 use super::{PResult, Parser, TokenKind};
 use ast::*;
+use astutil::ts18661_float;
 use driver::Standard;
 use env::Symbol;
 use span::{Node, Span};
@@ -1309,6 +1310,8 @@ fn msvc_integer_width(name: &str) -> Option<u8> {
     })
 }
 
+/// Decodes a TS 18661 type spelling and width. Callers decide whether the selected
+/// dialect recognizes it as a keyword.
 fn ts18661_type(name: &str) -> Option<TS18661FloatType> {
     let (width, binary) = if let Some(width) = name.strip_prefix("_Float") {
         (width, true)
@@ -1325,13 +1328,7 @@ fn ts18661_type(name: &str) -> Option<TS18661FloatType> {
         "128" => 128,
         _ => return None,
     };
-    let format = match (binary, extended) {
-        (true, false) => TS18661FloatFormat::BinaryInterchange,
-        (true, true) => TS18661FloatFormat::BinaryExtended,
-        (false, false) => TS18661FloatFormat::DecimalInterchange,
-        (false, true) => TS18661FloatFormat::DecimalExtended,
-    };
-    Some(TS18661FloatType { format, width })
+    Some(ts18661_float(binary, width, extended))
 }
 
 fn declarator_has_name(kind: &DeclaratorKind) -> bool {
