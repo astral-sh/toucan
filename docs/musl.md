@@ -48,7 +48,7 @@ adds native x86-64 and AArch64 execution and runs all four unchanged zstd-sys
 Builder consumer configurations. A workflow definition is not a passing native
 run; saved evidence identifies its actual execution route.
 
-The [saved local evidence](../corpus/evidence/musl-2026-09-08/summary.json) uses
+The [saved local evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/musl-2026-09-08/summary.json) uses
 untouched Ubuntu musl 1.2.4-2 headers. x86-64
 executables run natively; AArch64 executables run through QEMU user emulation.
 C/Rust ABI probes use GCC 13.3 and Clang 18.1, with current Rust and Rust 1.64.
@@ -65,4 +65,4 @@ scalars also remain unsupported. These checks do not establish complete libc cov
 
 At commit `019012e`, the [native musl workflow](https://github.com/astral-sh/toucan/actions/runs/34246121203) passed on x86-64 and AArch64. The two architectures ran 32 C↔Rust executables across GCC, Clang, current Rust, Rust 1.64, and both optimization settings. Each executable checks 49 ABI properties and runs 1,000 call rounds.
 
-The same jobs consumed eight generated zstd binding files across the four Builder configurations on each architecture. The [saved artifacts](../corpus/evidence/musl-native-019012e/summary.json) include the workflow metadata, file hashes, raw commands, generated source, and consumer comparisons. This closes the native AArch64 execution gap in the earlier local QEMU evidence. The result applies to the recorded revision and configurations.
+The same jobs consumed eight generated zstd binding files across the four Builder configurations on each architecture. The [saved artifacts](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/musl-native-019012e/summary.json) include the workflow metadata, file hashes, raw commands, generated source, and consumer comparisons. This closes the native AArch64 execution gap in the earlier local QEMU evidence. The result applies to the recorded revision and configurations.

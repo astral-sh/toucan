@@ -46,7 +46,7 @@ analysis return errors before writing the destination file.
 
 This is a bounded executable interface, not general bindgen-cli compatibility.
 Unsupported flags and category selections fail explicitly. The
-[native Linux x86-64 AWS-LC check](../corpus/evidence/aws-lc-external-cli-317756d/README.md)
+[native Linux x86-64 AWS-LC check](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-external-cli-317756d/README.md)
 shows that the original upstream build script selects the executable, consumes
 its output, and passes 41 crypto results, six C/Rust layouts, and 98 generated
 layout tests. The same-command differential against bindgen-cli 0.72.1 shows
@@ -55,7 +55,7 @@ linker-name differences: Toucan prefixes the globals as requested, and the
 actual AWS-LC archive contains all 60 prefixed definitions. A direct Rust link
 test succeeds with Toucan and fails with bindgen-cli output for one of those
 globals. Full API equality remains false. The separate
-[native FIPS run](../corpus/evidence/aws-lc-external-fips-2026-09-09/README.md)
+[native FIPS run](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-external-fips-2026-09-09/README.md)
 uses the unchanged `aws-lc-fips-sys` build script and tests an actual FIPS
 integrity call, 41 matching crypto artifacts, six C/Rust layouts, and 97
 generated layout tests. The FIPS symbol list deliberately leaves

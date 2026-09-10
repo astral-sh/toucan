@@ -1,8 +1,0 @@
-make: Entering directory '/home/dev-user/.codex/worktrees/toucan-c90-integrated/crates/toucan_parser'
-/home/dev-user/.cache/toucan/parser-generator/bin/rust-peg grammar.rustpeg > src/parser.rs.raw
-rustfmt --config-path grammar.rustfmt < src/parser.rs.raw > src/parser.rs.fmt
-python3 scripts/instrument.py src/parser.rs.fmt > src/parser.rs.instrumented
-cat grammar.header src/parser.rs.instrumented > src/parser.rs
-rm src/parser.rs.instrumented
-rm src/parser.rs.raw src/parser.rs.fmt
-make: Leaving directory '/home/dev-user/.codex/worktrees/toucan-c90-integrated/crates/toucan_parser'

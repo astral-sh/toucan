@@ -18,4 +18,4 @@ Reference behavior includes unsupported or incorrect outputs: a 100-bit integer 
 
 The Clang analyzer can use [completed file const scalars](const-object-initializers.md) in later static initializers and constant-query builtins. This transient value table is separate from the optional written-occurrence catalog and from C integer-constant-expression lookup. Captured occurrences preserve their original order and destination values.
 
-The [combined-source validation](../corpus/evidence/object-values-root-integration-2026-09-09.json.gz) passes the occurrence, destination-conversion, and resource-limit tests plus workspace Clippy. This capture layer does not change Builder output; arithmetic constant emission is a subsequent layer.
+The [combined-source validation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/object-values-root-integration-2026-09-09.json.gz) passes the occurrence, destination-conversion, and resource-limit tests plus workspace Clippy. This capture layer does not change Builder output; arithmetic constant emission is a subsequent layer.

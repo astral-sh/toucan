@@ -177,7 +177,7 @@ and diagnostics as artifacts, including failed audits.
 
 ## Recorded results
 
-The [native-source audit](../evidence/native-conformance-9d8901b-2026-09-09/summary.json)
+The [native-source audit](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/native-conformance-9d8901b-2026-09-09/summary.json)
 uses CLI and library-probe binaries built from `9d8901b`; all 630 recorded build
 inputs match `66c87396`. Both GCC 13 and Clang 18 runs checked all 220 original
 sources. The compiler-preprocessed and native-source routes each accepted 219
@@ -185,19 +185,19 @@ cases and all 211 pedantic-positive cases. Only the known `00144.c`
 discarded-qualifier rejection remained, outside the strict subset. No native
 preprocessing failures, tool/protocol failures, or changed inputs were recorded.
 
-The [capture](../evidence/native-conformance-9d8901b-2026-09-09/README.md) separates
+The [capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/native-conformance-9d8901b-2026-09-09/README.md) separates
 build provenance, the uncommitted audit-driver hash, and each route's results.
 It retains source/header hashes and diagnostics without redistributing downloaded
 upstream sources or preprocessed files. The driver keeps compiler/Toucan macro
 differences visible; these results do not imply identical preprocessing output.
 
-The [CI confirmation](../evidence/native-conformance-ci-2026-09-09/README.md)
+The [CI confirmation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/native-conformance-ci-2026-09-09/README.md)
 repeats both profiles with Rust 1.96.0 release builds. Each route again accepts
 all 211 pedantic-positive cases. The tested merge tree exactly matches PR head
 `ca892441`; the supplement preserves build provenance and independently checked
 reports without changing the local evidence above.
 
-The [compiler-profile refresh](../evidence/conformance-profiles-440db13/summary.json)
+The [compiler-profile refresh](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/conformance-profiles-440db13/summary.json)
 at `440db13` checks all 220 sources separately with GCC-preprocessed/GNU-profile
 and Clang-preprocessed/Clang-profile inputs. Each passes all 211 pedantic-positive
 cases, with no tool failures or unexplained strict rejections. Both retain
@@ -206,7 +206,7 @@ reports preserve every case classification and input hash; the summary retains
 that difference's compiler and frontend diagnostics. This refresh includes
 Boolean macros, VLA type identities, and half types, and predates later changes.
 
-The [recorded acceptance report](../evidence/c-testsuite-2026-09-08.json) preserves
+The [recorded acceptance report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c-testsuite-2026-09-08.json) preserves
 all 220 case classifications, source and preprocessed hashes, tool hashes,
 configuration, and origin metadata from the existing audit. Toucan accepted
 219 of 220 eligible C11 cases and all 211 cases accepted by both pedantic C11
@@ -215,11 +215,11 @@ all exploratory differences to disappear fails.
 
 The remaining case, `00144.c`, assigns a conditional `const void *` result to
 `void *`. Both pedantic compilers diagnose the discarded qualifier, as does
-Toucan. Its [complete compiler and frontend diagnostics](../evidence/c-testsuite-2026-09-08-differences.json)
+Toucan. Its [complete compiler and frontend diagnostics](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c-testsuite-2026-09-08-differences.json)
 remain recorded as an exploratory difference. This classification does not make
 the other 211 programs a proof of full C conformance.
 
-The separate [zstd feature report](../evidence/zstd-features-2026-09-08.json) links
+The separate [zstd feature report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/zstd-features-2026-09-08.json) links
 to eight complete native consumer reports: default, experimental, multithreaded,
 and combined profiles, each built with Rust 1.64.0 and Rust 1.98.1. Upstream and
 Toucan-generated bindings produced matching results and all 50 recorded runtime
@@ -227,7 +227,7 @@ artifacts; 72 generated layout tests passed. These are native x86-64 Linux consu
 checks, with each report retaining its actual frontend hash. They do not represent
 full Ruff or uv builds.
 
-The [size_t dependency regression](../evidence/size-t-collection-2026-09-08.json)
+The [size_t dependency regression](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/size-t-collection-2026-09-08.json)
 records a later default/experimental consumer run: all 11 runtime artifacts match
 and 18 generated layout tests pass. Both Darwin target profiles also generate
 independent zstd/zdict files without the discarded `__darwin_size_t` alias. That

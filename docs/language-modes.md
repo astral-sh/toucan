@@ -164,7 +164,7 @@ and [Clang feature predicates](https://github.com/llvm/llvm-project/blob/llvmorg
 
 ### C99/C17 validation
 
-The [mode evidence](../corpus/evidence/c99-c17-2026-09-08/summary.json) records
+The [mode evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c99-c17-2026-09-08/summary.json) records
 2,944 native syntax/predefine/query observations, 174 option controls, and 1,176
 inline-symbol checks for the new modes. Focused tests compare 800 source
 admission decisions with GCC 13.3 and Clang 18.1.3. Eight linked C/Rust probes
@@ -186,7 +186,7 @@ These measurements ran on a shared host alongside other validation and do not
 establish a speedup. Baseline and candidate binaries use separate build caches
 and pass a distinguishing GNU99 literal control before measurement.
 
-The [sanitizer evidence](../fuzz/evidence/c99-c17-2026-09-08/) includes the first
+The [sanitizer evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/fuzz/evidence/c99-c17-2026-09-08) includes the first
 expanded-corpus replay and a longer mutation campaign. The final run executes
 22,764 inputs in 301 seconds with 624 MiB peak RSS, 792 new corpus units, no
 artifacts, and unchanged source hashes. All 88 compiler/mode settings are seeded
@@ -196,7 +196,7 @@ in this ptrace environment.
 
 ## C90/GNU90 validation
 
-The [admission evidence](../corpus/evidence/c90-modes-2026-09-08/summary.json)
+The [admission evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c90-modes-2026-09-08/summary.json)
 records native compiler decisions, full commands, diagnostics, and source hashes.
 Focused tests compare 228 decisions across both C90 modes, GCC 13.3, and Clang
 18.1.3 targeting Linux, macOS, and Windows. A Windows LLVM emission check verifies
@@ -210,7 +210,7 @@ its individual timing observations are not a comparative performance claim.
 The workspace suite passes 690 tests, with 185 opt-in tests ignored in that run.
 The focused native checks run separately; the changed crates pass Clippy.
 
-The [checked-analysis fuzz campaign](../fuzz/evidence/c90-modes-2026-09-08/evidence.json.gz)
+The [checked-analysis fuzz campaign](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/fuzz/evidence/c90-modes-2026-09-08/evidence.json.gz)
 passes 31,857 inputs in 181 seconds with AddressSanitizer, no artifacts, and
 543 MiB peak RSS. The initial archive covers all seven profiles from its base
 revision and all four modes for each of 77 seed files, preserving every original
@@ -219,7 +219,7 @@ disabled in this ptrace environment; these results are a bounded campaign.
 
 ### Integration with all eleven profiles
 
-The [integration evidence](../corpus/evidence/c90-integration-2026-09-08/summary.json)
+The [integration evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c90-integration-2026-09-08/summary.json)
 records the C90 layer combined with Microsoft integer and calling-convention
 syntax, retained `_Noreturn` metadata, and all eleven compiler profiles. The
 workspace passes 732 tests, with 192 opt-in tests ignored in that run; focused
@@ -240,7 +240,7 @@ The earlier evidence directories are preserved without changes.
 
 ## Earlier C11/GNU11 validation
 
-The [recorded evidence](../corpus/evidence/language-modes-2026-09-08.json.gz) includes
+The [recorded evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/language-modes-2026-09-08.json.gz) includes
 compiler versions, exact commands, source/binary hashes, and raw observations.
 The workspace suite passed 630 tests; the parser and semantic native suite passed
 533 with no ignored tests. Focused mode tests cover ordinary/retained parity,
@@ -271,19 +271,19 @@ and bytes match the baseline on all four headers. `TranslationUnit` remains
 ordinary/retained semantic observations on those headers span ratios 0.968–1.027;
 VLA and inferred-type controls also retain identical allocation counts.
 
-The [integration checks](../corpus/evidence/language-modes-integration-2026-09-08/summary.json)
+The [integration checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/language-modes-integration-2026-09-08/summary.json)
 cover the merged BMI, binary128, and vector layers: all 1,050 seed/profile/mode
 pairs agree between ordinary and retained analysis (747 accepted, 303 matching
 diagnostics). The generated C11 bindings also pass with Rust 1.64. Campaign seeds
 cover both modes for every profile and both trigraph settings for preprocessing.
 
-The [combined integration](../corpus/evidence/c90-root-integration-2026-09-08/summary.json)
+The [combined integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c90-root-integration-2026-09-08/summary.json)
 also includes Microsoft declaration attributes and literal-query optimization.
 It checks 3,696 ordinary/retained seed pairs across all 44 profile/mode settings,
 keeps eight existing binding artifacts byte-identical, and reruns native C90 FFI
 with Rust 1.64. The original archives retain their own source revisions.
 
-The [220-program corpus rerun](../corpus/evidence/conformance-a3256d6/summary.json)
+The [220-program corpus rerun](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/conformance-a3256d6/summary.json)
 at `a3256d6` covers all four modes through both GCC and Clang preprocessing.
 The existing strict-C11 control gate passes in every route: 211 programs in each
 C11 mode, 189 in C90, and 210 in GNU90 after intersection with that mode’s native

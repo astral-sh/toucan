@@ -63,12 +63,12 @@ Clang behavior is probed against Clang 18 and its
 Compiler source acceptance, native C execution, and generated Rust calls are
 separate checks; Toucan does not generate machine code.
 
-The [validation record](../corpus/evidence/allocation-builtins-2026-09-08.json)
+The [validation record](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/allocation-builtins-2026-09-08.json)
 contains compiler commands, source hashes, graph comparisons, native call checks,
 and allocation measurements. The five unchanged zstd inputs are regression
 controls; their acceptance is not a new result of this layer.
 
-The [combined integration](../corpus/evidence/allocation-root-integration-2026-09-08/summary.json)
+The [combined integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/allocation-root-integration-2026-09-08/summary.json)
 includes C90/GNU90 and Microsoft declaration attributes. Its native signature
 table runs 480 comparisons across four language modes, seven Clang targets and
 native GCC. It also checks 3,828 ordinary/retained seed pairs, reruns generated

@@ -222,7 +222,7 @@ def verify(args: argparse.Namespace, profile: str, output: Path, cache: Path) ->
         if args.native_i686:
             probe = output / "i686-zstd-layout.c"
             probe.write_text(
-                (ROOT / "corpus/evidence/i686-target-2026-09-09/zstd-layouts.c").read_text()
+                (ROOT / "corpus/i686/zstd-layouts.c").read_text()
                 + "\nint main(void) { return 0; }\n"
             )
             evidence["native_i686_layout_source_sha256"] = digest(probe)

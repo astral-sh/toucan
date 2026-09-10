@@ -114,7 +114,7 @@ conditional or short-circuit control. Prototype and unevaluated uses are explici
 `p++` while reusing an existing bound. A later use of a typedef shares the bound
 and does not acquire the original declaration's operand execution.
 
-[Ownership validation](../corpus/evidence/type-ownership-2026-09-08.json) records
+[Ownership validation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/type-ownership-2026-09-08.json) records
 native side-effect probes, external corpus parity and default allocation checks.
 
 ## Compiler query results

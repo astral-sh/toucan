@@ -25,7 +25,7 @@ selection do not enable the new dependency-retention policy.
 
 ## Native evidence
 
-The [saved Linux x86-64 capture](../corpus/evidence/name-allowlists-2026-09-09.json.gz)
+The [saved Linux x86-64 capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/name-allowlists-2026-09-09.json.gz)
 contains the original 70-case bindgen 0.72.1/libclang 18.1.3 study, its corrected
 candidate comparison, and 32 additional cases. All 70 original public-export
 inventories match. The initial study's regex omitted `pub use` aliases; the

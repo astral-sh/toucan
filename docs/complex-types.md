@@ -109,30 +109,6 @@ static component bits at O0/O2, target precision, typed operand uses, atomic
 updates, and binding rejection paths. Cross-target compiler checks establish
 frontend and layout behavior; they do not substitute for native execution.
 
-## Recorded validation
-
-The [compressed evidence](../corpus/evidence/complex-types-2026-09-08.json.gz)
-contains compiler identities, original probes, source and artifact hashes, test
-logs, and before/after measurements against revision `2b5eb1f`. All seven actual
-translation units pass both preprocessing routes with normal/retained parity;
-all 28 declaration hashes match the baseline. The four binding outputs are
-byte-identical. Seven alternating binding observations put median elapsed-time
-ratios between 0.996 and 1.012; these shared-host measurements establish no speed
-improvement. Whole-source timings are single observations, not benchmark claims.
-
-Ordinary semantic allocation counts are unchanged. Binding selection through
-records adds one lazy memo allocation (eight bytes in the small measured record
-fixtures), which prevents repeated traversal of shared record graphs.
-`ArithmeticConstant` grows from 48 to 64 bytes; `Type` and checked expression/use
-sizes are unchanged. AddressSanitizer passes the complex/depth cases and all 427
-checked-seed/profile combinations, including 319 accepted inputs and 108 matching
-normal/retained diagnostics. This is bounded replay, not a sustained fuzz campaign.
-
-The [integration report](../corpus/evidence/complex-types-integration-2026-09-08.json)
-records 756 passing workspace tests, including native checks, after vector
-shuffles and minimum-vector-width attributes. All 448 checked-seed/profile
-comparisons preserve ordinary/retained declaration parity and graph invariants.
-
 ## Non-temporal memory accesses
 
 Clang non-temporal loads and stores retain complex values through the same

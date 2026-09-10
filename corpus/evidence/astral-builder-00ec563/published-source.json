@@ -1,8 +1,0 @@
-{
-  "captured_commit": "00ec563b1c5d583d0b852ed707a13ff719a9d7ee",
-  "published_commit": "b371cd0cdda8e5cc4190c42f47d510f3b9115aac",
-  "tree": "6a106c512b6e567066a3f031fd79134e1ecf44a8",
-  "exact_tree_equality": true,
-  "pull_request": "https://github.com/astral-sh/toucan/pull/293",
-  "reason": "The host-target fixture and CLI integration fixes were moved into their originating PRs; the final source tree is unchanged."
-}

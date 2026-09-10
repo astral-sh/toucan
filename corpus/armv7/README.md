@@ -35,7 +35,7 @@ passed two C layout executions and four C/Rust FFI executions under QEMU on
 x86-64 Ubuntu. GCC and Clang each passed 256 FFI rounds at O0 and O2.
 All twelve retained objects and executables have ARMv7/VFP signatures; all six
 executables carry the hard-float ABI flag. Binding generation used no exclusions
-and skipped no declarations or macros. The [preserved evidence](../evidence/armv7-qemu-2026-09-09/README.md)
+and skipped no declarations or macros. The [preserved evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/armv7-qemu-2026-09-09/README.md)
 records the exact source, commands, hashes, and independent archive checks.
 This uses Toucan's Clang frontend profile and does not establish native ARM
 hardware or full consumer acceptance.

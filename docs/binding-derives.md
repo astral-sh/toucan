@@ -59,7 +59,7 @@ directly. A caller-owned callback alias then supplies the field's storage, so
 generated traits preserve its validity boundary. An additional pointer
 indirection remains a raw Rust pointer.
 
-The [combined-layer checks](../corpus/evidence/binding-derives-root-integration-2026-09-08.json.gz)
+The [combined-layer checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/binding-derives-root-integration-2026-09-08.json.gz)
 include the external-alias correction found during independent review. Eight
 focused tests pass with current Rust and actual Rust 1.64 consumers. The frozen
 reference and sanitizer captures predate that correction; they do not establish
@@ -88,14 +88,14 @@ depth limit and a one-million-visit limit. Atomic and external containment queri
 use their prepared record caches. Core defaults need no new trait cache
 and keeps the existing borrowed derive attributes.
 
-The [evidence](../corpus/evidence/binding-derives-2026-09-08/README.md) records
+The [evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/binding-derives-2026-09-08/README.md) records
 bindgen 0.72.1 trait requests, C/Rust Default checks, Rust 1.64 checks, and the
 actual AWS-LC header type inventory. That inventory selects type declarations
 from the wrapper's thirty allowed headers; it does not implement the separate
 function, callback, and file-selection policies of the complete build script.
 The full unchanged-source AWS-LC consumer remains an integration gate.
 
-The [Builder default capture](../corpus/evidence/builder-default-debug-2026-09-09.json.gz)
+The [Builder default capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/builder-default-debug-2026-09-09.json.gz)
 compares default, explicit false/true, and repeated overrides with bindgen 0.72.1.
 Twenty generated Rust 1.64/current programs compile and run, including formatting
 ordinary and packed records. A separate atomic control retains Toucan's existing

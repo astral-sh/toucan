@@ -1,10 +1,8 @@
 # i686 GNU Linux native acceptance
 
-The `i686-native.yml` workflow runs only when
-`charlie/codex-toucan-i686-native-acceptance` is pushed. It uses one
-`ubuntu-24.04` runner with a 15-minute job limit; it does not allocate macOS
-runners. It installs GCC multilib, i686 glibc development files, Clang, and
-the Rust `i686-unknown-linux-gnu` standard library.
+The [i686 native workflow](../../.github/workflows/i686-native.yml) installs
+GCC multilib, i686 glibc development files, Clang, and the Rust
+`i686-unknown-linux-gnu` standard library on an x86 Linux runner.
 
 `abi.h` is the exact header Toucan binds independently with its GCC and Clang
 profiles. The header has no system includes; C and Rust see the same declarations.
@@ -21,7 +19,7 @@ the test object's instrumentation, not its C calling convention or layout.
 `scripts/verify_i686_native.py` checks ELF class **and** i386 machine for each
 C layout executable, C ABI object, and Rust FFI executable before executing
 it. It rejects missing or omitted bindings, compares the C/Rust results, and
-compiles both archived Toucan bindings from the untouched pinned zstd 1.5.7
+compiles both fixed Toucan binding fixtures from the untouched pinned zstd 1.5.7
 header as i686 Rust metadata. The zstd part checks Rust compilation and its
 generated constant layout assertions; it does not call zstd C functions.
 
@@ -31,7 +29,7 @@ Rust `i686-unknown-linux-gnu` std installed:
 ```sh
 cargo build --locked -p toucan_cli
 python3 scripts/verify_i686_native.py \
-  --toucan target/debug/toucan --output results/i686/native
+  --toucan target/debug/toucan --output corpus/results/i686/native
 ```
 
 The always-uploaded `i686-native-<attempt>` artifact contains the fixture
@@ -44,5 +42,10 @@ reports `"status": "preflight-only"` with `"native_execution": false`.
 
 This probes ordinary i686 SysV C function calls. Nondefault `stdcall`,
 `fastcall`, and `thiscall` conventions remain unsupported. Neither the
-archived zstd Rust metadata nor the synthetic C library proves zstd runtime
+fixed zstd Rust metadata nor the synthetic C library proves zstd runtime
 compatibility or coverage of all glibc system headers.
+
+`zstd-layouts.c` supplies the independent layout assertions for the fresh i686
+zstd consumer. `zstd-gcc.rs` and `zstd-clang.rs` are fixed Rust compilation
+fixtures relocated from the historical capture; fresh zstd generation and calls
+are checked by `scripts/verify_zstd_consumer.py --native-i686`.

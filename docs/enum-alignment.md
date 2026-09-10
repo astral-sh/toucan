@@ -43,7 +43,7 @@ constant values, and core-default integer projections retain `Other` and `OTHER`
 
 ## Evidence
 
-The [alignment capture](../corpus/evidence/neutral-enum-alignment-2026-09-09.json.gz)
+The [alignment capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/neutral-enum-alignment-2026-09-09.json.gz)
 records GCC 13 and Clang 18 size/alignment, packed and pragma-packed records,
 array constraints, compatible pointer types, and actual calls using valid enum
 objects. LLVM captures separate scalar call signatures from pointer load
@@ -51,4 +51,4 @@ alignment. Windows and additional Linux/Darwin targets are compile-only checks.
 Pinned bindgen 0.72.1 comparisons cover enum attribute cursor visibility;
 generated Rust uses both current Rust and actual Rust 1.64 consumers.
 
-The [combined-source checks](../corpus/evidence/neutral-enum-root-integration-2026-09-09.json.gz) pass the semantic, packing, discovery, and native C/Rust tests, including Rust 1.64 calls. All 101 discovery reference cases are accepted and match public-name sets. Workspace Clippy passes.
+The [combined-source checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/neutral-enum-root-integration-2026-09-09.json.gz) pass the semantic, packing, discovery, and native C/Rust tests, including Rust 1.64 calls. All 101 discovery reference cases are accepted and match public-name sets. Workspace Clippy passes.

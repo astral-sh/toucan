@@ -49,8 +49,8 @@ The behavior is checked against the pinned
 [GCC implementation](https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/gcc/c-family/c-common.cc),
 [Clang type checker](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/Sema/SemaChecking.cpp),
 and [Clang lowering](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/CodeGen/CGExprScalar.cpp).
-[Validation evidence](../corpus/evidence/vector-shuffle-2026-09-08.json) records
+[Validation evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/vector-shuffle-2026-09-08.json) records
 commands, hashes, compiler differences, execution checks, and current source blockers.
-The [integration report](../corpus/evidence/vector-shuffle-integration-2026-09-08.json)
+The [integration report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/vector-shuffle-integration-2026-09-08.json)
 records native tests and retained-graph checks after declaration alignment and
 old-style definitions, including charging owned shuffle payloads before allocation.

@@ -68,7 +68,7 @@ types retain their explicit unsupported Rust-signature diagnostic.
 
 ## Compiler evidence
 
-The [saved probes](../corpus/evidence/old-style-definitions-2026-09-08.json) cover
+The [saved probes](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/old-style-definitions-2026-09-08.json) cover
 GCC and Clang constraints, promotions, callbacks, VLA effects and native execution.
 Seven-profile tests compare normal and retained results, original declaration
 sites, inferred atomic incoming types, quota failures and C11's minimum parameter
@@ -112,7 +112,7 @@ with visibly noisy observations; a separate eight-observation repeat measured
 1.000×. Both runs are saved. These are regression measurements, not a speedup
 claim or a comparison with native compilers.
 
-The [integration report](../corpus/evidence/old-style-target-integration-2026-09-08.json)
+The [integration report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/old-style-target-integration-2026-09-08.json)
 checks target attributes on declaration-list bounds and function-level attributes.
 It also resolves the original report's temporary Clang parameter-alignment guard:
 both supported attribute placements now retain the parameter's storage alignment

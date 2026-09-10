@@ -73,13 +73,13 @@ declaration outputs stayed identical.
 Sixteen eligible sources completed 96 GCC/Clang O0/O2 and O1+UBSan executions with
 equal per-source CRCs, including 32 clean UBSan runs. This does not prove absence
 of undefined behavior in every generated program and is not a throughput result.
-The compressed [baseline](../../evidence/csmith-dbda83c-2026-09-08.json.gz) and
-[replay](../../evidence/csmith-671e9c7-2026-09-08.json.gz) retain compiler identities,
+The compressed [baseline](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/csmith-dbda83c-2026-09-08.json.gz) and
+[replay](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/csmith-671e9c7-2026-09-08.json.gz) retain compiler identities,
 source/dependency hashes, commands, exclusions, diagnostics and every runtime result.
 The baseline also retains the initial rejected Clang marker rechecks; the final
 summary uses the explicitly documented metadata exception.
 
-The [integration report](../../evidence/csmith-integration-2baa121-2026-09-08.json)
+The [integration report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/csmith-integration-2baa121-2026-09-08.json)
 records a fresh four-fixture gate after the function-target layer and independent
 verification of 101 source files, 116 preprocessed inputs, 432 declaration outputs,
 and the 96 native execution artifacts in the larger audit.

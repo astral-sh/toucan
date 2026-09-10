@@ -166,15 +166,15 @@ headers and full project consumers remain separate release gates.
 The focused tests compare source acceptance with Clang, final file attributes
 with its JSON AST, and external linkage with its LLVM output. Accepted and
 rejected cases also compare ordinary analysis with retained analysis. The saved
-[evidence](../corpus/evidence/dll-storage-2026-09-08/summary.json) includes the
+[evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/dll-storage-2026-09-08/summary.json) includes the
 primary compiler probes and source hashes.
 
-The [inline composition probes](../corpus/evidence/dll-inline-composition-2026-09-08/summary.json)
+The [inline composition probes](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/dll-inline-composition-2026-09-08/summary.json)
 preserve COFF objects and LLVM verifier results for imported and weak bodies.
-The [declaration composition probes](../corpus/evidence/dll-composition-2026-09-08/summary.json)
+The [declaration composition probes](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/dll-composition-2026-09-08/summary.json)
 cover hidden extern declarations, direct builtin calls, and first-declaration
 address constants, including the failing inputs that led to the corrections.
-The [combined validation](../corpus/evidence/dll-root-integration-2026-09-08/summary.json)
+The [combined validation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/dll-root-integration-2026-09-08/summary.json)
 records the workspace, native compiler, retained-graph, unchanged-binding, and
 ASan checks after integrating those corrections.
 
@@ -182,14 +182,14 @@ Separate COFF probes link a real C DLL and import library against C, Rust 1.64,
 and current Rust consumers. Bindgen 0.72.1 reproduces the same imported-data
 linking limitation across data-first, function-first, and typedef-first headers.
 Those earlier probes validate compilation and linking; no PE executable was run.
-The [scoped-library evidence](../corpus/evidence/dll-libraries-2026-09-08/summary.json)
+The [scoped-library evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/dll-libraries-2026-09-08/summary.json)
 records generated consumers against two DLLs, ordinary object linkage, all three
 header orders, Rust 1.64/current, O0/O3, and the explicit execution status.
-The [integrated library checks](../corpus/evidence/dll-libraries-root-integration-2026-09-08/summary.json)
+The [integrated library checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/dll-libraries-root-integration-2026-09-08/summary.json)
 repeat those 12 cross-linked consumers after the declaration corrections and
 confirm that the eight existing project and musl binding outputs are unchanged.
 
-The [native Windows run](../corpus/evidence/windows-dll-native-f57e9fa/summary.json)
+The [native Windows run](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/windows-dll-native-f57e9fa/summary.json)
 executes all 12 consumers with Rust 1.64.0 and 1.98.1 and Clang 20.1.8. Both C
 and Rust checks pass for calls, data mutation, and function/data address identity
 through two DLLs. The archive includes the executables and all 48 verified case

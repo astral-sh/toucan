@@ -13,7 +13,7 @@ the upstream builder. The Rust wrapper requires Rust 1.71; the harness records
 the actual compiler used and does not infer an older compiler result.
 
 The separate [`AWS_LC_SYS_EXTERNAL_BINDGEN=1` path](external-bindgen-cli.md)
-has [native Linux x86-64 crypto-only evidence](../corpus/evidence/aws-lc-external-cli-317756d/README.md)
+has [native Linux x86-64 crypto-only evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-external-cli-317756d/README.md)
 from an unchanged upstream build script and all 98 generated layout tests.
 The paired consumer runs below use the Cargo Builder adapter; they do not
 exercise the standalone executable.
@@ -89,59 +89,9 @@ signature is verified in each run and excluded from the byte comparison.
 These are consumer and FFI checks; they do not establish complete API equality,
 full cryptographic test-suite coverage, or performance results.
 
-## Recorded reference
-
-The [frozen reference](../corpus/evidence/aws-lc-consumer-reference-2026-09-08/freeze.json)
-passes on Linux x86-64 with bindgen 0.72.1, Clang 18.1.3, and Rust 1.98.1.
-It verifies 2,123 upstream files, 362 compiled native objects, 75 emitted layout
-tests, and 41 deterministic runtime artifacts. The adjacent archive preserves
-the commands, selected Cargo artifacts, generated bindings, and runtime results.
-This capture validates the reference fixture independently of later paired runs.
-
-## Recorded paired consumer
-
-The [paired Linux x86-64 run](../corpus/evidence/aws-lc-consumer-paired-2026-09-09.json.gz)
-passes with Clang 18.1.3 and Rust 1.98.1. Both generators compile the unchanged
-upstream Rust wrappers and produce identical results and all 41 runtime artifacts.
-The six C/Rust type layouts agree. The run verifies all 2,123 upstream files;
-only the Toucan copy's sys Cargo.toml changes. All 362 native object selections
-and normalized compiler settings match, as do the 13 consumer packages and 15
-dependency edges after excluding the binding generator. The candidate compiles
-without bindgen, clang-sys, or libloading. Its source remained immutable throughout
-the build and runtime checks.
-
-The reference runs 75 generated layout tests and Toucan runs 74. Their record
-identities match after mapping `__va_list_tag` to `__toucan_va_list_tag`, except
-for the reference's additional `_IO_FILE`. That type is unreferenced outside its
-own definition, test, and Default implementation; the upstream builder explicitly
-blocklists `FILE`. All generated tests pass.
-
-The captured Toucan source also repeats the `EVP_ENCODE_CTX` typedef's Doxygen
-comment on the later `evp_encode_ctx_st` definition. The reference emits that
-comment only on the typedef. This documented output difference does not change
-the runtime or layout result. The capture establishes this crypto-only consumer
-route; it does not establish complete public API or text equality.
-
-## Callback compatibility refresh
-
-The [frozen `7db2b85` refresh](../corpus/evidence/aws-lc-builder-7db2b85/summary.json)
-repeats the paired crypto-only consumer and emitted layout tests after the
-callback typedef, generation work limit, Rust target parsing, and enum comparison
-layers. Both builds pass through the unchanged AWS-LC build script and Rust wrappers. All 41
-deterministic runtime artifacts match, and the six C/Rust layout checks pass.
-
-All 2,389 frontend files retain their exact SHA256 hashes, with no added, changed,
-or deleted files. Cargo artifact and dep-info audits identify all nine frontend
-crates from that snapshot in both the consumer and generated layout-test builds.
-The reference and candidate use fresh source copies and separate existing Cargo
-target directories; the capture preserves that runner adaptation. The upstream
-source checks and non-generator dependency graph checks pass. This native Linux
-refresh does not refresh uv TLS, measure performance, or establish complete API
-equality or another target.
-
 ## All-bindings profile
 
-The [paired `all-bindings` capture](../corpus/evidence/aws-lc-all-bindings-7db2b85/README.md)
+The [paired `all-bindings` capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-all-bindings-7db2b85/README.md)
 uses the same frozen `7db2b850` frontend with unchanged upstream build scripts
 and Rust wrappers. Both builds enable the same sys crate features and run 98
 emitted layout tests. The 41 crypto artifacts match each other and the previous
@@ -150,21 +100,21 @@ build artifact and dep-info audit confirms the freshly generated bindings were
 consumed. This Linux x86-64 run does not enable SSL or FIPS, prove full binding
 API equality, or validate another target.
 
-The [full generated-binding differential](../corpus/evidence/aws-lc-all-bindings-differential-7db2b85/README.md)
+The [full generated-binding differential](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-all-bindings-differential-7db2b85/README.md)
 matches 2,618 functions, 60 globals, 3,851 constants, 98 shared compiled Rust
 record layouts, and 441 shared field offsets after canonicalizing Linux ELF
 linker symbols. Complete public Rust API equality is false: Toucan emits 13
 additional aliases, does not expose the same short name for one incomplete
 nested tag, and leaves three private padding fields implicit. The direct type
 name can matter to downstream Rust code even when function signatures agree.
-The subsequent [incomplete-tag name correction](../corpus/evidence/incomplete-record-names/README.md)
+The subsequent [incomplete-tag name correction](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/incomplete-record-names/README.md)
 replays this frozen input and changes only the eight occurrences of that one
 public type name; it does not repeat the full AWS-LC consumer build. The other
 record-shape and alias differences remain.
 
 ## SSL profile on frozen source
 
-The [paired native Linux x86-64 SSL run](../corpus/evidence/aws-lc-ssl-consumer-7db2b85-2026-09-09/README.md)
+The [paired native Linux x86-64 SSL run](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-ssl-consumer-7db2b85-2026-09-09/README.md)
 uses the frozen `7db2b85` frontend and unchanged `aws-lc-sys` 0.44.0 and
 `aws-lc-rs` 1.18.0 build scripts. With `ssl` and `all-bindings` selected,
 both generators' 106 generated layout tests pass. Independently built C and
@@ -183,7 +133,7 @@ correction; recheck full consumers on the intended release revision.
 
 ## External executable on frozen source
 
-The [native Linux x86-64 external-executable run](../corpus/evidence/aws-lc-external-cli-317756d/README.md)
+The [native Linux x86-64 external-executable run](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-external-cli-317756d/README.md)
 sets `AWS_LC_SYS_EXTERNAL_BINDGEN=1` and places Toucan's standalone `bindgen`
 executable on `PATH`. The unchanged `aws-lc-sys` build script generates and
 compiles fresh crypto bindings. The resulting consumer matches the 41 archived
@@ -200,7 +150,7 @@ though it launches Toucan for generation.
 
 ## External FIPS executable and external SSL limit
 
-The [native `aws-lc-fips-sys 0.14.2` run](../corpus/evidence/aws-lc-external-fips-2026-09-09/README.md)
+The [native `aws-lc-fips-sys 0.14.2` run](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aws-lc-external-fips-2026-09-09/README.md)
 uses the unchanged upstream FIPS build script and a traced standalone Toucan
 `bindgen` executable. The generated file is compiled and consumed by
 `aws-lc-rs/fips`: all 97 generated layouts pass, 41 crypto artifacts equal the

@@ -77,7 +77,7 @@ Accepted redefinitions retain physical source locations on both binding APIs.
 
 ## Evidence and remaining integration
 
-The [capture](../corpus/evidence/macro-values-2026-09-08/README.md) compares 48
+The [capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/macro-values-2026-09-08/README.md) compares 48
 history cases, 16 final-function cases, eight literal-token modes, 390 keyword
 spellings across 24 mode/target settings, and 2,516 bounded cexpr expressions.
 Additional probes distinguish successful reference values from four reference
@@ -87,13 +87,13 @@ AddressSanitizer, including 2,048 bounded malformed inputs and growth limits.
 The frozen evaluator capture used strict preprocessing, so its two incompatible
 redefinition rows use independently captured definitions. The explicit
 `MacroRedefinitionPolicy::RecordAndReplace` policy now accepts those sources and
-retains diagnostics. Its [separate capture](../corpus/evidence/macro-redefinitions-2026-09-08/README.md)
+retains diagnostics. Its [separate capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/macro-redefinitions-2026-09-08/README.md)
 preserves the same values across all 48 complete history inputs. Binding reports
 retain accepted redefinitions with their current physical source location;
 configured definitions have no invented location. The ordinary strict policy is
 unchanged. Enum constants are excluded from that standalone macro-only comparison.
 
-The [Builder capture](../corpus/evidence/builder-macro-values-2026-09-08/README.md)
+The [Builder capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/builder-macro-values-2026-09-08/README.md)
 compares generated constant names, Rust types, and executable values across 73
 paired cases: four signed/fit combinations with 31 scalar boundaries, 48 history
 cases, 16 callback/final-function cases, four file-selection cases, and a

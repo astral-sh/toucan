@@ -53,7 +53,7 @@ complex-to-real stores, and discarded loads; successful syntax or LLVM emission
 alone is not a native memory proof. Direct nonconstant complex arguments to
 `__builtin_constant_p` retain the existing explicit fallback limitation; supported
 scalar-cast and object-size queries preserve their unevaluated access metadata.
-See the [complex memory evidence](../corpus/evidence/complex-nontemporal-2026-09-08.json).
+See the [complex memory evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/complex-nontemporal-2026-09-08.json).
 
 The existing vector size policy and
 strict pointer-qualification assignment diagnostics still apply. Microsoft
@@ -63,6 +63,6 @@ that enum extension has a complete frontend representation.
 Primary behavior follows the pinned
 [Clang checker](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/Sema/SemaChecking.cpp)
 and [Clang lowering](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/CodeGen/CGBuiltin.cpp).
-[Evidence](../corpus/evidence/nontemporal-2026-09-08.json) records exact commands,
+[Evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/nontemporal-2026-09-08.json) records exact commands,
 compiler identities, the phase-specific complex defects, allocation checks, and
 unchanged project inputs.

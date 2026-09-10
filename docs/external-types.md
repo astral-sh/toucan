@@ -70,7 +70,7 @@ need a generated integer type; external bitfield field types require C accessors
 
 ## Evidence
 
-[The external-type evidence](../corpus/evidence/external-types-2026-09-08.json)
+[The external-type evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/external-types-2026-09-08.json)
 records the seven-profile frontend checks, native GCC/Clang calls with C at
 `-O0`/`-O2` and Rust at optimization levels 0/3, and current/Rust 1.64 compilers.
 The native fixtures cover caller-owned non-`Copy` types, arrays, unions,

@@ -24,9 +24,9 @@ storage; the origin catalog remains opt-in. Alternating shared-host timing sampl
 are retained without a speedup claim. The initial concurrent artifact failure and
 successful sequential rerun are both recorded in the evidence.
 
-Evidence: [accessed header paths](../corpus/evidence/accessed-header-paths-2026-09-08.json.gz).
+Evidence: [accessed header paths](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/accessed-header-paths-2026-09-08.json.gz).
 
-The [stack integration](../corpus/evidence/accessed-header-paths-root-integration-2026-09-08.json.gz)
+The [stack integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/accessed-header-paths-root-integration-2026-09-08.json.gz)
 on top of `493a6fa` passes 838 workspace tests, six native path tests, and workspace
 and fuzz Clippy. Eight header outputs and four musl outputs remain byte-identical.
 The fuzz target also checks exact access-name lookup at both ends of each origin
@@ -73,7 +73,7 @@ claimed for them.
 
 ### Validation and cost
 
-The [hard-link observations](../corpus/evidence/hardlink-identity-2026-09-08.json.gz)
+The [hard-link observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/hardlink-identity-2026-09-08.json.gz)
 contain 18 matching GCC 13.3/Clang 18.1.3 preprocessing and dependency pairs,
 including forced-header order, guards, `_Pragma`, recursive main aliases, and
 `#include_next`. All 80 preprocessor tests pass, including the native oracle hooks and existing

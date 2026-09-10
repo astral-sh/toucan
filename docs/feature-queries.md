@@ -62,14 +62,14 @@ when a header is included again. Raw queries and deferred namespace lookahead
 retain their argument constraints. Empty, once, system-header, and ignored clang
 pragmas work under GNU; Clang also permits diagnostic and message handlers.
 Conditional effects follow the configured query dialect even if identity macros
-are overridden. The [pragma evidence](../corpus/evidence/query-pragmas-2026-09-08/summary.json)
+are overridden. The [pragma evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/query-pragmas-2026-09-08/summary.json)
 compares original C compilation before preprocessing: Clang accepts some pack
 queries with `-E` but crashes when compiling them. Pack inside a query remains an
 explicit unsupported case; a compiler crash is never counted as source rejection.
 
 ## Validation
 
-The [operator evidence](../corpus/evidence/remaining-query-operators-2026-09-08/summary.json)
+The [operator evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/remaining-query-operators-2026-09-08/summary.json)
 records 5,880 native acceptance/output comparisons and 20 command-line override
 cases across four language modes, GCC 13, and five original Clang targets. A
 second run uses GCC 14 with explicit `-U__has_feature` and `-U__has_extension` to
@@ -83,53 +83,3 @@ five comment policies, and scope-token handling. Selector version 3 covers all
 40 settings for every seed without consuming any source bytes. Its small catalog
 exercises all seven operators and numeric revision results; frontend capability
 checks use their own source and compiler comparisons.
-
-## Earlier evidence
-
-The records below describe their original source revisions and coverage.
-Subsequent C90 support is documented in [language modes](language-modes.md).
-
-The [recorded differential run](../corpus/evidence/feature-query-operators-2026-09-08/summary.json)
-also includes the extracted GNU AArch64 compiler: all 308 case/profile/mode
-decisions and successful outputs match. Raw commands, versions, sources, results,
-and the capture driver are retained. GNU namespace availability in C11 is recorded
-explicitly rather than inferred from the GNU11 result.
-
-## Semantic catalog evidence
-
-The [catalog run](../corpus/evidence/feature-catalog-2026-09-08/summary.json) compares
-486 builtin and attribute names across seven profiles and two language modes:
-6,804 availability comparisons with no positive claim for a native-unavailable
-feature. This measures advertised availability, not complete native feature equality.
-Selected families also parse and type-check in ordinary and retained analysis;
-invalid operands and attribute arguments still diagnose.
-
-All four default header bindings are byte-identical to the previous recorded
-outputs. Seven project source files pass ordinary and retained analysis through
-fresh Toucan preprocessing and frozen earlier compiler-preprocessed controls
-(28 runs). These use GNU11 analysis; libgit2's original C90 flags remain a separate
-gap. The unchanged zstd build script passes all four feature configurations, with
-four consumed bindings and 25 identical runtime artifacts.
-
-Seven paired warm CLI measurements per header range from 0.6% faster to 2.1%
-slower than `d7ba4de` on this shared host. Configuration and parsing allocate less;
-binding generation allocations are unchanged. These measurements establish no
-speed improvement or in-process comparison against bindgen.
-
-The archive also records a 120-second AddressSanitizer preprocessing campaign at
-`d7ba4de`: 415,264 executions with no finding. It uses the mechanical operators'
-small test catalog, independently of this semantic catalog. Leak detection was
-disabled in the ptrace environment.
-
-The [combined integration](../corpus/evidence/compiler-query-integration-2026-09-08/summary.json)
-also checks 264 feature-selected source pairs across all 44 profile/mode settings,
-32 native C compilations, and 3,828 preprocessing/retained-code seed pairs. Eight
-reference binding artifacts are unchanged. Its ASan campaign runs 488,116 inputs
-in 181 seconds with no findings; source hashes remain unchanged and every seed
-covers all 40 preprocessing settings.
-
-The [pragma integration](../corpus/evidence/query-pragmas-root-integration-2026-09-08/summary.json)
-checks repeated header inclusion with the semantic catalog across all 44 settings,
-reruns native inclusion and identity-override probes, and preserves eight binding
-artifacts. Its ASan run processes 264,003 inputs in 121 seconds with no findings
-and unchanged source hashes.

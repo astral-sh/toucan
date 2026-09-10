@@ -21,7 +21,7 @@ name cannot become an extern declaration for an unavailable C symbol.
 
 ## Evidence
 
-The [saved Linux x86-64 controls](../corpus/evidence/internal-object-bindings-2026-09-09.json.gz)
+The [saved Linux x86-64 controls](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/internal-object-bindings-2026-09-09.json.gz)
 preserve the original and corrected outputs for eleven settings against bindgen
 0.72.1/libclang 18.1.3. This is an intentional compatibility difference: native
 bindgen emits extern declarations for the unsupported internal cases. Twenty

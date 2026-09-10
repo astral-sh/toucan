@@ -95,37 +95,6 @@ source inventories' hashes, lock hashes, binary hashes, selected features,
 active binding hashes, Cargo commands, and dep-info. Archive extraction uses
 Python's data filter; any normalized symlink spelling is reported separately.
 
-## Recorded result
-
-The [expanded `dbda83c` run](../corpus/evidence/astral-consumers-dbda83c/summary.json)
-passed both projects' locked builds and CLI scenarios with fresh bindings. It also
-passed both `ty_vendored` tests with `zstd` enabled and all 19 `uv-extract` library
-tests, with identical named results under upstream and generated bindings. No tests
-in these selected suites were ignored. Retained dependency files identify the
-binding inputs in both test builds and binary builds. This run used native
-x86-64 Linux and does not cover every test in either workspace.
-
-### Earlier result
-
-The [2026-09-08 report](../corpus/evidence/astral-consumers-2026-09-08/report.json)
-records successful upstream and generated builds and runtime comparisons for both
-packages. All 11,118 Ruff archive files and 1,738 uv archive files were checked;
-only `Cargo.lock` changed after extraction. uv's fixture symlink lost its trailing
-slash during data-filtered extraction, with its target preserved.
-
-The complete runner passed from its entry point with cached source archives and
-Cargo dependencies. All four builds use locked dependency graphs. The
-[artifact manifest](../corpus/evidence/astral-consumers-2026-09-08/artifacts.json)
-records the runner hash and command and links retained build output and dependency
-files. Both upstream and generated Cargo artifact records identify ty's host/build
-and runtime `zstd-sys` instances and uv's runtime instance. The frontend binary
-used to generate the bindings was built from Toucan commit `58e12d4`.
-
-This is evidence for two real consumer paths on native x86-64 Linux. It does not
-run either project's complete test suite, establish performance parity, validate
-all workspace packages or features, or provide native macOS/Windows execution
-coverage.
-
 ## Run the unchanged bindgen build script
 
 The builder adapter has a separate gate:
@@ -163,12 +132,12 @@ with no checked-in binding input active.
 The driver compares both `ty_vendored` tests, all 19 `uv-extract` tests, ty's exact
 valid/invalid diagnostics, uv's zstd-compressed-wheel installation and installed
 bytes, and rejection of a truncated zstd response with the expected EOF error.
-The [builder evidence](../corpus/evidence/astral-builder-a7fab44/summary.json)
+The [builder evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-a7fab44/summary.json)
 records the native Linux run and the source, lock, generated binding, selected
 artifact, and runtime hashes. It covers these two pinned consumer paths; it does
 not run either workspace's full test suite or measure application performance.
 
-The [combined frontend rerun](../corpus/evidence/astral-builder-a3256d6/summary.json)
+The [combined frontend rerun](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-a3256d6/summary.json)
 at `a3256d6` includes C90, Microsoft declaration attributes, allocation builtins,
 and compiler feature queries. Fresh replacement packages drive both unchanged
 project build scripts. Both ty vendored tests and all 19 uv extraction tests pass;
@@ -177,7 +146,7 @@ CLI diagnostics, installed wheel bytes, and truncated-frame rejection match. All
 This remains evidence for the recorded native Linux paths, not their complete
 workspace suites or other operating systems.
 
-The [frozen frontend refresh](../corpus/evidence/astral-builder-acfb815/summary.json)
+The [frozen frontend refresh](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-acfb815/summary.json)
 at `acfb815` runs the same unchanged zstd build scripts after the builder
 compatibility and documentation layers. Both ty vendored tests and all 19 uv
 extraction tests pass. Exact ty diagnostics, installed wheel bytes, and truncated
@@ -192,7 +161,7 @@ This refresh covers the recorded native Linux zstd paths. AWS-LC and TLS retain
 their separately recorded consumer revisions; these runs do not refresh them or
 measure application performance.
 
-The [selection and object-type refresh](../corpus/evidence/astral-builder-00ec563/summary.json)
+The [selection and object-type refresh](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-00ec563/summary.json)
 at `00ec563` repeats the unchanged zstd build-script route after name filters,
 parameter-alias retention, object projections, and qualified-array compatibility.
 Both ty vendored tests and all 19 uv extraction tests pass with upstream and
@@ -208,11 +177,11 @@ Upstream source inventories return to their entry state. This refresh covers the
 recorded native Linux zstd routes; it does not refresh AWS-LC/TLS, run full consumer
 workspace suites, or measure application performance.
 
-The [published source mapping](../corpus/evidence/astral-builder-00ec563/published-source.json)
+The [published source mapping](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-00ec563/published-source.json)
 verifies that this snapshot has exactly the same Git tree as `b371cd0` in PR #293.
 The stack reorder moved the two CI fixes into their originating PRs.
 
-The [callback compatibility refresh](../corpus/evidence/astral-builder-7db2b85/summary.json)
+The [callback compatibility refresh](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-7db2b85/summary.json)
 at `7db2b85` repeats the unchanged zstd build-script route after callback typedef
 projection, generation work limits, Rust target parsing, and schema-3 enum
 comparison. Both ty vendored tests and all 19 uv extraction tests pass with upstream and Toucan

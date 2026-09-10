@@ -40,11 +40,11 @@ repository is ty. Other Ruff targets and dependency profiles need their own audi
 
 The earlier [paired uv and ty builds](astral-consumers.md#run-the-unchanged-bindgen-build-script)
 prove the selected zstd consumer paths using a manifest substitution. The new
-[opt-in evidence](../corpus/evidence/zstd-optin-2026-09-09/README.md) covers actual
+[opt-in evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/zstd-optin-2026-09-09/README.md) covers actual
 feature selection, fresh generated binding inputs, matching compression and
 dictionary artifacts, and a build/runtime dependency fixture.
 
-The [Git-pinned application run](../corpus/evidence/astral-git-optin-2026-09-09/README.md)
+The [Git-pinned application run](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-git-optin-2026-09-09/README.md)
 builds both complete pinned applications with the new feature and compares them
 with their untouched upstream defaults. The driver ran at `d00076d`; both jobs
 compiled the frontend from Git revision `85bf1ad`. They passed in fresh Linux
@@ -109,7 +109,7 @@ passes both application gates with the Git dependency intact. Its independent
 artifact audit checks all 34 command records, source inventories, generated
 inputs, and the four uploaded application executables. Frontend library hashes
 were recorded in CI, but their bytes were not uploaded for independent rehashing.
-The earlier [local-source run at `131ec7a`](../corpus/evidence/astral-optin-2026-09-09/README.md)
+The earlier [local-source run at `131ec7a`](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-optin-2026-09-09/README.md)
 remains separate evidence. Registry naming, publishing, and public distribution
 are deferred.
 

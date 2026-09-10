@@ -26,7 +26,7 @@ compound-literal folding in integer-constant-expression contexts remains a
 separate compiler difference. Excess scalar entries still produce a diagnostic,
 including cases where the native compiler warns and ignores the extra entries.
 
-The [evidence](../corpus/evidence/empty-scalars-2026-09-08/summary.json) records
+The [evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/empty-scalars-2026-09-08/summary.json) records
 480 native admission observations across four modes and compiler targets,
 including the unsupported boundaries above. Sixteen native executable probes
 check zero values, null pointers and positive floating/complex zero with GCC and
@@ -34,7 +34,7 @@ Clang at O0/O2 under UndefinedBehaviorSanitizer. Ordinary and retained tests
 cover the supported profiles, actual source spans, atomic distinctions, and
 bounded nesting. These are conformance observations, not a performance claim.
 
-The [combined C90 integration](../corpus/evidence/empty-scalars-root-integration-2026-09-08/summary.json)
+The [combined C90 integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/empty-scalars-root-integration-2026-09-08/summary.json)
 reruns the complete 184-case CLI table against GCC 13.3 and Clang 18.1.3. All
 184 decisions agree, closing the four previously recorded scalar-empty gaps.
 It also checks 3,784 ordinary/retained pairs across 44 profile/mode settings and

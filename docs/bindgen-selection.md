@@ -21,7 +21,7 @@ retain expression, statement, or initializer graphs. See the
 
 ## Evidence
 
-The [saved comparison](../corpus/evidence/bindgen-selection-2026-09-08.json.gz)
+The [saved comparison](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/bindgen-selection-2026-09-08.json.gz)
 pins bindgen 0.72.1 and libclang 18.1.3. Its 16 paired cases compare callback logs
 and selected source functions, objects, records, and aliases. They cover relative
 main/include paths, file order, redeclarations, callback precedence, post-rename
@@ -43,7 +43,7 @@ requested Rust outputs remain byte-identical. Default core generation on 1,
 Builder generation removes 15 allocations by replacing its synthetic wrapper
 with ordered header preprocessing; its generated output remains byte-identical.
 
-The [root integration](../corpus/evidence/bindgen-selection-root-integration-2026-09-08.json.gz)
+The [root integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/bindgen-selection-root-integration-2026-09-08.json.gz)
 preserves the earlier enumerator-query optimization and macro-definition history.
 The binding and origin suites and workspace Clippy pass on that combined source.
 

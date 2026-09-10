@@ -58,13 +58,13 @@ and `cosf32` bindings run against installed x86-64 glibc with current Rust and
 Rust 1.64 at optimization levels 0 and 3. This establishes the tested calls and
 header routes, not complete libc coverage or native execution on other targets.
 
-The [validation record](../corpus/evidence/compiler-version-predefines-2026-09-08.json.gz)
+The [validation record](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/compiler-version-predefines-2026-09-08.json.gz)
 contains commands, compiler and frontend hashes, unchanged input hashes, graph
 results, diagnostics, and the generated-call programs. Compiler definitions follow
 [GCC's documented version markers](https://gcc.gnu.org/onlinedocs/cpp/Common-Predefined-Macros.html)
 and [Clang's builtin macros](https://releases.llvm.org/18.1.8/tools/clang/docs/LanguageExtensions.html#builtin-macros).
 
-The [combined validation](../corpus/evidence/compiler-version-root-integration-2026-09-08/summary.json)
+The [combined validation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/compiler-version-root-integration-2026-09-08/summary.json)
 repeats the header and source routes after integrating all eight C modes and DLL
 semantics. It includes 8,272 ordinary/retained seed pairs, native-preprocessed
 controls, and the bounded ASan campaign with unchanged source hashes.

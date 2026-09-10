@@ -52,13 +52,13 @@ default header route and generated calls to the installed glibc.
 The rules follow [GCC 13's additional floating types](https://gcc.gnu.org/onlinedocs/gcc-13.3.0/gcc/Floating-Types.html)
 and its [arithmetic and argument conversions](https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/gcc/c/c-typeck.cc).
 Native tests compare object bytes, source constraints, and generated C/Rust calls.
-The [floating-name conformance record](../corpus/evidence/floating-names-2026-09-08/summary.json)
+The [floating-name conformance record](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/floating-names-2026-09-08/summary.json)
 covers keyword/typedef namespaces, version overrides, and the unchanged modern
 project header outputs after removing the legacy acceptance exception.
 Cross-compiled assembly supports the AArch64 ABI review; it is not native execution
 on this x86-64 host. Unsupported `_FloatN` mathematical builtin families remain
 separate features.
 
-The [validation record](../corpus/evidence/gnu-float-types-2026-09-08.json.gz) is
+The [validation record](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/gnu-float-types-2026-09-08.json.gz) is
 compressed JSON containing source/binary hashes, compiler commands, native calls,
 constant bytes, graph comparisons, and allocation measurements.

@@ -20,7 +20,7 @@ check. Scalar and string constants reuse the ordinary checked-value formatter.
 
 ## Evidence
 
-The [saved Linux x86-64 study](../corpus/evidence/multiple-object-names-2026-09-09.json.gz)
+The [saved Linux x86-64 study](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/multiple-object-names-2026-09-09.json.gz)
 compares 49 settings against bindgen 0.72.1/libclang 18.1.3. All 49 sets of Rust
 object names, kinds, normalized types, mutability and constant values match. It covers
 extern-only declarations, definitions in either order, integers, floating
@@ -53,7 +53,7 @@ projections. Additional internal scalar and string constants remain supported.
 
 ## Full raw export replay
 
-The [schema-2 replay](../corpus/evidence/binding-symbol-exports-schema2-2026-09-09.json.gz)
+The [schema-2 replay](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/binding-symbol-exports-schema2-2026-09-09.json.gz)
 uses the unmodified generated Rust, including every `link_name` attribute. It
 retains 51 foreign global exports per side across all 49 settings. All 49 object
 contracts match in public name, kind, type, mutability, and effective Linux ELF

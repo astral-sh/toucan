@@ -83,7 +83,7 @@ receive the same category-specific patterns. For example, a zstd request can use
 `"allowlist_functions": ["ZSTD_.*"]`. Each selection is a separate workload and
 requires its own output comparisons and native checks before timing. The older
 `allowlist` and `bindgen_allowlist` fields remain exclusive to `legacy_core`.
-The [untimed control capture](../evidence/name-filter-controls-2026-09-09.json.gz)
+The [untimed control capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/benchmarks/evidence/name-filter-controls-2026-09-09.json.gz)
 records matching type, function, variable, and combined selections, plus rejection
 of empty roots and mixed policies. It includes generated Rust and native Rust
 layout/value probes, without latency samples or C FFI executions.

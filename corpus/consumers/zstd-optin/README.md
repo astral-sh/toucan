@@ -5,7 +5,7 @@ workspaces. The feature generates zstd bindings with Toucan on native
 `x86_64-unknown-linux-gnu`. Default builds keep their existing bindings.
 
 This directory contains a proposed integration and a reproducible fixture.
-[Clean builds of feature-enabled ty and uv](../../evidence/astral-git-optin-2026-09-09/README.md)
+[Clean builds of feature-enabled ty and uv](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-git-optin-2026-09-09/README.md)
 pass the selected application checks with the pinned Git frontend. The patches
 are not an upstream zstd release.
 
@@ -160,9 +160,9 @@ offline actual application builds in the clean Linux workflow.
 
 ## Recorded results
 
-The [actual Git-pinned smoke](../../evidence/zstd-optin-git-2026-09-09.json)
+The [actual Git-pinned smoke](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/zstd-optin-git-2026-09-09.json)
 also passes all four cases, with all nine frontend libraries traced to the
-verified checkout. The separate [Git-mode application gate](../../evidence/astral-git-optin-2026-09-09/README.md)
+verified checkout. The separate [Git-mode application gate](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-git-optin-2026-09-09/README.md)
 also passes complete uv and ty builds, selected library tests, and runtime
 comparisons in fresh Linux images without libclang.
 
@@ -178,7 +178,7 @@ The corrected pin audit requires all nine frontend crates to resolve under one
 fetched checkout, checks its actual Git HEAD, and verifies their source hashes.
 The earlier failed audit is retained alongside the successful one.
 
-The earlier [local-source application gate](../../evidence/astral-optin-2026-09-09/README.md)
+The earlier [local-source application gate](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-optin-2026-09-09/README.md)
 builds actual ty and uv binaries in fresh Linux images without libclang. It
 audits consumed bindings in both ty graphs and passes the selected library and
 application comparisons against untouched upstream defaults. This gate uses

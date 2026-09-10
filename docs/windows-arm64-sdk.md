@@ -55,7 +55,7 @@ preprocessing limit; hitting it is a failed bounded check, not acceptance.
 
 The [native run](https://github.com/astral-sh/toucan/actions/runs/34378135474)
 passed at `8ec8ad7` with installed SDK `10.0.26100.0`. The
-[preserved evidence](../corpus/evidence/windows-arm64-sdk-2026-09-09/README.md)
+[preserved evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/windows-arm64-sdk-2026-09-09/README.md)
 records all seven successful stages for each header, unchanged SDK inputs, and
 the hashes of the tested tools and dependencies. This proves the listed header
 configurations and selected layouts for that SDK and target. It does not cover

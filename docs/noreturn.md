@@ -60,6 +60,6 @@ The C11 rules are in
 Compiler probes distinguish source acceptance, declaration visibility, and LLVM
 or assembly output; no machine-code generation by Toucan is claimed.
 
-The [validation record](../corpus/evidence/noreturn-2026-09-08.json) includes
+The [validation record](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/noreturn-2026-09-08.json) includes
 135 compiler comparisons, 2,552 ordinary/retained analysis pairs, unchanged zstd
 inputs, and allocation measurements against the preceding implementation.

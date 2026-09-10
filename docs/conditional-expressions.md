@@ -86,7 +86,7 @@ knowledge queries retain their existing conservative folding rules.
 
 The native syntax, relocation, runtime, generated Rust 1.64 bindings, corpus,
 benchmark, and sanitizer records are archived in the
-[evidence summary](../corpus/evidence/omitted-conditional-2026-09-08/summary.json).
+[evidence summary](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/omitted-conditional-2026-09-08/summary.json).
 The GCC [omitted operand documentation](https://gcc.gnu.org/onlinedocs/gcc/Conditionals.html)
 defines saved-value behavior; the compiler-version-specific decisions above come
 from executable probes.

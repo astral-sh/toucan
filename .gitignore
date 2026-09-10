@@ -7,3 +7,8 @@
 /benchmark-results/
 *.profraw
 __pycache__/
+/corpus/results/
+/corpus/evidence/
+/benchmarks/evidence/
+/fuzz/evidence/
+/fuzz/evidence.json

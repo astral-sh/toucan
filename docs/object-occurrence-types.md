@@ -34,7 +34,7 @@ identities alive and immutable. Comparison nesting is limited to 128 levels.
 
 ## Validation and remaining boundaries
 
-The [reference capture](../corpus/evidence/object-occurrence-types-2026-09-09.json.gz)
+The [reference capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/object-occurrence-types-2026-09-09.json.gz)
 covers 19 C headers accepted by GCC 13 and Clang 18.
 All 35 supported individually selected occurrences match bindgen 0.72.1 typedef
 inventories and compile with both current Rust and Rust 1.64. Five linked C cases
@@ -57,7 +57,7 @@ checks. The integrated Builder regression also exercises each name separately
 and both names together for scalar and qualified-array redeclarations. No timing
 claim is made here.
 
-A [Builder composition replay](../corpus/evidence/qualified-object-composition-2026-09-09.json.gz)
+A [Builder composition replay](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/qualified-object-composition-2026-09-09.json.gz)
 checks the first name, second name, and both names together on the integrated
 source. All three selections retain their written aliases; twelve Rust
 compilations and four GCC/Clang-linked executions pass, including a check that

@@ -27,5 +27,5 @@ Primary evidence comes from the pinned
 [Clang builtin definitions](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/include/clang/Basic/BuiltinsX86.def),
 [Clang lowering](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/clang/lib/CodeGen/CGBuiltin.cpp),
 and [LLVM value semantics](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.8/llvm/docs/LangRef.rst).
-[Validation evidence](../corpus/evidence/undefined-vector-2026-09-08.json) separates
+[Validation evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/undefined-vector-2026-09-08.json) separates
 cross-target compilation, native execution, and remaining project blockers.

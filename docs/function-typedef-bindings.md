@@ -42,7 +42,7 @@ function, so the external-type report does not invent a C object layout for it.
 
 ## Evidence
 
-The [saved Linux x86-64 comparison](../corpus/evidence/function-typedef-bindings-2026-09-09.json.gz)
+The [saved Linux x86-64 comparison](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/function-typedef-bindings-2026-09-09.json.gz)
 uses bindgen 0.72.1/libclang 18.1.3. Eleven of twelve small-header comparisons
 match the complete public API exactly, including callback nullability and object
 mutability. All 48 generated Rust compilations pass on current Rust and Rust 1.64.
@@ -73,7 +73,7 @@ The borrowed traversal memoizes completed aliases, limits depth to 256 and total
 work to one million type nodes, and does not clone or mutate semantic types.
 The core default returns before allocating validation state.
 
-The [focused graph checks](../corpus/evidence/function-typedef-cycles-2026-09-09.json.gz)
+The [focused graph checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/function-typedef-cycles-2026-09-09.json.gz)
 cover both projection policies, mutual aliases, and shared record/callback types.
 They supplement the native API capture above.
 
@@ -92,7 +92,7 @@ projection policies. The existing depth diagnostic takes precedence. This
 bounds repeated traversal of shared type graphs; it is not a global output-byte
 limit or a limit on all frontend work.
 
-The [work-budget capture](../corpus/evidence/binding-work-budget-2026-09-09.json.gz)
+The [work-budget capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/binding-work-budget-2026-09-09.json.gz)
 checks unchanged output for core and Builder routes on zlib, SQLite, zstd, and
 libgit2. All eight comparisons match their preceding output hashes. The largest
 case uses 11,368 entries, or 0.2842% of the allowance. A separate instrumented

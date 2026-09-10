@@ -79,7 +79,7 @@ whole-project acceptance or optimizer/code-generator equivalence.
 
 ## Recorded result
 
-The [Linux x86-64 evidence](evidence/translation-units-440db13.json) checks frontend
+The [Linux x86-64 evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/translation-units-440db13.json) checks frontend
 revision `440db13001f17e421080b85079730e6302a952f8`. All seven inputs complete through
 both preprocessing routes, with retention disabled and enabled: 28 successful
 analyses. All fourteen retention pairs have identical full declaration hashes.
