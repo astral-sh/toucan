@@ -704,6 +704,39 @@ impl Analyzer {
             ast::IntegerSize::Int => 3,
             ast::IntegerSize::Long => 4,
             ast::IntegerSize::LongLong => 5,
+            ast::IntegerSize::Msvc(width) => {
+                if !self.unit.target.is_windows() {
+                    return Err(Error::new(
+                        offset,
+                        "Microsoft integer suffix requires a Windows profile",
+                    ));
+                }
+                let kind = match width {
+                    8 => IntegerKind::Char,
+                    16 => IntegerKind::Short,
+                    32 => IntegerKind::Int,
+                    64 => IntegerKind::LongLong,
+                    _ => {
+                        return Err(Error::new(
+                            offset,
+                            "unsupported Microsoft integer suffix width",
+                        ));
+                    }
+                };
+                if value > u128::from(u64::MAX) {
+                    return Err(Error::new(
+                        offset,
+                        "integer literal exceeds supported C integer types",
+                    ));
+                }
+                let ty = self.integer_type(&Type::new(TypeKind::Integer(kind)), offset)?;
+                return Ok(IntegerValue::new(
+                    value,
+                    ty.bits,
+                    !literal.suffix.unsigned,
+                    ty.rank,
+                ));
+            }
         };
         for rank in minimum_rank..=5 {
             let bits = match rank {

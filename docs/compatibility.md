@@ -48,6 +48,13 @@ incompatible array element types, and the public decoder's input-size limit.
 
 ## Arithmetic constants
 
+Windows profiles support Microsoft integer suffixes `i8`, `i16`, `i32`, and
+`i64`, including an optional leading `u` and case variants. Expressions retain
+the written width and signedness; `i8` has plain `char` type. Values truncate to
+that width after rejecting magnitudes larger than 64 bits. Preprocessor `#if`
+conditions use `intmax_t` and `uintmax_t` without this width truncation, matching
+Clang's Windows targets. Other compiler profiles reject these suffixes.
+
 `evaluate_integer` checks C integer constant expressions. `evaluate_arithmetic`
 also accepts supported floating expressions and returns an owned integer or floating
 value. An integer result from the latter query does not make the source a C integer

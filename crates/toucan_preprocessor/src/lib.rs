@@ -1752,7 +1752,12 @@ impl Preprocessor {
                     .split_whitespace()
                     .any(|token| token == "unsigned")
         });
-        expression::evaluate(&expanded, wchar_unsigned, self.config.char_unsigned)
+        expression::evaluate(
+            &expanded,
+            wchar_unsigned,
+            self.config.char_unsigned,
+            self.config.ms_extensions,
+        )
     }
 
     fn has_include(

@@ -94,11 +94,15 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
     }
     fn visit_integer_size(&mut self, n: &'ast IntegerSize, span: &'ast Span) {
         self.name("IntegerSize");
-        self.field(match *n {
-            IntegerSize::Int => "Int",
-            IntegerSize::Long => "Long",
-            IntegerSize::LongLong => "LongLong",
-        });
+        match *n {
+            IntegerSize::Int => self.field("Int"),
+            IntegerSize::Long => self.field("Long"),
+            IntegerSize::LongLong => self.field("LongLong"),
+            IntegerSize::Msvc(width) => {
+                self.field("Msvc");
+                self.field(width);
+            }
+        }
         visit_integer_size(&mut self.block(), n, span);
     }
     fn visit_float(&mut self, n: &'ast Float, span: &'ast Span) {

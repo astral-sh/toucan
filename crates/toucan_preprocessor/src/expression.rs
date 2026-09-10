@@ -28,6 +28,7 @@ pub(crate) fn evaluate(
     tokens: &[Token],
     wchar_unsigned: Option<bool>,
     char_unsigned: bool,
+    ms_extensions: bool,
 ) -> Result<bool, String> {
     let mut parser = Parser {
         tokens,
@@ -35,6 +36,7 @@ pub(crate) fn evaluate(
         depth: 0,
         wchar_unsigned,
         char_unsigned,
+        ms_extensions,
     };
     let result = parser.expression(0, true)?;
     if parser.position != tokens.len() {
@@ -52,6 +54,7 @@ struct Parser<'a> {
     depth: usize,
     wchar_unsigned: Option<bool>,
     char_unsigned: bool,
+    ms_extensions: bool,
 }
 
 impl Parser<'_> {
@@ -183,7 +186,7 @@ impl Parser<'_> {
         self.position += 1;
         match token.kind {
             Kind::Identifier => Ok(Value::signed(0)),
-            Kind::Number => integer(&token.text),
+            Kind::Number => integer(&token.text, self.ms_extensions),
             Kind::Character => {
                 let (text, unsigned, ordinary) = if let Some(text) = token.text.strip_prefix('L') {
                     (
@@ -221,15 +224,26 @@ impl Parser<'_> {
     }
 }
 
-fn integer(text: &str) -> Result<Value, String> {
-    let suffix_start = text.trim_end_matches(['u', 'U', 'l', 'L']).len();
+fn integer(text: &str, ms_extensions: bool) -> Result<Value, String> {
+    let msvc_start = text
+        .rfind(['i', 'I'])
+        .filter(|&start| ms_extensions && matches!(&text[start + 1..], "8" | "16" | "32" | "64"))
+        .map(|start| {
+            start - usize::from(start > 0 && matches!(text.as_bytes()[start - 1], b'u' | b'U'))
+        });
+    let suffix_start =
+        msvc_start.unwrap_or_else(|| text.trim_end_matches(['u', 'U', 'l', 'L']).len());
     let suffix = text[suffix_start..].to_ascii_lowercase();
-    if !matches!(
-        suffix.as_str(),
-        "" | "u" | "l" | "ll" | "ul" | "ull" | "lu" | "llu"
-    ) {
+    if msvc_start.is_none()
+        && !matches!(
+            suffix.as_str(),
+            "" | "u" | "l" | "ll" | "ul" | "ull" | "lu" | "llu"
+        )
+    {
         return Err(format!("invalid integer suffix in `{text}`"));
     }
+    // Preprocessing interprets even Microsoft's fixed-width literals as
+    // intmax_t or uintmax_t, without truncating to the written suffix width.
     let digits = &text[..suffix_start];
     let (radix, digits) = if let Some(digits) = digits
         .strip_prefix("0x")
@@ -412,11 +426,11 @@ mod tests {
             "0b10 == 2",
         ] {
             assert!(
-                evaluate(&lex(expression).unwrap(), None, false).unwrap(),
+                evaluate(&lex(expression).unwrap(), None, false, false).unwrap(),
                 "{expression}"
             );
         }
-        assert!(!evaluate(&lex("-1 < 1U").unwrap(), None, false).unwrap());
+        assert!(!evaluate(&lex("-1 < 1U").unwrap(), None, false, false).unwrap());
         for expression in [
             "1 / 0",
             "1 << 64",
@@ -426,7 +440,7 @@ mod tests {
             "1 2",
         ] {
             assert!(
-                evaluate(&lex(expression).unwrap(), None, false).is_err(),
+                evaluate(&lex(expression).unwrap(), None, false, false).is_err(),
                 "{expression}"
             );
         }
