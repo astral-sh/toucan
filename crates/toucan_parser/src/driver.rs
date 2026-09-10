@@ -9,7 +9,7 @@ use std::process::Command;
 
 use ast::TranslationUnit;
 use env::Env;
-use limits::{ParseLimits, ParseStatistics, ResourceKind, ResourceLimit};
+use limits::{ParseLimits, ParseStatistics, ResourceKind, ResourceLimit, MAX_RULE_DEPTH};
 use loc;
 use parser::translation_unit_with_limits;
 
@@ -213,11 +213,11 @@ pub fn parse_preprocessed_with_limits(
     source: String,
     limits: ParseLimits,
 ) -> Result<Parse, SyntaxError> {
-    let failure = if limits.max_rule_depth > 2048 {
+    let failure = if limits.max_rule_depth > MAX_RULE_DEPTH {
         Some(ResourceLimit {
             kind: ResourceKind::RuleDepth,
             offset: 0,
-            limit: 2048,
+            limit: MAX_RULE_DEPTH as u64,
             observed: limits.max_rule_depth as u64,
         })
     } else if limits.max_ast_depth > 1024 {
@@ -248,7 +248,7 @@ pub fn parse_preprocessed_with_limits(
             statistics: Box::new(ParseStatistics::default()),
         });
     }
-    // Generated rule frames are larger in debug builds. A fixed stack makes the
+    // Recursive parser frames are larger in debug builds. A fixed stack makes the
     // recursion ceiling independent of the embedding application's caller stack.
     let parsed = with_parser_stack(|| {
         let mut env = match config.flavor {

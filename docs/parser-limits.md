@@ -1,6 +1,6 @@
 # Parser resource limits
 
-The generated C parser counts work while it parses, including failed alternatives.
+The handwritten C parser counts work while it tokenizes and parses.
 It stops with a source-positioned resource diagnostic when a limit is reached.
 Optional rules and lookahead cannot turn resource exhaustion into a successful parse.
 
@@ -13,21 +13,23 @@ Optional rules and lookahead cannot turn resource exhaustion into a successful p
 | Preprocessed input | 16 MiB |
 | Total accounted work | 2,000,000,000 units |
 | Rule/loop steps without advancing the furthest examined byte | 1,000,000 |
-| Active generated rules, including precedence parsing | 2,048 |
+| Active recursive parsing calls, including precedence parsing | 512 |
 | Owned AST depth, including container wrappers | 1,024 |
-| Cumulative memoized clone-size accounting | 256 MiB |
+| Retained token-buffer capacity | 256 MiB |
 | Live construction-metric entries | 500,000 |
 
 `parse_preprocessed_with_limits` accepts a `ParseLimits` value. Rule-depth limits
-above 2,048 and AST-depth limits above 1,024 are rejected before starting a worker;
-these ceilings protect generated stack frames and owned-tree cleanup. The remaining
+above 512 and AST-depth limits above 1,024 are rejected before starting a worker;
+these ceilings protect recursive stack frames and owned-tree cleanup. The remaining
 limits can be raised or lowered. Each parse has independent counters and lexical
 state. Successful parses and errors expose `ParseStatistics`; parser errors also
 expose the resource kind, limit, observed count, and preprocessed byte offset.
 
-Total work includes rule entries, repetition/precedence steps, matched bytes,
-constructed node bytes, structural visits, memoized clone bytes, and construction-map
-cleanup. The separate backtracking counter resets only when the parser examines a
+Total work includes input bytes, token storage, recursive entries, repetition and
+precedence steps, constructed node bytes, structural visits, and construction-map
+cleanup. The lexer charges the input scan before examining bytes and checks buffer
+capacity before allocation. `max_cache_bytes` bounds that capacity;
+`ParseStatistics::cloned_bytes` is zero because parsing does not clone ASTs. The separate backtracking counter resets only when the parser examines a
 new furthest byte. Padding a pathological expression with whitespace therefore does
 not increase its backtracking allowance. These are deterministic accounting units
 for a given parser build, not a wall-time deadline or an allocator RSS measurement.
@@ -53,8 +55,8 @@ diagnostics. The worker is joined before return, with no idle background thread.
 reuse it. Semantic analysis/evaluation use this session; binding generation groups
 all of its macro parses in one session to avoid repeated thread creation.
 
-Every grammar node constructor and each binary/postfix fold checks the resulting
-owned subtree before it can become another fold's child or a memoized clone.
+Every node constructor and each binary/postfix fold checks the resulting
+owned subtree before it can become another fold's child.
 Private measurements cache recursive ownership boundaries by payload kind and exact
 source span. Repeated identities retain conservative maximum depth and clone size.
 Constructors always refresh their root, including the declaration-extension mutator.
@@ -62,9 +64,7 @@ Completed external declarations release child measurements. An exhaustive struct
 schema names every AST field and variant; the upstream reference tests compare
 cached measurements against an uncached walk at each constructor.
 
-Memoized results store a validated clone cost, charged before every clone. The byte
-accounting includes conservative inline payloads and entry overhead; it is not an
-allocator layout guarantee. Semantic type construction separately checks each
+Semantic type construction separately checks each
 derived modifier, since a flat `********p` parser declarator creates a nested owned
 semantic type. Parser-inserted syntax and native line markers retain the existing
 source-remapping path for diagnostics.
@@ -76,16 +76,10 @@ and optional-rule paths, and check concurrent calls, session reuse, and panic
 propagation. Parser limits do not constrain arbitrary user callbacks, downstream
 visitors, or manually constructed ASTs.
 
-## Regeneration and measurements
+## Historical cost of adding limits to the generated parser
 
-The pinned `peg` 0.5.4 generator remains tooling-only. A checked instrumentation pass
-runs after the pinned formatting step and before the generated lint header. It
-validates the rule, loop, export, and cache templates and rejects unrecognized
-output. No generator or instrumentation script runs during a normal Cargo build.
-See the [parser package instructions](../crates/toucan_parser/README.md#regeneration).
-
-
-## Measured cost
+These measurements and the sanitizer replay below describe the earlier generated
+parser. They do not measure the handwritten parser replacement.
 
 The [measurement record](../corpus/evidence/parser-budgets-2026-09-08.json) compares
 an exact `bc889be` release build with this layer on Linux x86_64, using the system

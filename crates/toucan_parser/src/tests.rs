@@ -88,14 +88,10 @@ impl Case {
             }
         }
 
-        pegviz::marker_start(&self.source);
-
         let (actual, error) = match self.kind.parse_and_print(&self.source, &mut env) {
             Ok(s) => (s, None),
             Err(e) => ("~ERROR\n".to_string(), Some(e)),
         };
-
-        pegviz::marker_stop();
 
         let pragma_fail = self
             .pragma
@@ -340,22 +336,6 @@ fn failed_function_definitions_release_parameter_scopes() {
         assert!(env.is_typename("T"));
         assert!(env.is_typename("U"));
     }
-}
-
-#[cfg(feature = "dev-pegviz")]
-mod pegviz {
-    pub fn marker_start(source: &str) {
-        println!("[PEG_INPUT_START]\n{}\n[PEG_TRACE_START]", source);
-    }
-    pub fn marker_stop() {
-        println!("[PEG_TRACE_STOP]");
-    }
-}
-
-#[cfg(not(feature = "dev-pegviz"))]
-mod pegviz {
-    pub fn marker_start(_: &str) {}
-    pub fn marker_stop() {}
 }
 
 #[test]
