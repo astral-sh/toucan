@@ -483,3 +483,73 @@ fn native_target() -> Target {
         host => panic!("native literal oracle requires Linux or macOS: {host:?}"),
     }
 }
+
+#[test]
+fn gnu_escape_character_spellings_decode_with_every_compiler_profile() {
+    use toucan_semantic::{
+        analyze_with_profile, decode_character_literal_with_profile,
+        decode_string_literals_with_profile,
+    };
+    use toucan_target::{CompilerProfile, LanguageMode};
+
+    for profile in CompilerProfile::ALL {
+        for mode in [LanguageMode::C11, LanguageMode::Gnu11] {
+            let profile = profile.with_language_mode(mode);
+            for prefix in ["", "L", "u", "U"] {
+                for escape in [r"\e", r"\E"] {
+                    let character = format!("{prefix}'{escape}'");
+                    assert_eq!(
+                        decode_character_literal_with_profile(&character, profile, 0)
+                            .unwrap()
+                            .value,
+                        27
+                    );
+                    let string = format!("{prefix}\"{escape}\"");
+                    assert_eq!(
+                        decode_string_literals_with_profile(&[string], profile, 0)
+                            .unwrap()
+                            .code_units,
+                        [27, 0]
+                    );
+                }
+            }
+            let source = r#"char text[] = "\e\E"; _Static_assert('\e' == 27 && '\E' == 27 && sizeof text == 3, "escape");"#;
+            analyze_with_profile(source, profile, &Default::default()).unwrap();
+            for source in [r#"char text[] = "\c";"#, r#"int code = '\c';"#] {
+                assert!(analyze_with_profile(source, profile, &Default::default()).is_err());
+            }
+        }
+    }
+}
+
+#[test]
+#[ignore = "requires GCC and Clang; run with --include-ignored"]
+fn gnu_escape_character_spellings_match_native_compilers() {
+    for compiler in ["gcc", "clang"] {
+        for escape in [r"\e", r"\E"] {
+            let source = format!(
+                "char text[] = \"{escape}\"; _Static_assert('{escape}' == 27 && sizeof text == 2, \"escape\");"
+            );
+            // The helper uses pedantic C11 by default; enable the compiler's
+            // extension grammar for these GNU spellings.
+            let output = compile(
+                compiler,
+                &source,
+                &["-std=gnu11", "-Wno-pedantic", "-Werror", "-fsyntax-only"],
+            );
+            assert!(
+                output.status.success(),
+                "{}",
+                String::from_utf8_lossy(&output.stderr)
+            );
+            let strict = compile(compiler, &source, &["-fsyntax-only"]);
+            assert!(!strict.status.success());
+        }
+        let output = compile(
+            compiler,
+            r#"char text[] = "\c";"#,
+            &["-std=gnu11", "-Wno-pedantic", "-Werror", "-fsyntax-only"],
+        );
+        assert!(!output.status.success());
+    }
+}

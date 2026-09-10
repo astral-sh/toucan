@@ -675,8 +675,9 @@ impl Parser<'_, '_> {
                         return false;
                     }
                     match bytes[position] {
-                        b'\'' | b'"' | b'?' | b'\\' | b'a' | b'b' | b'c' | b'f' | b'n' | b'r'
-                        | b't' | b'v' => position += 1,
+                        b'\'' | b'"' | b'?' | b'\\' | b'a' | b'b' | b'f' | b'n' | b'r' | b't'
+                        | b'v' => position += 1,
+                        b'e' | b'E' if self.env.extensions_gnu => position += 1,
                         b'0'..=b'7' => {
                             let limit = (position + 3).min(end);
                             while position < limit && matches!(bytes[position], b'0'..=b'7') {
