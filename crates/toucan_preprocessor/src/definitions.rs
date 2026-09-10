@@ -33,7 +33,10 @@ pub(crate) fn prepare<'a>(
         return Ok(Cow::Borrowed(source));
     }
     Ok(Cow::Owned(
-        super::token::normalize(source, trigraphs, comments)?.source,
+        super::token::normalize_with_comments(source, trigraphs, comments, false, |_, _, _, _| {
+            Ok(())
+        })?
+        .source,
     ))
 }
 

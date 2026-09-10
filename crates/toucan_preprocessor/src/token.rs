@@ -94,7 +94,7 @@ pub(crate) fn normalize(
     trigraphs: bool,
     comments: &mut CommentState,
 ) -> Result<Normalized, String> {
-    normalize_with_comments(source, trigraphs, comments, |_, _, _, _| Ok(()))
+    normalize_with_comments(source, trigraphs, comments, true, |_, _, _, _| Ok(()))
 }
 
 /// Observe physical comment ranges while sharing the ordinary translation phases.
@@ -102,17 +102,24 @@ pub(crate) fn normalize_with_comments(
     source: &str,
     trigraphs: bool,
     comments: &mut CommentState,
+    strip_bom: bool,
     mut observe: impl FnMut(std::ops::Range<usize>, usize, usize, usize) -> Result<(), String>,
 ) -> Result<Normalized, String> {
     let bytes = source.as_bytes();
     let mut spliced = String::with_capacity(source.len());
-    let mut source_offsets = vec![(0, 0)];
+    // A BOM marks a source's encoding, but is an ordinary character in -D text.
+    let start = if strip_bom && source.starts_with('\u{feff}') {
+        '\u{feff}'.len_utf8()
+    } else {
+        0
+    };
+    let mut source_offsets = vec![(0, start)];
     let mut line_starts = vec![0];
     line_starts.extend(memchr2_iter(b'\r', b'\n', bytes).filter_map(|index| {
         (bytes[index] == b'\n' || bytes.get(index + 1) != Some(&b'\n')).then_some(index + 1)
     }));
-    let mut index = 0;
-    let mut copied = 0;
+    let mut index = start;
+    let mut copied = start;
     while index < bytes.len() {
         // UTF-8 continuation bytes cannot contain the ASCII phase-one/two markers.
         let next = if trigraphs {
