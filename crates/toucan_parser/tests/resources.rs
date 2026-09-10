@@ -64,6 +64,7 @@ fn limits_are_exact_and_independent_of_previous_invocations() {
         let error = parse_preprocessed_with_limits(&config, source.into(), limits).unwrap_err();
         let resource = error.resource.as_ref().expect("resource error");
         assert_eq!(resource.kind, kind, "{}", error);
+        assert!(error.expected.is_empty());
         assert!(source.is_char_boundary(error.offset));
         assert_eq!(resource.offset, error.offset);
         assert_eq!(

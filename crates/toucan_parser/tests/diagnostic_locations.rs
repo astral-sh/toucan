@@ -3,6 +3,23 @@ extern crate toucan_parser;
 use toucan_parser::driver::{parse_preprocessed, Config};
 
 #[test]
+fn syntax_errors_preserve_the_expected_token_and_source_position() {
+    for (source, expected, offset, line, column) in [
+        ("@", "declaration specifier", 0, 1, 1),
+        ("int value =\n  ;", "expression", 14, 2, 3),
+        ("int value", ";", 9, 1, 10),
+    ] {
+        let error = parse_preprocessed(&Config::with_gcc(), source.to_owned()).unwrap_err();
+        assert_eq!(
+            (error.offset, error.line, error.column),
+            (offset, line, column)
+        );
+        assert_eq!(error.expected, [expected].iter().copied().collect());
+        assert!(error.resource.is_none());
+    }
+}
+
+#[test]
 fn overflowing_line_markers_do_not_panic_when_formatting_errors() {
     for line in [usize::MAX - 1, usize::MAX].iter() {
         let source = format!("# {} \"input.h\"\nint first;\nint second;\n@\n", line);
