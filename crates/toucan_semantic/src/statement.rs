@@ -270,6 +270,19 @@ impl Analyzer {
         })
     }
 
+    /// C90 control statements share the enclosing block's lexical scope.
+    fn with_control<T>(
+        &mut self,
+        span: lang_c::span::Span,
+        check: impl FnOnce(&mut Self) -> Result<T, Error>,
+    ) -> Result<T, Error> {
+        if self.unit.language_mode.is_c90() {
+            check(self)
+        } else {
+            self.with_statement(span, check)
+        }
+    }
+
     fn with_scope<T>(
         &mut self,
         span: lang_c::span::Span,
@@ -1449,7 +1462,11 @@ impl Analyzer {
     }
 
     fn substatement(&mut self, statement: &Node<ast::Statement>) -> Result<(), Error> {
-        self.with_block(statement.span, |analyzer| analyzer.statement(statement))
+        if self.unit.language_mode.is_c90() {
+            self.statement(statement)
+        } else {
+            self.with_block(statement.span, |analyzer| analyzer.statement(statement))
+        }
     }
 
     /// Pending annotations follow ordinary control flow through empty blocks and
@@ -1558,7 +1575,7 @@ impl Analyzer {
                     }
                 }
             }
-            ast::Statement::If(selection) => self.with_statement(statement.span, |analyzer| {
+            ast::Statement::If(selection) => self.with_control(statement.span, |analyzer| {
                 analyzer.scalar_condition(&selection.node.condition)?;
                 let checkpoint = analyzer.sve_feature_checkpoint();
                 let labels = analyzer.sve_feature_labels;
@@ -1586,7 +1603,7 @@ impl Analyzer {
                 analyzer.function_context_mut().fallthrough = then_fallthrough;
                 Ok(())
             }),
-            ast::Statement::While(iteration) => self.with_statement(statement.span, |analyzer| {
+            ast::Statement::While(iteration) => self.with_control(statement.span, |analyzer| {
                 if analyzer.gnu_statement_expressions() {
                     analyzer.scalar_condition(&iteration.node.expression)?;
                     analyzer.with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))
@@ -1597,7 +1614,7 @@ impl Analyzer {
                     })
                 }
             }),
-            ast::Statement::DoWhile(iteration) => self.with_statement(statement.span, |analyzer| {
+            ast::Statement::DoWhile(iteration) => self.with_control(statement.span, |analyzer| {
                 if analyzer.gnu_statement_expressions() {
                     analyzer
                         .with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))?;
@@ -1609,7 +1626,7 @@ impl Analyzer {
                     })
                 }
             }),
-            ast::Statement::For(iteration) => self.with_statement(statement.span, |analyzer| {
+            ast::Statement::For(iteration) => self.with_control(statement.span, |analyzer| {
                 match &iteration.node.initializer.node {
                     ast::ForInitializer::Empty => {}
                     ast::ForInitializer::Expression(expression) => {
@@ -1635,7 +1652,7 @@ impl Analyzer {
                     })
                 }
             }),
-            ast::Statement::Switch(selection) => self.with_statement(statement.span, |analyzer| {
+            ast::Statement::Switch(selection) => self.with_control(statement.span, |analyzer| {
                 let ty = analyzer.value_expression_type(&selection.node.expression)?;
                 let ty = promote(analyzer.integer_type(&ty, selection.node.expression.span.start)?);
                 let variably_modified = analyzer.active_variably_modified();
