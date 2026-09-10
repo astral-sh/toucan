@@ -12,7 +12,9 @@ calling conventions use the frontend's ordinary compatibility rules. GNU profile
 ignore ordinary qualifiers on function return types; Clang profiles retain them.
 An incomplete enum is incompatible with integer types until its definition selects
 one, except on Microsoft ABI targets where an unqualified forward enum already
-matches `int`. Qualified enum and integer pointees remain distinct in that profile.
+matches `int`. Enum and integer types with ordinary qualifiers remain distinct in
+every profile, including through pointers and qualified array typedefs. The query
+still strips ordinary qualifiers from its outer type operands.
 Both written types are checked, including their bound expressions and declarations,
 but their runtime bounds and `typeof` operands do not execute.
 
@@ -49,3 +51,6 @@ source text, compiler versions, runtime observations, and primary-source hashes.
 GNU compatibility queries ignore an outer atomic wrapper, including through the
 outer array-element chain. Clang preserves it. Both preserve atomic identity below
 pointers and in function returns. The compiler matrix checks these differences.
+GNU profiles also distinguish atomic enums from their atomic compatible integer
+types below pointers and in function types; Clang profiles compare their contained
+types. Atomic qualification does not extend through a contained pointer.
