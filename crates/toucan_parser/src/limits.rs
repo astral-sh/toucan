@@ -78,10 +78,11 @@ impl ::std::fmt::Display for ResourceLimit {
     }
 }
 
-/// Work counters for a completed parse, including failed alternatives.
+/// Resource counters for a parser invocation, including work before failure.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct ParseStatistics {
     pub work: u64,
+    /// Maximum rule/loop steps without advancing the furthest examined source byte.
     pub maximum_backtracking_steps: u64,
     pub rule_entries: u64,
     pub maximum_rule_depth: usize,
@@ -233,8 +234,8 @@ impl Budget {
         value: T,
         span: Span,
     ) -> Result<Node<T>, &'static str> {
-        // Refresh the root even when a backtracking alternative used its span.
-        // Only already-constructed child nodes may reuse structural measurements.
+        // Measure each new root; only already-constructed child nodes may reuse
+        // structural measurements.
         if !self.work(span.start, ::std::mem::size_of::<Node<T>>() as u64) {
             return Err("parser resource limit");
         }
