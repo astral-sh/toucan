@@ -39,18 +39,18 @@ impl<'s, 'e> Parser<'s, 'e> {
             || self.is_calling_convention()
     }
 
-    pub(super) fn starts_declaration(&self) -> bool {
-        let distance = usize::from(self.env.extensions_gnu && self.at("__extension__"));
+    pub(super) fn starts_declaration(&mut self) -> PResult<bool> {
+        let distance = self.extension_prefix_len()?;
         let token = self.peek(distance);
         let text = self.token_text(token);
-        self.type_class_at(distance).is_some()
+        Ok(self.type_class_at(distance).is_some()
             || self.type_qualifier_at(distance).is_some()
             || self.storage_class_at(distance).is_some()
             || self.function_specifier_at(distance).is_some()
             || text == "_Alignas"
             || self.env.extensions_gnu && matches!(text, "__attribute" | "__attribute__")
             || self.env.extensions_msvc && matches!(text, "__declspec" | "_declspec")
-            || self.calling_convention_name(text)
+            || self.calling_convention_name(text))
     }
 
     pub(super) fn declaration(&mut self) -> PResult<Node<Declaration>> {
@@ -235,9 +235,23 @@ impl<'s, 'e> Parser<'s, 'e> {
 
     fn extension_prefix(&mut self) -> PResult<()> {
         if self.env.extensions_gnu {
-            self.eat("__extension__")?;
+            while self.eat("__extension__")? {}
         }
         Ok(())
+    }
+
+    /// Look through GNU declaration prefixes without consuming expression prefixes.
+    pub(super) fn extension_prefix_len(&mut self) -> PResult<usize> {
+        let mut distance = 0;
+        if self.env.extensions_gnu {
+            while self.token_text(self.peek(distance)) == "__extension__" {
+                if !self.budget.step(self.peek(distance).span.start) {
+                    return Err(());
+                }
+                distance += 1;
+            }
+        }
+        Ok(distance)
     }
 
     /// Registers ordinary identifiers before trailing extensions, typedefs after
@@ -895,7 +909,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             self.expect(")")?;
             return Ok(result);
         }
-        if !self.starts_declaration() && !abstract_allowed {
+        if !self.starts_declaration()? && !abstract_allowed {
             let mut parameters = Vec::new();
             loop {
                 parameters.push(self.identifier()?);
