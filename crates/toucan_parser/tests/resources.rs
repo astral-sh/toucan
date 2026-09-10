@@ -180,12 +180,7 @@ fn resource_worker() {
                 }
             } else {
                 let error = parse_preprocessed(&Config::with_gcc(), hostile(&case)).unwrap_err();
-                if case == "near_match" {
-                    // This malformed prefix now fails before recursive descent.
-                    assert!(error.resource.is_none(), "{}", error);
-                } else {
-                    assert!(error.resource.is_some(), "{}", error);
-                }
+                assert!(error.resource.is_some(), "{}", error);
             }
         })
         .unwrap()

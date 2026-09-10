@@ -838,6 +838,9 @@ impl<'s, 'e> Parser<'s, 'e> {
             || next.kind == TokenKind::Identifier
                 && !self.env.reserved.contains(text)
                 && mode != DeclaratorMode::Abstract
+                // C17 6.7.6.3p11 resolves an ambiguous parenthesized parameter
+                // as a typedef name, not a redeclaration of that name.
+                && !self.env.is_typename(text)
             || self.calling_convention_name(text)
             || self.env.extensions_gnu && matches!(text, "__attribute" | "__attribute__")
     }
@@ -1344,7 +1347,10 @@ fn declarator_has_name(kind: &DeclaratorKind) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use ast::{DeclarationSpecifier, Extension, ExternalDeclaration, TypeOf, TypeSpecifier};
+    use ast::{
+        DeclarationSpecifier, DeclaratorKind, DerivedDeclarator, Extension, ExternalDeclaration,
+        TypeOf, TypeSpecifier,
+    };
     use driver::{self, Config, Flavor, Standard};
     use span::Span;
     use visit::{self, Visit};
@@ -1567,6 +1573,52 @@ mod tests {
                 "{}",
                 source
             );
+        }
+    }
+
+    #[test]
+    fn parenthesized_parameter_typedefs_denote_function_types() {
+        for config in [Config::with_gcc(), Config::with_clang()] {
+            for parameter in ["int (T)", "int ((T))", "int (T[4])", "int (T, T)"] {
+                let source = format!("typedef int T; void f({}, T value);", parameter);
+                driver::parse_preprocessed(&config, source.clone())
+                    .unwrap_or_else(|error| panic!("{}: {}", source, error));
+            }
+
+            let source = "typedef int T; void f(int (T));";
+            let parsed = driver::parse_preprocessed(&config, source.to_owned()).unwrap();
+            let ExternalDeclaration::Declaration(declaration) = &parsed.unit.0[1].node else {
+                panic!("expected declaration");
+            };
+            let DerivedDeclarator::Function(function) =
+                &declaration.node.declarators[0].node.declarator.node.derived[0].node
+            else {
+                panic!("expected function");
+            };
+            let parameter = function.node.parameters[0]
+                .node
+                .declarator
+                .as_ref()
+                .unwrap();
+            assert!(matches!(parameter.node.kind.node, DeclaratorKind::Abstract));
+            let DerivedDeclarator::Function(callback) = &parameter.node.derived[0].node else {
+                panic!("expected function parameter");
+            };
+            let DeclarationSpecifier::TypeSpecifier(specifier) =
+                &callback.node.parameters[0].node.specifiers[0].node
+            else {
+                panic!("expected typedef specifier");
+            };
+            assert!(
+                matches!(&specifier.node, TypeSpecifier::TypedefName(name) if name.node.name == "T")
+            );
+
+            // Explicit pointer declarators still redeclare the typedef name.
+            let source = "typedef int T; void f(int (*T)) { __typeof__(T) local; }";
+            let parsed = driver::parse_preprocessed(&config, source.to_owned()).unwrap();
+            let mut operands = TypeOfOperands::default();
+            operands.visit_translation_unit(&parsed.unit);
+            assert_eq!(operands.0, [false]);
         }
     }
 }
