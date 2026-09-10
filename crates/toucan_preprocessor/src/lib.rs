@@ -2249,7 +2249,7 @@ fn header_name(tokens: &[Token]) -> Result<(String, bool), String> {
         }
         let name = tokens[1..tokens.len() - 1]
             .iter()
-            .map(|token| token.text.as_str())
+            .map(Token::spelling)
             .collect();
         return Ok((name, false));
     }
