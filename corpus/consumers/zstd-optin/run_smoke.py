@@ -85,18 +85,8 @@ def run_case(name, fixture, features, generated, graphs=1):
     frontend = None
     if generated:
         source = Path(PREPARATION["toucan_source"])
-        if PREPARATION.get("frontend_mode") == "git":
-            frontend = verify_packages(data, source)
-        frontend_packages = [
-            p
-            for p in data["packages"]
-            if p["id"] in visited
-            and (p["name"] == "toucan" or p["name"].startswith("toucan_"))
-        ]
-        assert len(frontend_packages) == 9
-        assert all(
-            Path(p["manifest_path"]).is_relative_to(source / "crates")
-            for p in frontend_packages
+        frontend = verify_packages(
+            data, source, snapshot=PREPARATION["frontend_source"]
         )
 
     if generated:

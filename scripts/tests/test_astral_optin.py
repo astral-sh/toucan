@@ -65,7 +65,7 @@ class SourceSelection(unittest.TestCase):
         self.assertEqual(command[command.index("--toucan-source") + 1], str(optin.ROOT))
         self.assertNotIn("--git-source-report", command)
 
-    def test_local_mode_passes_explicit_immutable_source(self):
+    def test_local_mode_passes_explicit_source(self):
         source = self.root / "intermediate/../frozen"
         command = self.prepare_command(["--toucan-source", str(source)])
         self.assertEqual(
@@ -77,19 +77,22 @@ class SourceSelection(unittest.TestCase):
     def test_git_mode_passes_only_the_verified_report(self):
         report = self.root / "git-source.json"
         command = self.prepare_command(
-            ["--frontend-mode", "git", "--git-source-report", str(report)]
+            ["--frontend-mode", "historical-git", "--git-source-report", str(report)]
         )
         self.assertEqual(command[command.index("--git-source-report") + 1], str(report))
         self.assertNotIn("--toucan-source", command)
 
     def test_conflicting_modes_fail_before_any_external_command(self):
         cases = [
-            (["--frontend-mode", "git"], "Git mode requires --git-source-report"),
+            (
+                ["--frontend-mode", "historical-git"],
+                "Git mode requires --git-source-report",
+            ),
             (["--git-source-report", "/report"], "local mode does not use it"),
             (
                 [
                     "--frontend-mode",
-                    "git",
+                    "historical-git",
                     "--git-source-report",
                     "/report",
                     "--toucan-source",

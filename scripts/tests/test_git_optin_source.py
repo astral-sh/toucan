@@ -71,7 +71,7 @@ class GitSource(unittest.TestCase):
         self.assertEqual(len(git.verify_artifacts(log, report)), 9)
         rows.pop()
         log.write_text("\n".join(map(json.dumps, rows)))
-        with self.assertRaisesRegex(RuntimeError, "all nine frontend"):
+        with self.assertRaisesRegex(RuntimeError, "all frontend"):
             git.verify_artifacts(log, report)
 
     def test_git_source_id_cannot_hide_an_escaped_manifest(self):
@@ -88,11 +88,11 @@ class GitSource(unittest.TestCase):
         metadata["packages"][0]["source"] = git.GIT_SOURCE.replace(
             git.GIT_PIN, "0" * 40
         )
-        with self.assertRaisesRegex(RuntimeError, "wrong Git source"):
+        with self.assertRaisesRegex(RuntimeError, "wrong frontend source"):
             git.verify_packages(metadata)
         metadata = copy.deepcopy(self.metadata)
         metadata["packages"].append(metadata["packages"][0])
-        with self.assertRaisesRegex(RuntimeError, "exactly the nine"):
+        with self.assertRaisesRegex(RuntimeError, "unexpected frontend package set"):
             git.verify_packages(metadata)
 
     def test_artifact_cannot_rebind_to_another_checkout(self):
@@ -123,6 +123,26 @@ class GitSource(unittest.TestCase):
         ):
             git.verify_checkout(self.root)
 
+    def test_historical_mode_still_requires_the_frozen_inventory(self):
+        self.checkout.stop()
+        (self.root / "Cargo.toml").write_text("workspace")
+        (self.root / "Cargo.lock").write_text("lock")
+        (self.root / "source-digests.json").write_text(
+            json.dumps(git.inventory(self.root))
+        )
+        with (
+            patch.object(git, "HERE", self.root),
+            patch.object(
+                git.subprocess,
+                "check_output",
+                side_effect=[git.GIT_PIN, str(self.root)] * 2,
+            ),
+        ):
+            self.assertEqual(git.verify_checkout(self.root)["head"], git.GIT_PIN)
+            (self.root / "Cargo.lock").write_text("modified")
+            with self.assertRaisesRegex(RuntimeError, "exact source inventory"):
+                git.verify_checkout(self.root)
+
     def test_extra_files_and_symlink_directories_are_visible(self):
         (self.root / "Cargo.toml").write_text("workspace")
         (self.root / "Cargo.lock").write_text("lock")
@@ -132,6 +152,149 @@ class GitSource(unittest.TestCase):
         (self.root / "crates/linked").symlink_to(self.root, target_is_directory=True)
         with self.assertRaisesRegex(RuntimeError, "symlink"):
             git.inventory(self.root)
+
+
+class CurrentSource(unittest.TestCase):
+    def setUp(self):
+        directory = tempfile.TemporaryDirectory()
+        self.addCleanup(directory.cleanup)
+        self.root = Path(directory.name)
+        (self.root / "Cargo.toml").write_text(
+            '[workspace]\nmembers = ["crates/*"]\n'
+            '[workspace.dependencies]\nhelper = {path="crates/toucan_helper"}\n'
+        )
+        (self.root / "Cargo.lock").write_text("# test lock\n")
+        self.metadata = {"packages": []}
+        for name in ("toucan_bindgen", "toucan_helper"):
+            crate = self.root / "crates" / name
+            (crate / "src").mkdir(parents=True)
+            manifest = crate / "Cargo.toml"
+            manifest.write_text(
+                f'[package]\nname="{name}"\nversion="0.0.2"\n'
+                + (
+                    "[dependencies]\nhelper.workspace=true\n"
+                    if name == "toucan_bindgen"
+                    else ""
+                )
+            )
+            (crate / "src/lib.rs").write_text("// original\n")
+            self.metadata["packages"].append(
+                {
+                    "name": name,
+                    "version": "0.0.2",
+                    "source": None,
+                    "id": f"path+file://{crate}#{name}@0.0.2",
+                    "manifest_path": str(manifest),
+                    "targets": [{"src_path": str(crate / "src/lib.rs")}],
+                }
+            )
+        for args in (
+            ["init", "-q"],
+            ["add", "."],
+            [
+                "-c",
+                "user.name=Test",
+                "-c",
+                "user.email=test@example.invalid",
+                "commit",
+                "-qm",
+                "fixture",
+            ],
+        ):
+            subprocess.run(["git", "-C", str(self.root), *args], check=True)
+
+    def test_modified_current_checkout_is_accepted_and_then_frozen(self):
+        source = self.root / "crates/toucan_helper/src/lib.rs"
+        source.write_text("// revision under test, including local edits\n")
+        snapshot = git.current_checkout(self.root)
+        self.assertIn("crates/toucan_helper/src/lib.rs", snapshot["git_status"])
+        report = git.verify_packages(self.metadata, snapshot=snapshot)
+        self.assertEqual(
+            {p["name"] for p in report["packages"].values()},
+            {"toucan_bindgen", "toucan_helper"},
+        )
+        self.assertEqual(
+            report["files"]["crates/toucan_helper/src/lib.rs"], git.digest(source)
+        )
+        source.write_text("// changed after preparation\n")
+        with self.assertRaisesRegex(RuntimeError, "source changed during validation"):
+            git.verify_source(report)
+
+    def test_container_ownership_exception_is_scoped_to_selected_root(self):
+        command = ["git", "-C", str(self.root), "rev-parse", "HEAD"]
+        config = self.root / "trusted.gitconfig"
+        config.write_text("[safe]\n\tdirectory = *\n")
+        # Reproduce runners that trust every checkout through inherited Git config.
+        with patch.dict(
+            os.environ,
+            {
+                "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1",
+                "GIT_CONFIG_GLOBAL": str(config),
+                "GIT_CONFIG_SYSTEM": str(config),
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "safe.directory",
+                "GIT_CONFIG_VALUE_0": "*",
+                "GIT_CONFIG_PARAMETERS": "'safe.directory=*'",
+            },
+        ):
+            trusted = subprocess.run(
+                command, capture_output=True, text=True, check=False
+            )
+            self.assertEqual(trusted.returncode, 0, trusted.stderr)
+            isolated = {
+                k: v for k, v in os.environ.items() if not k.startswith("GIT_CONFIG")
+            }
+            isolated.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull)
+            with patch.dict(os.environ, isolated, clear=True):
+                before = subprocess.run(
+                    command, capture_output=True, text=True, check=False
+                )
+                self.assertNotEqual(before.returncode, 0)
+                self.assertIn("dubious ownership", before.stderr)
+                report = git.current_checkout(self.root)
+                git.verify_packages(self.metadata, snapshot=report)
+                after = subprocess.run(
+                    command, capture_output=True, text=True, check=False
+                )
+                self.assertNotEqual(after.returncode, 0)
+                self.assertIn("dubious ownership", after.stderr)
+        with self.assertRaisesRegex(RuntimeError, "not a Git checkout root"):
+            git.current_checkout(self.root / "crates")
+
+    def test_lock_edits_after_snapshot_and_foreign_sources_are_rejected(self):
+        snapshot = git.current_checkout(self.root)
+        self.metadata["packages"][0]["source"] = git.GIT_SOURCE
+        with self.assertRaisesRegex(RuntimeError, "wrong frontend source"):
+            git.verify_packages(self.metadata, snapshot=snapshot)
+        (self.root / "Cargo.lock").write_text("# changed lock\n")
+        with self.assertRaisesRegex(RuntimeError, "source changed during validation"):
+            git.verify_source(snapshot)
+
+    def test_source_declared_path_escape_and_metadata_target_escape_fail(self):
+        escaped = self.root / "outside"
+        escaped.mkdir()
+        (escaped / "Cargo.toml").write_text('[package]\nname="toucan_helper"\n')
+        workspace = self.root / "Cargo.toml"
+        workspace.write_text(
+            workspace.read_text().replace("crates/toucan_helper", "outside")
+        )
+        with self.assertRaisesRegex(RuntimeError, "dependency escapes"):
+            git.verify_packages(self.metadata, snapshot=git.current_checkout(self.root))
+        workspace.write_text(
+            workspace.read_text().replace(
+                'path="outside"', 'path="crates/toucan_helper"'
+            )
+        )
+        self.metadata["packages"][0]["targets"][0]["src_path"] = str(
+            escaped / "Cargo.toml"
+        )
+        with self.assertRaisesRegex(RuntimeError, "escaped source target"):
+            git.verify_packages(self.metadata, snapshot=git.current_checkout(self.root))
+
+    def test_missing_reachable_package_fails(self):
+        self.metadata["packages"].pop()
+        with self.assertRaisesRegex(RuntimeError, "unexpected frontend package set"):
+            git.verify_packages(self.metadata, snapshot=git.current_checkout(self.root))
 
 
 class Credentials(unittest.TestCase):
