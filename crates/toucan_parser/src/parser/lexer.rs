@@ -96,9 +96,11 @@ pub(super) fn lex(source: &str, budget: &mut Budget) -> Vec<Token> {
             } else {
                 TokenKind::Character
             }
-        } else if bytes[pos].is_ascii_alphabetic() || bytes[pos] == b'_' {
+        } else if bytes[pos].is_ascii_alphabetic() || matches!(bytes[pos], b'_' | b'$') {
             pos += 1;
-            while pos < bytes.len() && (bytes[pos].is_ascii_alphanumeric() || bytes[pos] == b'_') {
+            while pos < bytes.len()
+                && (bytes[pos].is_ascii_alphanumeric() || matches!(bytes[pos], b'_' | b'$'))
+            {
                 pos += 1;
             }
             TokenKind::Identifier
@@ -109,7 +111,7 @@ pub(super) fn lex(source: &str, budget: &mut Budget) -> Vec<Token> {
             while pos < bytes.len() {
                 let byte = bytes[pos];
                 if byte.is_ascii_alphanumeric()
-                    || matches!(byte, b'_' | b'.')
+                    || matches!(byte, b'_' | b'$' | b'.')
                     || (matches!(byte, b'+' | b'-')
                         && matches!(bytes[pos - 1], b'e' | b'E' | b'p' | b'P'))
                 {

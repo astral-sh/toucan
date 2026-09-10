@@ -153,7 +153,10 @@ impl<'s, 'e> Parser<'s, 'e> {
     }
 
     fn identifier(&mut self) -> PResult<Node<Identifier>> {
-        if self.token().kind != TokenKind::Identifier || self.env.reserved.contains(self.text()) {
+        if self.token().kind != TokenKind::Identifier
+            || self.env.reserved.contains(self.text())
+            || !self.env.extensions_gnu && !self.env.extensions_msvc && self.text().contains('$')
+        {
             return self.fail("identifier");
         }
         let token = self.bump()?;

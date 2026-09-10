@@ -19,7 +19,7 @@ pub(crate) fn check_qualifiers(source: &str, mut index: usize) -> Result<(), Err
         let start = index;
         while bytes
             .get(index)
-            .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+            .is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'$'))
         {
             index += 1;
         }

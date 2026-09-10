@@ -250,7 +250,7 @@ impl Options {
             let prefix = pattern.strip_suffix('*').unwrap_or(pattern);
             if (prefix.is_empty() && pattern != "*")
                 || !prefix.bytes().enumerate().all(|(index, byte)| {
-                    byte == b'_'
+                    matches!(byte, b'_' | b'$')
                         || byte.is_ascii_alphabetic()
                         || (index > 0 && byte.is_ascii_digit())
                 })
@@ -2244,11 +2244,11 @@ impl Emitter<'_> {
             }
             if let Some(name) = &field.name {
                 let getter = names.identifier(name)?;
-                let mut setter = format!("set_{name}");
+                let mut setter = identifier(&format!("set_{name}"))?;
                 while !used_methods.insert(setter.clone()) {
                     setter.push('_');
                 }
-                accessor_names.insert(index, (getter, identifier(&setter)?));
+                accessor_names.insert(index, (getter, setter));
             }
         }
         while index < fields.len() {
@@ -2565,8 +2565,8 @@ impl Names {
     }
 
     fn identifier(&self, name: &str) -> Result<String, Error> {
-        if matches!(name, "self" | "Self" | "super" | "crate" | "_") {
-            let mut candidate = format!("__toucan_{name}");
+        if name.contains('$') || matches!(name, "self" | "Self" | "super" | "crate" | "_") {
+            let mut candidate = identifier(name)?;
             while self.original.contains(&candidate) {
                 candidate.push('_');
             }
@@ -2600,14 +2600,22 @@ fn helper_field(fields: &[toucan_semantic::Field], stem: &str) -> String {
 
 fn identifier(name: &str) -> Result<String, Error> {
     if name.is_empty()
-        || !name
-            .bytes()
-            .enumerate()
-            .all(|(i, b)| b == b'_' || b.is_ascii_alphabetic() || (i > 0 && b.is_ascii_digit()))
+        || !name.bytes().enumerate().all(|(i, b)| {
+            matches!(b, b'_' | b'$') || b.is_ascii_alphabetic() || (i > 0 && b.is_ascii_digit())
+        })
     {
         return Err(Error(format!(
             "C name `{name}` cannot be represented as a Rust identifier"
         )));
+    }
+    if name.contains('$') {
+        // Encode every byte so distinct C names cannot share a Rust spelling.
+        // Names checks this generated spelling against ordinary C identifiers.
+        let mut encoded = String::from("__toucan_c_");
+        for byte in name.bytes() {
+            write!(encoded, "{byte:02x}").unwrap();
+        }
+        return Ok(encoded);
     }
     if matches!(name, "self" | "Self" | "super" | "crate" | "_") {
         return Ok(format!("__toucan_{name}"));

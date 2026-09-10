@@ -161,11 +161,11 @@ pub(crate) fn adapt(source: &str) -> Result<Adapted, Error> {
                 continue;
             }
         }
-        if bytes[index].is_ascii_alphabetic() || bytes[index] == b'_' {
+        if bytes[index].is_ascii_alphabetic() || matches!(bytes[index], b'_' | b'$') {
             let start = index;
             while bytes
                 .get(index)
-                .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+                .is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'$'))
             {
                 index += 1;
             }
@@ -219,11 +219,11 @@ fn normalize_int128(
     while index < bytes.len() {
         if matches!(bytes[index], b'\'' | b'"') {
             index = quoted_end(&bytes, index);
-        } else if bytes[index].is_ascii_alphabetic() || bytes[index] == b'_' {
+        } else if bytes[index].is_ascii_alphabetic() || matches!(bytes[index], b'_' | b'$') {
             let start = index;
             while bytes
                 .get(index)
-                .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+                .is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'$'))
             {
                 index += 1;
             }
