@@ -4,7 +4,7 @@ use super::{PResult, Parser, TokenKind};
 use ast::*;
 use astutil::ts18661_float;
 use driver::Standard;
-use env::Symbol;
+use env::{find_declarator_name, Symbol};
 use span::{Node, Span};
 
 #[derive(Clone, Copy, PartialEq)]
@@ -21,6 +21,8 @@ enum DeclarationContext {
     Parameter,
 }
 
+/// Groups type specifiers to locate the end of a declaration's specifiers.
+/// Combinations accepted here may still be rejected by semantic analysis.
 #[derive(Clone, Copy, PartialEq)]
 enum TypeClass {
     Unique,
@@ -238,6 +240,9 @@ impl<'s, 'e> Parser<'s, 'e> {
         Ok(())
     }
 
+    /// Registers ordinary identifiers before trailing extensions, typedefs after
+    /// extensions, and GNU `__auto_type` names after their initializer, so each
+    /// operand sees the appropriate scope.
     fn finish_init_declarator(
         &mut self,
         mut declarator: Node<Declarator>,
@@ -815,7 +820,7 @@ impl<'s, 'e> Parser<'s, 'e> {
                 DerivedDeclarator::Array(self.array_declarator()?)
             } else {
                 self.expect("(")?;
-                self.function_declarator_suffix(!declarator_has_name(&kind.node))?
+                self.function_declarator_suffix(find_declarator_name(&kind.node).is_none())?
             };
             derived.push(self.node(value, derived_start)?);
         }
@@ -1329,14 +1334,6 @@ fn ts18661_type(name: &str) -> Option<TS18661FloatType> {
         _ => return None,
     };
     Some(ts18661_float(binary, width, extended))
-}
-
-fn declarator_has_name(kind: &DeclaratorKind) -> bool {
-    match kind {
-        DeclaratorKind::Abstract => false,
-        DeclaratorKind::Identifier(_) => true,
-        DeclaratorKind::Declarator(declarator) => declarator_has_name(&declarator.node.kind.node),
-    }
 }
 
 #[cfg(test)]

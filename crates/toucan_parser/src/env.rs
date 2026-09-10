@@ -270,7 +270,9 @@ fn definition_function(declarator: &Declarator) -> Option<&DerivedDeclarator> {
         })
 }
 
-fn find_declarator_name(d: &DeclaratorKind) -> Option<&str> {
+/// Finds the declared name through parenthesized declarators, excluding names in
+/// derived function parameter lists.
+pub(crate) fn find_declarator_name(d: &DeclaratorKind) -> Option<&str> {
     match d {
         &DeclaratorKind::Abstract => None,
         DeclaratorKind::Identifier(i) => Some(&i.node.name),
