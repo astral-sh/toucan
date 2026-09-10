@@ -222,17 +222,42 @@ class CurrentSource(unittest.TestCase):
 
     def test_container_ownership_exception_is_scoped_to_selected_root(self):
         command = ["git", "-C", str(self.root), "rev-parse", "HEAD"]
-        with patch.dict(os.environ, {"GIT_TEST_ASSUME_DIFFERENT_OWNER": "1"}):
-            before = subprocess.run(
+        config = self.root / "trusted.gitconfig"
+        config.write_text("[safe]\n\tdirectory = *\n")
+        # Reproduce runners that trust every checkout through inherited Git config.
+        with patch.dict(
+            os.environ,
+            {
+                "GIT_TEST_ASSUME_DIFFERENT_OWNER": "1",
+                "GIT_CONFIG_GLOBAL": str(config),
+                "GIT_CONFIG_SYSTEM": str(config),
+                "GIT_CONFIG_COUNT": "1",
+                "GIT_CONFIG_KEY_0": "safe.directory",
+                "GIT_CONFIG_VALUE_0": "*",
+                "GIT_CONFIG_PARAMETERS": "'safe.directory=*'",
+            },
+        ):
+            trusted = subprocess.run(
                 command, capture_output=True, text=True, check=False
             )
-            self.assertNotEqual(before.returncode, 0)
-            self.assertIn("dubious ownership", before.stderr)
-            report = git.current_checkout(self.root)
-            git.verify_packages(self.metadata, snapshot=report)
-            after = subprocess.run(command, capture_output=True, text=True, check=False)
-            self.assertNotEqual(after.returncode, 0)
-            self.assertIn("dubious ownership", after.stderr)
+            self.assertEqual(trusted.returncode, 0, trusted.stderr)
+            isolated = {
+                k: v for k, v in os.environ.items() if not k.startswith("GIT_CONFIG")
+            }
+            isolated.update(GIT_CONFIG_GLOBAL=os.devnull, GIT_CONFIG_SYSTEM=os.devnull)
+            with patch.dict(os.environ, isolated, clear=True):
+                before = subprocess.run(
+                    command, capture_output=True, text=True, check=False
+                )
+                self.assertNotEqual(before.returncode, 0)
+                self.assertIn("dubious ownership", before.stderr)
+                report = git.current_checkout(self.root)
+                git.verify_packages(self.metadata, snapshot=report)
+                after = subprocess.run(
+                    command, capture_output=True, text=True, check=False
+                )
+                self.assertNotEqual(after.returncode, 0)
+                self.assertIn("dubious ownership", after.stderr)
         with self.assertRaisesRegex(RuntimeError, "not a Git checkout root"):
             git.current_checkout(self.root / "crates")
 
