@@ -152,6 +152,46 @@ fn admitted_members_keep_completeness_and_promoted_name_constraints() {
     }
 }
 
+#[test]
+fn branching_anonymous_members_have_a_work_limit() {
+    for typedef in [false, true] {
+        let mut source = if typedef {
+            String::from("typedef struct { int :1; } S0;\n")
+        } else {
+            String::from("struct S0 { int :1; };\n")
+        };
+        for level in 1..=18 {
+            let previous = level - 1;
+            source.push_str(&if typedef {
+                format!("typedef struct {{ S{previous}; S{previous}; }} S{level};\n")
+            } else {
+                format!("struct S{level} {{ struct S{previous}; struct S{previous}; }};\n")
+            });
+        }
+        let targets = [Target::X86_64PcWindowsMsvc, Target::Aarch64PcWindowsMsvc];
+        for target in targets {
+            parity(&source, CompilerProfile::default_for(target)).unwrap();
+        }
+        source.push_str(if typedef {
+            "typedef struct { S18; S18; } S19;\n"
+        } else {
+            "struct S19 { struct S18; struct S18; };\n"
+        });
+        // Each S19 field is below the limit by itself. Both must share the
+        // same budget, while the complete S18 namespace remains supported.
+        for target in targets {
+            let error = parity(&source, CompilerProfile::default_for(target)).unwrap_err();
+            assert!(
+                error
+                    .message
+                    .contains("anonymous member validation work limit"),
+                "{target:?}: {error}"
+            );
+            assert!(error.offset > 0);
+        }
+    }
+}
+
 const RETAINED: &str = r#"
 typedef struct Inner {int value;} Alias;
 struct Owner {Alias; int field;};
