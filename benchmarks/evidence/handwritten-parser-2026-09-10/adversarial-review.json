@@ -1,0 +1,98 @@
+{
+  "status": "review_complete",
+  "implementation_commit": "0dded605d79fc265aac3fc3c231b4a1fa5f64fdc",
+  "remaining_actionable_findings": [],
+  "disposition": "All concrete findings from this independent lexer/core/statement/resource/span review were corrected or explicitly classified and covered by retained evidence. This is a bounded review, not proof of complete C conformance.",
+  "covered_areas": [
+    "UTF-8 byte boundaries in malformed C, string/character prefixes and escape scanning, preprocessing-number longest match, invalid tokens and EOF",
+    "Lexing work accounting, token-buffer capacity accounting before allocation, terminal budget failures, recursive parser guards, AST depth and clone/drop behavior",
+    "Statement loops, dangling else, labels, control-flow scopes, typedef shadowing, scope cleanup after parse errors, bounded attribute lookahead",
+    "Typedef-versus-expression lookahead and declaration scope boundaries without speculative environment mutation",
+    "GNU attributes in original tag positions, removal of semantic text normalization, original-source operand and closing-delimiter spans",
+    "Frozen parser/checked/Builder outputs, exact non-span value comparisons, explicit correction-manifest matching, and measured output provenance"
+  ],
+  "findings": [
+    {
+      "id": "token-buffer-budget",
+      "status": "fixed",
+      "finding": "Eager tokenization allocated retained token capacity before applying the configured memory budget and scanned long trivia/literals before charging work.",
+      "resolution": "Charge source scanning up front and token work separately; check the geometric capacity against max_cache_bytes before reserve_exact. Synthetic EOF and terminal failure checks prevent a partial token prefix from becoming a successful parse.",
+      "evidence": [
+        "crates/toucan_parser/src/parser/lexer.rs",
+        "crates/toucan_parser/tests/resources.rs"
+      ]
+    },
+    {
+      "id": "recursive-worker-stack",
+      "status": "fixed",
+      "finding": "Nested introspection and a long control-statement chain caused stack overflow in the initial handwritten parser at the previous permitted recursion limit.",
+      "resolution": "The default and hard maximum recursive rule depth are 512; the independent AST-depth limit remains 1024.",
+      "evidence": [
+        "capture-artifacts.tar.gz:adversarial/resource-repros.json",
+        "capture-artifacts.tar.gz:adversarial/depth-thresholds.json"
+      ],
+      "independent_threshold_processes": 40,
+      "c11_minimum_cases": [
+        "63 parenthesized expressions",
+        "63 nested declarators",
+        "127 nested blocks",
+        "63 nested records",
+        "12 pointer declarators"
+      ]
+    },
+    {
+      "id": "attribute-source-mapping",
+      "status": "fixed",
+      "finding": "The old in-place attribute delimiter compaction and record-attribute reordering did not map moved bytes back to the original source; new token endpoints exposed omitted delimiters and incorrect operand locations.",
+      "resolution": "Parse GNU tag attributes directly and remove semantic attribute text rewriting. Written delimiter and operand regression tests pass. Five independent record-attribute cases retain identical semantic units while fixing original-source locations.",
+      "evidence": [
+        "crates/toucan_semantic/tests/parser_attribute_spans.rs",
+        "capture-artifacts.tar.gz:record-attribute-review-validated/review.json",
+        "checked-span-corrections.json"
+      ]
+    },
+    {
+      "id": "preprocessing-number-longest-match",
+      "status": "intentional_correctness_fix",
+      "finding": "The old parser accepted 0x1e+1 as an addition, although preprocessing tokenization requires one invalid preprocessing number.",
+      "resolution": "The token lexer rejects the complete invalid number; GCC and Clang independently agree across the checked C modes.",
+      "evidence": [
+        "capture-artifacts.tar.gz:statement-differential/pp-number-native.json"
+      ]
+    },
+    {
+      "id": "source-range-compatibility",
+      "status": "explicitly_qualified",
+      "finding": "Consumed-token endpoints omit trailing trivia previously included by the generated parser. Correct attribute source mapping also restores 19 missing closing delimiters in the real-project checked snapshots.",
+      "resolution": "All AST values/counts and checked non-range values stay exact. The comparator proves 1,670 direct-parser and 17,133 checked whitespace trims and permits only 19 individually source-pinned delimiter restorations. Exact span/checked-JSON equality remains false.",
+      "evidence": [
+        "preflight.json.gz",
+        "checked-span-corrections.json",
+        "comparison.py"
+      ]
+    }
+  ],
+  "final_output_validation": {
+    "workloads": 14,
+    "builder_reports": 4,
+    "timing_processes": 196,
+    "timed_calls": 980,
+    "counter_processes": 140,
+    "instrumented_calls": 420,
+    "output_hash_failures": 0,
+    "exact_builder_rust": true,
+    "exact_normalized_builder_reports": true,
+    "exact_parser_values_and_counts": true,
+    "exact_checked_non_range_values": true,
+    "exact_parser_spans": false,
+    "exact_checked_outputs": false,
+    "reviewed_nonwhitespace_fixes": 19
+  },
+  "limitations": [
+    "Native execution and performance evidence here are x86_64 Linux only; this review does not establish macOS, Windows, or other-target performance.",
+    "Finite regression, differential, native, and sanitizer cases cannot prove complete C conformance or absence of every resource exhaustion path.",
+    "max_cache_bytes bounds retained parser-token capacity, not total AST allocation or process RSS. Allocation counters measure cumulative requests; RSS includes output serialization outside the timer.",
+    "The AST representation/API is retained, but source-span endpoints and some diagnostics intentionally differ. Callers comparing exact source ranges or error text must account for those documented changes.",
+    "The shared VM does not control unrelated tenant activity, frequency, or memory bandwidth. Pair ranges are observed ranges, not confidence intervals."
+  ]
+}

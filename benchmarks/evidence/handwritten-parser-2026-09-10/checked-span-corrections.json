@@ -1,0 +1,446 @@
+{
+  "version": 1,
+  "baseline_commit": "f1e8dc89acc74675cf81475fdc3402a76a3d09e9",
+  "reviewed": true,
+  "reason": "Restore the original closing attribute delimiter after removing parser text normalization. All other non-whitespace changes remain rejected.",
+  "count": 19,
+  "corrections": [
+    {
+      "workload": "libgit2-checked",
+      "source_sha256": "6bbc8675718f2524eaa52f6678b0ca535951a57cef674d0d2a762af83d737763",
+      "path": [
+        "checked",
+        "occurrences",
+        1,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 55,
+        "start": 12
+      },
+      "candidate": {
+        "end": 56,
+        "start": 12
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__int128_t __attribute__ ( ( mode ( TI ) ) )"
+    },
+    {
+      "workload": "libgit2-checked",
+      "source_sha256": "6bbc8675718f2524eaa52f6678b0ca535951a57cef674d0d2a762af83d737763",
+      "path": [
+        "checked",
+        "occurrences",
+        5,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 124,
+        "start": 80
+      },
+      "candidate": {
+        "end": 125,
+        "start": 80
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__uint128_t __attribute__ ( ( mode ( TI ) ) )"
+    },
+    {
+      "workload": "libgit2-checked",
+      "source_sha256": "6bbc8675718f2524eaa52f6678b0ca535951a57cef674d0d2a762af83d737763",
+      "path": [
+        "checked",
+        "occurrences",
+        1000,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 14099,
+        "start": 14046
+      },
+      "candidate": {
+        "end": 14100,
+        "start": 14046
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "register_t __attribute__ ( ( __mode__ ( __word__ ) ) )"
+    },
+    {
+      "workload": "sqlite-checked",
+      "source_sha256": "92983fc919ddbcc6c9d90dbe0ff38c57d6efed2570e9234ba317531d178f73ae",
+      "path": [
+        "checked",
+        "occurrences",
+        1,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 55,
+        "start": 12
+      },
+      "candidate": {
+        "end": 56,
+        "start": 12
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__int128_t __attribute__ ( ( mode ( TI ) ) )"
+    },
+    {
+      "workload": "sqlite-checked",
+      "source_sha256": "92983fc919ddbcc6c9d90dbe0ff38c57d6efed2570e9234ba317531d178f73ae",
+      "path": [
+        "checked",
+        "occurrences",
+        5,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 124,
+        "start": 80
+      },
+      "candidate": {
+        "end": 125,
+        "start": 80
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__uint128_t __attribute__ ( ( mode ( TI ) ) )"
+    },
+    {
+      "workload": "zlib-adler32-checked",
+      "source_sha256": "3e9f5d604ad9f4d5be95161dd6faeeca0c8d1cbecffb456ddef772df36a1e8d1",
+      "path": [
+        "checked",
+        "occurrences",
+        1,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 55,
+        "start": 12
+      },
+      "candidate": {
+        "end": 56,
+        "start": 12
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__int128_t __attribute__ ( ( mode ( TI ) ) )"
+    },
+    {
+      "workload": "zlib-adler32-checked",
+      "source_sha256": "3e9f5d604ad9f4d5be95161dd6faeeca0c8d1cbecffb456ddef772df36a1e8d1",
+      "path": [
+        "checked",
+        "occurrences",
+        5,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 124,
+        "start": 80
+      },
+      "candidate": {
+        "end": 125,
+        "start": 80
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__uint128_t __attribute__ ( ( mode ( TI ) ) )"
+    },
+    {
+      "workload": "zlib-adler32-checked",
+      "source_sha256": "3e9f5d604ad9f4d5be95161dd6faeeca0c8d1cbecffb456ddef772df36a1e8d1",
+      "path": [
+        "checked",
+        "occurrences",
+        20,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 328,
+        "start": 241
+      },
+      "candidate": {
+        "end": 329,
+        "start": 241
+      },
+      "occurrence_kind": "StructDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__clang_max_align_nonce1 __attribute__ ( ( __aligned__ ( __alignof__ ( long long ) ) ) )"
+    },
+    {
+      "workload": "zlib-adler32-checked",
+      "source_sha256": "3e9f5d604ad9f4d5be95161dd6faeeca0c8d1cbecffb456ddef772df36a1e8d1",
+      "path": [
+        "checked",
+        "occurrences",
+        25,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 433,
+        "start": 344
+      },
+      "candidate": {
+        "end": 434,
+        "start": 344
+      },
+      "occurrence_kind": "StructDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__clang_max_align_nonce2 __attribute__ ( ( __aligned__ ( __alignof__ ( long double ) ) ) )"
+    },
+    {
+      "workload": "zlib-adler32-checked",
+      "source_sha256": "3e9f5d604ad9f4d5be95161dd6faeeca0c8d1cbecffb456ddef772df36a1e8d1",
+      "path": [
+        "checked",
+        "occurrences",
+        325,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 3523,
+        "start": 3470
+      },
+      "candidate": {
+        "end": 3524,
+        "start": 3470
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "register_t __attribute__ ( ( __mode__ ( __word__ ) ) )"
+    },
+    {
+      "workload": "zlib-checked",
+      "source_sha256": "fee76fe24ef9cdc10e9f14b254f38affbd030767895eb33bbefb38bd6ceeb5c1",
+      "path": [
+        "checked",
+        "occurrences",
+        1,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 55,
+        "start": 12
+      },
+      "candidate": {
+        "end": 56,
+        "start": 12
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__int128_t __attribute__ ( ( mode ( TI ) ) )"
+    },
+    {
+      "workload": "zlib-checked",
+      "source_sha256": "fee76fe24ef9cdc10e9f14b254f38affbd030767895eb33bbefb38bd6ceeb5c1",
+      "path": [
+        "checked",
+        "occurrences",
+        5,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 124,
+        "start": 80
+      },
+      "candidate": {
+        "end": 125,
+        "start": 80
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__uint128_t __attribute__ ( ( mode ( TI ) ) )"
+    },
+    {
+      "workload": "zlib-checked",
+      "source_sha256": "fee76fe24ef9cdc10e9f14b254f38affbd030767895eb33bbefb38bd6ceeb5c1",
+      "path": [
+        "checked",
+        "occurrences",
+        20,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 328,
+        "start": 241
+      },
+      "candidate": {
+        "end": 329,
+        "start": 241
+      },
+      "occurrence_kind": "StructDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__clang_max_align_nonce1 __attribute__ ( ( __aligned__ ( __alignof__ ( long long ) ) ) )"
+    },
+    {
+      "workload": "zlib-checked",
+      "source_sha256": "fee76fe24ef9cdc10e9f14b254f38affbd030767895eb33bbefb38bd6ceeb5c1",
+      "path": [
+        "checked",
+        "occurrences",
+        25,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 433,
+        "start": 344
+      },
+      "candidate": {
+        "end": 434,
+        "start": 344
+      },
+      "occurrence_kind": "StructDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__clang_max_align_nonce2 __attribute__ ( ( __aligned__ ( __alignof__ ( long double ) ) ) )"
+    },
+    {
+      "workload": "zlib-checked",
+      "source_sha256": "fee76fe24ef9cdc10e9f14b254f38affbd030767895eb33bbefb38bd6ceeb5c1",
+      "path": [
+        "checked",
+        "occurrences",
+        325,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 3523,
+        "start": 3470
+      },
+      "candidate": {
+        "end": 3524,
+        "start": 3470
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "register_t __attribute__ ( ( __mode__ ( __word__ ) ) )"
+    },
+    {
+      "workload": "zstd-checked",
+      "source_sha256": "6c6dff329ec7c8838a4a4e7fc75ba7a1796d1e9c32698a9b6d04bcd95c2a634b",
+      "path": [
+        "checked",
+        "occurrences",
+        1,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 55,
+        "start": 12
+      },
+      "candidate": {
+        "end": 56,
+        "start": 12
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__int128_t __attribute__ ( ( mode ( TI ) ) )"
+    },
+    {
+      "workload": "zstd-checked",
+      "source_sha256": "6c6dff329ec7c8838a4a4e7fc75ba7a1796d1e9c32698a9b6d04bcd95c2a634b",
+      "path": [
+        "checked",
+        "occurrences",
+        5,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 124,
+        "start": 80
+      },
+      "candidate": {
+        "end": 125,
+        "start": 80
+      },
+      "occurrence_kind": "InitDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__uint128_t __attribute__ ( ( mode ( TI ) ) )"
+    },
+    {
+      "workload": "zstd-checked",
+      "source_sha256": "6c6dff329ec7c8838a4a4e7fc75ba7a1796d1e9c32698a9b6d04bcd95c2a634b",
+      "path": [
+        "checked",
+        "occurrences",
+        20,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 328,
+        "start": 241
+      },
+      "candidate": {
+        "end": 329,
+        "start": 241
+      },
+      "occurrence_kind": "StructDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__clang_max_align_nonce1 __attribute__ ( ( __aligned__ ( __alignof__ ( long long ) ) ) )"
+    },
+    {
+      "workload": "zstd-checked",
+      "source_sha256": "6c6dff329ec7c8838a4a4e7fc75ba7a1796d1e9c32698a9b6d04bcd95c2a634b",
+      "path": [
+        "checked",
+        "occurrences",
+        25,
+        "source",
+        "range",
+        "end"
+      ],
+      "baseline": {
+        "end": 433,
+        "start": 344
+      },
+      "candidate": {
+        "end": 434,
+        "start": 344
+      },
+      "occurrence_kind": "StructDeclarator",
+      "restored_bytes_hex": "29",
+      "candidate_spelling": "__clang_max_align_nonce2 __attribute__ ( ( __aligned__ ( __alignof__ ( long double ) ) ) )"
+    }
+  ]
+}

@@ -1,0 +1,1003 @@
+{
+  "status": "passed",
+  "baseline_commit": "f1e8dc89acc74675cf81475fdc3402a76a3d09e9",
+  "parser_commit": "0dded605d79fc265aac3fc3c231b4a1fa5f64fdc",
+  "gate": "--native-source --fail-on-strict-difference",
+  "retained_difference": "00144.c discards const in pointer assignment; the pedantic compilers also reject it. This semantic constraint predates the parser replacement (docs/old-style-definitions.md).",
+  "runs": {
+    "gcc": {
+      "exit_code": 0,
+      "summary": {
+        "source_count": 220,
+        "both_accept": {
+          "c90": 197,
+          "gnu90": 219,
+          "c99": 220,
+          "gnu99": 220,
+          "c17": 220,
+          "gnu17": 220,
+          "c11": 220,
+          "gnu11": 220,
+          "strict_c11": 211
+        },
+        "eligible_count": 220,
+        "toucan_checked": 220,
+        "toucan_accepted": 219,
+        "differences": [
+          "00144.c"
+        ],
+        "strict_eligible_count": 211,
+        "strict_toucan_accepted": 211,
+        "strict_differences": [],
+        "tool_failures": [],
+        "oracle_pipeline_failures": [],
+        "changed_tools": [],
+        "native_source": {
+          "checked": 220,
+          "accepted": 219,
+          "eligible_count": 220,
+          "strict_eligible_count": 211,
+          "strict_accepted": 211,
+          "differences": [
+            "00144.c"
+          ],
+          "strict_differences": [],
+          "preprocessing_rejected": [],
+          "analysis_rejected": [
+            "00144.c"
+          ],
+          "tool_failure": [],
+          "input_changed": []
+        }
+      },
+      "tools": {
+        "toucan": {
+          "path": "/home/dev-user/.cache/toucan/parser-handwritten-target/debug/toucan",
+          "sha256": "03c8c39b709908fbb545fbc90d0a215f81f3cfa903cd0f06976c5477e6965b58",
+          "version": "toucan 0.0.1",
+          "version_command": {
+            "command": [
+              "/home/dev-user/.cache/toucan/parser-handwritten-target/debug/toucan",
+              "--version"
+            ],
+            "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+            "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/toucan-version.stdout",
+            "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/toucan-version.stderr",
+            "exit_code": 0,
+            "timeout": false,
+            "environment_overrides": {
+              "LC_ALL": "C",
+              "SOURCE_DATE_EPOCH": "0"
+            },
+            "seconds": 0.023133648006478325,
+            "crash_diagnostic": false
+          },
+          "configuration_control": {
+            "command": [
+              "/home/dev-user/.cache/toucan/parser-handwritten-target/debug/toucan",
+              "check",
+              "--target",
+              "x86_64-unknown-linux-gnu",
+              "--compiler",
+              "gcc",
+              "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+            ],
+            "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+            "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/toucan-validate.stdout",
+            "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/toucan-validate.stderr",
+            "exit_code": 0,
+            "timeout": false,
+            "environment_overrides": {
+              "LC_ALL": "C",
+              "SOURCE_DATE_EPOCH": "0"
+            },
+            "seconds": 0.008777053997619078,
+            "crash_diagnostic": false
+          }
+        },
+        "gcc": {
+          "path": "/usr/bin/x86_64-linux-gnu-gcc-13",
+          "sha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26",
+          "version": "x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+          "version_command": {
+            "command": [
+              "/usr/bin/x86_64-linux-gnu-gcc-13",
+              "--version"
+            ],
+            "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+            "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-version.stdout",
+            "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-version.stderr",
+            "exit_code": 0,
+            "timeout": false,
+            "environment_overrides": {
+              "LC_ALL": "C",
+              "SOURCE_DATE_EPOCH": "0"
+            },
+            "seconds": 0.009242953005013987,
+            "crash_diagnostic": false
+          },
+          "configuration_controls": {
+            "c90": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=c90",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-c90.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-c90.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.017268038005568087,
+              "crash_diagnostic": false
+            },
+            "gnu90": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=gnu90",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-gnu90.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-gnu90.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.03306167098344304,
+              "crash_diagnostic": false
+            },
+            "c99": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=c99",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-c99.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-c99.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.03362616398953833,
+              "crash_diagnostic": false
+            },
+            "gnu99": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=gnu99",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-gnu99.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-gnu99.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.016985263995593414,
+              "crash_diagnostic": false
+            },
+            "c17": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=c17",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-c17.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-c17.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.016575588000705466,
+              "crash_diagnostic": false
+            },
+            "gnu17": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=gnu17",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-gnu17.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-gnu17.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.016397165978560224,
+              "crash_diagnostic": false
+            },
+            "c11": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=c11",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-c11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-c11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.016711963980924338,
+              "crash_diagnostic": false
+            },
+            "gnu11": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=gnu11",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-gnu11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-gnu11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.016456176002975553,
+              "crash_diagnostic": false
+            },
+            "strict_c11": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=c11",
+                "-pedantic-errors",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-strict_c11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/gcc-validate-strict_c11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.0165773119952064,
+              "crash_diagnostic": false
+            }
+          }
+        },
+        "clang": {
+          "path": "/usr/lib/llvm-18/bin/clang",
+          "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+          "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-18/bin",
+          "version_command": {
+            "command": [
+              "/usr/lib/llvm-18/bin/clang",
+              "--version"
+            ],
+            "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+            "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-version.stdout",
+            "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-version.stderr",
+            "exit_code": 0,
+            "timeout": false,
+            "environment_overrides": {
+              "LC_ALL": "C",
+              "SOURCE_DATE_EPOCH": "0"
+            },
+            "seconds": 0.11569186000269838,
+            "crash_diagnostic": false
+          },
+          "configuration_controls": {
+            "c90": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=c90",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-c90.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-c90.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06454067598679103,
+              "crash_diagnostic": false
+            },
+            "gnu90": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=gnu90",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-gnu90.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-gnu90.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06485520300338976,
+              "crash_diagnostic": false
+            },
+            "c99": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=c99",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-c99.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-c99.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06465377699350938,
+              "crash_diagnostic": false
+            },
+            "gnu99": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=gnu99",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-gnu99.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-gnu99.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.0649386000004597,
+              "crash_diagnostic": false
+            },
+            "c17": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=c17",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-c17.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-c17.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06549325498053804,
+              "crash_diagnostic": false
+            },
+            "gnu17": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=gnu17",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-gnu17.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-gnu17.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06492660701042041,
+              "crash_diagnostic": false
+            },
+            "c11": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=c11",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-c11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-c11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06522485299501568,
+              "crash_diagnostic": false
+            },
+            "gnu11": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=gnu11",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-gnu11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-gnu11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06523111602291465,
+              "crash_diagnostic": false
+            },
+            "strict_c11": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=c11",
+                "-pedantic-errors",
+                "-Wno-strict-prototypes",
+                "-Wno-deprecated-non-prototype",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-gcc/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-gcc",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-strict_c11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-gcc/clang-validate-strict_c11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06522348200087436,
+              "crash_diagnostic": false
+            }
+          }
+        },
+        "native_probe": {
+          "path": "/home/dev-user/.cache/toucan/parser-handwritten-target/debug/examples/audit_translation_unit",
+          "sha256": "950aad4ddbbcfa0925aa73a84ea9225e6cd427e1554b17f379c972fe63837806",
+          "protocol_source": {
+            "path": "/home/dev-user/.codex/worktrees/c877/toucan/crates/toucan/examples/audit_translation_unit.rs",
+            "sha256": "407a2002b0810cdcd68206fc4415af75d7c0d9302118b6555f2dfab13e8bf537"
+          },
+          "provenance_note": "The protocol source identifies the checked-out example. Build provenance must independently connect the executable to its source tree."
+        }
+      },
+      "seconds": 55.254080681013875
+    },
+    "clang": {
+      "exit_code": 0,
+      "summary": {
+        "source_count": 220,
+        "both_accept": {
+          "c90": 197,
+          "gnu90": 219,
+          "c99": 220,
+          "gnu99": 220,
+          "c17": 220,
+          "gnu17": 220,
+          "c11": 220,
+          "gnu11": 220,
+          "strict_c11": 211
+        },
+        "eligible_count": 220,
+        "toucan_checked": 220,
+        "toucan_accepted": 219,
+        "differences": [
+          "00144.c"
+        ],
+        "strict_eligible_count": 211,
+        "strict_toucan_accepted": 211,
+        "strict_differences": [],
+        "tool_failures": [],
+        "oracle_pipeline_failures": [],
+        "changed_tools": [],
+        "native_source": {
+          "checked": 220,
+          "accepted": 219,
+          "eligible_count": 220,
+          "strict_eligible_count": 211,
+          "strict_accepted": 211,
+          "differences": [
+            "00144.c"
+          ],
+          "strict_differences": [],
+          "preprocessing_rejected": [],
+          "analysis_rejected": [
+            "00144.c"
+          ],
+          "tool_failure": [],
+          "input_changed": []
+        }
+      },
+      "tools": {
+        "toucan": {
+          "path": "/home/dev-user/.cache/toucan/parser-handwritten-target/debug/toucan",
+          "sha256": "03c8c39b709908fbb545fbc90d0a215f81f3cfa903cd0f06976c5477e6965b58",
+          "version": "toucan 0.0.1",
+          "version_command": {
+            "command": [
+              "/home/dev-user/.cache/toucan/parser-handwritten-target/debug/toucan",
+              "--version"
+            ],
+            "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+            "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/toucan-version.stdout",
+            "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/toucan-version.stderr",
+            "exit_code": 0,
+            "timeout": false,
+            "environment_overrides": {
+              "LC_ALL": "C",
+              "SOURCE_DATE_EPOCH": "0"
+            },
+            "seconds": 0.020831477973842993,
+            "crash_diagnostic": false
+          },
+          "configuration_control": {
+            "command": [
+              "/home/dev-user/.cache/toucan/parser-handwritten-target/debug/toucan",
+              "check",
+              "--target",
+              "x86_64-unknown-linux-gnu",
+              "--compiler",
+              "clang",
+              "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+            ],
+            "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+            "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/toucan-validate.stdout",
+            "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/toucan-validate.stderr",
+            "exit_code": 0,
+            "timeout": false,
+            "environment_overrides": {
+              "LC_ALL": "C",
+              "SOURCE_DATE_EPOCH": "0"
+            },
+            "seconds": 0.008572370978072286,
+            "crash_diagnostic": false
+          }
+        },
+        "gcc": {
+          "path": "/usr/bin/x86_64-linux-gnu-gcc-13",
+          "sha256": "1b99826121ae6682a634e5efe09bd3e3df58ce58e0b28f849114ab5b89139c26",
+          "version": "x86_64-linux-gnu-gcc-13 (Ubuntu 13.3.0-6ubuntu2~24.04.1) 13.3.0\nCopyright (C) 2023 Free Software Foundation, Inc.\nThis is free software; see the source for copying conditions.  There is NO\nwarranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.",
+          "version_command": {
+            "command": [
+              "/usr/bin/x86_64-linux-gnu-gcc-13",
+              "--version"
+            ],
+            "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+            "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-version.stdout",
+            "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-version.stderr",
+            "exit_code": 0,
+            "timeout": false,
+            "environment_overrides": {
+              "LC_ALL": "C",
+              "SOURCE_DATE_EPOCH": "0"
+            },
+            "seconds": 0.005113310995511711,
+            "crash_diagnostic": false
+          },
+          "configuration_controls": {
+            "c90": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=c90",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-c90.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-c90.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.03288004201021977,
+              "crash_diagnostic": false
+            },
+            "gnu90": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=gnu90",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-gnu90.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-gnu90.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.03288723499281332,
+              "crash_diagnostic": false
+            },
+            "c99": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=c99",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-c99.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-c99.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.03304396799649112,
+              "crash_diagnostic": false
+            },
+            "gnu99": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=gnu99",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-gnu99.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-gnu99.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.032986250007525086,
+              "crash_diagnostic": false
+            },
+            "c17": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=c17",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-c17.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-c17.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.016830135020427406,
+              "crash_diagnostic": false
+            },
+            "gnu17": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=gnu17",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-gnu17.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-gnu17.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.016428464005002752,
+              "crash_diagnostic": false
+            },
+            "c11": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=c11",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-c11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-c11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.017028947011567652,
+              "crash_diagnostic": false
+            },
+            "gnu11": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=gnu11",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-gnu11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-gnu11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.016668823023792356,
+              "crash_diagnostic": false
+            },
+            "strict_c11": {
+              "command": [
+                "/usr/bin/x86_64-linux-gnu-gcc-13",
+                "-std=c11",
+                "-pedantic-errors",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-strict_c11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/gcc-validate-strict_c11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.016526336985407397,
+              "crash_diagnostic": false
+            }
+          }
+        },
+        "clang": {
+          "path": "/usr/lib/llvm-18/bin/clang",
+          "sha256": "8ef402d453d1ba4902e4ee0f0f847f6cfa01400c95aa43c24e97818b9c0e3f45",
+          "version": "Ubuntu clang version 18.1.3 (1ubuntu1)\nTarget: x86_64-pc-linux-gnu\nThread model: posix\nInstalledDir: /usr/lib/llvm-18/bin",
+          "version_command": {
+            "command": [
+              "/usr/lib/llvm-18/bin/clang",
+              "--version"
+            ],
+            "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+            "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/clang-version.stdout",
+            "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/clang-version.stderr",
+            "exit_code": 0,
+            "timeout": false,
+            "environment_overrides": {
+              "LC_ALL": "C",
+              "SOURCE_DATE_EPOCH": "0"
+            },
+            "seconds": 0.11582997601362877,
+            "crash_diagnostic": false
+          },
+          "configuration_controls": {
+            "c90": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=c90",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-c90.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-c90.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06489829800557345,
+              "crash_diagnostic": false
+            },
+            "gnu90": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=gnu90",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-gnu90.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-gnu90.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06523487801314332,
+              "crash_diagnostic": false
+            },
+            "c99": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=c99",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-c99.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-c99.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06522360199596733,
+              "crash_diagnostic": false
+            },
+            "gnu99": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=gnu99",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-gnu99.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-gnu99.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.0651480310189072,
+              "crash_diagnostic": false
+            },
+            "c17": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=c17",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-c17.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-c17.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06524195600650273,
+              "crash_diagnostic": false
+            },
+            "gnu17": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=gnu17",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-gnu17.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-gnu17.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06501244701212272,
+              "crash_diagnostic": false
+            },
+            "c11": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=c11",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-c11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-c11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06514204799896106,
+              "crash_diagnostic": false
+            },
+            "gnu11": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=gnu11",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-gnu11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-gnu11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.06510933800018393,
+              "crash_diagnostic": false
+            },
+            "strict_c11": {
+              "command": [
+                "/usr/lib/llvm-18/bin/clang",
+                "-std=c11",
+                "-pedantic-errors",
+                "-Wno-strict-prototypes",
+                "-Wno-deprecated-non-prototype",
+                "-fsyntax-only",
+                "/tmp/toucan-handwritten-parser/conformance-clang/compiler-probe.c"
+              ],
+              "cwd": "/tmp/toucan-handwritten-parser/conformance-clang",
+              "stdout": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-strict_c11.stdout",
+              "stderr": "/tmp/toucan-handwritten-parser/conformance-clang/clang-validate-strict_c11.stderr",
+              "exit_code": 0,
+              "timeout": false,
+              "environment_overrides": {
+                "LC_ALL": "C",
+                "SOURCE_DATE_EPOCH": "0"
+              },
+              "seconds": 0.0654244770121295,
+              "crash_diagnostic": false
+            }
+          }
+        },
+        "native_probe": {
+          "path": "/home/dev-user/.cache/toucan/parser-handwritten-target/debug/examples/audit_translation_unit",
+          "sha256": "950aad4ddbbcfa0925aa73a84ea9225e6cd427e1554b17f379c972fe63837806",
+          "protocol_source": {
+            "path": "/home/dev-user/.codex/worktrees/c877/toucan/crates/toucan/examples/audit_translation_unit.rs",
+            "sha256": "407a2002b0810cdcd68206fc4415af75d7c0d9302118b6555f2dfab13e8bf537"
+          },
+          "provenance_note": "The protocol source identifies the checked-out example. Build provenance must independently connect the executable to its source tree."
+        }
+      },
+      "seconds": 60.446288467006525
+    }
+  },
+  "archive_sha256": "3c37b67cb14d3e78aecea5b7eb8b23f76c1d767ac19ec537ffd9eeecad40e6f9",
+  "archive_files": 24806
+}

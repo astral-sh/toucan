@@ -1,0 +1,46 @@
+{
+  "campaign": "parser-asan-final4-2026-09-10",
+  "status": "passed",
+  "requested_seconds": 900,
+  "elapsed_seconds": 901.1117916970106,
+  "seed": 20260910,
+  "statistics": {
+    "number_of_executed_units": 1028421,
+    "average_exec_per_sec": 1141,
+    "new_units_added": 5281,
+    "slowest_unit_time_sec": 0,
+    "peak_rss_mb": 514
+  },
+  "libfuzzer_cov": 8021,
+  "libfuzzer_features": 34288,
+  "initial_inputs": 2939,
+  "final_inputs": 7161,
+  "exit_code": 0,
+  "artifacts": {},
+  "source_unchanged": true,
+  "source_manifest_sha256": "f97a1380c496b813d4b094502bc3d916015227d55ea8050ce1ee826d813ea4a7",
+  "binary_sha256": "aed1f0d71298a39d154d8d9998955e399cc26970b51ffaebf2e5d65677bda438",
+  "sanitizer": "address",
+  "leak_checking": false,
+  "leak_limitation": "The LeakSanitizer positive control could not inspect processes in this environment. detect_leaks=0 was set for all successful runs.",
+  "hostile_replay": {
+    "inputs": 768,
+    "maximum_input_bytes": 13088,
+    "exit_code": 0,
+    "elapsed_seconds": 5.508382330997847,
+    "statistics": {
+      "number_of_executed_units": 769,
+      "average_exec_per_sec": 153,
+      "new_units_added": 0,
+      "slowest_unit_time_sec": 0,
+      "peak_rss_mb": 412
+    },
+    "artifacts": [],
+    "log_sha256": "ac89cb5321f8207bd3a53cff8136b5d1160554cbcad6e234d1de2bb4d1d6996d"
+  },
+  "completed_utc": "2026-09-10T02:09:29.282688+00:00",
+  "archive": "parser-asan.tar.xz",
+  "archive_sha256": "a5c7e4e85dc9a064eda24e48008394af5c53c7685b0da4570bbbd2bdc8a85d61",
+  "archive_bytes": 7773636,
+  "archive_files": 62
+}
