@@ -4550,10 +4550,25 @@ impl Analyzer {
                                         "zero-width bitfield must be unnamed",
                                     ));
                                 }
-                                if width > self.unit.layout(&ty)?.size_bits {
+                                // Clang checks the width before declarator machine modes.
+                                // The base type already includes modes carried by typedefs.
+                                let final_width = self.unit.layout(&ty)?.size_bits;
+                                let declared_width =
+                                    if self.unit.compiler == Compiler::Clang && base != ty {
+                                        self.unit.layout(&base)?.size_bits
+                                    } else {
+                                        final_width
+                                    };
+                                if width > declared_width {
                                     return Err(Error::new(
                                         declarator.span.start,
                                         "bitfield is wider than its type",
+                                    ));
+                                }
+                                if width > final_width {
+                                    return Err(Error::new(
+                                        declarator.span.start,
+                                        "bitfields wider than their attribute-modified type are not supported",
                                     ));
                                 }
                             }
