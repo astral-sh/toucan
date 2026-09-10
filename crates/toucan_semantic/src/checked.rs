@@ -84,7 +84,6 @@ use lang_c::span::{Node, Span};
 use lang_c::visit::{self, Visit};
 use serde::Serialize;
 
-use crate::parser_extensions::SourceMap;
 use crate::{Declaration, DeclarationKind, Error, FlexibleArrayStorage, Type, TypeKind};
 
 macro_rules! id {
@@ -217,7 +216,7 @@ pub struct SourceSpan {
     pub(crate) range: Range<usize>,
     /// Only populated when the original pieces are disjoint or reordered.
     pub(crate) fragments: Vec<Range<usize>>,
-    /// True when the occurrence consists entirely of parser-inserted text.
+    /// True when the occurrence has no written source token.
     pub(crate) synthetic: bool,
 }
 
@@ -376,7 +375,7 @@ pub(crate) struct LocalDeclaration<'a> {
     pub(crate) allocation: Option<&'a FlexibleArrayStorage>,
 }
 
-/// Name tokens survive parenthesized declarators and parser attribute adapters.
+/// Name tokens retain their spans inside parenthesized declarators.
 pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> Option<Span> {
     loop {
         match &declaration.node.kind.node {
@@ -1083,21 +1082,21 @@ impl Builder {
         Ok(())
     }
 
-    pub(crate) fn finish(mut self, offsets: &SourceMap) -> Result<CheckedCode, Error> {
+    pub(crate) fn finish(mut self) -> Result<CheckedCode, Error> {
         for (occurrence, span) in self.code.occurrences.iter_mut().zip(&self.parsed_spans) {
-            occurrence.source = map_span(offsets, *span, &mut self.budget)?;
+            occurrence.source = map_span(*span, &mut self.budget)?;
         }
         self.finish_expression_coverage()?;
         self.finish_statements()?;
-        self.finish_references(offsets)?;
-        self.finish_diagnostic_attributes(offsets)?;
-        self.finish_noescape_attributes(offsets)?;
-        self.finish_function_option_spans(offsets)?;
-        self.finish_inline_spans(offsets)?;
+        self.finish_references()?;
+        self.finish_diagnostic_attributes()?;
+        self.finish_noescape_attributes()?;
+        self.finish_function_option_spans()?;
+        self.finish_inline_spans()?;
         self.finish_initializer_coverage()?;
-        self.finish_bounds(offsets)?;
+        self.finish_bounds()?;
         self.finish_type_ownership()?;
-        self.finish_type_inferences(offsets)?;
+        self.finish_type_inferences()?;
         for (occurrence, missing, kind) in self
             .code
             .expression_coverage
@@ -1137,10 +1136,10 @@ impl Builder {
                 "checked-code retention has an ambiguous source occurrence",
             ));
         }
-        self.finish_dll_storage(offsets)?;
+        self.finish_dll_storage()?;
         for (scope, span) in self.code.scopes.iter_mut().zip(self.scope_spans) {
             if scope.kind != ScopeKind::File {
-                scope.source = map_span(offsets, span, &mut self.budget)?;
+                scope.source = map_span(span, &mut self.budget)?;
             }
             scope.declarations.sort_by_key(|id| {
                 let occurrence = self.code.declarations[id.index()].occurrence;
@@ -1150,33 +1149,30 @@ impl Builder {
         for (site, span) in self.code.declarations.iter_mut().zip(self.name_spans) {
             if let Some(source) = &mut site.noreturn_source {
                 **source = map_span(
-                    offsets,
                     Span::span(source.range.start, source.range.end),
                     &mut self.budget,
                 )?;
             }
             if let Some(attribute) = &site.returns_twice_attribute {
                 site.returns_twice_attribute = Some(map_span(
-                    offsets,
                     Span::span(attribute.range.start, attribute.range.end),
                     &mut self.budget,
                 )?);
             }
             if let Some(attribute) = &site.weak_attribute {
                 site.weak_attribute = Some(map_span(
-                    offsets,
                     Span::span(attribute.range.start, attribute.range.end),
                     &mut self.budget,
                 )?);
             }
             site.name_source = span
-                .map(|span| map_span(offsets, span, &mut self.budget))
+                .map(|span| map_span(span, &mut self.budget))
                 .transpose()?;
         }
         for span in self.ambiguous_spans {
             self.code
                 .ambiguous_aliases
-                .push(map_span(offsets, span, &mut self.budget)?);
+                .push(map_span(span, &mut self.budget)?);
         }
         Ok(self.code)
     }
@@ -1190,62 +1186,20 @@ fn unmapped_span(span: Span) -> SourceSpan {
     }
 }
 
-fn map_span(offsets: &SourceMap, span: Span, budget: &mut Budget) -> Result<SourceSpan, Error> {
-    map_source_span(offsets, span, |edges, bytes| {
-        budget.charge(0, edges, bytes, span.start)
-    })
+fn map_span(span: Span, budget: &mut Budget) -> Result<SourceSpan, Error> {
+    if span.start != span.end {
+        budget.charge(0, 1, 0, span.start)?;
+    }
+    Ok(source_span(span))
 }
 
-pub(crate) fn map_source_span(
-    offsets: &SourceMap,
-    span: Span,
-    mut charge: impl FnMut(usize, usize) -> Result<(), Error>,
-) -> Result<SourceSpan, Error> {
-    let mut first: Option<Range<usize>> = None;
-    let mut fragments = Vec::new();
-    let mut anchor = None;
-    offsets.original_ranges(span.start..span.end, |range| {
-        if range.is_empty() {
-            anchor.get_or_insert(range.start);
-        } else {
-            charge(1, 0)?;
-            if let Some(first) = &mut first {
-                if fragments.is_empty() && first.end == range.start {
-                    first.end = range.end;
-                } else {
-                    if fragments.is_empty() {
-                        charge(0, std::mem::size_of::<Range<usize>>())?;
-                        fragments.push(first.clone());
-                    }
-                    charge(0, std::mem::size_of::<Range<usize>>())?;
-                    fragments.push(range);
-                }
-            } else {
-                first = Some(range);
-            }
-        }
-        Ok(())
-    })?;
-    let synthetic = first.is_none();
-    let range = if fragments.is_empty() {
-        first.unwrap_or_else(|| {
-            let anchor = anchor.unwrap_or(0);
-            anchor..anchor
-        })
-    } else {
-        let start = fragments.iter().map(|range| range.start).min().unwrap_or(0);
-        let end = fragments
-            .iter()
-            .map(|range| range.end)
-            .max()
-            .unwrap_or(start);
-        start..end
-    };
-    Ok(SourceSpan {
-        range,
-        fragments,
-        synthetic,
-    })
+/// Parser nodes now refer directly to the caller's source, without inserted tokens.
+pub(crate) fn source_span(span: Span) -> SourceSpan {
+    SourceSpan {
+        range: span.start..span.end,
+        fragments: Vec::new(),
+        synthetic: span.start == span.end,
+    }
 }
 
 fn charge_type(budget: &mut Budget, ty: &Type, offset: usize, depth: usize) -> Result<(), Error> {
@@ -1650,7 +1604,7 @@ mod tests {
     }
 
     #[test]
-    fn adapter_spans_preserve_parenthesized_attributes_and_mark_insertions() {
+    fn native_spans_preserve_empty_literals_and_parenthesized_attributes() {
         let source = "struct S { int value; }; int f(void) { struct S local = (struct S){}; int (*pointer)(void) = (int (__attribute__((noinline)) *)(void))f; return pointer(); }";
         let (_, code) = retained(source);
         assert_eq!(code.scopes[0].source.range, 0..source.len());
@@ -1681,12 +1635,12 @@ mod tests {
         assert!(
             code.occurrences
                 .iter()
-                .any(|occurrence| occurrence.source.synthetic)
+                .all(|occurrence| !occurrence.source.synthetic)
         );
     }
 
     #[test]
-    fn sparse_bounds_stay_compact_and_quota_offsets_are_remapped() {
+    fn sparse_bounds_stay_compact_and_quota_offsets_refer_to_written_source() {
         let (_, code) = retained("int values[1099511627776] = {[1099511627775] = 1};");
         assert!(code.occurrences.len() < 20);
         assert_eq!(sites(&code, "values").len(), 1);
@@ -1715,7 +1669,7 @@ mod tests {
         )
         .unwrap();
         let builder = Builder::new(&parsed.unit, parsed.source.len(), Limits::default()).unwrap();
-        let error = builder.finish(&SourceMap::default()).unwrap_err();
+        let error = builder.finish().unwrap_err();
         assert!(error.message.contains("does not support this expression"));
         assert_eq!(&parsed.source[error.offset..error.offset + 1], "1");
     }
@@ -1758,7 +1712,7 @@ mod tests {
             builder.find(OccurrenceKind::Declarator, &copied).unwrap(),
             None
         );
-        let error = builder.finish(&SourceMap::default()).unwrap_err();
+        let error = builder.finish().unwrap_err();
         assert!(error.message.contains("ambiguous source occurrence"));
         assert_eq!(error.offset, original.span.start);
     }

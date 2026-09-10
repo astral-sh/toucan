@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-use crate::{Error, parser_extensions::SourceMap};
+use crate::Error;
 
 /// A documentable item in the same [`crate::Analysis`].
 #[derive(Clone, Copy, Debug, PartialEq, Eq, PartialOrd, Ord, Serialize)]
@@ -102,24 +102,14 @@ impl Builder {
             entry.reference = false;
         }
     }
-    pub(crate) fn finish(
-        mut self,
-        offsets: &SourceMap,
-        source_len: usize,
-    ) -> Result<DocumentationDeclarations, Error> {
+    pub(crate) fn finish(mut self, source_len: usize) -> Result<DocumentationDeclarations, Error> {
         for entry in &mut self.entries {
-            let parsed_name = entry.name;
-            entry.begin = offsets.original_offset(entry.begin);
-            entry.name = offsets.original_offset(entry.name);
-            entry.parent_name = entry
-                .parent_name
-                .map(|offset| offsets.original_offset(offset));
             if entry.begin >= source_len
                 || entry.name >= source_len
                 || entry.parent_name.is_some_and(|offset| offset >= source_len)
             {
                 return Err(Error::new(
-                    parsed_name,
+                    entry.name,
                     "documentation declaration offset is outside the source",
                 ));
             }

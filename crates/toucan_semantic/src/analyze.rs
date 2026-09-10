@@ -45,7 +45,7 @@ pub fn analyze(source: &str, target: Target) -> Result<TranslationUnit, Error> {
 /// Checks preprocessed C and optionally retains its owned semantic graph.
 ///
 /// A successful retained result has complete expression, statement, and initializer
-/// coverage, excluding parser-inserted tokens and attribute metadata. Unsupported
+/// coverage, excluding attribute metadata. Unsupported
 /// retention returns a source-positioned diagnostic rather than an incomplete graph.
 pub fn analyze_with_options(
     source: &str,
@@ -138,10 +138,6 @@ fn analyze_on_parser_stack(
         profile.compiler(),
         profile.language_mode(),
     )?;
-    let packs = packs
-        .into_iter()
-        .map(|(offset, pack)| (parsed.offsets.pragma_offset(offset), pack))
-        .collect();
     let mut analyzer = Analyzer::new(profile, packs);
     analyzer.declaration_origins =
         retain_declaration_origins.then(|| Box::new(crate::declaration_origins::Builder::new()));
@@ -154,93 +150,80 @@ fn analyze_on_parser_stack(
     analyzer.prepare_dll_storage(&source);
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
-    analyzer.empty_initializers = parsed.empty_initializers;
-    analyzer.int128_specifiers = parsed.int128_specifiers;
-    let result = (|| {
-        analyzer.prepare_typedef_alignments(&parsed.unit, &source)?;
-        analyzer.prepare_array_identities(&parsed.unit, &source)?;
-        analyzer.prepare_late_function_targets(&parsed.unit, &source)?;
-        analyzer.prepare_inline_definitions(&parsed.unit, &source)?;
-        if let Some(limits) = retention {
-            analyzer.checked = Some(Box::new(CodeBuilder::new(
-                &parsed.unit,
-                source.len(),
-                limits,
-            )?));
-        }
-        for external in parsed.unit.0 {
-            match external.node {
-                ast::ExternalDeclaration::Declaration(declaration) => {
-                    analyzer.declaration(&declaration, false)?
-                }
-                ast::ExternalDeclaration::StaticAssert(assertion) => {
-                    analyzer.static_assert(&assertion)?
-                }
-                ast::ExternalDeclaration::FunctionDefinition(definition) => {
-                    analyzer.function_definition(&definition)?;
-                }
+    analyzer.prepare_typedef_alignments(&parsed.unit, &source)?;
+    analyzer.prepare_array_identities(&parsed.unit, &source)?;
+    analyzer.prepare_late_function_targets(&parsed.unit, &source)?;
+    analyzer.prepare_inline_definitions(&parsed.unit, &source)?;
+    if let Some(limits) = retention {
+        analyzer.checked = Some(Box::new(CodeBuilder::new(
+            &parsed.unit,
+            source.len(),
+            limits,
+        )?));
+    }
+    for external in parsed.unit.0 {
+        match external.node {
+            ast::ExternalDeclaration::Declaration(declaration) => {
+                analyzer.declaration(&declaration, false)?
+            }
+            ast::ExternalDeclaration::StaticAssert(assertion) => {
+                analyzer.static_assert(&assertion)?
+            }
+            ast::ExternalDeclaration::FunctionDefinition(definition) => {
+                analyzer.function_definition(&definition)?;
             }
         }
-        analyzer.validate_sve_features()?;
-        analyzer.finish_tentative_definitions()?;
-        analyzer.validate_block_externs()?;
-        analyzer.validate_weak_symbol_aliases()?;
-        analyzer.validate_returns_twice_aliases()?;
-        analyzer.finish_inline_targets()?;
-        analyzer.finish_inline_definitions()?;
-        analyzer.finish_dll_inline_definitions();
-        if analyzer.needs_tag_discovery {
-            // Keep the ordinary analysis path free to drop each parsed declaration.
-            // Only this rare compatibility case needs a second, bounded syntax walk.
-            let syntax = parse(
-                &source,
-                0,
-                profile.target(),
-                profile.compiler(),
-                profile.language_mode(),
-            )?;
-            analyzer.unit.tag_discovery =
-                crate::tag_discovery::discover(&analyzer.unit, &syntax.unit, |offset| {
-                    syntax.offsets.original_offset(offset)
-                })?;
-        }
-        let checked = analyzer
-            .checked
-            .take()
-            .map(|builder| builder.finish(&parsed.offsets))
-            .transpose()?;
-        let declaration_origins = analyzer
-            .declaration_origins
-            .take()
-            .map(|builder| builder.finish(&parsed.offsets).map(Box::new))
-            .transpose()?;
-        let object_values = analyzer
-            .object_values
-            .take()
-            .map(|values| Box::new(values.finish(&parsed.offsets)));
-        let documentation_origins = analyzer
-            .documentation_origins
-            .take()
-            .map(|builder| builder.finish(&parsed.offsets, source.len()).map(Box::new))
-            .transpose()?;
-        let parameter_type_dependencies = analyzer
-            .parameter_type_dependencies
-            .take()
-            .map(|builder| builder.finish(&parsed.offsets).map(Box::new))
-            .transpose()?;
-        Ok((
-            analyzer.unit,
-            checked,
-            declaration_origins,
-            object_values,
-            documentation_origins,
-            parameter_type_dependencies,
-        ))
-    })();
-    result.map_err(|mut error: Error| {
-        error.offset = parsed.offsets.original_offset(error.offset);
-        error
-    })
+    }
+    analyzer.validate_sve_features()?;
+    analyzer.finish_tentative_definitions()?;
+    analyzer.validate_block_externs()?;
+    analyzer.validate_weak_symbol_aliases()?;
+    analyzer.validate_returns_twice_aliases()?;
+    analyzer.finish_inline_targets()?;
+    analyzer.finish_inline_definitions()?;
+    analyzer.finish_dll_inline_definitions();
+    if analyzer.needs_tag_discovery {
+        // Keep the ordinary analysis path free to drop each parsed declaration.
+        // Only this rare compatibility case needs a second, bounded syntax walk.
+        let syntax = parse(
+            &source,
+            0,
+            profile.target(),
+            profile.compiler(),
+            profile.language_mode(),
+        )?;
+        analyzer.unit.tag_discovery = crate::tag_discovery::discover(&analyzer.unit, &syntax.unit)?;
+    }
+    let checked = analyzer
+        .checked
+        .take()
+        .map(|builder| builder.finish())
+        .transpose()?;
+    let declaration_origins = analyzer
+        .declaration_origins
+        .take()
+        .map(|builder| Box::new(builder.finish()));
+    let object_values = analyzer
+        .object_values
+        .take()
+        .map(|values| Box::new(values.finish()));
+    let documentation_origins = analyzer
+        .documentation_origins
+        .take()
+        .map(|builder| builder.finish(source.len()).map(Box::new))
+        .transpose()?;
+    let parameter_type_dependencies = analyzer
+        .parameter_type_dependencies
+        .take()
+        .map(|builder| Box::new(builder.finish()));
+    Ok((
+        analyzer.unit,
+        checked,
+        declaration_origins,
+        object_values,
+        documentation_origins,
+        parameter_type_dependencies,
+    ))
 }
 
 /// Evaluates a supported integer fold in the translation unit's type and
@@ -397,8 +380,6 @@ fn evaluate_on_parser_stack<Value>(
     analyzer.evaluation = crate::evaluation::Context::constant_query();
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
-    analyzer.empty_initializers = parsed.empty_initializers;
-    analyzer.int128_specifiers = parsed.int128_specifiers;
     analyzer
         .prepare_array_identities(&parsed.unit, &source)
         .and_then(|()| analyzer.prepare_typedef_alignments(&parsed.unit, &source))
@@ -409,10 +390,7 @@ fn evaluate_on_parser_stack<Value>(
             Ok(value)
         })
         .map_err(|mut error| {
-            error.offset = parsed
-                .offsets
-                .original_offset(error.offset)
-                .saturating_sub(expression_offset);
+            error.offset = error.offset.saturating_sub(expression_offset);
             error
         })
 }
@@ -501,9 +479,6 @@ struct Parsed {
     unit: ast::TranslationUnit,
     character_literals: HashMap<usize, String>,
     string_literals: HashMap<usize, Vec<String>>,
-    offsets: crate::parser_extensions::SourceMap,
-    empty_initializers: HashSet<usize>,
-    int128_specifiers: HashSet<usize>,
 }
 
 fn parse(
@@ -518,8 +493,7 @@ fn parse(
     }
     let original = source;
     let source = strip_comments(source, compiler, language_mode)?;
-    let adapted = crate::parser_extensions::adapt(&source)?;
-    let source = adapted.source;
+    crate::asm::check_source_qualifiers(&source)?;
     let config = driver::Config {
         cpp_command: String::new(),
         cpp_options: Vec::new(),
@@ -546,7 +520,6 @@ fn parse(
     };
     let (source, literal_spellings) = crate::literals::normalize_literal_escapes(source);
     let parsed = driver::parse_preprocessed(&config, source).map_err(|mut error| {
-        error.offset = adapted.offsets.original_offset(error.offset);
         error.source = original.to_owned();
         error.line = original[..error.offset]
             .bytes()
@@ -575,9 +548,6 @@ fn parse(
         unit: parsed.unit,
         character_literals: literal_spellings.characters,
         string_literals: literal_spellings.strings,
-        offsets: adapted.offsets,
-        empty_initializers: adapted.empty_initializers,
-        int128_specifiers: adapted.int128_specifiers,
     })
 }
 
@@ -1083,8 +1053,6 @@ pub(crate) struct Analyzer {
     packs: PackEvents,
     pub(crate) character_literals: HashMap<usize, String>,
     pub(crate) string_literals: HashMap<usize, Vec<String>>,
-    pub(crate) empty_initializers: HashSet<usize>,
-    int128_specifiers: HashSet<usize>,
     nesting: usize,
     pub(crate) capture_function_scope: bool,
     definition_parameters: Option<usize>,
@@ -1190,8 +1158,6 @@ impl Analyzer {
             packs: Vec::new(),
             character_literals: HashMap::new(),
             string_literals: HashMap::new(),
-            empty_initializers: HashSet::new(),
-            int128_specifiers: HashSet::new(),
             nesting: 0,
             capture_function_scope: false,
             definition_parameters: None,
@@ -2915,29 +2881,28 @@ impl Analyzer {
             .iter()
             .any(|ty| matches!(ty.node, ast::TypeSpecifier::MsvcInteger(16)));
         for ty in types {
-            if self.int128_specifiers.contains(&ty.span.start) {
-                if matches!(
-                    self.unit.target,
-                    Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
-                ) {
-                    return Err(Error::new(
-                        ty.span.start,
-                        if self.unit.target.is_armv7() {
-                            "__int128 is unavailable on ARMv7 GNU Linux"
-                        } else {
-                            "__int128 is unavailable on i686 GNU Linux"
-                        },
-                    ));
-                }
-                if std::mem::replace(&mut int128, true) {
-                    return Err(Error::new(
-                        ty.span.start,
-                        "duplicate __int128 type specifier",
-                    ));
-                }
-                continue;
-            }
             match &ty.node {
+                ast::TypeSpecifier::Int128 => {
+                    if matches!(
+                        self.unit.target,
+                        Target::I686UnknownLinuxGnu | Target::Armv7UnknownLinuxGnueabihf
+                    ) {
+                        return Err(Error::new(
+                            ty.span.start,
+                            if self.unit.target.is_armv7() {
+                                "__int128 is unavailable on ARMv7 GNU Linux"
+                            } else {
+                                "__int128 is unavailable on i686 GNU Linux"
+                            },
+                        ));
+                    }
+                    if std::mem::replace(&mut int128, true) {
+                        return Err(Error::new(
+                            ty.span.start,
+                            "duplicate __int128 type specifier",
+                        ));
+                    }
+                }
                 ast::TypeSpecifier::MsvcInteger(8) if !char_ => char_ = true,
                 ast::TypeSpecifier::MsvcInteger(16) => short = true,
                 ast::TypeSpecifier::MsvcInteger(32) if !int => int = true,

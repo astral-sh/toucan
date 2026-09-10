@@ -63,7 +63,6 @@ pub use object_types::ObjectTypeComparison;
 mod old_style;
 mod overflow;
 mod parameters;
-mod parser_extensions;
 mod prefetch;
 mod returns_twice;
 mod statement;

@@ -2918,17 +2918,15 @@ mod tests {
         );
     }
     #[test]
-    fn folded_and_initializer_expressions_have_coverage_and_insertions_are_explicit() {
+    fn folded_and_empty_initializer_expressions_have_written_coverage() {
         let code = checked(
             "enum { A = 1 ? 2 : 3, B = 0 && 4 }; int a[4] = {[2] = 5}; char s[] = \"abc\"; struct S { int x; }; struct S object = (struct S){}; int f(void) { return sizeof(_Generic(a, int *: a[0], default: s[0])); }",
             Target::X86_64UnknownLinuxGnu,
         );
-        // The empty initializer adapter inserts list syntax, not a fabricated
-        // value expression. Its synthetic occurrence remains distinguishable.
         assert!(
             code.occurrences
                 .iter()
-                .any(|occurrence| occurrence.source.synthetic)
+                .all(|occurrence| !occurrence.source.synthetic)
         );
         assert_eq!(
             code.expression_coverage.len(),

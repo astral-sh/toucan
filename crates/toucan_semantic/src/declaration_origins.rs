@@ -5,10 +5,8 @@ use serde::Serialize;
 
 use crate::Error;
 use crate::checked::SourceSpan;
-use crate::parser_extensions::SourceMap;
 
 const MAX_ORIGINS: usize = 1_000_000;
-const MAX_FRAGMENT_BYTES: usize = 64 * 1024 * 1024;
 
 /// A declaration or type owned by the same [`crate::Analysis`].
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
@@ -127,35 +125,23 @@ impl Builder {
         }
     }
 
-    pub(crate) fn finish(self, offsets: &SourceMap) -> Result<DeclarationOrigins, Error> {
-        let mut fragment_bytes = 0usize;
+    pub(crate) fn finish(self) -> DeclarationOrigins {
         let mut entries = self
             .entries
             .into_iter()
             .map(|(target, span, definition, external, reference, inline)| {
-                let source = crate::checked::map_source_span(offsets, span, |_, bytes| {
-                    fragment_bytes = fragment_bytes
-                        .checked_add(bytes)
-                        .filter(|total| *total <= MAX_FRAGMENT_BYTES)
-                        .ok_or_else(|| {
-                            Error::new(
-                                span.start,
-                                "declaration-origin source fragment limit exceeded",
-                            )
-                        })?;
-                    Ok(())
-                })?;
-                Ok(DeclarationOrigin {
+                let source = crate::checked::source_span(span);
+                DeclarationOrigin {
                     target,
                     source,
                     definition,
                     external,
                     reference,
                     inline,
-                })
+                }
             })
-            .collect::<Result<Vec<_>, Error>>()?;
+            .collect::<Vec<_>>();
         entries.sort_by_key(|entry| (entry.source.range().start, entry.source.range().end));
-        Ok(DeclarationOrigins { entries })
+        DeclarationOrigins { entries }
     }
 }

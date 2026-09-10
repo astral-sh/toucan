@@ -643,6 +643,7 @@ fn print_type_specifier(p: &mut Printer, n: &TypeSpecifier) {
         TypeSpecifier::Char => p.w.write_str(" Char").unwrap(),
         TypeSpecifier::Short => p.w.write_str(" Short").unwrap(),
         TypeSpecifier::Int => p.w.write_str(" Int").unwrap(),
+        TypeSpecifier::Int128 => p.w.write_str(" Int128").unwrap(),
         TypeSpecifier::Long => p.w.write_str(" Long").unwrap(),
         TypeSpecifier::Float => p.w.write_str(" Float").unwrap(),
         TypeSpecifier::Double => p.w.write_str(" Double").unwrap(),

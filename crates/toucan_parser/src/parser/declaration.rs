@@ -440,7 +440,8 @@ impl<'s, 'e> Parser<'s, 'e> {
             "__auto_type" | "__bf16" if self.env.extensions_gnu => Some(TypeClass::Unique),
             "char" | "short" | "int" | "long" | "float" | "double" | "signed" | "unsigned"
             | "_Complex" => Some(TypeClass::Arithmetic),
-            "__signed" | "__signed__" | "__complex" | "__complex__" | "__typeof" | "__typeof__"
+            "__int128" | "__signed" | "__signed__" | "__complex" | "__complex__" | "__typeof"
+            | "__typeof__"
                 if self.env.extensions_gnu =>
             {
                 Some(TypeClass::Arithmetic)
@@ -474,6 +475,7 @@ impl<'s, 'e> Parser<'s, 'e> {
                 "char" => TypeSpecifier::Char,
                 "short" => TypeSpecifier::Short,
                 "int" => TypeSpecifier::Int,
+                "__int128" if parser.env.extensions_gnu => TypeSpecifier::Int128,
                 "long" => TypeSpecifier::Long,
                 "float" => TypeSpecifier::Float,
                 "double" => TypeSpecifier::Double,
@@ -1451,6 +1453,7 @@ mod tests {
                     "__complex__",
                     "__auto_type",
                     "__bf16",
+                    "__int128",
                     "__typeof",
                     "__typeof__",
                     "__const",

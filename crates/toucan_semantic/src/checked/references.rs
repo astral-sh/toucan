@@ -132,17 +132,14 @@ impl Builder {
         Ok(Some(site))
     }
 
-    pub(super) fn finish_references(
-        &mut self,
-        offsets: &crate::parser_extensions::SourceMap,
-    ) -> Result<(), Error> {
+    pub(super) fn finish_references(&mut self) -> Result<(), Error> {
         for (reference, span) in self
             .code
             .references
             .iter_mut()
             .zip(&self.reference_builder.spans)
         {
-            reference.source = map_span(offsets, *span, &mut self.budget)?;
+            reference.source = map_span(*span, &mut self.budget)?;
         }
         Ok(())
     }

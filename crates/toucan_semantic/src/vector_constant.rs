@@ -206,9 +206,6 @@ impl Analyzer {
                 )?;
                 let mut lanes = vec![zero; count];
                 for (index, item) in literal.node.initializer_list.iter().enumerate() {
-                    if self.empty_initializers.contains(&item.span.start) {
-                        continue;
-                    }
                     let ast::Initializer::Expression(value) = &item.node.initializer.node else {
                         return Err(unsupported());
                     };

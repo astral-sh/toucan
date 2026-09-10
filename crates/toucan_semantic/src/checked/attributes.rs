@@ -159,13 +159,10 @@ impl Builder {
         Ok(())
     }
 
-    pub(super) fn finish_diagnostic_attributes(
-        &mut self,
-        offsets: &crate::parser_extensions::SourceMap,
-    ) -> Result<(), Error> {
+    pub(super) fn finish_diagnostic_attributes(&mut self) -> Result<(), Error> {
         for attribute in &mut self.code.diagnostic_attributes {
             let span = Span::span(attribute.source.range.start, attribute.source.range.end);
-            attribute.source = map_span(offsets, span, &mut self.budget)?;
+            attribute.source = map_span(span, &mut self.budget)?;
         }
         Ok(())
     }
@@ -270,13 +267,10 @@ impl Builder {
         }
         Ok(())
     }
-    pub(super) fn finish_noescape_attributes(
-        &mut self,
-        offsets: &crate::parser_extensions::SourceMap,
-    ) -> Result<(), Error> {
+    pub(super) fn finish_noescape_attributes(&mut self) -> Result<(), Error> {
         for attribute in &mut self.code.noescape_attributes {
             let span = Span::span(attribute.source.range.start, attribute.source.range.end);
-            attribute.source = map_span(offsets, span, &mut self.budget)?;
+            attribute.source = map_span(span, &mut self.budget)?;
         }
         Ok(())
     }

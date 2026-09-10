@@ -49,8 +49,8 @@ when empty. See [per-function target options](function-targets.md).
 ## Resolve source locations
 
 Source ranges use half-open UTF-8 byte offsets into `preprocessed.source`.
-`fragments` records disjoint or reordered original pieces when a parser adapter
-has rearranged syntax. Synthetic occurrences have no written source token.
+The parser preserves written syntax, so `fragments` is empty for these contiguous
+spans. Synthetic occurrences have no written source token.
 
 The ordered `preprocessed.mappings` connect generated ranges to source anchors.
 Locations use one-based lines and byte columns, including `#line` remapping.
