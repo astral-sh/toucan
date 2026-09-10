@@ -1074,11 +1074,16 @@ impl Preprocessor {
                     }
                 }
                 "include" | "include_next" => {
-                    let (name, quoted) = if let Ok(header) = header_name(rest) {
-                        header
-                    } else {
-                        let expanded = self.expand(&logical_path, rest.to_vec()).map_err(&fail)?;
-                        header_name(&expanded).map_err(&fail)?
+                    let (name, quoted) = match header_name(rest, true) {
+                        Ok(header) => header,
+                        Err(error) if rest.first().is_some_and(starts_direct_angle_header) => {
+                            return Err(fail(error));
+                        }
+                        Err(_) => {
+                            let expanded =
+                                self.expand(&logical_path, rest.to_vec()).map_err(&fail)?;
+                            header_name(&expanded, false).map_err(&fail)?
+                        }
                     };
                     let next = directive.text == "include_next";
                     let start = if next {
@@ -1766,12 +1771,17 @@ impl Preprocessor {
         }
         let mut argument = Vec::new();
         let mut nesting = 0;
-        let mut angle_header = pending.front().is_some_and(|token| token.text == "<");
+        let direct = pending.front().is_some_and(starts_direct_angle_header);
+        let mut angle_header = direct || pending.front().is_some_and(|token| token.text == "<");
         while let Some(token) = pending.front() {
             // Parentheses in a literal header name are ordinary characters;
             // elsewhere, keep complete function-macro arguments for expansion.
             if angle_header {
-                angle_header = token.text != ">";
+                angle_header = if direct {
+                    !token.spelling().contains('>')
+                } else {
+                    token.text != ">"
+                };
             } else {
                 match token.text.as_str() {
                     "(" => nesting += 1,
@@ -1785,11 +1795,13 @@ impl Preprocessor {
         if pending.pop_front().is_none() {
             return Err(format!("unterminated {builtin} expression"));
         }
-        let (name, quoted) = if let Ok(header) = header_name(&argument) {
-            header
-        } else {
-            let tokens = self.expand(path, argument)?;
-            header_name(&tokens)?
+        let (name, quoted) = match header_name(&argument, true) {
+            Ok(header) => header,
+            Err(error) if direct => return Err(error),
+            Err(_) => {
+                let tokens = self.expand(path, argument)?;
+                header_name(&tokens, false)?
+            }
         };
         let next = builtin == "__has_include_next";
         let start = if next {
@@ -2224,7 +2236,13 @@ fn is_builtin(name: &str) -> bool {
     )
 }
 
-fn header_name(tokens: &[Token]) -> Result<(String, bool), String> {
+/// Only a header operand that starts in source uses character delimiters;
+/// macro expansion combines complete preprocessing tokens instead.
+fn starts_direct_angle_header(token: &Token) -> bool {
+    !token.expanded && token.spelling().starts_with('<')
+}
+
+fn header_name(tokens: &[Token], direct: bool) -> Result<(String, bool), String> {
     if tokens.iter().any(|token| token.text.contains('\0')) {
         return Err("include names cannot contain NUL bytes".into());
     }
@@ -2240,18 +2258,25 @@ fn header_name(tokens: &[Token]) -> Result<(String, bool), String> {
         // their literal spelling for native filesystem and virtual-header lookup.
         return Ok((name.to_owned(), true));
     }
-    if tokens.first().is_some_and(|token| token.text == "<")
-        && tokens.last().is_some_and(|token| token.text == ">")
-        && tokens.len() > 2
+    let direct = direct && tokens.first().is_some_and(starts_direct_angle_header);
+    if direct
+        || (tokens.first().is_some_and(|token| token.text == "<")
+            && tokens.last().is_some_and(|token| token.text == ">")
+            && tokens.len() > 2)
     {
         if tokens[1..].iter().any(|token| token.space) {
             return Err("whitespace inside angle-bracket include names is not supported".into());
         }
-        let name = tokens[1..tokens.len() - 1]
-            .iter()
-            .map(Token::spelling)
-            .collect();
-        return Ok((name, false));
+        let spelling: String = tokens.iter().map(Token::spelling).collect();
+        let name = spelling
+            .strip_prefix('<')
+            .and_then(|name| name.strip_suffix('>'))
+            .filter(|name| !direct || !name.contains('>'))
+            .ok_or("#include requires a quoted or angle-bracket header name")?;
+        if name.is_empty() {
+            return Err("include names cannot be empty".into());
+        }
+        return Ok((name.to_owned(), false));
     }
     Err("#include requires a quoted or angle-bracket header name".into())
 }
