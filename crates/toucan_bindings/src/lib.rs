@@ -2008,6 +2008,17 @@ impl Emitter<'_> {
             return Err(Error("C function declaration without a prototype cannot be represented by a Rust function signature".into()));
         }
         self.check_call_value(&function.return_type, depth + 1)?;
+        // The i386 C ABI returns even zero-sized aggregates through a hidden
+        // pointer and pops that argument. Rust omits the pointer entirely.
+        if self.unit.target == toucan_target::Target::I686UnknownLinuxGnu
+            && matches!(
+                self.unit.resolve(&function.return_type)?.kind,
+                TypeKind::Record(_)
+            )
+            && self.unit.layout(&function.return_type)?.size_bits == 0
+        {
+            return Err(Error("zero-sized aggregate returns have no supported Rust ABI on i686; expose C pointer accessors".into()));
+        }
         for parameter in &function.parameters {
             self.check_call_value(self.unit.parameter_abi_type(&parameter.ty)?, depth + 1)?;
         }
