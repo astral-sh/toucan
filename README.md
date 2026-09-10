@@ -23,15 +23,10 @@ A C frontend and Rust binding generator, written in Rust.
 
 ## Installation
 
-Install a published binary release for macOS, Linux, or Windows from
-[GitHub Releases](https://github.com/astral-sh/toucan/releases). Releases include
-x86-64 and ARM64 binaries, checksums, and shell and PowerShell installers.
-See the [installation guide](docs/usage.md#installation) for commands.
-
-Or build from this checkout with Rust 1.96 or later:
+Install from Git with Rust 1.96 or later:
 
 ```console
-cargo install --path crates/toucan_cli --bin toucan --locked
+cargo install --git https://github.com/astral-sh/toucan toucan_cli --bin toucan --locked
 ```
 
 Headers that include system or compiler headers need the corresponding
