@@ -190,15 +190,10 @@ impl<'unit> Emitter<'unit> {
         &self,
         declaration: &'unit Declaration,
     ) -> Result<&'unit Type, Error> {
-        let ty = self
-            .options
-            .object_bindings
-            .get(&declaration.name)
-            .map_or(&declaration.ty, |object| object.ty());
-        if self.object_constant(declaration)?.is_some() {
-            return Ok(self.unit.atomic_value(ty)?.unwrap_or(ty));
-        }
-        Ok(ty)
+        let Some(object) = self.options.object_bindings.get(&declaration.name) else {
+            return Ok(&declaration.ty);
+        };
+        self.object_type_at(object)
     }
 
     /// Emit a checked scalar initializer using the declaration's Rust name and type.
@@ -301,10 +296,9 @@ impl<'unit> Emitter<'unit> {
         Ok(())
     }
 
-    fn additional_object_type(
-        &self,
-        object: &'unit ObjectOccurrence,
-    ) -> Result<&'unit Type, Error> {
+    /// Preserve an occurrence's written type, unwrapping atomic storage only when
+    /// its initializer can be emitted as a Rust constant.
+    fn object_type_at(&self, object: &'unit ObjectOccurrence) -> Result<&'unit Type, Error> {
         let ty = object.ty();
         if self.object_constant_at(object)?.is_some() {
             return Ok(self.unit.atomic_value(ty)?.unwrap_or(ty));
@@ -353,7 +347,7 @@ impl<'unit> Emitter<'unit> {
                     )));
                 }
             }
-            self.collect(self.additional_object_type(object)?)?;
+            self.collect(self.object_type_at(object)?)?;
         }
         Ok(())
     }
@@ -363,7 +357,7 @@ impl<'unit> Emitter<'unit> {
         for (name, object) in &self.options.additional_objects {
             let declaration = &self.unit.declarations[object.declaration()];
             let name = self.names.identifier(name)?;
-            let ty = self.additional_object_type(object)?;
+            let ty = self.object_type_at(object)?;
             if let Some(value) = self.object_constant_at(object)? {
                 self.emit_object_value(object.name(), &name, ty, value, source)?;
                 continue;
