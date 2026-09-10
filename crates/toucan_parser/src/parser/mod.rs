@@ -86,13 +86,7 @@ impl<'s, 'e> Parser<'s, 'e> {
     fn token_text(&self, token: Token) -> &'s str {
         let text = &self.source[token.span.start..token.span.end];
         if token.kind == TokenKind::Digraph {
-            match text {
-                "<:" => "[",
-                ":>" => "]",
-                "<%" => "{",
-                "%>" => "}",
-                _ => text,
-            }
+            digraph_text(text)
         } else {
             text
         }
@@ -233,6 +227,18 @@ impl<'s, 'e> Parser<'s, 'e> {
             offset,
             expected: expected.into_iter().collect(),
         }
+    }
+}
+
+/// Keeps uncommon digraph normalization out of ordinary token comparisons.
+#[cold]
+fn digraph_text(text: &str) -> &str {
+    match text {
+        "<:" => "[",
+        ":>" => "]",
+        "<%" => "{",
+        "%>" => "}",
+        _ => text,
     }
 }
 
