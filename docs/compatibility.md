@@ -588,6 +588,10 @@ code for these operations.
   alignment, and combined packing and explicit record alignment. Union bitfields
   have the pointer-based representation described below; volatile bitfields and
   bitfields with Rust enum representations remain unsupported.
+- Records containing flexible or zero-length arrays cannot cross FFI calls by
+  value, including through callbacks or containing records and unions. Their C
+  and Rust call ABIs can differ even when size and alignment match. Storage and
+  pointer-based access remain supported; use C pointer accessors for calls.
 - Function-like macros and object macros that are not supported integer,
   `float`/`double`, or string constants are reported as omitted. SQLite's `SQLITE_STATIC` and
   `SQLITE_TRANSIENT` destructor macros are examples. No invalid function pointer is

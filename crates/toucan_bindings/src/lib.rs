@@ -2060,6 +2060,9 @@ impl Emitter<'_> {
                 }
                 active.remove(id);
             }
+            TypeKind::Array { length: None | Some(0), .. } => {
+                return Err(Error("records containing flexible or zero-length arrays cannot cross an FFI call by value; expose C pointer accessors".into()));
+            }
             TypeKind::Array { element, .. } => self.check_value(element, active, depth + 1)?,
             TypeKind::Vector { .. } => {
                 return Err(Error("vectors and records containing vectors cannot cross an FFI call by value; stable Rust cannot express their target call ABI".into()));
