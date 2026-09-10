@@ -3,7 +3,7 @@
 use lang_c::{ast, span::Span};
 use serde::Serialize;
 
-use super::{Builder, CheckedCode, SiteId, SourceSpan, map_span, unmapped_span};
+use super::{Builder, CheckedCode, SiteId, SourceSpan};
 use crate::analyze::Analyzer;
 use crate::{Error, StringEncoding};
 
@@ -153,16 +153,8 @@ impl Builder {
                 declaration: site,
                 kind: attribute.kind,
                 message: attribute.message.to_string(),
-                source: unmapped_span(attribute.span),
+                source: self.budget.source_span(attribute.span)?,
             });
-        }
-        Ok(())
-    }
-
-    pub(super) fn finish_diagnostic_attributes(&mut self) -> Result<(), Error> {
-        for attribute in &mut self.code.diagnostic_attributes {
-            let span = Span::span(attribute.source.range.start, attribute.source.range.end);
-            attribute.source = map_span(span, &mut self.budget)?;
         }
         Ok(())
     }
@@ -234,7 +226,7 @@ impl Builder {
             .charge(1, 1, std::mem::size_of::<NoEscapeAttribute>(), span.start)?;
         self.code.noescape_attributes.push(NoEscapeAttribute {
             owner,
-            source: unmapped_span(span),
+            source: self.budget.source_span(span)?,
             parameters: Vec::new(),
         });
         Ok(())
@@ -264,13 +256,6 @@ impl Builder {
                 declaration: site,
                 applies,
             });
-        }
-        Ok(())
-    }
-    pub(super) fn finish_noescape_attributes(&mut self) -> Result<(), Error> {
-        for attribute in &mut self.code.noescape_attributes {
-            let span = Span::span(attribute.source.range.start, attribute.source.range.end);
-            attribute.source = map_span(span, &mut self.budget)?;
         }
         Ok(())
     }

@@ -12,7 +12,7 @@ use serde::Serialize;
 use super::expression::{Binary, Conversion, ExprId, ExprKind, Unary};
 use super::{
     Builder, EntityId, EntityKind, OccurrenceId, OccurrenceKind, ScopeId, SiteId, SourceSpan,
-    TypeId, map_span, unmapped_span,
+    TypeId,
 };
 use crate::{Error, Type, TypeKind};
 
@@ -140,7 +140,6 @@ pub(super) struct BoundsBuilder {
     pending: HashMap<(ScopeId, String), TypeUseId>,
     parameters: HashMap<OccurrenceId, (TypeUseId, Option<ParameterAdjustment>)>,
     type_names: HashMap<(usize, usize), TypeUseId>,
-    spans: Vec<Span>,
 }
 
 impl Builder {
@@ -212,8 +211,10 @@ impl Builder {
                 let bound = &self.code.bounds[required[cursor].index()];
                 match &bound.value {
                     BoundValue::Expression(expression) => ranges.push(
-                        self.parsed_spans
-                            [self.code.expressions[expression.index()].occurrence.index()],
+                        self.code.occurrences
+                            [self.code.expressions[expression.index()].occurrence.index()]
+                        .source
+                        .parser_span(),
                     ),
                     BoundValue::Composite { inputs, .. } => {
                         for input in inputs {
@@ -244,7 +245,7 @@ impl Builder {
                     bound.evaluation,
                     BoundEvaluation::Required | BoundEvaluation::MayBeOmitted
                 ) {
-                    let span = self.bounds_builder.spans[index];
+                    let span = &bound.source.range;
                     let end = merged.partition_point(|range| range.start <= span.start);
                     let required_operand = bound.evaluation == BoundEvaluation::Required
                         && end != 0
@@ -278,10 +279,8 @@ impl Builder {
         }
         let ranges = self.unevaluated_selection_ranges(kind);
         if !ranges.is_empty() {
-            for (bound, span) in self.code.bounds[start..]
-                .iter_mut()
-                .zip(&self.bounds_builder.spans[start..])
-            {
+            for bound in &mut self.code.bounds[start..] {
+                let span = &bound.source.range;
                 if ranges
                     .iter()
                     .any(|range| range.start <= span.start && span.end <= range.end)
@@ -529,7 +528,7 @@ impl Builder {
         self.budget.charge(1, 3, 0, span.start)?;
         let id = BoundId(self.code.bounds.len() as u32);
         self.code.bounds.push(Bound {
-            source: unmapped_span(span),
+            source: self.budget.source_span(span)?,
             owner,
             scope: self.current,
             site,
@@ -543,7 +542,6 @@ impl Builder {
             },
             value,
         });
-        self.bounds_builder.spans.push(span);
         Ok(id)
     }
     pub(crate) fn declarator_type_use(
@@ -789,7 +787,7 @@ impl Builder {
         explicit: Option<TypeUseId>,
         owner: OccurrenceId,
     ) -> Result<TypeUseId, Error> {
-        let offset = self.parsed_spans[owner.index()].start;
+        let offset = self.code.occurrences[owner.index()].source.range.start;
         if let Some(id) = explicit {
             return self.retype_use(id, ty, offset);
         }
@@ -1019,7 +1017,7 @@ impl Builder {
         ty: &Type,
         owner: OccurrenceId,
     ) -> Result<TypeUseId, Error> {
-        let span = self.parsed_spans[owner.index()];
+        let span = self.code.occurrences[owner.index()].source.parser_span();
         let mut paths: BTreeMap<Vec<TypeStep>, Vec<BoundInput>> = BTreeMap::new();
         for id in uses {
             for extent in &self.code.type_uses[id.index()].extents {
@@ -1069,7 +1067,7 @@ impl Builder {
                 )?;
                 let id = BoundId(self.code.bounds.len() as u32);
                 self.code.bounds.push(Bound {
-                    source: unmapped_span(span),
+                    source: self.budget.source_span(span)?,
                     owner: Some(owner),
                     scope: self.current,
                     site: BoundSite::Composite,
@@ -1077,7 +1075,6 @@ impl Builder {
                     evaluation: BoundEvaluation::Derived,
                     value: BoundValue::Composite { inputs, selection },
                 });
-                self.bounds_builder.spans.push(span);
                 id
             };
             extents.push(Extent { path, bound });
@@ -1092,12 +1089,6 @@ impl Builder {
             }
         }
         self.type_use(shape, extents, functions, span.start)
-    }
-    pub(super) fn finish_bounds(&mut self) -> Result<(), Error> {
-        for (bound, span) in self.code.bounds.iter_mut().zip(&self.bounds_builder.spans) {
-            bound.source = map_span(*span, &mut self.budget)?;
-        }
-        Ok(())
     }
 }
 fn path_type<'a>(mut ty: &'a Type, path: &[TypeStep]) -> Option<&'a TypeKind> {

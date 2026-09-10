@@ -71,7 +71,7 @@ impl Builder {
                     .contains_key(&OccurrenceId(index as u32))
             {
                 return Err(Error::new(
-                    self.parsed_spans[index].start,
+                    self.code.occurrences[index].source.range.start,
                     "missing checked typeof operand",
                 ));
             }
@@ -268,7 +268,9 @@ impl Builder {
         let ranges = self.unevaluated_selection_ranges(kind);
         if !ranges.is_empty() {
             for operand in &mut self.code.type_operands[start..] {
-                let span = self.parsed_spans[operand.occurrence.index()];
+                let span = self.code.occurrences[operand.occurrence.index()]
+                    .source
+                    .parser_span();
                 if ranges
                     .iter()
                     .any(|r| r.start <= span.start && span.end <= r.end)

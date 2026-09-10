@@ -144,6 +144,14 @@ struct Budget {
 }
 
 impl Budget {
+    /// Charge the written-source edge before attaching its final span.
+    fn source_span(&mut self, span: Span) -> Result<SourceSpan, Error> {
+        if span.start != span.end {
+            self.charge(0, 1, 0, span.start)?;
+        }
+        Ok(source_span(span))
+    }
+
     fn charge(
         &mut self,
         nodes: usize,
@@ -218,6 +226,12 @@ pub struct SourceSpan {
     pub(crate) fragments: Vec<Range<usize>>,
     /// True when the occurrence has no written source token.
     pub(crate) synthetic: bool,
+}
+
+impl SourceSpan {
+    fn parser_span(&self) -> Span {
+        Span::span(self.range.start, self.range.end)
+    }
 }
 
 #[derive(Debug, Serialize)]
@@ -462,10 +476,6 @@ pub(crate) struct Builder {
     budget: Budget,
     addresses: HashMap<(OccurrenceKind, usize, usize, usize), OccurrenceId>,
     aliases: HashMap<(OccurrenceKind, usize, usize), Alias>,
-    parsed_spans: Vec<Span>,
-    scope_spans: Vec<Span>,
-    name_spans: Vec<Option<Span>>,
-    inferred_type_spans: Vec<(SiteId, Span)>,
     ambiguous_spans: Vec<Span>,
     entities: HashMap<EntityKey, EntityId>,
     names: HashMap<ScopeId, HashMap<String, EntityId>>,
@@ -529,10 +539,6 @@ impl Builder {
             },
             addresses: HashMap::new(),
             aliases: HashMap::new(),
-            parsed_spans: Vec::new(),
-            scope_spans: Vec::new(),
-            name_spans: Vec::new(),
-            inferred_type_spans: Vec::new(),
             ambiguous_spans: Vec::new(),
             entities: HashMap::new(),
             names: HashMap::new(),
@@ -570,9 +576,8 @@ impl Builder {
             type_operands: Vec::new(),
             attribute_argument: self.attribute_depth != 0,
             kind,
-            source: unmapped_span(span),
+            source: self.budget.source_span(span)?,
         });
-        self.parsed_spans.push(span);
         self.addresses.insert(
             (kind, std::ptr::from_ref(node).addr(), span.start, span.end),
             id,
@@ -623,14 +628,23 @@ impl Builder {
     ) -> Result<ScopeId, Error> {
         self.budget
             .charge(1, usize::from(parent.is_some()), 0, span.start)?;
+        let source = if kind == ScopeKind::File {
+            // The file scope describes the entire input, including an empty file,
+            // and has never consumed a written-source edge.
+            SourceSpan {
+                synthetic: false,
+                ..source_span(span)
+            }
+        } else {
+            self.budget.source_span(span)?
+        };
         let id = ScopeId(self.code.scopes.len() as u32);
         self.code.scopes.push(Scope {
             parent,
             kind,
-            source: unmapped_span(span),
+            source,
             declarations: Vec::new(),
         });
-        self.scope_spans.push(span);
         self.current = id;
         Ok(id)
     }
@@ -653,7 +667,7 @@ impl Builder {
                     site.definition = true;
                 }
             }
-            self.scope_spans[id.index()] = span;
+            scope.source = source_span(span);
             self.current = id;
             Ok(id)
         } else {
@@ -726,7 +740,7 @@ impl Builder {
         name_span: Option<Span>,
         properties: SiteProperties,
     ) -> Result<SiteId, Error> {
-        let offset = self.parsed_spans[occurrence.index()].start;
+        let offset = self.code.occurrences[occurrence.index()].source.range.start;
         let (type_use, declared_type_use) =
             self.declaration_type_use(entity, occurrence, ty, offset)?;
         let ty = self.intern_type(ty, offset)?;
@@ -756,9 +770,10 @@ impl Builder {
             register: properties.register,
             definition: properties.definition,
             flexible_array_storage: None,
-            name_source: None,
+            name_source: name_span
+                .map(|span| self.budget.source_span(span))
+                .transpose()?,
         });
-        self.name_spans.push(name_span);
         self.code.scopes[self.current.index()].declarations.push(id);
         if !matches!(
             self.code.entities[entity.index()].kind,
@@ -789,7 +804,7 @@ impl Builder {
         allocation: Option<&FlexibleArrayStorage>,
     ) -> Result<(), Error> {
         let occurrence = self.code.declarations[site.index()].occurrence;
-        let offset = self.parsed_spans[occurrence.index()].start;
+        let offset = self.code.occurrences[occurrence.index()].source.range.start;
         let type_use =
             self.retype_use(self.code.declarations[site.index()].type_use, ty, offset)?;
         let ty = self.intern_type(ty, offset)?;
@@ -841,7 +856,10 @@ impl Builder {
                 0,
                 0,
                 std::mem::size_of::<SiteAlignment>(),
-                self.parsed_spans[declaration.occurrence.index()].start,
+                self.code.occurrences[declaration.occurrence.index()]
+                    .source
+                    .range
+                    .start,
             )?;
             declaration.alignment = Some(Box::new(SiteAlignment { written, effective }));
         }
@@ -1083,20 +1101,11 @@ impl Builder {
     }
 
     pub(crate) fn finish(mut self) -> Result<CheckedCode, Error> {
-        for (occurrence, span) in self.code.occurrences.iter_mut().zip(&self.parsed_spans) {
-            occurrence.source = map_span(*span, &mut self.budget)?;
-        }
         self.finish_expression_coverage()?;
         self.finish_statements()?;
-        self.finish_references()?;
-        self.finish_diagnostic_attributes()?;
-        self.finish_noescape_attributes()?;
-        self.finish_function_option_spans()?;
-        self.finish_inline_spans()?;
+        self.finish_function_options()?;
         self.finish_initializer_coverage()?;
-        self.finish_bounds()?;
         self.finish_type_ownership()?;
-        self.finish_type_inferences()?;
         for (occurrence, missing, kind) in self
             .code
             .expression_coverage
@@ -1125,7 +1134,7 @@ impl Builder {
         {
             if missing {
                 return Err(Error::new(
-                    self.parsed_spans[occurrence.index()].start,
+                    self.code.occurrences[occurrence.index()].source.range.start,
                     format!("checked-code retention does not support this {kind}"),
                 ));
             }
@@ -1136,61 +1145,14 @@ impl Builder {
                 "checked-code retention has an ambiguous source occurrence",
             ));
         }
-        self.finish_dll_storage()?;
-        for (scope, span) in self.code.scopes.iter_mut().zip(self.scope_spans) {
-            if scope.kind != ScopeKind::File {
-                scope.source = map_span(span, &mut self.budget)?;
-            }
+        for scope in &mut self.code.scopes {
             scope.declarations.sort_by_key(|id| {
                 let occurrence = self.code.declarations[id.index()].occurrence;
                 self.code.occurrences[occurrence.index()].source.range.start
             });
         }
-        for (site, span) in self.code.declarations.iter_mut().zip(self.name_spans) {
-            if let Some(source) = &mut site.noreturn_source {
-                **source = map_span(
-                    Span::span(source.range.start, source.range.end),
-                    &mut self.budget,
-                )?;
-            }
-            if let Some(attribute) = &site.returns_twice_attribute {
-                site.returns_twice_attribute = Some(map_span(
-                    Span::span(attribute.range.start, attribute.range.end),
-                    &mut self.budget,
-                )?);
-            }
-            if let Some(attribute) = &site.weak_attribute {
-                site.weak_attribute = Some(map_span(
-                    Span::span(attribute.range.start, attribute.range.end),
-                    &mut self.budget,
-                )?);
-            }
-            site.name_source = span
-                .map(|span| map_span(span, &mut self.budget))
-                .transpose()?;
-        }
-        for span in self.ambiguous_spans {
-            self.code
-                .ambiguous_aliases
-                .push(map_span(span, &mut self.budget)?);
-        }
         Ok(self.code)
     }
-}
-
-fn unmapped_span(span: Span) -> SourceSpan {
-    SourceSpan {
-        range: span.start..span.end,
-        fragments: Vec::new(),
-        synthetic: false,
-    }
-}
-
-fn map_span(span: Span, budget: &mut Budget) -> Result<SourceSpan, Error> {
-    if span.start != span.end {
-        budget.charge(0, 1, 0, span.start)?;
-    }
-    Ok(source_span(span))
 }
 
 /// Parser nodes now refer directly to the caller's source, without inserted tokens.
@@ -1387,15 +1349,15 @@ impl Builder {
         site: SiteId,
         binding: crate::SymbolBinding,
         attribute: Option<Span>,
-    ) {
+    ) -> Result<(), Error> {
+        let attribute = attribute
+            .map(|span| self.budget.source_span(span))
+            .transpose()?;
         let site = &mut self.code.declarations[site.index()];
         site.symbol_binding = binding;
         self.code.entities[site.entity.index()].symbol_binding = binding;
-        site.weak_attribute = attribute.map(|span| SourceSpan {
-            range: span.start..span.end,
-            fragments: Vec::new(),
-            synthetic: false,
-        });
+        site.weak_attribute = attribute;
+        Ok(())
     }
 }
 
@@ -1413,7 +1375,9 @@ impl Builder {
         let site = &mut self.code.declarations[id.index()];
         site.returns_twice = returns_twice;
         self.code.entities[site.entity.index()].returns_twice = returns_twice;
-        site.returns_twice_attribute = attribute.map(crate::checked::unmapped_span);
+        site.returns_twice_attribute = attribute
+            .map(|span| self.budget.source_span(span))
+            .transpose()?;
         Ok(())
     }
 }
@@ -1433,7 +1397,9 @@ impl Builder {
         let site = &mut self.code.declarations[id.index()];
         site.noreturn = noreturn;
         self.code.entities[site.entity.index()].noreturn |= noreturn;
-        site.noreturn_source = source.map(|span| Box::new(unmapped_span(span)));
+        site.noreturn_source = source
+            .map(|span| self.budget.source_span(span).map(Box::new))
+            .transpose()?;
         Ok(())
     }
 
@@ -1640,6 +1606,69 @@ mod tests {
     }
 
     #[test]
+    fn catalog_spans_are_final_and_charged_before_attachment() {
+        let mut builder = Builder::new(
+            &ast::TranslationUnit(Vec::new()),
+            0,
+            Limits {
+                edges: 6,
+                ..Limits::default()
+            },
+        )
+        .unwrap();
+        assert!(!builder.code.scopes[0].source.synthetic);
+        let synthetic = builder
+            .occurrence(OccurrenceKind::ImplicitFunction, &(), Span::span(0, 0))
+            .unwrap();
+        let source = &builder.code.occurrences[synthetic.index()].source;
+        assert!(source.synthetic);
+        assert_eq!(source.range, 0..0);
+        assert!(source.fragments.is_empty());
+        // Three occurrence links fit; a written-source edge needs one more.
+        let error = builder
+            .occurrence(OccurrenceKind::Expression, &(), Span::span(2, 3))
+            .unwrap_err();
+        assert_eq!(error.offset, 2);
+        assert!(error.message.contains("retention edge limit"));
+        assert_eq!(builder.code.occurrences.len(), 1);
+    }
+
+    #[test]
+    fn weak_attribute_source_is_charged_before_attachment() {
+        let source = "int value __attribute__((weak));";
+        let (_, code) = retained("int value;");
+        let mut builder = Builder::new(
+            &ast::TranslationUnit(Vec::new()),
+            source.len(),
+            Limits::default(),
+        )
+        .unwrap();
+        builder.code = code;
+        builder.budget.limits.edges = builder.budget.edges;
+        let span = Span::span(
+            source.find("weak").unwrap(),
+            source.find("weak").unwrap() + 4,
+        );
+        let error = builder
+            .attach_symbol_binding(SiteId(0), crate::SymbolBinding::Weak, Some(span))
+            .unwrap_err();
+        assert_eq!(error.offset, span.start);
+        assert!(error.message.contains("retention edge limit"));
+        assert!(builder.code.declarations[0].weak_attribute.is_none());
+        builder.budget.limits.edges += 1;
+        builder
+            .attach_symbol_binding(SiteId(0), crate::SymbolBinding::Weak, Some(span))
+            .unwrap();
+        let written = builder.code.declarations[0]
+            .weak_attribute
+            .as_ref()
+            .unwrap();
+        assert_eq!(&source[written.range.clone()], "weak");
+        assert!(!written.synthetic);
+        assert!(written.fragments.is_empty());
+    }
+
+    #[test]
     fn sparse_bounds_stay_compact_and_quota_offsets_refer_to_written_source() {
         let (_, code) = retained("int values[1099511627776] = {[1099511627775] = 1};");
         assert!(code.occurrences.len() < 20);
@@ -1727,7 +1756,10 @@ mod tests {
         let mut builder = Builder::new(&parsed.unit, source.len(), Limits::default()).unwrap();
         builder.code = code;
         let site = SiteId(0);
-        let offset = builder.parsed_spans[builder.code.declarations[0].occurrence.index()].start;
+        let offset = builder.code.occurrences[builder.code.declarations[0].occurrence.index()]
+            .source
+            .range
+            .start;
         let bytes = std::mem::size_of::<SiteAlignment>();
         let used = builder.budget.payload_bytes;
         builder.budget.limits.payload_bytes = used + bytes - 1;

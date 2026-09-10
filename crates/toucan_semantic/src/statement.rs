@@ -1226,7 +1226,7 @@ impl Analyzer {
                                 options_affect_entity,
                             )?;
                             checked.attach_noreturn(site, noreturn, extra.noreturn)?;
-                            checked.attach_symbol_binding(site, symbol_binding, extra.weak);
+                            checked.attach_symbol_binding(site, symbol_binding, extra.weak)?;
                         }
                     }
                     if function {
@@ -1371,7 +1371,7 @@ impl Analyzer {
                     options_affect_entity,
                 )?;
                 checked.attach_noreturn(site, noreturn, extra.noreturn)?;
-                checked.attach_symbol_binding(site, symbol_binding, extra.weak);
+                checked.attach_symbol_binding(site, symbol_binding, extra.weak)?;
                 let allocation = self
                     .lexical_scopes
                     .last()
