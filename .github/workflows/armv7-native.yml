@@ -16,7 +16,7 @@ jobs:
   qemu:
     if: github.ref == 'refs/heads/charlie/codex-toucan-armv7-native-acceptance'
     name: Clang/GCC C and Rust ARMv7 hard-float FFI
-    runs-on: ubuntu-24.04
+    runs-on: ${{ github.repository_owner == 'astral-sh' && 'github-ubuntu-24.04-x86_64-4' || 'ubuntu-24.04' }}
     timeout-minutes: 20
     env:
       CARGO_INCREMENTAL: "0"

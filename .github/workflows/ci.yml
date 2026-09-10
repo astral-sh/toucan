@@ -41,7 +41,7 @@ jobs:
           ${{ fromJSON(inputs.macos
             && (inputs.intel && '["macos-15", "macos-15-intel"]' || '["macos-15"]')
             || '["ubuntu-24.04", "ubuntu-24.04-arm"]') }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ github.repository_owner == 'astral-sh' && matrix.os == 'ubuntu-24.04' && 'github-ubuntu-24.04-x86_64-4' || matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
@@ -95,7 +95,7 @@ jobs:
   lint:
     if: ${{ !inputs.macos }}
     name: Lint
-    runs-on: ubuntu-24.04
+    runs-on: ${{ github.repository_owner == 'astral-sh' && 'github-ubuntu-24.04-x86_64-4' || 'ubuntu-24.04' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
@@ -108,7 +108,7 @@ jobs:
   msrv:
     if: ${{ !inputs.macos }}
     name: Rust 1.96
-    runs-on: ubuntu-24.04
+    runs-on: ${{ github.repository_owner == 'astral-sh' && 'github-ubuntu-24.04-x86_64-4' || 'ubuntu-24.04' }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
@@ -127,7 +127,7 @@ jobs:
       fail-fast: false
       matrix:
         os: ${{ fromJSON(inputs.macos && '["macos-15"]' || '["ubuntu-24.04", "windows-2025"]') }}
-    runs-on: ${{ matrix.os }}
+    runs-on: ${{ github.repository_owner == 'astral-sh' && matrix.os == 'ubuntu-24.04' && 'github-ubuntu-24.04-x86_64-4' || matrix.os }}
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0

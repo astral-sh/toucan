@@ -15,7 +15,7 @@ concurrency:
 jobs:
   native:
     name: Native ELF32 zstd C/Rust consumer
-    runs-on: ubuntu-24.04
+    runs-on: ${{ github.repository_owner == 'astral-sh' && 'github-ubuntu-24.04-x86_64-4' || 'ubuntu-24.04' }}
     timeout-minutes: 18
     env:
       CARGO_INCREMENTAL: "0"
