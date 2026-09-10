@@ -66,34 +66,19 @@ The attachment catalog is limited to one million occurrences; emitted text is
 limited to one million items and 64 MiB, charged before cloning a reused macro
 comment. The preprocessing catalog retains its separate provenance limits.
 
-## Validation and cost
+## Validation
 
-The [saved comparison](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/documentation-emission-2026-09-09.json.gz)
-contains 106 matching reference cases: 53 ordinary and macro item/text comparisons,
-42 system-header and physical-spelling controls, and 11 additional item/text
-comparisons covering anonymous storage and repeated enum values. A separate
-quote/backslash/tab/Unicode fixture matches the reference and compiles with both
-Rust 1.98.1 and actual Rust 1.64. Focused adapter, semantic, and preprocessing tests
-and all-target Clippy checks pass.
+The maintained [adapter tests](../crates/toucan_bindgen/tests/documentation.rs)
+cover attachment, macro spelling, renamed scalar and string constants, anonymous
+storage, repeated enum values, and Rust compilation of escaped documentation.
+[Semantic origin tests](../crates/toucan_semantic/tests/documentation_origins.rs)
+and [preprocessing tests](../crates/toucan_preprocessor/tests/documentation.rs)
+cover the underlying declaration and physical comment catalogs.
 
-With comments disabled, 1/100/1,000-declaration Builder and semantic fixtures have
-unchanged allocation counts, with eight additional cumulative bytes per analysis
-for the optional catalog pointer. The same result holds across nine real header
-routes: GNU and Clang zlib, SQLite, zstd, and libgit2, plus the AWS-LC crypto wrapper.
-All nine preprocessed outputs and eight requested core binding outputs remain
-byte-identical. This is frontend/header evidence, not a new AWS-LC runtime result.
-
-The optional preprocessing origin row grows from 32 to 36 bytes. The token type,
-records, enumerations, and translation unit do not grow. `Analysis`, binding
-options, and Builder each grow by eight bytes. No timing claim is made from these
-shared-host checks.
-
-The [composition check](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/documentation-composition-2026-09-09.json.gz)
-also preserves documentation through scalar, string, and full-width 128-bit
-constant projection, callback renaming, Microsoft anonymous record members, and
-record-attribute enum naming. Six focused item/text comparisons match the pinned
-reference. The generated constant module compiles on current Rust and Rust 1.64.
-File-selected redeclarations retain the first attached comment even when the
-selected initialized occurrence comes from a later header.
-
-The [combined-source validation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/documentation-root-integration-2026-09-09.json.gz) passes 26 focused adapter, semantic, and preprocessing tests, plus the Rust 1.64 documentation compilation check. Six native item/comment comparisons cover scalar, string, and 128-bit objects, callback renaming, anonymous members, record attributes, and file-selected redeclarations. Workspace Clippy passes after supplying the optional documentation field in the CLI’s explicit binding options.
+The [historical comparison](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/documentation-emission-2026-09-09.json.gz)
+and [composition checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/documentation-composition-2026-09-09.json.gz)
+retain pinned bindgen item/text comparisons, Rust-version checks, and allocation
+measurements. They cover the recorded source revisions, including documentation
+on full-width integer constants and file-selected redeclarations. Their header
+and allocation measurements do not establish current performance or a consumer
+runtime result.

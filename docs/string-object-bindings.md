@@ -10,12 +10,17 @@ Parentheses, braces, casts, pointer arithmetic, conditional expressions, `__buil
 
 Capture is opt-in and independent of body retention. It charges the literal's source-byte upper bound before decoding and allocating retained byte storage, within the existing 64 MiB object-metadata budget. Ordinary core emission keeps its existing defaults.
 
-## Evidence
+## Validation
 
-The saved comparison covers 50 headers against bindgen 0.72.1 and Clang 18. Forty-five accepted object kinds match; both frontends reject the invalid mixed-encoding header. One unterminated array receives the explicit projection diagnostic, and three truncated initializers reach the existing frontend admission boundary. This closes eight of the nine earlier string-projection differences; the ninth is the documented unterminated-array case.
+The maintained [semantic capture tests](../crates/toucan_semantic/tests/object_values.rs)
+check literal bytes, declared bounds, and written-expression restrictions.
+[Adapter projection tests](../crates/toucan_bindgen/tests/object_values.rs) check
+terminated prefixes, unterminated-array diagnostics, declaration order, and
+file/callback selection.
 
-Twenty-three direct string controls produce matching Rust array types and logical C-string prefixes: 92 executions across both generators and Rust 1.98.1/actual Rust 1.64.0, plus 46 GCC/Clang executions. Native probes record complete bounded C storage and its terminated prefix separately. Eight additional C executions record the four array-boundary cases, including the absence of a terminator. Every read stays within the declared array or the known backing literal. All 45 accepted candidate modules and 49 accepted reference modules compile under both Rust toolchains with warnings denied: 188 metadata compilations.
-
-Eight physical file/callback controls retain the scalar layer's declaration ordering. Focused capture/projection tests, the metadata-budget test, and Clippy pass. The comparison concerns string projections; it does not claim complete API equality for surrounding atomic or typedef representations, real-project performance, or downstream consumer readiness.
-
-The [combined-source checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/string-object-root-integration-2026-09-09.json.gz) repeat the 50 reference cases, 23 logical byte-prefix comparisons, and four array boundaries. All 92 Rust executions, 46 paired C executions, eight bounded C boundary checks, and 188 Rust metadata compilations pass. Eight file/callback selections match names and object kinds. Focused tests and workspace Clippy pass.
+The [historical comparison](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/string-object-root-integration-2026-09-09.json.gz)
+contains pinned bindgen controls and native C/Rust value checks. Its C probes
+record full bounded storage separately from the logical C-string prefix and
+never read beyond the declared array or backing literal. Those results apply to
+the recorded revision; they do not establish complete surrounding API equality,
+performance, or downstream consumer readiness.

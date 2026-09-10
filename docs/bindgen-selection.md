@@ -19,38 +19,25 @@ retain expression, statement, or initializer graphs. See the
 [callback API](../crates/toucan_bindgen/src/callbacks.rs) for callback order and
 [multiple object names](multiple-object-names.md) for redeclaration selection.
 
-## Evidence
-
-The [saved comparison](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/bindgen-selection-2026-09-08.json.gz)
-pins bindgen 0.72.1 and libclang 18.1.3. Its 16 paired cases compare callback logs
-and selected source functions, objects, records, and aliases. They cover relative
-main/include paths, file order, redeclarations, callback precedence, post-rename
-blocklists, and a selected function whose record and callback dependencies live
-in an excluded header. Toucan's implicit `__toucan_va_list_tag` support record is
-recorded separately. Formatting and enum/macro policies are separate comparisons.
-
-Two generated C/Rust fixtures pass all 64 execution combinations: reference or
-Toucan output, GCC 13 or Clang 18, C O0/O2, current Rust or actual Rust 1.64, and
-Rust O0/O3. They exercise renamed functions and objects, an assembler link name,
-callbacks, and by-value record parameters/results. This is focused ABI evidence;
-it does not establish a completed AWS-LC replacement build.
-
-The frozen selection workspace has 836 passing tests (216 opt-in tests remain ignored by that
-run). Workspace and fuzz Clippy plus Rustdoc pass. Nine unchanged header routes
-have identical preprocessed text and ordinary semantic units, and their eight
-requested Rust outputs remain byte-identical. Default core generation on 1,
-100, and 1,000 declarations has identical allocation counts and bytes. Default
-Builder generation removes 15 allocations by replacing its synthetic wrapper
-with ordered header preprocessing; its generated output remains byte-identical.
-
-The [root integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/bindgen-selection-root-integration-2026-09-08.json.gz)
-preserves the earlier enumerator-query optimization and macro-definition history.
-The binding and origin suites and workspace Clippy pass on that combined source.
-
-Macro selection now uses [ordered macro values](macro-value-compatibility.md).
+Macro selection uses [ordered macro values](macro-value-compatibility.md).
 Every definition updates the parsed-value context before file filtering; only
 the first successfully parsed definition can supply output. Its accessed header
 determines membership, independently of later redefinitions and logical `#line`
 names. [Default function selection](bindgen-functions.md) extends declaration
 selection without requiring origin capture. Derives and formatting are separate
-adapter policies; documentation emission remains an integration gate.
+adapter policies; [documentation attachment](documentation-emission.md) follows
+the selected declarations.
+
+## Validation
+
+The maintained [root selection tests](../crates/toucan_bindings/tests/selection.rs)
+check typed roots, dependencies, invalid IDs, and ABI guards.
+[File-selection tests](../crates/toucan_bindgen/tests/file_selection.rs) cover
+physical paths, redeclarations, callback precedence, and renamed blocklists.
+[Origin tests](../crates/toucan/tests/declaration_origins.rs) check physical header
+provenance independently of retained bodies.
+
+The [historical comparison](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/bindgen-selection-2026-09-08.json.gz)
+contains pinned bindgen callback/name comparisons, native C/Rust call fixtures,
+and allocation observations for its source revision. Formatting, enum/macro
+policies, and full consumer builds require their own validation.
