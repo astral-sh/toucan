@@ -615,6 +615,11 @@ code for these operations.
   alignment, and combined packing and explicit record alignment. Union bitfields
   have the pointer-based representation described below; volatile bitfields and
   bitfields with Rust enum representations remain unsupported.
+- ARMv7 aggregate parameters are rejected when explicit alignment raises a
+  nonempty record with member alignments below 8 bytes to at least 8 bytes.
+  C and Rust can allocate argument registers differently despite matching
+  object layouts. This includes containing aggregates and callback parameters;
+  pointer-based storage and return-only declarations remain supported.
 - Records containing flexible or zero-length arrays cannot cross FFI calls by
   value, including through callbacks or containing records and unions. Their C
   and Rust call ABIs can differ even when size and alignment match. Storage and
