@@ -638,7 +638,9 @@ impl<'s, 'e> Parser<'s, 'e> {
                     };
                     let mut extensions = self.attribute_specifier_list()?;
                     let declarator = if let Some(mut declarator) = declarator {
-                        declarator.node.extensions.append(&mut extensions);
+                        if bit_width.is_none() {
+                            declarator.node.extensions.append(&mut extensions);
+                        }
                         Some(self.node_span(declarator.node, declarator.span)?)
                     } else {
                         None
