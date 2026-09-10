@@ -86,10 +86,13 @@ impl<'s, 'e> Parser<'s, 'e> {
         })
     }
 
-    pub(super) fn external_declaration(&mut self) -> PResult<Node<ExternalDeclaration>> {
+    pub(super) fn external_declaration(&mut self) -> PResult<Option<Node<ExternalDeclaration>>> {
         self.nested(|parser| {
             let start = parser.position();
             parser.extension_prefix()?;
+            if parser.env.extensions_gnu && parser.eat(";")? {
+                return Ok(None);
+            }
             let external = if parser.at("_Static_assert") {
                 let mut assertion = parser.static_assert()?;
                 assertion.span.start = start;
@@ -186,7 +189,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             if parser.env.extensions_gnu {
                 while parser.eat(";")? {}
             }
-            parser.node(external, start)
+            parser.node(external, start).map(Some)
         })
     }
 
