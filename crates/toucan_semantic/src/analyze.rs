@@ -2842,6 +2842,12 @@ impl Analyzer {
 
     fn base_type(&mut self, types: &[Node<ast::TypeSpecifier>]) -> Result<Type, Error> {
         for ty in types {
+            if types.len() != 1 && matches!(ty.node, ast::TypeSpecifier::TypeOf(_)) {
+                return Err(Error::new(
+                    ty.span.start,
+                    "typeof cannot be combined with other type specifiers",
+                ));
+            }
             if let ast::TypeSpecifier::TypedefName(name) = &ty.node {
                 self.check_auto_reference(&name.node.name, name.span.start)?;
             }
