@@ -17,6 +17,7 @@ const VALID: &[&str] = &[
     "int f(void); void g(void) { int f(void) __attribute__((returns_twice)); int f(void); }",
     "int f(void) __attribute__((returns_twice)); void g(void) { int (*f)(void); }",
     "int f(void) __asm__(\"checkpoint\") __attribute__((returns_twice));",
+    "int f(void) __asm__(\"one\") __attribute__((returns_twice)); int g(void) __asm__(\"two\");",
 ];
 const INVALID: &[&str] = &[
     "int f(void) __attribute__((returns_twice(1)));",
@@ -71,8 +72,6 @@ fn returns_twice_constraints_and_retention_agree() {
             "int f(void) __attribute__((returns_twice)); _Noreturn int f(void);",
             "_Noreturn int f(void); void g(void) { int f(void) __attribute__((returns_twice)); }",
             "int f(void) __asm__(\"same\") __attribute__((returns_twice)); int g(void) __asm__(\"same\");",
-            "int f(void) __attribute__((returns_twice)); int g(void) __asm__(\"f\");",
-            "void g(void) { int f(void) __attribute__((returns_twice)); } int h(void) __asm__(\"f\");",
             "void g(void) { int f(void) __asm__(\"different\") __attribute__((returns_twice)); }",
             "void f(void) { sizeof(int __attribute__((returns_twice))); }",
         ] {

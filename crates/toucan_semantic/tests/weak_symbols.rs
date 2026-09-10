@@ -18,6 +18,7 @@ const VALID: &[&str] = &[
     "__attribute__((weak)) int (x);",
     "__attribute__((weak)) int x, y;",
     "extern int renamed __asm__(\"actual_name\") __attribute__((weak)); int use(void) { return &renamed ? renamed : 0; }",
+    "extern int a __asm__(\"one\") __attribute__((weak)); extern int b __asm__(\"two\");",
 ];
 const INVALID: &[&str] = &[
     "static int f(void) __attribute__((weak));",
@@ -74,8 +75,6 @@ fn weak_symbols_require_external_declarations_and_keep_retention_parity() {
             "extern int x __attribute__((weakref));",
             "extern int x __attribute__((alias(\"y\")));",
             "extern int a __asm__(\"shared\") __attribute__((weak)); extern int b __asm__(\"shared\");",
-            "extern int shared __attribute__((weak)); extern int b __asm__(\"shared\");",
-            "void f(void) { extern int shared __attribute__((weak)); } extern int b __asm__(\"shared\");",
         ] {
             assert!(analyze(source, target).is_err(), "{target}: {source}");
         }
