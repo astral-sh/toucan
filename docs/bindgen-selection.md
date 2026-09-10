@@ -15,8 +15,9 @@ externally linked function bodies; the core option defaults to false.
 The bindgen adapter's `allowlist_file` anchors regular expressions to the whole
 compiler-visible accessed header name, independently of diagnostic `#line`
 names. It uses an optional lightweight declaration/file catalog. It does not
-retain expression, statement, or initializer graphs. See the adapter README for
-callback order, redeclaration selection, and the remaining separate policy layers.
+retain expression, statement, or initializer graphs. See the
+[callback API](../crates/toucan_bindgen/src/callbacks.rs) for callback order and
+[multiple object names](multiple-object-names.md) for redeclaration selection.
 
 ## Evidence
 

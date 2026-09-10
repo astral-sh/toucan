@@ -121,8 +121,8 @@ bindings with Rust 1.64 and a pinned compatible dependency lock.
 The experimental [toucan_bindgen adapter](../crates/toucan_bindgen/README.md)
 supports the builder calls used by the pinned zstd-sys and AWS-LC build scripts.
 It selects Cargo's target and generates bindings during the build without
-libclang. The adapter documents its supported arguments and API subset;
-unsupported options produce errors. See [replacement readiness](replacement-readiness.md)
+libclang. The [Builder API](../crates/toucan_bindgen/src/lib.rs) implements a subset
+of bindgen; unsupported frontend arguments produce errors. See [replacement readiness](replacement-readiness.md)
 for the tested consumer paths and release blockers.
 
 The proposed [uv and ty integration](opt-in-rollout.md) adds a build-time
