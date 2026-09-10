@@ -82,8 +82,20 @@ impl<'s, 'e> Parser<'s, 'e> {
             })
     }
 
+    /// Compare digraph delimiters by their ordinary spelling without rewriting source spans.
     fn token_text(&self, token: Token) -> &'s str {
-        &self.source[token.span.start..token.span.end]
+        let text = &self.source[token.span.start..token.span.end];
+        if token.kind == TokenKind::Digraph {
+            match text {
+                "<:" => "[",
+                ":>" => "]",
+                "<%" => "{",
+                "%>" => "}",
+                _ => text,
+            }
+        } else {
+            text
+        }
     }
 
     fn text(&self) -> &'s str {

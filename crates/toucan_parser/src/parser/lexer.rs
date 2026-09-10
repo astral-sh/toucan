@@ -10,6 +10,7 @@ pub(super) enum TokenKind {
     String,
     Character,
     Punct,
+    Digraph,
     End,
     Invalid,
 }
@@ -118,6 +119,12 @@ pub(super) fn lex(source: &str, budget: &mut Budget) -> Vec<Token> {
                 }
             }
             TokenKind::Number
+        } else if matches!(
+            &bytes[pos..],
+            [b'<', b':' | b'%', ..] | [b':' | b'%', b'>', ..]
+        ) {
+            pos += 2;
+            TokenKind::Digraph
         } else if bytes[pos].is_ascii() {
             let width = match &bytes[pos..] {
                 [b'.', b'.', b'.', ..] | [b'<', b'<', b'=', ..] | [b'>', b'>', b'=', ..] => 3,
