@@ -372,7 +372,7 @@ fn malformed_prefix_runs_do_not_trigger_parser_backtracking() {
 }
 
 #[test]
-fn macro_expressions_cannot_escape_the_parse_wrapper() {
+fn macro_queries_require_one_complete_expression() {
     let unit = analyze("", TARGET).unwrap();
     for expression in [
         "0); __typeof__(int",
@@ -380,10 +380,21 @@ fn macro_expressions_cannot_escape_the_parse_wrapper() {
         "0), y=(2",
         "0) //",
         "0); int __toucan_expression=(2",
+        "1;",
+        "1 2",
+        "# 1 \"injected\"\n1",
+        "1\n#define X 2\n",
     ] {
         assert!(evaluate_integer(&unit, expression).is_err(), "{expression}");
     }
     assert_eq!(evaluate_integer(&unit, "1 /* ; ) */ + 2").unwrap().value, 3);
+    // A member declaration is valid inside an expression's type name.
+    assert_eq!(
+        evaluate_integer(&unit, "sizeof(struct { int member; })")
+            .unwrap()
+            .value,
+        4
+    );
 }
 
 #[test]
@@ -398,6 +409,9 @@ fn macro_expressions_resolve_referenced_typedefs_and_their_dependencies() {
         ("sizeof(Bytes)", 3),
         ("sizeof(BytesPointer)", 8),
         ("sizeof((BytesPointer)0)", 8),
+        ("sizeof(struct { Byte member; })", 1),
+        ("sizeof(void (*)(int[*]))", 8),
+        ("sizeof(void (*)(int<:*:>))", 8),
         ("sizeof(/* Byte */ Bytes /* BytesPointer */)", 3),
         ("sizeof(\"Byte BytesPointer\")", 18),
         ("ByteCount + 'B' + 0xBU", 88),
@@ -420,7 +434,7 @@ fn macro_expressions_resolve_referenced_typedefs_and_their_dependencies() {
 fn macro_syntax_diagnostics_are_relative_to_the_expression() {
     let empty = analyze("", TARGET).unwrap();
     let aliases = analyze("typedef char Byte; typedef int Count;", TARGET).unwrap();
-    for expression in ["extern", "1 +\nextern"] {
+    for expression in ["extern", "1 +\nextern", "1 +", "1 +\n", "sizeof(\"é\") + @"] {
         let without_aliases = evaluate_integer(&empty, expression).unwrap_err();
         let with_aliases = evaluate_integer(&aliases, expression).unwrap_err();
         assert_eq!(without_aliases.message, with_aliases.message);
@@ -430,6 +444,10 @@ fn macro_syntax_diagnostics_are_relative_to_the_expression() {
     let error = evaluate_integer(&aliases, expression).unwrap_err();
     assert!(error.message.contains("line 2 column 1"), "{error}");
     assert_eq!(error.offset, expression.find("extern").unwrap());
+    let expression = "sizeof(Byte) +\n";
+    let error = evaluate_integer(&aliases, expression).unwrap_err();
+    assert_eq!(error.offset, expression.len());
+    assert!(error.message.contains("line 2 column 1"), "{error}");
 }
 
 #[test]

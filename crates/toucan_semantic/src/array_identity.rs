@@ -7,7 +7,10 @@ use lang_c::{
 };
 use serde::Serialize;
 
-use crate::{Error, TranslationUnit, Type, TypeKind, analyze::Analyzer};
+use crate::{
+    Error, TranslationUnit, Type, TypeKind,
+    analyze::{Analyzer, Syntax},
+};
 
 /// An opaque variable-array type identity within one analysis result.
 ///
@@ -34,13 +37,13 @@ pub(crate) struct Registry {
 }
 
 impl Registry {
-    fn collect(ast: &ast::TranslationUnit, unit: &TranslationUnit) -> Result<Self, Error> {
+    fn collect(ast: Syntax<'_>, unit: &TranslationUnit) -> Result<Self, Error> {
         let mut collector = Collector {
             spans: Vec::new(),
             work: 0,
             error: None,
         };
-        collector.visit_translation_unit(ast);
+        ast.visit(&mut collector);
         if let Some(error) = collector.error {
             return Err(error);
         }
@@ -109,10 +112,10 @@ impl Registry {
 impl Analyzer {
     pub(crate) fn prepare_array_identities(
         &mut self,
-        ast: &ast::TranslationUnit,
+        ast: Syntax<'_>,
         source: &str,
     ) -> Result<(), Error> {
-        if source.as_bytes().contains(&b'[') {
+        if source.as_bytes().contains(&b'[') || source.contains("<:") {
             self.array_identities = Registry::collect(ast, &self.unit)?;
         }
         Ok(())

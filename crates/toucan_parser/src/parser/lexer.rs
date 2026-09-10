@@ -21,7 +21,7 @@ pub(super) struct Token {
     pub(super) span: Span,
 }
 
-pub(super) fn lex(source: &str, budget: &mut Budget) -> Vec<Token> {
+pub(super) fn lex(source: &str, budget: &mut Budget, line_markers: bool) -> Vec<Token> {
     let bytes = source.as_bytes();
     let mut tokens = Vec::new();
     let mut pos = 0;
@@ -49,7 +49,7 @@ pub(super) fn lex(source: &str, budget: &mut Budget) -> Vec<Token> {
             }
             continue;
         }
-        if line_start && bytes[pos] == b'#' {
+        if line_markers && line_start && bytes[pos] == b'#' {
             while pos < bytes.len() && bytes[pos] != b'\n' {
                 pos += 1;
             }
