@@ -435,15 +435,10 @@ impl Expansion<'_> {
                 if !omitted_variadic {
                     substituted.push(token.clone());
                     let name = replacement[position + 2].text.as_str();
-                    let expanded = if let Some(expanded) = expanded_arguments.get(name) {
-                        expanded.clone()
-                    } else {
-                        let expanded = self.expand(raw[name].to_vec())?;
-                        expanded_arguments.insert(name, expanded.clone());
-                        expanded
-                    };
-                    self.charge(&expanded)?;
-                    substituted.extend(expanded);
+                    // Like other ## operands, this occurrence skips prescanning.
+                    // Rescan it after suppressing the macro being replaced.
+                    self.charge(raw[name])?;
+                    substituted.extend_from_slice(raw[name]);
                 }
                 position += 2;
             } else if let Some(argument) = raw.get(token.text.as_str()) {
