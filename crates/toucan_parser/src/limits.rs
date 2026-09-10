@@ -3,23 +3,26 @@
 use measure::{Measure, Measurement};
 use span::{Node, Span};
 
+/// Hard recursion ceiling for the bounded parser worker, including debug builds.
+pub(crate) const MAX_RULE_DEPTH: usize = 512;
+
 /// Maximum resource use for one parser invocation.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct ParseLimits {
     /// Input bytes, before parsing or allocating parser state.
     pub max_input_bytes: usize,
-    /// Rule entries, loop iterations, matched/constructed/cloned bytes, and structural visits.
+    /// Recursive entries, loop iterations, input/constructed bytes, and structural visits.
     pub max_work: u64,
     /// Rule/loop steps without advancing the furthest examined source byte.
     pub max_backtracking_steps: u64,
-    /// Simultaneously active generated rules, including precedence parsing.
-    /// Values above 2048 are rejected before starting the worker.
+    /// Simultaneously active recursive parsing calls, including precedence parsing.
+    /// Values above 512 are rejected before starting the worker.
     pub max_rule_depth: usize,
     /// Maximum owned AST depth (including node/container wrappers).
     /// Values above 1024 are rejected before starting the worker.
     pub max_ast_depth: usize,
-    /// Cumulative conservative clone-size accounting retained in memoized results.
-    /// Includes 192 bytes per entry; this is not an allocator RSS measurement.
+    /// Bytes retained in the parser's token buffer, including spare capacity.
+    /// This excludes the AST and is not an allocator RSS measurement.
     pub max_cache_bytes: u64,
     /// Live construction-metric entries. Completed external declarations release their children.
     pub max_metadata_entries: usize,
@@ -31,7 +34,7 @@ impl Default for ParseLimits {
             max_input_bytes: 16 * 1024 * 1024,
             max_work: 2_000_000_000,
             max_backtracking_steps: 1_000_000,
-            max_rule_depth: 2048,
+            max_rule_depth: MAX_RULE_DEPTH,
             max_ast_depth: 1024,
             max_cache_bytes: 256 * 1024 * 1024,
             max_metadata_entries: 500_000,
@@ -85,6 +88,7 @@ pub struct ParseStatistics {
     pub maximum_ast_depth: usize,
     pub structural_visits: u64,
     pub cache_bytes: u64,
+    /// AST bytes cloned by parsing; zero for the handwritten parser.
     pub cloned_bytes: u64,
     pub maximum_metadata_entries: usize,
 }
@@ -224,14 +228,6 @@ impl Budget {
         Ok(())
     }
 
-    pub(crate) fn measure<T: Measure + ?Sized>(
-        &mut self,
-        value: &T,
-        offset: usize,
-    ) -> Result<Measurement, &'static str> {
-        value.measure(self, offset, 1)
-    }
-
     pub(crate) fn node<T: Measure>(
         &mut self,
         value: T,
@@ -361,24 +357,5 @@ impl Budget {
         entry.depth = entry.depth.max(value.depth);
         entry.bytes = entry.bytes.max(value.bytes);
         Ok(())
-    }
-
-    pub(crate) fn cache_clone(&mut self, offset: usize, bytes: u64, retain: bool) -> bool {
-        if retain {
-            self.statistics.cache_bytes = self
-                .statistics
-                .cache_bytes
-                .saturating_add(bytes.saturating_add(192));
-            if !self.check(
-                ResourceKind::CacheBytes,
-                offset,
-                self.statistics.cache_bytes,
-                self.limits.max_cache_bytes,
-            ) {
-                return false;
-            }
-        }
-        self.statistics.cloned_bytes = self.statistics.cloned_bytes.saturating_add(bytes);
-        self.work(offset, bytes)
     }
 }

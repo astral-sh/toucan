@@ -1,7 +1,6 @@
 //! Exhaustive structural accounting for the owned parser AST.
 // This schema deliberately names every field and variant. AST changes must update it.
 use ast::*;
-use astutil::Operation;
 use limits::Budget;
 use span::Node;
 
@@ -179,7 +178,6 @@ macro_rules! scalar {
     })* };
 }
 scalar!((), bool, u8, usize);
-enumeration!(Operation { Member(op, id), Unary(op), Binary(op, expr), Call(args) });
 
 structure!(Identifier { name });
 enumeration!(Constant { Integer(v0), Float(v0), Character(v0) });

@@ -868,9 +868,7 @@ impl Analyzer {
                     after_tag = matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
                         || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty());
                 }
-                ast::DeclarationSpecifier::Extension(extensions)
-                    if !after_tag && !self.record_attributes.contains(&specifier.span.start) =>
-                {
+                ast::DeclarationSpecifier::Extension(extensions) if !after_tag => {
                     self.collect_definition_target(extensions, &mut attributes)?
                 }
                 _ => {}

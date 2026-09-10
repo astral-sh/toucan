@@ -366,12 +366,9 @@ fn enumerators_use_int_when_representable() {
 #[test]
 fn malformed_prefix_runs_do_not_trigger_parser_backtracking() {
     let source = format!("signed long size[{}$];", "+".repeat(32));
-    assert!(
-        analyze(&source, TARGET)
-            .unwrap_err()
-            .message
-            .contains("parser BacktrackingSteps limit")
-    );
+    let error = analyze(&source, TARGET).unwrap_err();
+    assert!(error.message.starts_with("C syntax error:"), "{error}");
+    assert_eq!(error.offset, source.find('$').unwrap());
 }
 
 #[test]
@@ -429,9 +426,10 @@ fn macro_syntax_diagnostics_are_relative_to_the_expression() {
         assert_eq!(without_aliases.message, with_aliases.message);
         assert_eq!(without_aliases.offset, with_aliases.offset);
     }
-    let error = evaluate_integer(&aliases, "sizeof(Byte) +\nextern").unwrap_err();
-    assert!(error.message.contains("line 2 column 7"), "{error}");
-    assert_eq!(error.offset, 21);
+    let expression = "sizeof(Byte) +\nextern";
+    let error = evaluate_integer(&aliases, expression).unwrap_err();
+    assert!(error.message.contains("line 2 column 1"), "{error}");
+    assert_eq!(error.offset, expression.find("extern").unwrap());
 }
 
 #[test]

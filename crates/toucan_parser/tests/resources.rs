@@ -63,7 +63,7 @@ fn limits_are_exact_and_independent_of_previous_invocations() {
     ] {
         let error = parse_preprocessed_with_limits(&config, source.into(), limits).unwrap_err();
         let resource = error.resource.as_ref().expect("resource error");
-        assert_eq!(resource.kind, kind, "{error}");
+        assert_eq!(resource.kind, kind, "{}", error);
         assert!(source.is_char_boundary(error.offset));
         assert_eq!(resource.offset, error.offset);
         assert_eq!(
@@ -159,7 +159,7 @@ fn resource_worker() {
     let Ok(case) = std::env::var("TOUCAN_PARSER_RESOURCE_CASE") else {
         return;
     };
-    // This is the ordinary Rust worker stack; generated parsing runs on its own
+    // This is the ordinary Rust worker stack; parsing runs on its own
     // bounded stack. Successful AST cloning and dropping run on this caller.
     std::thread::Builder::new()
         .stack_size(2 * 1024 * 1024)
@@ -179,7 +179,12 @@ fn resource_worker() {
                 }
             } else {
                 let error = parse_preprocessed(&Config::with_gcc(), hostile(&case)).unwrap_err();
-                assert!(error.resource.is_some(), "{}", error);
+                if case == "near_match" {
+                    // This malformed prefix now fails before recursive descent.
+                    assert!(error.resource.is_none(), "{}", error);
+                } else {
+                    assert!(error.resource.is_some(), "{}", error);
+                }
             }
         })
         .unwrap()
@@ -288,19 +293,19 @@ fn exhaustion_is_terminal_through_optional_and_backtracking_rules() {
 }
 
 #[test]
-fn backtracking_quota_is_not_weakened_by_padding() {
+fn malformed_prefixes_do_not_backtrack_and_padding_does_not_reset_limits() {
     let config = Config::with_gcc();
     let malformed = format!("signed long size[{}$];", "+".repeat(32));
+    let baseline = parse_preprocessed(&config, malformed.clone()).unwrap_err();
+    assert!(baseline.resource.is_none(), "{}", baseline);
     for prefix in [String::new(), " ".repeat(1_000_000)] {
         let error = parse_preprocessed(&config, prefix + &malformed).unwrap_err();
-        assert_eq!(
-            error.resource.as_ref().unwrap().kind,
-            ResourceKind::BacktrackingSteps
-        );
+        assert!(error.resource.is_none(), "{}", error);
         assert_eq!(
             error.statistics.maximum_backtracking_steps,
-            ParseLimits::default().max_backtracking_steps + 1
+            baseline.statistics.maximum_backtracking_steps
         );
+        assert!(error.statistics.maximum_backtracking_steps < 100);
     }
 }
 
@@ -348,7 +353,7 @@ fn minimum_nesting_matches_native_c11_compilers() {
 }
 
 #[test]
-fn nested_introspection_respects_generated_rule_and_owned_tree_limits() {
+fn nested_introspection_respects_recursion_and_owned_tree_limits() {
     let source = format!(
         "int x={}0{};",
         "__builtin_choose_expr(1,".repeat(2000),

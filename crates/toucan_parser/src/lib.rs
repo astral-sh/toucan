@@ -22,7 +22,6 @@ pub mod print;
 pub mod span;
 pub mod visit;
 
-#[macro_use]
 mod astutil;
 mod env;
 mod measure;

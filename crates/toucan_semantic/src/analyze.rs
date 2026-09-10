@@ -134,7 +134,6 @@ fn analyze_on_parser_stack(
     analyzer.parameter_type_dependencies = retain_parameter_type_dependencies
         .then(|| Box::new(crate::parameter_dependencies::Builder::new()));
     analyzer.prepare_dll_storage(&source);
-    analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
@@ -378,7 +377,6 @@ fn evaluate_on_parser_stack<Value>(
     };
     analyzer.prepare_dll_storage(&source);
     analyzer.allow_late_object_size_folds = true;
-    analyzer.record_attributes = parsed.record_attributes;
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
@@ -483,7 +481,6 @@ fn value_expression<'a>(
 
 struct Parsed {
     unit: ast::TranslationUnit,
-    record_attributes: HashSet<usize>,
     character_literals: HashMap<usize, String>,
     string_literals: HashMap<usize, Vec<String>>,
     offsets: crate::parser_extensions::SourceMap,
@@ -529,7 +526,6 @@ fn parse(
             Compiler::Clang => driver::Flavor::ClangC11,
         },
     };
-    let (source, record_attributes) = normalize_attributes(&source);
     let (source, literal_spellings) = crate::literals::normalize_literal_escapes(source);
     let parsed = driver::parse_preprocessed(&config, source).map_err(|mut error| {
         error.offset = adapted.offsets.original_offset(error.offset);
@@ -559,7 +555,6 @@ fn parse(
     })?;
     Ok(Parsed {
         unit: parsed.unit,
-        record_attributes,
         character_literals: literal_spellings.characters,
         string_literals: literal_spellings.strings,
         offsets: adapted.offsets,
@@ -1070,7 +1065,6 @@ pub(crate) struct Analyzer {
     defining_enums: HashSet<usize>,
     tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
-    pub(crate) record_attributes: HashSet<usize>,
     pub(crate) character_literals: HashMap<usize, String>,
     pub(crate) string_literals: HashMap<usize, Vec<String>>,
     pub(crate) empty_initializers: HashSet<usize>,
@@ -1181,7 +1175,6 @@ impl Analyzer {
             defining_enums: HashSet::new(),
             tentative_definitions: BTreeMap::new(),
             packs: Vec::new(),
-            record_attributes: HashSet::new(),
             character_literals: HashMap::new(),
             string_literals: HashMap::new(),
             empty_initializers: HashSet::new(),
@@ -2601,9 +2594,7 @@ impl Analyzer {
                                     tag_only,
                                 )?;
                             }
-                        } else if self.record_attributes.contains(&specifier.span.start)
-                            || after_tag_definition
-                        {
+                        } else if after_tag_definition {
                             self.attributes(
                                 std::slice::from_ref(extension),
                                 &mut record_attributes,
@@ -5872,145 +5863,6 @@ fn prepare_source(source: &str) -> Result<(String, PackEvents), Error> {
         offset += line.len();
     }
     Ok((result, packs))
-}
-
-/// Bounds recursive parser work before constructing the external parser's AST.
-/// This scanner treats quoted strings and comments as indivisible tokens.
-fn normalize_attributes(source: &str) -> (String, HashSet<usize>) {
-    let mut record_attributes = HashSet::new();
-    let mut bytes = source.as_bytes().to_vec();
-    let mut index = 0;
-    let mut previous_word: Option<(usize, usize)> = None;
-    while index < bytes.len() {
-        if bytes[index] == b'/' && bytes.get(index + 1) == Some(&b'/') {
-            while index < bytes.len() && bytes[index] != b'\n' {
-                index += 1;
-            }
-            continue;
-        }
-        if bytes[index] == b'/' && bytes.get(index + 1) == Some(&b'*') {
-            index += 2;
-            while index + 1 < bytes.len() && !(bytes[index] == b'*' && bytes[index + 1] == b'/') {
-                index += 1;
-            }
-            index = (index + 2).min(bytes.len());
-            continue;
-        }
-        if matches!(bytes[index], b'\'' | b'"') {
-            let quote = bytes[index];
-            index += 1;
-            while index < bytes.len() && bytes[index] != quote {
-                if bytes[index] == b'\\' {
-                    index += 1;
-                }
-                index += 1;
-            }
-            index += 1;
-            previous_word = None;
-            continue;
-        }
-        if bytes[index].is_ascii_whitespace() {
-            index += 1;
-            continue;
-        }
-        if !(bytes[index].is_ascii_alphabetic() || bytes[index] == b'_') {
-            index += 1;
-            previous_word = None;
-            continue;
-        }
-        let start = index;
-        while index < bytes.len() && (bytes[index].is_ascii_alphanumeric() || bytes[index] == b'_')
-        {
-            index += 1;
-        }
-        if &bytes[start..index] != b"__attribute__" && &bytes[start..index] != b"__attribute" {
-            previous_word = Some((start, index));
-            continue;
-        }
-        let mut first = index;
-        while bytes.get(first).is_some_and(u8::is_ascii_whitespace) {
-            first += 1;
-        }
-        if bytes.get(first) != Some(&b'(') {
-            previous_word = None;
-            continue;
-        }
-        let mut second = first + 1;
-        while bytes.get(second).is_some_and(u8::is_ascii_whitespace) {
-            second += 1;
-        }
-        if bytes.get(second) != Some(&b'(') {
-            previous_word = None;
-            continue;
-        }
-        let mut cursor = second + 1;
-        let mut depth = 2;
-        let mut penultimate = second;
-        while cursor < bytes.len() && depth > 0 {
-            match bytes[cursor] {
-                b'\'' | b'"' => {
-                    let quote = bytes[cursor];
-                    cursor += 1;
-                    while cursor < bytes.len() && bytes[cursor] != quote {
-                        if bytes[cursor] == b'\\' {
-                            cursor += 1;
-                        }
-                        cursor += 1;
-                    }
-                }
-                b'(' => depth += 1,
-                b')' => {
-                    depth -= 1;
-                    if depth == 1 {
-                        penultimate = cursor;
-                    }
-                }
-                _ => {}
-            }
-            cursor += 1;
-        }
-        if depth != 0 {
-            previous_word = None;
-            continue;
-        }
-        let last = cursor - 1;
-        if bytes[penultimate + 1..last]
-            .iter()
-            .all(u8::is_ascii_whitespace)
-        {
-            bytes[first..=second].fill(b' ');
-            bytes[first] = b'(';
-            bytes[first + 1] = b'(';
-            bytes[penultimate..=last].fill(b' ');
-            bytes[penultimate] = b')';
-            bytes[penultimate + 1] = b')';
-        }
-        if let Some((keyword_start, keyword_end)) = previous_word
-            && matches!(
-                &bytes[keyword_start..keyword_end],
-                b"struct" | b"union" | b"enum"
-            )
-            && bytes[keyword_end..start]
-                .iter()
-                .all(u8::is_ascii_whitespace)
-        {
-            record_attributes.insert(keyword_start);
-            let keyword = bytes[keyword_start..keyword_end].to_vec();
-            let attribute = bytes[start..cursor].to_vec();
-            let separator = start - keyword_end;
-            bytes[keyword_start..keyword_start + attribute.len()].copy_from_slice(&attribute);
-            let keyword_position = keyword_start + attribute.len() + separator;
-            bytes[keyword_start + attribute.len()..keyword_position].fill(b' ');
-            bytes[keyword_position..cursor].copy_from_slice(&keyword);
-        }
-        index = cursor;
-        previous_word = None;
-    }
-    // Reordering and replacing ASCII bytes leaves every multibyte character intact.
-    (
-        String::from_utf8(bytes).expect("attribute normalization preserves UTF-8"),
-        record_attributes,
-    )
 }
 
 #[derive(Clone, Copy)]
