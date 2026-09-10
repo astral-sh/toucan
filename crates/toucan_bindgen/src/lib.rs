@@ -636,51 +636,21 @@ fn identifier_pattern(pattern: &str) -> Result<String, String> {
 }
 
 fn host_target() -> Option<Target> {
-    Target::ALL.into_iter().find(|target| match target {
-        Target::X86_64UnknownLinuxGnu => cfg!(all(
-            target_arch = "x86_64",
-            target_os = "linux",
-            target_env = "gnu"
-        )),
-        Target::I686UnknownLinuxGnu => cfg!(all(
-            target_arch = "x86",
-            target_os = "linux",
-            target_env = "gnu"
-        )),
-        Target::Armv7UnknownLinuxGnueabihf => cfg!(all(
-            target_arch = "arm",
-            target_os = "linux",
-            target_env = "gnu",
-            target_abi = "eabihf"
-        )),
-        Target::Aarch64UnknownLinuxGnu => cfg!(all(
-            target_arch = "aarch64",
-            target_os = "linux",
-            target_env = "gnu"
-        )),
-        Target::X86_64UnknownLinuxMusl => cfg!(all(
-            target_arch = "x86_64",
-            target_os = "linux",
-            target_env = "musl"
-        )),
-        Target::Aarch64UnknownLinuxMusl => cfg!(all(
-            target_arch = "aarch64",
-            target_os = "linux",
-            target_env = "musl"
-        )),
-        Target::X86_64AppleDarwin => cfg!(all(target_arch = "x86_64", target_os = "macos")),
-        Target::Aarch64AppleDarwin => cfg!(all(target_arch = "aarch64", target_os = "macos")),
-        Target::X86_64PcWindowsMsvc => cfg!(all(
-            target_arch = "x86_64",
-            target_os = "windows",
-            target_env = "msvc"
-        )),
-        Target::Aarch64PcWindowsMsvc => cfg!(all(
-            target_arch = "aarch64",
-            target_os = "windows",
-            target_env = "msvc"
-        )),
-    })
+    match (std::env::consts::ARCH, std::env::consts::OS) {
+        ("x86_64", "linux") if cfg!(target_env = "gnu") => Some(Target::X86_64UnknownLinuxGnu),
+        ("x86", "linux") if cfg!(target_env = "gnu") => Some(Target::I686UnknownLinuxGnu),
+        ("arm", "linux") if cfg!(all(target_env = "gnu", target_abi = "eabihf")) => {
+            Some(Target::Armv7UnknownLinuxGnueabihf)
+        }
+        ("aarch64", "linux") if cfg!(target_env = "gnu") => Some(Target::Aarch64UnknownLinuxGnu),
+        ("x86_64", "linux") if cfg!(target_env = "musl") => Some(Target::X86_64UnknownLinuxMusl),
+        ("aarch64", "linux") if cfg!(target_env = "musl") => Some(Target::Aarch64UnknownLinuxMusl),
+        ("x86_64", "macos") => Some(Target::X86_64AppleDarwin),
+        ("aarch64", "macos") => Some(Target::Aarch64AppleDarwin),
+        ("x86_64", "windows") if cfg!(target_env = "msvc") => Some(Target::X86_64PcWindowsMsvc),
+        ("aarch64", "windows") if cfg!(target_env = "msvc") => Some(Target::Aarch64PcWindowsMsvc),
+        _ => None,
+    }
 }
 
 fn clang_config(target: Target, mode: toucan::LanguageMode) -> Config {
