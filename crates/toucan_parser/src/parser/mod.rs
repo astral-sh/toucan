@@ -197,7 +197,9 @@ impl<'s, 'e> Parser<'s, 'e> {
         let mut declarations = Vec::new();
         while self.token().kind != TokenKind::End {
             let previous = self.cursor;
-            declarations.push(self.external_declaration()?);
+            if let Some(declaration) = self.external_declaration()? {
+                declarations.push(declaration);
+            }
             self.progress(previous)?;
         }
         if self.budget.failure.is_some() {
