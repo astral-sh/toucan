@@ -254,9 +254,9 @@ impl<'s, 'e> Parser<'s, 'e> {
         Ok(distance)
     }
 
-    /// Registers ordinary identifiers before trailing extensions, typedefs after
-    /// extensions, and GNU `__auto_type` names after their initializer, so each
-    /// operand sees the appropriate scope.
+    /// Registers ordinary identifiers and typedefs after trailing extensions,
+    /// and GNU `__auto_type` names after their initializer, so each operand sees
+    /// the appropriate scope.
     fn finish_init_declarator(
         &mut self,
         mut declarator: Node<Declarator>,
@@ -264,9 +264,6 @@ impl<'s, 'e> Parser<'s, 'e> {
         is_typedef: bool,
         is_auto: bool,
     ) -> PResult<Node<InitDeclarator>> {
-        if !is_auto && !is_typedef {
-            self.env.handle_declarator(&declarator, Symbol::Identifier);
-        }
         let extensions = self.declarator_suffix_extensions()?;
         if !extensions.is_empty() {
             declarator.node.extensions.extend(extensions);
@@ -274,6 +271,8 @@ impl<'s, 'e> Parser<'s, 'e> {
         }
         if is_typedef {
             self.env.handle_declarator(&declarator, Symbol::Typename);
+        } else if !is_auto {
+            self.env.handle_declarator(&declarator, Symbol::Identifier);
         }
         let initializer = if self.at("=") {
             if is_typedef {
@@ -958,13 +957,14 @@ impl<'s, 'e> Parser<'s, 'e> {
             || self.token().kind == TokenKind::Identifier
                 && !self.env.reserved.contains(self.text())
         {
-            let declarator = self.declarator(DeclaratorMode::Parameter)?;
-            self.env.handle_declarator(&declarator, Symbol::Identifier);
-            Some(declarator)
+            Some(self.declarator(DeclaratorMode::Parameter)?)
         } else {
             None
         };
         let extensions = self.attribute_specifier_list()?;
+        if let Some(declarator) = &declarator {
+            self.env.handle_declarator(declarator, Symbol::Identifier);
+        }
         self.node(
             ParameterDeclaration {
                 specifiers,
