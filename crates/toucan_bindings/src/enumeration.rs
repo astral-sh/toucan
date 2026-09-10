@@ -16,42 +16,13 @@ pub(super) fn select(
         return Ok(BTreeSet::new());
     }
     let mut typedef_names = BTreeMap::new();
-    if options.enum_constant_style == EnumConstantStyle::Bindgen {
-        return Ok(unit
-            .enums
-            .iter()
-            .enumerate()
-            .filter_map(|(id, enumeration)| {
-                if enumeration.scope != Scope::File {
-                    return None;
-                }
-                let named = enumeration.name.is_some()
-                    || crate::lexical_names::Names::typedef_name(
-                        unit,
-                        unit.lexical_tags.enums.get(&id),
-                    )
-                    .is_some();
-                let matches = |name| {
-                    options
-                        .rustified_enum_patterns
-                        .iter()
-                        .any(|pattern| matches_name(pattern, name))
-                };
-                let selected = lexical.enum_name(unit, id).is_some_and(matches)
-                    || (!named
-                        && enumeration
-                            .variants
-                            .iter()
-                            .any(|variant| matches(&variant.name)));
-                selected.then_some(id)
-            })
-            .collect());
-    }
-    for declaration in &unit.declarations {
-        if declaration.kind == DeclarationKind::Typedef
-            && let TypeKind::Enum(id) = unit.resolve(&declaration.ty)?.kind
-        {
-            typedef_names.entry(id).or_insert(declaration.name.as_str());
+    if options.enum_constant_style != EnumConstantStyle::Bindgen {
+        for declaration in &unit.declarations {
+            if declaration.kind == DeclarationKind::Typedef
+                && let TypeKind::Enum(id) = unit.resolve(&declaration.ty)?.kind
+            {
+                typedef_names.entry(id).or_insert(declaration.name.as_str());
+            }
         }
     }
     let matches = |name: &str| {
@@ -68,17 +39,24 @@ pub(super) fn select(
             if enumeration.scope != Scope::File {
                 return None;
             }
-            let selected = match enumeration
-                .name
-                .as_deref()
-                .or_else(|| typedef_names.get(&id).copied())
-            {
-                Some(name) => matches(name),
-                None => enumeration
-                    .variants
-                    .iter()
-                    .any(|variant| matches(&variant.name)),
+            let (name, named) = if options.enum_constant_style == EnumConstantStyle::Bindgen {
+                (
+                    lexical.enum_name(unit, id),
+                    crate::lexical_names::Names::enum_is_named(unit, id),
+                )
+            } else {
+                let name = enumeration
+                    .name
+                    .as_deref()
+                    .or_else(|| typedef_names.get(&id).copied());
+                (name, name.is_some())
             };
+            let selected = name.is_some_and(matches)
+                || (!named
+                    && enumeration
+                        .variants
+                        .iter()
+                        .any(|variant| matches(&variant.name)));
             selected.then_some(id)
         })
         .collect())

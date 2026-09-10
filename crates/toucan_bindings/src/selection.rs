@@ -64,13 +64,8 @@ impl BindingSelection {
             {
                 continue;
             }
-            let anonymous = enumeration.name.is_none()
-                && names.enum_parent(unit, id).is_none()
-                && crate::lexical_names::Names::typedef_name(
-                    unit,
-                    unit.lexical_tags.enums.get(&id),
-                )
-                .is_none();
+            let anonymous = !crate::lexical_names::Names::enum_is_named(unit, id)
+                && names.enum_parent(unit, id).is_none();
             if names.enum_name(unit, id).is_some_and(&mut matches_type)
                 || (anonymous
                     && enumeration

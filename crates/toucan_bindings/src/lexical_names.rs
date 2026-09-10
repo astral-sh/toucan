@@ -105,6 +105,13 @@ impl Names {
         self.enumeration(id).or(unit.enums[id].name.as_deref())
     }
 
+    /// Whether an enum has a C tag or its own typedef name. Generated lexical
+    /// names alone do not make an enum named.
+    pub(super) fn enum_is_named(unit: &TranslationUnit, id: usize) -> bool {
+        unit.enums[id].name.is_some()
+            || Self::typedef_name(unit, unit.lexical_tags.enums.get(&id)).is_some()
+    }
+
     pub(super) fn enum_parent<'a>(
         &'a self,
         unit: &'a TranslationUnit,
