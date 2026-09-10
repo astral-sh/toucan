@@ -27,39 +27,28 @@ impl<'s, 'e> Parser<'s, 'e> {
         let value = match self.text() {
             "goto" => {
                 self.bump()?;
-                let label = self.identifier()?;
-                self.expect(";")?;
-                Statement::Goto(label)
+                Statement::Goto(self.identifier()?)
             }
             "continue" => {
                 self.bump()?;
-                self.expect(";")?;
                 Statement::Continue
             }
             "break" => {
                 self.bump()?;
-                self.expect(";")?;
                 Statement::Break
             }
             "return" => {
                 self.bump()?;
-                let expression = self.optional_expression(";")?;
-                self.expect(";")?;
-                Statement::Return(expression)
+                Statement::Return(self.optional_expression(";")?)
             }
             "__attribute" | "__attribute__" if self.env.extensions_gnu => {
-                let attributes = self.attribute_specifier()?;
-                self.expect(";")?;
-                Statement::Attribute(attributes)
+                Statement::Attribute(self.attribute_specifier()?)
             }
             "__asm" | "__asm__" if self.env.extensions_gnu => return self.asm_statement(),
             "asm" if self.env.gnu_keywords => return self.asm_statement(),
-            _ => {
-                let expression = self.optional_expression(";")?;
-                self.expect(";")?;
-                Statement::Expression(expression)
-            }
+            _ => Statement::Expression(self.optional_expression(";")?),
         };
+        self.expect(";")?;
         self.node(value, start)
     }
 
