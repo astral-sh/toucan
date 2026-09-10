@@ -346,10 +346,10 @@ pub(crate) fn lex_limited(
             } else {
                 Kind::Character
             }
-        } else if bytes[index].is_ascii_alphabetic() || bytes[index] == b'_' {
+        } else if bytes[index].is_ascii_alphabetic() || matches!(bytes[index], b'_' | b'$') {
             index += 1;
             while index < bytes.len()
-                && (bytes[index].is_ascii_alphanumeric() || bytes[index] == b'_')
+                && (bytes[index].is_ascii_alphanumeric() || matches!(bytes[index], b'_' | b'$'))
             {
                 index += 1;
             }
@@ -361,7 +361,7 @@ pub(crate) fn lex_limited(
             while index < bytes.len() {
                 let c = bytes[index];
                 if c.is_ascii_alphanumeric()
-                    || matches!(c, b'_' | b'.')
+                    || matches!(c, b'_' | b'$' | b'.')
                     || (matches!(c, b'+' | b'-')
                         && matches!(bytes[index - 1], b'e' | b'E' | b'p' | b'P'))
                 {

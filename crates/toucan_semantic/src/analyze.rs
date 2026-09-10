@@ -294,10 +294,10 @@ fn evaluate_on_parser_stack<Value>(
             if !name
                 .as_bytes()
                 .first()
-                .is_some_and(|byte| byte.is_ascii_alphabetic() || *byte == b'_')
+                .is_some_and(|byte| byte.is_ascii_alphabetic() || matches!(*byte, b'_' | b'$'))
                 || !name
                     .bytes()
-                    .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_')
+                    .all(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$'))
             {
                 return Err(Error::new(
                     0,
@@ -657,12 +657,11 @@ fn validate_expression_source(
     let mut identifiers = HashSet::new();
     while index < bytes.len() {
         match bytes[index] {
-            b'a'..=b'z' | b'A'..=b'Z' | b'_' => {
+            b'a'..=b'z' | b'A'..=b'Z' | b'_' | b'$' => {
                 let start = index;
-                while bytes
-                    .get(index + 1)
-                    .is_some_and(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
-                {
+                while bytes.get(index + 1).is_some_and(|byte| {
+                    byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'$')
+                }) {
                     index += 1;
                 }
                 let identifier = &expression[start..=index];
@@ -678,7 +677,7 @@ fn validate_expression_source(
                 // exponent signs, rather than treating their letters as names.
                 while bytes.get(index + 1).is_some_and(|byte| {
                     byte.is_ascii_alphanumeric()
-                        || matches!(byte, b'_' | b'.')
+                        || matches!(byte, b'_' | b'$' | b'.')
                         || (matches!(byte, b'+' | b'-')
                             && matches!(bytes[index], b'e' | b'E' | b'p' | b'P'))
                 }) {

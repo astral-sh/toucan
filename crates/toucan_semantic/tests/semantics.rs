@@ -365,10 +365,10 @@ fn enumerators_use_int_when_representable() {
 
 #[test]
 fn malformed_prefix_runs_do_not_trigger_parser_backtracking() {
-    let source = format!("signed long size[{}$];", "+".repeat(32));
+    let source = format!("signed long size[{}@];", "+".repeat(32));
     let error = analyze(&source, TARGET).unwrap_err();
     assert!(error.message.starts_with("C syntax error:"), "{error}");
-    assert_eq!(error.offset, source.find('$').unwrap());
+    assert_eq!(error.offset, source.find('@').unwrap());
 }
 
 #[test]

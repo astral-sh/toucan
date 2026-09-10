@@ -33,6 +33,14 @@ Generated 128-bit ABI types require Rust 1.78
 or newer with its bundled LLVM, following Rust's
 [ABI correction](https://blog.rust-lang.org/2024/03/30/i128-layout-update/).
 
+## Identifiers
+
+Compiler profiles accept `$` in C identifiers, including macro names. Rust
+bindings encode those names as `__toucan_c_` followed by the hexadecimal source
+bytes, adding underscores if an ordinary identifier already uses that spelling.
+Foreign declarations retain the original symbol through `link_name`. Non-ASCII
+C identifiers remain unsupported.
+
 ## String and character literals
 
 C11 ordinary, `u8`, `u`, `U`, and `L` strings use UTF-8, UTF-16, or UTF-32

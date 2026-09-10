@@ -291,7 +291,7 @@ fn exhaustion_is_terminal_through_optional_and_backtracking_rules() {
 #[test]
 fn malformed_prefixes_do_not_backtrack_and_padding_does_not_reset_limits() {
     let config = Config::with_gcc();
-    let malformed = format!("signed long size[{}$];", "+".repeat(32));
+    let malformed = format!("signed long size[{}@];", "+".repeat(32));
     let baseline = parse_preprocessed(&config, malformed.clone()).unwrap_err();
     assert!(baseline.resource.is_none(), "{}", baseline);
     for prefix in [String::new(), " ".repeat(1_000_000)] {
