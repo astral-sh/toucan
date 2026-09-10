@@ -45,8 +45,8 @@ The graph retains:
 The graph describes checked C syntax. Its operand and initializer ordering records
 written structure and overrides; it does not choose an order for C side effects.
 Successful results contain no unfinished nodes or missing expression, statement,
-or initializer coverage. Attribute metadata and parser-inserted text have explicit
-coverage classifications. Retention limitations produce diagnostics.
+or initializer coverage. Attribute metadata has an explicit coverage classification.
+Retention limitations produce diagnostics.
 
 ## Runtime types and initializer destinations
 
@@ -74,8 +74,8 @@ Set `Config.analysis.retain_code = true` before `parse_file` or `parse_source`.
 provide immutable views of the result. This replaces the former public fields.
 
 A node's `occurrence()` leads to its `SourceSpan`. `range()` covers byte offsets in
-the original preprocessed input; `fragments()` preserves disjoint or reordered
-pieces when adapters transform syntax. A synthetic span has no written tokens.
+the original preprocessed input. The parser preserves written syntax, so
+`fragments()` is empty for these contiguous spans. A synthetic span has no written tokens.
 `Compilation::source_locations(span)` resolves the intersecting token origins,
 including included files and outer macro invocations. It may repeat an origin for
 several expanded tokens and does not provide a full macro expansion backtrace.
@@ -176,10 +176,9 @@ are included with `is_reference() == true`; they are not independent file-select
 roots. Block-local declarations are not included.
 
 This catalog does not allocate expression, statement, or initializer arenas and
-does not consume checked-code budgets. It has separate fixed limits of one million
-occurrences and 64 MiB of mapped source fragments. Origins are absent by default.
-Their byte ranges refer to the original preprocessed input after parser adapter
-mapping, just like checked-code spans.
+does not consume checked-code budgets. It has a separate limit of one million
+occurrences. Origins are absent by default. Their byte ranges refer directly to
+the original preprocessed input, just like checked-code spans.
 
 For physical header selection, also enable
 `Config::preprocessor.record_file_origins`. Resolve an origin's starting byte

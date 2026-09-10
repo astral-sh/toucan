@@ -38,6 +38,21 @@ const INVALID: &[&str] = &[
 ];
 
 #[test]
+fn asm_qualifier_validation_keeps_original_offsets() {
+    analyze(
+        "const char *text = \"asm goto\"; void f(void) { __asm__ volatile (\"\"); }",
+        TARGET,
+    )
+    .unwrap();
+    for qualifier in ["const", "restrict", "inline", "goto"] {
+        let source = format!("void f(void) {{ __asm__ {qualifier} (\"\"); }}");
+        let error = analyze(&source, TARGET).unwrap_err();
+        assert_eq!(error.offset, source.find(qualifier).unwrap());
+        assert!(error.message.contains("asm"), "{error}");
+    }
+}
+
+#[test]
 fn empty_compound_literals_and_nested_pointer_attributes_are_checked() {
     for source in VALID {
         analyze(source, TARGET).unwrap_or_else(|error| panic!("{source}: {error}"));
@@ -59,7 +74,7 @@ fn empty_compound_literals_and_nested_pointer_attributes_are_checked() {
 }
 
 #[test]
-fn inserted_tokens_preserve_diagnostics_literals_and_pack_events() {
+fn empty_literals_preserve_diagnostics_literals_and_pack_events() {
     let source =
         "struct S { int x; }; struct S s = (struct S){};\nint f(void) {}\nint x = unknown;";
     let error = analyze(source, TARGET).unwrap_err();
@@ -143,11 +158,4 @@ fn parser_extensions_match_gnu_compilers() {
             }
         }
     }
-}
-
-#[test]
-fn source_map_storage_is_bounded_before_parsing() {
-    let source = "f(){}".repeat(100_001);
-    let error = analyze(&source, TARGET).unwrap_err();
-    assert!(error.message.contains("100000-edit limit"), "{error}");
 }

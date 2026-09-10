@@ -1093,12 +1093,9 @@ impl Builder {
         }
         self.type_use(shape, extents, functions, span.start)
     }
-    pub(super) fn finish_bounds(
-        &mut self,
-        offsets: &crate::parser_extensions::SourceMap,
-    ) -> Result<(), Error> {
+    pub(super) fn finish_bounds(&mut self) -> Result<(), Error> {
         for (bound, span) in self.code.bounds.iter_mut().zip(&self.bounds_builder.spans) {
-            bound.source = map_span(offsets, *span, &mut self.budget)?;
+            bound.source = map_span(*span, &mut self.budget)?;
         }
         Ok(())
     }

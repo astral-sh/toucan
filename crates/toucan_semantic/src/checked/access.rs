@@ -13,7 +13,7 @@ impl SourceSpan {
     pub fn fragments(&self) -> &[Range<usize>] {
         &self.fragments
     }
-    /// Whether this span consists entirely of parser-inserted text.
+    /// Whether this span has no written source token.
     pub fn synthetic(&self) -> bool {
         self.synthetic
     }
@@ -28,7 +28,7 @@ impl Occurrence {
     pub fn kind(&self) -> OccurrenceKind {
         self.kind
     }
-    /// Original preprocessed byte ranges, including disjoint adapter fragments.
+    /// Original preprocessed byte ranges for this occurrence.
     pub fn source(&self) -> &SourceSpan {
         &self.source
     }

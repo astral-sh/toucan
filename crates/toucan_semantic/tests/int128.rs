@@ -15,7 +15,7 @@ const VALID: &[&str] = &[
     "_Static_assert((unsigned __int128)-1 >> 127 == 1, \"unsigned\");",
     "void f(void) { __int128 a[2] = {1, 2}; __int128 *p = a; *p += 3; }",
     "void f(__int128 (*callback)(__int128));",
-    "struct S { int x; }; struct S s = (struct S){}; __int128 x; _Static_assert(sizeof(x) == 16, \"inserted offsets\");",
+    "struct S { int x; }; struct S s = (struct S){}; __int128 x; _Static_assert(sizeof(x) == 16, \"original offsets\");",
     "typedef __int128 (*F)(void); F f; __int128 g(void) { return ((__int128 (__attribute__((unused)) *)(void))f)(); }",
     "const char text[] = \"__int128\"; int __int128_suffix; /* __int128 */",
 ];
@@ -67,7 +67,7 @@ fn int128_types_use_integer_semantics_in_every_context() {
             panic!("mixed arithmetic must produce double");
         };
         assert_eq!(value.to_bits(), 0x4630_0000_0000_0000);
-        // The grammar adapter must never change genuine extended float types.
+        // Integer specifiers must remain distinct from extended float types.
         assert!(
             analyze("unsigned _Float16 x;", target).is_err(),
             "accepted unsigned floating type"

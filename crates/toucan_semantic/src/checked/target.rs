@@ -244,10 +244,7 @@ impl Builder {
         Ok(())
     }
 
-    pub(super) fn finish_function_option_spans(
-        &mut self,
-        offsets: &crate::parser_extensions::SourceMap,
-    ) -> Result<(), Error> {
+    pub(super) fn finish_function_option_spans(&mut self) -> Result<(), Error> {
         for (&index, options) in &self.code.function_options {
             if index != options.declaration.index()
                 || self
@@ -288,18 +285,17 @@ impl Builder {
         for site in self.code.function_options.values_mut() {
             for attribute in &mut site.attributes {
                 let span = Span::span(attribute.source.range.start, attribute.source.range.end);
-                attribute.source = map_span(offsets, span, &mut self.budget)?;
+                attribute.source = map_span(span, &mut self.budget)?;
             }
             for attribute in &mut site.minimum_vector_width {
                 let span = Span::span(attribute.source.range.start, attribute.source.range.end);
-                attribute.source = map_span(offsets, span, &mut self.budget)?;
+                attribute.source = map_span(span, &mut self.budget)?;
             }
             for source in [&mut site.always_inline, &mut site.no_inline]
                 .into_iter()
                 .flatten()
             {
                 *source = map_span(
-                    offsets,
                     Span::span(source.range.start, source.range.end),
                     &mut self.budget,
                 )?;

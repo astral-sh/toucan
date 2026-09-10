@@ -403,7 +403,6 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
 pub(crate) fn discover(
     unit: &TranslationUnit,
     syntax: &ast::TranslationUnit,
-    original_offset: impl Fn(usize) -> usize,
 ) -> Result<Option<Box<TagDiscoveries>>, Error> {
     let mut scanner = Scanner {
         unit,
@@ -540,7 +539,7 @@ pub(crate) fn discover(
                 .map_or(TagDiscovery::Hidden, |event| TagDiscovery::Discovered {
                     record: event.naming_record,
                     order: event.offset,
-                    offset: original_offset(event.offset),
+                    offset: event.offset,
                 });
         match tag {
             Tag::Record(id) => result.records.insert(id, value),

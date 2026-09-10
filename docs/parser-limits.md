@@ -74,8 +74,9 @@ cached measurements against an uncached walk at each constructor.
 
 Semantic type construction separately checks each
 derived modifier, since a flat `********p` parser declarator creates a nested owned
-semantic type. Parser-inserted syntax and native line markers retain the existing
-source-remapping path for diagnostics.
+semantic type. The parser reads `__int128` and empty initializers directly, so AST
+spans retain the original preprocessed offsets. Native line markers retain the
+existing source-remapping path for diagnostics.
 
 Tests run hostile unary, postfix, binary, declarator, label/control, conditional,
 and malformed-prefix inputs in separate worker processes. They also clone and drop

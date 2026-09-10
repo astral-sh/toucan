@@ -9,8 +9,45 @@ use crate::analyze::Analyzer;
 use crate::expression::ExpressionInfo;
 use crate::{Error, StringEncoding, Type, TypeKind};
 
+/// Checks assembly qualifiers before parsing, including basic asm whose AST
+/// retains only its template. Comments have already been replaced by whitespace.
+pub(crate) fn check_source_qualifiers(source: &str) -> Result<(), Error> {
+    let bytes = source.as_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        if matches!(bytes[index], b'\'' | b'"') {
+            let quote = bytes[index];
+            index += 1;
+            while index < bytes.len() {
+                if bytes[index] == quote {
+                    index += 1;
+                    break;
+                }
+                if bytes[index] == b'\\' {
+                    index += 1;
+                }
+                index += 1;
+            }
+        } else if bytes[index].is_ascii_alphabetic() || matches!(bytes[index], b'_' | b'$') {
+            let start = index;
+            while bytes
+                .get(index)
+                .is_some_and(|byte| byte.is_ascii_alphanumeric() || matches!(*byte, b'_' | b'$'))
+            {
+                index += 1;
+            }
+            if matches!(&source[start..index], "asm" | "__asm" | "__asm__") {
+                check_qualifiers(source, index)?;
+            }
+        } else {
+            index += 1;
+        }
+    }
+    Ok(())
+}
+
 /// lang-c drops a basic asm statement's qualifier, so validate it before parsing.
-pub(crate) fn check_qualifiers(source: &str, mut index: usize) -> Result<(), Error> {
+fn check_qualifiers(source: &str, mut index: usize) -> Result<(), Error> {
     let bytes = source.as_bytes();
     loop {
         while bytes.get(index).is_some_and(u8::is_ascii_whitespace) {

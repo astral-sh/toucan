@@ -72,6 +72,7 @@ pub const RESERVED_GNU: &[&str] = &[
     "__attribute__",
     "__auto_type",
     "__bf16",
+    "__int128",
     "__builtin_choose_expr",
     "__builtin_convertvector",
     "__builtin_types_compatible_p",

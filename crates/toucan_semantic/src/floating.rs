@@ -344,7 +344,7 @@ impl Analyzer {
                 let ty = self.type_name(&literal.node.type_name.node)?;
                 let mut items = literal.node.initializer_list.as_slice();
                 for _ in 0..128 {
-                    if self.empty_initializer_items(items) {
+                    if items.is_empty() {
                         // Empty scalar lists have no expression to validate or
                         // convert. Check the actual destination and any enclosing
                         // braces before producing its typed arithmetic zero.

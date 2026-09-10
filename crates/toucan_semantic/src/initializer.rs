@@ -244,14 +244,7 @@ impl Analyzer {
     }
 
     fn empty_initializer(&self, initializer: &Node<ast::Initializer>) -> bool {
-        matches!(&initializer.node, ast::Initializer::List(items) if self.empty_initializer_items(items))
-    }
-
-    /// Recognizes written empty lists, including the parser's marked placeholder
-    /// used for an otherwise unparseable empty compound literal.
-    pub(crate) fn empty_initializer_items(&self, items: &[Node<ast::InitializerListItem>]) -> bool {
-        items.is_empty()
-            || (items.len() == 1 && self.empty_initializers.contains(&items[0].span.start))
+        matches!(&initializer.node, ast::Initializer::List(items) if items.is_empty())
     }
 
     /// Finds the innermost flexible member crossed by a subobject designator.
@@ -383,11 +376,6 @@ impl Analyzer {
                 Ok(ty.clone())
             }
             InitializerView::List(items) => {
-                let items = if self.empty_initializer_items(items) {
-                    &[][..]
-                } else {
-                    items
-                };
                 if let Some(id) = retained {
                     let aggregate = matches!(
                         resolved.kind,
@@ -1618,7 +1606,7 @@ impl Analyzer {
                     return Ok(Some(value));
                 }
                 ast::Initializer::List(items) => {
-                    if items.is_empty() || self.empty_initializer_items(items) {
+                    if items.is_empty() {
                         let zero = crate::floating::ArithmeticValue::Integer(crate::IntegerValue {
                             value: 0,
                             bits: 32,

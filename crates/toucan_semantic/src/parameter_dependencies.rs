@@ -6,7 +6,6 @@ use lang_c::span::Span;
 use serde::Serialize;
 
 use crate::checked::SourceSpan;
-use crate::parser_extensions::SourceMap;
 use crate::{DeclarationKind, Error};
 
 const MAX_REFERENCES: usize = 1_000_000;
@@ -439,25 +438,13 @@ impl Builder {
         !self.frames.is_empty()
     }
 
-    pub(crate) fn finish(
-        mut self,
-        offsets: &SourceMap,
-    ) -> Result<ParameterTypeDependencies, Error> {
+    pub(crate) fn finish(self) -> ParameterTypeDependencies {
         assert!(self.frames.is_empty());
         let mut occurrences = Vec::with_capacity(self.occurrences.len());
-        for (owner, owner_span, span, typedefs) in std::mem::take(&mut self.occurrences) {
-            let source = crate::checked::map_source_span(offsets, span, |_, bytes| {
-                self.charge(0, bytes, span.start)
-            })?;
-            let owner_source = if owner_span == span {
-                None
-            } else {
-                Some(crate::checked::map_source_span(
-                    offsets,
-                    owner_span,
-                    |_, bytes| self.charge(0, bytes, owner_span.start),
-                )?)
-            };
+        for (owner, owner_span, span, typedefs) in self.occurrences {
+            let source = crate::checked::source_span(span);
+            let owner_source =
+                (owner_span != span).then(|| crate::checked::source_span(owner_span));
             occurrences.push(ParameterTypeOccurrence {
                 owner,
                 source,
@@ -465,11 +452,11 @@ impl Builder {
                 typedefs,
             });
         }
-        Ok(ParameterTypeDependencies {
+        ParameterTypeDependencies {
             occurrences,
             records: self.records,
             typedefs: self.typedefs,
-        })
+        }
     }
 }
 

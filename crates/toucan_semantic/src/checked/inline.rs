@@ -5,7 +5,7 @@ use serde::Serialize;
 use toucan_target::{Compiler, LanguageMode, Target};
 
 use super::{Builder, CheckedCode, SiteId, SourceSpan, map_span, unmapped_span};
-use crate::{Error, FunctionDefinitionKind, inline::Registry, parser_extensions::SourceMap};
+use crate::{Error, FunctionDefinitionKind, inline::Registry};
 
 /// Written inline syntax at one function declaration.
 ///
@@ -98,14 +98,13 @@ impl Builder {
         Ok(())
     }
 
-    pub(super) fn finish_inline_spans(&mut self, offsets: &SourceMap) -> Result<(), Error> {
+    pub(super) fn finish_inline_spans(&mut self) -> Result<(), Error> {
         for site in self.code.function_inline.values_mut() {
             for source in [&mut site.inline_specifier, &mut site.gnu_inline_attribute]
                 .into_iter()
                 .flatten()
             {
                 *source = map_span(
-                    offsets,
                     Span::span(source.range.start, source.range.end),
                     &mut self.budget,
                 )?;

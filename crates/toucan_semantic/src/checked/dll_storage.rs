@@ -73,14 +73,13 @@ impl Builder {
         Ok(())
     }
 
-    pub(crate) fn finish_dll_storage(&mut self, offsets: &super::SourceMap) -> Result<(), Error> {
+    pub(crate) fn finish_dll_storage(&mut self) -> Result<(), Error> {
         for source in self.code.dll_storage.values_mut() {
             for span in [&mut source.import, &mut source.export]
                 .into_iter()
                 .flatten()
             {
                 *span = map_span(
-                    offsets,
                     lang_c::span::Span::span(span.range.start, span.range.end),
                     &mut self.budget,
                 )?;

@@ -3,9 +3,7 @@
 use lang_c::{ast, span::Node};
 use serde::Serialize;
 
-use crate::{
-    ArithmeticConstant, Error, Type, TypeKind, analyze::Analyzer, parser_extensions::SourceMap,
-};
+use crate::{ArithmeticConstant, Error, Type, TypeKind, analyze::Analyzer};
 
 const MAX_OCCURRENCES: usize = 100_000;
 const MAX_BYTES: usize = 64 * 1024 * 1024;
@@ -130,10 +128,7 @@ impl Builder {
         self.bytes = total;
         Ok(())
     }
-    pub(crate) fn finish(mut self, offsets: &SourceMap) -> ObjectValues {
-        for entry in &mut self.entries {
-            entry.offset = offsets.original_offset(entry.offset);
-        }
+    pub(crate) fn finish(self) -> ObjectValues {
         ObjectValues {
             entries: self.entries,
         }
