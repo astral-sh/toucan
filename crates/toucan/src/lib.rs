@@ -29,7 +29,6 @@ pub use toucan_preprocessor::{
 };
 pub use toucan_preprocessor::{PreprocessingTimestamp, TimestampError};
 pub use toucan_semantic::{self as semantic, Analysis, AnalysisOptions, TranslationUnit};
-pub use toucan_source as source;
 pub use toucan_target::{self as target, Compiler, CompilerProfile, LanguageMode, Target};
 
 #[derive(Debug, Clone)]

@@ -842,7 +842,6 @@ dependencies = [
  "toucan_bindings",
  "toucan_preprocessor",
  "toucan_semantic",
- "toucan_source",
  "toucan_target",
  "toucan_test_support",
 ]
@@ -939,10 +938,6 @@ dependencies = [
  "toucan_target",
  "toucan_test_support",
 ]
-
-[[package]]
-name = "toucan_source"
-version = "0.0.1"
 
 [[package]]
 name = "toucan_stack"

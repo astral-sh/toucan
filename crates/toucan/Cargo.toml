@@ -10,7 +10,6 @@ description = "A reusable C header frontend without libclang"
 [dependencies]
 thiserror.workspace = true
 serde.workspace = true
-toucan_source = { version = "0.0.1", path = "../toucan_source" }
 toucan_target = { version = "0.0.1", path = "../toucan_target" }
 toucan_preprocessor = { version = "0.0.1", path = "../toucan_preprocessor" }
 toucan_semantic = { version = "0.0.1", path = "../toucan_semantic" }
