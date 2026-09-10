@@ -8,16 +8,14 @@ Builder enables the optional [object occurrence catalog](object-values.md) and p
 
 Unsigned values above `i64::MAX` follow bindgen's literal/unary fallback boundary: an ordinary integer literal can emit a constant, while a binary or cast initializer can retain an extern declaration for an external object. Internal objects without materialized constants are omitted and listed in `Report::skipped_declarations`. Name-selected objects still contribute their referenced types. This deliberately avoids bindgen's unresolvable extern projections for internal symbols; see [internal object bindings](internal-object-bindings.md).
 
-## Evidence
+## Related projections and validation
 
-The frozen comparison contains 63 bindgen 0.72.1/Clang 18 GNU11 controls. The adapter matches the object kind for 44 accepted controls and rejects the same three invalid initializers. Nine string projections and four Clang const-object-read extensions remain separate work. That frozen comparison predates the [128-bit constant follow-up](int128-object-bindings.md), which replaces its integer projection diagnostics with complete C-validated values. Long-double bindings remain unsupported.
+[String objects](string-object-bindings.md) and
+[earlier const-object reads](const-object-initializers.md) have their own support
+boundaries. Pointer-value copies and long-double bindings remain unsupported.
 
-All 26 paired scalar controls have equal Rust types and values under current Rust 1.98.1 and actual Rust 1.64.0, with both GCC 13.3 and Clang 18 C values: 104 Rust executions and 52 C executions. All 53 accepted candidate modules compile under both Rust toolchains with warnings denied (106 metadata compilations). Eight file-filter/callback combinations match their reference declarations. The final candidate reproduces every earlier candidate output and diagnostic across all 63 controls after profile/type validation was added.
-
-Focused tests also preserve ordinary analysis for ten existing initializer forms, including address-to-Boolean, constant queries, generic/choose expressions, enum-in-sizeof, omitted conditionals, infinity/NaN, pointer offsets, and aggregate initialization. No additional body graph is retained. This layer contains no real-project performance or consumer claim; those need validation after the remaining adapter layers are composed.
-
-Subsequent [string-object support](string-object-bindings.md) and [earlier const-object reads](const-object-initializers.md) close their respective parts of the historical comparison. The latter closes three scalar-read cases; pointer-value copies remain separate work.
-
-The [combined-source validation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/static-object-root-integration-2026-09-09.json.gz) repeats all 63 reference controls and the 26 scalar value cases: 104 Rust executions and 52 GCC/Clang executions agree. Focused object tests, binding-library tests, and workspace Clippy pass. The enum-discovery comparison improves to 98 of 101 public-name sets; the two object-constant differences are resolved, while record-attribute naming and aligned-enum support remain separate.
-
-The [combined 128-bit checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/int128-object-root-integration-2026-09-09.json.gz) repeat 20 GCC/Clang executions and 20 matching Rust 1.64/current executions. The archive preserves the reference’s truncated values separately. Focused object tests and workspace Clippy pass.
+The maintained [object binding tests](../crates/toucan_bindgen/tests/object_values.rs) cover
+initializer conversion, declaration selection, and callbacks. [Historical comparisons](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence)
+retain the original bindgen controls and compiler runs. Consumer compatibility
+requires testing the selected headers and generated bindings on the intended
+target.
