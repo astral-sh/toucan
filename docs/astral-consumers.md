@@ -12,7 +12,7 @@ Use Python 3.12 or newer, an installed Rust toolchain compatible with the pinned
 workspaces, their native build dependencies, and a local libzstd shared library.
 The shared library encodes a test HTTP response; the workspace binaries decode it
 through their own bundled `zstd-sys`. Execution requires the generated bindings'
-target to match the Rust host. The recorded run used x86-64 Linux and Rust 1.98.1.
+target to match the Rust host.
 
 First prepare and independently test the generated crate with the existing
 consumer fixture. For example, on x86-64 Linux:
@@ -129,70 +129,14 @@ libraries linked into the binary and library-test builds. Their dependency files
 must reference Toucan-generated `OUT_DIR/bindings.rs` for the native Rust host,
 with no checked-in binding input active.
 
-The driver compares both `ty_vendored` tests, all 19 `uv-extract` tests, ty's exact
-valid/invalid diagnostics, uv's zstd-compressed-wheel installation and installed
-bytes, and rejection of a truncated zstd response with the expected EOF error.
-The [builder evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-a7fab44/summary.json)
-records the native Linux run and the source, lock, generated binding, selected
-artifact, and runtime hashes. It covers these two pinned consumer paths; it does
-not run either workspace's full test suite or measure application performance.
+The driver compares the selected upstream library tests, ty's exact valid/invalid
+diagnostics, uv's zstd-compressed-wheel installation and installed bytes, and
+rejection of a truncated zstd response with the expected EOF error. It covers
+these two pinned consumer paths, not either workspace's full test suite or
+application performance.
 
-The [combined frontend rerun](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-a3256d6/summary.json)
-at `a3256d6` includes C90, Microsoft declaration attributes, allocation builtins,
-and compiler feature queries. Fresh replacement packages drive both unchanged
-project build scripts. Both ty vendored tests and all 19 uv extraction tests pass;
-CLI diagnostics, installed wheel bytes, and truncated-frame rejection match. All
-557 ty and 750 uv existing locked packages and dependency edges are preserved.
-This remains evidence for the recorded native Linux paths, not their complete
-workspace suites or other operating systems.
-
-The [frozen frontend refresh](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-acfb815/summary.json)
-at `acfb815` runs the same unchanged zstd build scripts after the builder
-compatibility and documentation layers. Both ty vendored tests and all 19 uv
-extraction tests pass. Exact ty diagnostics, installed wheel bytes, and truncated
-zstd-response rejection match. All 557 ty and 750 uv original locked packages
-and dependency edges remain present, and Cargo artifacts identify the frozen
-frontend used by both builds.
-
-All 2,301 files in that source snapshot retained their original hashes. Concurrent
-native checks added one identified Python bytecode file; the evidence preserves
-the initial strict audit failure and records that generated file separately.
-This refresh covers the recorded native Linux zstd paths. AWS-LC and TLS retain
-their separately recorded consumer revisions; these runs do not refresh them or
-measure application performance.
-
-The [selection and object-type refresh](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-00ec563/summary.json)
-at `00ec563` repeats the unchanged zstd build-script route after name filters,
-parameter-alias retention, object projections, and qualified-array compatibility.
-Both ty vendored tests and all 19 uv extraction tests pass with upstream and
-Toucan bindings. Ty diagnostics, installed wheel bytes, imports, and the recorded
-truncated-response behavior match.
-
-All 2,359 frozen frontend files retain their exact SHA256 hashes, with no added,
-changed, or deleted files and no bytecode exceptions. Cargo artifacts and dep-info
-identify all nine frontend crates from that snapshot for each binary and test
-build. The original 557 ty and 750 uv locked packages and dependency edges are
-preserved; only the explicit zstd-sys build-dependency substitution is added.
-Upstream source inventories return to their entry state. This refresh covers the
-recorded native Linux zstd routes; it does not refresh AWS-LC/TLS, run full consumer
-workspace suites, or measure application performance.
-
-The [published source mapping](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-00ec563/published-source.json)
-verifies that this snapshot has exactly the same Git tree as `b371cd0` in PR #293.
-The stack reorder moved the two CI fixes into their originating PRs.
-
-The [callback compatibility refresh](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-builder-7db2b85/summary.json)
-at `7db2b85` repeats the unchanged zstd build-script route after callback typedef
-projection, generation work limits, Rust target parsing, and schema-3 enum
-comparison. Both ty vendored tests and all 19 uv extraction tests pass with upstream and Toucan
-bindings. Exact ty diagnostics, installed wheel bytes, imports, and the recorded
-truncated-response behavior match.
-
-All 2,389 frozen frontend files retain their exact SHA256 hashes, with no added,
-changed, or deleted files and no inventory exceptions. Cargo artifacts and
-normalized dep-info paths identify all nine frontend crates from that snapshot
-for each binary and test build. The original 557 ty and 750 uv locked packages
-and dependency edges are preserved; only the explicit zstd-sys build-dependency
-substitution is added. Upstream source inventories return to their entry state.
-This refresh covers the recorded native Linux zstd routes. It does not refresh
-AWS-LC/TLS, run full consumer workspace suites, or measure application performance.
+For acceptance of the current Toucan checkout without libclang, use the
+[opt-in application gate](opt-in-rollout.md).
+[Historical captures](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence)
+retain earlier source inventories, build logs, and runtime results; their
+revision-specific results do not validate the current checkout.

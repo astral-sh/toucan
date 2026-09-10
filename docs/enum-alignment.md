@@ -41,14 +41,17 @@ is visited before the enum cursor and remains visible. Sparse discovery records
 this distinction even without another enum expression in the file. C lookup,
 constant values, and core-default integer projections retain `Other` and `OTHER`.
 
-## Evidence
+## Validation
 
-The [alignment capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/neutral-enum-alignment-2026-09-09.json.gz)
-records GCC 13 and Clang 18 size/alignment, packed and pragma-packed records,
-array constraints, compatible pointer types, and actual calls using valid enum
-objects. LLVM captures separate scalar call signatures from pointer load
-alignment. Windows and additional Linux/Darwin targets are compile-only checks.
-Pinned bindgen 0.72.1 comparisons cover enum attribute cursor visibility;
-generated Rust uses both current Rust and actual Rust 1.64 consumers.
+The maintained [semantic enum tests](../crates/toucan_semantic/tests/packed_enums.rs)
+check alignment admission, forward declarations, packed placement, and native
+compiler behavior. [Binding tests](../crates/toucan_bindings/tests/packed_enums.rs)
+cover generated representations and native calls;
+[discovery tests](../crates/toucan_bindings/tests/tag_discovery.rs) check attribute
+cursor visibility.
 
-The [combined-source checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/neutral-enum-root-integration-2026-09-09.json.gz) pass the semantic, packing, discovery, and native C/Rust tests, including Rust 1.64 calls. All 101 discovery reference cases are accepted and match public-name sets. Workspace Clippy passes.
+The [historical alignment capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/neutral-enum-alignment-2026-09-09.json.gz)
+records GCC/Clang layouts, LLVM scalar-call and pointer-load alignment, bindgen
+names, and Rust consumers. Its Windows and additional Linux/Darwin targets are
+compilation checks, not native execution results. Rerun the relevant tests for
+the intended compiler and target.
