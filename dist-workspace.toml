@@ -7,7 +7,9 @@ dist = false
 cargo-dist-version = "0.32.0"
 precise-builds = true
 ci = "github"
-# Match Hawk's manually dispatched releases, with artifact builds on PRs.
+# Preserve PR path filters unsupported by cargo-dist 0.32; see docs/development.md.
+allow-dirty = ["ci"]
+# Manually dispatched releases, with artifact builds on relevant PRs.
 dispatch-releases = true
 github-release = "announce"
 pr-run-mode = "upload"
