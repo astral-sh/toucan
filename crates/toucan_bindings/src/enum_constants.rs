@@ -55,12 +55,7 @@ impl<'a> Emitter<'a> {
             let (enum_name, named) = if hidden {
                 (None, false)
             } else if self.options.enum_constant_style == EnumConstantStyle::Bindgen {
-                let named = enumeration.name.is_some()
-                    || crate::lexical_names::Names::typedef_name(
-                        self.unit,
-                        self.unit.lexical_tags.enums.get(&id),
-                    )
-                    .is_some();
+                let named = crate::lexical_names::Names::enum_is_named(self.unit, id);
                 (
                     if named {
                         self.lexical_names.enum_name(self.unit, id)
