@@ -33,7 +33,7 @@ runtime failures still fail the test. Other Apple versions use the original orac
 Apple Clang continues to check the remaining cases, including atomic pointer
 copies from function results at O0 and O2. The cast cases do not establish
 compatibility with the affected Apple compiler. The
-[saved report](../corpus/evidence/apple-atomic-pointer-oracle-2026-09-08.json)
+[saved report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/apple-atomic-pointer-oracle-2026-09-08.json)
 preserves the failing job, exact sources, flags, and upstream probe results.
 The [ARM macOS validation](https://github.com/astral-sh/toucan/actions/runs/34219192884/job/102038043364)
 passed the full native workspace suite with Apple Clang and Homebrew Clang 18.1.8
@@ -51,13 +51,13 @@ We check this one invalid Clang source with `-fsyntax-only`. Valid function-poin
 `va_arg` calls still generate objects, as do all other positive and negative
 cases. In particular, GCC defers some invalid `va_start` diagnostics until body
 lowering, so syntax-only checking cannot replace those object-generation probes.
-The [saved report](../corpus/evidence/va-arg-oracle-phases-2026-09-08.json)
+The [saved report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/va-arg-oracle-phases-2026-09-08.json)
 records the failure and successful upstream Clang and GCC diagnostic probes.
 The [Intel](https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928026)
 and [ARM](https://github.com/astral-sh/toucan/actions/runs/34222265563/job/102047928197)
 macOS jobs passed all 706 workspace tests each, including this fixture and its
 valid function-pointer control. Both Linux architectures passed 708 tests each.
-The [native validation archive](../corpus/evidence/native-2baa121/summary.json)
+The [native validation archive](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/native-2baa121/summary.json)
 preserves the logs and verifies that the tested merge tree equals `2baa121`.
 These results cover that commit; later language changes require fresh validation.
 
@@ -120,7 +120,7 @@ counters at equal values does not resolve the unevaluated-bound problem.
 `BoundValue::Composite.selection` records the source condition; it does not
 promise a runtime selection rule for the composite extent.
 
-[Saved evidence](../corpus/evidence/conditional-vla-oracles-2026-09-08.json)
+[Saved evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/conditional-vla-oracles-2026-09-08.json)
 contains the exact sources, commands, compiler versions, equal and unequal
 bound probes, fixed-size and void-pointer cases, and primary-source hashes.
 The regression tests check retained source structure and unevaluated contexts;
@@ -149,7 +149,7 @@ is accepted by the test.
 
 The equivalent prototype definition evaluates both bounds on all three local
 compiler versions. Integer and float narrowing and callback controls also pass.
-The [saved evidence](../corpus/evidence/gcc14-parameter-bounds/summary.json)
+The [saved evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/gcc14-parameter-bounds/summary.json)
 contains original failing macOS logs, local commands, compiler versions, source,
 and binary hashes. Apple Clang passes the original macOS runtime fixture.
 
@@ -160,7 +160,7 @@ outputs, crashes, and compiler versions fail normally; a compiler that fixes the
 bug passes normally. The checked graph continues to require all four bounds in
 the two definition forms. This exception supplies no runtime-equivalence evidence
 for the affected old-style definition. The prototype controls subsequently passed on both native macOS architectures;
-the logs are retained with the [vector-initializer observations](../corpus/evidence/vector-initializer-oracles-2026-09-08/summary.json).
+the logs are retained with the [vector-initializer observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/vector-initializer-oracles-2026-09-08/summary.json).
 
 ## Static vector conversions across Clang releases
 
@@ -169,7 +169,7 @@ formed by converting an integer-vector compound literal. GCC 13.3 and upstream
 Clang 18.1.3 reject the same source. Both macOS unit jobs exposed the stale
 assumption that this extension must be rejected by every Clang release.
 
-The [recorded source and compiler observations](../corpus/evidence/vector-initializer-oracles-2026-09-08/summary.json)
+The [recorded source and compiler observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/vector-initializer-oracles-2026-09-08/summary.json)
 preserve both macOS logs and fresh local diagnostics. Toucan currently diagnoses
 static vector-expression evaluation as unsupported; that is an implementation
 gap, separate from the native compiler's source constraints. The focused regression
@@ -192,7 +192,7 @@ headers to Toucan and that compiler. The other targets continue to use the host
 Clang and its headers. Set this variable to an upstream Clang path when running
 this isolated test locally with Apple Clang; no headers are copied or edited.
 The separate native musl jobs validate actual musl sysroots and runtime calls.
-The [saved local validation](../corpus/evidence/apple-musl-resource-oracle-2026-09-08.json)
+The [saved local validation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/apple-musl-resource-oracle-2026-09-08.json)
 records the failure, oracle selection, test results, and untouched header hashes.
 
 ## Apple Clang's C90 implicit-declaration diagnostic
@@ -203,7 +203,7 @@ FFI tests exercise this valid language behavior, so their compiler commands use
 `-Wno-error=implicit-function-declaration`. Invalid redeclarations still require
 matching compiler rejection. C99 and later language checks are unchanged.
 
-The [evidence](../corpus/evidence/c90-oracle-policy-2026-09-08/summary.json)
+The [evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c90-oracle-policy-2026-09-08/summary.json)
 preserves the original Intel macOS failures and local controls that reproduce
 the diagnostic severity with Clang. The corrected scope checks and C/Rust calls
 pass locally, including actual Rust 1.64. Those local results do not replace
@@ -224,7 +224,7 @@ The FloatN, non-object query, and omitted-conditional FFI fixtures all passed
 the [native ARM job](https://github.com/astral-sh/toucan/actions/runs/34276674090/job/102231280883)
 with GCC 13.3.0, Clang 18.1.3, and Rust 1.98.1.
 
-The [saved log and source identities](../corpus/evidence/native-link-order-2bbc3ef/summary.json)
+The [saved log and source identities](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/native-link-order-2bbc3ef/summary.json)
 tie the run to PR 227 head `2bbc3efd`. GitHub's checkout merge commit `eb5607cc`
 has the same source tree as that head. This completes native ARM validation of
 the repair after the earlier local cross-link and emulated runtime checks.

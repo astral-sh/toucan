@@ -74,7 +74,7 @@ increases were about 1.5 MB for SQLite, 0.75 MB for zstd, 24.8 MB for libgit2, a
 20.0 MB for AWS-LC. These are allocated bytes over the run, not peak retained
 memory. Shared-host timing samples do not establish a release performance claim.
 
-The [saved evidence](../corpus/evidence/comment-provenance-2026-09-09/README.md)
+The [saved evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/comment-provenance-2026-09-09/README.md)
 includes the prototype comparisons and root integration checks. The preprocessing
 fuzz harness now covers 480 distinct policy combinations, including disabled,
 documentation-only, and all-comment capture, while preserving its existing

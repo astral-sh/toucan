@@ -1,47 +1,47 @@
 # Validation
 
-## Native corpus
+Validation is specific to a source revision, target, compiler profile, headers,
+and generator configuration. Use the checks below on the revision being adopted.
+The current [compatibility matrix](compatibility.md) describes supported forms;
+it is not a certificate that every combination has passed native execution.
 
-The [upstream corpus](../corpus/README.md) builds pinned releases of zlib, SQLite, zstd,
-and libgit2 and processes their untouched public headers. Native runs on x86_64 and
-AArch64 Linux and macOS passed 5,444 C/Rust comparisons per target and actual FFI
-calls into all four libraries.
+## Maintained checks
 
-The same runs matched 1,284 function signatures and three global types with bindgen
-and independently checked every complete generated record against C. Depending on
-the target, that covered 109–111 records and 628–638 ordinary field offsets. The
-comparison gate passed with no unexplained differences; exact API equivalence
-remains false, with each accepted difference recorded and justified.
+| Check | Entry point | What it establishes |
+| --- | --- | --- |
+| Unit and regression tests | `cargo test --workspace` | Expected behavior of covered syntax, semantics, preprocessing, and bindings. |
+| Native compiler and FFI tests | `cargo test --workspace -- --include-ignored` | GCC/Clang comparisons and C/Rust calls on the configured host; external tools are required. |
+| Real library bindings | [Upstream corpus](../corpus/README.md) | Constants, layouts, signatures, and actual calls for pinned zlib, SQLite, zstd, and libgit2. |
+| Independent C acceptance | [Conformance](conformance.md) | Agreement on the eligible positive corpus; this alone does not test invalid-source rejection. |
+| Malformed-input robustness | [Fuzzing](../fuzz/README.md) | Panics, sanitizer failures, timeouts, and selected internal invariants. |
+| Downstream consumption | [Replacement readiness](replacement-readiness.md) | Build-script compatibility and representative runtime behavior for selected consumers. |
+| Performance | [Benchmarks](benchmarks.md) | Generation cost on the measured workload, with output comparisons kept separate. |
 
-The [recorded evidence](../corpus/evidence/native-06cefbe/summary.json) identifies
-the tested commits and configurations. See [compatibility](compatibility.md)
-for coverage and gaps. [Benchmarks](benchmarks.md) and [fuzzing](../fuzz/README.md)
-record separate performance and malformed-input checks.
+The [CI workflow](../.github/workflows/ci.yml) runs native suites on Linux x86-64
+and AArch64. Windows has package/all-features checks and separate native ABI
+workflows. [macOS validation](../.github/workflows/macos.yml) runs on relevant
+pushes to `main` and by request on PRs; Intel is opt-in. Cross-compilation proves
+less than executing a C/Rust consumer on the destination platform.
 
-## Conformance
+## Results and artifacts
 
-The [conformance guide](conformance.md) describes the scope of language,
-preprocessor, ABI, and consumer checks. The external C suite now exercises both
-compiler-preprocessed input and original source through Toucan's preprocessor;
-both routes pass the [Rust 1.96 CI gate](../corpus/evidence/native-conformance-ci-2026-09-09/README.md).
+CI uploads reports, generated probes, and command logs as workflow artifacts.
+Keep local outputs in ignored `corpus/results`, `fuzz/runs`, or
+`benchmark-results` directories. Reports should identify the tested commit,
+toolchains, input versions, configuration, and any omissions or accepted
+differences. Preserve failed cases as small regression fixtures with a reusable
+test; keep bulk logs and generated manifests out of source control.
 
-## Platform and integration checks
+For a release or adoption decision, link the relevant successful workflow runs
+and summarize their scope in the release or PR. A historical pass does not
+validate a later revision. Fuzz execution counts include rejected input and
+do not measure how many programs had correct semantics or bindings.
 
-The [ARMv7 test corrections](../corpus/evidence/armv7-test-matrices-2026-09-09/README.md)
-pass all seven CI workflows at `6c66ec7`, including full native suites with
-ignored tests enabled on Linux x86-64 and AArch64, and all-features tests and
-package checks on Linux and Windows.
+## Historical results
 
-The [combined Builder validation](../corpus/evidence/native-callbacks-2026-09-09/README.md)
-checks the combined Builder and analysis changes: 1,268 workspace tests and
-Rustdoc pass on Linux; recorded GitHub jobs also pass on Linux x64/ARM and Windows.
-The [Apple Silicon validation at `ac3312d`](../corpus/evidence/macos-arm64-ac3312d-2026-09-09/README.md)
-passes workspace and package checks, the native corpus, all four zstd profiles,
-and a SQLite consumer. It does not validate later commits or full uv/ty builds.
-The macOS workflow remains opt-in on pull requests; this run allocated no Intel
-runners.
-
-More recent bounded native checks include [installed Windows ARM64 SDK headers](../corpus/evidence/windows-arm64-sdk-2026-09-09/README.md)
-with generated Rust layouts and an [i686 zstd C/Rust consumer](../corpus/evidence/i686-zstd-consumer-2026-09-09/README.md)
-with byte-identical compression outputs. They establish those recorded paths;
-they do not validate every project configuration or the latest macOS source.
+The implementation-era captures remain available in Git history at
+[the archive revision](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776):
+[native/consumer reports](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence),
+[fuzz campaigns](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/fuzz/evidence), and
+[benchmark samples](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/benchmarks/evidence).
+They are historical records, not dependencies of current validation.

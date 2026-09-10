@@ -40,5 +40,5 @@ declared aliases can therefore have a different result alignment from two uses
 of the same alias. See [type alignment](type-alignment.md) for the owned metadata
 and remaining compiler-specific boundaries.
 
-[Validation evidence](../corpus/evidence/elementwise-integers-2026-09-08.json)
+[Validation evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/elementwise-integers-2026-09-08.json)
 separates matching compiler decisions from those valid-source limitations.

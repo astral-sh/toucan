@@ -1,8 +1,0 @@
-{
-  "urls": [
-    "https://gcc.gnu.org/onlinedocs/gcc/Conditionals.html",
-    "https://clang.llvm.org/docs/LanguageExtensions.html"
-  ],
-  "checked": "2026-09-08",
-  "method": "Official extension documentation plus preserved native GCC13.3.0/Clang18.1.3 source, commands, diagnostics, relocations and executable outcomes"
-}

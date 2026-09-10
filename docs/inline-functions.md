@@ -109,20 +109,20 @@ work. Compiler flags such as
 `-fgnu89-inline`, `-fkeep-inline-functions`, and `-fms-extensions` do not silently
 select a new profile through these APIs.
 
-[Recorded evidence](../corpus/evidence/inline-ownership-2026-09-08/summary.json)
+[Recorded evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/inline-ownership-2026-09-08/summary.json)
 includes 3,136 core symbol/admission checks, 832 weak/forced-inline checks, eight
 UBSan-linked executions, and a 120-second sanitizer campaign with 6,834 inputs.
 All seven real-project translation units pass both preprocessing routes with
 ordinary/retained parity. Paired process benchmarks preserve complete normalized
 declarations and report raw timing variability alongside the measured medians.
 
-The [integration checks](../corpus/evidence/inline-integration-2026-09-08/summary.json)
+The [integration checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/inline-integration-2026-09-08/summary.json)
 repeat native inline, weak, allocation, and prefetch tests on the combined source.
 Microsoft declaration alignment had already grown `Entity` to 88 bytes; this
 layer preserves that size and the other measured declaration/body sizes. The
 original evidence remains tied to its earlier source snapshot.
 
-The [root integration](../corpus/evidence/inline-root-integration-2026-09-08/summary.json)
+The [root integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/inline-root-integration-2026-09-08/summary.json)
 passes 781 workspace tests and 3,916 checked seed pairs across all 44 profile/mode
 settings. Eight existing binding artifacts are byte-identical. Its ASan campaign
 completes 19,662 inputs in 181 seconds with no findings and unchanged source.

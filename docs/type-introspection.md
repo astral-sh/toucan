@@ -46,7 +46,7 @@ Clang at `-O0` and `-O2`, check all five target profiles, and compare ordinary a
 retained declarations and diagnostics. Selection and type-query caches have a
 65,536-entry limit each; parser and expression depth/work limits also apply.
 
-[Saved compiler probes](../corpus/evidence/type-introspection-2026-09-08.json) include
+[Saved compiler probes](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/type-introspection-2026-09-08.json) include
 source text, compiler versions, runtime observations, and primary-source hashes.
 GNU compatibility queries ignore an outer atomic wrapper, including through the
 outer array-element chain. Clang preserves it. Both preserve atomic identity below

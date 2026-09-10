@@ -136,7 +136,7 @@ together; schema 2 cannot describe these exports.
 
 ## Schema-2 replay evidence
 
-The [saved analyzer and object replay](../../corpus/evidence/binding-symbol-exports-schema2-2026-09-09.json.gz)
+The [saved analyzer and object replay](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/binding-symbol-exports-schema2-2026-09-09.json.gz)
 records 11 Rust tests, 31 Python tests, and seven CLI controls. It also parses the
 unmodified outputs of all 49 multiple-object-name settings, retaining all 51
 foreign globals on each side. Every object name and shape matches after the
@@ -151,7 +151,7 @@ FFI evidence is referenced by hash; this replay runs no additional C probes.
 
 ## Rustified enum evidence
 
-The [schema-3 capture](../../corpus/evidence/binding-rustified-enums-schema3-2026-09-09.json.gz)
+The [schema-3 capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/binding-rustified-enums-schema3-2026-09-09.json.gz)
 contains source, commands, input/dependency hashes, observations, and comparisons.
 The preserved zstd output has six enums and 97 variants; AWS-LC has one enum and
 three variants. Both AWS generators and the zstd output parse without unsupported

@@ -105,20 +105,12 @@ headers, real translation units, and generated GNU floating-point API calls.
 The Windows default defines `__clang__` and its version markers consistently
 with its Clang semantics. It omits `__STDC__`, matching Clang in Microsoft mode,
 including explicit ISO C modes. Clang forward record-tag alignment and packing are also retained on
-Windows, correcting an earlier omission. Other existing default behavior is
-preserved. Flags such as `-fshort-enums`, optimization, optional instruction sets,
+Windows. Flags such as `-fshort-enums`, optimization, optional instruction sets,
 and arbitrary compiler versions are not implied by a profile. Unsupported
 extensions continue to produce diagnostics. Packed enum attributes are supported.
 GNU ignores enum tag alignment, while non-Microsoft Clang admits explicit
 alignment that leaves a completed enum's storage unchanged.
 [Other enum alignment forms](enum-alignment.md) retain explicit diagnostics.
-
-The [profile evidence](../corpus/evidence/compiler-profiles-2026-09-08.json) records
-source and binary hashes, compiler commands, allocation samples, and the
-Clang zstd `__bf16` blocker observed at that revision. Subsequent [half-type](half-types.md) support resolves those declarations. The seven-profile tests compare ordinary and retained analysis, native and
-cross-target C layout probes, unchanged Clang `stdatomic.h` operations, and
-actual C/Rust bitfield calls compiled separately by GCC and Clang. Those checks
-establish the tested behavior; they are not complete compiler conformance.
 
 ## Serialized identity
 
@@ -130,6 +122,6 @@ as described in the [inspection migration](inspection.md#migration-from-versions
 Consumers should check the shape version and tolerate unknown fields. Archived
 results without compiler identity use their recorded target's default.
 
-Profiles also own a [C11 or GNU11 language mode](language-modes.md). GNU11 is the
+Profiles also own a [C language mode](language-modes.md). GNU11 is the
 default. The mode is independent of ABI and compiler family, and appears in
 inspection and binding reports as `language_mode`.

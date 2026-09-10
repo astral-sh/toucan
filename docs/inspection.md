@@ -80,7 +80,7 @@ Supply the project's include paths, definitions, and compiler profile as usual.
 `--max-tokens` independently limits preprocessing. A retention-limit diagnostic
 leaves an existing output file intact; increasing budgets does not bypass source
 checking or the graph's completeness checks. The
-[SQLite validation record](../corpus/evidence/inspect-retention-budgets-2026-09-08.json.gz)
+[SQLite validation record](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/inspect-retention-budgets-2026-09-08.json.gz)
 records the default edge-limit failures, successful larger-budget output, and
 CLI memory use under both compiler profiles.
 

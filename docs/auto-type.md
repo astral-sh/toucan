@@ -76,12 +76,12 @@ The implementation follows [GCC's `__auto_type` contract](https://gcc.gnu.org/on
 and pinned [GCC 13.3 declaration parsing](https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/gcc/c/c-parser.cc),
 [Clang 18.1.3 deduction](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/lib/Sema/SemaTemplateDeduction.cpp)
 and [declaration checking](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/lib/Sema/SemaDecl.cpp).
-[Saved probes](../corpus/evidence/auto-type-2026-09-08.json) include source text,
+[Saved probes](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/auto-type-2026-09-08.json) include source text,
 compiler versions, syntax and runtime results, and the explicit Clang deduction
 failure. Native tests check GCC and Clang at `-O0` and `-O2`; cross-target tests
 check all five Clang backends and all five Toucan target profiles.
 
-[Derived declaration probes](../corpus/evidence/auto-declarators-2026-09-08.json)
+[Derived declaration probes](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/auto-declarators-2026-09-08.json)
 record the additional Clang/GCC constraints, qualified array spellings, bounds,
 callback calls at `-O0`/`-O2`, and normal/retained parity across all seven profiles.
 The 128-level declarator/type limits and retained graph quotas also cover these

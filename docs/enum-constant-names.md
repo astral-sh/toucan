@@ -64,13 +64,13 @@ library caller can select these options explicitly without changing C analysis.
 
 ## Evidence and remaining boundaries
 
-The [pinned bindgen 0.72.1 capture](../corpus/evidence/enum-constant-names-2026-09-08.json.gz)
+The [pinned bindgen 0.72.1 capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/enum-constant-names-2026-09-08.json.gz)
 covers default/true/false settings, tags,
 typedef aliases, repeated values, keyword names, macro shadowing, and collisions.
 Generated constants and enum values compile and cross C calls with GCC and Clang,
 using current Rust and actual Rust 1.64 consumers.
 
-The [lexical ownership capture](../corpus/evidence/nested-enum-names-2026-09-08.json.gz)
+The [lexical ownership capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/nested-enum-names-2026-09-08.json.gz)
 closes the seven nested-record differences in the earlier capture. It also covers
 forward declarations, anonymous owner numbering, direct and later typedefs,
 selectors, and native C/Rust layout and call checks.
@@ -85,7 +85,7 @@ adds 7 calls and 4,568 requested bytes. All eight core-default binding files sta
 byte-identical, with declaration origins enabled and disabled. These are
 allocation measurements, not a timing comparison or an AWS-LC consumer result.
 
-The [nested-name stack integration](../corpus/evidence/nested-enum-names-root-integration-2026-09-09.json.gz)
+The [nested-name stack integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/nested-enum-names-root-integration-2026-09-09.json.gz)
 passes 920 workspace tests, workspace and fuzz Clippy, and eight native C/Rust
 settings each on current Rust and actual Rust 1.64. The binding fuzz harness now
 varies lexical enum naming and name prefixes while retaining its default pass;
@@ -115,7 +115,7 @@ occurrence graph and use no second parse. The graph
 limits events and type traversal to one million entries or steps, and nesting
 to 128 levels; invalid public IDs and naming owners produce generation errors.
 
-The [discovery capture](../corpus/evidence/enum-cursor-discovery-2026-09-09.json.gz)
+The [discovery capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/enum-cursor-discovery-2026-09-09.json.gz)
 contains pinned bindgen comparisons, generated Rust compilation, and native
 C/Rust layout and call checks. General Rust type/variant keyword escaping and
 static constant object projection remain separate policies. Enum tag alignment
@@ -148,7 +148,7 @@ available at file scope, and their actual lexical ownership stays unchanged.
 The core's default integer output does not use this naming override. Source
 type checking, layout, and retained code share the same semantic result.
 
-The [record attribute capture](../corpus/evidence/record-attribute-enum-names-2026-09-09.json.gz)
+The [record attribute capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/record-attribute-enum-names-2026-09-09.json.gz)
 records pinned bindgen 0.72.1 names with both prefix settings and selective enum
 patterns, GCC/Clang syntax and layout controls, and generated Rust compilation
 and native calls using current Rust and Rust 1.64. A deeply nested interior
@@ -156,6 +156,6 @@ attribute inside a trailing attribute remains rejected by the existing parser;
 the capture records that source rejection separately. This naming change does
 not claim full bindgen output equality or a performance result.
 
-The [combined-source checks](../corpus/evidence/enum-discovery-root-integration-2026-09-09.json.gz) include Microsoft anonymous-member admission and Clang qualifier normalization. All 131 earlier nested-name and selector cases match. Of 101 additional cases, 96 public-name sets match; the remaining five cover object constants, the record-attribute prefix, and two unsupported aligned-enum declarations. All 230 accepted generated modules compile with Rust 1.64 and 1.98.1. Native C/Rust calls and layouts pass with both Rust versions, and workspace Clippy passes.
+The [combined-source checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/enum-discovery-root-integration-2026-09-09.json.gz) include Microsoft anonymous-member admission and Clang qualifier normalization. All 131 earlier nested-name and selector cases match. Of 101 additional cases, 96 public-name sets match; the remaining five cover object constants, the record-attribute prefix, and two unsupported aligned-enum declarations. All 230 accepted generated modules compile with Rust 1.64 and 1.98.1. Native C/Rust calls and layouts pass with both Rust versions, and workspace Clippy passes.
 
-The [combined record-attribute checks](../corpus/evidence/record-attribute-root-integration-2026-09-09.json.gz) pass 14 focused tests, native C/Rust calls with Rust 1.64 and 1.98.1, and workspace Clippy. The broader discovery comparison now matches 99 of 101 public-name sets; its two remaining cases are explicitly unsupported aligned-enum declarations.
+The [combined record-attribute checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/record-attribute-root-integration-2026-09-09.json.gz) pass 14 focused tests, native C/Rust calls with Rust 1.64 and 1.98.1, and workspace Clippy. The broader discovery comparison now matches 99 of 101 public-name sets; its two remaining cases are explicitly unsupported aligned-enum declarations.

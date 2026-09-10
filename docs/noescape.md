@@ -101,8 +101,8 @@ Rust signatures retain the written C return type and carry a `noreturn` comment
 for callback implementers. The generator does not substitute Rust's never type
 or claim that its function-pointer type enforces the C promise.
 
-The [frozen-layer evidence](../corpus/evidence/function-contracts-2026-09-08.json)
+The [frozen-layer evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/function-contracts-2026-09-08.json)
 records compiler decisions, LLVM contracts, callbacks, allocation observations,
-and untouched zstd translation units. The [integration checks](../corpus/evidence/function-contracts-integration-2026-09-08/summary.json)
+and untouched zstd translation units. The [integration checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/function-contracts-integration-2026-09-08/summary.json)
 cover the newer language-mode and BMI layers, including 1,064 ordinary/retained
 seed cases and native callbacks with both the current Rust toolchain and Rust 1.64.

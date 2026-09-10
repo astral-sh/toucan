@@ -59,7 +59,7 @@ The public Rust field and inspection schema migration are documented in
 
 ## Validation and cost
 
-The [recorded evidence](../corpus/evidence/vla-type-identity-2026-09-08.json)
+The [recorded evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/vla-type-identity-2026-09-08.json)
 compares this layer with `f722e545effdc8fd734e1117b4160c10e99055bd`. Both builds
 use release optimization and the system allocator. Semantic probes use matching
 CLI dependency builds, count allocations, and run five alternating batches on

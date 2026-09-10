@@ -26,7 +26,7 @@ does not acquire that declaration's comment. An actual standalone forward tag ca
 carry its own comment, and an inline tag definition can share a typedef's comment.
 This keeps AWS-LC's `EVP_ENCODE_CTX` typedef documentation off the later
 `evp_encode_ctx_st` definition. The
-[focused forward-tag comparison](../corpus/evidence/forward-tag-documentation-2026-09-09.json.gz)
+[focused forward-tag comparison](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/forward-tag-documentation-2026-09-09.json.gz)
 covers later definitions, opaque records, same-name aliases, and redeclarations
 across physical source files.
 
@@ -68,7 +68,7 @@ comment. The preprocessing catalog retains its separate provenance limits.
 
 ## Validation and cost
 
-The [saved comparison](../corpus/evidence/documentation-emission-2026-09-09.json.gz)
+The [saved comparison](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/documentation-emission-2026-09-09.json.gz)
 contains 106 matching reference cases: 53 ordinary and macro item/text comparisons,
 42 system-header and physical-spelling controls, and 11 additional item/text
 comparisons covering anonymous storage and repeated enum values. A separate
@@ -88,7 +88,7 @@ records, enumerations, and translation unit do not grow. `Analysis`, binding
 options, and Builder each grow by eight bytes. No timing claim is made from these
 shared-host checks.
 
-The [composition check](../corpus/evidence/documentation-composition-2026-09-09.json.gz)
+The [composition check](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/documentation-composition-2026-09-09.json.gz)
 also preserves documentation through scalar, string, and full-width 128-bit
 constant projection, callback renaming, Microsoft anonymous record members, and
 record-attribute enum naming. Six focused item/text comparisons match the pinned
@@ -96,4 +96,4 @@ reference. The generated constant module compiles on current Rust and Rust 1.64.
 File-selected redeclarations retain the first attached comment even when the
 selected initialized occurrence comes from a later header.
 
-The [combined-source validation](../corpus/evidence/documentation-root-integration-2026-09-09.json.gz) passes 26 focused adapter, semantic, and preprocessing tests, plus the Rust 1.64 documentation compilation check. Six native item/comment comparisons cover scalar, string, and 128-bit objects, callback renaming, anonymous members, record attributes, and file-selected redeclarations. Workspace Clippy passes after supplying the optional documentation field in the CLI’s explicit binding options.
+The [combined-source validation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/documentation-root-integration-2026-09-09.json.gz) passes 26 focused adapter, semantic, and preprocessing tests, plus the Rust 1.64 documentation compilation check. Six native item/comment comparisons cover scalar, string, and 128-bit objects, callback renaming, anonymous members, record attributes, and file-selected redeclarations. Workspace Clippy passes after supplying the optional documentation field in the CLI’s explicit binding options.

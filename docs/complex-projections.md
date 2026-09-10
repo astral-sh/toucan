@@ -73,7 +73,7 @@ No general early AST simplification is implied.
 
 ## Validation and remaining headers
 
-The [compressed evidence](../corpus/evidence/complex-projections-2026-09-08.json.gz)
+The [compressed evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/complex-projections-2026-09-08.json.gz)
 records compiler identities, original sources and commands, seven-profile
 constraint/retention checks, GCC/Clang O0/O2 component values and side effects,
 volatile lowering, parser regeneration, sanitizer replay, and allocation/timing

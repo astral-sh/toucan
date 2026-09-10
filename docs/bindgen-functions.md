@@ -28,7 +28,7 @@ inline information for callback order.
 
 ## Validation
 
-The [saved evidence](../corpus/evidence/bindgen-functions-2026-09-08.json.gz)
+The [saved evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/bindgen-functions-2026-09-08.json.gz)
 records 110 pinned bindgen 0.72.1/libclang 18.1.3 decisions on Linux x86-64 and
 Windows x86-64, in GNU90/GNU11. Each is replayed with and without callbacks.
 Weak ordinary definitions retain Toucan's explicit optional-symbol ABI error;

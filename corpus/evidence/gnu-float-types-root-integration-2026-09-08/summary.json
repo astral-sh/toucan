@@ -1,9 +1,0 @@
-{
-  "base": "f57e9faef30155d240d56f9330e1f0c52f9a2d3d",
-  "source_patch_sha256": "0e01c666b6110ece26d3c415bd5d541864f585f1a3cf1d2243193da5024b8a7d",
-  "focused_native_tests": 10,
-  "actual_rust164_generated_call_test": "passed",
-  "workspace_clippy": "passed",
-  "parser_regeneration": "identical to frozen parser",
-  "scope": "Composition with DLL storage and scoped libraries. Earlier full workspace, source, ABI and allocation evidence remains tied to its recorded snapshot."
-}

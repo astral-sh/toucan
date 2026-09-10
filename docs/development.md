@@ -26,13 +26,6 @@ change process state, or hide unsupported ABI semantics. The parser and layout
 engine are local, attributed forks of `lang-c` and `repc`, respectively. Both are
 licensed under MIT or Apache-2.0; the separate GPL-licensed `cly` tool is not used.
 
-## Review stack
-
-Each layer builds on the preceding PR. Summaries state the behavior added and the
-validation actually run. The stack separates workspace/source infrastructure,
-target layout, preprocessing, declaration analysis, bindings, CLI integration,
-real-header validation, adversarial testing, and performance measurement.
-
 ## First integration milestone
 
 Generate bindings from untouched, versioned zlib, SQLite, zstd, and libgit2 headers.
@@ -115,11 +108,7 @@ The separate `macOS validation` workflow runs Apple Silicon tests, packages, and
 the corpus on relevant pushes to `main`. After it reaches the default branch,
 add the `run-macos` label to an integration PR to validate that revision. To
 request another revision, remove and reapply the label. It can also be dispatched
-against a selected branch. Before the workflow reaches the default branch,
-push the dedicated `charlie/codex-toucan-macos-arm64-validation` integration
-branch instead. Its [branch-scoped workflow](../.github/workflows/macos-arm64-integration.yml)
-calls the same macOS jobs with Intel disabled. It only runs when that branch is
-pushed, after the proposed source is in the stack.
+against a selected branch.
 
 Intel Macs are an opt-in compatibility target. Use the `run-macos-intel` label or
 enable the dispatch's `intel` input to include them. Routine PR and `main` runs do
@@ -146,9 +135,6 @@ Rust test harnesses and CLI validation have separate exit contracts. The shared
 helper has no dependencies and is used through versioned dev-dependencies;
 normal package verification includes it.
 
-The [compiler-oracle audit](../corpus/evidence/compiler-oracles-2026-09-08.json)
-records the migrated call sites, crash regression, cross-target compilation and
-package checks.
 
 ## Generated-C conformance
 
@@ -158,3 +144,10 @@ profiles, and normal/retained declaration parity. Its Linux CI gate uses four
 pinned programs and native CRC/UBSan controls. Larger runs retain every exclusion
 and tool failure separately; a compiler-rejected program never counts as a
 frontend success.
+
+## Reports and regression fixtures
+
+Keep generated reports, logs, source manifests, and benchmark captures in ignored
+output directories or CI artifacts. Commit small reusable fixtures and the tests
+that exercise them. Link release-level results to the tested commit and workflow
+run; see [validation](validation.md#results-and-artifacts).

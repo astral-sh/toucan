@@ -30,4 +30,4 @@ initializers under the modeled compiler profiles; GCC identity conversions are
 supported. A folded vector does not establish a C integer constant expression.
 Native compiler and runtime results for the original conversion support, along with
 ordinary allocation comparisons, are recorded in
-[the validation evidence](../corpus/evidence/convert-vector-2026-09-08.json).
+[the validation evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/convert-vector-2026-09-08.json).

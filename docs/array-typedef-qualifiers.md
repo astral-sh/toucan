@@ -17,7 +17,7 @@ and existing source types. It does not change layout, composite-type constructio
 parameter adjustment, qualification conversions or profile-specific `restrict`
 admission.
 
-The [saved C11 controls](../corpus/evidence/array-typedef-qualifiers-2026-09-09.json.gz)
+The [saved C11 controls](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/array-typedef-qualifiers-2026-09-09.json.gz)
 record 31 cases checked with GCC and Clang: 62 native admission results and 124
 Toucan checks with code retention enabled and disabled. They cover definition
 order, complete/incomplete bounds, `const`/`volatile`/`restrict`, multidimensional

@@ -79,6 +79,6 @@ The common-type rule follows the pinned
 and is tested against compiler results. Type checking and LLVM layout probes are
 separate from native execution evidence.
 
-[Validation evidence](../corpus/evidence/aligned-ancestry-2026-09-08.json) records
+[Validation evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aligned-ancestry-2026-09-08.json) records
 1,580 matching source/target assertions, retained-graph parity, unchanged zstd
 translation units, ordinary allocation measurements, and scaling limits.

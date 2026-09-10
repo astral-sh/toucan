@@ -51,7 +51,7 @@ produces a diagnostic. Emitting an ordinary `extern static` would otherwise prom
 alignment the C declaration does not provide. Filtering out that object still
 allows the remaining interface to be generated.
 
-The [evidence report](../corpus/evidence/declaration-alignment-2026-09-08.json)
+The [evidence report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/declaration-alignment-2026-09-08.json)
 records compiler constraints, native C/Rust access, cross-target record layouts,
 and memory measurements on pinned real projects. Expression forms of `_Alignof` and GNU `__alignof__` consume these retained
 object and function facts; see [expression alignment](expression-alignment.md).
@@ -72,6 +72,6 @@ and a lexical scope. Alignment values occupy 3 bytes; the optional written and
 inherited site payload occupies 6 bytes and is charged to the retention quota.
 These are instrumented resource measurements, not a throughput guarantee.
 
-The [integration report](../corpus/evidence/declaration-alignment-integration-2026-09-08.json)
+The [integration report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/declaration-alignment-integration-2026-09-08.json)
 records the same-block Clang correction, focused compiler tests, generated Rust
 1.64 storage checks, and the retention-quota regression.

@@ -70,7 +70,7 @@ field, object, and typedef layout. Every fixture also compares ordinary analysis
 with retained analysis. Parser tests check original spans, tag placement, operand
 traversal, deterministic work limits, and disabled-profile identifier behavior.
 
-The [saved evidence](../corpus/evidence/declspec-2026-09-08/summary.json) records
+The [saved evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/declspec-2026-09-08/summary.json) records
 Clang probes, retained-graph checks, the eight explicit enum-alignment limitations,
 unchanged existing binding outputs, and generated Windows output compiled with
 Rust 1.64 and current Rust. These are cross-target compiler checks, not native

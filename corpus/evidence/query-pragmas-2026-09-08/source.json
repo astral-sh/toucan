@@ -1,9 +1,0 @@
-{
-  "base": "b153ec5ff52cc6e4c57a88a962c760f926dc7652",
-  "files": {
-    "crates/toucan_preprocessor/README.md": "3f7d46a1bea9211bd972182582823111fa5acab02fc81a20e55a0853024b81fe",
-    "crates/toucan_preprocessor/src/expand.rs": "94cbcf1ee2e08e9d753e57b7c589287eb0d73ab155d0c4930d079b1dc0978cc4",
-    "crates/toucan_preprocessor/src/lib.rs": "ea40665a87d303a48d9d673b4c2d2674db0626b5b43db21e92f3291e89ac5770",
-    "crates/toucan_preprocessor/tests/query_pragmas.rs": "3f608ad5e8e676c98edd0f1f72c6fe1d0aa17f7eea42c1975e5ce9019e9882e6"
-  }
-}

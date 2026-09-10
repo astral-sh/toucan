@@ -59,12 +59,12 @@ also rejects it in expressions and macro values. Elsewhere evaluation is subject
 to the GNU limit above. No optional instruction set or compiler evaluation flag
 is implicitly enabled.
 
-The [half-type evidence](../corpus/evidence/half-types-2026-09-08.json) records
+The [half-type evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/half-types-2026-09-08.json) records
 compiler constraints, native object-byte comparisons, Rust boundary checks,
 source/binary hashes, and the next unchanged Clang zstd header blocker. Successful
 type checking is distinct from runtime code-generation and full conformance.
 
-The [GNU AArch64 supplement](../corpus/evidence/half-aarch64-confirmation-2026-09-08.json)
+The [GNU AArch64 supplement](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/half-aarch64-confirmation-2026-09-08.json)
 checks the actual GCC 13 cross compiler's target macros and emitted ARM assembly
 for bfloat arithmetic and conversions. GCC 13 removed the earlier storage-only
 restrictions and supplies software conversion helpers where needed. This is

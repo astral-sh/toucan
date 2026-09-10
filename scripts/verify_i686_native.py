@@ -40,7 +40,7 @@ def verify(output: Path, toucan: Path, preflight: bool) -> dict:
         "source_sha256": {name: sha256(sources / name) for name in SOURCES},
         "script_sha256": sha256(Path(__file__)),
         "archived_zstd_sha256": {
-            compiler: sha256(ROOT / f"corpus/evidence/i686-target-2026-09-09/zstd-{compiler}.rs")
+            compiler: sha256(ROOT / f"corpus/i686/zstd-{compiler}.rs")
             for compiler in ("gcc", "clang")
         },
         "commands": [],
@@ -178,7 +178,7 @@ def verify(output: Path, toucan: Path, preflight: bool) -> dict:
                     raise RuntimeError(f"{compiler}: unexpected native FFI output (O{opt})")
                 report["runs"].append({"kind": "native-ffi", "compiler": compiler, "optimization": opt, "binary_sha256": sha256(binary), "rounds": 1000})
 
-            archived = ROOT / f"corpus/evidence/i686-target-2026-09-09/zstd-{compiler}.rs"
+            archived = ROOT / f"corpus/i686/zstd-{compiler}.rs"
             metadata = directory / f"zstd-{compiler}.rmeta"
             run(
                 [

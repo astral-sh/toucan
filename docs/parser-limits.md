@@ -95,7 +95,7 @@ visitors, or manually constructed ASTs.
 These measurements and the sanitizer replay below describe the earlier generated
 parser. They do not measure the handwritten parser replacement.
 
-The [measurement record](../corpus/evidence/parser-budgets-2026-09-08.json) compares
+The [measurement record](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/parser-budgets-2026-09-08.json) compares
 an exact `bc889be` release build with this layer on Linux x86_64, using the system
 allocator and CPU affinity 6. One warmup is excluded; each header has seven samples
 and each source/mode pair has five. All four binding outputs and all seven complete

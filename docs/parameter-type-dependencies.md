@@ -73,7 +73,7 @@ budget checks. Generated bindings were compiled with Rust 1.64 and the current
 compiler, then called ordinary GCC- and Clang-compiled array, multidimensional
 array, callback, and variadic functions in eight successful executions.
 
-The [native and allocation capture](../corpus/evidence/parameter-type-dependencies-2026-09-09.json.gz)
+The [native and allocation capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/parameter-type-dependencies-2026-09-09.json.gz)
 preserves 1,103 source, command, diagnostic, output, and provenance artifacts.
 Its implementation predates the expression-operand correction described above.
 Default core allocation counts and generated output hashes are unchanged across
@@ -82,7 +82,7 @@ for the optional catalog pointer. The Builder requests the catalog and adds
 48–307 allocations and 2,980–16,448 requested bytes across those headers. These
 are allocation measurements with the system allocator, not latency measurements.
 
-The [expression-operand correction capture](../corpus/evidence/parameter-expression-dependencies-2026-09-09.json.gz)
+The [expression-operand correction capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/parameter-expression-dependencies-2026-09-09.json.gz)
 records eleven native controls and preserves the original 99 outcomes and all 98
 supported generated outputs byte for byte. Four additional regression tests cover
 expression boundaries, nested record definitions, and restored capture state.

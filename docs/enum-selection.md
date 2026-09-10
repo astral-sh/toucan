@@ -40,7 +40,7 @@ Arbitrary regex syntax remains unsupported for Rust enum style selectors.
 
 ## Validation
 
-The [reference capture](../corpus/evidence/selective-enums-2026-09-08/README.md)
+The [reference capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/selective-enums-2026-09-08/README.md)
 contains thirteen bindgen 0.72.1 selection cases, complete commands and output,
 and the original nested-name difference. The later
 [lexical naming checks](enum-constant-names.md) cover scoped selectors. Tests

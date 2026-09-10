@@ -59,7 +59,7 @@ payloads at 16 MiB before allocation. Type and anonymous-member walks retain the
 128-level depth limit. Retained origin links also debit the configured payload
 budget. Code without these queries does not allocate origin entries or links.
 
-The [evidence report](../corpus/evidence/expression-alignment-2026-09-08.json)
+The [evidence report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/expression-alignment-2026-09-08.json)
 records compiler comparisons, native side-effect checks, generated Rust 1.64
 constants, and allocation-byte/RSS measurements on real headers and source files.
 Native execution is limited to the available x86-64 Linux host; cross-target

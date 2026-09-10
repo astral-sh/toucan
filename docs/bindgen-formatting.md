@@ -55,7 +55,7 @@ installation.
 
 ## Validation
 
-The [saved Linux observations](../corpus/evidence/bindgen-formatting-2026-09-08.json.gz)
+The [saved Linux observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/bindgen-formatting-2026-09-08.json.gz)
 compare 24 behavior pairs against pinned bindgen 0.72.1 using the same Rust
 consumer source. They cover default and explicit formatters, deferred and
 repeated writes, executable precedence, writer errors, configuration activation,

@@ -11,8 +11,8 @@ This package combines the public facade and implementation in one crate. The
 upstream target tables, ABI routing, layout types, visitor, and validation tests
 are retained. The local semantic change adds an explicit compiler argument and
 propagates it through recursive SysV/MinGW layouts. The original default entry
-point delegates with the upstream system compiler. Only the two Clang-on-Linux
-overrides have been enabled.
+point delegates with the upstream system compiler. The adapter selects explicit GCC or Clang behavior for the supported target
+profiles; see [compiler profiles](../../docs/compiler-profiles.md).
 
 Other changes rename Rustdoc imports, format the imported source, keep internal
 modules private, add documentation, and apply two equivalent modern Rust lint

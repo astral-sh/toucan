@@ -25,6 +25,6 @@
 
 - [Development](development.md): workspace checks and acceptance criteria.
 - [Architecture](architecture.md): crate responsibilities and component boundaries.
-- [Validation](validation.md): recorded native and integration results.
+- [Validation](validation.md): maintained checks, their limits, and artifact policy.
 - [Conformance](conformance.md) and [upstream corpus](../corpus/README.md).
 - [Benchmarks](benchmarks.md) and [fuzzing](../fuzz/README.md).

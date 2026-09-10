@@ -1,6 +1,0 @@
-    Checking toucan_semantic v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_semantic)
-    Checking toucan_bindings v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_bindings)
-    Checking toucan v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan)
-    Checking toucan_bindgen v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_bindgen)
-    Checking toucan_cli v0.0.1 (/home/dev-user/.codex/worktrees/toucan-c90-modes/crates/toucan_cli)
-    Finished `dev` profile [unoptimized + debuginfo] target(s) in 2.73s

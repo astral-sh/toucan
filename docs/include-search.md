@@ -68,4 +68,4 @@ A repeated-root stress probe from 10 to 10,000 roots shows linear filesystem
 resolution work, with three additional allocations; zero/one-root preprocessing
 has identical allocations. Timings were collected on a shared host and are not
 release performance guarantees. The artifact is
-[`include-search-2026-09-08.json.gz`](../corpus/evidence/include-search-2026-09-08.json.gz).
+[`include-search-2026-09-08.json.gz`](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/include-search-2026-09-08.json.gz).
