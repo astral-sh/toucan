@@ -27,17 +27,6 @@ Clang produces size 12 and alignment 4. Toucan rejects the unsupported GNU form
 before returning a translation unit or generating bindings. Supporting it also
 requires atomic-aware initializer and promoted-member paths.
 
-The [direct qualifier evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/direct-anonymous-qualifiers-2026-09-09.json.gz)
-records GCC/Clang layout and assignment controls, 704 native checks, and ordinary/
-retained parity across 1,408 profile/mode/qualifier configurations. The 64 native
-GNU atomic layout observations remain an explicit frontend support gap. Clang
-bindings retain their target guards and pass layout compilation with Rust 1.64
-and 1.98.1 for Linux and Windows; the Linux bindings also execute their generated
-layout tests on the native host.
-
-The [native evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/anonymous-typeof-member-2026-09-09.json.gz)
-compares GCC and Clang and checks all Clang physical targets.
-
 ## Microsoft anonymous members
 
 The Windows MSVC profile also admits a named struct or union, or a typedef that
@@ -76,23 +65,20 @@ from directly written record specifiers.
 
 The implementation follows Clang 18's
 [anonymous member admission and construction](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/lib/Sema/SemaDecl.cpp).
-The [Microsoft member evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/ms-anonymous-members-2026-09-09.json.gz)
-includes reproducible sources, compiler commands, and raw results. The focused
-tests compare ordinary and retained analysis for 19 source forms
-across 11 compiler profiles and eight language modes. Recorded Clang checks cover
-304 valid Linux/Windows combinations and 12 additional constraint, scope,
-initializer, and storage cases. Windows checks compile C assertions using the
-cross target on Linux; they do not execute a Windows program. A separate Clang
-layout-dump tool failure encountered during preliminary inspection is excluded
-from the conformance results.
 
-Generated bindings compile and pass their layout tests on the native Rust host
-with Rust 1.64 and Rust 1.98.1. The unchanged Windows bindings are also compiled
-with both versions' Windows standard libraries, retaining the generated target
-guard. Eight cross-compilation checks verify constant size/alignment assertions
-and field offsets in optimized LLVM output for the four member forms. These are
-Windows compilation checks, not Windows execution results.
+## Validation
 
-The [combined-source validation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/ms-anonymous-members-root-integration-2026-09-09.json.gz) repeats the semantic and native checks, compiles and runs the host bindings with Rust 1.64 and 1.98.1, and compiles all four Windows layouts with both toolchains. Workspace Clippy passes.
+The maintained [Microsoft member tests](../crates/toucan_semantic/tests/ms_anonymous_members.rs)
+check source forms, scope, completeness, initialization, and retained references.
+[Direct qualifier tests](../crates/toucan_semantic/tests/direct_anonymous_qualifiers.rs)
+compare compiler-specific layout and assignment constraints. Their native
+oracles distinguish ordinary C rejection from compiler failures.
+[Generated-layout tests](../crates/toucan/tests/ms_anonymous_members.rs) execute
+on the native host and compile Windows target assertions. Windows compilation
+checks do not establish Windows execution compatibility.
 
-The [combined qualifier validation](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/direct-anonymous-qualifiers-root-integration-2026-09-09.json.gz) repeats all focused native and retained-analysis checks. Generated Clang layouts compile for Linux and Windows under Rust 1.64 and 1.98.1; both Linux layout tests execute. Workspace Clippy passes.
+The [Microsoft member capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/ms-anonymous-members-2026-09-09.json.gz)
+and [direct qualifier capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/direct-anonymous-qualifiers-2026-09-09.json.gz)
+retain the original GCC/Clang observations and Rust compilation results. The GNU
+atomic anonymous-member layouts remain an explicit support gap described above.
+These captures apply to their recorded compiler versions and source revisions.
