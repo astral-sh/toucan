@@ -11,9 +11,10 @@ A C frontend and Rust binding generator, written in Rust.
 
 [**Documentation**](docs/README.md) | [**Compatibility**](docs/compatibility.md) | [**Benchmarks**](docs/benchmarks.md)
 
-**Warning:** This README is human-edited, but all code changes, PR summaries, and additional
-documentation were authored entirely by GPT-6 Astra in [Codex](https://openai.com/codex/).
-Use at your own risk.
+> [!WARNING]
+> This README is human-edited, but all code changes, PR summaries, and additional
+> documentation were authored entirely by GPT-6 Astra in [Codex](https://openai.com/codex/).
+> Use at your own risk.
 
 ## Highlights
 
@@ -78,5 +79,14 @@ or the [library guide](docs/library.md) to use Toucan from Rust.
 
 ## License
 
-Toucan is licensed under either the [Apache License, Version 2.0](LICENSE-APACHE),
-or the [MIT license](LICENSE-MIT), at your option.
+Toucan is licensed under either of
+
+- Apache License, Version 2.0, ([LICENSE-APACHE](LICENSE-APACHE) or
+  <https://www.apache.org/licenses/LICENSE-2.0>)
+- MIT license ([LICENSE-MIT](LICENSE-MIT) or <https://opensource.org/licenses/MIT>)
+
+at your option.
+
+Unless you explicitly state otherwise, any contribution intentionally submitted for inclusion in Toucan
+by you, as defined in the Apache-2.0 license, shall be dually licensed as above, without any
+additional terms or conditions.
