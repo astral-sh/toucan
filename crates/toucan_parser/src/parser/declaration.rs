@@ -604,6 +604,8 @@ impl<'s, 'e> Parser<'s, 'e> {
         )
     }
 
+    /// Parses one record declaration. Named field declarators retain their original
+    /// spans when trailing attributes are attached.
     fn struct_declaration(&mut self) -> PResult<Node<StructDeclaration>> {
         let start = self.position();
         if self.env.extensions_gnu {
@@ -618,7 +620,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             if !self.at(";") {
                 loop {
                     let declarator_start = self.position();
-                    let mut declarator = if self.at(":") {
+                    let declarator = if self.at(":") {
                         None
                     } else {
                         Some(self.declarator(DeclaratorMode::Named)?)
@@ -629,14 +631,12 @@ impl<'s, 'e> Parser<'s, 'e> {
                         None
                     };
                     let extensions = self.attribute_specifier_list()?;
-                    if let Some(declarator) = &mut declarator {
-                        if !extensions.is_empty() {
-                            declarator.node.extensions.extend(extensions);
-                        }
-                    }
-                    if let Some(declaration) = declarator.take() {
-                        declarator = Some(self.node_span(declaration.node, declaration.span)?);
-                    }
+                    let declarator = if let Some(mut declarator) = declarator {
+                        declarator.node.extensions.extend(extensions);
+                        Some(self.node_span(declarator.node, declarator.span)?)
+                    } else {
+                        None
+                    };
                     declarators.push(self.node(
                         StructDeclarator {
                             declarator,
@@ -1152,6 +1152,7 @@ impl<'s, 'e> Parser<'s, 'e> {
         Ok(arguments)
     }
 
+    /// Preserves availability clauses in source order, including repeated clauses.
     fn availability_attribute(&mut self) -> PResult<Node<AvailabilityAttribute>> {
         let start = self.position();
         self.expect("availability")?;
@@ -1161,13 +1162,13 @@ impl<'s, 'e> Parser<'s, 'e> {
         let mut clauses = Vec::new();
         loop {
             let clause_start = self.position();
-            let name = self.text().to_owned();
+            let name = self.text();
             self.bump()?;
-            let clause = match name.as_str() {
+            let clause = match name {
                 "introduced" | "deprecated" | "obsoleted" => {
                     self.expect("=")?;
                     let version = self.availability_version()?;
-                    match name.as_str() {
+                    match name {
                         "introduced" => AvailabilityClause::Introduced(version),
                         "deprecated" => AvailabilityClause::Deprecated(version),
                         _ => AvailabilityClause::Obsoleted(version),
