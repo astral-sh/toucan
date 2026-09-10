@@ -94,6 +94,11 @@ jobs:
           FUZZ_TARGET: ${{ matrix.target }}
           FUZZ_SEED: ${{ github.run_number }}
         run: python3 scripts/run_fuzz_campaign.py "$FUZZ_TARGET" --seconds 900 --seed "$FUZZ_SEED" --output "fuzz/runs/$FUZZ_TARGET"
+      - name: Check the compiled profile selector
+        if: contains(fromJSON('["semantic", "bindings", "checked"]'), matrix.target)
+        env:
+          TOUCAN_FUZZ_BINARY: fuzz/runs/${{ matrix.target }}/${{ matrix.target }}
+        run: python3 -m unittest discover -s scripts/tests -p test_fuzz_campaign.py
       - uses: actions/cache/save@0057852bfaa89a56745cba8c7296529d2fc39830 # v4
         if: success() && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
         with:

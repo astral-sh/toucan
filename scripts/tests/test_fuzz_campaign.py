@@ -1,6 +1,7 @@
 """Reproducer preservation and failure classification for sustained fuzzing."""
 
 import hashlib
+import os
 import subprocess
 import sys
 import tarfile
@@ -14,11 +15,32 @@ import run_fuzz_campaign as campaign
 
 
 class FuzzCampaignTests(unittest.TestCase):
+    def test_stale_profile_override_fails(self):
+        with patch.object(campaign, "query_profile", return_value=(15, 0, 0)):
+            self.assertEqual(campaign.compiled_profiles("fuzzer"), 15)
+            self.assertEqual(campaign.compiled_profiles("fuzzer", 15), 15)
+            with self.assertRaisesRegex(ValueError, "compiled harness has 15"):
+                campaign.compiled_profiles("fuzzer", 11)
+
+    @unittest.skipUnless(
+        os.environ.get("TOUCAN_FUZZ_BINARY"), "requires a built profile-aware harness"
+    )
+    def test_compiled_harness_covers_every_padded_profile_and_mode(self):
+        binary = Path(os.environ["TOUCAN_FUZZ_BINARY"]).resolve()
+        count = campaign.compiled_profiles(binary)
+        seeds = campaign.seed_profiles(b"int value;", count, modes=8)
+        actual = {campaign.query_profile(binary, seed) for seed in seeds}
+        self.assertEqual(
+            actual, {(count, p, m) for p in range(count) for m in range(8)}
+        )
+        with self.assertRaises(ValueError):
+            campaign.compiled_profiles(binary, count - 1)
+
     def test_parser_padding_covers_settings_with_only_trailing_whitespace(self):
         for source in (
             b"",
-            b"# 1 \"header.h\"\nint x;",
-            "char*s=\"é𝄞\";".encode(),
+            b'# 1 "header.h"\nint x;',
+            'char*s="é𝄞";'.encode(),
             b"x" * 63,
         ):
             seeds = list(campaign.seed_parser_settings(source))

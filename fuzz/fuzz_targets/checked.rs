@@ -1,5 +1,7 @@
 #![no_main]
 
+mod profiles;
+
 mod checked_invariants;
 
 use libfuzzer_sys::fuzz_target;
@@ -28,29 +30,14 @@ fn retention_limit(error: &Error) -> bool {
     )
 }
 
-fuzz_target!(|bytes: &[u8]| {
+fuzz_target!(init: profiles::initialize(), |bytes: &[u8]| {
     if bytes.len() > 16_384 {
         return;
     }
     let Ok(data) = std::str::from_utf8(bytes) else {
         return;
     };
-    let selector = data
-        .bytes()
-        .fold(0usize, |sum, byte| sum.wrapping_add(usize::from(byte)));
-    let profile = toucan::CompilerProfile::ALL[selector % toucan::CompilerProfile::ALL.len()]
-        .with_language_mode(
-            [
-                toucan::LanguageMode::Gnu11,
-                toucan::LanguageMode::C11,
-                toucan::LanguageMode::Gnu90,
-                toucan::LanguageMode::C90,
-                toucan::LanguageMode::Gnu99,
-                toucan::LanguageMode::C99,
-                toucan::LanguageMode::Gnu17,
-                toucan::LanguageMode::C17,
-            ][(selector >> 8) & 7],
-        );
+    let profile = profiles::select(bytes);
     let options = AnalysisOptions {
         retain_code: true,
         retain_declaration_origins: true,
