@@ -63,7 +63,19 @@ fn range_probe(profile: CompilerProfile, values: &str, c_type: &str, bytes: u64)
         (c_type, bytes)
     };
     format!(
-        "enum __attribute__((packed)) E{{{values}}};\n_Static_assert(sizeof(enum E)=={bytes},\"size\");\n_Static_assert(_Alignof(enum E)=={bytes},\"alignment\");\n_Static_assert(_Generic((enum E)0,{c_type}:1,default:0),\"compatible integer\");\n_Static_assert(_Generic(A,int:1,default:0),\"enumerator A\");\n_Static_assert(_Generic(B,int:1,default:0),\"enumerator B\");"
+        r#"enum __attribute__((packed)) E{{{values}}};
+_Static_assert(sizeof(enum E)=={bytes},"size");
+_Static_assert(_Alignof(enum E)=={bytes},"alignment");
+_Static_assert(__builtin_types_compatible_p(enum E,{c_type}),"compatible integer");
+_Static_assert(!__builtin_types_compatible_p(enum E,char),"distinct plain char");
+_Static_assert(!__builtin_types_compatible_p(char,enum E),"symmetric plain char");
+_Static_assert(!__builtin_types_compatible_p(char*,enum E*),"distinct char pointer");
+_Static_assert(_Generic((enum E)0,{c_type}:1,char:0,default:0),"generic integer identity");
+_Static_assert(_Generic(A,int:1,default:0),"enumerator A");
+_Static_assert(_Generic(B,int:1,default:0),"enumerator B");
+struct Buffer{{char payload[1+__builtin_types_compatible_p(enum E,char)];}};
+_Static_assert(sizeof(struct Buffer)==1,"query-dependent layout");
+"#
     )
 }
 
