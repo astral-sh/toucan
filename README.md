@@ -2,13 +2,6 @@
 
 A C frontend and Rust binding generator, written in Rust.
 
-| Project | Toucan | bindgen 0.72.1 | Speedup |
-| --- | ---: | ---: | ---: |
-| zlib 1.3.1 | 22.22 ms | 117.93 ms | 5.30× |
-| SQLite 3.45.1 | 25.36 ms | 154.92 ms | 6.10× |
-| zstd 1.5.7 | 9.12 ms | 101.91 ms | 11.23× |
-| libgit2 1.9.1 | 192.85 ms | 263.19 ms | 1.37× |
-
 > [!WARNING]
 > This README is human-edited, but all code changes, PR summaries, and additional
 > documentation were authored entirely by GPT-6 Astra in [Codex](https://openai.com/codex/).
@@ -20,6 +13,13 @@ A C frontend and Rust binding generator, written in Rust.
 - Preprocess, type-check, and inspect C headers from the command line.
 - Evaluate constants and compute type layouts for an explicit target, independently of the host.
 - Embed the frontend in your own tools through reusable Rust libraries.
+
+| Project | Toucan | bindgen 0.72.1 | Speedup |
+| --- | ---: | ---: | ---: |
+| zlib 1.3.1 | 22.22 ms | 117.93 ms | 5.30× |
+| SQLite 3.45.1 | 25.36 ms | 154.92 ms | 6.10× |
+| zstd 1.5.7 | 9.12 ms | 101.91 ms | 11.23× |
+| libgit2 1.9.1 | 192.85 ms | 263.19 ms | 1.37× |
 
 ## Installation
 
