@@ -82,6 +82,7 @@ impl Analyzer {
                 ty: ty.clone(),
                 kind: DeclarationKind::Function,
                 link_name: None,
+                link_name_is_literal: false,
                 is_static: false,
                 is_thread_local: false,
                 is_definition: false,

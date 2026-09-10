@@ -192,17 +192,30 @@ pub enum MacroType {
 }
 
 impl Options {
-    pub(crate) fn link_name<'a>(&self, declaration: &'a Declaration) -> Cow<'a, str> {
+    pub(crate) fn link_name<'a>(
+        &self,
+        declaration: &'a Declaration,
+        target: toucan_target::Target,
+    ) -> Cow<'a, str> {
         if let Some(symbol) = self.link_name_overrides.get(&declaration.name) {
             symbol.clone().into()
         } else if let Some(prefix) = &self.link_name_prefix {
             format!("{prefix}{}", declaration.name).into()
+        } else if let Some(symbol) = &declaration.link_name {
+            if declaration.link_name_is_literal
+                && matches!(
+                    target,
+                    toucan_target::Target::X86_64AppleDarwin
+                        | toucan_target::Target::Aarch64AppleDarwin
+                )
+            {
+                // LLVM's escape suppresses Mach-O's automatic underscore prefix.
+                format!("\u{1}{symbol}").into()
+            } else {
+                symbol.as_str().into()
+            }
         } else {
-            declaration
-                .link_name
-                .as_deref()
-                .unwrap_or(&declaration.name)
-                .into()
+            declaration.name.as_str().into()
         }
     }
 
@@ -904,7 +917,7 @@ fn generate_with_work_budget(
                     return Err(Error(format!("`{name}` is not a function")));
                 };
                 emitter.check_function(function)?;
-                let link_name = options.link_name(declaration);
+                let link_name = options.link_name(declaration, unit.target);
                 if name != link_name {
                     writeln!(source, "    #[link_name = {link_name:?}]").unwrap();
                 }
@@ -919,7 +932,7 @@ fn generate_with_work_budget(
                         declaration.name,
                     )));
                 }
-                let link_name = options.link_name(declaration);
+                let link_name = options.link_name(declaration, unit.target);
                 if name != link_name {
                     writeln!(source, "    #[link_name = {link_name:?}]").unwrap();
                 }

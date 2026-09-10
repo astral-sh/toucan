@@ -192,6 +192,10 @@ fn keeps_link_names_and_marks_definitions() {
     )
     .unwrap();
     assert_eq!(unit.declarations[0].link_name.as_deref(), Some("real_api"));
+    let labeled = serde_json::to_value(&unit.declarations[0]).unwrap();
+    assert_eq!(labeled["link_name_is_literal"], true);
+    let ordinary = serde_json::to_value(&unit.declarations[1]).unwrap();
+    assert!(ordinary.get("link_name_is_literal").is_none());
     assert!(unit.declarations[1].is_static && unit.declarations[1].is_definition);
     let TypeKind::Function(variadic) = &unit.declarations[2].ty.kind else {
         panic!("variadic")

@@ -1570,6 +1570,7 @@ impl Analyzer {
             {
                 is_static = false;
             }
+            let mut link_name_is_literal = declarator_attributes.link_name.is_some();
             if !is_typedef {
                 self.require_linked_float_name(&name, item.span.start)?;
                 let external = !is_static
@@ -1586,6 +1587,13 @@ impl Analyzer {
                     &mut declarator_attributes.link_name,
                     item.span.start,
                 )?;
+                if builtin {
+                    link_name_is_literal = self.unit.compiler == Compiler::Clang
+                        && (link_name_is_literal
+                            || previous_index.is_some_and(|index| {
+                                self.unit.declarations[index].link_name_is_literal
+                            }));
+                }
                 if builtin
                     && self.unit.compiler == Compiler::Gnu
                     && matches!(
@@ -1878,6 +1886,7 @@ impl Analyzer {
                     || (!is_static && crate::BuiltinFunction::from_name(&previous.name).is_some())
                 {
                     previous.link_name = declarator_attributes.link_name;
+                    previous.link_name_is_literal = link_name_is_literal;
                 }
                 previous_index
             } else {
@@ -1912,6 +1921,7 @@ impl Analyzer {
                     ty,
                     kind,
                     link_name: declarator_attributes.link_name,
+                    link_name_is_literal,
                     is_static,
                     is_thread_local: storage.thread_local,
                     is_definition,
