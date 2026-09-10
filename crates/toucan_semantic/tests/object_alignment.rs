@@ -41,6 +41,31 @@ const CASES: &[(&str, bool, bool)] = &[
     ("struct S{_Alignas(16) unsigned x:3;};", false, false),
     ("struct S{_Alignas(0) unsigned x:3;};", false, false),
     (
+        "struct S{unsigned named:3 __attribute__((mode(QI)));};",
+        true,
+        true,
+    ),
+    (
+        "struct S{unsigned named:33 __attribute__((mode(DI)));};",
+        false,
+        false,
+    ),
+    (
+        "struct S{unsigned (__attribute__((vector_size(16))) named):3;};",
+        false,
+        false,
+    ),
+    (
+        "struct S{unsigned named:sizeof(enum{B=8}) __attribute__((aligned(B)));};",
+        true,
+        true,
+    ),
+    (
+        "struct S{unsigned (__attribute__((aligned(sizeof(enum{A=4})))) named):sizeof(enum{B=A*2}) __attribute__((aligned(B)));};",
+        true,
+        true,
+    ),
+    (
         "struct S{unsigned :3 __attribute__((mode(QI)));};",
         true,
         true,
@@ -433,6 +458,14 @@ fn rejects_unsupported_bitfield_attribute_types() {
                 "struct S{unsigned :3 __attribute__((vector_size(16)));};",
                 "vector bitfield types are not supported",
             ),
+            (
+                "struct S{unsigned named:9 __attribute__((mode(QI)));};",
+                "bitfields wider than their attribute-modified type are not supported",
+            ),
+            (
+                "struct S{unsigned named:3 __attribute__((vector_size(16)));};",
+                "vector bitfield types are not supported",
+            ),
         ] {
             assert_eq!(parity(source, profile).unwrap_err().message, message);
         }
@@ -541,6 +574,26 @@ fn aligned_members_match_native_and_cross_target_record_layouts() {
         ),
         (
             "struct S{char lead;unsigned :sizeof(enum{B=8}) __attribute__((aligned(B)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned named:sizeof(enum{B=8}) __attribute__((aligned(B)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((aligned(sizeof(enum{A=4})))) named):sizeof(enum{B=A*2}) __attribute__((aligned(B)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned named:3 __attribute__((mode(QI)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned named:3 __attribute__((mode(HI)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned named:3 __attribute__((mode(DI)));char x;};",
             2,
         ),
     ];
