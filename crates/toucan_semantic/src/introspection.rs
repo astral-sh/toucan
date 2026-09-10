@@ -127,11 +127,17 @@ impl Analyzer {
         left: &Type,
         right: &Type,
         depth: usize,
+        budget: &mut crate::analyze::TypeComparisonBudget,
     ) -> Result<bool, Error> {
         if self.unit.compiler == toucan_target::Compiler::Gnu {
-            self.compatible_at(&self.unqualified(left)?, &self.unqualified(right)?, depth)
+            self.compatible_at(
+                &self.unqualified(left)?,
+                &self.unqualified(right)?,
+                depth,
+                budget,
+            )
         } else {
-            self.compatible_at(left, right, depth)
+            self.compatible_at(left, right, depth, budget)
         }
     }
 }

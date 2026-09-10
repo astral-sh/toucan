@@ -262,6 +262,7 @@ impl Analyzer {
 /// Unit lookups and the mutable contract arena are disjoint during composition.
 /// This avoids cloning input function signatures solely to satisfy a mutable borrow.
 pub(crate) struct Composite<'a> {
+    pub(crate) budget: crate::analyze::TypeComparisonBudget,
     pub(crate) conditional: bool,
     pub(crate) unit: &'a TranslationUnit,
     pub(crate) contracts: &'a mut Vec<ParameterContracts>,
@@ -322,6 +323,7 @@ impl Composite<'_> {
                 "composite type nesting exceeds the 128-level limit",
             ));
         }
+        self.budget.step()?;
         if left == right {
             return Ok(left.clone());
         }
@@ -459,6 +461,7 @@ macro_rules! composite_type {
     ($analyzer:ident, $left:expr, $right:expr, $depth:expr, $conditional:expr) => {{
         let mut contracts = std::mem::take(&mut $analyzer.unit.parameter_contracts);
         let result = $crate::noescape::Composite {
+            budget: $crate::analyze::TypeComparisonBudget::new(),
             conditional: $conditional,
             unit: &$analyzer.unit,
             contracts: &mut contracts,

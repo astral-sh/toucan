@@ -16,6 +16,24 @@ use crate::{
 
 type PackEvents = Vec<(usize, Option<u64>)>;
 
+/// Bounds branching type traversals as well as their separately checked depth.
+/// Shared callback typedefs can otherwise expand into exponentially many visits.
+pub(crate) struct TypeComparisonBudget(usize);
+
+impl TypeComparisonBudget {
+    pub(crate) fn new() -> Self {
+        Self(1_000_000)
+    }
+
+    pub(crate) fn step(&mut self) -> Result<(), Error> {
+        self.0 = self
+            .0
+            .checked_sub(1)
+            .ok_or_else(|| Error::new(0, "type comparison work limit exceeded"))?;
+        Ok(())
+    }
+}
+
 /// Parses and checks preprocessed C declarations and bodies without a subprocess.
 ///
 /// Pack pragmas are interpreted before parsing. Definition markers let binding
@@ -2111,18 +2129,18 @@ impl Analyzer {
     }
 
     pub(crate) fn compatible(&self, left: &Type, right: &Type) -> Result<bool, Error> {
-        self.compatible_at(left, right, 0)
+        self.compatible_at(left, right, 0, &mut TypeComparisonBudget::new())
     }
 
     /// Typedef redeclarations require the same type, rather than a compatible
     /// incomplete/complete pair. Parameter names and equivalent ABI spellings
     /// do not create distinct function types.
     pub(crate) fn same_type(&self, left: &Type, right: &Type, depth: usize) -> Result<bool, Error> {
-        self.same_type_at::<false, false>(left, right, depth)
+        self.same_type_at::<false, false>(left, right, depth, &mut TypeComparisonBudget::new())
     }
 
     pub(crate) fn same_deduced_type(&self, left: &Type, right: &Type) -> Result<bool, Error> {
-        self.same_type_at::<true, false>(left, right, 0)
+        self.same_type_at::<true, false>(left, right, 0, &mut TypeComparisonBudget::new())
     }
 
     /// Array qualification belongs to the element type for both identity and
@@ -2132,6 +2150,7 @@ impl Analyzer {
         left: &Type,
         right: &Type,
         depth: usize,
+        budget: &mut TypeComparisonBudget,
     ) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
@@ -2139,6 +2158,7 @@ impl Analyzer {
                 "type identity nesting exceeds the 128-level limit",
             ));
         }
+        budget.step()?;
         if !ARRAY_ELEMENT
             && self.identity_qualifiers(left, depth)? != self.identity_qualifiers(right, depth)?
         {
@@ -2149,7 +2169,7 @@ impl Analyzer {
         Ok(match (&left.kind, &right.kind) {
             (TypeKind::Pointer(a), TypeKind::Pointer(b))
             | (TypeKind::Atomic(a), TypeKind::Atomic(b)) => {
-                self.same_type_at::<EXACT, false>(a, b, depth + 1)?
+                self.same_type_at::<EXACT, false>(a, b, depth + 1, budget)?
             }
             (
                 TypeKind::Array {
@@ -2160,7 +2180,7 @@ impl Analyzer {
                     element: b,
                     length: bl,
                 },
-            ) => al == bl && self.same_type_at::<EXACT, true>(a, b, depth + 1)?,
+            ) => al == bl && self.same_type_at::<EXACT, true>(a, b, depth + 1, budget)?,
             (
                 TypeKind::VariableArray {
                     element: a,
@@ -2170,7 +2190,9 @@ impl Analyzer {
                     element: b,
                     identity: bi,
                 },
-            ) => (!EXACT || ai == bi) && self.same_type_at::<EXACT, true>(a, b, depth + 1)?,
+            ) => {
+                (!EXACT || ai == bi) && self.same_type_at::<EXACT, true>(a, b, depth + 1, budget)?
+            }
             (TypeKind::Function(a), TypeKind::Function(b)) => {
                 if a.noreturn != b.noreturn
                     || a.prototype != b.prototype
@@ -2191,9 +2213,15 @@ impl Analyzer {
                         &self.unqualified(&a.return_type)?,
                         &self.unqualified(&b.return_type)?,
                         depth + 1,
+                        budget,
                     )?
                 } else {
-                    self.same_type_at::<EXACT, false>(&a.return_type, &b.return_type, depth + 1)?
+                    self.same_type_at::<EXACT, false>(
+                        &a.return_type,
+                        &b.return_type,
+                        depth + 1,
+                        budget,
+                    )?
                 };
                 if !same_return {
                     return Ok(false);
@@ -2209,7 +2237,7 @@ impl Analyzer {
                     b.qualifiers.is_volatile = false;
                     b.qualifiers.is_restrict = false;
                     b.qualifiers.set_unaligned(false);
-                    if !self.same_type_at::<EXACT, false>(&a, &b, depth + 1)? {
+                    if !self.same_type_at::<EXACT, false>(&a, &b, depth + 1, budget)? {
                         return Ok(false);
                     }
                 }
@@ -2253,8 +2281,9 @@ impl Analyzer {
         left: &Type,
         right: &Type,
         depth: usize,
+        budget: &mut TypeComparisonBudget,
     ) -> Result<bool, Error> {
-        self.compatible_array_at(left, right, depth, None)
+        self.compatible_array_at(left, right, depth, budget, None)
     }
 
     /// Compares an array chain's qualifiers once, at its outermost layer.
@@ -2263,6 +2292,7 @@ impl Analyzer {
         left: &Type,
         right: &Type,
         depth: usize,
+        budget: &mut TypeComparisonBudget,
         array_qualifiers: Option<Qualifiers>,
     ) -> Result<bool, Error> {
         if depth >= 128 {
@@ -2271,6 +2301,7 @@ impl Analyzer {
                 "type compatibility nesting exceeds the 128-level limit",
             ));
         }
+        budget.step()?;
         let qualifiers = match array_qualifiers {
             Some(qualifiers) => qualifiers,
             None => {
@@ -2301,7 +2332,7 @@ impl Analyzer {
                 Ok(self.unit.enum_integer_kind(*id)? == *kind)
             }
             (TypeKind::Pointer(left), TypeKind::Pointer(right)) => {
-                self.compatible_at(left, right, depth + 1)
+                self.compatible_at(left, right, depth + 1, budget)
             }
             (TypeKind::Atomic(left), TypeKind::Atomic(right)) => {
                 // GCC treats atomic as enum qualification; Clang compares the
@@ -2318,7 +2349,7 @@ impl Analyzer {
                 {
                     return Ok(false);
                 }
-                self.compatible_at(left, right, depth + 1)
+                self.compatible_at(left, right, depth + 1, budget)
             }
             (
                 TypeKind::Array {
@@ -2330,7 +2361,7 @@ impl Analyzer {
                     length: b,
                 },
             ) => Ok((a == b || a.is_none() || b.is_none())
-                && self.compatible_array_at(left, right, depth + 1, Some(qualifiers))?),
+                && self.compatible_array_at(left, right, depth + 1, budget, Some(qualifiers))?),
             (
                 TypeKind::VariableArray { element: left, .. },
                 TypeKind::VariableArray { element: right, .. },
@@ -2342,14 +2373,19 @@ impl Analyzer {
             | (
                 TypeKind::Array { element: left, .. },
                 TypeKind::VariableArray { element: right, .. },
-            ) => self.compatible_array_at(left, right, depth + 1, Some(qualifiers)),
+            ) => self.compatible_array_at(left, right, depth + 1, budget, Some(qualifiers)),
             (TypeKind::Function(left), TypeKind::Function(right)) => {
                 if left.calling_convention.for_target(self.unit.target)?
                     != right.calling_convention.for_target(self.unit.target)?
                 {
                     return Ok(false);
                 }
-                if !self.compatible_return_type(&left.return_type, &right.return_type, depth + 1)? {
+                if !self.compatible_return_type(
+                    &left.return_type,
+                    &right.return_type,
+                    depth + 1,
+                    budget,
+                )? {
                     return Ok(false);
                 }
                 if !left.prototype || !right.prototype {
@@ -2405,7 +2441,7 @@ impl Analyzer {
                     b.qualifiers.is_volatile = false;
                     b.qualifiers.is_restrict = false;
                     b.qualifiers.set_unaligned(false);
-                    if !self.compatible_parameter_at(&a, &b, depth + 1)? {
+                    if !self.compatible_parameter_at(&a, &b, depth + 1, budget)? {
                         return Ok(false);
                     }
                 }

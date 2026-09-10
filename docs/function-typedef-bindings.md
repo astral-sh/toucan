@@ -79,6 +79,12 @@ They supplement the native API capture above.
 
 ## Recursive work limit
 
+Semantic type identity, compatibility, and composite-type construction each
+allow one million type visits per comparison. The existing 128-level nesting
+limit also applies. This bounds branching callback typedef graphs during
+redeclarations and type queries, before binding generation begins. Exhausting
+the allowance produces a `type comparison work limit exceeded` diagnostic.
+
 Binding generation shares a four-million-entry allowance across recursive type
 rendering, signature rendering, function ABI checks, and by-value record checks.
 Each generation starts with a fresh private counter, under both callback
