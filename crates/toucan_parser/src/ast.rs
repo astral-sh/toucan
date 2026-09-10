@@ -804,6 +804,9 @@ pub enum SpecifierQualifier {
 pub struct StructDeclarator {
     pub declarator: Option<Node<Declarator>>,
     pub bit_width: Option<Box<Node<Expression>>>,
+    /// Trailing attributes on an unnamed bitfield. Named fields keep their
+    /// attributes on the declarator.
+    pub extensions: Vec<Node<Extension>>,
 }
 
 // From 6.7.2.2

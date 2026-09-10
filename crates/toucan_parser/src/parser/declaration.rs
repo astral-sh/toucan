@@ -650,9 +650,9 @@ impl<'s, 'e> Parser<'s, 'e> {
                     } else {
                         None
                     };
-                    let extensions = self.attribute_specifier_list()?;
+                    let mut extensions = self.attribute_specifier_list()?;
                     let declarator = if let Some(mut declarator) = declarator {
-                        declarator.node.extensions.extend(extensions);
+                        declarator.node.extensions.append(&mut extensions);
                         Some(self.node_span(declarator.node, declarator.span)?)
                     } else {
                         None
@@ -661,6 +661,7 @@ impl<'s, 'e> Parser<'s, 'e> {
                         StructDeclarator {
                             declarator,
                             bit_width,
+                            extensions,
                         },
                         declarator_start,
                     )?);

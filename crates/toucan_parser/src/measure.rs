@@ -354,7 +354,8 @@ structure!(StructField {
 enumeration!(SpecifierQualifier { Alignment(v0), TypeSpecifier(v0), TypeQualifier(v0), Extension(v0) });
 structure!(StructDeclarator {
     declarator,
-    bit_width
+    bit_width,
+    extensions
 });
 structure!(EnumType {
     extensions,

@@ -13,6 +13,12 @@ extensions.
 Layout supports packing, explicit alignment, and bitfields. Binding generation has
 additional representation constraints described below.
 
+Bitfield attributes retain their effects on layout. Bitfields whose width exceeds
+an attribute-modified type, such as `unsigned :9 __attribute__((mode(QI)))`, are
+rejected explicitly: GCC and Clang accept this extension, but the layout engine
+requires a bitfield to fit its final type. Vector bitfields accepted by GCC are
+also unsupported.
+
 GNU `__int128` and `unsigned __int128` work in declarations, casts, constants,
 and function bodies on the supported 64-bit targets. Compiler probes cover scalar,
 packed-record, and bitfield layouts, including Clang's Windows extension; Microsoft C
