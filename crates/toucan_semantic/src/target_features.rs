@@ -738,7 +738,7 @@ impl Analyzer {
         // GNU allows explicit MMX builtins even when auto-generation of MMX is
         // disabled. The intrinsic retains its ISA requirements independently.
         if self.unit.compiler == Compiler::Clang
-            && !self.suppress_sve_features
+            && !self.evaluation.suppresses_target_features()
             && let Some(&feature) = intrinsic
                 .required_features()
                 .iter()
@@ -777,7 +777,7 @@ impl Analyzer {
         &mut self,
         call: &lang_c::span::Node<ast::CallExpression>,
     ) -> Result<(), Error> {
-        if self.suppress_sve_features || !is_x86(self.unit.target) {
+        if self.evaluation.suppresses_target_features() || !is_x86(self.unit.target) {
             return Ok(());
         }
         let Some(name) = self.named_function_callee(&call.node.callee) else {

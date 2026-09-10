@@ -84,7 +84,7 @@ impl Analyzer {
     /// Resolve a completed file value only in a static initializer or constant query.
     /// A local object, parameter, or enumerator can hide the same file spelling.
     pub(crate) fn const_object_value(&self, name: &str) -> Option<ArithmeticValue> {
-        if !self.allow_const_object_reads
+        if !self.evaluation.allows_const_object_reads()
             || self.unit.constants.contains_key(name)
             || self
                 .lexical_scopes
@@ -104,10 +104,7 @@ impl Analyzer {
         &mut self,
         expression: &Node<ast::Expression>,
     ) -> Result<ArithmeticValue, Error> {
-        let previous = std::mem::replace(&mut self.allow_const_object_reads, true);
-        let result = self.eval_arithmetic(expression);
-        self.allow_const_object_reads = previous;
-        result
+        self.with_const_object_reads(|analyzer| analyzer.eval_arithmetic(expression))
     }
 }
 
@@ -149,9 +146,11 @@ mod tests {
             span,
         );
         assert!(analyzer.eval_initializer_arithmetic(&expression).is_err());
-        assert!(!analyzer.allow_const_object_reads);
-        analyzer.allow_const_object_reads = true;
-        assert!(analyzer.eval_initializer_arithmetic(&expression).is_err());
-        assert!(analyzer.allow_const_object_reads);
+        assert!(!analyzer.evaluation.allows_const_object_reads());
+        analyzer.with_const_object_reads(|analyzer| {
+            assert!(analyzer.eval_initializer_arithmetic(&expression).is_err());
+            assert!(analyzer.evaluation.allows_const_object_reads());
+        });
+        assert!(!analyzer.evaluation.allows_const_object_reads());
     }
 }

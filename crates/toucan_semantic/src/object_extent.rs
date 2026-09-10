@@ -134,10 +134,7 @@ impl Analyzer {
         &mut self,
         call: &Node<ast::CallExpression>,
     ) -> Result<ObjectSizeProof, Error> {
-        let late = std::mem::replace(&mut self.allow_late_object_size_folds, false);
-        let checked = self.builtin_call_type(call);
-        self.allow_late_object_size_folds = late;
-        checked?;
+        self.with_frontend_folding(|analyzer| analyzer.builtin_call_type(call))?;
         let int = Type::new(TypeKind::Integer(crate::IntegerKind::Int));
         let mode = self.object_size_mode_value(&call.node.arguments[1])?;
         let mode = self
@@ -239,7 +236,8 @@ impl Analyzer {
         let proof = self.infer_object_size(call)?;
         match proof.result {
             ObjectSizeResult::Constant { value, stage, .. }
-                if stage == ObjectSizeFoldStage::Frontend || self.allow_late_object_size_folds =>
+                if stage == ObjectSizeFoldStage::Frontend
+                    || self.evaluation.allows_late_object_size_folds() =>
             {
                 Ok(value)
             }

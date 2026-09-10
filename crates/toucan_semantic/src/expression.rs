@@ -94,19 +94,15 @@ impl Analyzer {
         self.enter_expression(expression.span.start)?;
         // Type and body constraints always use the frontend's constant rules,
         // even when an external folding query permits later object-size facts.
-        let late = std::mem::replace(&mut self.allow_late_object_size_folds, false);
-        let result = self.expression_info_inner(expression);
-        let result = result.and_then(|info| {
+        let result = self.with_frontend_folding(|analyzer| {
+            let info = analyzer.expression_info_inner(expression)?;
             if let Some(occurrence) = occurrence {
-                let saved = self.suppress_sve_features;
-                self.suppress_sve_features = true;
-                let retained = self.retain_expression(expression, occurrence, &info);
-                self.suppress_sve_features = saved;
-                retained?;
+                analyzer.without_target_feature_uses(|analyzer| {
+                    analyzer.retain_expression(expression, occurrence, &info)
+                })?;
             }
             Ok(info)
         });
-        self.allow_late_object_size_folds = late;
         self.leave_expression();
         result
     }
