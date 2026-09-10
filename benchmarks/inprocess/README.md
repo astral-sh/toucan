@@ -65,6 +65,8 @@ counting and allocator timing belong in separate builds.
 
 The [optimization capture](../evidence/optimization-drafts-2026-09-09/README.md) compares nine frontend drafts individually. The accompanying [allocator capture](../evidence/optimization-drafts-2026-09-09/allocators/README.md) compares System, jemalloc, and mimalloc on both the baseline and complete stack. Both include raw measurements and output comparisons.
 
+The [selected optimization capture](../evidence/selected-optimizations-2026-09-09/README.md) compares the six selected changes at `91d2e31` with baseline `52c2ae6`, using the system allocator.
+
 ### Input requests
 
 Start with the existing zlib 1.3.1, SQLite 3.45.1, zstd 1.5.7, and libgit2 1.9.1

@@ -1,0 +1,2631 @@
+{
+  "status": "passed",
+  "method": {
+    "latency": "Median of uninstrumented process medians; one discarded warmup per process.",
+    "comparisons": "Candidate/reference ratios pair process medians from the same round and workload. Negative percentage changes mean less time, fewer requests/bytes, or less process RSS. Speedup is reference/candidate; above 1 means faster.",
+    "parent": "Selected contains the six authorized optimizations; its only comparison is the fresh baseline on the same main revision.",
+    "ranges": "Minimum and maximum observed same-round ratios; these are not confidence intervals or significance tests.",
+    "allocations": "Median of instrumented process medians. Counts include alloc, alloc_zeroed and realloc requests; bytes sum requested allocation sizes, not live or peak heap usage.",
+    "rss": "Median whole-process peak RSS across timing processes, including output verification and checked-graph JSON serialization. Instrumented-process RSS is retained separately; neither measures frontend-only peak or retained heap memory."
+  },
+  "sources": {
+    "/tmp/toucan-selected-optimizations-2026-09-09/timing/all/capture.json": "84f09c2578346add0cd0b9707fb5ae14fd835d93c94e1c9f0b3b65b66db829d6",
+    "/tmp/toucan-selected-optimizations-2026-09-09/allocations/all/capture.json": "9d0f45373f002204a61b924cd3793ba819db894dcd7f4bab1dff11dd19e75a08",
+    "/tmp/toucan-selected-optimizations-2026-09-09/drafts.json": "234979ecc3ee8b907eccf931a0dbad59b0398df9123560d547120c4f7059df41",
+    "/tmp/toucan-selected-optimizations-2026-09-09/selection.json": "5d7ca7f4b8b6da78c1cb5891cd760628c0c4815ee9d8aee7ca6ddee24aae7e2a",
+    "/tmp/toucan-selected-optimizations-2026-09-09/dependency-policy.json": "3745d566fe6eaad8f7f8f7620eb8a9c9cfbd99b310d21d163b865422125c25df",
+    "/tmp/toucan-selected-optimizations-2026-09-09/canonical-inputs.json": "4b1f1942d6454c2ea232894236bf072110a06e5ce0412d54d7714790bf82c8a1"
+  },
+  "dependency_validation": {
+    "status": "passed",
+    "shared_registry_packages": 40,
+    "selected_registry_additions": 4,
+    "smallvec": "1.15.2"
+  },
+  "platform": "Linux-6.8.0-106-generic-x86_64-with-glibc2.39",
+  "affinity": [
+    3
+  ],
+  "input_files": 136,
+  "timing_rounds": [
+    0,
+    1,
+    2,
+    3,
+    4
+  ],
+  "allocation_rounds": [
+    0,
+    1,
+    2
+  ],
+  "variants": [
+    {
+      "name": "baseline",
+      "head": "52c2ae634a0aeca44b2cdacbd717529b4f5f5df4",
+      "tree": "c9c7c22526ed72a2c92d60a379354423f81db68a",
+      "sha256": "8af5cec7bdd96e99c76f3a1bcb6a63bdcf34e0df26976d943511265392f47688",
+      "alloc_sha256": "c84210bb04bf4e76a350490807a4aa44189f52d65ef3f94f39fba5fa3793f867",
+      "rustc": "rustc 1.98.1-dev (f62703110 2026-09-08) (ohm-1.98.1-1)\nbinary: rustc\ncommit-hash: f6270311094cd4b48fefce03debdffcf8396c64c\ncommit-date: 2026-09-08\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1-dev\nLLVM version: 22.1.8\n"
+    },
+    {
+      "name": "selected",
+      "head": "91d2e313c3084bdd583ebc40d8986ee503bbc11f",
+      "tree": "4c9ec69e4e649ffefb526957c084708c3f8cecb8",
+      "sha256": "2b2af9a63e6a346fefad92024aa414e1929178223341e58f98fb1c1693876b2b",
+      "alloc_sha256": "67122ad97cf2014a5906dfadc5aa29b7e23982c099d5af2b3bccbcf453f5dd4a",
+      "rustc": "rustc 1.98.1-dev (f62703110 2026-09-08) (ohm-1.98.1-1)\nbinary: rustc\ncommit-hash: f6270311094cd4b48fefce03debdffcf8396c64c\ncommit-date: 2026-09-08\nhost: x86_64-unknown-linux-gnu\nrelease: 1.98.1-dev\nLLVM version: 22.1.8\n"
+    }
+  ],
+  "workloads": [
+    {
+      "project": "zlib",
+      "engine": "toucan-builder",
+      "output_sha256": "c3c08d3c5651d41b9c151f1365f767151c3cd802e0a5babcf24720ca38e68f49",
+      "variants": [
+        {
+          "name": "baseline",
+          "latency_ms": {
+            "median": 22.163806,
+            "min": 21.212580000000003,
+            "max": 24.164753,
+            "values": [
+              24.164753,
+              21.630611000000002,
+              22.163806,
+              21.212580000000003,
+              22.465169
+            ]
+          },
+          "allocation_requests": {
+            "median": 78357,
+            "min": 78357,
+            "max": 78357,
+            "values": [
+              78357,
+              78357,
+              78357
+            ]
+          },
+          "requested_bytes": {
+            "median": 18576302,
+            "min": 18576302,
+            "max": 18576302,
+            "values": [
+              18576302,
+              18576302,
+              18576302
+            ]
+          },
+          "process_rss_kib": {
+            "median": 11144,
+            "min": 11008,
+            "max": 11196,
+            "values": [
+              11188,
+              11044,
+              11196,
+              11008,
+              11144
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 11520,
+            "min": 11008,
+            "max": 11520,
+            "values": [
+              11520,
+              11520,
+              11008
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ]
+        },
+        {
+          "name": "selected",
+          "latency_ms": {
+            "median": 17.679963,
+            "min": 17.44351,
+            "max": 22.879514,
+            "values": [
+              22.879514,
+              17.44351,
+              17.502841,
+              17.679963,
+              21.564468
+            ]
+          },
+          "allocation_requests": {
+            "median": 42364,
+            "min": 42364,
+            "max": 42364,
+            "values": [
+              42364,
+              42364,
+              42364
+            ]
+          },
+          "requested_bytes": {
+            "median": 16854624,
+            "min": 16854624,
+            "max": 16854624,
+            "values": [
+              16854624,
+              16854624,
+              16854624
+            ]
+          },
+          "process_rss_kib": {
+            "median": 11264,
+            "min": 11008,
+            "max": 11520,
+            "values": [
+              11008,
+              11520,
+              11264,
+              11520,
+              11264
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 11264,
+            "min": 11240,
+            "max": 11520,
+            "values": [
+              11264,
+              11240,
+              11520
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ],
+          "vs_parent": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.8334659433223115,
+                "min": 0.7897037629728395,
+                "max": 0.9599067783554177,
+                "values": [
+                  0.9468134849133364,
+                  0.8064270583942358,
+                  0.7897037629728395,
+                  0.8334659433223115,
+                  0.9599067783554177
+                ]
+              },
+              "change_percent": {
+                "median": -16.65340566776885,
+                "min": -21.029623702716048,
+                "max": -4.009322164458229,
+                "values": [
+                  -5.3186515086663615,
+                  -19.357294160576423,
+                  -21.029623702716048,
+                  -16.65340566776885,
+                  -4.009322164458229
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.1998090719986236,
+                "min": 1.0417678284481675,
+                "max": 1.2662976256254628,
+                "values": [
+                  1.0561742264280614,
+                  1.2400377561626073,
+                  1.2662976256254628,
+                  1.1998090719986236,
+                  1.0417678284481675
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.5406536748471739,
+                "min": 0.5406536748471739,
+                "max": 0.5406536748471739,
+                "values": [
+                  0.5406536748471739,
+                  0.5406536748471739,
+                  0.5406536748471739
+                ]
+              },
+              "change_percent": {
+                "median": -45.934632515282615,
+                "min": -45.934632515282615,
+                "max": -45.934632515282615,
+                "values": [
+                  -45.934632515282615,
+                  -45.934632515282615,
+                  -45.934632515282615
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9073185825682636,
+                "min": 0.9073185825682636,
+                "max": 0.9073185825682636,
+                "values": [
+                  0.9073185825682636,
+                  0.9073185825682636,
+                  0.9073185825682636
+                ]
+              },
+              "change_percent": {
+                "median": -9.268141743173642,
+                "min": -9.268141743173642,
+                "max": -9.268141743173642,
+                "values": [
+                  -9.268141743173642,
+                  -9.268141743173642,
+                  -9.268141743173642
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 1.0107681263460158,
+                "min": 0.9839113335716839,
+                "max": 1.0465116279069768,
+                "values": [
+                  0.9839113335716839,
+                  1.0431003259688518,
+                  1.0060735977134692,
+                  1.0465116279069768,
+                  1.0107681263460158
+                ]
+              },
+              "change_percent": {
+                "median": 1.076812634601576,
+                "min": -1.6088666428316079,
+                "max": 4.651162790697683,
+                "values": [
+                  -1.6088666428316079,
+                  4.310032596885183,
+                  0.6073597713469159,
+                  4.651162790697683,
+                  1.076812634601576
+                ]
+              }
+            }
+          },
+          "vs_baseline": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.8334659433223115,
+                "min": 0.7897037629728395,
+                "max": 0.9599067783554177,
+                "values": [
+                  0.9468134849133364,
+                  0.8064270583942358,
+                  0.7897037629728395,
+                  0.8334659433223115,
+                  0.9599067783554177
+                ]
+              },
+              "change_percent": {
+                "median": -16.65340566776885,
+                "min": -21.029623702716048,
+                "max": -4.009322164458229,
+                "values": [
+                  -5.3186515086663615,
+                  -19.357294160576423,
+                  -21.029623702716048,
+                  -16.65340566776885,
+                  -4.009322164458229
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.1998090719986236,
+                "min": 1.0417678284481675,
+                "max": 1.2662976256254628,
+                "values": [
+                  1.0561742264280614,
+                  1.2400377561626073,
+                  1.2662976256254628,
+                  1.1998090719986236,
+                  1.0417678284481675
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.5406536748471739,
+                "min": 0.5406536748471739,
+                "max": 0.5406536748471739,
+                "values": [
+                  0.5406536748471739,
+                  0.5406536748471739,
+                  0.5406536748471739
+                ]
+              },
+              "change_percent": {
+                "median": -45.934632515282615,
+                "min": -45.934632515282615,
+                "max": -45.934632515282615,
+                "values": [
+                  -45.934632515282615,
+                  -45.934632515282615,
+                  -45.934632515282615
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9073185825682636,
+                "min": 0.9073185825682636,
+                "max": 0.9073185825682636,
+                "values": [
+                  0.9073185825682636,
+                  0.9073185825682636,
+                  0.9073185825682636
+                ]
+              },
+              "change_percent": {
+                "median": -9.268141743173642,
+                "min": -9.268141743173642,
+                "max": -9.268141743173642,
+                "values": [
+                  -9.268141743173642,
+                  -9.268141743173642,
+                  -9.268141743173642
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 1.0107681263460158,
+                "min": 0.9839113335716839,
+                "max": 1.0465116279069768,
+                "values": [
+                  0.9839113335716839,
+                  1.0431003259688518,
+                  1.0060735977134692,
+                  1.0465116279069768,
+                  1.0107681263460158
+                ]
+              },
+              "change_percent": {
+                "median": 1.076812634601576,
+                "min": -1.6088666428316079,
+                "max": 4.651162790697683,
+                "values": [
+                  -1.6088666428316079,
+                  4.310032596885183,
+                  0.6073597713469159,
+                  4.651162790697683,
+                  1.076812634601576
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "project": "sqlite",
+      "engine": "toucan-builder",
+      "output_sha256": "77102ed4bc1526be75aa0f551decf71d597d78e608ec6b22e15451e69f5d2831",
+      "variants": [
+        {
+          "name": "baseline",
+          "latency_ms": {
+            "median": 27.701880000000003,
+            "min": 25.559919,
+            "max": 29.990855,
+            "values": [
+              29.990855,
+              25.559919,
+              27.701880000000003,
+              26.4648,
+              28.877737
+            ]
+          },
+          "allocation_requests": {
+            "median": 72361,
+            "min": 72361,
+            "max": 72361,
+            "values": [
+              72361,
+              72361,
+              72361
+            ]
+          },
+          "requested_bytes": {
+            "median": 23562533,
+            "min": 23562533,
+            "max": 23562533,
+            "values": [
+              23562533,
+              23562533,
+              23562533
+            ]
+          },
+          "process_rss_kib": {
+            "median": 15724,
+            "min": 15308,
+            "max": 15764,
+            "values": [
+              15308,
+              15764,
+              15724,
+              15668,
+              15748
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 15656,
+            "min": 15604,
+            "max": 15920,
+            "values": [
+              15604,
+              15920,
+              15656
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ]
+        },
+        {
+          "name": "selected",
+          "latency_ms": {
+            "median": 21.418975,
+            "min": 19.304467,
+            "max": 23.513388,
+            "values": [
+              21.418975,
+              19.304467,
+              23.513388,
+              19.863571,
+              23.250206
+            ]
+          },
+          "allocation_requests": {
+            "median": 59659,
+            "min": 59659,
+            "max": 59659,
+            "values": [
+              59659,
+              59659,
+              59659
+            ]
+          },
+          "requested_bytes": {
+            "median": 22246686,
+            "min": 22246686,
+            "max": 22246686,
+            "values": [
+              22246686,
+              22246686,
+              22246686
+            ]
+          },
+          "process_rss_kib": {
+            "median": 15988,
+            "min": 15936,
+            "max": 16156,
+            "values": [
+              15940,
+              16156,
+              15992,
+              15936,
+              15988
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 15896,
+            "min": 15684,
+            "max": 16196,
+            "values": [
+              15896,
+              15684,
+              16196
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ],
+          "vs_parent": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.7552632306855119,
+                "min": 0.7141835402825295,
+                "max": 0.8488011643975065,
+                "values": [
+                  0.7141835402825295,
+                  0.7552632306855119,
+                  0.8488011643975065,
+                  0.7505656948097095,
+                  0.8051256232439543
+                ]
+              },
+              "change_percent": {
+                "median": -24.473676931448807,
+                "min": -28.58164597174705,
+                "max": -15.119883560249347,
+                "values": [
+                  -28.58164597174705,
+                  -24.473676931448807,
+                  -15.119883560249347,
+                  -24.943430519029054,
+                  -19.487437675604568
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.324041684238161,
+                "min": 1.1781322198230217,
+                "max": 1.4002002896964023,
+                "values": [
+                  1.4002002896964023,
+                  1.324041684238161,
+                  1.1781322198230217,
+                  1.3323284116436063,
+                  1.2420421995400817
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.8244634540705629,
+                "min": 0.8244634540705629,
+                "max": 0.8244634540705629,
+                "values": [
+                  0.8244634540705629,
+                  0.8244634540705629,
+                  0.8244634540705629
+                ]
+              },
+              "change_percent": {
+                "median": -17.55365459294371,
+                "min": -17.55365459294371,
+                "max": -17.55365459294371,
+                "values": [
+                  -17.55365459294371,
+                  -17.55365459294371,
+                  -17.55365459294371
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9441551126952268,
+                "min": 0.9441551126952268,
+                "max": 0.9441551126952268,
+                "values": [
+                  0.9441551126952268,
+                  0.9441551126952268,
+                  0.9441551126952268
+                ]
+              },
+              "change_percent": {
+                "median": -5.584488730477322,
+                "min": -5.584488730477322,
+                "max": -5.584488730477322,
+                "values": [
+                  -5.584488730477322,
+                  -5.584488730477322,
+                  -5.584488730477322
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 1.0171049272402348,
+                "min": 1.015240030480061,
+                "max": 1.0412856022994512,
+                "values": [
+                  1.0412856022994512,
+                  1.024866785079929,
+                  1.017044009157975,
+                  1.0171049272402348,
+                  1.015240030480061
+                ]
+              },
+              "change_percent": {
+                "median": 1.7104927240234824,
+                "min": 1.5240030480061062,
+                "max": 4.128560229945122,
+                "values": [
+                  4.128560229945122,
+                  2.48667850799289,
+                  1.7044009157975104,
+                  1.7104927240234824,
+                  1.5240030480061062
+                ]
+              }
+            }
+          },
+          "vs_baseline": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.7552632306855119,
+                "min": 0.7141835402825295,
+                "max": 0.8488011643975065,
+                "values": [
+                  0.7141835402825295,
+                  0.7552632306855119,
+                  0.8488011643975065,
+                  0.7505656948097095,
+                  0.8051256232439543
+                ]
+              },
+              "change_percent": {
+                "median": -24.473676931448807,
+                "min": -28.58164597174705,
+                "max": -15.119883560249347,
+                "values": [
+                  -28.58164597174705,
+                  -24.473676931448807,
+                  -15.119883560249347,
+                  -24.943430519029054,
+                  -19.487437675604568
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.324041684238161,
+                "min": 1.1781322198230217,
+                "max": 1.4002002896964023,
+                "values": [
+                  1.4002002896964023,
+                  1.324041684238161,
+                  1.1781322198230217,
+                  1.3323284116436063,
+                  1.2420421995400817
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.8244634540705629,
+                "min": 0.8244634540705629,
+                "max": 0.8244634540705629,
+                "values": [
+                  0.8244634540705629,
+                  0.8244634540705629,
+                  0.8244634540705629
+                ]
+              },
+              "change_percent": {
+                "median": -17.55365459294371,
+                "min": -17.55365459294371,
+                "max": -17.55365459294371,
+                "values": [
+                  -17.55365459294371,
+                  -17.55365459294371,
+                  -17.55365459294371
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9441551126952268,
+                "min": 0.9441551126952268,
+                "max": 0.9441551126952268,
+                "values": [
+                  0.9441551126952268,
+                  0.9441551126952268,
+                  0.9441551126952268
+                ]
+              },
+              "change_percent": {
+                "median": -5.584488730477322,
+                "min": -5.584488730477322,
+                "max": -5.584488730477322,
+                "values": [
+                  -5.584488730477322,
+                  -5.584488730477322,
+                  -5.584488730477322
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 1.0171049272402348,
+                "min": 1.015240030480061,
+                "max": 1.0412856022994512,
+                "values": [
+                  1.0412856022994512,
+                  1.024866785079929,
+                  1.017044009157975,
+                  1.0171049272402348,
+                  1.015240030480061
+                ]
+              },
+              "change_percent": {
+                "median": 1.7104927240234824,
+                "min": 1.5240030480061062,
+                "max": 4.128560229945122,
+                "values": [
+                  4.128560229945122,
+                  2.48667850799289,
+                  1.7044009157975104,
+                  1.7104927240234824,
+                  1.5240030480061062
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "project": "zstd",
+      "engine": "toucan-builder",
+      "output_sha256": "98efc3aef8b039fbed4da46b6c0eff79284bc40fd3a7716d04cfd044da4eb720",
+      "variants": [
+        {
+          "name": "baseline",
+          "latency_ms": {
+            "median": 9.219439,
+            "min": 8.90454,
+            "max": 10.435952,
+            "values": [
+              9.761102000000001,
+              8.90454,
+              9.093134,
+              9.219439,
+              10.435952
+            ]
+          },
+          "allocation_requests": {
+            "median": 28636,
+            "min": 28636,
+            "max": 28636,
+            "values": [
+              28636,
+              28636,
+              28636
+            ]
+          },
+          "requested_bytes": {
+            "median": 8004205,
+            "min": 8004205,
+            "max": 8004205,
+            "values": [
+              8004205,
+              8004205,
+              8004205
+            ]
+          },
+          "process_rss_kib": {
+            "median": 10604,
+            "min": 10424,
+            "max": 10852,
+            "values": [
+              10852,
+              10600,
+              10604,
+              10424,
+              10620
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 10880,
+            "min": 10724,
+            "max": 10920,
+            "values": [
+              10880,
+              10920,
+              10724
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ]
+        },
+        {
+          "name": "selected",
+          "latency_ms": {
+            "median": 7.594705,
+            "min": 7.339528,
+            "max": 8.273743,
+            "values": [
+              8.273743,
+              7.594705,
+              7.339528,
+              7.8640289999999995,
+              7.467187
+            ]
+          },
+          "allocation_requests": {
+            "median": 20267,
+            "min": 20267,
+            "max": 20267,
+            "values": [
+              20267,
+              20267,
+              20267
+            ]
+          },
+          "requested_bytes": {
+            "median": 7431669,
+            "min": 7431669,
+            "max": 7431669,
+            "values": [
+              7431669,
+              7431669,
+              7431669
+            ]
+          },
+          "process_rss_kib": {
+            "median": 10656,
+            "min": 10536,
+            "max": 10744,
+            "values": [
+              10656,
+              10536,
+              10664,
+              10596,
+              10744
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 10504,
+            "min": 10400,
+            "max": 10660,
+            "values": [
+              10400,
+              10660,
+              10504
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ],
+          "vs_parent": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.8476238646005337,
+                "min": 0.7155252343054088,
+                "max": 0.8529834624427799,
+                "values": [
+                  0.8476238646005337,
+                  0.8529025643098913,
+                  0.8071505379773355,
+                  0.8529834624427799,
+                  0.7155252343054088
+                ]
+              },
+              "change_percent": {
+                "median": -15.237613539946626,
+                "min": -28.44747656945912,
+                "max": -14.70165375572201,
+                "values": [
+                  -15.237613539946626,
+                  -14.709743569010868,
+                  -19.28494620226645,
+                  -14.70165375572201,
+                  -28.44747656945912
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.1797685763263377,
+                "min": 1.1723556716283727,
+                "max": 1.3975747493667965,
+                "values": [
+                  1.1797685763263377,
+                  1.1724668700100926,
+                  1.2389262633782445,
+                  1.1723556716283727,
+                  1.3975747493667965
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.7077454951808911,
+                "min": 0.7077454951808911,
+                "max": 0.7077454951808911,
+                "values": [
+                  0.7077454951808911,
+                  0.7077454951808911,
+                  0.7077454951808911
+                ]
+              },
+              "change_percent": {
+                "median": -29.225450481910887,
+                "min": -29.225450481910887,
+                "max": -29.225450481910887,
+                "values": [
+                  -29.225450481910887,
+                  -29.225450481910887,
+                  -29.225450481910887
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9284705976421144,
+                "min": 0.9284705976421144,
+                "max": 0.9284705976421144,
+                "values": [
+                  0.9284705976421144,
+                  0.9284705976421144,
+                  0.9284705976421144
+                ]
+              },
+              "change_percent": {
+                "median": -7.152940235788563,
+                "min": -7.152940235788563,
+                "max": -7.152940235788563,
+                "values": [
+                  -7.152940235788563,
+                  -7.152940235788563,
+                  -7.152940235788563
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 1.005658242172765,
+                "min": 0.9819388131220051,
+                "max": 1.016500383729854,
+                "values": [
+                  0.9819388131220051,
+                  0.9939622641509434,
+                  1.005658242172765,
+                  1.016500383729854,
+                  1.0116760828625235
+                ]
+              },
+              "change_percent": {
+                "median": 0.5658242172764893,
+                "min": -1.806118687799485,
+                "max": 1.6500383729854073,
+                "values": [
+                  -1.806118687799485,
+                  -0.6037735849056647,
+                  0.5658242172764893,
+                  1.6500383729854073,
+                  1.167608286252353
+                ]
+              }
+            }
+          },
+          "vs_baseline": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.8476238646005337,
+                "min": 0.7155252343054088,
+                "max": 0.8529834624427799,
+                "values": [
+                  0.8476238646005337,
+                  0.8529025643098913,
+                  0.8071505379773355,
+                  0.8529834624427799,
+                  0.7155252343054088
+                ]
+              },
+              "change_percent": {
+                "median": -15.237613539946626,
+                "min": -28.44747656945912,
+                "max": -14.70165375572201,
+                "values": [
+                  -15.237613539946626,
+                  -14.709743569010868,
+                  -19.28494620226645,
+                  -14.70165375572201,
+                  -28.44747656945912
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.1797685763263377,
+                "min": 1.1723556716283727,
+                "max": 1.3975747493667965,
+                "values": [
+                  1.1797685763263377,
+                  1.1724668700100926,
+                  1.2389262633782445,
+                  1.1723556716283727,
+                  1.3975747493667965
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.7077454951808911,
+                "min": 0.7077454951808911,
+                "max": 0.7077454951808911,
+                "values": [
+                  0.7077454951808911,
+                  0.7077454951808911,
+                  0.7077454951808911
+                ]
+              },
+              "change_percent": {
+                "median": -29.225450481910887,
+                "min": -29.225450481910887,
+                "max": -29.225450481910887,
+                "values": [
+                  -29.225450481910887,
+                  -29.225450481910887,
+                  -29.225450481910887
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9284705976421144,
+                "min": 0.9284705976421144,
+                "max": 0.9284705976421144,
+                "values": [
+                  0.9284705976421144,
+                  0.9284705976421144,
+                  0.9284705976421144
+                ]
+              },
+              "change_percent": {
+                "median": -7.152940235788563,
+                "min": -7.152940235788563,
+                "max": -7.152940235788563,
+                "values": [
+                  -7.152940235788563,
+                  -7.152940235788563,
+                  -7.152940235788563
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 1.005658242172765,
+                "min": 0.9819388131220051,
+                "max": 1.016500383729854,
+                "values": [
+                  0.9819388131220051,
+                  0.9939622641509434,
+                  1.005658242172765,
+                  1.016500383729854,
+                  1.0116760828625235
+                ]
+              },
+              "change_percent": {
+                "median": 0.5658242172764893,
+                "min": -1.806118687799485,
+                "max": 1.6500383729854073,
+                "values": [
+                  -1.806118687799485,
+                  -0.6037735849056647,
+                  0.5658242172764893,
+                  1.6500383729854073,
+                  1.167608286252353
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "project": "libgit2",
+      "engine": "toucan-builder",
+      "output_sha256": "5c07a740c3cde936c6e264a1b12e4bea7dc4fe5470d192f6d1864b257ae5d6b5",
+      "variants": [
+        {
+          "name": "baseline",
+          "latency_ms": {
+            "median": 196.233436,
+            "min": 188.156726,
+            "max": 201.187189,
+            "values": [
+              201.187189,
+              196.161791,
+              200.843055,
+              196.233436,
+              188.156726
+            ]
+          },
+          "allocation_requests": {
+            "median": 552965,
+            "min": 552965,
+            "max": 552965,
+            "values": [
+              552965,
+              552965,
+              552965
+            ]
+          },
+          "requested_bytes": {
+            "median": 170662478,
+            "min": 170662478,
+            "max": 170662478,
+            "values": [
+              170662478,
+              170662478,
+              170662478
+            ]
+          },
+          "process_rss_kib": {
+            "median": 39712,
+            "min": 39680,
+            "max": 39980,
+            "values": [
+              39712,
+              39940,
+              39684,
+              39680,
+              39980
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 39544,
+            "min": 39544,
+            "max": 39676,
+            "values": [
+              39544,
+              39544,
+              39676
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ]
+        },
+        {
+          "name": "selected",
+          "latency_ms": {
+            "median": 158.889517,
+            "min": 157.390858,
+            "max": 185.01924,
+            "values": [
+              168.383579,
+              157.390858,
+              158.889517,
+              185.01924,
+              158.451799
+            ]
+          },
+          "allocation_requests": {
+            "median": 327345,
+            "min": 327345,
+            "max": 327345,
+            "values": [
+              327345,
+              327345,
+              327345
+            ]
+          },
+          "requested_bytes": {
+            "median": 158154494,
+            "min": 158154494,
+            "max": 158154494,
+            "values": [
+              158154494,
+              158154494,
+              158154494
+            ]
+          },
+          "process_rss_kib": {
+            "median": 39556,
+            "min": 39440,
+            "max": 39696,
+            "values": [
+              39556,
+              39440,
+              39696,
+              39584,
+              39552
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 40424,
+            "min": 40276,
+            "max": 40444,
+            "values": [
+              40424,
+              40444,
+              40276
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ],
+          "vs_parent": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.8369498069780179,
+                "min": 0.7911128268786791,
+                "max": 0.9428527766287493,
+                "values": [
+                  0.8369498069780179,
+                  0.8023522684904524,
+                  0.7911128268786791,
+                  0.9428527766287493,
+                  0.842126680074142
+                ]
+              },
+              "change_percent": {
+                "median": -16.30501930219821,
+                "min": -20.888717312132087,
+                "max": -5.714722337125067,
+                "values": [
+                  -16.30501930219821,
+                  -19.764773150954763,
+                  -20.888717312132087,
+                  -5.714722337125067,
+                  -15.787331992585795
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.1948147806028044,
+                "min": 1.0606109721345738,
+                "max": 1.2640422023562448,
+                "values": [
+                  1.1948147806028044,
+                  1.2463353557676138,
+                  1.2640422023562448,
+                  1.0606109721345738,
+                  1.1874697995697732
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.5919814093116201,
+                "min": 0.5919814093116201,
+                "max": 0.5919814093116201,
+                "values": [
+                  0.5919814093116201,
+                  0.5919814093116201,
+                  0.5919814093116201
+                ]
+              },
+              "change_percent": {
+                "median": -40.801859068837985,
+                "min": -40.801859068837985,
+                "max": -40.801859068837985,
+                "values": [
+                  -40.801859068837985,
+                  -40.801859068837985,
+                  -40.801859068837985
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.926709232476983,
+                "min": 0.926709232476983,
+                "max": 0.926709232476983,
+                "values": [
+                  0.926709232476983,
+                  0.926709232476983,
+                  0.926709232476983
+                ]
+              },
+              "change_percent": {
+                "median": -7.3290767523017,
+                "min": -7.3290767523017,
+                "max": -7.3290767523017,
+                "values": [
+                  -7.3290767523017,
+                  -7.3290767523017,
+                  -7.3290767523017
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 0.996071716357776,
+                "min": 0.9874812218327491,
+                "max": 1.0003023888720894,
+                "values": [
+                  0.996071716357776,
+                  0.9874812218327491,
+                  1.0003023888720894,
+                  0.9975806451612903,
+                  0.9892946473236618
+                ]
+              },
+              "change_percent": {
+                "median": -0.3928283642223973,
+                "min": -1.2518778167250888,
+                "max": 0.0302388872089443,
+                "values": [
+                  -0.3928283642223973,
+                  -1.2518778167250888,
+                  0.0302388872089443,
+                  -0.24193548387096975,
+                  -1.070535267633821
+                ]
+              }
+            }
+          },
+          "vs_baseline": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.8369498069780179,
+                "min": 0.7911128268786791,
+                "max": 0.9428527766287493,
+                "values": [
+                  0.8369498069780179,
+                  0.8023522684904524,
+                  0.7911128268786791,
+                  0.9428527766287493,
+                  0.842126680074142
+                ]
+              },
+              "change_percent": {
+                "median": -16.30501930219821,
+                "min": -20.888717312132087,
+                "max": -5.714722337125067,
+                "values": [
+                  -16.30501930219821,
+                  -19.764773150954763,
+                  -20.888717312132087,
+                  -5.714722337125067,
+                  -15.787331992585795
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.1948147806028044,
+                "min": 1.0606109721345738,
+                "max": 1.2640422023562448,
+                "values": [
+                  1.1948147806028044,
+                  1.2463353557676138,
+                  1.2640422023562448,
+                  1.0606109721345738,
+                  1.1874697995697732
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.5919814093116201,
+                "min": 0.5919814093116201,
+                "max": 0.5919814093116201,
+                "values": [
+                  0.5919814093116201,
+                  0.5919814093116201,
+                  0.5919814093116201
+                ]
+              },
+              "change_percent": {
+                "median": -40.801859068837985,
+                "min": -40.801859068837985,
+                "max": -40.801859068837985,
+                "values": [
+                  -40.801859068837985,
+                  -40.801859068837985,
+                  -40.801859068837985
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.926709232476983,
+                "min": 0.926709232476983,
+                "max": 0.926709232476983,
+                "values": [
+                  0.926709232476983,
+                  0.926709232476983,
+                  0.926709232476983
+                ]
+              },
+              "change_percent": {
+                "median": -7.3290767523017,
+                "min": -7.3290767523017,
+                "max": -7.3290767523017,
+                "values": [
+                  -7.3290767523017,
+                  -7.3290767523017,
+                  -7.3290767523017
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 0.996071716357776,
+                "min": 0.9874812218327491,
+                "max": 1.0003023888720894,
+                "values": [
+                  0.996071716357776,
+                  0.9874812218327491,
+                  1.0003023888720894,
+                  0.9975806451612903,
+                  0.9892946473236618
+                ]
+              },
+              "change_percent": {
+                "median": -0.3928283642223973,
+                "min": -1.2518778167250888,
+                "max": 0.0302388872089443,
+                "values": [
+                  -0.3928283642223973,
+                  -1.2518778167250888,
+                  0.0302388872089443,
+                  -0.24193548387096975,
+                  -1.070535267633821
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "project": "libgit2",
+      "engine": "checked",
+      "output_sha256": "8f408b546937c43a2e5cfac60c8056cf38f86a2d3754996421e162b9231e6ecc",
+      "variants": [
+        {
+          "name": "baseline",
+          "latency_ms": {
+            "median": 170.073345,
+            "min": 168.984732,
+            "max": 182.15250699999999,
+            "values": [
+              178.246681,
+              169.913196,
+              170.073345,
+              182.15250699999999,
+              168.984732
+            ]
+          },
+          "allocation_requests": {
+            "median": 481769,
+            "min": 481769,
+            "max": 481769,
+            "values": [
+              481769,
+              481769,
+              481769
+            ]
+          },
+          "requested_bytes": {
+            "median": 143761381,
+            "min": 143761381,
+            "max": 143761381,
+            "values": [
+              143761381,
+              143761381,
+              143761381
+            ]
+          },
+          "process_rss_kib": {
+            "median": 157612,
+            "min": 157208,
+            "max": 157656,
+            "values": [
+              157656,
+              157496,
+              157656,
+              157612,
+              157208
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 157440,
+            "min": 157440,
+            "max": 157496,
+            "values": [
+              157496,
+              157440,
+              157440
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ]
+        },
+        {
+          "name": "selected",
+          "latency_ms": {
+            "median": 145.93003099999999,
+            "min": 135.455267,
+            "max": 161.026278,
+            "values": [
+              145.93003099999999,
+              135.455267,
+              143.08438700000002,
+              161.026278,
+              150.794687
+            ]
+          },
+          "allocation_requests": {
+            "median": 256149,
+            "min": 256149,
+            "max": 256149,
+            "values": [
+              256149,
+              256149,
+              256149
+            ]
+          },
+          "requested_bytes": {
+            "median": 131253397,
+            "min": 131253397,
+            "max": 131253397,
+            "values": [
+              131253397,
+              131253397,
+              131253397
+            ]
+          },
+          "process_rss_kib": {
+            "median": 157412,
+            "min": 157240,
+            "max": 157740,
+            "values": [
+              157524,
+              157240,
+              157412,
+              157412,
+              157740
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 157720,
+            "min": 157712,
+            "max": 157736,
+            "values": [
+              157712,
+              157736,
+              157720
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ],
+          "vs_parent": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.8413098889776057,
+                "min": 0.7972027493379619,
+                "max": 0.8923568728090773,
+                "values": [
+                  0.8186970449115963,
+                  0.7972027493379619,
+                  0.8413098889776057,
+                  0.8840190050197881,
+                  0.8923568728090773
+                ]
+              },
+              "change_percent": {
+                "median": -15.869011102239428,
+                "min": -20.279725066203813,
+                "max": -10.764312719092272,
+                "values": [
+                  -18.130295508840366,
+                  -20.279725066203813,
+                  -15.869011102239428,
+                  -11.598099498021186,
+                  -10.764312719092272
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.188622662233581,
+                "min": 1.1206278905569134,
+                "max": 1.2543860402268447,
+                "values": [
+                  1.2214530469057463,
+                  1.2543860402268447,
+                  1.188622662233581,
+                  1.1311973999672278,
+                  1.1206278905569134
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.531684271922851,
+                "min": 0.531684271922851,
+                "max": 0.531684271922851,
+                "values": [
+                  0.531684271922851,
+                  0.531684271922851,
+                  0.531684271922851
+                ]
+              },
+              "change_percent": {
+                "median": -46.831572807714906,
+                "min": -46.831572807714906,
+                "max": -46.831572807714906,
+                "values": [
+                  -46.831572807714906,
+                  -46.831572807714906,
+                  -46.831572807714906
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9129948257800891,
+                "min": 0.9129948257800891,
+                "max": 0.9129948257800891,
+                "values": [
+                  0.9129948257800891,
+                  0.9129948257800891,
+                  0.9129948257800891
+                ]
+              },
+              "change_percent": {
+                "median": -8.700517421991094,
+                "min": -8.700517421991094,
+                "max": -8.700517421991094,
+                "values": [
+                  -8.700517421991094,
+                  -8.700517421991094,
+                  -8.700517421991094
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 0.9987310610867193,
+                "min": 0.9983745618936354,
+                "max": 1.0033840517022035,
+                "values": [
+                  0.9991627340538894,
+                  0.9983745618936354,
+                  0.9984523265844624,
+                  0.9987310610867193,
+                  1.0033840517022035
+                ]
+              },
+              "change_percent": {
+                "median": -0.1268938913280726,
+                "min": -0.16254381063646184,
+                "max": 0.3384051702203461,
+                "values": [
+                  -0.08372659461105547,
+                  -0.16254381063646184,
+                  -0.15476734155376315,
+                  -0.1268938913280726,
+                  0.3384051702203461
+                ]
+              }
+            }
+          },
+          "vs_baseline": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.8413098889776057,
+                "min": 0.7972027493379619,
+                "max": 0.8923568728090773,
+                "values": [
+                  0.8186970449115963,
+                  0.7972027493379619,
+                  0.8413098889776057,
+                  0.8840190050197881,
+                  0.8923568728090773
+                ]
+              },
+              "change_percent": {
+                "median": -15.869011102239428,
+                "min": -20.279725066203813,
+                "max": -10.764312719092272,
+                "values": [
+                  -18.130295508840366,
+                  -20.279725066203813,
+                  -15.869011102239428,
+                  -11.598099498021186,
+                  -10.764312719092272
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.188622662233581,
+                "min": 1.1206278905569134,
+                "max": 1.2543860402268447,
+                "values": [
+                  1.2214530469057463,
+                  1.2543860402268447,
+                  1.188622662233581,
+                  1.1311973999672278,
+                  1.1206278905569134
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.531684271922851,
+                "min": 0.531684271922851,
+                "max": 0.531684271922851,
+                "values": [
+                  0.531684271922851,
+                  0.531684271922851,
+                  0.531684271922851
+                ]
+              },
+              "change_percent": {
+                "median": -46.831572807714906,
+                "min": -46.831572807714906,
+                "max": -46.831572807714906,
+                "values": [
+                  -46.831572807714906,
+                  -46.831572807714906,
+                  -46.831572807714906
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9129948257800891,
+                "min": 0.9129948257800891,
+                "max": 0.9129948257800891,
+                "values": [
+                  0.9129948257800891,
+                  0.9129948257800891,
+                  0.9129948257800891
+                ]
+              },
+              "change_percent": {
+                "median": -8.700517421991094,
+                "min": -8.700517421991094,
+                "max": -8.700517421991094,
+                "values": [
+                  -8.700517421991094,
+                  -8.700517421991094,
+                  -8.700517421991094
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 0.9987310610867193,
+                "min": 0.9983745618936354,
+                "max": 1.0033840517022035,
+                "values": [
+                  0.9991627340538894,
+                  0.9983745618936354,
+                  0.9984523265844624,
+                  0.9987310610867193,
+                  1.0033840517022035
+                ]
+              },
+              "change_percent": {
+                "median": -0.1268938913280726,
+                "min": -0.16254381063646184,
+                "max": 0.3384051702203461,
+                "values": [
+                  -0.08372659461105547,
+                  -0.16254381063646184,
+                  -0.15476734155376315,
+                  -0.1268938913280726,
+                  0.3384051702203461
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "project": "zlib",
+      "engine": "checked",
+      "output_sha256": "a920128a96381a61bc48690531d6daaab8b8efe0414e1ebe2dc54bf774fd08cc",
+      "variants": [
+        {
+          "name": "baseline",
+          "latency_ms": {
+            "median": 21.938135000000003,
+            "min": 21.013659,
+            "max": 32.029132000000004,
+            "values": [
+              32.029132000000004,
+              21.013659,
+              21.938135000000003,
+              22.097934,
+              21.633286000000002
+            ]
+          },
+          "allocation_requests": {
+            "median": 74224,
+            "min": 74224,
+            "max": 74224,
+            "values": [
+              74224,
+              74224,
+              74224
+            ]
+          },
+          "requested_bytes": {
+            "median": 19064199,
+            "min": 19064199,
+            "max": 19064199,
+            "values": [
+              19064199,
+              19064199,
+              19064199
+            ]
+          },
+          "process_rss_kib": {
+            "median": 26616,
+            "min": 26596,
+            "max": 26620,
+            "values": [
+              26616,
+              26620,
+              26596,
+              26608,
+              26620
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 26344,
+            "min": 26304,
+            "max": 26556,
+            "values": [
+              26304,
+              26344,
+              26556
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ]
+        },
+        {
+          "name": "selected",
+          "latency_ms": {
+            "median": 17.722752,
+            "min": 17.441807,
+            "max": 17.946119,
+            "values": [
+              17.946119,
+              17.581436999999998,
+              17.441807,
+              17.876548999999997,
+              17.722752
+            ]
+          },
+          "allocation_requests": {
+            "median": 38231,
+            "min": 38231,
+            "max": 38231,
+            "values": [
+              38231,
+              38231,
+              38231
+            ]
+          },
+          "requested_bytes": {
+            "median": 17342521,
+            "min": 17342521,
+            "max": 17342521,
+            "values": [
+              17342521,
+              17342521,
+              17342521
+            ]
+          },
+          "process_rss_kib": {
+            "median": 26656,
+            "min": 26624,
+            "max": 26880,
+            "values": [
+              26624,
+              26876,
+              26624,
+              26656,
+              26880
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 26876,
+            "min": 26876,
+            "max": 26880,
+            "values": [
+              26880,
+              26876,
+              26876
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ],
+          "vs_parent": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.808969245722247,
+                "min": 0.5603061300568494,
+                "max": 0.8366670935318783,
+                "values": [
+                  0.5603061300568494,
+                  0.8366670935318783,
+                  0.7950451120845048,
+                  0.808969245722247,
+                  0.8192353209771275
+                ]
+              },
+              "change_percent": {
+                "median": -19.103075427775295,
+                "min": -43.969386994315066,
+                "max": -16.33329064681217,
+                "values": [
+                  -43.969386994315066,
+                  -16.33329064681217,
+                  -20.49548879154952,
+                  -19.103075427775295,
+                  -18.076467902287252
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.2361409352554569,
+                "min": 1.1952185137085214,
+                "max": 1.784738639033877,
+                "values": [
+                  1.784738639033877,
+                  1.1952185137085214,
+                  1.2577902622130839,
+                  1.2361409352554569,
+                  1.2206504949118513
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.5150759862039233,
+                "min": 0.5150759862039233,
+                "max": 0.5150759862039233,
+                "values": [
+                  0.5150759862039233,
+                  0.5150759862039233,
+                  0.5150759862039233
+                ]
+              },
+              "change_percent": {
+                "median": -48.49240137960768,
+                "min": -48.49240137960768,
+                "max": -48.49240137960768,
+                "values": [
+                  -48.49240137960768,
+                  -48.49240137960768,
+                  -48.49240137960768
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9096905146657355,
+                "min": 0.9096905146657355,
+                "max": 0.9096905146657355,
+                "values": [
+                  0.9096905146657355,
+                  0.9096905146657355,
+                  0.9096905146657355
+                ]
+              },
+              "change_percent": {
+                "median": -9.030948533426454,
+                "min": -9.030948533426454,
+                "max": -9.030948533426454,
+                "values": [
+                  -9.030948533426454,
+                  -9.030948533426454,
+                  -9.030948533426454
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 1.0018039687312086,
+                "min": 1.0003005710850617,
+                "max": 1.0097670924117206,
+                "values": [
+                  1.0003005710850617,
+                  1.0096168294515402,
+                  1.001052789893217,
+                  1.0018039687312086,
+                  1.0097670924117206
+                ]
+              },
+              "change_percent": {
+                "median": 0.18039687312085828,
+                "min": 0.030057108506165164,
+                "max": 0.9767092411720579,
+                "values": [
+                  0.030057108506165164,
+                  0.9616829451540188,
+                  0.10527898932171098,
+                  0.18039687312085828,
+                  0.9767092411720579
+                ]
+              }
+            }
+          },
+          "vs_baseline": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.808969245722247,
+                "min": 0.5603061300568494,
+                "max": 0.8366670935318783,
+                "values": [
+                  0.5603061300568494,
+                  0.8366670935318783,
+                  0.7950451120845048,
+                  0.808969245722247,
+                  0.8192353209771275
+                ]
+              },
+              "change_percent": {
+                "median": -19.103075427775295,
+                "min": -43.969386994315066,
+                "max": -16.33329064681217,
+                "values": [
+                  -43.969386994315066,
+                  -16.33329064681217,
+                  -20.49548879154952,
+                  -19.103075427775295,
+                  -18.076467902287252
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.2361409352554569,
+                "min": 1.1952185137085214,
+                "max": 1.784738639033877,
+                "values": [
+                  1.784738639033877,
+                  1.1952185137085214,
+                  1.2577902622130839,
+                  1.2361409352554569,
+                  1.2206504949118513
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.5150759862039233,
+                "min": 0.5150759862039233,
+                "max": 0.5150759862039233,
+                "values": [
+                  0.5150759862039233,
+                  0.5150759862039233,
+                  0.5150759862039233
+                ]
+              },
+              "change_percent": {
+                "median": -48.49240137960768,
+                "min": -48.49240137960768,
+                "max": -48.49240137960768,
+                "values": [
+                  -48.49240137960768,
+                  -48.49240137960768,
+                  -48.49240137960768
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9096905146657355,
+                "min": 0.9096905146657355,
+                "max": 0.9096905146657355,
+                "values": [
+                  0.9096905146657355,
+                  0.9096905146657355,
+                  0.9096905146657355
+                ]
+              },
+              "change_percent": {
+                "median": -9.030948533426454,
+                "min": -9.030948533426454,
+                "max": -9.030948533426454,
+                "values": [
+                  -9.030948533426454,
+                  -9.030948533426454,
+                  -9.030948533426454
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 1.0018039687312086,
+                "min": 1.0003005710850617,
+                "max": 1.0097670924117206,
+                "values": [
+                  1.0003005710850617,
+                  1.0096168294515402,
+                  1.001052789893217,
+                  1.0018039687312086,
+                  1.0097670924117206
+                ]
+              },
+              "change_percent": {
+                "median": 0.18039687312085828,
+                "min": 0.030057108506165164,
+                "max": 0.9767092411720579,
+                "values": [
+                  0.030057108506165164,
+                  0.9616829451540188,
+                  0.10527898932171098,
+                  0.18039687312085828,
+                  0.9767092411720579
+                ]
+              }
+            }
+          }
+        }
+      ]
+    },
+    {
+      "project": "zlib-adler32",
+      "engine": "checked",
+      "output_sha256": "2ea6a753669f6d6af6ce065fc6fc2d4855f8aef6ec4b1bcc6226f66e7f0cccf4",
+      "variants": [
+        {
+          "name": "baseline",
+          "latency_ms": {
+            "median": 37.918563,
+            "min": 37.367132,
+            "max": 39.291257,
+            "values": [
+              38.845694,
+              37.421715,
+              39.291257,
+              37.367132,
+              37.918563
+            ]
+          },
+          "allocation_requests": {
+            "median": 147514,
+            "min": 147514,
+            "max": 147514,
+            "values": [
+              147514,
+              147514,
+              147514
+            ]
+          },
+          "requested_bytes": {
+            "median": 36789921,
+            "min": 36789921,
+            "max": 36789921,
+            "values": [
+              36789921,
+              36789921,
+              36789921
+            ]
+          },
+          "process_rss_kib": {
+            "median": 42096,
+            "min": 42048,
+            "max": 42140,
+            "values": [
+              42064,
+              42140,
+              42140,
+              42048,
+              42096
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 42080,
+            "min": 42072,
+            "max": 42100,
+            "values": [
+              42072,
+              42080,
+              42100
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ]
+        },
+        {
+          "name": "selected",
+          "latency_ms": {
+            "median": 31.993957,
+            "min": 31.773585999999998,
+            "max": 32.842532,
+            "values": [
+              32.842532,
+              31.993957,
+              32.488841,
+              31.773585999999998,
+              31.934505
+            ]
+          },
+          "allocation_requests": {
+            "median": 71785,
+            "min": 71785,
+            "max": 71785,
+            "values": [
+              71785,
+              71785,
+              71785
+            ]
+          },
+          "requested_bytes": {
+            "median": 33406757,
+            "min": 33406757,
+            "max": 33406757,
+            "values": [
+              33406757,
+              33406757,
+              33406757
+            ]
+          },
+          "process_rss_kib": {
+            "median": 42152,
+            "min": 41896,
+            "max": 42288,
+            "values": [
+              41896,
+              42284,
+              42032,
+              42152,
+              42288
+            ]
+          },
+          "instrumented_process_rss_kib": {
+            "median": 42284,
+            "min": 42152,
+            "max": 42580,
+            "values": [
+              42580,
+              42152,
+              42284
+            ]
+          },
+          "timing_samples_per_process": [
+            5,
+            5,
+            5,
+            5,
+            5
+          ],
+          "allocation_samples_per_process": [
+            3,
+            3,
+            3
+          ],
+          "vs_parent": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.8454613270649766,
+                "min": 0.8268720188819614,
+                "max": 0.8549569948891974,
+                "values": [
+                  0.8454613270649766,
+                  0.8549569948891974,
+                  0.8268720188819614,
+                  0.8503083940185723,
+                  0.8421865828618031
+                ]
+              },
+              "change_percent": {
+                "median": -15.453867293502343,
+                "min": -17.31279811180386,
+                "max": -14.50430051108026,
+                "values": [
+                  -15.453867293502343,
+                  -14.50430051108026,
+                  -17.31279811180386,
+                  -14.969160598142771,
+                  -15.781341713819685
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.1827862114894188,
+                "min": 1.169649474742996,
+                "max": 1.209376998089898,
+                "values": [
+                  1.1827862114894188,
+                  1.169649474742996,
+                  1.209376998089898,
+                  1.1760439001125023,
+                  1.187385337583908
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.48663177732283036,
+                "min": 0.48663177732283036,
+                "max": 0.48663177732283036,
+                "values": [
+                  0.48663177732283036,
+                  0.48663177732283036,
+                  0.48663177732283036
+                ]
+              },
+              "change_percent": {
+                "median": -51.33682226771696,
+                "min": -51.33682226771696,
+                "max": -51.33682226771696,
+                "values": [
+                  -51.33682226771696,
+                  -51.33682226771696,
+                  -51.33682226771696
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9080410093840647,
+                "min": 0.9080410093840647,
+                "max": 0.9080410093840647,
+                "values": [
+                  0.9080410093840647,
+                  0.9080410093840647,
+                  0.9080410093840647
+                ]
+              },
+              "change_percent": {
+                "median": -9.195899061593526,
+                "min": -9.195899061593526,
+                "max": -9.195899061593526,
+                "values": [
+                  -9.195899061593526,
+                  -9.195899061593526,
+                  -9.195899061593526
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 1.0024733637747336,
+                "min": 0.996006085964245,
+                "max": 1.0045610034207526,
+                "values": [
+                  0.996006085964245,
+                  1.0034171808258188,
+                  0.997437114380636,
+                  1.0024733637747336,
+                  1.0045610034207526
+                ]
+              },
+              "change_percent": {
+                "median": 0.24733637747336168,
+                "min": -0.39939140357549974,
+                "max": 0.45610034207526073,
+                "values": [
+                  -0.39939140357549974,
+                  0.34171808258187664,
+                  -0.2562885619364019,
+                  0.24733637747336168,
+                  0.45610034207526073
+                ]
+              }
+            }
+          },
+          "vs_baseline": {
+            "reference": "baseline",
+            "latency_ms": {
+              "candidate_over_reference": {
+                "median": 0.8454613270649766,
+                "min": 0.8268720188819614,
+                "max": 0.8549569948891974,
+                "values": [
+                  0.8454613270649766,
+                  0.8549569948891974,
+                  0.8268720188819614,
+                  0.8503083940185723,
+                  0.8421865828618031
+                ]
+              },
+              "change_percent": {
+                "median": -15.453867293502343,
+                "min": -17.31279811180386,
+                "max": -14.50430051108026,
+                "values": [
+                  -15.453867293502343,
+                  -14.50430051108026,
+                  -17.31279811180386,
+                  -14.969160598142771,
+                  -15.781341713819685
+                ]
+              },
+              "speedup_reference_over_candidate": {
+                "median": 1.1827862114894188,
+                "min": 1.169649474742996,
+                "max": 1.209376998089898,
+                "values": [
+                  1.1827862114894188,
+                  1.169649474742996,
+                  1.209376998089898,
+                  1.1760439001125023,
+                  1.187385337583908
+                ]
+              }
+            },
+            "allocation_requests": {
+              "candidate_over_reference": {
+                "median": 0.48663177732283036,
+                "min": 0.48663177732283036,
+                "max": 0.48663177732283036,
+                "values": [
+                  0.48663177732283036,
+                  0.48663177732283036,
+                  0.48663177732283036
+                ]
+              },
+              "change_percent": {
+                "median": -51.33682226771696,
+                "min": -51.33682226771696,
+                "max": -51.33682226771696,
+                "values": [
+                  -51.33682226771696,
+                  -51.33682226771696,
+                  -51.33682226771696
+                ]
+              }
+            },
+            "requested_bytes": {
+              "candidate_over_reference": {
+                "median": 0.9080410093840647,
+                "min": 0.9080410093840647,
+                "max": 0.9080410093840647,
+                "values": [
+                  0.9080410093840647,
+                  0.9080410093840647,
+                  0.9080410093840647
+                ]
+              },
+              "change_percent": {
+                "median": -9.195899061593526,
+                "min": -9.195899061593526,
+                "max": -9.195899061593526,
+                "values": [
+                  -9.195899061593526,
+                  -9.195899061593526,
+                  -9.195899061593526
+                ]
+              }
+            },
+            "process_rss_kib": {
+              "candidate_over_reference": {
+                "median": 1.0024733637747336,
+                "min": 0.996006085964245,
+                "max": 1.0045610034207526,
+                "values": [
+                  0.996006085964245,
+                  1.0034171808258188,
+                  0.997437114380636,
+                  1.0024733637747336,
+                  1.0045610034207526
+                ]
+              },
+              "change_percent": {
+                "median": 0.24733637747336168,
+                "min": -0.39939140357549974,
+                "max": 0.45610034207526073,
+                "values": [
+                  -0.39939140357549974,
+                  0.34171808258187664,
+                  -0.2562885619364019,
+                  0.24733637747336168,
+                  0.45610034207526073
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  ]
+}
