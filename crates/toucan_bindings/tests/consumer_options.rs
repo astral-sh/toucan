@@ -1,8 +1,24 @@
 use std::process::Command;
 
-use toucan_bindings::{Options, generate};
+use toucan_bindings::{Bindings, Options, generate};
 use toucan_semantic::analyze;
 use toucan_target::Target;
+
+#[test]
+fn bindings_literals_infer_string_source() {
+    let bindings = Bindings {
+        source: "// caller".into(),
+        declarations: 0,
+        skipped: Vec::new(),
+        blocked_functions: Vec::new(),
+        blocked_types: Vec::new(),
+        raw_lines: Vec::new(),
+        enum_constants: Vec::new(),
+        renamed_macros: Default::default(),
+        macro_types: Vec::new(),
+    };
+    assert_eq!(bindings.source.len(), 9);
+}
 
 #[test]
 fn source_sections_keep_caller_text_outside_generated_declarations() {
