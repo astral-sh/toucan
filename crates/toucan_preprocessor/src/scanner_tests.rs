@@ -10,13 +10,14 @@ fn original_normalize(
 ) -> Result<Normalized, String> {
     let bytes = source.as_bytes();
     let mut spliced = String::with_capacity(source.len());
-    let mut source_offsets = vec![(0, 0)];
+    let start = if source.starts_with('\u{feff}') { 3 } else { 0 };
+    let mut source_offsets = vec![(0, start)];
     let mut line_starts = vec![0];
     line_starts.extend(bytes.iter().enumerate().filter_map(|(index, byte)| {
         (*byte == b'\n' || *byte == b'\r' && bytes.get(index + 1) != Some(&b'\n'))
             .then_some(index + 1)
     }));
-    let mut index = 0;
+    let mut index = start;
     while index < bytes.len() {
         let trigraph = if trigraphs && bytes[index..].starts_with(b"??") {
             bytes.get(index + 2).and_then(|third| match third {
@@ -160,7 +161,7 @@ fn original_replace_comments(
 fn scanner_preserves_text_offsets_and_comment_ranges() {
     let atoms = [
         "name", " ", "\n", "\r", "\r\n", "\\", "??", "??/", "??=", "??<", "??>", "//", "/*", "*/",
-        "//**/", "\"", "'", "\\\"", "\\'", "é", "🦜", "\0",
+        "//**/", "\"", "'", "\\\"", "\\'", "é", "🦜", "\u{feff}", "\0",
     ];
     let mut state = 0xa563_c198_2635_346du64;
     for case in 0..4096 {
@@ -189,6 +190,7 @@ fn scanner_preserves_long_runs_at_vector_boundaries() {
                 format!("{prefix}\\\r{text}\\\r\n{suffix}"),
                 format!("{prefix}/*{text}\n{text}*/{suffix}"),
                 format!("{prefix}//{text}\r\n{suffix}"),
+                format!("\u{feff}{prefix}//{text}\r\n{suffix}"),
                 format!("{prefix}\"{text}\\\"{text}\"{suffix}"),
                 format!("{prefix}'{text}\\'{text}'{suffix}"),
                 format!("{prefix}/*{text}{suffix}"),
@@ -214,6 +216,7 @@ fn compare_scanners(source: &str) {
                 source,
                 trigraphs,
                 &mut CommentState::new(mode),
+                true,
                 |range, line, end_line, column| {
                     actual_comments.push((range, line, end_line, column));
                     Ok(())

@@ -852,6 +852,7 @@ impl Preprocessor {
                 source,
                 self.config.trigraphs,
                 &mut comment_state,
+                true,
                 |range, line, end_line, column| {
                     if !documentation::recognized(&source[range.clone()], options) {
                         return Ok(());
