@@ -13,6 +13,7 @@
 #![allow(ellipsis_inclusive_range_patterns)]
 
 extern crate rustc_hash;
+extern crate toucan_stack;
 
 pub mod ast;
 pub mod driver;

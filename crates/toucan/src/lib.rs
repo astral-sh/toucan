@@ -20,7 +20,9 @@ pub use toucan_preprocessor::{
     LineComments, MacroDefinition, MacroRedefinition, MacroRedefinitionPolicy, OriginKind,
     PredefinedMacroMode, QueryDialect, SourceLocation, SourceMapping,
 };
-pub use toucan_preprocessor::{Config as PreprocessorConfig, Preprocessed, Preprocessor};
+pub use toucan_preprocessor::{
+    Config as PreprocessorConfig, Preprocessed, Preprocessor, with_preprocessor_stack,
+};
 pub use toucan_preprocessor::{
     Documentation, DocumentationLocation, DocumentationMapping, DocumentationOptions,
     DocumentationOrigin, DocumentationSource, DocumentationSourceId, RawComment,
@@ -195,16 +197,22 @@ pub enum Error {
 /// is controlled by [`Config::analysis`].
 pub fn parse_file(path: &Path, config: &Config) -> Result<Compilation, Error> {
     let start = Instant::now();
-    let preprocessed = Preprocessor::new(config.preprocessor.clone()).preprocess(path)?;
-    finish(preprocessed, config, start.elapsed())
+    on_frontend_stack(path, || {
+        let preprocessed = Preprocessor::new(config.preprocessor.clone()).preprocess(path)?;
+        finish(preprocessed, config, start.elapsed())
+    })
 }
 
 /// Parse ordered headers: earlier paths are forced includes, and the last is the main file.
 /// See [`Preprocessor::preprocess_files`] for path lookup and shared macro-state rules.
 pub fn parse_files(paths: &[std::path::PathBuf], config: &Config) -> Result<Compilation, Error> {
     let start = Instant::now();
-    let preprocessed = Preprocessor::new(config.preprocessor.clone()).preprocess_files(paths)?;
-    finish(preprocessed, config, start.elapsed())
+    let path = paths.last().map_or(Path::new("<input>"), PathBuf::as_path);
+    on_frontend_stack(path, || {
+        let preprocessed =
+            Preprocessor::new(config.preprocessor.clone()).preprocess_files(paths)?;
+        finish(preprocessed, config, start.elapsed())
+    })
 }
 
 /// Preprocesses and checks in-memory C source using `path` for diagnostics and
@@ -212,9 +220,24 @@ pub fn parse_files(paths: &[std::path::PathBuf], config: &Config) -> Result<Comp
 /// may still be read from disk unless [`PreprocessorConfig::allow_filesystem`] is false.
 pub fn parse_source(path: &Path, source: &str, config: &Config) -> Result<Compilation, Error> {
     let start = Instant::now();
-    let preprocessed =
-        Preprocessor::new(config.preprocessor.clone()).preprocess_str(path, source)?;
-    finish(preprocessed, config, start.elapsed())
+    on_frontend_stack(path, || {
+        let preprocessed =
+            Preprocessor::new(config.preprocessor.clone()).preprocess_str(path, source)?;
+        finish(preprocessed, config, start.elapsed())
+    })
+}
+
+/// Keep preprocessing and semantic analysis in the same worker session.
+fn on_frontend_stack<T: Send>(
+    path: &Path,
+    operation: impl FnOnce() -> Result<T, Error> + Send,
+) -> Result<T, Error> {
+    with_preprocessor_stack(operation).map_err(|error| toucan_preprocessor::Error {
+        path: path.to_owned(),
+        line: 1,
+        column: 1,
+        message: format!("cannot create frontend worker: {error}"),
+    })?
 }
 
 fn finish(

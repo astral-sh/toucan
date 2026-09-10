@@ -11,6 +11,7 @@ include = ["/src/**/*.rs", "/reftests/*.c", "/tests/**/*.rs", "/Cargo.toml", "/L
 
 [dependencies]
 rustc-hash.workspace = true
+toucan_stack = { version = "0.0.1", path = "../toucan_stack" }
 
 [lints.rust]
 unsafe_code = "forbid"

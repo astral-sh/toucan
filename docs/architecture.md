@@ -5,6 +5,7 @@ Toucan separates reusable compiler components from application policy.
 | Crate | Responsibility |
 | --- | --- |
 | `toucan_source` | Immutable source files, checked byte spans, and source locations |
+| `toucan_stack` | Scoped worker stacks shared by recursive frontend operations |
 | `toucan_layout` | Record and bitfield layout rules, derived from `repc` |
 | `toucan_target` | Explicit target data models and a layout adapter |
 | `toucan_preprocessor` | Tokens, macro expansion, conditional expressions, includes, and limits |
@@ -125,6 +126,9 @@ OpenBSD. Other hosts and `--no-default-features` builds use the system allocator
 Libraries use whichever allocator their embedding application selects.
 
 Preprocessing bounds source bytes, include depth, tokens, expansion depth, and output.
+It shares a scoped 16 MiB worker stack with parsing and semantic analysis; direct
+preprocessor callers receive the same stack isolation. Include and macro expansion
+depth settings cannot exceed 256.
 Filesystem access can be disabled for an in-memory embedding. Syntax and semantic
 traversals have nesting limits. The generated parser also counts total work and
 steps without forward progress, validates owned-tree depth before folding or

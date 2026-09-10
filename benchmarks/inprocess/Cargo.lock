@@ -397,6 +397,7 @@ name = "toucan_parser"
 version = "0.0.1"
 dependencies = [
  "rustc-hash",
+ "toucan_stack",
 ]
 
 [[package]]
@@ -405,6 +406,7 @@ version = "0.0.1"
 dependencies = [
  "char_str",
  "memchr",
+ "toucan_stack",
  "winapi-util",
 ]
 
@@ -421,6 +423,10 @@ dependencies = [
 
 [[package]]
 name = "toucan_source"
+version = "0.0.1"
+
+[[package]]
+name = "toucan_stack"
 version = "0.0.1"
 
 [[package]]

@@ -1,0 +1,11 @@
+[package]
+name = "toucan_stack"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "Shared bounded worker stacks for the Toucan C frontend"
+
+[lints]
+workspace = true
