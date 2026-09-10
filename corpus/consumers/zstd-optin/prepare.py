@@ -11,10 +11,9 @@ import tarfile
 from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent))
-from git_source import load_report
+from git_source import current_checkout, load_report, verify_source
 
 HERE = Path(__file__).resolve().parent
-SOURCE_PIN = "66c87396bbe03b22085339a87b8c350c90be280b"
 GIT_PIN = "85bf1ad6dcbc5840ade11bf8798785b6da13260a"
 PACKAGES = [
     (
@@ -78,16 +77,18 @@ def main():
     parser.add_argument(
         "--toucan-source",
         type=Path,
-        help="Immutable source matching source-digests.json (local mode)",
+        help="Frontend checkout to validate, including local edits (local mode)",
     )
-    parser.add_argument("--frontend-mode", choices=["local", "git"], default="local")
+    parser.add_argument(
+        "--frontend-mode", choices=["local", "historical-git"], default="local"
+    )
     parser.add_argument("--git-source-report", type=Path)
     parser.add_argument("--ruff-archive", type=Path)
     parser.add_argument("--uv-archive", type=Path)
     args = parser.parse_args()
     work = args.work_dir.resolve()
     git_source = None
-    if args.frontend_mode == "git":
+    if args.frontend_mode == "historical-git":
         if args.git_source_report is None or args.toucan_source is not None:
             parser.error("Git mode requires --git-source-report and no --toucan-source")
         git_source = load_report(args.git_source_report)
@@ -101,9 +102,7 @@ def main():
     if work.exists() and any(work.iterdir()):
         parser.error("--work-dir must be empty")
     work.mkdir(parents=True, exist_ok=True)
-    expected = json.loads((HERE / "source-digests.json").read_text())
-    for relative, value in expected.items():
-        assert digest(source / relative) == value, f"Toucan source mismatch: {relative}"
+    frontend = git_source or current_checkout(source)
     inputs = []
     for name, version, checksum, relative in PACKAGES:
         matches = list(args.crate_cache.rglob(f"{name}-{version}.crate"))
@@ -124,9 +123,7 @@ def main():
     before = manifest.read_text()
     expected_git = f'git = "https://github.com/astral-sh/toucan"\nrev = "{GIT_PIN}"'
     assert before.count(expected_git) == 1
-    local = 'version = "=0.0.1"\npath = ' + json.dumps(
-        str(source / "crates/toucan_bindgen")
-    )
+    local = "path = " + json.dumps(str(source / "crates/toucan_bindgen"))
     if args.frontend_mode == "local":
         manifest.write_text(before.replace(expected_git, local))
     # The local substitution is explicit and recorded, never applied to a registry source.
@@ -155,11 +152,12 @@ def main():
     provenance = {
         "frontend_mode": args.frontend_mode,
         "git_source": git_source,
-        "frontend_source_revision": SOURCE_PIN,
-        "integration_git_revision": GIT_PIN,
+        "frontend_source_revision": frontend["head"],
+        "integration_git_revision": GIT_PIN if git_source else None,
         "toucan_source": str(source),
-        "verified_source_files": len(expected),
-        "source_inventory_sha256": digest(HERE / "source-digests.json"),
+        "verified_source_files": frontend["verified_source_files"],
+        "source_inventory_sha256": frontend["source_inventory_sha256"],
+        "frontend_source": frontend,
         "inputs": inputs,
         "patch_sha256": {
             p.name: digest(p) for p in sorted((HERE / "patches").glob("*.patch"))
@@ -173,6 +171,7 @@ def main():
         else None,
         "projects": projects,
     }
+    verify_source(frontend)
     (work / "preparation.json").write_text(json.dumps(provenance, indent=2) + "\n")
     print(work)
 

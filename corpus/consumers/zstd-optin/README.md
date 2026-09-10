@@ -1,188 +1,97 @@
 # Opt-in zstd binding generation
 
-These patches add an experimental `toucan-zstd` feature to the pinned ty and uv
-workspaces. The feature generates zstd bindings with Toucan on native
-`x86_64-unknown-linux-gnu`. Default builds keep their existing bindings.
-
-This directory contains a proposed integration and a reproducible fixture.
-[Clean builds of feature-enabled ty and uv](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-git-optin-2026-09-09/README.md)
-pass the selected application checks with the pinned Git frontend. The patches
-are not an upstream zstd release.
-
-## Patches
+These experimental patches add a `toucan-zstd` feature to pinned ty and uv
+workspaces on native `x86_64-unknown-linux-gnu`. Default builds keep their existing
+bindings. This fixture is a proposed integration, not an upstream release.
 
 | Patch | Effect |
 | --- | --- |
-| `patches/zstd-rs.patch` | Adds an independent `toucan` feature to zstd-sys and forwards it through zstd-safe and zstd. Selects Toucan when both generator features are enabled. |
-| `patches/ty.patch` | Adds the selector to ty_vendored's normal and build dependencies, then forwards it through ty_project and ty. |
-| `patches/uv.patch` | Adds the selector to uv-extract and forwards it through uv. |
+| `patches/zstd-rs.patch` | Adds `toucan` to zstd-sys and forwards it through zstd-safe and zstd. Toucan takes precedence when both generators are enabled. |
+| `patches/ty.patch` | Selects Toucan in ty_vendored's normal and build dependencies, then forwards through ty_project and ty. |
+| `patches/uv.patch` | Forwards the selector through uv-extract and uv. |
 
-The zstd patch uses an immutable Git dependency at
-`85bf1ad6dcbc5840ade11bf8798785b6da13260a`. The repository is private: fetching the
-trial dependency requires repository access. Testing uses this Git pin and the
-prepared zstd feature patches.
+Preparation verifies published archives for zstd 0.13.3, zstd-safe 7.2.4 and
+zstd-sys 2.0.16+zstd.1.5.7. Application sources remain pinned to Ruff
+`e7adf82ff005f3ab3051c363464cf65bf8a6e2f3` (ty) and uv
+`d28a3ee3d0f7122b0da64b0226d2e173e7d23747`. It applies checksummed patches only
+in fresh scratch directories. Fixture `Cargo.toml.in` files are restored there,
+so they do not participate in discovery of frontend Git packages.
 
-The published packages used to assemble the patch base are zstd 0.13.3,
-zstd-safe 7.2.4, and zstd-sys 2.0.16+zstd.1.5.7. They have different upstream Git
-revisions; preparation verifies each published archive checksum and uses its
-original manifest. Ty uses Ruff revision `e7adf82ff005f3ab3051c363464cf65bf8a6e2f3`;
-uv uses `d28a3ee3d0f7122b0da64b0226d2e173e7d23747`.
+## Validate the current frontend
 
-## Backend selection
-
-| Consumer features | Active generation dependencies | Binding input |
-| --- | --- | --- |
-| Default high-level zstd | Neither generator | Existing pregenerated Rust |
-| `toucan` | Toucan | Fresh `OUT_DIR/bindings.rs` |
-| `toucan,bindgen` | Toucan, bindgen, and clang-sys | Fresh Toucan `OUT_DIR/bindings.rs` |
-
-Cargo features are additive. Toucan takes precedence when both features are
-selected, but it cannot remove the other feature's dependencies. The combined
-case therefore makes no dependency-removal claim. Direct zstd-sys defaults still
-select bindgen, as upstream does today; high-level zstd disables those defaults.
-
-Ty packages typeshed with a build dependency and reads it with a runtime
-dependency. The patch selects Toucan in both graphs. A feature on the ty binary's
-runtime graph alone would not cover the build-time compressor.
-
-The first integration deliberately rejects Toucan generation unless both `HOST`
-and `TARGET` are `x86_64-unknown-linux-gnu`. It does not silently switch generators
-on unsupported configurations. Existing default builds retain their selection.
-Toucan needs Rust 1.96 on the build host, matching both pinned workspaces. The
-unchanged generated-Rust target remains 1.64. Compatibility of default builds
-with Cargo/Rust 1.64 has **not** been established: an optional Git dependency can
-still affect package discovery and resolution before compilation.
-
-## Reproduce the bounded checks
-
-Use Python 3.12+, Git, Rust 1.96+, a native C toolchain, and caches containing the
-pinned package/source archives. `prepare.py` does not download sources or modify
-registry packages. It verifies the archives and the 630-file frontend inventory,
-extracts fresh scratch copies, checks patch applicability, and records every
-patch checksum.
-
-Set `TOUCAN_OPTIN_SOURCE` to an immutable checkout or extracted source archive at
-`66c87396bbe03b22085339a87b8c350c90be280b` or
-`85bf1ad6dcbc5840ade11bf8798785b6da13260a`. A current checkout can differ from the
-historical inventory, including in test files, and must then fail this check.
-For local application reproduction, pass the same path to
-`scripts/verify_astral_optin.py --toucan-source "$TOUCAN_OPTIN_SOURCE"`.
-That driver's local mode defaults to its own checkout for backward compatibility;
-the default is usable only while its files match the historical inventory.
-
-Fixture manifests are stored as `Cargo.toml.in` and restored only in the scratch
-tree. They must not participate in Cargo's discovery of Git dependency packages.
+Use Python 3.12+, Git, Rust 1.96+, a native C toolchain and a populated Cargo
+cache. Set `TOUCAN_OPTIN_SOURCE` to the checkout under test; local edits are
+accepted and recorded. `prepare.py` snapshots its HEAD, Git status, Cargo
+manifests/lockfile and all crate files. Source changes during validation fail.
+The patch's historical Git dependency is replaced with this path in the scratch
+manifest, and `preparation.json` records the substitution and source hashes.
 
 ```sh
-python3 prepare.py \
+python3 corpus/consumers/zstd-optin/prepare.py \
   --work-dir "$TOUCAN_OPTIN_WORK" \
   --crate-cache "$TOUCAN_OPTIN_CRATE_CACHE" \
   --toucan-source "$TOUCAN_OPTIN_SOURCE" \
   --ruff-archive "$TOUCAN_OPTIN_RUFF_ARCHIVE" \
   --uv-archive "$TOUCAN_OPTIN_UV_ARCHIVE"
 
-python3 run_smoke.py \
+python3 corpus/consumers/zstd-optin/run_smoke.py \
   --work-dir "$TOUCAN_OPTIN_WORK" \
-  --target-dir "$TOUCAN_OPTIN_TARGET" \
-  --rust-toolchain ohm
+  --target-dir "$TOUCAN_OPTIN_TARGET" --rust-toolchain ohm
 
-python3 check_project_graphs.py \
+python3 corpus/consumers/zstd-optin/check_project_graphs.py \
   --work-dir "$TOUCAN_OPTIN_WORK" \
-  --target-dir "$TOUCAN_OPTIN_TARGET" \
-  --rust-toolchain ohm --offline
+  --target-dir "$TOUCAN_OPTIN_TARGET" --rust-toolchain ohm --offline
 ```
 
-Set `CARGO_HOME` to the populated cache. For local Ohm runs, use the shared
-`CARGO_BUILD_BUILD_DIR` separately from the supplied target directory. The
-scripts accept another toolchain; omit `--rust-toolchain` to use Cargo's normal
-selection for CI. Trust/reuse flags remain caller-controlled and are not enabled
-by these scripts.
+The archive arguments are optional for the four-case zstd smoke. Set `CARGO_HOME`
+to the populated cache. Use fresh work and target directories. Local Ohm runs
+use a separate shared `CARGO_BUILD_BUILD_DIR`; omit `--rust-toolchain` for CI's
+normal Cargo selection. The scripts do not enable local trust/reuse flags.
 
-Preparation replaces the reviewed Git dependency with the explicitly supplied,
-hash-verified local source **only in the scratch copy**. `preparation.json` records
-that substitution. The source inventory comes from frontend revision
-`66c87396bbe03b22085339a87b8c350c90be280b`; all 630 files also match the fetched
-`85bf1ad` checkout. This avoids a hidden dependency on whichever checkout is
-currently active.
+The smoke checks default, Toucan-only, combined-generator and build/runtime
+profiles. Cargo metadata and library artifacts must identify every frontend
+package reachable from the adapter's manifests inside the selected checkout.
+Escaped manifests/targets, missing packages and unaudited artifacts fail. Each
+generated binding must be written during the build and consumed through dep-info.
+Bulk, streaming and dictionary outputs are compared byte for byte; a separate
+fixture compresses in build.rs and decompresses at runtime.
 
-The smoke runner needs a fresh work directory and target directory; it requires
-each generated binding file to be written during the recorded build. Cargo JSON
-and dep-info must identify the exact generated input and all nine frozen
-frontend packages. The first three cases compare four bulk, streaming, and
-dictionary output files and stdout byte for byte. A separate fixture compresses
-data in build.rs and decompresses it at runtime, requiring two compiled zstd-sys
-instances with freshly generated bindings.
+The graph runner checks both default and opt-in application dependency trees,
+normal/build selector edges and preservation of original locked package versions
+and edges. It checks that the selected default Ruff CLI graph has no zstd,
+bindgen or Toucan dependency. These graph checks do not compile the applications.
 
-The graph runner does not compile ty or uv. It checks both default and opt-in
-selected-package trees, verifies the normal/build selector edges, and preserves
-all original locked package versions and dependency edges. It also checks that
-the selected default Ruff CLI graph contains no zstd, bindgen, or Toucan
-dependency; this integration affects ty within the Ruff workspace. These graph checks
-cannot establish whole-project Rust compilation or runtime acceptance.
+For complete application builds and selected runtime tests, use
+`scripts/verify_astral_optin.py --project uv` (or `ty`) with fresh `--cache` and
+`--output` paths in a libclang-free Linux environment. It defaults to its own
+checkout; `--toucan-source PATH` selects another. `--prepare-only` checks source
+preparation without building applications. See the
+[acceptance workflow contract](../../../docs/opt-in-rollout.md#application-acceptance).
+Reports and build artifacts belong in ignored local output or CI uploads.
 
-## Run with the actual Git dependency
+## Historical replay
 
-The historical local mode remains the default. To test the reviewed Git
-manifest unchanged, fetch and verify the pin first, then select Git mode:
+The patch retains the original Git dependency at
+`85bf1ad6dcbc5840ade11bf8798785b6da13260a` for explicit replay. Only this mode uses
+`source-digests.json` and its historical package set. It requires repository
+access and rejects different revisions or source inventories.
 
 ```sh
-python3 -B corpus/consumers/zstd-optin/git_source.py \
+python3 -B corpus/consumers/zstd-optin/git_source.py --historical \
   --cache "$TOUCAN_OPTIN_GIT_FETCH" \
-  --output "$TOUCAN_OPTIN_GIT_REPORT" \
-  --rust-toolchain ohm --gh-auto
+  --output "$TOUCAN_OPTIN_GIT_REPORT" --rust-toolchain ohm --gh-auto
 python3 -B corpus/consumers/zstd-optin/prepare.py \
   --work-dir "$TOUCAN_OPTIN_WORK" \
   --crate-cache "$TOUCAN_OPTIN_CRATE_CACHE" \
-  --frontend-mode git --git-source-report "$TOUCAN_OPTIN_GIT_REPORT"
+  --frontend-mode historical-git --git-source-report "$TOUCAN_OPTIN_GIT_REPORT"
 python3 -B corpus/consumers/zstd-optin/run_smoke.py \
   --work-dir "$TOUCAN_OPTIN_WORK" \
   --target-dir "$TOUCAN_OPTIN_TARGET" --rust-toolchain ohm
 ```
 
-Use fresh work, fetch and target directories. The devbox `--gh-auto` option
-uses its verified OSS account and an HTTPS helper restricted to this repository;
-it does not change global credentials. CI omits that option and supplies its
-read-only repository token only to the fetch step. Neither route writes the
-token into a URL, a Git configuration file, or the evidence. Fetching runs Cargo
-metadata without compiling dependencies. Normal CI uses the repository's normal
-Rust toolchain, without Ohm's local trust settings.
-
-The verifier requires all nine packages to resolve inside one actual Git
-checkout at the full revision, verifies the complete source inventory, and
-matches all nine compiled library artifacts to the audited Cargo metadata.
-The target directory contains build outputs; source and manifest paths must
-remain inside the fetched checkout. A mixed checkout, incorrect revision,
-extra or modified source file, or unaudited frontend artifact fails the gate.
-The smoke runner uses offline Cargo commands, so its fixture dependencies must
-already be fetched. `verify_astral_optin.py --frontend-mode git
---git-source-report REPORT` performs the corresponding public-input fetches and
-offline actual application builds in the clean Linux workflow.
-
-## Recorded results
-
-The [actual Git-pinned smoke](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/zstd-optin-git-2026-09-09.json)
-also passes all four cases, with all nine frontend libraries traced to the
-verified checkout. The separate [Git-mode application gate](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-git-optin-2026-09-09/README.md)
-also passes complete uv and ty builds, selected library tests, and runtime
-comparisons in fresh Linux images without libclang.
-
-The earlier bounded smoke passed all four cases. Both actual workspace graphs resolve
-with Toucan and no active bindgen/clang-sys dependency; their default graphs
-select neither generator. All 557 Ruff and 750 uv original locked packages and
-dependency edges remain present.
-
-The initial Git pin exposed an archived Cargo.toml with an absolute path into a
-live checkout. Cargo labeled those live packages with the requested Git source
-ID. The packaging fix preserves that historical file as Cargo.toml.snapshot.
-The corrected pin audit requires all nine frontend crates to resolve under one
-fetched checkout, checks its actual Git HEAD, and verifies their source hashes.
-The earlier failed audit is retained alongside the successful one.
-
-The earlier [local-source application gate](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-optin-2026-09-09/README.md)
-builds actual ty and uv binaries in fresh Linux images without libclang. It
-audits consumed bindings in both ty graphs and passes the selected library and
-application comparisons against untouched upstream defaults. This gate uses
-the hash-verified local frontend source; the original smoke used a machine with
-libclang installed. See the [rollout notes](../../../docs/opt-in-rollout.md) for
-the Git trial and subsequent integrations. AWS-LC/TLS
-generation remains a separate feature and acceptance gate.
+The fetch-only step uses repository-scoped credentials without writing tokens to
+URLs, configuration files or reports. Do not pass its token to build commands.
+Historical application replay accepts the same `--frontend-mode historical-git
+--git-source-report REPORT` arguments. These results describe the frozen trial;
+[archived captures](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-git-optin-2026-09-09)
+are separate from validation of current code.

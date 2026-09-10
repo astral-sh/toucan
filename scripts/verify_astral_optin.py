@@ -39,7 +39,7 @@ from verify_astral_consumers import (
 TARGET = "x86_64-unknown-linux-gnu"
 INTEGRATION = ROOT / "corpus/consumers/zstd-optin"
 sys.path.insert(0, str(INTEGRATION))
-from git_source import load_report, verify_artifacts, verify_checkout, verify_packages
+from git_source import load_report, verify_artifacts, verify_packages, verify_source
 
 
 def require(condition: bool, message: str) -> None:
@@ -98,12 +98,14 @@ def main() -> None:
     parser.add_argument("--build-timeout", type=int, default=1800)
     parser.add_argument("--offline", action="store_true")
     parser.add_argument("--prepare-only", action="store_true")
-    parser.add_argument("--frontend-mode", choices=["local", "git"], default="local")
+    parser.add_argument(
+        "--frontend-mode", choices=["local", "historical-git"], default="local"
+    )
     parser.add_argument("--git-source-report", type=Path)
     parser.add_argument(
         "--toucan-source",
         type=Path,
-        help="Immutable source matching the trial inventory (local mode; defaults to this checkout)",
+        help="Frontend checkout, including local edits (defaults to this checkout)",
     )
     args = parser.parse_args()
     require(
@@ -112,7 +114,8 @@ def main() -> None:
     )
     require(args.build_timeout > 0, "build timeout must be positive")
     require(
-        (args.frontend_mode == "git") == (args.git_source_report is not None),
+        (args.frontend_mode == "historical-git")
+        == (args.git_source_report is not None),
         "Git mode requires --git-source-report; local mode does not use it",
     )
     require(
@@ -436,24 +439,27 @@ def main() -> None:
         result["lock"] = check_lock_versions(
             args.output / "upstream.lock", source / "Cargo.lock"
         )
+        metadata = cargo(
+            [
+                "metadata",
+                "--format-version=1",
+                "--locked",
+                "--filter-platform",
+                TARGET,
+                *config,
+                *feature,
+                *offline,
+            ],
+            source,
+            "toucan-metadata",
+        )
+        frontend = verify_packages(
+            json.loads(metadata.read_text()),
+            frontend_root,
+            snapshot=preparation["frontend_source"],
+        )
+        result["frontend_source"] = frontend
         if prefetched:
-            metadata = cargo(
-                [
-                    "metadata",
-                    "--format-version=1",
-                    "--locked",
-                    "--filter-platform",
-                    TARGET,
-                    *config,
-                    *feature,
-                    *offline,
-                ],
-                source,
-                "toucan-metadata",
-            )
-            frontend = verify_packages(
-                json.loads(metadata.read_text()), Path(prefetched["root"])
-            )
             result["git_source"] = frontend
             cargo(
                 ["fetch", "--locked", "--target", TARGET, *config, *offline],
@@ -512,7 +518,7 @@ def main() -> None:
             "frontend source changed during builds",
         )
         if frontend:
-            verify_checkout(frontend_root)
+            verify_source(frontend)
         result.update(
             frontend_artifacts=frontend_artifacts,
             upstream_binary=upstream_artifact,

@@ -1,126 +1,79 @@
 # Opt-in integration in uv and ty
 
-The first proposed integration is a build-time Cargo feature for native
-`x86_64-unknown-linux-gnu`. Toucan generates the Rust interface to a C dependency;
-the existing C compiler still builds that library. Toucan is a build dependency
-and is not linked into the shipped uv or ty executable.
-
-The [prepared patches](../corpus/consumers/zstd-optin/README.md) add these commands
-to the pinned source trees. Upstream releases do not yet provide the features:
+The [prepared patches](../corpus/consumers/zstd-optin/README.md) add an experimental
+`toucan-zstd` Cargo feature to pinned uv and ty sources on native
+`x86_64-unknown-linux-gnu`. Upstream releases do not provide this feature yet.
+Toucan generates Rust bindings during the build; the existing C compiler builds
+zstd. Toucan is not linked into the shipped application.
 
 ```console
 cargo build -p uv --features toucan-zstd
 cargo build -p ty --features toucan-zstd
 ```
 
-## Where the changes live
-
 | Layer | Change |
 | --- | --- |
-| `zstd-sys` | Add an optional `toucan_bindgen` build dependency and `toucan` feature. The build script selects its Builder and writes generated Rust to `OUT_DIR`; the crate includes that file. |
-| `zstd-safe` and `zstd` | Forward the backend feature for direct library consumers. Existing wrapper APIs remain the same. |
-| uv | Forward `toucan-zstd` through `uv-extract`, which selects the shared `zstd-sys` backend. Archive handling continues to use the existing compression wrappers. |
-| ty | Forward the feature through `ty_project` and `ty_vendored`. Select it in both normal and build dependencies, covering typeshed compression during the build and decompression at runtime. |
+| `zstd-sys` | Optional `toucan_bindgen` build dependency generates bindings into `OUT_DIR`; the crate includes that file. |
+| `zstd-safe` and `zstd` | Forward the backend feature without changing wrapper APIs. |
+| uv | Forward `toucan-zstd` through `uv-extract`. |
+| ty | Forward through `ty_project` and `ty_vendored`, including both normal and build dependencies. |
 
-The pinned uv and ty defaults already use pregenerated zstd bindings. Their new
-feature would request fresh Toucan generation. It is not a runtime CLI option,
-and the generation benchmarks do not measure uv or ty execution speed.
-
-Cargo features are additive. Toucan takes precedence when both generator
-features are enabled, but the bindgen dependency remains in that combined graph.
-The Toucan-only path excludes bindgen and clang-sys. Unsupported host/target
-pairs receive an explicit error in this first integration.
-
-Ruff and ty share a repository, but the pinned Ruff CLI's native Linux x86-64
-normal/build dependency graph contains neither zstd nor bindgen. This first
-integration therefore needs no Ruff CLI selector; the relevant consumer in that
-repository is ty. Other Ruff targets and dependency profiles need their own audit.
+The pinned defaults use pregenerated zstd bindings. Cargo features are additive:
+Toucan takes precedence if both generators are enabled, but bindgen remains in
+that combined dependency graph. The Toucan-only path excludes bindgen and
+clang-sys. Unsupported host/target pairs receive an explicit error. The pinned
+Ruff CLI's native Linux normal/build graph contains no zstd or bindgen; ty is
+the affected consumer in that repository.
 
 ## Application acceptance
 
-The earlier [paired uv and ty builds](astral-consumers.md#run-the-unchanged-bindgen-build-script)
-prove the selected zstd consumer paths using a manifest substitution. The new
-[opt-in evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/zstd-optin-2026-09-09/README.md) covers actual
-feature selection, fresh generated binding inputs, matching compression and
-dictionary artifacts, and a build/runtime dependency fixture.
+The [Linux workflow](../.github/workflows/astral-optin.yml) runs
+[verify_astral_optin.py](../scripts/verify_astral_optin.py) in a pinned Ubuntu
+container with a native C toolchain and no libclang. It builds untouched upstream
+defaults and patched feature-enabled applications, then compares selected tests
+and runtime behavior:
 
-The [Git-pinned application run](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-git-optin-2026-09-09/README.md)
-builds both complete pinned applications with the new feature and compares them
-with their untouched upstream defaults. The driver ran at `d00076d`; both jobs
-compiled the frontend from Git revision `85bf1ad`. They passed in fresh Linux
-images without libclang, using stable Rust 1.98.1:
-
-| Application | Consumed Toucan output | Matching checks |
+| Application | Generated input required | Comparisons |
 | --- | --- | --- |
-| uv | Fresh zstd-sys bindings | 19 extraction tests, installed wheel contents and imports, and rejection of a truncated response |
-| ty | Fresh zstd-sys bindings in both build and runtime instances | Two vendored-library tests and valid/invalid Python diagnostics |
+| uv | Fresh zstd-sys bindings | Extraction tests, wheel contents and imports, truncated-response rejection |
+| ty | Fresh zstd-sys bindings in both build and runtime instances | Vendored-library tests and valid/invalid Python diagnostics |
 
-The retained evidence identifies the original application revisions, source
-inventories, lockfile changes, Cargo features, compiler artifacts, and consumed
-binding files. These are full application builds with selected tests and runtime
-checks; the complete upstream workspace suites were not run.
+The maintained gate tests **the checked-out frontend**, including a PR merge
+commit. Local runs default to the driver's checkout; `--toucan-source PATH`
+selects another Git checkout and accepts its local edits. Preparation records
+HEAD, Git status and hashes of Cargo manifests, the lockfile and all crate files.
+Those inputs must remain unchanged throughout the run. Cargo metadata and
+compiled library artifacts must resolve to that selected source; generated
+binding files must be fresh and appear in the consuming Rust compiler's dep-info.
+Pinned application and zstd archives, patch checksums, lockfile preservation,
+feature selection and runtime comparisons remain part of the gate.
 
-The explicitly requested [Linux acceptance workflow](../.github/workflows/astral-optin.yml)
-runs [verify_astral_optin.py](../scripts/verify_astral_optin.py) in a pinned Ubuntu
-container with a native C toolchain and no libclang. It compares the untouched
-upstream default build with the patched feature build, verifies source and lock
-inventories, and audits both ty dependency instances. The gate has one bounded
-job per application and no macOS runner. The successful run validates the
-prepared patches against that exact source. Changes to the frontend, patches,
-application revisions, or selected profiles need another acceptance run.
+Request a run with `workflow_dispatch` on the intended branch or the
+`run-astral-optin` pull-request label. New commits do not repeat it automatically:
+dispatch again or remove and reapply the label. A new request cancels an older
+request. Opening a PR alone does not allocate these
+application runners. Reports identify both the driver commit and frontend inputs.
 
-Request it with `workflow_dispatch` on the intended branch or by applying the
-`run-astral-optin` pull-request label. A label request uses the driver and integration
-patches from the checked-out PR merge commit, which the artifacts record. The
-frontend still comes from the separate Git pin `85bf1ad`. Repeating this fixed-pin
-run cannot validate newer frontend code; that needs a separately reviewed pin and
-source inventory, followed by another acceptance run. New commits do not automatically
-repeat the run: dispatch again or remove and reapply the label. The two Linux
-jobs share one request group, so a new explicit request cancels an older one;
-unrelated label events cannot cancel it. Opening or updating a stack PR does
-not allocate an application runner.
+These are complete application builds with selected tests, not complete upstream
+workspace suites. They do not measure application speed or establish support for
+other targets. Each frontend or integration change needs a new acceptance run.
 
-## Git-pinned trial
+## Historical replay
 
-The trial uses the private Git dependency at
-`85bf1ad6dcbc5840ade11bf8798785b6da13260a`. Repository access is required;
-no crates are published by this workflow. The optional generator requires Rust
-1.96 on the build host, which both pinned workspaces already use. Compatibility
-with zstd's older default build toolchains remains a separate gate.
-Cargo can resolve optional Git dependencies for default builds too, so the
-patched workspaces require that access even without `toucan-zstd` enabled.
-
-The new application workflow keeps that Git dependency intact. A fetch-only
-step uses the same repository's read-only `GITHUB_TOKEN`; it does not compile
-any dependency. Its credential helper answers only the exact Toucan HTTPS
-repository and stores no credentials. The token is absent from subsequent
-steps. The driver fetches remaining public inputs, then builds and tests offline.
-
-Before compilation, the gate verifies the fetched checkout's actual Git HEAD,
-the exact 630-file frontend inventory, and all nine frontend Cargo packages.
-The build's compiler-artifact messages must name those same package IDs,
-manifest paths and source paths. The existing zstd dep-info checks then prove
-which freshly generated `OUT_DIR` bindings the applications consumed. Package
-source IDs alone are insufficient: an earlier pin audit found that Cargo could
-label an escaped local path with the requested Git source.
-
-The [successful Git-mode run](https://github.com/astral-sh/toucan/actions/runs/34394853038)
-passes both application gates with the Git dependency intact. Its independent
-artifact audit checks all 34 command records, source inventories, generated
-inputs, and the four uploaded application executables. Frontend library hashes
-were recorded in CI, but their bytes were not uploaded for independent rehashing.
-The earlier [local-source run at `131ec7a`](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-optin-2026-09-09/README.md)
-remains separate evidence. Registry naming, publishing, and public distribution
-are deferred.
+The original trial used frontend revision
+`85bf1ad6dcbc5840ade11bf8798785b6da13260a`. Its frozen inventory remains available
+only for explicit `--frontend-mode historical-git` reproduction; see the
+[replay commands](../corpus/consumers/zstd-optin/README.md#historical-replay).
+[Archived results](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/astral-git-optin-2026-09-09)
+describe that revision, not the current frontend. The maintained local mode
+substitutes the selected checkout into a scratch manifest and needs no separate
+frontend Git fetch.
 
 ## Subsequent integrations
 
-AWS-LC needs its own feature in `aws-lc-sys`, forwarded through `aws-lc-rs` to uv.
-Its Builder and TLS consumer paths already have [native evidence](uv-tls-consumer.md),
-but their build-script integration and clean build need separate acceptance.
-The current external FIPS route still calls libclang, and the external SSL route
-needs an upstream build-script change; see [replacement readiness](replacement-readiness.md).
-
-Apple Silicon and Windows each need actual application builds with the selected
-feature and dependency profiles before enabling generation there. Intel macOS
-validation remains explicitly opt-in. These checks can follow a Linux-only trial.
+AWS-LC needs its own feature and application acceptance; see the
+[TLS consumer](uv-tls-consumer.md) and
+[replacement scope](replacement-readiness.md). Apple Silicon and Windows need
+application builds with their selected features and dependency profiles.
+Compatibility with zstd's older default build toolchains also needs a separate
+gate. Registry naming, publishing and upstream adoption remain open work.
