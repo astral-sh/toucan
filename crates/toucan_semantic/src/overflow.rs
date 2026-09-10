@@ -50,6 +50,8 @@ impl OverflowIntrinsic {
     pub fn is_predicate(self) -> bool {
         self.form == OverflowForm::Predicate
     }
+    /// Parses generic or signed/unsigned integer overflow spellings. The `_p`
+    /// predicate suffix is valid only for the generic operation names.
     pub(crate) fn from_name(name: &str) -> Option<Self> {
         let name = name.strip_prefix("__builtin_")?;
         let (name, predicate) = if let Some(name) = name.strip_suffix("_overflow_p") {
@@ -57,52 +59,25 @@ impl OverflowIntrinsic {
         } else {
             (name.strip_suffix("_overflow")?, false)
         };
-        let parse = |name| {
-            Some(match name {
-                "add" => OverflowOperation::Add,
-                "sub" => OverflowOperation::Subtract,
-                "mul" => OverflowOperation::Multiply,
-                _ => return None,
-            })
-        };
-        if let Some(operation) = parse(name) {
-            return Some(Self {
-                operation,
-                form: if predicate {
-                    OverflowForm::Predicate
-                } else {
-                    OverflowForm::GenericStore
-                },
-            });
-        }
-        if predicate {
-            return None;
-        }
-        let (signed, name) = if let Some(name) = name.strip_prefix('s') {
-            (true, name)
+        let (operation, (prefix, suffix)) = if let Some(parts) = name.split_once("add") {
+            (OverflowOperation::Add, parts)
+        } else if let Some(parts) = name.split_once("sub") {
+            (OverflowOperation::Subtract, parts)
         } else {
-            (false, name.strip_prefix('u')?)
+            (OverflowOperation::Multiply, name.split_once("mul")?)
         };
-        let (operation, suffix) = if let Some(suffix) = name.strip_prefix("add") {
-            (OverflowOperation::Add, suffix)
-        } else if let Some(suffix) = name.strip_prefix("sub") {
-            (OverflowOperation::Subtract, suffix)
-        } else {
-            (OverflowOperation::Multiply, name.strip_prefix("mul")?)
-        };
-        let kind = match (signed, suffix) {
-            (true, "") => IntegerKind::Int,
-            (false, "") => IntegerKind::UnsignedInt,
-            (true, "l") => IntegerKind::Long,
-            (false, "l") => IntegerKind::UnsignedLong,
-            (true, "ll") => IntegerKind::LongLong,
-            (false, "ll") => IntegerKind::UnsignedLongLong,
+        let form = match (prefix, suffix, predicate) {
+            ("", "", true) => OverflowForm::Predicate,
+            ("", "", false) => OverflowForm::GenericStore,
+            ("s", "", false) => OverflowForm::TypedStore(IntegerKind::Int),
+            ("u", "", false) => OverflowForm::TypedStore(IntegerKind::UnsignedInt),
+            ("s", "l", false) => OverflowForm::TypedStore(IntegerKind::Long),
+            ("u", "l", false) => OverflowForm::TypedStore(IntegerKind::UnsignedLong),
+            ("s", "ll", false) => OverflowForm::TypedStore(IntegerKind::LongLong),
+            ("u", "ll", false) => OverflowForm::TypedStore(IntegerKind::UnsignedLongLong),
             _ => return None,
         };
-        Some(Self {
-            operation,
-            form: OverflowForm::TypedStore(kind),
-        })
+        Some(Self { operation, form })
     }
 }
 
