@@ -40,6 +40,36 @@ const CASES: &[(&str, bool, bool)] = &[
     ),
     ("struct S{_Alignas(16) unsigned x:3;};", false, false),
     ("struct S{_Alignas(0) unsigned x:3;};", false, false),
+    (
+        "struct S{unsigned :3 __attribute__((mode(QI)));};",
+        true,
+        true,
+    ),
+    (
+        "struct S{unsigned :9 __attribute__((mode(BOGUS)));};",
+        false,
+        false,
+    ),
+    (
+        "struct S{unsigned :33 __attribute__((mode(DI)));};",
+        false,
+        false,
+    ),
+    (
+        "struct S{unsigned :9 __attribute__((vector_size(3)));};",
+        false,
+        false,
+    ),
+    (
+        "struct S{unsigned :9 __attribute__((aligned(3)));};",
+        false,
+        false,
+    ),
+    (
+        "struct S{unsigned :9 __attribute__((packed(1)));};",
+        false,
+        false,
+    ),
     ("struct S{_Alignas(16) struct{int x;};};", true, true),
     ("int x=sizeof(_Alignas(16) int);", false, false),
     ("_Alignas(1) extern int x[];", false, true),
@@ -392,13 +422,127 @@ fn field_alignment_preserves_c11_annotations_without_changing_the_field_type() {
 }
 
 #[test]
+fn rejects_unsupported_bitfield_attribute_types() {
+    for profile in CompilerProfile::ALL {
+        for (source, message) in [
+            (
+                "struct S{unsigned :9 __attribute__((mode(QI)));};",
+                "bitfields wider than their attribute-modified type are not supported",
+            ),
+            (
+                "struct S{unsigned :3 __attribute__((vector_size(16)));};",
+                "vector bitfield types are not supported",
+            ),
+        ] {
+            assert_eq!(parity(source, profile).unwrap_err().message, message);
+        }
+    }
+}
+
+#[test]
+fn unnamed_bitfield_attributes_belong_to_their_own_field() {
+    let source = "struct S{char lead; unsigned :0 __attribute__((aligned(8))), named:3 __attribute__((packed)), :0 __attribute__((aligned(16))); char x;};";
+    for profile in CompilerProfile::ALL {
+        let analysis = parity(source, profile).unwrap();
+        let fields = analysis
+            .unit()
+            .records
+            .iter()
+            .find(|record| record.name.as_deref() == Some("S"))
+            .unwrap()
+            .fields
+            .as_ref()
+            .unwrap();
+        assert_eq!(fields.len(), 5);
+        assert_eq!(fields[1].alignment, Some(8));
+        assert!(!fields[1].packed);
+        assert!(fields[2].packed);
+        assert_eq!(fields[2].alignment, None);
+        assert_eq!(fields[3].alignment, Some(16));
+        assert!(!fields[3].packed);
+        let code = analysis.checked().unwrap();
+        let alignments: Vec<_> = code
+            .declarations()
+            .filter_map(|(_, site)| site.alignment().gnu().map(|value| value.get()))
+            .collect();
+        assert_eq!(alignments, [8, 16]);
+    }
+}
+
+#[test]
 #[ignore = "requires GNU GCC and Clang; run with --include-ignored"]
 fn aligned_members_match_native_and_cross_target_record_layouts() {
     let sources = [
-        "struct S{char lead;_Alignas(16) int x;};",
-        "struct __attribute__((packed)) S{char lead;_Alignas(16) int x;};",
-        "#pragma pack(push,1)\nstruct S{char lead;_Alignas(16) int x;};\n#pragma pack(pop)\n",
-        "struct S{int n;_Alignas(16) int x[];};",
+        ("struct S{char lead;_Alignas(16) int x;};", 1),
+        (
+            "struct __attribute__((packed)) S{char lead;_Alignas(16) int x;};",
+            1,
+        ),
+        (
+            "#pragma pack(push,1)\nstruct S{char lead;_Alignas(16) int x;};\n#pragma pack(pop)\n",
+            1,
+        ),
+        ("struct S{int n;_Alignas(16) int x[];};", 1),
+        (
+            "struct S{char lead;unsigned :3 __attribute__((mode(QI)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :3 __attribute__((mode(HI)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :3 __attribute__((mode(DI)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :0 __attribute__((mode(QI)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :0 __attribute__((mode(HI)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :0 __attribute__((mode(DI)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :0 __attribute__((aligned(8)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :0 __attribute__((packed));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :9 __attribute__((packed));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :9 __attribute__((aligned(8)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :9 __attribute__((aligned(8),packed));char x;};",
+            2,
+        ),
+        (
+            "struct __attribute__((packed)) S{char lead;unsigned :0 __attribute__((aligned(8)));char x;};",
+            2,
+        ),
+        (
+            "#pragma pack(push,1)\nstruct S{char lead;unsigned :0 __attribute__((aligned(8)));char x;};\n#pragma pack(pop)\n",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned :0 __attribute__((aligned(8))), named:3 __attribute__((packed)), :0 __attribute__((aligned(16)));char x;};",
+            4,
+        ),
+        (
+            "struct S{char lead;unsigned :sizeof(enum{B=8}) __attribute__((aligned(B)));char x;};",
+            2,
+        ),
     ];
     let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
     let host = match (std::env::consts::ARCH, std::env::consts::OS) {
@@ -417,7 +561,7 @@ fn aligned_members_match_native_and_cross_target_record_layouts() {
         } else {
             "clang"
         };
-        for source in sources {
+        for (source, field) in sources {
             let analysis = parity(source, profile).unwrap();
             let id = analysis
                 .unit()
@@ -435,7 +579,7 @@ fn aligned_members_match_native_and_cross_target_record_layouts() {
                 "{source}\n_Static_assert(sizeof(struct S)=={},\"size\");\n_Static_assert(_Alignof(struct S)=={},\"alignment\");\n_Static_assert(__builtin_offsetof(struct S,x)=={},\"offset\");",
                 layout.size_bytes(),
                 layout.alignment_bytes(),
-                layout.fields[1].as_ref().unwrap().offset_bits / 8
+                layout.fields[field].as_ref().unwrap().offset_bits / 8
             );
             let mut command = Command::new(compiler);
             command.args(["-std=gnu11", "-fsyntax-only", "-x", "c", "-"]);

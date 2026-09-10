@@ -4511,7 +4511,7 @@ impl Analyzer {
                                     true,
                                 )?;
                             }
-                            let (name, ty, extra) =
+                            let (name, mut ty, mut extra) =
                                 if let Some(declarator) = &declarator.node.declarator {
                                     self.declarator(base.clone(), declarator, &attributes)?
                                 } else {
@@ -4555,6 +4555,33 @@ impl Analyzer {
                                         declarator.span.start,
                                         "bitfield is wider than its type",
                                     ));
+                                }
+                            }
+                            if !declarator.node.extensions.is_empty() {
+                                self.attributes(&declarator.node.extensions, &mut extra)?;
+                                extra.require_function_attributes(false)?;
+                                extra.require_no_weak()?;
+                                extra.require_no_transparent_union()?;
+                                // Suffix attributes apply after checking the declared width.
+                                if let Some(mode) = &extra.mode {
+                                    ty = self.machine_mode(ty, mode, declarator.span.start)?;
+                                    if let Some(width) = bit_width
+                                        && width > self.unit.layout(&ty)?.size_bits
+                                    {
+                                        return Err(Error::new(
+                                            declarator.span.start,
+                                            "bitfields wider than their attribute-modified type are not supported",
+                                        ));
+                                    }
+                                }
+                                if let Some(bytes) = extra.vector_size {
+                                    ty = self.vector_type(ty, bytes, declarator.span.start)?;
+                                    if bit_width.is_some() {
+                                        return Err(Error::new(
+                                            declarator.span.start,
+                                            "vector bitfield types are not supported",
+                                        ));
+                                    }
                                 }
                             }
                             let field_alignment = self.check_declaration_alignment(

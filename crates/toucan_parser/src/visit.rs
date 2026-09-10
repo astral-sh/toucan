@@ -1124,6 +1124,9 @@ pub fn visit_struct_declarator<'ast, V: Visit<'ast> + ?Sized>(
     if let Some(ref bit_width) = struct_declarator.bit_width {
         visitor.visit_expression(&bit_width.node, &bit_width.span);
     }
+    for extension in &struct_declarator.extensions {
+        visitor.visit_extension(&extension.node, &extension.span);
+    }
 }
 
 pub fn visit_enum_type<'ast, V: Visit<'ast> + ?Sized>(
