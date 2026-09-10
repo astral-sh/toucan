@@ -1,0 +1,30 @@
+[package]
+name = "toucan_benchmark"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+publish = false
+
+[lib]
+bench = false
+test = false
+doctest = false
+
+[features]
+codspeed = ["dep:codspeed-criterion-compat"]
+
+[dependencies]
+codspeed-criterion-compat = { workspace = true, optional = true }
+criterion.workspace = true
+regex = "1.13.1"
+serde.workspace = true
+serde_json.workspace = true
+toucan_bindgen = { path = "../toucan_bindgen" }
+
+[[bench]]
+name = "bindings"
+harness = false
+
+[lints]
+workspace = true

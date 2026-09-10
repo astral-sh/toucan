@@ -134,4 +134,4 @@ jobs:
         with:
           toolchain: stable
       - run: cargo test --workspace --all-features --locked
-      - run: cargo package --workspace --all-features --locked
+      - run: cargo package --workspace --exclude toucan_benchmark --all-features --locked

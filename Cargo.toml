@@ -12,6 +12,8 @@ repository = "https://github.com/astral-sh/toucan"
 [workspace.dependencies]
 anyhow = "1.0.100"
 clap = { version = "4.5", features = ["derive"] }
+codspeed-criterion-compat = { version = "5.0.0", default-features = false }
+criterion = { version = "0.8.0", default-features = false }
 lang-c = { package = "toucan_parser", version = "0.0.1", path = "crates/toucan_parser" }
 repc = { package = "toucan_layout", version = "0.0.1", path = "crates/toucan_layout" }
 rustc_apfloat = "0.2.3"
@@ -23,6 +25,7 @@ tempfile = "3.23"
 [workspace.lints.rust]
 unsafe_code = "forbid"
 unreachable_pub = "warn"
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(codspeed)'] }
 
 [workspace.lints.clippy]
 dbg_macro = "warn"
