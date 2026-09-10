@@ -9,8 +9,6 @@ A C frontend and Rust binding generator, written in Rust.
 | zstd 1.5.7 | 9.12 ms | 101.91 ms | 11.23× |
 | libgit2 1.9.1 | 192.85 ms | 263.19 ms | 1.37× |
 
-[**Documentation**](docs/README.md) | [**Compatibility**](docs/compatibility.md) | [**Benchmarks**](docs/benchmarks.md)
-
 > [!WARNING]
 > This README is human-edited, but all code changes, PR summaries, and additional
 > documentation were authored entirely by GPT-6 Astra in [Codex](https://openai.com/codex/).
