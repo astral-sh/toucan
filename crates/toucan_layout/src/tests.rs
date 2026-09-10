@@ -360,6 +360,64 @@ fn oversized_bitfield() {
 }
 
 #[test]
+fn bitfield_storage_boundary_overflow_returns_an_error() {
+    let mut ty = Type::<()> {
+        layout: (),
+        annotations: vec![],
+        variant: TypeVariant::Record(Record {
+            kind: RecordKind::Struct,
+            fields: vec![
+                RecordField {
+                    layout: None,
+                    annotations: vec![],
+                    named: true,
+                    bit_width: None,
+                    ty: Type {
+                        layout: (),
+                        annotations: vec![],
+                        variant: TypeVariant::Builtin(BuiltinType::Char),
+                    },
+                },
+                RecordField {
+                    layout: None,
+                    annotations: vec![],
+                    named: false,
+                    bit_width: Some(u64::MAX - 7),
+                    ty: Type {
+                        layout: (),
+                        annotations: vec![],
+                        variant: TypeVariant::Opaque(TypeLayout {
+                            size_bits: u64::MAX - 7,
+                            field_alignment_bits: 16,
+                            pointer_alignment_bits: 8,
+                            required_alignment_bits: 8,
+                        }),
+                    },
+                },
+            ],
+        }),
+    };
+    for width in [u64::MAX - 7, u64::MAX - 15] {
+        let TypeVariant::Record(record) = &mut ty.variant else {
+            unreachable!();
+        };
+        record.fields[1].bit_width = Some(width);
+        for compiler in [crate::Compiler::Gcc, crate::Compiler::Clang] {
+            let result =
+                crate::compute_layout_with_compiler(Target::X86_64UnknownLinuxGnu, compiler, &ty);
+            if width == u64::MAX - 7 {
+                assert!(matches!(
+                    result.unwrap_err().kind(),
+                    ErrorType::SizeOverflow
+                ));
+            } else {
+                assert_eq!(result.unwrap().layout.size_bits, u64::MAX - 7);
+            }
+        }
+    }
+}
+
+#[test]
 fn pragma_packed_field() {
     let ty = Type::<()> {
         layout: (),

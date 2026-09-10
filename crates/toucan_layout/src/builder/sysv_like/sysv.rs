@@ -106,7 +106,7 @@ fn layout_bit_field(
         if !has_packing_annotations {
             let start_bit = align_to(first_unused_bit, field_alignment_bits)?;
             let field_crosses_storage_boundary =
-                start_bit % ty_field_alignment_bits + width > ty_size_bits;
+                size_add(start_bit % ty_field_alignment_bits, width)? > ty_size_bits;
             if ty_field_alignment_bits > ty_size_bits || field_crosses_storage_boundary {
                 field_alignment_bits.assign_max(ty_field_alignment_bits);
             }
@@ -123,7 +123,7 @@ fn layout_bit_field(
         // it is aligned to the type's field alignment. See test case 0083.
         if !has_packing_annotations {
             let field_crosses_storage_boundary =
-                first_unused_bit % ty_field_alignment_bits + width > ty_size_bits;
+                size_add(first_unused_bit % ty_field_alignment_bits, width)? > ty_size_bits;
             if field_crosses_storage_boundary {
                 field_alignment_bits.assign_max(ty_field_alignment_bits);
             }
