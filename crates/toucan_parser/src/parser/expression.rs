@@ -347,8 +347,8 @@ impl Parser<'_, '_> {
     fn postfix_tail(&mut self, mut expression: Node<Expression>) -> PResult<Node<Expression>> {
         loop {
             let start = expression.span.start;
-            if self.eat("[")? {
-                let operator_start = self.end() - 1;
+            if self.at("[") {
+                let operator_start = self.bump()?.span.start;
                 let rhs = self.nested(|parser| parser.expression())?;
                 self.expect("]")?;
                 let span = Span::span(start, self.end());
