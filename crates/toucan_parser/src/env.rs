@@ -49,23 +49,15 @@ impl Env {
     }
 
     pub fn with_gnu() -> Env {
-        let mut symbols = HashMap::default();
-        let mut reserved = HashSet::default();
-        symbols.insert("__builtin_va_list".to_owned(), Symbol::Typename);
-        reserved.extend(strings::RESERVED_C11.iter());
-        reserved.extend(strings::RESERVED_GNU.iter());
+        let mut env = Self::with_core();
+        env.add_symbol("__builtin_va_list", Symbol::Typename);
+        env.reserved.extend(strings::RESERVED_GNU.iter());
         Env {
-            definition_scopes: None,
             extensions_gnu: true,
             gnu_keywords: true,
-            standard: Standard::C11,
-            extensions_clang: false,
-            extensions_msvc: false,
-            clang_calling_conventions: false,
             gnu_float128_typedef: true,
             gnu_unicode_literals: true,
-            symbols: vec![symbols],
-            reserved,
+            ..env
         }
     }
 
@@ -76,13 +68,10 @@ impl Env {
     // GNU also uses the Clang extension grammar, but keeps its own type keywords.
     // Do not remove and reinsert them: that can grow the keyword hash table.
     fn with_clang_profile(gnu_types: bool) -> Env {
-        let mut symbols = HashMap::default();
-        let mut reserved = HashSet::default();
-        symbols.insert("__builtin_va_list".to_owned(), Symbol::Typename);
-        reserved.extend(strings::RESERVED_C11.iter());
-        reserved.extend(strings::RESERVED_GNU.iter());
-        reserved.extend(strings::RESERVED_CLANG.iter());
-        reserved.extend(strings::RESERVED_CLANG_CALLING_CONVENTIONS.iter());
+        let mut env = Self::with_gnu();
+        env.reserved.extend(strings::RESERVED_CLANG.iter());
+        env.reserved
+            .extend(strings::RESERVED_CLANG_CALLING_CONVENTIONS.iter());
         if !gnu_types {
             for name in [
                 "_Float32",
@@ -91,21 +80,15 @@ impl Env {
                 "_Float64x",
                 "_Float128",
             ] {
-                reserved.remove(name);
+                env.reserved.remove(name);
             }
         }
         Env {
-            definition_scopes: None,
-            extensions_gnu: true,
-            gnu_keywords: true,
-            standard: Standard::C11,
             extensions_clang: true,
-            extensions_msvc: false,
             clang_calling_conventions: true,
             gnu_float128_typedef: false,
             gnu_unicode_literals: gnu_types,
-            symbols: vec![symbols],
-            reserved,
+            ..env
         }
     }
 
