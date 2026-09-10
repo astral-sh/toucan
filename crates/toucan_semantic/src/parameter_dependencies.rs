@@ -116,6 +116,14 @@ struct Frame {
     parameters: BTreeMap<usize, (Span, Names)>,
 }
 
+impl Frame {
+    /// Visits direct aliases, then nested parameter aliases in source order.
+    /// Separate sets let budget checks count aliases repeated across parameters.
+    fn name_sets(&self) -> impl Iterator<Item = &Names> {
+        std::iter::once(&self.direct).chain(self.parameters.values().map(|(_, names)| names))
+    }
+}
+
 pub(crate) struct Builder {
     frames: Vec<Frame>,
     cursor: Option<Cursor>,
@@ -199,18 +207,8 @@ impl Builder {
         }
         let (direct, parameters) = if inherit {
             let previous = self.frames.last().expect("declaration dependency frame");
-            let refs = previous.direct.len()
-                + previous
-                    .parameters
-                    .values()
-                    .map(|(_, names)| names.len())
-                    .sum::<usize>();
-            let bytes = previous
-                .direct
-                .iter()
-                .chain(previous.parameters.values().flat_map(|(_, names)| names))
-                .map(String::len)
-                .sum();
+            let refs = previous.name_sets().map(Names::len).sum();
+            let bytes = previous.name_sets().flatten().map(String::len).sum();
             self.charge(refs, bytes, source.start)?;
             let previous = self.frames.last().unwrap();
             (previous.direct.clone(), previous.parameters.clone())
@@ -391,16 +389,10 @@ impl Builder {
         // Clang's type-side view preserves the first complete written signature,
         // even when later nested parameter cursors contribute different roots.
         if !previous || (kind == DeclarationKind::Function && !previous_prototype && prototype) {
-            self.charge_names(&frame.direct, frame.source.start)?;
-            for (_, names) in frame.parameters.values() {
+            for names in frame.name_sets() {
                 self.charge_names(names, frame.source.start)?;
             }
-            let names: Names = frame
-                .direct
-                .iter()
-                .chain(frame.parameters.values().flat_map(|(_, names)| names))
-                .cloned()
-                .collect();
+            let names: Names = frame.name_sets().flatten().cloned().collect();
             if !names.is_empty() {
                 self.source_types.insert(index, names);
             }
@@ -428,19 +420,12 @@ impl Builder {
     /// A record retains all field dependencies when reached through another type.
     pub(crate) fn record_field(&mut self, record: usize) -> Result<(), Error> {
         let frame = self.pop();
-        self.charge_names(&frame.direct, frame.source.start)?;
-        for (_, names) in frame.parameters.values() {
+        for names in frame.name_sets() {
             self.charge_names(names, frame.source.start)?;
         }
         if !frame.direct.is_empty() || !frame.parameters.is_empty() {
             let owner = self.records.entry(record).or_default();
-            owner.extend(frame.direct.iter().cloned());
-            owner.extend(
-                frame
-                    .parameters
-                    .values()
-                    .flat_map(|(_, names)| names.iter().cloned()),
-            );
+            owner.extend(frame.name_sets().flatten().cloned());
         }
         let owner = crate::DeclarationTarget::Record(record);
         self.occurrence(owner, frame.source, frame.source, frame.direct)?;
