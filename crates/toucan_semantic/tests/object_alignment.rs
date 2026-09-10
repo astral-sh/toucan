@@ -38,6 +38,11 @@ const CASES: &[(&str, bool, bool)] = &[
         true,
         false,
     ),
+    (
+        "struct S{unsigned (__attribute__((packed(1))) member);};",
+        false,
+        false,
+    ),
     ("struct S{_Alignas(16) unsigned x:3;};", false, false),
     ("struct S{_Alignas(0) unsigned x:3;};", false, false),
     (
@@ -461,6 +466,61 @@ fn field_alignment_preserves_c11_annotations_without_changing_the_field_type() {
     }
 }
 
+const PREFIX_PACKED_FIELDS: &[&str] = &[
+    "struct S{char lead;unsigned (__attribute__((packed)) member):3;char x;};",
+    "struct S{char lead;unsigned (__attribute__((packed)) member);char x;};",
+    "struct S{char lead;unsigned (__attribute__((packed)) (member));char x;};",
+    "struct S{char lead;unsigned ((__attribute__((packed)) member));char x;};",
+    "struct S{char lead;unsigned (__attribute__((packed)) member[2]);char x;};",
+    "struct Inner{char a;int b;};struct S{char lead;struct Inner (__attribute__((packed)) member);char x;};",
+    "typedef unsigned __attribute__((mode(DI))) Wide;struct S{char lead;Wide (__attribute__((mode(DI),packed)) member):33;char x;};",
+];
+
+#[test]
+fn nested_packing_with_alignment_is_explicitly_unsupported_in_gnu() {
+    for profile in CompilerProfile::ALL {
+        for source in [
+            "struct S{unsigned (__attribute__((packed,aligned(2))) member);};",
+            "struct S{unsigned (__attribute__((packed)) (__attribute__((aligned(2))) member));};",
+            "struct S{unsigned (__attribute__((aligned(2))) (__attribute__((packed)) member));};",
+        ] {
+            let result = parity(source, profile);
+            if profile.compiler() == Compiler::Gnu {
+                assert_eq!(
+                    result.unwrap_err().message,
+                    "GNU nested packed and aligned attributes are not supported together"
+                );
+            } else {
+                result.unwrap();
+            }
+        }
+    }
+}
+
+#[test]
+fn nested_prefix_packing_follows_the_compiler_profile() {
+    for profile in CompilerProfile::ALL {
+        for source in PREFIX_PACKED_FIELDS {
+            let analysis = parity(source, profile)
+                .unwrap_or_else(|error| panic!("{profile:?}: {source}: {error}"));
+            let fields = analysis
+                .unit()
+                .records
+                .iter()
+                .find(|record| record.name.as_deref() == Some("S"))
+                .unwrap()
+                .fields
+                .as_ref()
+                .unwrap();
+            assert_eq!(
+                fields[1].packed,
+                profile.compiler() == Compiler::Clang,
+                "{profile:?}: {source}"
+            );
+        }
+    }
+}
+
 #[test]
 fn rejects_unsupported_bitfield_attribute_types() {
     for profile in CompilerProfile::ALL {
@@ -634,6 +694,18 @@ fn aligned_members_match_native_and_cross_target_record_layouts() {
             "typedef unsigned __attribute__((mode(DI))) Wide; struct S{char lead;Wide (__attribute__((mode(DI))) named):33 __attribute__((packed));char x;};",
             2,
         ),
+        (
+            "struct S{char lead;unsigned (__attribute__((packed)) member) __attribute__((packed));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned __attribute__((packed)) member;char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((packed)) member):3 __attribute__((packed));char x;};",
+            2,
+        ),
     ];
     let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
     let host = match (std::env::consts::ARCH, std::env::consts::OS) {
@@ -652,7 +724,12 @@ fn aligned_members_match_native_and_cross_target_record_layouts() {
         } else {
             "clang"
         };
-        for (source, field) in sources {
+        for (source, field) in sources.into_iter().chain(
+            PREFIX_PACKED_FIELDS
+                .iter()
+                .copied()
+                .map(|source| (source, 2)),
+        ) {
             let analysis = parity(source, profile).unwrap();
             let id = analysis
                 .unit()

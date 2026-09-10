@@ -4149,8 +4149,17 @@ impl Analyzer {
                         declaration.span.start,
                     )?;
                 }
+                // GCC ignores packed on a type inside a parenthesized declarator.
                 if inner_attributes.packed {
-                    attributes.packed = true;
+                    if self.unit.compiler == Compiler::Clang {
+                        attributes.packed = true;
+                    } else if inner_attributes.alignment.is_some() || attributes.alignment.is_some()
+                    {
+                        return Err(Error::new(
+                            inner.span.start,
+                            "GNU nested packed and aligned attributes are not supported together",
+                        ));
+                    }
                 }
                 if inner_attributes.msvc_alignment.is_some() {
                     attributes.msvc_alignment = inner_attributes.msvc_alignment;
