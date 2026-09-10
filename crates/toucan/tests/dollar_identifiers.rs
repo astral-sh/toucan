@@ -29,6 +29,20 @@ fn dollar_names_survive_preprocessing_analysis_and_binding_generation() {
             &Config::with_profile(profile),
         )
         .unwrap();
+        let value =
+            toucan::semantic::evaluate_integer(compilation.unit(), "ITEM$ + sizeof(__int128$)")
+                .unwrap();
+        assert_eq!(value.value, 13);
+        let (selected, _) = compilation
+            .bindings(&BindingOptions {
+                allowlist: vec!["fn$*".into(), "VALUE$".into(), "TYPE_SIZE$*".into()],
+                ..Default::default()
+            })
+            .unwrap();
+        assert!(selected.contains("#[link_name = \"fn$\"]"));
+        assert!(selected.contains("pub const __toucan_c_56414c554524:"));
+        assert!(selected.contains("pub const __toucan_c_545950455f53495a4524:"));
+        assert!(!selected.contains("#[link_name = \"price$usd\"]"));
         let (source, report) = compilation.bindings(&BindingOptions::default()).unwrap();
         assert!(source.contains("pub fn __toucan_c_666e24_("), "{source}");
         assert!(source.contains("#[link_name = \"fn$\"]"));
