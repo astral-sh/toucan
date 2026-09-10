@@ -426,6 +426,10 @@ no
 #if 0
 #if malformed ignored stuff
 #error ignored
+#elif 1 / 0
+#error ignored
+#else
+#error ignored
 #endif
 #else
 #if (1 || 1 / 0) && (-1 > 0U)
