@@ -1,105 +1,29 @@
 # toucan_parser
 
-Toucan’s handwritten C parser. It supports C90 through C17 syntax, GNU and Clang extensions, and Microsoft declaration extensions.
-Toucan uses `driver::parse_preprocessed`; preprocessing, semantic checking, and checked-code retention live in the other workspace crates. The parser enforces its own input, work, backtracking, recursion, owned-tree, and token-buffer limits. This crate retains the upstream parser AST and is not the public checked-code interface.
+A C parser for Toucan, written in Rust. It parses C90 through C17 syntax with
+GNU, Clang, and Microsoft extensions into an abstract syntax tree (AST).
 
-## Upstream source
+## Usage
 
-- Author: Vickenty Fesunov <kent@setattr.net>, with upstream contributors.
-- Git revision: `58e4ccf07bf9794af8111b06b6643e80fd31bff2` (tag `0.15.1`).
-- Published `lang-c` 0.15.1 crate SHA-256: `720e6492b795d1f6838eb2e51879ec3073be745a20e52c32a241b80b3c8ed998`.
-- Licenses: [MIT](LICENSE-MIT) or [Apache 2.0](LICENSE-APACHE), copied from upstream.
-- The AST, visitors, lexical environment, and 139 reference cases originate in lang-c 0.15.1. Its [original README](UPSTREAM.md) and licenses are retained.
-- The generated parser and its generator tooling have been replaced with handwritten code.
+`driver::parse_preprocessed` accepts preprocessed C source and returns an AST
+with byte spans. `driver::Config` selects the language version and extensions.
+For preprocessing and type checking, use the
+[`toucan` library](../../docs/library.md).
 
-The workspace names this package `toucan_parser`; `toucan_semantic` depends on that package using the `lang-c` alias. Packaged builds therefore use the same parser as workspace builds.
-
-## Changes from upstream
-
-`typeof` selects a type name when its operand begins with a visible type. A visible typedef such as `T` must parse as a type in `__typeof__(T)`, `__typeof__(T *)`, `__typeof__(T[3])`, and `__typeof__(T (void))`. The lexical environment selects the expression branch when an ordinary identifier shadows a typedef. Definition parsing now retains the selected parameter scope through the body, including parameter names and enumerators; callback parameter scopes and return-type prototypes remain separate. Ordinary function declarations continue to discard their prototype scopes. Parenthesized expressions retain their original AST and byte spans; the grammar does not reinterpret arbitrary expressions as types.
-
-`__extension__` accepts a cast expression as its operand, preserving the operand's type and value. This includes the `__extension__ (int)1` spelling used in compiler resource headers.
-
-`_Thread_local` and GNU `__thread` retain distinct storage-specifier variants,
-allowing semantic checking to apply their different ordering rules.
-
-`__bf16` has a distinct type-specifier node; it is not inserted as an integer
-typedef. The existing TS 18661 grammar retains `_Float16` and `f16` literals.
-
-GNU `q`/`Q` floating suffixes and Clang `__float128` preserve distinct AST variants.
-GNU `__float128` uses the lexical typedef environment and supports ordinary identifier
-shadowing. `GnuC11WithClangExtensions` keeps GNU builtin-name identity while exposing
-the extension grammar to semantic consumers that validate compiler availability.
-Clang keeps `_Float32`, `_Float64`, `_Float32x`, `_Float64x`, and `_Float128`
-available as ordinary identifiers and typedef names. GNU reserves those spellings;
-both compiler families reserve `_Float16`. These rules are independent of C mode
-and preprocessor version-marker overrides.
-
-`Config::gnu_keywords` controls bare `asm`/`typeof` independently of underscored
-extensions. Standard C11 permits those identifiers, while GNU11 reserves them.
-The core-only flavor never enables GNU keywords.
-
-`Config::extensions_msvc` reserves the Microsoft `_int8` / `__int8`, `_int16` /
-`__int16`, `_int32` / `__int32`, and `_int64` / `__int64` keywords. The AST retains
-their written widths; semantic checking determines their C types and valid
-specifier combinations. With this option disabled, these names remain available
-as ordinary identifiers and typedef names.
-
-Calling-convention keywords retain a distinct extension node and their original
-spelling. Clang flavors recognize `__cdecl`, `__stdcall`, `__fastcall`,
-`__thiscall`, `__vectorcall`, `__regcall`, and `__pascal`; Microsoft extensions
-also enable the single-underscore aliases except `_regcall` and `_pascal`.
-Keywords are accepted in declaration specifiers, pointer qualifiers, and
-parenthesized named or abstract declarators. Semantic checking determines which
-conventions affect the selected target.
-
-Microsoft extensions also reserve `_declspec` and `__declspec`. Attributes retain
-an `Extension::Declspec` node with their exact name, operands, and source span.
-Declaration and field specifiers accept these annotations; struct and enum nodes
-retain attributes written between the tag keyword and its name. The parser
-preserves comma-separated, whitespace-separated, and string annotation names.
-Semantic checking determines the supported attributes and their valid subjects.
-Pointer declarators also retain `__ptr32` and `__ptr64` with their written widths
-and source spans. Windows ARM64 gives `__ptr32` an eight-byte layout but keeps it
-distinct from an ordinary pointer. Windows x64 gives `__ptr32` four-byte size and
-alignment. Semantic checking supports both layouts; binding generation rejects
-selected x64 `__ptr32` types because Rust pointers use the native eight-byte ABI.
-
-GNU attributes on null statements have a distinct `Statement::Attribute` node.
-Semantic checking determines which statement annotations are supported; the visitor
-preserves their attributes and source spans.
-
-`__builtin_types_compatible_p` and `__builtin_choose_expr` have dedicated AST nodes. Their type-name and expression operands retain original spans; the checked frontend supplies type compatibility, selected value categories, and evaluation contexts.
-
-`__builtin_convertvector` retains its value expression and destination type name in a dedicated AST node.
-
-Parsing uses a bounded scoped worker stack; `driver::with_parser_stack` reuses one
-worker for a batch of calls. `driver::parse_preprocessed_with_limits` accepts limits
-and returns source-positioned resource diagnostics. `ParseStatistics` records actual
-accounted work. The AST representation is unchanged. See
-[parser limits](../../docs/parser-limits.md) for the accounting and tests.
+`driver::parse_preprocessed_with_limits` accepts limits for input size, parsing
+work, recursion, AST depth, and token storage. See [parser limits](../../docs/parser-limits.md)
+for configuration and accounting.
 
 ## Implementation
 
-The lexer preserves byte offsets into the preprocessed input. Declarations and
-statements use recursive descent; expressions use precedence climbing. Typedef
-names are tracked in lexical scopes, including separate function-prototype scopes.
-Lookahead resolves declaration ambiguities without cloning the AST or environment.
-Every recursive path and owned-tree constructor checks the invocation's limits.
-The crate forbids unsafe Rust.
+The parser uses recursive descent for declarations and statements, and precedence
+climbing for expressions. The lexer and parser live in [src/parser](src/parser).
+Typedef names are tracked in lexical scopes to distinguish types from expressions.
 
-The parsing code lives in `src/parser/`: `lexer.rs`, `declaration.rs`,
-`expression.rs`, and `statement.rs`. There is no parser generator or alternate
-parser backend. The AST remains compatible with Toucan's semantic checker.
+## Upstream source
 
-## Development
-
-```console
-cargo test -p toucan_parser
-cargo test -p toucan_parser --test resources -- --include-ignored
-```
-
-The reference runner reads `reftests/`. It updates expected output only when
-`TEST_UPDATE` is explicitly set. Parser tests cover typedef ambiguity, source
-spans, malformed tokens, resource limits, and scope cleanup. Semantic tests compare
-constraints and runtime behavior with GCC and Clang.
+The AST, visitors, lexical environment, and reference tests derive from
+[lang-c 0.15.1](https://github.com/vickenty/lang-c/tree/58e4ccf07bf9794af8111b06b6643e80fd31bff2)
+by Vickenty Fesunov and contributors. Toucan replaces its generated parser with
+handwritten code. The [original README](UPSTREAM.md), [MIT license](LICENSE-MIT),
+and [Apache 2.0 license](LICENSE-APACHE) are retained.
