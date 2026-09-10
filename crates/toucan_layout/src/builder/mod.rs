@@ -6,7 +6,7 @@ use crate::result::{err, ErrorType, Result};
 use crate::target::{system_compiler, Compiler, Target};
 use crate::util::BITS_PER_BYTE;
 use crate::visitor::{
-    visit_array, visit_builtin_type, visit_opaque_type, visit_record_field, Visitor,
+    visit_array, visit_builtin_type, visit_opaque_type, visit_record_field, visit_type, Visitor,
 };
 
 pub mod common;
@@ -16,6 +16,8 @@ mod sysv_like;
 /// Computes the layout of a type.
 ///
 /// See the crate documentation for an example.
+/// Type trees deeper than 128 levels return [`ErrorType::TypeNesting`]. This
+/// bounds layout computation, not cloning, visiting, or dropping caller-owned trees.
 pub fn compute_layout(target: Target, ty: &Type<()>) -> Result<Type<TypeLayout>> {
     compute_layout_with_compiler(target, system_compiler(target), ty)
 }
@@ -26,6 +28,7 @@ pub fn compute_layout(target: Target, ty: &Type<()>) -> Result<Type<TypeLayout>>
 /// are Clang with x86-64, i686 GNU Linux, AArch64 Linux, and ARMv7 hard-float Linux. Other overrides return
 /// [`ErrorType::UnsupportedCompiler`] before inspecting the type. This selects
 /// compiler layout rules, not target features or flags such as `-fshort-enums`.
+/// Type trees deeper than 128 levels return [`ErrorType::TypeNesting`].
 pub fn compute_layout_with_compiler(
     target: Target,
     compiler: Compiler,
@@ -64,18 +67,38 @@ pub fn compute_layout_with_compiler(
     }
 }
 
-/// Checks the complete type tree, returning the last error in visitation order.
+/// Checks the type tree, stopping recursive descent at the supported depth.
 fn pre_validate(ty: &Type<()>) -> Result<()> {
-    let mut pv = PreValidator { result: Ok(()) };
+    let mut pv = PreValidator {
+        result: Ok(()),
+        depth: 0,
+        exceeded_depth: false,
+    };
     pv.visit_type(ty);
-    pv.result
+    if pv.exceeded_depth {
+        Err(err(ErrorType::TypeNesting))
+    } else {
+        pv.result
+    }
 }
 
 struct PreValidator {
     result: Result<()>,
+    depth: usize,
+    exceeded_depth: bool,
 }
 
 impl Visitor<()> for PreValidator {
+    fn visit_type(&mut self, ty: &Type<()>) {
+        if self.exceeded_depth || self.depth >= 128 {
+            self.exceeded_depth = true;
+            return;
+        }
+        self.depth += 1;
+        visit_type(self, ty);
+        self.depth -= 1;
+    }
+
     fn visit_annotations(&mut self, a: &[Annotation]) {
         let mut num_pragma_packed = 0;
         for a in a {

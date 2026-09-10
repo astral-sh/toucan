@@ -31,6 +31,8 @@ impl std::error::Error for Error {}
 pub enum ErrorType {
     /// The compiler override has not been validated for this physical target.
     UnsupportedCompiler,
+    /// A type tree has more than 128 nested types.
+    TypeNesting,
     /// A builtin type was annotated.
     ///
     /// Builtin types cannot be annotated. You probably want to annotate a typedef of the
@@ -75,6 +77,7 @@ impl Display for ErrorType {
         use ErrorType::*;
         let s = match self {
             UnsupportedCompiler => "The compiler override is unsupported for this target",
+            TypeNesting => "Type nesting exceeds the 128-level limit",
             AnnotatedBuiltinType => "Builtin types cannot have annotations",
             AnnotatedOpaqueType => "Opaque types cannot have annotations",
             AnnotatedArray => "Arrays cannot have annotations",
