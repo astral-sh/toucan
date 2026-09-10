@@ -12,6 +12,8 @@
 #![allow(deprecated)]
 #![allow(ellipsis_inclusive_range_patterns)]
 
+extern crate rustc_hash;
+
 pub mod ast;
 pub mod driver;
 pub mod limits;

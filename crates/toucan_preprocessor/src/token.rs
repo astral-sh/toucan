@@ -1,5 +1,8 @@
 use std::collections::BTreeSet;
 
+use char_str::CharStr;
+use memchr::{memchr, memchr_iter, memchr2, memchr3, memmem};
+
 use crate::LineComments;
 use crate::comments::CommentState;
 
@@ -18,11 +21,12 @@ pub(crate) enum Kind {
 #[derive(Clone, Debug)]
 pub(crate) struct Token {
     pub kind: Kind,
-    pub text: String,
+    /// Short spellings stay inline; cloning long spellings shares their allocation.
+    pub text: CharStr,
     pub space: bool,
     /// First half of a lexically adjacent `::` pair in strict C tokenization.
     pub colon_scope: bool,
-    pub hidden: BTreeSet<String>,
+    pub hidden: BTreeSet<CharStr>,
     pub depth: usize,
     pub line: usize,
     pub offset: usize,
@@ -33,7 +37,7 @@ pub(crate) struct Token {
 }
 
 impl Token {
-    pub(crate) fn new(kind: Kind, text: impl Into<String>) -> Self {
+    pub(crate) fn new(kind: Kind, text: impl Into<CharStr>) -> Self {
         Self {
             kind,
             text: text.into(),
@@ -104,14 +108,20 @@ pub(crate) fn normalize_with_comments(
     let mut spliced = String::with_capacity(source.len());
     let mut source_offsets = vec![(0, 0)];
     let mut line_starts = vec![0];
-    line_starts.extend(
-        bytes
-            .iter()
-            .enumerate()
-            .filter_map(|(index, byte)| (*byte == b'\n').then_some(index + 1)),
-    );
+    line_starts.extend(memchr_iter(b'\n', bytes).map(|index| index + 1));
     let mut index = 0;
+    let mut copied = 0;
     while index < bytes.len() {
+        // UTF-8 continuation bytes cannot contain the ASCII phase-one/two markers.
+        let next = if trigraphs {
+            memchr2(b'\\', b'?', &bytes[index..])
+        } else {
+            memchr(b'\\', &bytes[index..])
+        };
+        index += next.unwrap_or(bytes.len() - index);
+        if index == bytes.len() {
+            break;
+        }
         let trigraph = if trigraphs && bytes[index..].starts_with(b"??") {
             bytes.get(index + 2).and_then(|third| match third {
                 b'=' => Some('#'),
@@ -128,36 +138,35 @@ pub(crate) fn normalize_with_comments(
         } else {
             None
         };
-        let character =
-            trigraph.unwrap_or_else(|| source[index..].chars().next().expect("remaining source"));
-        let width = if trigraph.is_some() {
-            3
-        } else {
-            character.len_utf8()
-        };
-        let following = index + width;
+        let character = trigraph.unwrap_or(bytes[index] as char);
+        let following = index + if trigraph.is_some() { 3 } else { 1 };
         let newline = if bytes[following..].starts_with(b"\r\n") {
             2
         } else {
             usize::from(bytes.get(following) == Some(&b'\n'))
         };
         if character == '\\' && newline != 0 {
+            spliced.push_str(&source[copied..index]);
             index = following + newline;
+            copied = index;
             source_offsets.push((spliced.len(), index));
         } else {
-            spliced.push(character);
-            index = following;
             if trigraph.is_some() {
-                source_offsets.push((spliced.len(), index));
+                spliced.push_str(&source[copied..index]);
+                spliced.push(character);
+                copied = following;
+                source_offsets.push((spliced.len(), following));
             }
+            index = following;
         }
     }
+    spliced.push_str(&source[copied..]);
     let original = |offset| {
         let (generated, physical) =
             source_offsets[source_offsets.partition_point(|(start, _)| *start <= offset) - 1];
         physical + offset - generated
     };
-    let text = replace_comments_observed(&spliced, comments, |range| {
+    let text = replace_comments_observed(spliced, comments, |range| {
         let range = original(range.start)..original(range.end);
         let line = line_starts.partition_point(|start| *start <= range.start);
         let end_line = line_starts.partition_point(|start| *start < range.end);
@@ -186,78 +195,67 @@ pub(crate) fn adjacent_slashes(tokens: &[Token]) -> bool {
 }
 
 fn replace_comments_with(source: &str, comments: &mut CommentState) -> Result<String, String> {
-    replace_comments_observed(source, comments, |_| Ok(()))
+    replace_comments_observed(source.to_owned(), comments, |_| Ok(()))
 }
 
 fn replace_comments_observed(
-    source: &str,
+    source: String,
     comments: &mut CommentState,
     mut observe: impl FnMut(std::ops::Range<usize>) -> Result<(), String>,
 ) -> Result<String, String> {
-    let mut chars = source.chars().peekable();
-    let mut output = String::with_capacity(source.len());
-    while let Some(c) = chars.next() {
-        let start = output.len();
-        match (c, chars.peek().copied()) {
-            ('/', Some('/')) if comments.line_comment(chars.clone().nth(1)) => {
-                chars.next();
-                output.push_str("  ");
-                let mut newline = false;
-                for c in chars.by_ref() {
-                    if c == '\n' {
-                        output.push(c);
-                        newline = true;
-                        break;
-                    }
-                    for _ in 0..c.len_utf8() {
-                        output.push(' ');
-                    }
-                }
-                observe(start..output.len() - usize::from(newline))?;
+    let mut bytes = source.into_bytes();
+    let mut index = 0;
+    while index < bytes.len() {
+        index += memchr3(b'/', b'"', b'\'', &bytes[index..]).unwrap_or(bytes.len() - index);
+        let Some(&byte) = bytes.get(index) else {
+            break;
+        };
+        let start = index;
+        match (byte, bytes.get(index + 1).copied()) {
+            (b'/', Some(b'/'))
+                if comments.line_comment(bytes.get(index + 2).map(|byte| *byte as char)) =>
+            {
+                index += 2;
+                index += memchr(b'\n', &bytes[index..]).unwrap_or(bytes.len() - index);
+                bytes[start..index].fill(b' ');
+                observe(start..index)?;
             }
-            ('/', Some('*')) => {
-                chars.next();
-                output.push_str("  ");
-                let mut closed = false;
-                while let Some(c) = chars.next() {
-                    if c == '\n' {
-                        // A block comment is one whitespace separator, including any
-                        // physical newlines it spans. Keep byte offsets for provenance.
-                        output.push(' ');
-                    } else if c == '*' && chars.peek() == Some(&'/') {
-                        chars.next();
-                        output.push_str("  ");
-                        closed = true;
-                        break;
-                    } else {
-                        for _ in 0..c.len_utf8() {
-                            output.push(' ');
-                        }
-                    }
-                }
-                if !closed {
+            (b'/', Some(b'*')) => {
+                index += 2;
+                let Some(end) = memmem::find(&bytes[index..], b"*/") else {
                     return Err("unterminated block comment".into());
-                }
-                observe(start..output.len())?;
+                };
+                index += end + 2;
+                // Block comments become one whitespace separator, including their
+                // physical newlines. Blank every UTF-8 byte to preserve provenance.
+                bytes[start..index].fill(b' ');
+                observe(start..index)?;
             }
-            ('"' | '\'', _) => {
-                let quote = c;
-                output.push(c);
-                while let Some(c) = chars.next() {
-                    output.push(c);
-                    if c == '\\' {
-                        if let Some(c) = chars.next() {
-                            output.push(c);
-                        }
-                    } else if c == quote {
+            (b'"' | b'\'', _) => {
+                let quote = byte;
+                index += 1;
+                loop {
+                    let Some(next) = memchr2(quote, b'\\', &bytes[index..]) else {
+                        index = bytes.len();
+                        break;
+                    };
+                    index += next;
+                    let byte = bytes[index];
+                    index += 1;
+                    if byte == b'\\' {
+                        // Skipping one byte is enough: any UTF-8 continuation
+                        // bytes following it cannot be a quote or backslash.
+                        index += usize::from(index < bytes.len());
+                    } else {
                         break;
                     }
                 }
             }
-            _ => output.push(c),
+            _ => index += 1,
         }
     }
-    Ok(output)
+    // Only complete comment ranges delimited by ASCII bytes were replaced.
+    Ok(String::from_utf8(bytes).expect("comment replacement preserves UTF-8"))
 }
 
 #[cfg(test)]
@@ -399,3 +397,17 @@ pub(crate) fn render(tokens: &[Token]) -> String {
         .collect::<Vec<_>>()
         .join(" ")
 }
+
+#[cfg(all(test, target_pointer_width = "64"))]
+mod tests {
+    use super::Token;
+
+    #[test]
+    fn token_size() {
+        assert_eq!(size_of::<Token>(), 96);
+    }
+}
+
+#[cfg(test)]
+#[path = "scanner_tests.rs"]
+mod scanner_tests;

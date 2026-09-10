@@ -86,7 +86,7 @@ impl Expansion<'_> {
             let Some(token) = pending.pop_front() else {
                 break;
             };
-            if token.kind != Kind::Identifier || token.hidden.contains(&token.text) {
+            if token.kind != Kind::Identifier || token.hidden.contains(token.text.as_str()) {
                 let pragma = token.kind == Kind::Pragma;
                 output.push(token);
                 if STOP_ON_PRAGMA && pragma {
@@ -127,7 +127,7 @@ impl Expansion<'_> {
                 self.charge(&payload)?;
                 let mut directive = token;
                 directive.kind = Kind::Pragma;
-                directive.text = crate::token::render(&payload);
+                directive.text = crate::token::render(&payload).into();
                 output.push(directive);
                 self.location = previous_location;
                 if STOP_ON_PRAGMA {
@@ -153,7 +153,7 @@ impl Expansion<'_> {
                 self.charge(&argument)?;
                 let mut directive = token;
                 directive.kind = Kind::Pragma;
-                directive.text = crate::token::render(&argument);
+                directive.text = crate::token::render(&argument).into();
                 output.push(directive);
                 self.location = previous_location;
                 if STOP_ON_PRAGMA {
@@ -231,7 +231,7 @@ impl Expansion<'_> {
                 let value = queries.evaluate(kind, &argument)?;
                 let mut replacement = token;
                 replacement.kind = Kind::Number;
-                replacement.text = queries.spelling(value);
+                replacement.text = queries.spelling(value).into();
                 replacement.expanded = true;
                 replacement.depth += 1;
                 self.charge(std::slice::from_ref(&replacement))?;
@@ -251,7 +251,7 @@ impl Expansion<'_> {
                 }
                 continue;
             }
-            let Some(definition) = self.macros.get(&token.text) else {
+            let Some(definition) = self.macros.get(token.text.as_str()) else {
                 if token.text == "__TIMESTAMP__" {
                     self.location = Some((token.line, token.column));
                     return Err(format!(
@@ -390,13 +390,15 @@ impl Expansion<'_> {
         omitted_variadic: bool,
     ) -> Result<(Vec<Token>, bool), String> {
         let parameters = definition.parameters.as_ref().expect("function macro");
-        let mut raw: BTreeMap<&str, Vec<Token>> = parameters
+        let mut raw: BTreeMap<&str, &[Token]> = parameters
             .iter()
             .zip(arguments)
-            .map(|(name, tokens)| (name.as_str(), tokens.clone()))
+            .map(|(name, tokens)| (name.as_str(), tokens.as_slice()))
             .collect();
         if let Some(name) = &definition.variadic_parameter {
-            let variadic = arguments.get(parameters.len()).cloned().unwrap_or_default();
+            let variadic = arguments
+                .get(parameters.len())
+                .map_or(&[][..], Vec::as_slice);
             raw.insert(name, variadic);
         }
         let replacement = self.replacement_tokens(name, &definition.replacement)?;
@@ -426,7 +428,7 @@ impl Expansion<'_> {
                     .get(position + 1)
                     .is_some_and(|token| token.text == "##")
                 && replacement.get(position + 2).is_some_and(|token| {
-                    Some(&token.text) == definition.variadic_parameter.as_ref()
+                    Some(token.text.as_str()) == definition.variadic_parameter.as_deref()
                 })
             {
                 // GNU's comma-elision extension applies only when the argument is omitted.
@@ -436,7 +438,7 @@ impl Expansion<'_> {
                     let expanded = if let Some(expanded) = expanded_arguments.get(name) {
                         expanded.clone()
                     } else {
-                        let expanded = self.expand(raw[name].clone())?;
+                        let expanded = self.expand(raw[name].to_vec())?;
                         expanded_arguments.insert(name, expanded.clone());
                         expanded
                     };
@@ -450,11 +452,11 @@ impl Expansion<'_> {
                         .get(position + 1)
                         .is_some_and(|token| token.text == "##");
                 let mut argument = if pasted {
-                    argument.clone()
+                    argument.to_vec()
                 } else if let Some(expanded) = expanded_arguments.get(token.text.as_str()) {
                     expanded.clone()
                 } else {
-                    let expanded = self.expand(argument.clone())?;
+                    let expanded = self.expand(argument.to_vec())?;
                     expanded_arguments.insert(token.text.as_str(), expanded.clone());
                     expanded
                 };

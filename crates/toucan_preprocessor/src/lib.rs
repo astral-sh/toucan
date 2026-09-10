@@ -704,7 +704,7 @@ impl Preprocessor {
         }
         Preprocessed {
             source,
-            macros: self.macros.clone(),
+            macros: std::mem::take(&mut self.macros),
             dependencies: self.dependencies.keys().cloned().collect(),
             mappings: std::mem::take(&mut self.mappings),
             file_origins: self.file_origins.take(),
@@ -1052,7 +1052,7 @@ impl Preprocessor {
                         definitions
                             .record(
                                 &name.text,
-                                &self.macros[&name.text],
+                                &self.macros[name.text.as_str()],
                                 input,
                                 (
                                     source.line_at(start + name.offset),
@@ -1923,7 +1923,7 @@ impl Preprocessor {
             .is_some_and(|token| token.text == "(" && !token.space)
         {
             position += 1;
-            let mut names = Vec::new();
+            let mut names = Vec::<String>::new();
             if tokens.get(position).is_none_or(|token| token.text != ")") {
                 loop {
                     let parameter = tokens
@@ -1933,7 +1933,7 @@ impl Preprocessor {
                         variadic_parameter = Some("__VA_ARGS__".to_string());
                         position += 1;
                     } else if parameter.kind == Kind::Identifier {
-                        if names.contains(&parameter.text) {
+                        if names.iter().any(|name| name == &parameter.text) {
                             return Err(format!("duplicate macro parameter `{}`", parameter.text));
                         }
                         position += 1;
@@ -1941,10 +1941,10 @@ impl Preprocessor {
                             .get(position)
                             .is_some_and(|token| token.text == "...")
                         {
-                            variadic_parameter = Some(parameter.text.clone());
+                            variadic_parameter = Some(parameter.text.to_string());
                             position += 1;
                         } else {
-                            names.push(parameter.text.clone());
+                            names.push(parameter.text.to_string());
                         }
                     } else {
                         return Err("expected macro parameter name".into());
@@ -1977,8 +1977,8 @@ impl Preprocessor {
             for (index, token) in replacement.iter().enumerate() {
                 if token.text == "#"
                     && replacement.get(index + 1).is_none_or(|token| {
-                        !parameters.contains(&token.text)
-                            && Some(&token.text) != variadic_parameter.as_ref()
+                        !parameters.iter().any(|parameter| parameter == &token.text)
+                            && Some(token.text.as_str()) != variadic_parameter.as_deref()
                     })
                 {
                     return Err("`#` must precede a macro parameter".into());
@@ -1999,7 +1999,7 @@ impl Preprocessor {
             variadic_parameter,
             replacement: spelling,
         };
-        if let Some(previous) = self.macros.get(&name.text)
+        if let Some(previous) = self.macros.get(name.text.as_str())
             && !equivalent(previous, &definition, self.config.scope_punctuator)?
         {
             if let Some(records) = &mut self.macro_redefinitions {
@@ -2020,7 +2020,7 @@ impl Preprocessor {
         if let Some(docs) = &mut self.documentation {
             docs.define(&name.text, replacement, self.config.max_source_bytes)?;
         }
-        self.macros.insert(name.text.clone(), definition);
+        self.macros.insert(name.text.to_string(), definition);
         Ok(())
     }
 }
