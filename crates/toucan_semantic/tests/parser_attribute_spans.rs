@@ -66,3 +66,56 @@ fn record_attribute_operands_keep_their_original_source_ranges() {
         }
     }
 }
+
+#[test]
+fn nested_prefix_alignment_keeps_its_type_layer_and_original_operands() {
+    use toucan_semantic::{TypeKind, analyze_with_profile};
+    use toucan_target::{Compiler, CompilerProfile};
+
+    const SOURCE: &str = "struct S{unsigned (__attribute__((aligned(sizeof(short)))) *pointer);unsigned (__attribute__((aligned(sizeof(short)))) value);};";
+    for profile in CompilerProfile::ALL {
+        let analysis = analyze_with_profile(
+            SOURCE,
+            profile,
+            &AnalysisOptions {
+                retain_code: true,
+                ..Default::default()
+            },
+        )
+        .unwrap();
+        let unit = analysis.unit();
+        let fields = unit
+            .records
+            .iter()
+            .find(|record| record.name.as_deref() == Some("S"))
+            .unwrap()
+            .fields
+            .as_ref()
+            .unwrap();
+        let TypeKind::Pointer(pointee) = &fields[0].ty.kind else {
+            panic!("expected pointer")
+        };
+        let gnu = profile.compiler() == Compiler::Gnu;
+        assert_eq!(
+            pointee.alignment.bytes().map(|value| value.get()),
+            gnu.then_some(2)
+        );
+        assert_eq!(fields[0].ty.alignment.bytes(), None);
+        assert_eq!(
+            fields[1].ty.alignment.bytes().map(|value| value.get()),
+            gnu.then_some(2)
+        );
+        for field in fields {
+            assert_eq!(field.alignment, (!gnu).then_some(2));
+        }
+        let operands = analysis
+            .checked()
+            .unwrap()
+            .occurrences()
+            .filter(|(_, occurrence)| occurrence.kind() == OccurrenceKind::Expression)
+            .map(|(_, occurrence)| &SOURCE[occurrence.source().range().clone()])
+            .filter(|operand| *operand == "sizeof(short)")
+            .count();
+        assert_eq!(operands, 2);
+    }
+}

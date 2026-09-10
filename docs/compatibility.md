@@ -21,9 +21,9 @@ also unsupported.
 
 GNU profiles ignore `packed` written inside a parenthesized declarator, matching
 GCC; Clang profiles apply it to the field. Packing on declaration specifiers and
-field suffixes retains its effect in both profiles. Combining nested `packed`
-with `aligned` is explicitly unsupported in GNU profiles until the alignment
-attribute can be applied to its underlying type.
+field suffixes retains its effect in both profiles. GNU `aligned` attributes
+inside a parenthesized declarator apply to the incoming type before its pointer
+or array layers; Clang applies them to the declared field.
 
 GNU `__int128` and `unsigned __int128` work in declarations, casts, constants,
 and function bodies on the supported 64-bit targets. Compiler probes cover scalar,

@@ -18,6 +18,8 @@ const VALID: &[&str] = &[
     "int (__attribute__((noinline)) *f)(void);",
     "int (__attribute__((stdcall)) *f)(void);",
     "int (__attribute__((ms_abi)) *f)(void);",
+    "int (__attribute__((aligned(16))) *f)(void);",
+    "int (__attribute__((packed)) *f)(void);",
     "int (__attribute__((noinline)) * const *f)(void);",
     "void f(int (__attribute__((noinline)) *)(void));",
     "void f(int (__attribute__ (( __noinline__ )) *)(void));",
@@ -43,17 +45,11 @@ fn empty_compound_literals_and_nested_pointer_attributes_are_checked() {
     for source in INVALID {
         assert!(analyze(source, TARGET).is_err(), "accepted {source}");
     }
-    for attribute in [
-        "vectorcall",
-        "aligned(16)",
-        "packed",
-        "mode(DI)",
-        "unrecognized",
-    ] {
+    for attribute in ["vectorcall", "mode(DI)", "unrecognized"] {
         let source = format!("int (__attribute__(({attribute})) *f)(void);");
         let error = analyze(&source, TARGET).unwrap_err();
         assert!(error.message.contains("unsupported"), "{source}: {error}");
-        let expected = if matches!(attribute, "aligned(16)" | "packed" | "mode(DI)") {
+        let expected = if attribute == "mode(DI)" {
             source.find("__attribute__").unwrap()
         } else {
             source.find(attribute).unwrap()

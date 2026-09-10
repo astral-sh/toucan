@@ -46,6 +46,21 @@ const CASES: &[(&str, bool, bool)] = &[
     ("struct S{_Alignas(16) unsigned x:3;};", false, false),
     ("struct S{_Alignas(0) unsigned x:3;};", false, false),
     (
+        "unsigned (__attribute__((aligned(2))) *p); _Static_assert(__alignof__(p)==__alignof__(void *), \"pointer\"); _Static_assert(__alignof__(*p)==2, \"pointee\");",
+        true,
+        false,
+    ),
+    (
+        "unsigned (__attribute__((aligned(2))) *p[2]); _Static_assert(__alignof__(p)==2, \"pointer array\"); _Static_assert(__alignof__(**p)==4, \"pointee\");",
+        false,
+        true,
+    ),
+    (
+        "struct S{unsigned (__attribute__((aligned(8))) member[2]);};",
+        false,
+        true,
+    ),
+    (
         "struct S{unsigned named:3 __attribute__((mode(QI)));};",
         true,
         true,
@@ -477,27 +492,6 @@ const PREFIX_PACKED_FIELDS: &[&str] = &[
 ];
 
 #[test]
-fn nested_packing_with_alignment_is_explicitly_unsupported_in_gnu() {
-    for profile in CompilerProfile::ALL {
-        for source in [
-            "struct S{unsigned (__attribute__((packed,aligned(2))) member);};",
-            "struct S{unsigned (__attribute__((packed)) (__attribute__((aligned(2))) member));};",
-            "struct S{unsigned (__attribute__((aligned(2))) (__attribute__((packed)) member));};",
-        ] {
-            let result = parity(source, profile);
-            if profile.compiler() == Compiler::Gnu {
-                assert_eq!(
-                    result.unwrap_err().message,
-                    "GNU nested packed and aligned attributes are not supported together"
-                );
-            } else {
-                result.unwrap();
-            }
-        }
-    }
-}
-
-#[test]
 fn nested_prefix_packing_follows_the_compiler_profile() {
     for profile in CompilerProfile::ALL {
         for source in PREFIX_PACKED_FIELDS {
@@ -704,6 +698,82 @@ fn aligned_members_match_native_and_cross_target_record_layouts() {
         ),
         (
             "struct S{char lead;unsigned (__attribute__((packed)) member):3 __attribute__((packed));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((aligned(2))) member);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((aligned(2))) member):3;char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((aligned(2))) *member);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((aligned(16))) *member);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (*(__attribute__((aligned(2))) member));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((aligned(2))) member[2]);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((packed,aligned(2))) member);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((packed)) (__attribute__((aligned(2))) member));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((aligned(2))) (__attribute__((packed)) member));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((aligned(2))) member) __attribute__((aligned(8)));char x;};",
+            2,
+        ),
+        (
+            " typedef unsigned A __attribute__((aligned(8))); struct S{char lead;A (__attribute__((aligned(2))) member);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((aligned(sizeof(enum{A=2})))) member[A]);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((aligned(sizeof(enum{A=2})))) *member[A]);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;int (__attribute__((aligned(16))) *member)(void);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;void (__attribute__((aligned(16))) *member);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;int (__attribute__((aligned(sizeof(enum{A=2})))) member)[A];char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;int (__attribute__((aligned(sizeof(enum{A=2})))) *member)[A];char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;int (__attribute__((aligned(sizeof(enum{A=2})))) *member)(int[A]);char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;int (__attribute__((aligned(sizeof(enum{A=2})))) (__attribute__((aligned(sizeof(enum{B=A*2})))) *member))(int[B]);char x;};",
             2,
         ),
     ];
