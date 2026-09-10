@@ -100,7 +100,7 @@ pub struct Parse {
     pub source: String,
     /// Root of the abstract syntax tree
     pub unit: TranslationUnit,
-    /// Resource counters, including failed alternatives.
+    /// Resource counters for this parser invocation.
     pub statistics: ParseStatistics,
 }
 
@@ -155,6 +155,21 @@ pub struct SyntaxError {
 }
 
 impl SyntaxError {
+    /// Report a resource failure before parsing, at the start of the source.
+    ///
+    /// The diagnostic has no expected tokens and all resource counters are zero.
+    fn before_parsing(source: String, resource: ResourceLimit) -> Self {
+        Self {
+            source,
+            line: 1,
+            column: 1,
+            offset: 0,
+            expected: HashSet::new(),
+            resource: Some(Box::new(resource)),
+            statistics: Box::new(ParseStatistics::default()),
+        }
+    }
+
     /// Quoted and comma-separated list of expected tokens
     pub fn format_expected(&self, fmt: &mut fmt::Formatter) -> fmt::Result {
         let mut list = self.expected.iter().collect::<Vec<_>>();
@@ -238,15 +253,7 @@ pub fn parse_preprocessed_with_limits(
         None
     };
     if let Some(resource) = failure {
-        return Err(SyntaxError {
-            source,
-            line: 1,
-            column: 1,
-            offset: 0,
-            expected: HashSet::new(),
-            resource: Some(Box::new(resource)),
-            statistics: Box::new(ParseStatistics::default()),
-        });
+        return Err(SyntaxError::before_parsing(source, resource));
     }
     // Recursive parser frames are larger in debug builds. A fixed stack makes the
     // recursion ceiling independent of the embedding application's caller stack.
@@ -277,20 +284,15 @@ pub fn parse_preprocessed_with_limits(
             resource: err.resource.map(Box::new),
             statistics: err.statistics,
         }),
-        Err(_) => Err(SyntaxError {
+        Err(_) => Err(SyntaxError::before_parsing(
             source,
-            line: 1,
-            column: 1,
-            offset: 0,
-            expected: HashSet::new(),
-            resource: Some(Box::new(ResourceLimit {
+            ResourceLimit {
                 kind: ResourceKind::WorkerThread,
                 offset: 0,
                 limit: 16 * 1024 * 1024,
                 observed: 0,
-            })),
-            statistics: Box::new(ParseStatistics::default()),
-        }),
+            },
+        )),
     }
 }
 
