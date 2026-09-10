@@ -1,10 +1,11 @@
 //! Shared attribute spellings, feature queries, and symbol-identity constraints.
+use std::borrow::Cow;
 use std::collections::HashMap;
 
 use lang_c::span::Span;
-use toucan_target::{Compiler, CompilerProfile};
+use toucan_target::{Compiler, CompilerProfile, Target};
 
-use crate::{Error, TranslationUnit};
+use crate::{Declaration, Error, TranslationUnit};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Attribute {
@@ -162,10 +163,7 @@ pub(crate) fn validate_symbol_aliases<'a>(
         .collect::<HashMap<_, _>>();
     let mut symbols = HashMap::new();
     for (name, span) in attributed {
-        let label = declarations
-            .get(name)
-            .and_then(|item| item.link_name.as_deref())
-            .unwrap_or(name);
+        let label = symbol_name(unit.target, name, declarations.get(name).copied());
         if let Some((previous, _)) = symbols.insert(label, (name, span))
             && previous != name
         {
@@ -173,15 +171,33 @@ pub(crate) fn validate_symbol_aliases<'a>(
         }
     }
     for declaration in &unit.declarations {
-        let label = declaration
-            .link_name
-            .as_deref()
-            .unwrap_or(&declaration.name);
-        if let Some((owner, span)) = symbols.get(label)
+        let label = symbol_name(unit.target, &declaration.name, Some(declaration));
+        if let Some((owner, span)) = symbols.get(&label)
             && *owner != declaration.name
         {
             return Err(Error::new(span.start, message));
         }
     }
     Ok(())
+}
+
+/// Compare assembler names, including ordinary target prefixes and literal labels.
+/// Block-only attributed declarations have no file declaration and use their C name.
+fn symbol_name<'a>(
+    target: Target,
+    name: &'a str,
+    declaration: Option<&'a Declaration>,
+) -> Cow<'a, str> {
+    let label = declaration
+        .and_then(|item| item.link_name.as_deref())
+        .unwrap_or(name);
+    if matches!(
+        target,
+        Target::X86_64AppleDarwin | Target::Aarch64AppleDarwin
+    ) && !declaration.is_some_and(|item| item.link_name_is_literal)
+    {
+        format!("_{label}").into()
+    } else {
+        label.into()
+    }
 }
