@@ -1427,7 +1427,9 @@ impl Preprocessor {
                 // MSVC warns on uses of these names (including macro names),
                 // without attaching deprecation attributes to declarations.
                 let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
-                if !msvc_deprecated_pragma(&expanded) {
+                if !msvc_name_list(&expanded, |name| {
+                    name.kind == Kind::Identifier || quoted_identifier(name).is_some()
+                }) {
                     return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
                 }
             }
@@ -1435,7 +1437,7 @@ impl Preprocessor {
                 // These control code generation for calls in C function bodies;
                 // they do not affect the declarations emitted as bindings.
                 let expanded = self.expand_at(origin.path.as_ref(), tokens[1..].to_vec())?;
-                if !msvc_function_pragma(&expanded) {
+                if !msvc_name_list(&expanded, |name| name.kind == Kind::Identifier) {
                     return Err(fail(&format!("unsupported pragma: {}", render(tokens))));
                 }
             }
@@ -2011,7 +2013,16 @@ fn pragma_macro_name(tokens: &[Token]) -> Option<&str> {
     let [_, open, literal, close] = tokens else {
         return None;
     };
-    if open.text != "(" || close.text != ")" || literal.kind != Kind::String {
+    if open.text != "(" || close.text != ")" {
+        return None;
+    }
+    quoted_identifier(literal)
+}
+
+/// Read an unprefixed string containing exactly one unchanged identifier.
+/// Escapes are not decoded, and leading or trailing whitespace is rejected.
+fn quoted_identifier(literal: &Token) -> Option<&str> {
+    if literal.kind != Kind::String {
         return None;
     }
     let name = literal.text.strip_prefix('"')?.strip_suffix('"')?;
@@ -2022,8 +2033,9 @@ fn pragma_macro_name(tokens: &[Token]) -> Option<&str> {
     }
 }
 
-/// Validate the MSVC list of function names before discarding a code-generation hint.
-fn msvc_function_pragma(tokens: &[Token]) -> bool {
+/// Validate a nonempty parenthesized MSVC name list, without a trailing comma.
+/// Each name must be a single token accepted by the pragma's name predicate.
+fn msvc_name_list(tokens: &[Token], is_name: impl Fn(&Token) -> bool) -> bool {
     let [open, rest @ .., close] = tokens else {
         return false;
     };
@@ -2031,62 +2043,15 @@ fn msvc_function_pragma(tokens: &[Token]) -> bool {
         return false;
     }
     let mut names = rest.iter();
-    if !names
-        .next()
-        .is_some_and(|name| name.kind == Kind::Identifier)
-    {
+    if !names.next().is_some_and(&is_name) {
         return false;
     }
     while let Some(comma) = names.next() {
-        if comma.text != ","
-            || !names
-                .next()
-                .is_some_and(|name| name.kind == Kind::Identifier)
-        {
+        if comma.text != "," || !names.next().is_some_and(&is_name) {
             return false;
         }
     }
     true
-}
-
-/// Validate names for MSVC's name-based deprecation diagnostic.
-fn msvc_deprecated_pragma(tokens: &[Token]) -> bool {
-    let [open, rest @ .., close] = tokens else {
-        return false;
-    };
-    if open.text != "(" || close.text != ")" {
-        return false;
-    }
-    let mut names = rest.iter();
-    if !names.next().is_some_and(msvc_deprecated_name) {
-        return false;
-    }
-    while let Some(comma) = names.next() {
-        if comma.text != "," || !names.next().is_some_and(msvc_deprecated_name) {
-            return false;
-        }
-    }
-    true
-}
-
-fn msvc_deprecated_name(name: &Token) -> bool {
-    if name.kind == Kind::Identifier {
-        return true;
-    }
-    if name.kind != Kind::String {
-        return false;
-    }
-    let Some(spelling) = name
-        .text
-        .strip_prefix('"')
-        .and_then(|text| text.strip_suffix('"'))
-    else {
-        return false;
-    };
-    let Ok(tokens) = lex_with_scope(spelling, false) else {
-        return false;
-    };
-    matches!(tokens.as_slice(), [token] if token.kind == Kind::Identifier && token.text == spelling)
 }
 
 /// Validate PREfast warning suppression without retaining analyzer-only state.
