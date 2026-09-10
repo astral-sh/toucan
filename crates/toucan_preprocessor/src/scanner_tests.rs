@@ -1,4 +1,4 @@
-//! Differential oracle retained from the character scanner before byte scanning.
+//! Character-scanner oracle with the same physical newline semantics as the byte scanner.
 
 use super::{CommentState, LineComments, Normalized, normalize_with_comments};
 
@@ -12,12 +12,10 @@ fn original_normalize(
     let mut spliced = String::with_capacity(source.len());
     let mut source_offsets = vec![(0, 0)];
     let mut line_starts = vec![0];
-    line_starts.extend(
-        bytes
-            .iter()
-            .enumerate()
-            .filter_map(|(index, byte)| (*byte == b'\n').then_some(index + 1)),
-    );
+    line_starts.extend(bytes.iter().enumerate().filter_map(|(index, byte)| {
+        (*byte == b'\n' || *byte == b'\r' && bytes.get(index + 1) != Some(&b'\n'))
+            .then_some(index + 1)
+    }));
     let mut index = 0;
     while index < bytes.len() {
         let trigraph = if trigraphs && bytes[index..].starts_with(b"??") {
@@ -36,18 +34,26 @@ fn original_normalize(
         } else {
             None
         };
-        let character =
+        let mut character =
             trigraph.unwrap_or_else(|| source[index..].chars().next().expect("remaining source"));
-        let width = if trigraph.is_some() {
+        let mut width = if trigraph.is_some() {
             3
         } else {
             character.len_utf8()
         };
+        if character == '\r' {
+            character = '\n';
+            width = 1 + usize::from(bytes.get(index + 1) == Some(&b'\n'));
+        }
         let following = index + width;
         let newline = if bytes[following..].starts_with(b"\r\n") {
             2
         } else {
-            usize::from(bytes.get(following) == Some(&b'\n'))
+            usize::from(
+                bytes
+                    .get(following)
+                    .is_some_and(|byte| matches!(byte, b'\r' | b'\n')),
+            )
         };
         if character == '\\' && newline != 0 {
             index = following + newline;
@@ -55,7 +61,7 @@ fn original_normalize(
         } else {
             spliced.push(character);
             index = following;
-            if trigraph.is_some() {
+            if width != character.len_utf8() {
                 source_offsets.push((spliced.len(), index));
             }
         }
@@ -153,7 +159,7 @@ fn original_replace_comments(
 #[test]
 fn scanner_preserves_text_offsets_and_comment_ranges() {
     let atoms = [
-        "name", " ", "\n", "\r\n", "\\", "??", "??/", "??=", "??<", "??>", "//", "/*", "*/",
+        "name", " ", "\n", "\r", "\r\n", "\\", "??", "??/", "??=", "??<", "??>", "//", "/*", "*/",
         "//**/", "\"", "'", "\\\"", "\\'", "é", "🦜", "\0",
     ];
     let mut state = 0xa563_c198_2635_346du64;
@@ -178,6 +184,9 @@ fn scanner_preserves_long_runs_at_vector_boundaries() {
             let suffix = "y".repeat(tail);
             for source in [
                 format!("{prefix}??/\r\n{text}??=\n{suffix}"),
+                format!("{prefix}??/\r{text}??=\r{suffix}"),
+                format!("{prefix}\r\n{text}\r{suffix}"),
+                format!("{prefix}\\\r{text}\\\r\n{suffix}"),
                 format!("{prefix}/*{text}\n{text}*/{suffix}"),
                 format!("{prefix}//{text}\r\n{suffix}"),
                 format!("{prefix}\"{text}\\\"{text}\"{suffix}"),

@@ -1,7 +1,7 @@
 use std::collections::BTreeSet;
 
 use char_str::CharStr;
-use memchr::{memchr, memchr_iter, memchr2, memchr3, memmem};
+use memchr::{memchr, memchr2, memchr2_iter, memchr3, memmem};
 
 use crate::LineComments;
 use crate::comments::CommentState;
@@ -87,8 +87,8 @@ impl Normalized {
     }
 }
 
-/// Apply trigraph replacement before escaped-newline removal, then replace
-/// comments. Compact offset breakpoints retain original physical coordinates.
+/// Normalize physical newlines and trigraphs before escaped-newline removal,
+/// then replace comments. Offset breakpoints retain original physical coordinates.
 pub(crate) fn normalize(
     source: &str,
     trigraphs: bool,
@@ -108,15 +108,17 @@ pub(crate) fn normalize_with_comments(
     let mut spliced = String::with_capacity(source.len());
     let mut source_offsets = vec![(0, 0)];
     let mut line_starts = vec![0];
-    line_starts.extend(memchr_iter(b'\n', bytes).map(|index| index + 1));
+    line_starts.extend(memchr2_iter(b'\r', b'\n', bytes).filter_map(|index| {
+        (bytes[index] == b'\n' || bytes.get(index + 1) != Some(&b'\n')).then_some(index + 1)
+    }));
     let mut index = 0;
     let mut copied = 0;
     while index < bytes.len() {
         // UTF-8 continuation bytes cannot contain the ASCII phase-one/two markers.
         let next = if trigraphs {
-            memchr2(b'\\', b'?', &bytes[index..])
+            memchr3(b'\\', b'?', b'\r', &bytes[index..])
         } else {
-            memchr(b'\\', &bytes[index..])
+            memchr2(b'\\', b'\r', &bytes[index..])
         };
         index += next.unwrap_or(bytes.len() - index);
         if index == bytes.len() {
@@ -138,12 +140,21 @@ pub(crate) fn normalize_with_comments(
         } else {
             None
         };
-        let character = trigraph.unwrap_or(bytes[index] as char);
-        let following = index + if trigraph.is_some() { 3 } else { 1 };
+        let mut character = trigraph.unwrap_or(bytes[index] as char);
+        let mut width = if trigraph.is_some() { 3 } else { 1 };
+        if character == '\r' {
+            character = '\n';
+            width = 1 + usize::from(bytes.get(index + 1) == Some(&b'\n'));
+        }
+        let following = index + width;
         let newline = if bytes[following..].starts_with(b"\r\n") {
             2
         } else {
-            usize::from(bytes.get(following) == Some(&b'\n'))
+            usize::from(
+                bytes
+                    .get(following)
+                    .is_some_and(|byte| matches!(byte, b'\r' | b'\n')),
+            )
         };
         if character == '\\' && newline != 0 {
             spliced.push_str(&source[copied..index]);
@@ -151,11 +162,13 @@ pub(crate) fn normalize_with_comments(
             copied = index;
             source_offsets.push((spliced.len(), index));
         } else {
-            if trigraph.is_some() {
+            if trigraph.is_some() || bytes[index] == b'\r' {
                 spliced.push_str(&source[copied..index]);
                 spliced.push(character);
                 copied = following;
-                source_offsets.push((spliced.len(), following));
+                if width != 1 {
+                    source_offsets.push((spliced.len(), following));
+                }
             }
             index = following;
         }
