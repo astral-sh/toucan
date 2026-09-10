@@ -20,6 +20,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+if not __debug__:
+    raise RuntimeError(
+        "Validation requires Python assertions; unset PYTHONOPTIMIZE and omit -O."
+    )
+
 ROOT = Path(__file__).resolve().parents[1]
 _spec = importlib.util.spec_from_file_location(
     "verify_corpus", Path(__file__).with_name("verify_corpus.py")

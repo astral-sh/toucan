@@ -23,6 +23,11 @@ import threading
 import zipfile
 from pathlib import Path
 
+if not __debug__:
+    raise RuntimeError(
+        "Validation requires Python assertions; unset PYTHONOPTIMIZE and omit -O."
+    )
+
 
 def digest(path: Path) -> str:
     with path.open("rb") as stream:

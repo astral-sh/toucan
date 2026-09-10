@@ -108,10 +108,6 @@ def main() -> None:
         help="Frontend checkout, including local edits (defaults to this checkout)",
     )
     args = parser.parse_args()
-    require(
-        __debug__,
-        "run without Python optimization so imported validation checks remain active",
-    )
     require(args.build_timeout > 0, "build timeout must be positive")
     require(
         (args.frontend_mode == "historical-git")

@@ -9,6 +9,11 @@ import json
 import platform
 from pathlib import Path
 
+if not __debug__:
+    raise RuntimeError(
+        "Validation requires Python assertions; unset PYTHONOPTIMIZE and omit -O."
+    )
+
 # Load the sibling harness even when Python's safe-path mode is enabled.
 _spec = importlib.util.spec_from_file_location(
     "verify_corpus", Path(__file__).with_name("verify_corpus.py")

@@ -13,6 +13,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from git_source import verify_artifacts, verify_packages
 
+if not __debug__:
+    raise RuntimeError(
+        "Validation requires Python assertions; unset PYTHONOPTIMIZE and omit -O."
+    )
+
 PARSER = argparse.ArgumentParser(description=__doc__)
 PARSER.add_argument("--work-dir", type=Path, required=True)
 PARSER.add_argument("--target-dir", type=Path, required=True)
