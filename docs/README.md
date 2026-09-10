@@ -16,7 +16,7 @@
 
 ## Existing Rust projects
 
-- [Build-script adapter](../crates/toucan_bindgen/README.md): the supported `bindgen::Builder` API.
+- [Build-script adapter](../crates/toucan_bindgen/README.md): build-script integration.
 - [External bindgen executable](external-bindgen-cli.md): AWS-LC build-script integration.
 - [Replacement readiness](replacement-readiness.md): tested consumers and release blockers.
 - [uv and ty integration](opt-in-rollout.md): proposed opt-in builds and reproduction steps.
