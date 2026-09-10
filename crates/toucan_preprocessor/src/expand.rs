@@ -309,6 +309,9 @@ impl Expansion<'_> {
             }
             if let Some(first) = replacement.first_mut() {
                 first.space = token.space;
+            } else if let Some(next) = pending.front_mut() {
+                // Removing a macro leaves its preceding whitespace in place.
+                next.space |= token.space;
             }
             for token in replacement.into_iter().rev() {
                 pending.push_front(token);
