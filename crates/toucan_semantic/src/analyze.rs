@@ -1013,6 +1013,7 @@ pub(crate) struct PreparedSpecifiers {
 #[derive(Clone, Copy)]
 struct DeclaratorContext<'a> {
     parameter_array: Option<usize>,
+    parenthesized: bool,
     alias_base: bool,
     base_use: Option<crate::checked::TypeUseId>,
     type_name: bool,
@@ -3280,17 +3281,23 @@ impl Analyzer {
         definition: Option<&Node<ast::FunctionDefinition>>,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
         let alias_base = attributes.alias_base && !has_function_derivation(declaration);
+        let mut prepared = self
+            .prepare_declarator_attributes(declaration, alias_base, attributes.type_name_use)?
+            .into_iter();
         let (name, ty, mut extra) = self.declarator_at(
             ty,
             declaration,
             DeclaratorContext {
                 parameter_array: None,
+                parenthesized: false,
                 alias_base,
                 base_use: attributes.type_use,
                 type_name: attributes.type_name_use,
                 definition,
             },
+            &mut prepared,
         )?;
+        debug_assert!(prepared.as_slice().is_empty());
         if let Some(mode) = &attributes.mode {
             self.floating_machine_mode(&ty, mode, declaration.span.start)?;
         }
@@ -3403,17 +3410,27 @@ impl Analyzer {
             let dependency_cursor = self.parameter_type_dependencies.as_mut().map(|deps| {
                 deps.parameter_cursor(declarator_name_span(declarator).unwrap_or(parameter.span()))
             });
+            let mut prepared = self
+                .prepare_declarator_attributes(
+                    declarator,
+                    attributes.alias_base,
+                    attributes.type_name_use,
+                )?
+                .into_iter();
             let result = self.declarator_at(
                 base,
                 declarator,
                 DeclaratorContext {
                     parameter_array: array.map(|(offset, _)| offset),
+                    parenthesized: false,
                     alias_base: attributes.alias_base,
                     base_use: attributes.type_use,
                     type_name: attributes.type_name_use,
                     definition: None,
                 },
+                &mut prepared,
             );
+            debug_assert!(result.is_err() || prepared.as_slice().is_empty());
             if let (Some(deps), Some(previous)) =
                 (&mut self.parameter_type_dependencies, dependency_cursor)
             {
@@ -3586,15 +3603,76 @@ impl Analyzer {
         Ok((site, noescape))
     }
 
+    /// Evaluates prefix and pointer-qualifier operands in lexical order before
+    /// type construction visits enclosing array and function suffixes.
+    fn prepare_declarator_attributes(
+        &mut self,
+        declaration: &Node<ast::Declarator>,
+        alias_base: bool,
+        type_name: bool,
+    ) -> Result<Vec<Attributes>, Error> {
+        if self.nesting >= 128 {
+            return Err(Error::new(
+                declaration.span.start,
+                "declarator nesting limit exceeded",
+            ));
+        }
+        self.nesting += 1;
+        let result = (|| {
+            let mut prepared = Vec::new();
+            let mut declaration = declaration;
+            let mut parenthesized = false;
+            for _ in 0..128 {
+                if parenthesized && !declaration.node.extensions.is_empty() {
+                    let mut attributes = Attributes {
+                        target_type_name: type_name,
+                        ..Attributes::default()
+                    };
+                    self.attributes(&declaration.node.extensions, &mut attributes)?;
+                    prepared.push(attributes);
+                }
+                for derived in &declaration.node.derived {
+                    let ast::DerivedDeclarator::Pointer(qualifiers) = &derived.node else {
+                        continue;
+                    };
+                    for qualifier in qualifiers {
+                        if let ast::PointerQualifier::Extension(extensions) = &qualifier.node {
+                            let mut attributes = Attributes {
+                                alias_base,
+                                target_type_name: type_name,
+                                ..Attributes::default()
+                            };
+                            self.attributes(extensions, &mut attributes)?;
+                            prepared.push(attributes);
+                        }
+                    }
+                }
+                let ast::DeclaratorKind::Declarator(inner) = &declaration.node.kind.node else {
+                    return Ok(prepared);
+                };
+                declaration = inner;
+                parenthesized = true;
+            }
+            Err(Error::new(
+                declaration.span.start,
+                "declarator nesting limit exceeded",
+            ))
+        })();
+        self.nesting -= 1;
+        result
+    }
+
     /// `parameter_array` identifies the outermost array adjusted to a pointer.
     fn declarator_at(
         &mut self,
         mut ty: Type,
         declaration: &Node<ast::Declarator>,
         context: DeclaratorContext<'_>,
+        prepared: &mut std::vec::IntoIter<Attributes>,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
         let DeclaratorContext {
             parameter_array,
+            parenthesized,
             alias_base,
             base_use,
             type_name,
@@ -3607,11 +3685,36 @@ impl Analyzer {
             ));
         }
         self.nesting += 1;
+        let prefix_attributes = if parenthesized && !declaration.node.extensions.is_empty() {
+            let mut attributes = prepared.next().expect("prepared prefix attributes");
+            if self.unit.compiler == Compiler::Gnu
+                && let Some(alignment) = attributes.alignment.take()
+                && !matches!(
+                    self.unit.resolve(&ty)?.kind,
+                    TypeKind::Void | TypeKind::Function(_)
+                )
+            {
+                // GNU attributes after `(` annotate the incoming type, before
+                // this declarator adds pointers, arrays, or function types.
+                ty.alignment = u32::try_from(alignment)
+                    .ok()
+                    .and_then(crate::TypeAlignment::new)
+                    .ok_or_else(|| {
+                        Error::new(
+                            declaration.span.start,
+                            "type alignment exceeds the supported range",
+                        )
+                    })?;
+            }
+            Some(attributes)
+        } else {
+            None
+        };
         // In a parenthesized declarator, its incoming type may already be a
         // function. Leading conventions annotate that function before a new
         // pointer or an outer function is constructed around it.
         let mut leading_convention_applied = false;
-        if self.unit.compiler == Compiler::Clang
+        if (parenthesized || self.unit.compiler == Compiler::Clang)
             && declaration
                 .node
                 .extensions
@@ -3699,13 +3802,9 @@ impl Analyzer {
                                     pointer.qualifiers.set_msvc_ptr32(true);
                                 }
                             }
-                            ast::PointerQualifier::Extension(extensions) => {
-                                let mut attributes = Attributes {
-                                    alias_base,
-                                    target_type_name: type_name,
-                                    ..Attributes::default()
-                                };
-                                self.attributes(extensions, &mut attributes)?;
+                            ast::PointerQualifier::Extension(_) => {
+                                let mut attributes =
+                                    prepared.next().expect("prepared pointer attributes");
                                 noescape.extend_from_slice(&attributes.noescape);
                                 type_noreturn |= attributes.type_noreturn;
                                 nodebug_arguments =
@@ -4094,11 +4193,16 @@ impl Analyzer {
                 });
             }
         }
-        let mut attributes = Attributes {
-            target_type_name: type_name,
-            ..Attributes::default()
+        let mut attributes = if let Some(attributes) = prefix_attributes {
+            attributes
+        } else {
+            let mut attributes = Attributes {
+                target_type_name: type_name,
+                ..Attributes::default()
+            };
+            self.attributes(&declaration.node.extensions, &mut attributes)?;
+            attributes
         };
-        self.attributes(&declaration.node.extensions, &mut attributes)?;
         attributes.noescape.extend(noescape);
         attributes.type_noreturn |= type_noreturn;
         attributes.nodebug_arguments = attributes.nodebug_arguments.or(nodebug_arguments);
@@ -4136,8 +4240,10 @@ impl Analyzer {
                     inner,
                     DeclaratorContext {
                         base_use: type_use,
+                        parenthesized: true,
                         ..context
                     },
+                    prepared,
                 )?;
                 type_use = inner_attributes.type_use;
                 attributes.noescape.extend(inner_attributes.noescape);
@@ -4150,22 +4256,14 @@ impl Analyzer {
                     )?;
                 }
                 // GCC ignores packed on a type inside a parenthesized declarator.
-                if inner_attributes.packed {
-                    if self.unit.compiler == Compiler::Clang {
-                        attributes.packed = true;
-                    } else if inner_attributes.alignment.is_some() || attributes.alignment.is_some()
-                    {
-                        return Err(Error::new(
-                            inner.span.start,
-                            "GNU nested packed and aligned attributes are not supported together",
-                        ));
-                    }
+                if inner_attributes.packed && self.unit.compiler == Compiler::Clang {
+                    attributes.packed = true;
                 }
                 if inner_attributes.msvc_alignment.is_some() {
                     attributes.msvc_alignment = inner_attributes.msvc_alignment;
                 }
                 if inner_attributes.alignment.is_some() {
-                    attributes.alignment = inner_attributes.alignment;
+                    attributes.alignment = attributes.alignment.max(inner_attributes.alignment);
                 }
                 if inner_attributes.link_name.is_some() {
                     attributes.link_name = inner_attributes.link_name;

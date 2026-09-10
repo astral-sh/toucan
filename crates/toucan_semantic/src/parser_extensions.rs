@@ -1,4 +1,4 @@
-//! Narrow GNU grammar adapters for lang-c, with original-source diagnostics.
+//! GNU grammar adapters with original-source diagnostics.
 
 use crate::Error;
 
@@ -11,7 +11,7 @@ struct Segment {
     copied: bool,
 }
 
-/// Maps copied/reordered source runs and inserted tokens back to the original text.
+/// Maps copied source runs and inserted tokens back to the original text.
 #[derive(Default)]
 pub(crate) struct SourceMap {
     segments: Vec<Segment>,
@@ -19,9 +19,8 @@ pub(crate) struct SourceMap {
 }
 
 impl SourceMap {
-    /// Visits original fragments of a parser range. Reordered tokens cannot be
-    /// mapped by translating only the range's two endpoints. Insertions produce
-    /// an empty range anchored at their original location.
+    /// Visits original fragments of a parser range. Insertions produce an empty
+    /// range anchored at their original location.
     pub(crate) fn original_ranges(
         &self,
         range: std::ops::Range<usize>,
@@ -76,8 +75,8 @@ impl SourceMap {
             }
     }
 
-    /// Pragma locations are outside reordered attribute tokens, so only insertions
-    /// affect their parser offsets. Each insertion adds one empty pair of braces.
+    /// Maps a pragma past inserted empty initializers. Each insertion adds one
+    /// empty pair of braces.
     pub(crate) fn pragma_offset(&self, offset: usize) -> usize {
         offset
             + 2 * self
@@ -127,9 +126,7 @@ impl Builder<'_> {
 
 /// Inserts a marked empty initializer into otherwise unparseable compound
 /// literals. In an empty control/function body the same spelling adds an empty
-/// nested block, which has no declarations or effects. Attribute lists before a
-/// nested pointer declarator are moved after its star; the semantic checker admits
-/// only annotations whose effect is unchanged by that parser placement.
+/// nested block, which has no declarations or effects.
 pub(crate) fn adapt(source: &str) -> Result<Adapted, Error> {
     let bytes = source.as_bytes();
     let mut builder = Builder {
@@ -164,23 +161,6 @@ pub(crate) fn adapt(source: &str) -> Result<Adapted, Error> {
                 continue;
             }
         }
-        if previous == Some(b'(') && attribute_end(bytes, index).is_some() {
-            let start = index;
-            let mut end = index;
-            while let Some(next) = attribute_end(bytes, end) {
-                end = skip_space(bytes, next);
-            }
-            if bytes.get(end) == Some(&b'*') {
-                check_adaptations(&mut adaptations, index)?;
-                builder.copy(copied, start);
-                builder.copy(end, end + 1);
-                builder.copy(start, end);
-                copied = end + 1;
-                index = end + 1;
-                previous = Some(b'*');
-                continue;
-            }
-        }
         if bytes[index].is_ascii_alphabetic() || bytes[index] == b'_' {
             let start = index;
             while bytes
@@ -199,7 +179,7 @@ pub(crate) fn adapt(source: &str) -> Result<Adapted, Error> {
         index += 1;
     }
     builder.copy(copied, source.len());
-    // EOF may follow a reordered segment; anchor it explicitly.
+    // Anchor the end of the source explicitly.
     builder.offsets.segments.push(Segment {
         parsed: builder.output.len(),
         original: source.len(),
@@ -224,8 +204,7 @@ pub(crate) fn adapt(source: &str) -> Result<Adapted, Error> {
     })
 }
 
-/// Replace the GNU integer keyword after reordering attributes, so type names
-/// inside those attributes are covered too. The equal-width parser token keeps
+/// Replace the GNU integer keyword. The equal-width parser token keeps
 /// every source range unchanged; only marked occurrences have integer semantics.
 fn normalize_int128(
     source: String,
@@ -283,46 +262,6 @@ fn quoted_end(bytes: &[u8], mut index: usize) -> usize {
         index += 1;
     }
     bytes.len()
-}
-
-/// Returns a complete GNU attribute specifier, including nested argument lists.
-fn attribute_end(bytes: &[u8], start: usize) -> Option<usize> {
-    let remaining = bytes.get(start..)?;
-    let length = if remaining.starts_with(b"__attribute__") {
-        13
-    } else if remaining.starts_with(b"__attribute") {
-        11
-    } else {
-        return None;
-    };
-    let opening = skip_space(bytes, start + length);
-    if bytes.get(opening) != Some(&b'(') {
-        return None;
-    }
-    let second = skip_space(bytes, opening + 1);
-    if bytes.get(second) != Some(&b'(') {
-        return None;
-    }
-    let mut index = second + 1;
-    let mut depth = 2;
-    while index < bytes.len() {
-        match bytes[index] {
-            b'\'' | b'"' => {
-                index = quoted_end(bytes, index);
-                continue;
-            }
-            b'(' => depth += 1,
-            b')' => {
-                depth -= 1;
-                if depth == 0 {
-                    return Some(index + 1);
-                }
-            }
-            _ => {}
-        }
-        index += 1;
-    }
-    None
 }
 
 /// Limits source-map storage independently of the parser's eventual AST size.
