@@ -545,7 +545,7 @@ impl<'s, 'e> Parser<'s, 'e> {
     fn type_qualifier_at(&self, distance: usize) -> Option<TypeQualifier> {
         Some(match self.token_text(self.peek(distance)) {
             "const" => TypeQualifier::Const,
-            "__const" if self.env.extensions_gnu => TypeQualifier::Const,
+            "__const" | "__const__" if self.env.extensions_gnu => TypeQualifier::Const,
             "restrict" if self.env.standard != Standard::C90 => TypeQualifier::Restrict,
             "__restrict" | "__restrict__" if self.env.extensions_gnu => TypeQualifier::Restrict,
             "volatile" => TypeQualifier::Volatile,
