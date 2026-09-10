@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::fmt;
 
 use ast::*;
-use env::Env;
+use env::{Env, Symbol};
 use limits::{Budget, ParseLimits, ParseStatistics, ResourceLimit};
 use measure::Measure;
 use span::{Node, Span};
@@ -54,9 +54,9 @@ struct Parser<'s, 'e> {
 }
 
 impl<'s, 'e> Parser<'s, 'e> {
-    fn new(source: &'s str, env: &'e mut Env, limits: ParseLimits) -> Self {
+    fn new(source: &'s str, env: &'e mut Env, limits: ParseLimits, line_markers: bool) -> Self {
         let mut budget = Budget::new(limits);
-        let tokens = lexer::lex(source, &mut budget);
+        let tokens = lexer::lex(source, &mut budget, line_markers);
         Self {
             source,
             tokens,
@@ -251,10 +251,11 @@ fn parse<T>(
     source: &str,
     env: &mut Env,
     limits: ParseLimits,
+    line_markers: bool,
     parse: impl FnOnce(&mut Parser) -> PResult<T>,
 ) -> Result<(T, ParseStatistics), ParseError> {
     let depth = env.symbols.len();
-    let mut parser = Parser::new(source, env, limits);
+    let mut parser = Parser::new(source, env, limits, line_markers);
     let result = parse(&mut parser).and_then(|value| {
         if parser.budget.failure.is_some() {
             Err(())
@@ -277,7 +278,31 @@ pub(crate) fn translation_unit_with_limits(
     env: &mut Env,
     limits: ParseLimits,
 ) -> Result<(TranslationUnit, ParseStatistics), ParseError> {
-    parse(source, env, limits, |p| p.translation_unit())
+    parse(source, env, limits, true, |p| p.translation_unit())
+}
+
+pub(crate) fn expression_with_limits(
+    source: &str,
+    env: &mut Env,
+    limits: ParseLimits,
+    mut is_typedef: impl FnMut(&str) -> bool,
+) -> Result<(Node<Expression>, ParseStatistics), ParseError> {
+    parse(source, env, limits, false, |p| {
+        // Reuse the bounded token stream instead of scanning source or copying
+        // every typedef from the surrounding translation unit for each query.
+        for token in &p.tokens {
+            if token.kind == TokenKind::Identifier {
+                let name = &source[token.span.start..token.span.end];
+                if !p.budget.work(token.span.start, name.len() as u64 + 1) {
+                    return Err(());
+                }
+                if is_typedef(name) {
+                    p.env.add_symbol(name, Symbol::Typename);
+                }
+            }
+        }
+        p.expression()
+    })
 }
 
 #[cfg(test)]
@@ -287,25 +312,33 @@ pub(crate) fn translation_unit(source: &str, env: &mut Env) -> Result<Translatio
 
 #[cfg(test)]
 pub(crate) fn constant(source: &str, env: &mut Env) -> Result<Constant, ParseError> {
-    parse(source, env, ParseLimits::default(), |p| p.constant()).map(|(value, _)| value)
+    parse(source, env, ParseLimits::default(), true, |p| p.constant()).map(|(value, _)| value)
 }
 
 #[cfg(test)]
 pub(crate) fn string_literal(source: &str, env: &mut Env) -> Result<Node<Vec<String>>, ParseError> {
-    parse(source, env, ParseLimits::default(), |p| p.string_literal()).map(|(value, _)| value)
+    parse(source, env, ParseLimits::default(), true, |p| {
+        p.string_literal()
+    })
+    .map(|(value, _)| value)
 }
 
 #[cfg(test)]
 pub(crate) fn expression(source: &str, env: &mut Env) -> Result<Box<Node<Expression>>, ParseError> {
-    parse(source, env, ParseLimits::default(), |p| p.expression()).map(|(value, _)| Box::new(value))
+    expression_with_limits(source, env, ParseLimits::default(), |_| false)
+        .map(|(value, _)| Box::new(value))
 }
 
 #[cfg(test)]
 pub(crate) fn declaration(source: &str, env: &mut Env) -> Result<Node<Declaration>, ParseError> {
-    parse(source, env, ParseLimits::default(), |p| p.declaration()).map(|(value, _)| value)
+    parse(source, env, ParseLimits::default(), true, |p| {
+        p.declaration()
+    })
+    .map(|(value, _)| value)
 }
 
 #[cfg(test)]
 pub(crate) fn statement(source: &str, env: &mut Env) -> Result<Box<Node<Statement>>, ParseError> {
-    parse(source, env, ParseLimits::default(), |p| p.statement()).map(|(value, _)| Box::new(value))
+    parse(source, env, ParseLimits::default(), true, |p| p.statement())
+        .map(|(value, _)| Box::new(value))
 }

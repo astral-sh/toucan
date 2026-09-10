@@ -9,21 +9,24 @@ use lang_c::{
 };
 use toucan_target::Compiler;
 
-use crate::{Error, analyze::Analyzer};
+use crate::{
+    Error,
+    analyze::{Analyzer, Syntax},
+};
 
 impl Analyzer {
     /// Register earlier plain declarations of names that later carry alignment.
     /// This does not evaluate attributes or bind names before their declaration.
     pub(crate) fn prepare_typedef_alignments(
         &mut self,
-        ast: &ast::TranslationUnit,
+        ast: Syntax<'_>,
         source: &str,
     ) -> Result<(), Error> {
         if self.unit.compiler != Compiler::Clang || !source.contains("aligned") {
             return Ok(());
         }
         let mut collector = Collector::default();
-        collector.visit_translation_unit(ast);
+        ast.visit(&mut collector);
         if let Some(error) = collector.error {
             return Err(error);
         }
