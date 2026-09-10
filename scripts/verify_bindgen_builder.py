@@ -15,6 +15,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from verify_zstd_consumer import PROFILES, ROOT, digest, package_versions, source_hashes
 
+if not __debug__:
+    raise RuntimeError(
+        "Validation requires Python assertions; unset PYTHONOPTIMIZE and omit -O."
+    )
+
 
 def verify(
     cache: Path, output: Path, target: str, profiles: list[str], runner: str = ""

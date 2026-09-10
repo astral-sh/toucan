@@ -13,6 +13,11 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent))
 from git_source import current_checkout, load_report, verify_source
 
+if not __debug__:
+    raise RuntimeError(
+        "Validation requires Python assertions; unset PYTHONOPTIMIZE and omit -O."
+    )
+
 HERE = Path(__file__).resolve().parent
 GIT_PIN = "85bf1ad6dcbc5840ade11bf8798785b6da13260a"
 PACKAGES = [
