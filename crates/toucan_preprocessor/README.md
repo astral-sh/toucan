@@ -47,7 +47,11 @@ settings. For ready-made target and compiler profiles, use the
 
 Set `Config::allow_filesystem` to `false` to restrict preprocessing to in-memory
 source, forced includes, and virtual headers. Include depth, macro expansion
-depth, token counts, and source/output bytes have configurable limits.
+depth, token counts, and source/output bytes have configurable limits. Include and
+macro expansion depths have a supported maximum of 256; the defaults are 64 and
+128. Recursive preprocessing and final macro queries run on a scoped 16 MiB worker
+stack shared with the parser. `with_preprocessor_stack` groups repeated standalone
+calls into one worker session; worker-creation errors become diagnostics.
 
 ## Translation timestamps
 

@@ -10,6 +10,7 @@ description = "A bounded C preprocessor without compiler subprocesses"
 [dependencies]
 char_str.workspace = true
 memchr.workspace = true
+toucan_stack = { version = "0.0.1", path = "../toucan_stack" }
 
 [target.'cfg(windows)'.dependencies]
 winapi-util = "0.1.11"

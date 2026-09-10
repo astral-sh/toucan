@@ -52,8 +52,16 @@ parser's work accounting.
 Parsing runs on a scoped 16 MiB worker stack. Worker-creation errors become resource
 diagnostics. The worker is joined before return, with no idle background thread.
 `with_parser_stack` groups related operations on one stack, and nested sessions
-reuse it. Semantic analysis/evaluation use this session; binding generation groups
+reuse it. Preprocessing, semantic analysis/evaluation, and final-environment macro
+queries share the same worker through `toucan_stack`. Binding generation groups
 all of its macro parses in one session to avoid repeated thread creation.
+
+Preprocessor include and macro expansion limits cannot exceed 256. Their defaults
+remain 64 and 128. The ceilings also apply when preprocessing files, ordered file
+lists, or in-memory headers directly. Unsupported settings fail before processing
+input. `with_preprocessor_stack` lets standalone consumers group repeated calls
+and macro queries into one session. The limits cover frontend recursion; caller
+feature-query providers and closures must bound their own work and recursion.
 
 Every node constructor and each binary/postfix fold checks the resulting
 owned subtree before it can become another fold's child.

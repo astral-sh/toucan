@@ -43,6 +43,7 @@ pub use definitions::{CommandLineMacroNormalizer, PredefinedMacroMode};
 pub use provenance::{OriginKind, SourceLocation, SourceMapping};
 pub use queries::{FeatureQueries, FeatureQuery, FeatureQueryProvider, QueryDialect};
 pub use timestamp::{PreprocessingTimestamp, TimestampError};
+pub use toucan_stack::with_stack as with_preprocessor_stack;
 
 use expand::Expansion;
 use token::{Kind, Token, lex_limited, lex_with_scope, normalize, render};
@@ -100,7 +101,9 @@ pub struct Config {
     /// Keys match header names exactly, without decoding escapes or rewriting separators.
     pub virtual_headers: BTreeMap<String, String>,
     pub defines: BTreeMap<String, String>,
+    /// Include recursion limit, at most 256. Defaults to 64.
     pub max_include_depth: usize,
+    /// Macro recursion and replacement-depth limit, at most 256. Defaults to 128.
     pub max_expansion_depth: usize,
     pub max_tokens: usize,
     /// Cumulative source, expanded replacement, and output byte budget.
@@ -138,6 +141,23 @@ impl Default for Config {
 }
 
 impl Config {
+    /// Reject settings that exceed the worker stack's supported recursion bounds.
+    fn validate_recursion(&self, path: &Path) -> Result<(), Error> {
+        for (name, limit) in [
+            ("include", self.max_include_depth),
+            ("macro expansion", self.max_expansion_depth),
+        ] {
+            if limit > 256 {
+                return Err(Error::new(
+                    path,
+                    1,
+                    format!("{name} depth limit {limit} exceeds the supported maximum of 256"),
+                ));
+            }
+        }
+        Ok(())
+    }
+
     /// Remove a predefined macro or query, as for a command-line `-U` option.
     pub fn undefine(&mut self, name: &str) {
         self.defines
@@ -275,6 +295,10 @@ impl Preprocessed {
             None if !matches!(name, "__DATE__" | "__TIME__") => return Ok(None),
             _ => {}
         }
+        on_stack(&self.path, || self.expand_object_macro_on_stack(name))
+    }
+
+    fn expand_object_macro_on_stack(&self, name: &str) -> Result<Option<String>, Error> {
         let mut expansion = Expansion {
             macros: &self.macros,
             active_queries: self.active_queries,
@@ -300,6 +324,15 @@ impl Preprocessed {
             })
             .map_err(|message| Error::new(&self.path, 1, message))
     }
+}
+
+/// Locate worker-creation failures without converting frontend panics into diagnostics.
+fn on_stack<T: Send>(
+    path: &Path,
+    operation: impl FnOnce() -> Result<T, Error> + Send,
+) -> Result<T, Error> {
+    with_preprocessor_stack(operation)
+        .map_err(|error| Error::new(path, 1, format!("cannot create frontend worker: {error}")))?
 }
 
 /// A preprocessing diagnostic located at a source file and logical line.
@@ -476,7 +509,8 @@ impl Preprocessor {
 
     /// Read and preprocess a header, resolving includes relative to its accessed directory.
     pub fn preprocess(&mut self, path: &Path) -> Result<Preprocessed, Error> {
-        self.preprocess_inputs(path, std::iter::empty())
+        self.config.validate_recursion(path)?;
+        on_stack(path, || self.preprocess_inputs(path, std::iter::empty()))
     }
 
     /// Preprocess ordered headers in one macro environment.
@@ -494,7 +528,10 @@ impl Preprocessor {
                 "at least one input header is required",
             )
         })?;
-        self.preprocess_inputs(main, headers.iter().map(PathBuf::as_path))
+        self.config.validate_recursion(main)?;
+        on_stack(main, || {
+            self.preprocess_inputs(main, headers.iter().map(PathBuf::as_path))
+        })
     }
 
     fn preprocess_inputs<'a>(
@@ -598,11 +635,14 @@ impl Preprocessor {
 
     /// Preprocess in-memory source. `name` determines diagnostics and quoted includes.
     pub fn preprocess_str(&mut self, name: &Path, source: &str) -> Result<Preprocessed, Error> {
-        self.reset()?;
-        let mut output = String::new();
-        self.forced_includes(&mut output)?;
-        self.source(InputFile::named(name, true), source, 0, None, &mut output)?;
-        Ok(self.finish(name, output))
+        self.config.validate_recursion(name)?;
+        on_stack(name, || {
+            self.reset()?;
+            let mut output = String::new();
+            self.forced_includes(&mut output)?;
+            self.source(InputFile::named(name, true), source, 0, None, &mut output)?;
+            Ok(self.finish(name, output))
+        })
     }
 
     fn forced_includes(&mut self, output: &mut String) -> Result<(), Error> {

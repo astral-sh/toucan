@@ -296,10 +296,6 @@ pub fn parse_preprocessed_with_limits(
     }
 }
 
-thread_local! {
-    static ON_PARSER_STACK: ::std::cell::Cell<bool> = const { ::std::cell::Cell::new(false) };
-}
-
 /// Runs a group of parser calls on one bounded worker stack.
 ///
 /// Nested sessions reuse that stack. Every parse still receives a fresh lexical
@@ -307,23 +303,7 @@ thread_local! {
 /// no idle background thread is retained. This only bounds the parser's stack
 /// use, not arbitrary recursion in `operation`. Panics propagate to the caller.
 pub fn with_parser_stack<T: Send>(operation: impl FnOnce() -> T + Send) -> io::Result<T> {
-    if ON_PARSER_STACK.get() {
-        return Ok(operation());
-    }
-    ::std::thread::scope(|scope| {
-        ::std::thread::Builder::new()
-            .name("toucan-parser".into())
-            .stack_size(16 * 1024 * 1024)
-            .spawn_scoped(scope, || {
-                ON_PARSER_STACK.set(true);
-                operation()
-            })
-            .map(|worker| {
-                worker
-                    .join()
-                    .unwrap_or_else(|payload| ::std::panic::resume_unwind(payload))
-            })
-    })
+    toucan_stack::with_stack(operation)
 }
 
 fn preprocess(config: &Config, source: &Path) -> io::Result<String> {
