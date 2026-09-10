@@ -1650,7 +1650,7 @@ mod tests {
     }
 
     #[test]
-    fn adapter_spans_cover_original_source_and_preserve_reordered_fragments() {
+    fn adapter_spans_preserve_parenthesized_attributes_and_mark_insertions() {
         let source = "struct S { int value; }; int f(void) { struct S local = (struct S){}; int (*pointer)(void) = (int (__attribute__((noinline)) *)(void))f; return pointer(); }";
         let (_, code) = retained(source);
         assert_eq!(code.scopes[0].source.range, 0..source.len());
@@ -1673,8 +1673,11 @@ mod tests {
         assert!(
             code.occurrences
                 .iter()
-                .any(|occurrence| !occurrence.source.fragments.is_empty())
+                .all(|occurrence| occurrence.source.fragments.is_empty())
         );
+        assert!(code.occurrences.iter().any(|occurrence| {
+            &source[occurrence.source.range.clone()] == "(int (__attribute__((noinline)) *)(void))f"
+        }));
         assert!(
             code.occurrences
                 .iter()
