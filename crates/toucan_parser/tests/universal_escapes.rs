@@ -1,7 +1,7 @@
 extern crate toucan_parser;
 
 use toucan_parser::ast::Constant;
-use toucan_parser::driver::{parse, parse_preprocessed, Config, Flavor};
+use toucan_parser::driver::{parse, parse_preprocessed, Config, Flavor, Standard};
 use toucan_parser::span::Span;
 use toucan_parser::visit::{self, Visit};
 
@@ -76,4 +76,22 @@ fn public_driver_accepts_preprocessed_universal_escapes() {
         parse(&config, &path).unwrap();
     }
     std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn universal_escapes_require_c99_or_compiler_extensions() {
+    let source = r#"char text[] = "\u00e9\U0001f426"; int code = L'\u00e9';"#;
+    for standard in [Standard::C90, Standard::C99, Standard::C11, Standard::C17] {
+        for flavor in [Flavor::StdC11, Flavor::GnuC11, Flavor::ClangC11] {
+            let config = Config {
+                standard,
+                flavor,
+                ..Config::default()
+            };
+            assert_eq!(
+                parse_preprocessed(&config, source.into()).is_ok(),
+                standard != Standard::C90 || flavor != Flavor::StdC11
+            );
+        }
+    }
 }

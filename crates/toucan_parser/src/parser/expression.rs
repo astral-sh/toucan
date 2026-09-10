@@ -687,7 +687,9 @@ impl Parser<'_, '_> {
                                 position += 1;
                             }
                         }
-                        b'u' | b'U' => {
+                        b'u' | b'U'
+                            if self.env.standard != Standard::C90 || self.env.extensions_gnu =>
+                        {
                             let digits = if bytes[position] == b'u' { 4 } else { 8 };
                             position += 1;
                             let escape_end = position + digits;
