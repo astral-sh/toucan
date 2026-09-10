@@ -3,13 +3,20 @@
 Install `cargo-fuzz` and a nightly Rust toolchain, then run a target from the repository root:
 
 ```console
+cargo +nightly fuzz run parser -- -max_total_time=60
 cargo +nightly fuzz run preprocess -- -max_total_time=60
 cargo +nightly fuzz run semantic -- -max_total_time=60
 cargo +nightly fuzz run bindings -- -max_total_time=60
 cargo +nightly fuzz run checked -- -max_total_time=60
 ```
 
-Targets exercise UTF-8 input, bounded preprocessing, declaration analysis, layout,
+The `parser` target directly exercises preprocessed UTF-8 input, AST spans,
+deterministic work limits, and error formatting. The byte sum selects four language
+standards and four parser flavors, with independent GNU-keyword and Microsoft
+extension settings. It preserves every input byte and accepts up to 16 KiB.
+The campaign runner expands each parser seed across all 64 settings by appending
+whitespace; it does not add comments to preprocessed input.
+The other targets exercise UTF-8 input, bounded preprocessing, declaration analysis, layout,
 and binding generation. Semantic, binding, and checked-code targets select among
 all eleven compiler profiles using the sum of input bytes modulo eleven. The
 `CompilerProfile::ALL` order preserves the original seven entries (five original
@@ -100,6 +107,10 @@ The same runner works locally with a nightly toolchain and `cargo-fuzz` selected
 ```console
 python3 scripts/run_fuzz_campaign.py checked --seconds 900 --seed 12345 --output fuzz/runs/checked-local
 ```
+
+Pass `--toolchain ohm` to select Ohm for the runner's Cargo and rustc commands.
+The parser campaign records and checks all crate sources and Cargo build inputs;
+documentation and benchmark evidence can be updated while its saved binary runs.
 
 The output directory must be new. To replay a saved campaign, extract its starting
 corpus into a new directory and invoke its saved binary with that directory and

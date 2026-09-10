@@ -14,6 +14,70 @@ import run_fuzz_campaign as campaign
 
 
 class FuzzCampaignTests(unittest.TestCase):
+    def test_parser_padding_covers_settings_with_only_trailing_whitespace(self):
+        for source in (
+            b"",
+            b"# 1 \"header.h\"\nint x;",
+            "char*s=\"é𝄞\";".encode(),
+            b"x" * 63,
+        ):
+            seeds = list(campaign.seed_parser_settings(source))
+            self.assertEqual(len(seeds), 64)
+            self.assertEqual(
+                {
+                    (
+                        sum(seed) & 3,
+                        (sum(seed) >> 2) & 3,
+                        bool(sum(seed) & 16),
+                        bool(sum(seed) & 32),
+                    )
+                    for seed in seeds
+                },
+                {
+                    (flavor, standard, gnu, msvc)
+                    for flavor in range(4)
+                    for standard in range(4)
+                    for gnu in (False, True)
+                    for msvc in (False, True)
+                },
+            )
+            for seed in seeds:
+                self.assertTrue(seed.startswith(source))
+                self.assertTrue(set(seed[len(source) :]) <= {9, 10})
+
+    def test_source_manifest_records_new_files_and_omits_removed_files(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            (root / "tracked.rs").write_bytes(b"tracked")
+            (root / "new.rs").write_bytes(b"new")
+            with patch.object(
+                campaign, "capture", return_value="tracked.rs\0deleted.rs\0new.rs\0"
+            ):
+                manifest = campaign.source_manifest(root)
+            self.assertEqual(set(manifest), {"tracked.rs", "new.rs"})
+            self.assertEqual(manifest["new.rs"], hashlib.sha256(b"new").hexdigest())
+
+    def test_parser_source_scope_tracks_build_inputs_separately_from_evidence(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            names = (
+                "Cargo.lock",
+                "crates/toucan_parser/src/parser/expression.rs",
+                "fuzz/fuzz_targets/parser.rs",
+                "fuzz/Cargo.toml",
+                "benchmarks/results.json",
+                "README.md",
+            )
+            for name in names:
+                path = root / name
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(b"input")
+            with patch.object(campaign, "capture", return_value="\0".join(names)):
+                self.assertEqual(
+                    set(campaign.source_manifest(root, "parser")), set(names[:4])
+                )
+                self.assertEqual(set(campaign.source_manifest(root)), set(names))
+
     def test_eight_mode_seeds_preserve_inputs_and_cover_profile_boundaries(self):
         for data in [b"", b"int f(a){return a;}", b"a" * 255, b"a" * 512, b"a" * 1023]:
             for count in (5, 7, 11, 32):

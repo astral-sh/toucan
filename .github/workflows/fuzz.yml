@@ -42,9 +42,13 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p fuzz/logs
-          for fuzz_target in preprocess semantic bindings checked; do
+          for fuzz_target in parser preprocess semantic bindings checked; do
             mkdir -p "fuzz/corpus/$fuzz_target"
-            cp "fuzz/seeds/$fuzz_target/"*.h "fuzz/corpus/$fuzz_target/"
+            seed_extension=h
+            if [[ "$fuzz_target" == parser ]]; then
+              seed_extension=c
+            fi
+            cp "fuzz/seeds/$fuzz_target/"*."$seed_extension" "fuzz/corpus/$fuzz_target/"
             max_length=16384
             if [[ "$fuzz_target" == bindings ]]; then
               max_length=8192
@@ -69,7 +73,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target: [preprocess, semantic, bindings, checked]
+        target: [parser, preprocess, semantic, bindings, checked]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

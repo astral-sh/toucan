@@ -23,9 +23,31 @@ def capture(command, root):
     return subprocess.check_output(command, cwd=root, text=True).strip()
 
 
-def source_manifest(root):
-    names = capture(["git", "ls-files", "-z"], root).split("\0")
-    return {name: sha256(root / name) for name in names if name}
+def source_manifest(root, target=None):
+    names = capture(
+        ["git", "ls-files", "-c", "-o", "--exclude-standard", "-z"], root
+    ).split("\0")
+    if target == "parser":
+        # Documentation and campaign evidence can change while the saved binary
+        # runs. Freeze every crate and build input contributing to that binary.
+        names = [
+            name
+            for name in names
+            if name.startswith(("crates/", ".cargo/", "fuzz/.cargo/"))
+            or name in {
+                "Cargo.toml",
+                "Cargo.lock",
+                "rust-toolchain.toml",
+                "fuzz/Cargo.toml",
+                "fuzz/Cargo.lock",
+                "fuzz/fuzz_targets/parser.rs",
+            }
+        ]
+    return {
+        name: sha256(root / name)
+        for name in sorted(set(names))
+        if name and (root / name).is_file()
+    }
 
 
 def corpus_manifest(corpus):
@@ -57,6 +79,15 @@ def seed_profiles(data, profiles, modes=2):
                 and ((total + 32 * spaces + byte) >> 8) % modes == mode
             )
             yield prefix + padding + suffix
+
+
+def seed_parser_settings(data):
+    """Select all parser settings using only preprocessed-source whitespace."""
+    prefix = data + b"\n"
+    for setting in range(64):
+        # Nine (a tab's byte value) has multiplicative inverse 57 modulo 64.
+        tabs = ((setting - sum(prefix)) * 57) % 64
+        yield prefix + b"\t" * tabs
 
 
 def archive_initial_corpus(corpus, output):
@@ -143,11 +174,12 @@ def campaign_passed(report):
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "target", choices=["preprocess", "semantic", "bindings", "checked"]
+        "target", choices=["parser", "preprocess", "semantic", "bindings", "checked"]
     )
     parser.add_argument("--seconds", type=int, default=900)
     parser.add_argument("--seed", type=int, required=True)
     parser.add_argument("--profiles", type=int, default=11)
+    parser.add_argument("--toolchain", help="Rust toolchain used for Cargo and rustc")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
     if not 1 <= args.seconds <= 3600 or not 1 <= args.profiles <= 32:
@@ -155,18 +187,26 @@ def main():
     if not 1 <= args.seed < 2**32:
         parser.error("seed must be a nonzero unsigned 32-bit integer")
     root = Path(__file__).resolve().parents[1]
+    toolchain = [f"+{args.toolchain}"] if args.toolchain else []
+    cargo = ["cargo", *toolchain]
+    rustc = ["rustc", *toolchain]
     output = args.output.resolve()
     output.mkdir(parents=True, exist_ok=False)
-    source = source_manifest(root)
+    source = source_manifest(root, args.target)
     (output / "source.json").write_text(json.dumps(source, indent=2) + "\n")
     report = {
         "schema_version": 1,
         "source_commit": capture(["git", "rev-parse", "HEAD"], root),
         "source_status": capture(["git", "status", "--porcelain"], root),
         "source_manifest_sha256": sha256(output / "source.json"),
+        "source_scope": "Cargo workspace and parser fuzz target"
+        if args.target == "parser"
+        else "repository files",
         "runner_sha256": sha256(Path(__file__)),
         "target": args.target,
-        "profiles": None if args.target == "preprocess" else args.profiles,
+        "profiles": None
+        if args.target == "preprocess"
+        else (4 if args.target == "parser" else args.profiles),
         "target_selector": None
         if args.target == "preprocess"
         else "sum(input bytes) % profiles",
@@ -215,14 +255,26 @@ def main():
         if args.target == "preprocess"
         else None,
         "started_utc": datetime.datetime.now(datetime.timezone.utc).isoformat(),
-        "rustc": capture(["rustc", "-Vv"], root),
-        "cargo_fuzz": capture(["cargo", "fuzz", "--version"], root),
+        "rustc": capture([*rustc, "-Vv"], root),
+        "cargo_fuzz": capture([*cargo, "fuzz", "--version"], root),
+        "build_environment": {
+            key: os.environ.get(key)
+            for key in ("RUSTFLAGS", "CARGO_TARGET_DIR", "CARGO_BUILD_BUILD_DIR")
+        },
         "sanitizer": "address",
         "sanitizer_options": {
             key: os.environ.get(key) for key in ("ASAN_OPTIONS", "LSAN_OPTIONS")
         },
         "status": "building",
     }
+    if args.target == "parser":
+        report.update(
+            target_selector="sum(input bytes) & 3: 0=std, 1=gnu, 2=clang, 3=gnu_clang",
+            language_mode_selector="(sum(input bytes) >> 2) & 3: 0=c90, 1=c99, 2=c11, 3=c17",
+            language_mode_selector_version=1,
+            parser_selector_version=1,
+            parser_extension_selectors="bit4=GNU keywords, bit5=Microsoft extensions",
+        )
 
     def save():
         (output / "evidence.json").write_text(json.dumps(report, indent=2) + "\n")
@@ -235,7 +287,7 @@ def main():
             if line.startswith("host: ")
         )
         build = [
-            "cargo",
+            *cargo,
             "fuzz",
             "build",
             args.target,
@@ -252,7 +304,7 @@ def main():
         metadata = json.loads(
             capture(
                 [
-                    "cargo",
+                    *cargo,
                     "metadata",
                     "--manifest-path",
                     "fuzz/Cargo.toml",
@@ -271,12 +323,17 @@ def main():
             raise ValueError(
                 "built fuzzer does not contain AddressSanitizer initialization"
             )
+        if source_manifest(root, args.target) != source:
+            raise ValueError("source changed during the sanitizer build")
         report["binary_sha256"] = sha256(binary)
         corpus = root / "fuzz" / "corpus" / args.target
         corpus.mkdir(parents=True, exist_ok=True)
-        for path in sorted((root / "fuzz" / "seeds" / args.target).glob("*.h")):
+        pattern = "*.c" if args.target == "parser" else "*.h"
+        for path in sorted((root / "fuzz" / "seeds" / args.target).glob(pattern)):
             seeds = (
-                seed_preprocessor_policies(path.read_bytes())
+                seed_parser_settings(path.read_bytes())
+                if args.target == "parser"
+                else seed_preprocessor_policies(path.read_bytes())
                 if args.target == "preprocess"
                 else seed_profiles(path.read_bytes(), report["profiles"], modes=8)
             )
@@ -306,7 +363,7 @@ def main():
         report.update(run_fuzzer(command, root, output, args.seconds))
         report["artifacts"] = corpus_manifest(artifacts)
         report["final_corpus"] = corpus_manifest(corpus)
-        report["source_unchanged"] = source_manifest(root) == source
+        report["source_unchanged"] = source_manifest(root, args.target) == source
         report["status"] = "passed" if campaign_passed(report) else "failed"
     except (OSError, ValueError, subprocess.SubprocessError) as error:
         report.update(status="failed", error=str(error))

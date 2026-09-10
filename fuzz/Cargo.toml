@@ -10,9 +10,17 @@ cargo-fuzz = true
 [dependencies]
 libfuzzer-sys = "0.4"
 toucan = { path = "../crates/toucan" }
+toucan_parser = { path = "../crates/toucan_parser" }
 
 [workspace]
 members = ["."]
+
+[[bin]]
+name = "parser"
+path = "fuzz_targets/parser.rs"
+test = false
+doc = false
+bench = false
 
 [[bin]]
 name = "preprocess"
