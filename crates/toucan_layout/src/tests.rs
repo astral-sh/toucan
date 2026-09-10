@@ -6,6 +6,68 @@ use crate::result::ErrorType;
 use crate::target::Target;
 
 #[test]
+fn type_nesting_is_bounded_before_layout() {
+    std::thread::Builder::new()
+        .stack_size(2 * 1024 * 1024)
+        .spawn(|| {
+            for target in [Target::X86_64UnknownLinuxGnu, Target::X86_64PcWindowsMsvc] {
+                for kind in 0..3 {
+                    for depth in [128, 129, 2048] {
+                        let mut ty = Type {
+                            layout: (),
+                            annotations: vec![],
+                            variant: TypeVariant::Builtin(BuiltinType::Int),
+                        };
+                        for _ in 1..depth {
+                            let variant = match kind {
+                                0 => TypeVariant::Typedef(Box::new(ty)),
+                                1 => TypeVariant::Array(Array {
+                                    element_type: Box::new(ty),
+                                    num_elements: Some(1),
+                                }),
+                                _ => TypeVariant::Record(Record {
+                                    kind: RecordKind::Struct,
+                                    fields: vec![RecordField {
+                                        layout: None,
+                                        annotations: vec![],
+                                        named: true,
+                                        bit_width: None,
+                                        ty,
+                                    }],
+                                }),
+                            };
+                            ty = Type {
+                                layout: (),
+                                annotations: vec![],
+                                variant,
+                            };
+                        }
+                        let result = compute_layout(target, &ty);
+                        if depth == 128 {
+                            assert_eq!(result.unwrap().layout.size_bits, 32);
+                        } else {
+                            assert!(matches!(result.unwrap_err().kind(), ErrorType::TypeNesting));
+                        }
+                        // The caller owns the input. Destroy its deliberately
+                        // excessive nesting iteratively, outside layout computation.
+                        loop {
+                            ty = match ty.variant {
+                                TypeVariant::Typedef(inner) => *inner,
+                                TypeVariant::Array(array) => *array.element_type,
+                                TypeVariant::Record(mut record) => record.fields.pop().unwrap().ty,
+                                _ => break,
+                            };
+                        }
+                    }
+                }
+            }
+        })
+        .unwrap()
+        .join()
+        .unwrap();
+}
+
+#[test]
 fn annotated_builtin() {
     let ty = Type::<()> {
         layout: (),
