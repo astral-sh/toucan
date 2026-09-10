@@ -11,6 +11,7 @@ C conformance or compatibility with every bindgen build script.
 | Accept valid source | The [external C suite](../corpus/conformance/README.md) compares untouched programs with GCC and Clang. Its strict gate requires acceptance of cases both compilers also accept with pedantic C11 flags. | Compiler agreement on a finite positive corpus does not prove all language rules or rejection of invalid source. |
 | Exercise native preprocessing | The same audit can preprocess and analyze original source with Toucan, recording its profile, include search, macro configuration, actual header dependencies, and failures separately from the compiler-preprocessed route. | The profiles can select different conditional-header branches. The audit does not require identical predefined macros or byte-identical preprocessed text. |
 | Check generated programs | The [Csmith audit](../corpus/conformance/csmith/README.md) checks generated source in both frontend profiles and compares complete declaration output with optional code retention enabled and disabled. | GCC/Clang runtime checks validate the source oracle. Toucan does not generate or execute machine code. |
+| Check generated bindings and invalid mutations | The [native C/Rust audit](../corpus/conformance/generated-bindings.md) compares compiled constants, integer macro types, and record layouts with GCC/Clang, and requires rejection of eight invalid mutation categories. | Bounded ordinary C11 forms on native GNU Linux; no cross-target or function-call coverage. |
 | Diagnose unsupported or invalid input | [Semantic tests](../crates/toucan_semantic/tests) cover declaration, expression, initializer, and body constraints. Binding tests require explicit errors for selected unsupported Rust ABI representations. | We still need broader independent coverage of programs that require a diagnostic. A valid unsupported ABI and invalid C source are different outcomes. |
 | Preserve C values and calling conventions | The [binding corpus](../corpus/README.md) compares constants, layouts, function signatures, and actual C/Rust calls. [Consumer gates](replacement-readiness.md) build the Rust wrappers and applications that consume generated output. | A layout match alone does not establish argument passing, wrapper compatibility, or every library configuration. |
 | Bound malformed input | [Parser limits](parser-limits.md), [fuzzing](../fuzz/README.md), and regression tests exercise preprocessing, analysis, retained code, and binding generation. | Bounded campaigns and resource counters do not prove memory safety or a universal runtime/memory bound. |
@@ -24,9 +25,9 @@ changed inputs are infrastructure failures, not ordinary language differences.
 
 For a general frontend release, broaden both positive and negative language
 coverage, continue native-preprocessor comparisons across real header environments,
-and exercise the declared target/profile combinations. An independent negative
-corpus should distinguish required C diagnostics from optional warnings and
-unsupported compiler extensions.
+and exercise the declared target/profile combinations. Extend the independent
+negative corpus while distinguishing required C diagnostics from optional warnings
+and unsupported compiler extensions.
 
 For a binding replacement, complete the selected Builder API and Rust ABI
 representations needed by adopting projects, then repeat their actual builds,

@@ -8,6 +8,8 @@ on:
       - "crates/**"
       - "corpus/conformance/c-testsuite.json"
       - "scripts/audit_c_testsuite.py"
+      - "scripts/audit_generated_bindings.py"
+      - "scripts/tests/test_generated_bindings_audit.py"
       - "tools/binding_compare/tests/test_c_testsuite.py"
       - ".github/workflows/conformance.yml"
   push:
@@ -64,5 +66,44 @@ jobs:
         with:
           name: c-testsuite-conformance-${{ matrix.preprocessor }}
           path: corpus/results/conformance/
+          if-no-files-found: warn
+          retention-days: 14
+
+  generated-bindings:
+    name: Generated C and Rust correctness
+    runs-on: ${{ github.repository_owner == 'astral-sh' && 'github-ubuntu-24.04-x86_64-4' || 'ubuntu-24.04' }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          persist-credentials: false
+      - uses: dtolnay/rust-toolchain@d1031067263f94b142dd6c0ce24c5eb9d02d52a0
+        with:
+          toolchain: "1.96.0"
+      - name: Install independent compiler oracles
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes --no-install-recommends python3.12 gcc-13 clang-18
+      - run: cargo build --locked -p toucan_cli --bin toucan --no-default-features
+      - name: Compare generated bindings and required C diagnostics
+        env:
+          ORACLE_SEED: ${{ github.run_id }}
+        run: |
+          python3.12 scripts/audit_generated_bindings.py \
+            --toucan target/debug/toucan --gcc gcc-13 --clang clang-18 \
+            --seed "$ORACLE_SEED" --count 16 \
+            --output corpus/results/generated-bindings
+      - name: Ensure incorrect frontends fail the gate
+        env:
+          TOUCAN_ORACLE_BINARY: target/debug/toucan
+          TOUCAN_GCC: gcc-13
+          TOUCAN_CLANG: clang-18
+        run: python3.12 -m unittest discover -s scripts/tests -p test_generated_bindings_audit.py
+      - name: Upload generated sources, probes, and diagnostics
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: generated-bindings-correctness
+          path: corpus/results/generated-bindings/
           if-no-files-found: warn
           retention-days: 14

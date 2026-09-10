@@ -4,6 +4,10 @@ The fuzz harnesses find panics, sanitizer failures, timeouts, and broken interna
 invariants. Execution counts include rejected C and invalid UTF-8. They do not
 measure semantic correctness or prove that generated bindings are usable.
 
+The separate [native C/Rust audit](../corpus/conformance/generated-bindings.md)
+compiles generated bindings, compares values and layouts with GCC and Clang, and
+checks rejection of deliberately invalid C.
+
 ## Harnesses
 
 | Target | Exercises |
