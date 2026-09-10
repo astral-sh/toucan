@@ -36,15 +36,10 @@ impl From<ast::AlignOfKind> for AlignmentKind {
 
 #[derive(Default)]
 pub(crate) struct AlignmentQueries {
-    results: BTreeMap<(usize, usize), AlignmentResult>,
+    results: BTreeMap<(usize, usize), u64>,
     origins: Vec<Origin>,
     active: usize,
     type_bytes: usize,
-}
-
-#[derive(Clone, Copy, Debug)]
-pub(crate) struct AlignmentResult {
-    pub(crate) bytes: u64,
 }
 
 #[derive(Clone)]
@@ -58,10 +53,9 @@ const LIMIT: usize = 65_536;
 const TYPE_BYTE_LIMIT: usize = 16 * 1024 * 1024;
 
 impl Analyzer {
-    pub(crate) fn alignment_query(
-        &mut self,
-        query: &Node<ast::AlignOf>,
-    ) -> Result<AlignmentResult, Error> {
+    /// Checks an unevaluated alignment operand and returns its alignment in bytes.
+    /// Successful results are cached by source span for evaluation and retention.
+    pub(crate) fn alignment_query(&mut self, query: &Node<ast::AlignOf>) -> Result<u64, Error> {
         let key = (query.span.start, query.span.end);
         if let Some(result) = self.alignment_queries.results.get(&key) {
             return Ok(*result);
@@ -120,9 +114,8 @@ impl Analyzer {
         });
         self.restore_allocation_context(allocation_context, false);
         let bytes = bytes?;
-        let result = AlignmentResult { bytes };
-        self.alignment_queries.results.insert(key, result);
-        Ok(result)
+        self.alignment_queries.results.insert(key, bytes);
+        Ok(bytes)
     }
 
     fn i686_double_preferred_alignment(&self, ty: &Type) -> Result<bool, Error> {
@@ -506,9 +499,7 @@ mod tests {
         let mut query = Query::default();
         query.visit_translation_unit(&parsed.unit);
         let query = query.0.unwrap();
-        analyzer.alignment_queries.results = (0..LIMIT)
-            .map(|n| ((n, usize::MAX), AlignmentResult { bytes: 1 }))
-            .collect();
+        analyzer.alignment_queries.results = (0..LIMIT).map(|n| ((n, usize::MAX), 1)).collect();
         let error = analyzer.alignment_query(&query).unwrap_err();
         assert_eq!(error.offset, query.span.start);
         assert!(error.message.contains("alignment query count"));

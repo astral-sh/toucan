@@ -1455,7 +1455,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::AlignOf(alignment) => {
-                let result = self.alignment_query(alignment)?;
+                let alignment_bytes = self.alignment_query(alignment)?;
                 let operand = match &alignment.node.operand {
                     ast::AlignOfOperand::TypeName(name) => {
                         type_name_use = self.code_builder().type_name_use(&name.node);
@@ -1473,7 +1473,7 @@ impl Analyzer {
                 ExprKind::AlignOf {
                     kind: alignment.node.kind.into(),
                     operand,
-                    alignment_bytes: result.bytes,
+                    alignment_bytes,
                 }
             }
             ast::Expression::OffsetOf(offset_of) => self.retain_offset_of(offset_of)?,
