@@ -59,8 +59,11 @@ def inventory(root: Path) -> dict[str, str]:
 def current_checkout(root: Path) -> dict:
     """Snapshot the selected checkout, including local edits, before building it."""
     root = root.resolve(strict=True)
+    # Container runners can mount the selected checkout under another user ID.
+    # Trust only this root for these reads, without changing Git configuration.
+    command = ["git", "-c", f"safe.directory={root}", "-C", str(root)]
     top = subprocess.check_output(
-        ["git", "-C", str(root), "rev-parse", "--show-toplevel"], text=True
+        [*command, "rev-parse", "--show-toplevel"], text=True
     ).strip()
     require(Path(top).resolve() == root, "frontend source is not a Git checkout root")
     files = inventory(root)
@@ -68,10 +71,10 @@ def current_checkout(root: Path) -> dict:
         "mode": "local",
         "root": str(root),
         "head": subprocess.check_output(
-            ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
+            [*command, "rev-parse", "HEAD"], text=True
         ).strip(),
         "git_status": subprocess.check_output(
-            ["git", "-C", str(root), "status", "--porcelain"], text=True
+            [*command, "status", "--porcelain"], text=True
         ),
         "source": None,
         "files": files,

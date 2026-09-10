@@ -220,6 +220,22 @@ class CurrentSource(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "source changed during validation"):
             git.verify_source(report)
 
+    def test_container_ownership_exception_is_scoped_to_selected_root(self):
+        command = ["git", "-C", str(self.root), "rev-parse", "HEAD"]
+        with patch.dict(os.environ, {"GIT_TEST_ASSUME_DIFFERENT_OWNER": "1"}):
+            before = subprocess.run(
+                command, capture_output=True, text=True, check=False
+            )
+            self.assertNotEqual(before.returncode, 0)
+            self.assertIn("dubious ownership", before.stderr)
+            report = git.current_checkout(self.root)
+            git.verify_packages(self.metadata, snapshot=report)
+            after = subprocess.run(command, capture_output=True, text=True, check=False)
+            self.assertNotEqual(after.returncode, 0)
+            self.assertIn("dubious ownership", after.stderr)
+        with self.assertRaisesRegex(RuntimeError, "not a Git checkout root"):
+            git.current_checkout(self.root / "crates")
+
     def test_lock_edits_after_snapshot_and_foreign_sources_are_rejected(self):
         snapshot = git.current_checkout(self.root)
         self.metadata["packages"][0]["source"] = git.GIT_SOURCE
