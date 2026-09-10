@@ -280,6 +280,10 @@ fn clang_symbol_aliases_are_lexical_and_respect_first_use() {
                     "malloc"
                 })
             );
+            assert_eq!(
+                analysis.unit().declarations[0].link_name_is_literal,
+                profile.compiler() == Compiler::Clang
+            );
         }
     }
 }

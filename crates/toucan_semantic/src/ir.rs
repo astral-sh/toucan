@@ -501,6 +501,10 @@ pub struct Declaration {
     pub ty: Type,
     pub kind: DeclarationKind,
     pub link_name: Option<String>,
+    /// An explicit assembler label suppresses the target's usual symbol prefix.
+    /// Implicit builtin aliases retain ordinary C symbol naming.
+    #[serde(skip_serializing_if = "std::ops::Not::not")]
+    pub link_name_is_literal: bool,
     /// Whether this declaration has internal linkage.
     pub is_static: bool,
     /// Whether each thread owns a distinct object; independent of its linkage.

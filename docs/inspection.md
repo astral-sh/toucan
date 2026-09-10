@@ -188,6 +188,11 @@ entity, a captured `noreturn` promise, and a compiler-honored `link_name` overri
 These optional fields are additive in checked schema 5; ordinary declaration
 symbols continue to use `link_name` in schema 3.
 
+Declarations with an explicit assembler label also carry `link_name_is_literal:
+true`. Such labels suppress the target's usual symbol prefix. The flag is absent
+for implicit builtin aliases, which retain ordinary C symbol naming. Rust bindings
+preserve this distinction on macOS with LLVM's no-mangling marker.
+
 Prefetch calls retain all argument conversions, including GNU extra arguments.
 `BuiltinFunction` now distinguishes allocation functions and GNU prefetch function
 addresses. Allocation identities keep their existing serialized strings; `Prefetch`
