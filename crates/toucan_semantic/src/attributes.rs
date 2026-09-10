@@ -1,5 +1,10 @@
-//! Attribute spellings shared by semantic dispatch and feature-query support.
+//! Shared attribute spellings, feature queries, and symbol-identity constraints.
+use std::collections::HashMap;
+
+use lang_c::span::Span;
 use toucan_target::{Compiler, CompilerProfile};
+
+use crate::{Error, TranslationUnit};
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub(crate) enum Attribute {
@@ -131,4 +136,52 @@ pub fn has_attribute(profile: CompilerProfile, name: &str) -> u64 {
         }
         _ => true,
     })
+}
+
+/// Rejects assembler labels shared with another C name when an attribute needs
+/// a unique symbol identity. Diagnostics point to the supplied attribute span,
+/// including for names declared only at block scope.
+pub(crate) fn validate_symbol_aliases<'a>(
+    unit: &TranslationUnit,
+    attributed: impl Iterator<Item = (&'a str, Span)>,
+    message: &str,
+) -> Result<(), Error> {
+    let mut attributed = attributed.peekable();
+    if attributed.peek().is_none()
+        || !unit
+            .declarations
+            .iter()
+            .any(|item| item.link_name.is_some())
+    {
+        return Ok(());
+    }
+    let declarations = unit
+        .declarations
+        .iter()
+        .map(|item| (item.name.as_str(), item))
+        .collect::<HashMap<_, _>>();
+    let mut symbols = HashMap::new();
+    for (name, span) in attributed {
+        let label = declarations
+            .get(name)
+            .and_then(|item| item.link_name.as_deref())
+            .unwrap_or(name);
+        if let Some((previous, _)) = symbols.insert(label, (name, span))
+            && previous != name
+        {
+            return Err(Error::new(span.start, message));
+        }
+    }
+    for declaration in &unit.declarations {
+        let label = declaration
+            .link_name
+            .as_deref()
+            .unwrap_or(&declaration.name);
+        if let Some((owner, span)) = symbols.get(label)
+            && *owner != declaration.name
+        {
+            return Err(Error::new(span.start, message));
+        }
+    }
+    Ok(())
 }

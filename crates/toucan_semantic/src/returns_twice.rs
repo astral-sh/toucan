@@ -58,56 +58,12 @@ impl Analyzer {
     /// Distinct C names for one symbol need a shared control-flow identity before
     /// either could be safely selected by a binding generator.
     pub(crate) fn validate_returns_twice_aliases(&self) -> Result<(), Error> {
-        if !self
-            .function_effects
-            .values()
-            .any(|effects| effects.returns_twice.is_some())
-            || !self
-                .unit
-                .declarations
-                .iter()
-                .any(|item| item.link_name.is_some())
-        {
-            return Ok(());
-        }
-        let declarations = self
-            .unit
-            .declarations
-            .iter()
-            .map(|item| (item.name.as_str(), item))
-            .collect::<std::collections::HashMap<_, _>>();
-        let mut symbols = std::collections::HashMap::new();
-        for (name, effects) in &self.function_effects {
-            let Some(span) = effects.returns_twice else {
-                continue;
-            };
-            let label = declarations
-                .get(name.as_str())
-                .and_then(|item| item.link_name.as_deref())
-                .unwrap_or(name);
-            if let Some((previous, _)) = symbols.insert(label, (name.as_str(), span))
-                && previous != name
-            {
-                return Err(Error::new(
-                    span.start,
-                    "returns_twice symbols shared by multiple C names are unsupported",
-                ));
-            }
-        }
-        for declaration in &self.unit.declarations {
-            let label = declaration
-                .link_name
-                .as_deref()
-                .unwrap_or(&declaration.name);
-            if let Some((owner, span)) = symbols.get(label)
-                && *owner != declaration.name
-            {
-                return Err(Error::new(
-                    span.start,
-                    "returns_twice symbols shared by multiple C names are unsupported",
-                ));
-            }
-        }
-        Ok(())
+        crate::attributes::validate_symbol_aliases(
+            &self.unit,
+            self.function_effects.iter().filter_map(|(name, effects)| {
+                effects.returns_twice.map(|span| (name.as_str(), span))
+            }),
+            "returns_twice symbols shared by multiple C names are unsupported",
+        )
     }
 }

@@ -50,50 +50,12 @@ impl Analyzer {
     /// Reject that combination when weak binding would otherwise leak to a strong
     /// declaration. Ordinary unique labels remain usable.
     pub(crate) fn validate_weak_symbol_aliases(&self) -> Result<(), Error> {
-        if self.weak_symbols.is_empty()
-            || !self
-                .unit
-                .declarations
+        crate::attributes::validate_symbol_aliases(
+            &self.unit,
+            self.weak_symbols
                 .iter()
-                .any(|item| item.link_name.is_some())
-        {
-            return Ok(());
-        }
-        let declarations = self
-            .unit
-            .declarations
-            .iter()
-            .map(|declaration| (declaration.name.as_str(), declaration))
-            .collect::<std::collections::HashMap<_, _>>();
-        let mut symbols = std::collections::HashMap::new();
-        for name in self.weak_symbols.keys() {
-            let label = declarations
-                .get(name.as_str())
-                .and_then(|item| item.link_name.as_deref())
-                .unwrap_or(name);
-            if let Some(previous) = symbols.insert(label, name)
-                && previous != name
-            {
-                return Err(Error::new(
-                    self.weak_symbols[name].start,
-                    "weak symbols shared by multiple C names are unsupported",
-                ));
-            }
-        }
-        for declaration in &self.unit.declarations {
-            let label = declaration
-                .link_name
-                .as_deref()
-                .unwrap_or(&declaration.name);
-            if let Some(owner) = symbols.get(label)
-                && **owner != declaration.name
-            {
-                return Err(Error::new(
-                    self.weak_symbols[*owner].start,
-                    "weak symbols shared by multiple C names are unsupported",
-                ));
-            }
-        }
-        Ok(())
+                .map(|(name, span)| (name.as_str(), *span)),
+            "weak symbols shared by multiple C names are unsupported",
+        )
     }
 }
