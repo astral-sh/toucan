@@ -72,7 +72,7 @@ pub enum IntegerBase {
 /// (C11 6.4.4.1)
 #[derive(Debug, PartialEq, Eq, Hash, Clone)]
 pub struct IntegerSuffix {
-    /// Minimum size of the integer literal
+    /// Minimum standard size or explicit Microsoft width of the integer literal
     pub size: IntegerSize,
     /// Integer literal has unsigned type
     pub unsigned: bool,
@@ -88,11 +88,13 @@ pub struct IntegerSuffix {
 #[derive(Debug, PartialEq, Eq, PartialOrd, Ord, Hash, Clone, Copy)]
 pub enum IntegerSize {
     /// no `l` or `ll`
-    Int = 0,
+    Int,
     /// `l`
     Long,
     /// `ll`
     LongLong,
+    /// Microsoft `i8`, `i16`, `i32`, or `i64`, with an exact width.
+    Msvc(u8),
 }
 
 /// Floating point number literal

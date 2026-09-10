@@ -118,7 +118,17 @@ impl Analyzer {
         let offset = expression.span.start;
         let ty = match &expression.node {
             ast::Expression::Constant(constant) => match &constant.node {
-                ast::Constant::Integer(integer) => integer_to_type(self.literal(integer, offset)?),
+                ast::Constant::Integer(integer) => {
+                    let value = self.literal(integer, offset)?;
+                    if integer.suffix.size == ast::IntegerSize::Msvc(8) && !integer.suffix.unsigned
+                    {
+                        // Microsoft's i8 literal has plain char type, which its
+                        // signedness and integer rank alone cannot distinguish.
+                        Type::new(TypeKind::Integer(crate::IntegerKind::Char))
+                    } else {
+                        integer_to_type(value)
+                    }
+                }
                 ast::Constant::Character(character) => {
                     integer_to_type(crate::decode_character_literal_with_profile(
                         self.character_literals

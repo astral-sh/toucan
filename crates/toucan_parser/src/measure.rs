@@ -200,7 +200,8 @@ structure!(IntegerSuffix {
 enumeration!(IntegerSize {
     Int,
     Long,
-    LongLong
+    LongLong,
+    Msvc(width)
 });
 structure!(Float {
     base,

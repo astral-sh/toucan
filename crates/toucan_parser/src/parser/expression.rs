@@ -613,7 +613,11 @@ impl Parser<'_, '_> {
 
     pub(super) fn constant(&mut self) -> PResult<Constant> {
         let constant = match self.token().kind {
-            TokenKind::Number => numeric_constant(self.text(), self.env.extensions_gnu),
+            TokenKind::Number => numeric_constant(
+                self.text(),
+                self.env.extensions_gnu,
+                self.env.extensions_msvc,
+            ),
             TokenKind::Character if self.valid_quoted_literal(self.text(), b'\'') => {
                 Some(Constant::Character(self.text().to_owned()))
             }
@@ -727,7 +731,7 @@ fn binary_operator(text: &str) -> Option<(u8, BinaryOperator)> {
     })
 }
 
-fn numeric_constant(text: &str, gnu: bool) -> Option<Constant> {
+fn numeric_constant(text: &str, gnu: bool, msvc: bool) -> Option<Constant> {
     let bytes = text.as_bytes();
     let hexadecimal = text.starts_with("0x") || text.starts_with("0X");
     let number_start = if hexadecimal { 2 } else { 0 };
@@ -821,7 +825,33 @@ fn numeric_constant(text: &str, gnu: bool) -> Option<Constant> {
     if start == 0 && bytes.first() == Some(&b'0') && end > 1 {
         return None;
     }
-    let suffix = int_suffix(&text[end..]).ok()?;
+    let suffix_text = &text[end..];
+    let unsigned = suffix_text.starts_with('u') || suffix_text.starts_with('U');
+    let width_suffix = if unsigned {
+        &suffix_text[1..]
+    } else {
+        suffix_text
+    };
+    let msvc_width = if msvc {
+        match width_suffix {
+            "i8" | "I8" => Some(8),
+            "i16" | "I16" => Some(16),
+            "i32" | "I32" => Some(32),
+            "i64" | "I64" => Some(64),
+            _ => None,
+        }
+    } else {
+        None
+    };
+    let suffix = if let Some(width) = msvc_width {
+        IntegerSuffix {
+            size: IntegerSize::Msvc(width),
+            unsigned,
+            imaginary: false,
+        }
+    } else {
+        int_suffix(suffix_text).ok()?
+    };
     if suffix.imaginary && !gnu {
         return None;
     }
