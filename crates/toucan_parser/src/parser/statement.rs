@@ -1,6 +1,7 @@
 //! Statements, lexical block scopes, and GNU inline assembly.
 
 use ast::*;
+use driver::Standard;
 use span::{Node, Span};
 
 use super::{PResult, Parser, TokenKind};
@@ -22,7 +23,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             return self.labeled_statement();
         }
         if matches!(self.text(), "if" | "switch" | "while" | "do" | "for") {
-            return self.scoped(|p| p.control_statement());
+            return self.control_scope(|p| p.control_statement());
         }
         let value = match self.text() {
             "goto" => {
@@ -142,15 +143,24 @@ impl<'s, 'e> Parser<'s, 'e> {
         }
     }
 
+    /// C99 gives control statements and their bodies separate block scopes.
+    fn control_scope<T>(&mut self, parse: impl FnOnce(&mut Self) -> PResult<T>) -> PResult<T> {
+        if self.env.standard == Standard::C90 {
+            parse(self)
+        } else {
+            self.scoped(parse)
+        }
+    }
+
     fn control_statement(&mut self) -> PResult<Node<Statement>> {
         let start = self.position();
         let value = match self.text() {
             "if" => {
                 self.bump()?;
                 let condition = Box::new(self.parenthesized_expression()?);
-                let then_statement = Box::new(self.statement()?);
+                let then_statement = Box::new(self.control_scope(|p| p.statement())?);
                 let else_statement = if self.eat("else")? {
-                    Some(Box::new(self.statement()?))
+                    Some(Box::new(self.control_scope(|p| p.statement())?))
                 } else {
                     None
                 };
@@ -166,7 +176,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             "switch" => {
                 self.bump()?;
                 let expression = Box::new(self.parenthesized_expression()?);
-                let statement = Box::new(self.statement()?);
+                let statement = Box::new(self.control_scope(|p| p.statement())?);
                 Statement::Switch(self.node(
                     SwitchStatement {
                         expression,
@@ -178,7 +188,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             "while" => {
                 self.bump()?;
                 let expression = Box::new(self.parenthesized_expression()?);
-                let statement = Box::new(self.statement()?);
+                let statement = Box::new(self.control_scope(|p| p.statement())?);
                 Statement::While(self.node(
                     WhileStatement {
                         expression,
@@ -189,7 +199,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             }
             "do" => {
                 self.bump()?;
-                let statement = Box::new(self.statement()?);
+                let statement = Box::new(self.control_scope(|p| p.statement())?);
                 self.expect("while")?;
                 let expression = Box::new(self.parenthesized_expression()?);
                 self.expect(";")?;
@@ -221,7 +231,7 @@ impl<'s, 'e> Parser<'s, 'e> {
                 self.expect(";")?;
                 let step = self.optional_expression(")")?;
                 self.expect(")")?;
-                let statement = Box::new(self.statement()?);
+                let statement = Box::new(self.control_scope(|p| p.statement())?);
                 Statement::For(self.node(
                     ForStatement {
                         initializer,
