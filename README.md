@@ -54,8 +54,27 @@ toucan bindgen api.h --target x86_64-unknown-linux-gnu \
   --allowlist 'api_*' --allowlist 'API_*' --output bindings.rs
 ```
 
-The generated records include compile-time layout checks. Add `--report bindings.json`
-to record dependencies, timings, and omitted declarations or macros.
+This produces the following declarations in `bindings.rs`:
+
+```rust
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct api_point {
+    pub x: ::core::primitive::f64,
+    pub y: ::core::primitive::f64,
+}
+
+unsafe extern "C" {
+    pub fn api_translate(
+        arg0: *mut api_point,
+        arg1: ::core::primitive::f64,
+        arg2: ::core::primitive::f64,
+    ) -> ::core::ffi::c_int;
+}
+pub const API_VERSION: ::core::primitive::i32 = 1;
+```
+
+The generated file also includes compile-time target and layout checks, omitted here.
 See the [binding guide](docs/bindings.md) for output options and
 [build-script integration](docs/bindings.md#existing-binding-build-scripts).
 
