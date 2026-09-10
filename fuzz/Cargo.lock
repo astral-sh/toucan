@@ -251,6 +251,7 @@ version = "0.0.0"
 dependencies = [
  "libfuzzer-sys",
  "toucan",
+ "toucan_parser",
 ]
 
 [[package]]
