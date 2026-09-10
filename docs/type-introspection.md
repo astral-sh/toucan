@@ -10,6 +10,9 @@ element type. Qualifications behind pointers remain significant. Array bounds,
 record and enum identity, compatible enum integer types, function prototypes, and
 calling conventions use the frontend's ordinary compatibility rules. GNU profiles
 ignore ordinary qualifiers on function return types; Clang profiles retain them.
+An incomplete enum is incompatible with integer types until its definition selects
+one, except on Microsoft ABI targets where an unqualified forward enum already
+matches `int`. Qualified enum and integer pointees remain distinct in that profile.
 Both written types are checked, including their bound expressions and declarations,
 but their runtime bounds and `typeof` operands do not execute.
 

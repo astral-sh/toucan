@@ -2263,14 +2263,22 @@ impl Analyzer {
         {
             return Ok(false);
         }
-        let left = self.unit.resolve(left)?;
-        let right = self.unit.resolve(right)?;
-        match (&left.kind, &right.kind) {
-            (TypeKind::Enum(_), TypeKind::Integer(_))
-            | (TypeKind::Integer(_), TypeKind::Enum(_)) => {
+        let resolved_left = self.unit.resolve(left)?;
+        let resolved_right = self.unit.resolve(right)?;
+        match (&resolved_left.kind, &resolved_right.kind) {
+            (TypeKind::Enum(id), TypeKind::Integer(kind))
+            | (TypeKind::Integer(kind), TypeKind::Enum(id)) => {
                 // C11 6.7.2.2 makes an enum compatible with its selected integer
                 // type, including inside pointers and function declarations.
                 // Distinct enum tags remain distinct types.
+                if !self.unit.enums[*id].complete {
+                    // Only the Microsoft ABI fixes a forward enum's integer
+                    // type before its definition. Clang still distinguishes
+                    // qualified enum and integer types beneath pointers.
+                    return Ok(self.unit.target.is_windows()
+                        && *kind == IntegerKind::Int
+                        && self.unit.qualifiers(left)? == Qualifiers::default());
+                }
                 Ok(self.integer_type(left, 0)? == self.integer_type(right, 0)?)
             }
             (TypeKind::Pointer(left), TypeKind::Pointer(right))
@@ -2368,7 +2376,7 @@ impl Analyzer {
                 }
                 Ok(true)
             }
-            _ => Ok(left.kind == right.kind),
+            _ => Ok(resolved_left.kind == resolved_right.kind),
         }
     }
 
