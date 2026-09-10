@@ -34,7 +34,8 @@ def source_manifest(root, target=None):
             name
             for name in names
             if name.startswith(("crates/", ".cargo/", "fuzz/.cargo/"))
-            or name in {
+            or name
+            in {
                 "Cargo.toml",
                 "Cargo.lock",
                 "rust-toolchain.toml",
@@ -171,6 +172,31 @@ def campaign_passed(report):
     )
 
 
+def query_profile(binary, data=b""):
+    """Ask the saved harness for its profile count and actual selector result."""
+    result = subprocess.run(
+        [str(binary), "--toucan-fuzz-profile"],
+        input=data,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        timeout=10,
+        check=True,
+    )
+    count, profile, mode = map(int, result.stdout.split())
+    if not 1 <= count <= 32 or not 0 <= profile < count or not 0 <= mode < 8:
+        raise ValueError("invalid compiled fuzz profile metadata")
+    return count, profile, mode
+
+
+def compiled_profiles(binary, requested=None):
+    count, _, _ = query_profile(binary)
+    if requested is not None and requested != count:
+        raise ValueError(
+            f"requested {requested} profiles, but compiled harness has {count}"
+        )
+    return count
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -178,11 +204,15 @@ def main():
     )
     parser.add_argument("--seconds", type=int, default=900)
     parser.add_argument("--seed", type=int, required=True)
-    parser.add_argument("--profiles", type=int, default=11)
+    parser.add_argument(
+        "--profiles", type=int, help="assert the compiled profile count"
+    )
     parser.add_argument("--toolchain", help="Rust toolchain used for Cargo and rustc")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if not 1 <= args.seconds <= 3600 or not 1 <= args.profiles <= 32:
+    if not 1 <= args.seconds <= 3600 or (
+        args.profiles is not None and not 1 <= args.profiles <= 32
+    ):
         parser.error("seconds must be 1..3600 and profiles must be 1..32")
     if not 1 <= args.seed < 2**32:
         parser.error("seed must be a nonzero unsigned 32-bit integer")
@@ -206,7 +236,7 @@ def main():
         "target": args.target,
         "profiles": None
         if args.target == "preprocess"
-        else (4 if args.target == "parser" else args.profiles),
+        else (4 if args.target == "parser" else None),
         "target_selector": None
         if args.target == "preprocess"
         else "sum(input bytes) % profiles",
@@ -326,6 +356,8 @@ def main():
         if source_manifest(root, args.target) != source:
             raise ValueError("source changed during the sanitizer build")
         report["binary_sha256"] = sha256(binary)
+        if args.target in ("semantic", "bindings", "checked"):
+            report["profiles"] = compiled_profiles(binary, args.profiles)
         corpus = root / "fuzz" / "corpus" / args.target
         corpus.mkdir(parents=True, exist_ok=True)
         pattern = "*.c" if args.target == "parser" else "*.h"
