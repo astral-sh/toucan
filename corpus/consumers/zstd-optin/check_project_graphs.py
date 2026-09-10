@@ -4,6 +4,11 @@
 from pathlib import Path
 import argparse, os, subprocess, json, tomllib
 
+if not __debug__:
+    raise RuntimeError(
+        "Validation requires Python assertions; unset PYTHONOPTIMIZE and omit -O."
+    )
+
 parser = argparse.ArgumentParser(description=__doc__)
 parser.add_argument("--work-dir", type=Path, required=True)
 parser.add_argument("--target-dir", type=Path, required=True)

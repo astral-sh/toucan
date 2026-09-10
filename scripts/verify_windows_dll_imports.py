@@ -13,6 +13,11 @@ import subprocess
 import sys
 from pathlib import Path
 
+if not __debug__:
+    raise RuntimeError(
+        "Validation requires Python assertions; unset PYTHONOPTIMIZE and omit -O."
+    )
+
 TARGET = "x86_64-pc-windows-msvc"
 TYPES = "typedef int (*Callback)(int);\n"
 DATA = """__declspec(dllimport) int a_value;

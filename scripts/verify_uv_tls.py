@@ -29,6 +29,11 @@ from verify_astral_consumers import (
 )
 from verify_aws_lc_consumer import source_hashes, verify_registry_source
 
+if not __debug__:
+    raise RuntimeError(
+        "Validation requires Python assertions; unset PYTHONOPTIMIZE and omit -O."
+    )
+
 ROOT = Path(__file__).resolve().parents[1]
 WHEEL_NAME = "toucan_consumer_probe-1.0.0-py3-none-any.whl"
 

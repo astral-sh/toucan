@@ -16,6 +16,11 @@ from pathlib import Path
 
 import tomllib
 
+if not __debug__:
+    raise RuntimeError(
+        "Validation requires Python assertions; unset PYTHONOPTIMIZE and omit -O."
+    )
+
 ROOT = Path(__file__).resolve().parents[1]
 PROFILES = {
     "default": [],
