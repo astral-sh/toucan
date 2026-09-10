@@ -2261,15 +2261,16 @@ impl Analyzer {
         right: &Type,
         depth: usize,
     ) -> Result<bool, Error> {
-        self.compatible_array_at::<false>(left, right, depth)
+        self.compatible_array_at(left, right, depth, None)
     }
 
     /// Compares an array chain's qualifiers once, at its outermost layer.
-    fn compatible_array_at<const ARRAY_ELEMENT: bool>(
+    fn compatible_array_at(
         &self,
         left: &Type,
         right: &Type,
         depth: usize,
+        array_qualifiers: Option<Qualifiers>,
     ) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(
@@ -2277,11 +2278,16 @@ impl Analyzer {
                 "type compatibility nesting exceeds the 128-level limit",
             ));
         }
-        if !ARRAY_ELEMENT
-            && self.identity_qualifiers(left, depth)? != self.identity_qualifiers(right, depth)?
-        {
-            return Ok(false);
-        }
+        let qualifiers = match array_qualifiers {
+            Some(qualifiers) => qualifiers,
+            None => {
+                let qualifiers = self.identity_qualifiers(left, depth)?;
+                if qualifiers != self.identity_qualifiers(right, depth)? {
+                    return Ok(false);
+                }
+                qualifiers
+            }
+        };
         let resolved_left = self.unit.resolve(left)?;
         let resolved_right = self.unit.resolve(right)?;
         match (&resolved_left.kind, &resolved_right.kind) {
@@ -2290,19 +2296,35 @@ impl Analyzer {
                 // C11 6.7.2.2 makes an enum compatible with its selected integer
                 // type, including inside pointers and function declarations.
                 // Distinct enum tags remain distinct types.
+                if qualifiers != Qualifiers::default() {
+                    return Ok(false);
+                }
                 if !self.unit.enums[*id].complete {
                     // Only the Microsoft ABI fixes a forward enum's integer
-                    // type before its definition. Clang still distinguishes
-                    // qualified enum and integer types beneath pointers.
-                    return Ok(self.unit.target.is_windows()
-                        && *kind == IntegerKind::Int
-                        && self.unit.qualifiers(left)? == Qualifiers::default());
+                    // type before its definition.
+                    return Ok(self.unit.target.is_windows() && *kind == IntegerKind::Int);
                 }
                 // Plain char is distinct from equally sized signed/unsigned char.
                 Ok(self.unit.enum_integer_kind(*id)? == *kind)
             }
-            (TypeKind::Pointer(left), TypeKind::Pointer(right))
-            | (TypeKind::Atomic(left), TypeKind::Atomic(right)) => {
+            (TypeKind::Pointer(left), TypeKind::Pointer(right)) => {
+                self.compatible_at(left, right, depth + 1)
+            }
+            (TypeKind::Atomic(left), TypeKind::Atomic(right)) => {
+                // GCC treats atomic as enum qualification; Clang compares the
+                // contained types. Qualification does not reach through pointers.
+                if self.gnu_sync_profile()
+                    && matches!(
+                        (
+                            &self.unit.resolve(left)?.kind,
+                            &self.unit.resolve(right)?.kind
+                        ),
+                        (TypeKind::Enum(_), TypeKind::Integer(_))
+                            | (TypeKind::Integer(_), TypeKind::Enum(_))
+                    )
+                {
+                    return Ok(false);
+                }
                 self.compatible_at(left, right, depth + 1)
             }
             (
@@ -2315,7 +2337,7 @@ impl Analyzer {
                     length: b,
                 },
             ) => Ok((a == b || a.is_none() || b.is_none())
-                && self.compatible_array_at::<true>(left, right, depth + 1)?),
+                && self.compatible_array_at(left, right, depth + 1, Some(qualifiers))?),
             (
                 TypeKind::VariableArray { element: left, .. },
                 TypeKind::VariableArray { element: right, .. },
@@ -2327,7 +2349,7 @@ impl Analyzer {
             | (
                 TypeKind::Array { element: left, .. },
                 TypeKind::VariableArray { element: right, .. },
-            ) => self.compatible_array_at::<true>(left, right, depth + 1),
+            ) => self.compatible_array_at(left, right, depth + 1, Some(qualifiers)),
             (TypeKind::Function(left), TypeKind::Function(right)) => {
                 if left.calling_convention.for_target(self.unit.target)?
                     != right.calling_convention.for_target(self.unit.target)?
