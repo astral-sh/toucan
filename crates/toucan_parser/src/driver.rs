@@ -212,7 +212,10 @@ impl fmt::Display for SyntaxError {
     }
 }
 
-/// Parse a C file
+/// Parse a C file using the configured external preprocessor.
+///
+/// Filenames beginning with `@` are rejected because GCC can interpret even an
+/// absolute source path's basename as a compiler response file.
 pub fn parse<P: AsRef<Path>>(config: &Config, source: P) -> Result<Parse, Error> {
     let processed = preprocess(config, source.as_ref()).map_err(Error::PreprocessorError)?;
     parse_preprocessed(config, processed).map_err(Error::SyntaxError)
@@ -307,9 +310,26 @@ pub fn with_parser_stack<T: Send>(operation: impl FnOnce() -> T + Send) -> io::R
 }
 
 fn preprocess(config: &Config, source: &Path) -> io::Result<String> {
+    // GCC forwards the basename to cc1 as -dumpbase, where a leading @ is
+    // expanded as a response file even when the source path is absolute.
+    if source
+        .file_name()
+        .is_some_and(|name| name.as_encoded_bytes().starts_with(b"@"))
+    {
+        return Err(io::Error::new(
+            io::ErrorKind::InvalidInput,
+            "source filenames starting with `@` are not supported by the external preprocessor driver",
+        ));
+    }
+    // A source path must not become an option or a compiler response file.
+    // Prefix only ambiguous names, preserving other paths and __FILE__ values.
+    let prefixed = match source.as_os_str().as_encoded_bytes().first() {
+        Some(b'-' | b'@') => Some(Path::new(".").join(source)),
+        _ => None,
+    };
     let output = Command::new(&config.cpp_command)
         .args(&config.cpp_options)
-        .arg(source)
+        .arg(prefixed.as_deref().unwrap_or(source))
         .output()?;
 
     if output.status.success() {
