@@ -309,8 +309,12 @@ fn matches_name(pattern: &str, name: &str) -> bool {
         .map_or(pattern == name, |prefix| name.starts_with(prefix))
 }
 
+/// Generated bindings with their source assembled as a string.
+pub type Bindings = GeneratedBindings<String>;
+
+/// Generated source and its declaration and macro report.
 #[derive(Debug)]
-pub struct Bindings<S = String> {
+pub struct GeneratedBindings<S> {
     pub source: S,
     pub declarations: usize,
     /// Declarations omitted for internal linkage, or unused compiler integer
@@ -331,7 +335,7 @@ pub struct Bindings<S = String> {
     pub macro_types: Vec<MacroIntegerType>,
 }
 
-impl Bindings<SourceParts> {
+impl GeneratedBindings<SourceParts> {
     /// Assemble source sections while preserving the generation report.
     pub fn into_text(self) -> Bindings {
         Bindings {
@@ -436,7 +440,7 @@ pub fn generate_with_macros(
     options: &Options,
     macros: &BTreeMap<String, Option<MacroValue>>,
 ) -> Result<Bindings, Error> {
-    generate_parts_with_macros(unit, options, macros).map(Bindings::into_text)
+    generate_parts_with_macros(unit, options, macros).map(GeneratedBindings::into_text)
 }
 
 /// Generate the same bindings with banner, declarations, and raw lines separated.
@@ -444,7 +448,7 @@ pub fn generate_parts_with_macros(
     unit: &TranslationUnit,
     options: &Options,
     macros: &BTreeMap<String, Option<MacroValue>>,
-) -> Result<Bindings<SourceParts>, Error> {
+) -> Result<GeneratedBindings<SourceParts>, Error> {
     generate_with_work_budget(unit, options, macros, &work_budget::WorkBudget::default())
 }
 
@@ -453,7 +457,7 @@ fn generate_with_work_budget(
     options: &Options,
     macros: &BTreeMap<String, Option<MacroValue>>,
     work_budget: &work_budget::WorkBudget,
-) -> Result<Bindings<SourceParts>, Error> {
+) -> Result<GeneratedBindings<SourceParts>, Error> {
     if unit.target.is_armv7() && options.rust_target.minor < 78 {
         return Err(Error(
             "ARMv7 hard-float bindings require Rust 1.78 or newer for cfg(target_abi)".into(),
@@ -1119,7 +1123,7 @@ fn generate_with_work_budget(
             }
         }
     }
-    Ok(Bindings {
+    Ok(GeneratedBindings {
         source: SourceParts {
             banner,
             declarations: source,
