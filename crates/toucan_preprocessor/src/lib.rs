@@ -166,6 +166,25 @@ pub struct Macro {
     pub replacement: String,
 }
 
+impl Macro {
+    /// Byte charges for replacement text, parameter text, and parameter `String` slots.
+    /// Callers charge the enclosing record; this excludes the inline `Macro`, spare
+    /// capacity, and allocator overhead.
+    fn retained_sizes(&self) -> impl Iterator<Item = usize> + '_ {
+        [
+            self.replacement.len(),
+            self.variadic_parameter.as_ref().map_or(0, String::len),
+        ]
+        .into_iter()
+        .chain(
+            self.parameters
+                .iter()
+                .flatten()
+                .flat_map(|name| [size_of::<String>(), name.len()]),
+        )
+    }
+}
+
 /// Expanded source, final macro definitions, and files read while preprocessing.
 #[derive(Clone, Debug)]
 pub struct Preprocessed {
@@ -1248,41 +1267,26 @@ impl Preprocessor {
             .and_then(|docs| docs.macro_origins(name));
         // Each stack slot owns a copy of the definition and optional provenance.
         // Source-token limits alone cannot bound repeated pushes of one macro.
-        let mut bytes = size_of::<PushedMacro>()
-            .checked_add(size_of::<(String, Vec<PushedMacro>)>())
-            .and_then(|bytes| bytes.checked_add(name.len()))
-            .ok_or("macro stack byte limit exceeded")?;
-        let mut charge = |amount: usize| {
-            bytes = bytes
-                .checked_add(amount)
-                .ok_or("macro stack byte limit exceeded")?;
-            Ok::<(), &'static str>(())
-        };
-        if let Some(definition) = definition {
-            charge(definition.replacement.len())?;
-            for parameter in definition.parameters.iter().flatten() {
-                charge(
-                    size_of::<String>()
-                        .checked_add(parameter.len())
-                        .ok_or("macro stack byte limit exceeded")?,
-                )?;
-            }
-            if let Some(parameter) = &definition.variadic_parameter {
-                charge(parameter.len())?;
-            }
-        }
-        if let Some((location, accessed)) = &file_origin {
-            charge(location.path.as_os_str().len())?;
-            charge(accessed.as_os_str().len())?;
-        }
-        if let Some(origins) = &documentation {
-            charge(
+        let documentation_bytes = documentation
+            .as_ref()
+            .map_or(Some(0), |origins| {
                 origins
                     .len()
                     .checked_mul(size_of::<Option<documentation::OriginId>>())
-                    .ok_or("macro stack byte limit exceeded")?,
-            )?;
-        }
+            })
+            .ok_or("macro stack byte limit exceeded")?;
+        let bytes = [
+            size_of::<PushedMacro>(),
+            size_of::<(String, Vec<PushedMacro>)>(),
+            name.len(),
+        ]
+        .into_iter()
+        .chain(definition.into_iter().flat_map(Macro::retained_sizes))
+        .chain(file_origin.iter().flat_map(|(location, accessed)| {
+            [location.path.as_os_str().len(), accessed.as_os_str().len()]
+        }))
+        .try_fold(documentation_bytes, usize::checked_add)
+        .ok_or("macro stack byte limit exceeded")?;
         let total = self
             .macro_stack_bytes
             .checked_add(bytes)

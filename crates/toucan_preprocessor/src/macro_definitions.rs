@@ -67,22 +67,12 @@ impl MacroDefinitions {
         let sizes = [
             size_of::<MacroDefinition>(),
             name.len(),
-            definition.replacement.len(),
-            definition
-                .variadic_parameter
-                .as_ref()
-                .map_or(0, String::len),
             input.physical.as_os_str().len(),
             input.accessed.as_os_str().len(),
         ];
-        let parameters = definition
-            .parameters
-            .iter()
-            .flatten()
-            .flat_map(|name| [size_of::<String>(), name.len()]);
         let bytes = sizes
             .into_iter()
-            .chain(parameters)
+            .chain(definition.retained_sizes())
             .try_fold(self.retained_bytes, usize::checked_add)
             .filter(|&bytes| bytes <= byte_limit)
             .ok_or("macro definition capture byte limit exceeded")?;
