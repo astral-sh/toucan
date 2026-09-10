@@ -51,6 +51,21 @@ const CASES: &[(&str, bool, bool)] = &[
         false,
     ),
     (
+        "struct S{unsigned (__attribute__((mode(DI))) named):33;};",
+        true,
+        false,
+    ),
+    (
+        "typedef unsigned __attribute__((mode(DI))) Wide; struct S{Wide (__attribute__((mode(DI))) named):33;};",
+        true,
+        true,
+    ),
+    (
+        "typedef unsigned __attribute__((mode(QI))) Narrow; struct S{Narrow (__attribute__((mode(DI))) named):9;};",
+        true,
+        false,
+    ),
+    (
         "struct S{unsigned (__attribute__((vector_size(16))) named):3;};",
         false,
         false,
@@ -469,6 +484,17 @@ fn rejects_unsupported_bitfield_attribute_types() {
         ] {
             assert_eq!(parity(source, profile).unwrap_err().message, message);
         }
+        if profile.compiler() == Compiler::Clang {
+            assert_eq!(
+                parity(
+                    "struct S{unsigned (__attribute__((mode(QI))) named):9;};",
+                    profile,
+                )
+                .unwrap_err()
+                .message,
+                "bitfields wider than their attribute-modified type are not supported",
+            );
+        }
     }
 }
 
@@ -594,6 +620,18 @@ fn aligned_members_match_native_and_cross_target_record_layouts() {
         ),
         (
             "struct S{char lead;unsigned named:3 __attribute__((mode(DI)));char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((mode(QI),aligned(4))) named):3;char x;};",
+            2,
+        ),
+        (
+            "struct S{char lead;unsigned (__attribute__((mode(DI))) named):3;char x;};",
+            2,
+        ),
+        (
+            "typedef unsigned __attribute__((mode(DI))) Wide; struct S{char lead;Wide (__attribute__((mode(DI))) named):33 __attribute__((packed));char x;};",
             2,
         ),
     ];
