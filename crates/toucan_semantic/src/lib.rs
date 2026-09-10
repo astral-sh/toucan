@@ -38,6 +38,7 @@ mod declspec;
 mod dll_storage;
 mod elementwise;
 mod enums;
+mod evaluation;
 mod expression;
 mod features;
 mod floating;

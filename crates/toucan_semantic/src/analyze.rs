@@ -394,7 +394,7 @@ fn evaluate_on_parser_stack<Value>(
         Analyzer::from_unit(unit.clone())
     };
     analyzer.prepare_dll_storage(&source);
-    analyzer.allow_late_object_size_folds = true;
+    analyzer.evaluation = crate::evaluation::Context::constant_query();
     analyzer.character_literals = parsed.character_literals;
     analyzer.string_literals = parsed.string_literals;
     analyzer.empty_initializers = parsed.empty_initializers;
@@ -1039,7 +1039,7 @@ struct DeclaratorContext<'a> {
 
 pub(crate) struct Analyzer {
     pub(crate) const_objects: Option<Box<crate::const_objects::Values>>,
-    pub(crate) allow_const_object_reads: bool,
+    pub(crate) evaluation: crate::evaluation::Context,
     pub(crate) object_values: Option<Box<crate::object_values::Builder>>,
     pub(crate) inline_registry: Option<Box<crate::inline::Registry>>,
     pub(crate) dll_registry: Option<Box<crate::dll_storage::Registry>>,
@@ -1060,7 +1060,6 @@ pub(crate) struct Analyzer {
     // Completed query checks prevent nested constant folding from replaying operand typing.
     pub(crate) checked_overflow_predicates: HashMap<(usize, usize), (u8, bool)>,
     pub(crate) checked_atomic_queries: HashSet<(usize, usize)>,
-    pub(crate) allow_late_object_size_folds: bool,
     pub(crate) transparent_variant_bytes: usize,
     pub(crate) has_variadic_packs: bool,
     pub(crate) generic_selections: HashMap<(usize, usize), usize>,
@@ -1078,7 +1077,6 @@ pub(crate) struct Analyzer {
     pub(crate) tags: HashMap<String, TagBinding>,
     pub(crate) lexical_scopes: Vec<LexicalScope>,
     pub(crate) lexical_record: Option<usize>,
-    pub(crate) in_enum_expression: bool,
     pub(crate) needs_tag_discovery: bool,
     defining_enums: HashSet<usize>,
     tentative_definitions: BTreeMap<usize, usize>,
@@ -1094,7 +1092,6 @@ pub(crate) struct Analyzer {
     pub(crate) function_scope: Option<crate::statement::FunctionScope>,
     pub(crate) current_function: Option<crate::statement::FunctionContext>,
     pub(crate) sve_feature_uses: Vec<crate::target_features::FeatureUse>,
-    pub(crate) suppress_sve_features: bool,
     pub(crate) sve_feature_labels: usize,
     pub(crate) block_externs: HashMap<String, BlockExtern>,
     pub(crate) alignment_queries: crate::alignof::AlignmentQueries,
@@ -1160,7 +1157,7 @@ impl Analyzer {
             .collect();
         Self {
             const_objects: None,
-            allow_const_object_reads: false,
+            evaluation: crate::evaluation::Context::default(),
             object_values: None,
             inline_registry: None,
             dll_registry: None,
@@ -1178,7 +1175,6 @@ impl Analyzer {
             function_options: Self::inherited_function_options(&unit),
             late_target_names: std::collections::BTreeSet::new(),
             array_identities: crate::array_identity::Registry::default(),
-            allow_late_object_size_folds: false,
             diagnostic_kinds: HashMap::new(),
             checked: None,
             declaration_origins: None,
@@ -1188,7 +1184,6 @@ impl Analyzer {
             tags,
             lexical_scopes: Vec::new(),
             lexical_record: None,
-            in_enum_expression: false,
             needs_tag_discovery: false,
             defining_enums: HashSet::new(),
             tentative_definitions: BTreeMap::new(),
@@ -1204,7 +1199,6 @@ impl Analyzer {
             function_scope: None,
             current_function: None,
             sve_feature_uses: Vec::new(),
-            suppress_sve_features: false,
             sve_feature_labels: 0,
             block_externs: HashMap::new(),
             weak_symbols: BTreeMap::new(),
@@ -3258,10 +3252,7 @@ impl Analyzer {
     /// Resolves each written type name once, so typing an unevaluated operand and
     /// subsequently evaluating it cannot redeclare tags defined inside that type.
     pub(crate) fn type_name(&mut self, name: &ast::TypeName) -> Result<Type, Error> {
-        let late = std::mem::replace(&mut self.allow_late_object_size_folds, false);
-        let result = self.type_name_inner(name);
-        self.allow_late_object_size_folds = late;
-        result
+        self.with_frontend_folding(|analyzer| analyzer.type_name_inner(name))
     }
 
     fn type_name_inner(&mut self, name: &ast::TypeName) -> Result<Type, Error> {
@@ -5091,10 +5082,7 @@ impl Analyzer {
             attributes.require_no_weak()?;
             attributes.require_no_transparent_union()?;
             let value = if let Some(expression) = &enumerator.node.expression {
-                let previous = std::mem::replace(&mut self.in_enum_expression, true);
-                let value = self.eval(expression);
-                self.in_enum_expression = previous;
-                value?
+                self.within_enum_expression(|analyzer| analyzer.eval(expression))?
             } else if let Some(previous) = previous {
                 self.integer_add_one(previous, enumerator.span.start)?
             } else {

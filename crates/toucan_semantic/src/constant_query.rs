@@ -18,9 +18,9 @@ impl Analyzer {
         // Clang knows completed const scalar definitions in this builtin even
         // outside an initializer. Keep this consistent with cached choose-expr
         // decisions without making object identifiers ordinary integer ICEs.
-        let previous = std::mem::replace(&mut self.allow_const_object_reads, true);
-        let known = self.known_constant_operand(&call.node.arguments[0]);
-        self.allow_const_object_reads = previous;
+        let known = self.with_const_object_reads(|analyzer| {
+            analyzer.known_constant_operand(&call.node.arguments[0])
+        });
         // This second pass determines constant knowledge, not execution.
         self.discard_sve_feature_uses(checkpoint);
         Ok(IntegerValue::int(i128::from(known?)))

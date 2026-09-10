@@ -123,7 +123,7 @@ impl Analyzer {
     /// Record feature-dependent value use after its C constraints have succeeded.
     /// The list stays unallocated until a source expression actually uses SVE.
     pub(crate) fn require_sve_value(&mut self, ty: &Type, offset: usize) -> Result<(), Error> {
-        if !self.suppress_sve_features && self.unit.is_sizeless(ty)? {
+        if !self.evaluation.suppresses_target_features() && self.unit.is_sizeless(ty)? {
             if self.sve_feature_uses.len() >= 65_536 {
                 return Err(Error::new(
                     offset,
@@ -204,13 +204,11 @@ impl Analyzer {
         &mut self,
         expression: &lang_c::span::Node<lang_c::ast::Expression>,
     ) -> Option<bool> {
-        let saved = self.suppress_sve_features;
-        self.suppress_sve_features = true;
-        let result = self
-            .eval_arithmetic(expression)
-            .ok()
-            .map(|value| value.truth());
-        self.suppress_sve_features = saved;
-        result
+        self.without_target_feature_uses(|analyzer| {
+            analyzer
+                .eval_arithmetic(expression)
+                .ok()
+                .map(|value| value.truth())
+        })
     }
 }

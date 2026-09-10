@@ -984,9 +984,8 @@ impl Analyzer {
         expression: &Node<ast::Expression>,
     ) -> Result<ConstantKind, Error> {
         self.enter_expression(expression.span.start)?;
-        let previous = std::mem::replace(&mut self.allow_const_object_reads, true);
-        let result = self.static_initializer_inner(expression);
-        self.allow_const_object_reads = previous;
+        let result =
+            self.with_const_object_reads(|analyzer| analyzer.static_initializer_inner(expression));
         self.leave_expression();
         result
     }

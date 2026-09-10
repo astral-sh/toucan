@@ -50,7 +50,7 @@ impl Analyzer {
         anonymous: bool,
         order: usize,
     ) -> Result<(), Error> {
-        if definition && self.in_enum_expression && self.scope() == Scope::File {
+        if definition && self.evaluation.is_enum_expression() && self.scope() == Scope::File {
             self.needs_tag_discovery = true;
         }
         if complete {
