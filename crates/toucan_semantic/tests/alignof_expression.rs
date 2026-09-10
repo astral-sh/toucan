@@ -159,7 +159,7 @@ fn assertion_source(source: &str, value: u64) -> String {
 #[test]
 fn saved_compiler_queries_match_in_both_analysis_modes() {
     let mut failures = Vec::new();
-    for &(name, target, compiler, source, value) in OBSERVATIONS {
+    for (name, target, compiler, source, value) in observations() {
         let profile = CompilerProfile::new(target, compiler).unwrap();
         let source = value.map_or_else(
             || source.to_owned(),
@@ -370,7 +370,7 @@ fn saved_queries_still_match_the_installed_compiler_oracles() {
     };
     let gcc = std::env::var("TOUCAN_GCC").unwrap_or_else(|_| "gcc".into());
     let mut failures = Vec::new();
-    for &(name, target, compiler, source, value) in OBSERVATIONS {
+    for (name, target, compiler, source, value) in observations() {
         if compiler == Compiler::Gnu && target != host {
             continue;
         }
