@@ -80,6 +80,7 @@ pub const RESERVED_GNU: &[&str] = &[
     "__complex",
     "__complex__",
     "__const",
+    "__const__",
     "__extension__",
     "__func__",
     "__imag",
@@ -96,6 +97,7 @@ pub const RESERVED_GNU: &[&str] = &[
     "__signed__",
     "__thread",
     "__typeof",
+    "__typeof__",
     "__volatile",
     "__volatile__",
 ];
