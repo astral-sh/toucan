@@ -2007,7 +2007,7 @@ impl Emitter<'_> {
         if !function.prototype {
             return Err(Error("C function declaration without a prototype cannot be represented by a Rust function signature".into()));
         }
-        self.check_call_value(&function.return_type, depth + 1)?;
+        self.check_call_value(&function.return_type, false, depth + 1)?;
         // The i386 C ABI returns even zero-sized aggregates through a hidden
         // pointer and pops that argument. Rust omits the pointer entirely.
         if self.unit.target == toucan_target::Target::I686UnknownLinuxGnu
@@ -2020,24 +2020,29 @@ impl Emitter<'_> {
             return Err(Error("zero-sized aggregate returns have no supported Rust ABI on i686; expose C pointer accessors".into()));
         }
         for parameter in &function.parameters {
-            self.check_call_value(self.unit.parameter_abi_type(&parameter.ty)?, depth + 1)?;
+            self.check_call_value(
+                self.unit.parameter_abi_type(&parameter.ty)?,
+                true,
+                depth + 1,
+            )?;
         }
         Ok(())
     }
 
-    fn check_call_value(&self, ty: &Type, depth: usize) -> Result<(), Error> {
+    fn check_call_value(&self, ty: &Type, argument: bool, depth: usize) -> Result<(), Error> {
         let value = if let Some(value) = self.unit.atomic_value(ty)? {
             self.call_value_type(ty, depth)?;
             value
         } else {
             ty
         };
-        self.check_value(value, &mut BTreeSet::new(), depth)
+        self.check_value(value, argument, &mut BTreeSet::new(), depth)
     }
 
     fn check_value(
         &self,
         ty: &Type,
+        argument: bool,
         active: &mut BTreeSet<usize>,
         depth: usize,
     ) -> Result<(), Error> {
@@ -2062,6 +2067,19 @@ impl Emitter<'_> {
                 {
                     return Err(Error(format!("empty unions cannot cross an FFI call by value on {}; expose C pointer accessors", self.unit.target)));
                 }
+                // AAPCS aligns argument registers using the aggregate's natural
+                // alignment. Rust uses repr(align), which can skip an extra
+                // register even though the C and Rust object layouts agree.
+                if argument
+                    && self.unit.target.is_armv7()
+                    && record.alignment.is_some_and(|alignment| alignment >= 8)
+                    && self.unit.layout(ty)?.size_bits != 0
+                    && fields.iter().try_fold(1, |alignment, field| {
+                        self.unit.alignment(&field.ty).map(|field| alignment.max(field))
+                    })? < 8
+                {
+                    return Err(Error("ARMv7 records with raised argument alignment cannot cross an FFI call by value; expose C pointer accessors".into()));
+                }
                 for field in fields {
                     if field.alignment.is_some() || field.packed {
                         return Err(Error("records with field-level alignment or packing need a separate call-ABI proof".into()));
@@ -2072,14 +2090,14 @@ impl Emitter<'_> {
                                 .into(),
                         ));
                     }
-                    self.check_value(&field.ty, active, depth + 1)?;
+                    self.check_value(&field.ty, argument, active, depth + 1)?;
                 }
                 active.remove(id);
             }
             TypeKind::Array { length: None | Some(0), .. } => {
                 return Err(Error("records containing flexible or zero-length arrays cannot cross an FFI call by value; expose C pointer accessors".into()));
             }
-            TypeKind::Array { element, .. } => self.check_value(element, active, depth + 1)?,
+            TypeKind::Array { element, .. } => self.check_value(element, argument, active, depth + 1)?,
             TypeKind::Vector { .. } => {
                 return Err(Error("vectors and records containing vectors cannot cross an FFI call by value; stable Rust cannot express their target call ABI".into()));
             }
