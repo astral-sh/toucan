@@ -687,6 +687,19 @@ impl Parser<'_, '_> {
                                 position += 1;
                             }
                         }
+                        b'u' | b'U' => {
+                            let digits = if bytes[position] == b'u' { 4 } else { 8 };
+                            position += 1;
+                            let escape_end = position + digits;
+                            if escape_end > end
+                                || !bytes[position..escape_end]
+                                    .iter()
+                                    .all(u8::is_ascii_hexdigit)
+                            {
+                                return false;
+                            }
+                            position = escape_end;
+                        }
                         b'x' => {
                             position += 1;
                             let digits = position;
