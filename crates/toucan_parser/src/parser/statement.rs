@@ -90,11 +90,11 @@ impl<'s, 'e> Parser<'s, 'e> {
             }
             let item_start = self.position();
             let previous = self.cursor;
-            let item = if self.starts_static_assert() {
+            let item = if self.starts_static_assert()? {
                 BlockItem::StaticAssert(self.static_assert()?)
             } else if self.attribute_statement_start() {
                 BlockItem::Statement(self.statement()?)
-            } else if self.starts_declaration() && self.token_text(self.peek(1)) != ":" {
+            } else if self.starts_declaration()? && self.token_text(self.peek(1)) != ":" {
                 BlockItem::Declaration(self.declaration()?)
             } else {
                 BlockItem::Statement(self.statement()?)
@@ -106,11 +106,9 @@ impl<'s, 'e> Parser<'s, 'e> {
         self.node(Statement::Compound(items), start)
     }
 
-    fn starts_static_assert(&self) -> bool {
-        self.at("_Static_assert")
-            || self.env.extensions_gnu
-                && self.at("__extension__")
-                && self.token_text(self.peek(1)) == "_Static_assert"
+    fn starts_static_assert(&mut self) -> PResult<bool> {
+        let distance = self.extension_prefix_len()?;
+        Ok(self.token_text(self.peek(distance)) == "_Static_assert")
     }
 
     /// An attribute followed by a semicolon annotates a null statement.
@@ -217,9 +215,9 @@ impl<'s, 'e> Parser<'s, 'e> {
                 let init_start = self.position();
                 let initializer = if self.eat(";")? {
                     ForInitializer::Empty
-                } else if self.starts_static_assert() {
+                } else if self.starts_static_assert()? {
                     ForInitializer::StaticAssert(self.static_assert()?)
-                } else if self.starts_declaration() {
+                } else if self.starts_declaration()? {
                     ForInitializer::Declaration(self.declaration()?)
                 } else {
                     let expression = Box::new(self.expression()?);
