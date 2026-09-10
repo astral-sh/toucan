@@ -70,6 +70,7 @@ mod tests {
                 let budget = WorkBudget::new(1_000);
                 let actual = generate_with_work_budget(&unit, &options, &BTreeMap::new(), &budget)
                     .unwrap()
+                    .into_text()
                     .source;
                 assert_eq!(actual, expected);
                 let used = 1_000 - budget.remaining.get();
@@ -89,6 +90,7 @@ mod tests {
                     &WorkBudget::new(used),
                 )
                 .unwrap()
+                .into_text()
                 .source;
                 assert_eq!(exact, expected);
             }

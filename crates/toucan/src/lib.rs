@@ -12,7 +12,7 @@ use std::time::{Duration, Instant};
 
 pub use toucan_bindings::{
     BindingSelection, Bindings, DeriveOptions, Documentation as BindingDocumentation,
-    EnumConstantStyle, MacroType, MacroValue, Options as BindingOptions, RustTarget,
+    EnumConstantStyle, MacroType, MacroValue, Options as BindingOptions, RustTarget, SourceParts,
     TypeDependencies,
 };
 pub use toucan_preprocessor::{
@@ -423,12 +423,12 @@ impl Compilation {
     /// report identifies selected macros that were not emitted. With no allowlist,
     /// reserved `__` macros are omitted unless they shadow a declaration.
     pub fn bindings(&self, options: &BindingOptions) -> Result<(String, Report), Error> {
-        semantic::with_parser_stack(|| self.bindings_on_parser_stack(options)).map_err(|error| {
-            SemanticError {
+        semantic::with_parser_stack(|| self.bindings_on_parser_stack(options))
+            .map_err(|error| SemanticError {
                 error,
                 origin: None,
-            }
-        })?
+            })?
+            .map(|(source, report)| (source.into_string(), report))
     }
 
     /// Emit caller-supplied macro values alongside this compilation's C declarations.
@@ -445,6 +445,19 @@ impl Compilation {
         macros: &BTreeMap<String, Option<MacroValue>>,
         skipped_macros: Vec<SkippedMacro>,
     ) -> Result<(String, Report), Error> {
+        self.binding_parts_with_macros(options, macros, skipped_macros)
+            .map(|(source, report)| (source.into_string(), report))
+    }
+
+    /// Emit supplied macro values with source sections kept separate for formatting.
+    ///
+    /// Uses the same selection, validation, and reporting as [`Self::bindings_with_macros`].
+    pub fn binding_parts_with_macros(
+        &self,
+        options: &BindingOptions,
+        macros: &BTreeMap<String, Option<MacroValue>>,
+        skipped_macros: Vec<SkippedMacro>,
+    ) -> Result<(SourceParts, Report), Error> {
         semantic::with_parser_stack(|| {
             let mut counts = (0, 0, 0);
             for (name, value) in macros {
@@ -475,7 +488,7 @@ impl Compilation {
     fn bindings_on_parser_stack(
         &self,
         options: &BindingOptions,
-    ) -> Result<(String, Report), Error> {
+    ) -> Result<(SourceParts, Report), Error> {
         let declared_names: BTreeSet<_> = self
             .unit()
             .declarations
@@ -627,8 +640,8 @@ impl Compilation {
         skipped_macros: Vec<SkippedMacro>,
         (integer_macros, floating_macros, string_macros): (usize, usize, usize),
         macro_evaluation: MacroEvaluation,
-    ) -> Result<(String, Report), Error> {
-        let bindings = toucan_bindings::generate_with_macros(self.unit(), options, macros)?;
+    ) -> Result<(SourceParts, Report), Error> {
+        let bindings = toucan_bindings::generate_parts_with_macros(self.unit(), options, macros)?;
         let source = bindings.source;
         let report = Report {
             target: self.unit().target.triple().into(),
