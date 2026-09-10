@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Fetch and audit the exact Git source used by the opt-in consumer trial."""
+"""Audit current checkout inputs or explicitly fetch the historical opt-in trial."""
 
 from __future__ import annotations
 
@@ -11,6 +11,8 @@ import shlex
 import subprocess
 import sys
 from pathlib import Path
+
+import tomllib
 
 HERE = Path(__file__).resolve().parent
 GIT_URL = "https://github.com/astral-sh/toucan"
@@ -41,7 +43,7 @@ def digest(path: Path) -> str:
 
 
 def inventory(root: Path) -> dict[str, str]:
-    """Include every file in the frozen build-input scope, rejecting symlinks."""
+    """Include manifests, the lockfile and all crate files, rejecting symlinks."""
     paths = [root / "Cargo.toml", root / "Cargo.lock"]
     for path in (root / "crates").rglob("*"):
         require(not path.is_symlink(), f"symlink in frontend source: {path}")
@@ -52,6 +54,79 @@ def inventory(root: Path) -> dict[str, str]:
         require(not path.is_symlink(), f"symlink in frontend source: {path}")
         result[path.relative_to(root).as_posix()] = digest(path)
     return result
+
+
+def current_checkout(root: Path) -> dict:
+    """Snapshot the selected checkout, including local edits, before building it."""
+    root = root.resolve(strict=True)
+    top = subprocess.check_output(
+        ["git", "-C", str(root), "rev-parse", "--show-toplevel"], text=True
+    ).strip()
+    require(Path(top).resolve() == root, "frontend source is not a Git checkout root")
+    files = inventory(root)
+    return {
+        "mode": "local",
+        "root": str(root),
+        "head": subprocess.check_output(
+            ["git", "-C", str(root), "rev-parse", "HEAD"], text=True
+        ).strip(),
+        "git_status": subprocess.check_output(
+            ["git", "-C", str(root), "status", "--porcelain"], text=True
+        ),
+        "source": None,
+        "files": files,
+        "verified_source_files": len(files),
+        "source_inventory_sha256": hashlib.sha256(
+            json.dumps(files, sort_keys=True).encode()
+        ).hexdigest(),
+    }
+
+
+def current_packages(root: Path) -> dict[str, Path]:
+    """Follow the adapter's source-declared normal/build dependencies, without Cargo IDs."""
+    workspace = tomllib.loads((root / "Cargo.toml").read_text())["workspace"]
+    pending = [root / "crates/toucan_bindgen/Cargo.toml"]
+    packages = {}
+    while pending:
+        manifest = pending.pop().resolve(strict=True)
+        require(
+            manifest.is_relative_to(root / "crates"),
+            "frontend dependency escapes the checkout",
+        )
+        package = tomllib.loads(manifest.read_text())
+        name = package["package"]["name"]
+        if name in packages:
+            require(packages[name] == manifest, "duplicate frontend package name")
+            continue
+        require(
+            manifest == root / "crates" / name / "Cargo.toml",
+            "unexpected frontend package location",
+        )
+        packages[name] = manifest
+        for table in [package, *package.get("target", {}).values()]:
+            for kind in ("dependencies", "build-dependencies"):
+                for alias, dependency in table.get(kind, {}).items():
+                    if not isinstance(dependency, dict):
+                        continue
+                    base = manifest.parent
+                    if dependency.get("workspace"):
+                        dependency = workspace["dependencies"][alias]
+                        base = root
+                    if isinstance(dependency, dict) and "path" in dependency:
+                        pending.append(base / dependency["path"] / "Cargo.toml")
+    return packages
+
+
+def verify_source(report: dict) -> None:
+    if report.get("mode") != "local":
+        verify_checkout(Path(report["root"]))
+        return
+    current = current_checkout(Path(report["root"]))
+    for key in ("head", "files"):
+        require(
+            current[key] == report[key],
+            f"frontend source changed during validation: {key}",
+        )
 
 
 def verify_checkout(root: Path) -> dict:
@@ -80,31 +155,45 @@ def verify_checkout(root: Path) -> dict:
     }
 
 
-def verify_packages(metadata: dict, root: Path | None = None) -> dict:
-    """Reject source-ID camouflage, escaped manifests and mixed Git checkouts."""
+def verify_packages(
+    metadata: dict, root: Path | None = None, *, snapshot: dict | None = None
+) -> dict:
+    """Reject source-ID camouflage, escaped manifests and mixed checkouts."""
     packages = [
         p
         for p in metadata["packages"]
         if p["name"] == "toucan" or p["name"].startswith("toucan_")
     ]
+    local = snapshot is not None and snapshot.get("mode") == "local"
+    expected = current_packages(Path(snapshot["root"])) if local else PACKAGES
     require(
-        len(packages) == len(PACKAGES) and {p["name"] for p in packages} == PACKAGES,
-        "expected exactly the nine frontend packages",
+        len(packages) == len(expected)
+        and {p["name"] for p in packages} == set(expected),
+        "unexpected frontend package set",
     )
     bindgen = next(p for p in packages if p["name"] == "toucan_bindgen")
     discovered = Path(bindgen["manifest_path"]).resolve(strict=True).parents[2]
     if root is not None:
         require(discovered == root.resolve(strict=True), "frontend checkout changed")
-    report = verify_checkout(discovered)
+    if local:
+        require(discovered == Path(snapshot["root"]), "frontend checkout changed")
+        verify_source(snapshot)
+        report = dict(snapshot)
+    else:
+        report = verify_checkout(discovered)
     entries = {}
     for package in packages:
         name = package["name"]
         manifest = Path(package["manifest_path"]).resolve(strict=True)
-        require(package["source"] == GIT_SOURCE, f"wrong Git source for {name}")
-        require(package["version"] == "0.0.1", f"wrong version for {name}")
+        require(
+            package["source"] == (None if local else GIT_SOURCE),
+            f"wrong frontend source for {name}",
+        )
+        if not local:
+            require(package["version"] == "0.0.1", f"wrong version for {name}")
         require(
             manifest == discovered / "crates" / name / "Cargo.toml",
-            f"frontend manifest escapes the fetched checkout: {name}",
+            f"frontend manifest escapes the selected checkout: {name}",
         )
         targets = []
         for target in package["targets"]:
@@ -139,6 +228,7 @@ def verify_artifacts(log: Path, report: dict) -> list[dict]:
     """Link each built frontend library back to the audited Cargo package."""
     expected = report["packages"]
     targets = {source for p in expected.values() for source in p["target_sources"]}
+    names = {p["name"] for p in expected.values()}
     rows = []
     seen = set()
     for line in log.read_text().splitlines():
@@ -150,9 +240,9 @@ def verify_artifacts(log: Path, report: dict) -> list[dict]:
         source = Path(row["target"]["src_path"]).resolve(strict=True)
         frontend = (
             package_id in expected
-            or manifest.parent.name in PACKAGES
+            or manifest.parent.name in names
             or str(source) in targets
-            or row["target"]["name"] in PACKAGES
+            or row["target"]["name"] in names
         )
         if not frontend:
             continue
@@ -183,8 +273,8 @@ def verify_artifacts(log: Path, report: dict) -> list[dict]:
                 "files": files,
             }
         )
-    require(seen == set(expected), "build did not report all nine frontend libraries")
-    verify_checkout(Path(report["root"]))
+    require(seen == set(expected), "build did not report all frontend libraries")
+    verify_source(report)
     return rows
 
 
@@ -225,6 +315,12 @@ def main() -> None:
         credential_request(sys.argv[2], sys.stdin.read())
         return
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--historical",
+        action="store_true",
+        required=True,
+        help="replay the frozen 85bf1ad Git trial",
+    )
     parser.add_argument("--cache", type=Path, required=True)
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--rust-toolchain")

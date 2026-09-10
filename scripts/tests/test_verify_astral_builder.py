@@ -210,6 +210,21 @@ class GeneratedArtifacts(unittest.TestCase):
             log.write_text(json.dumps(artifact) + "\n")
             result = generated_artifacts(log, source, root / "accepted")
             self.assertEqual(result[0]["original_out_dir_binding"], str(binding))
+            artifact["features"] = ["std", "toucan"]
+            log.write_text(json.dumps(artifact) + "\n")
+            generated_artifacts(
+                log, source, root / "accepted-optin", generator_feature="toucan"
+            )
+            dep.write_text(f"{rlib}: {source / 'src/lib.rs'}\n")
+            with self.assertRaisesRegex(
+                RuntimeError, "expected one generated OUT_DIR input"
+            ):
+                generated_artifacts(
+                    log, source, root / "bad-optin-input", generator_feature="toucan"
+                )
+            dep.write_text(f"{rlib}: {source / 'src/lib.rs'} {binding}\n")
+            artifact["features"] = ["std", "bindgen"]
+            log.write_text(json.dumps(artifact) + "\n")
             with self.assertRaisesRegex(RuntimeError, "binding target differs"):
                 generated_artifacts(log, source, root / "wrong-target", "wrong-target")
             dep.write_text(
