@@ -150,7 +150,7 @@ impl Builder {
         requires_constant: bool,
     ) -> Result<Option<InitializerId>, Error> {
         let occurrence = self.initializer_occurrence(origin)?;
-        let offset = self.parsed_spans[occurrence.index()].start;
+        let offset = self.code.occurrences[occurrence.index()].source.range.start;
         if let Some(state) = self.initializer_builder.states.get(&occurrence) {
             return match state {
                 State::Complete(_) => Ok(None),
@@ -183,7 +183,7 @@ impl Builder {
         completed: &Type,
     ) -> Result<(), Error> {
         let occurrence = self.code.initializers[id.index()].occurrence;
-        let offset = self.parsed_spans[occurrence.index()].start;
+        let offset = self.code.occurrences[occurrence.index()].source.range.start;
         if matches!(
             self.code.initializers[id.index()].kind,
             InitializerKind::Pending
@@ -217,7 +217,10 @@ impl Builder {
 
     fn initializer_for(&mut self, origin: Origin<'_>) -> Result<InitializerId, Error> {
         let occurrence = self.initializer_occurrence(origin)?;
-        self.initializer_id(occurrence, self.parsed_spans[occurrence.index()].start)
+        self.initializer_id(
+            occurrence,
+            self.code.occurrences[occurrence.index()].source.range.start,
+        )
     }
 
     pub(crate) fn attach_initializer(
@@ -309,7 +312,7 @@ impl Builder {
                 Some(State::Complete(initializer)) => Coverage::Retained(*initializer),
                 Some(State::Checking(initializer)) => {
                     return Err(Error::new(
-                        self.parsed_spans[index].start,
+                        self.code.occurrences[index].source.range.start,
                         format!("unfinished retained initializer {}", initializer.index()),
                     ));
                 }
@@ -318,7 +321,7 @@ impl Builder {
                 None => Coverage::Missing,
             };
             self.budget
-                .charge(1, 2, 0, self.parsed_spans[index].start)?;
+                .charge(1, 2, 0, self.code.occurrences[index].source.range.start)?;
             self.code.initializer_coverage.push(InitializerCoverage {
                 occurrence: id,
                 status,

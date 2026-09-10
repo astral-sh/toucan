@@ -2,7 +2,7 @@
 
 use serde::Serialize;
 
-use super::{Builder, CheckedCode, SiteId, SourceSpan, map_span, unmapped_span};
+use super::{Builder, CheckedCode, SiteId, SourceSpan};
 use crate::{DllStorageClass, Error, dll_storage::ParsedStorage};
 
 /// Both written attributes are retained when export overrides an import.
@@ -60,30 +60,24 @@ impl Builder {
                 1,
                 1,
                 std::mem::size_of::<DllStorageSource>(),
-                self.parsed_spans[declaration.occurrence.index()].start,
+                self.code.occurrences[declaration.occurrence.index()]
+                    .source
+                    .range
+                    .start,
             )?;
             self.code.dll_storage.insert(
                 site.index(),
                 DllStorageSource {
-                    import: written.import.map(|(span, _)| unmapped_span(span)),
-                    export: written.export.map(|(span, _)| unmapped_span(span)),
+                    import: written
+                        .import
+                        .map(|(span, _)| self.budget.source_span(span))
+                        .transpose()?,
+                    export: written
+                        .export
+                        .map(|(span, _)| self.budget.source_span(span))
+                        .transpose()?,
                 },
             );
-        }
-        Ok(())
-    }
-
-    pub(crate) fn finish_dll_storage(&mut self) -> Result<(), Error> {
-        for source in self.code.dll_storage.values_mut() {
-            for span in [&mut source.import, &mut source.export]
-                .into_iter()
-                .flatten()
-            {
-                *span = map_span(
-                    lang_c::span::Span::span(span.range.start, span.range.end),
-                    &mut self.budget,
-                )?;
-            }
         }
         Ok(())
     }

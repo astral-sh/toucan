@@ -10,7 +10,7 @@ use serde::Serialize;
 
 use super::{
     Builder, EntityId, EntityKey, EntityKind, Linkage, OccurrenceKind, ScopeId, SiteProperties,
-    SourceSpan, Storage, declarator_name_span, map_span, unmapped_span,
+    SourceSpan, Storage, declarator_name_span,
 };
 use crate::analyze::Analyzer;
 use crate::{Error, Field, Type, TypeKind};
@@ -34,7 +34,6 @@ pub struct Reference {
 #[derive(Default)]
 pub(super) struct ReferenceBuilder {
     pub(super) standalone_tags: HashSet<(OccurrenceKind, usize, usize)>,
-    spans: Vec<Span>,
     seen: HashSet<(EntityId, ScopeId, usize, usize)>,
 }
 
@@ -89,12 +88,11 @@ impl Builder {
         }
         self.budget.charge(1, 3, 0, span.start)?;
         self.reference_builder.seen.insert(key);
-        self.reference_builder.spans.push(span);
         self.code.references.push(Reference {
             target: entity,
             scope: self.current,
             kind,
-            source: unmapped_span(span),
+            source: self.budget.source_span(span)?,
         });
         Ok(())
     }
@@ -130,18 +128,6 @@ impl Builder {
             },
         )?;
         Ok(Some(site))
-    }
-
-    pub(super) fn finish_references(&mut self) -> Result<(), Error> {
-        for (reference, span) in self
-            .code
-            .references
-            .iter_mut()
-            .zip(&self.reference_builder.spans)
-        {
-            reference.source = map_span(*span, &mut self.budget)?;
-        }
-        Ok(())
     }
 }
 

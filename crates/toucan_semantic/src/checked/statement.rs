@@ -332,7 +332,10 @@ impl Builder {
     fn complete_statement(&mut self, id: StatementId, kind: StatementKind) -> Result<(), Error> {
         if self.statement_builder.active.pop() != Some(id) {
             return Err(Error::new(
-                self.parsed_spans[self.code.statements[id.index()].occurrence.index()].start,
+                self.code.occurrences[self.code.statements[id.index()].occurrence.index()]
+                    .source
+                    .range
+                    .start,
                 "retained statement nesting is inconsistent",
             ));
         }
@@ -349,7 +352,10 @@ impl Builder {
             .ok_or_else(|| {
                 Error::new(offset, "retained control flow has no enclosing statement")
             })?;
-        let offset = self.parsed_spans[self.code.statements[id.index()].occurrence.index()].start;
+        let offset = self.code.occurrences[self.code.statements[id.index()].occurrence.index()]
+            .source
+            .range
+            .start;
         self.budget.charge(0, 1, 0, offset)?;
         self.statement_builder.controls.push((kind, id));
         Ok(())
@@ -480,7 +486,10 @@ impl Builder {
                 StatementKind::Checking | StatementKind::Goto { target: None, .. }
             ) {
                 return Err(Error::new(
-                    self.parsed_spans[statement.occurrence.index()].start,
+                    self.code.occurrences[statement.occurrence.index()]
+                        .source
+                        .range
+                        .start,
                     "retained function body contains unfinished statements",
                 ));
             }
@@ -500,7 +509,7 @@ impl Builder {
                 Coverage::Missing
             };
             self.budget
-                .charge(1, 1, 0, self.parsed_spans[index].start)?;
+                .charge(1, 1, 0, self.code.occurrences[index].source.range.start)?;
             self.code.statement_coverage.push(StatementCoverage {
                 occurrence: id,
                 status,
