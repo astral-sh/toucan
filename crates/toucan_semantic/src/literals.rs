@@ -240,6 +240,8 @@ fn decode_body(
                 '\\' | '\'' | '"' | '?' => escape,
                 'a' => '\x07',
                 'b' => '\x08',
+                // Both GCC and Clang recognize the GNU escape-character spelling.
+                'e' | 'E' => '\x1b',
                 'f' => '\x0c',
                 'n' => '\n',
                 'r' => '\r',
