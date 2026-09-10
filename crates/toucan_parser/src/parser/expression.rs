@@ -120,23 +120,17 @@ impl Parser<'_, '_> {
         self.node_span(Expression::BinaryOperator(Box::new(expression)), span)
     }
 
+    /// Use token lookahead to distinguish casts from parenthesized expressions.
+    /// A parenthesized typedef stays an identifier when neither a cast operand
+    /// nor a compound-literal initializer follows. Speculative operand parsing
+    /// could otherwise leak enum declarations.
     fn cast_expression(&mut self) -> PResult<Operand> {
         let start = self.position();
         if self.eat("(")? {
-            // Keep the parser's permissive identifier AST for a lone typedef
-            // in parentheses when no cast operand follows. Decide from tokens;
-            // a failed operand parse could otherwise leak enum declarations.
-            if self.grouped_typedef()
+            let grouped_typedef = self.grouped_typedef()
                 && self.token_text(self.peek(2)) != "{"
-                && !self.starts_cast_operand(2)
-            {
-                let expression = self.parenthesized_primary(start)?;
-                return Ok(Operand {
-                    expression: self.postfix_tail(expression)?,
-                    unary: true,
-                });
-            }
-            if self.starts_type_name() {
+                && !self.starts_cast_operand(2);
+            if !grouped_typedef && self.starts_type_name() {
                 return self.cast_type_expression(start);
             }
             let expression = self.parenthesized_primary(start)?;
