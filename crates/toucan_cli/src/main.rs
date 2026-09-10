@@ -1,3 +1,5 @@
+#[cfg(feature = "performance-allocator")]
+mod allocator;
 mod inspection;
 
 use std::io::{self, Write};
@@ -9,14 +11,6 @@ use clap::{ArgMatches, Args, CommandFactory, FromArgMatches, Parser, Subcommand}
 use toucan::{
     BindingOptions, Compiler, CompilerProfile, Config, LanguageMode, MacroType, RustTarget, Target,
 };
-
-#[cfg(all(feature = "performance-allocator", unix, not(target_os = "openbsd")))]
-#[global_allocator]
-static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
-
-#[cfg(all(feature = "performance-allocator", windows))]
-#[global_allocator]
-static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[derive(Parser)]
 #[command(

@@ -1,5 +1,8 @@
 //! The supported C subset of bindgen-cli's executable interface.
 
+#[cfg(feature = "performance-allocator")]
+mod allocator;
+
 use std::fs;
 use std::io;
 use std::path::{Path, PathBuf};
@@ -8,14 +11,6 @@ use std::process::ExitCode;
 use anyhow::{Context, Result};
 use clap::Parser;
 use toucan_bindgen::{Builder, Formatter, MacroTypeVariation, RustTarget};
-
-#[cfg(all(feature = "performance-allocator", unix, not(target_os = "openbsd")))]
-#[global_allocator]
-static ALLOCATOR: tikv_jemallocator::Jemalloc = tikv_jemallocator::Jemalloc;
-
-#[cfg(all(feature = "performance-allocator", windows))]
-#[global_allocator]
-static ALLOCATOR: mimalloc::MiMalloc = mimalloc::MiMalloc;
 
 #[derive(Parser)]
 #[command(

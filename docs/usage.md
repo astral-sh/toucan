@@ -21,7 +21,8 @@ includes x86-64 and ARM64 builds for macOS, GNU/Linux, and Windows (MSVC).
 For a specific version or prerelease, use the installer linked from that release
 instead of the `latest` URL.
 
-Binary releases install the `toucan` executable and use the system allocator.
+Binary releases install the `toucan` executable and use jemalloc on macOS and Linux,
+or mimalloc on Windows.
 The experimental `bindgen` adapter is installed separately, as described
 [below](#alternative-executables-and-allocators).
 
@@ -99,6 +100,7 @@ cargo install --path crates/toucan_cli --bin bindgen --locked
 See the [external bindgen guide](external-bindgen-cli.md) for its supported arguments
 and build-script requirements.
 
-The CLI uses the system allocator by default. Build with
-`--features performance-allocator` to use jemalloc on supported Unix platforms or
-mimalloc on Windows.
+Both executables enable `performance-allocator` by default, matching uv's allocator
+selection. Windows uses mimalloc v2. Non-Windows x86-64, ARM64, and PowerPC64 hosts
+use jemalloc, except on FreeBSD and OpenBSD. Other hosts use the system allocator.
+Build with `--no-default-features` to use the system allocator on every host.

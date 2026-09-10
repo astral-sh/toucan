@@ -19,6 +19,7 @@ path = "src/bindgen.rs"
 doc = false
 
 [features]
+default = ["performance-allocator"]
 performance-allocator = ["dep:tikv-jemallocator", "dep:mimalloc"]
 
 [dependencies]
@@ -32,11 +33,11 @@ toucan_bindgen = { version = "0.0.1", path = "../toucan_bindgen" }
 [dev-dependencies]
 tempfile.workspace = true
 
-[target.'cfg(all(unix, not(target_os = "openbsd")))'.dependencies]
-tikv-jemallocator = { version = "0.6", optional = true }
+[target.'cfg(all(not(target_os = "windows"), not(target_os = "openbsd"), not(target_os = "freebsd"), any(target_arch = "x86_64", target_arch = "aarch64", target_arch = "powerpc64")))'.dependencies]
+tikv-jemallocator = { version = "0.6.0", optional = true }
 
-[target.'cfg(windows)'.dependencies]
-mimalloc = { version = "0.1", features = ["v2"], optional = true }
+[target.'cfg(target_os = "windows")'.dependencies]
+mimalloc = { version = "0.1.50", features = ["v2"], optional = true }
 
 [lints]
 workspace = true
