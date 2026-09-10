@@ -155,15 +155,7 @@ impl Parser<'_, '_> {
         let type_name = self.nested(|parser| parser.type_name())?;
         self.expect(")")?;
         if self.at("{") {
-            let initializer_list = self.nested(|parser| parser.initializer_list())?;
-            let literal = self.node(
-                CompoundLiteral {
-                    type_name,
-                    initializer_list,
-                },
-                start,
-            )?;
-            let expression = self.node(Expression::CompoundLiteral(Box::new(literal)), start)?;
+            let expression = self.compound_literal(start, type_name)?;
             return Ok(Operand {
                 expression: self.postfix_tail(expression)?,
                 unary: true,
@@ -285,7 +277,9 @@ impl Parser<'_, '_> {
                 return self.parenthesized_primary(start);
             }
             if self.starts_type_name() {
-                return self.compound_literal(start);
+                let type_name = self.nested(|parser| parser.type_name())?;
+                self.expect(")")?;
+                return self.compound_literal(start, type_name);
             }
             return self.parenthesized_primary(start);
         }
@@ -325,9 +319,13 @@ impl Parser<'_, '_> {
         self.node(expression, start)
     }
 
-    fn compound_literal(&mut self, start: usize) -> PResult<Node<Expression>> {
-        let type_name = self.nested(|parser| parser.type_name())?;
-        self.expect(")")?;
+    /// Parse the initializer after a compound literal's parenthesized type name.
+    /// The caller consumes any postfix operators on the resulting expression.
+    fn compound_literal(
+        &mut self,
+        start: usize,
+        type_name: Node<TypeName>,
+    ) -> PResult<Node<Expression>> {
         let initializer_list = self.nested(|parser| parser.initializer_list())?;
         let literal = self.node(
             CompoundLiteral {
