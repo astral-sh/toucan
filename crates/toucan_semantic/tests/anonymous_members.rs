@@ -3,6 +3,36 @@ use toucan_semantic::{Type, TypeKind, analyze_with_profile};
 use toucan_target::{Compiler, CompilerProfile};
 use toucan_test_support::compiler_acceptance;
 
+#[test]
+fn wide_records_check_direct_and_promoted_member_names() {
+    use std::fmt::Write;
+
+    let mut source = String::from("struct Wide {");
+    for index in 0..8192 {
+        write!(source, "int field{index};").unwrap();
+    }
+    let profile = CompilerProfile::default_for(toucan_target::Target::X86_64UnknownLinuxGnu);
+    let analysis =
+        analyze_with_profile(&format!("{source}}};"), profile, &Default::default()).unwrap();
+    let record = analysis
+        .unit()
+        .records
+        .iter()
+        .find(|record| record.name.as_deref() == Some("Wide"))
+        .unwrap();
+    assert_eq!(record.fields.as_ref().unwrap().len(), 8192);
+
+    for duplicate in ["int field0;", "struct { int field0; };", "int field8191;"] {
+        let error = analyze_with_profile(
+            &format!("{source}{duplicate}}};"),
+            profile,
+            &Default::default(),
+        )
+        .unwrap_err();
+        assert!(error.message.contains("duplicate field name"), "{error}");
+    }
+}
+
 const SOURCE: &str = "struct { int member; } source; struct Owner { __typeof__(source); int field; }; struct Direct { struct { int member; }; int field; }; _Static_assert(sizeof(struct Owner)==sizeof(int),\"ignored declarations\"); _Static_assert(__builtin_offsetof(struct Owner,field)==0,\"field offset\"); _Static_assert(sizeof(struct Direct)==2*sizeof(int),\"anonymous member\");";
 
 #[test]

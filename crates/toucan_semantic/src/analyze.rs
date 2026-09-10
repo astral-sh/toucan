@@ -4668,14 +4668,6 @@ impl Analyzer {
                             extra.require_function_attributes(false)?;
                             extra.require_no_weak()?;
                             extra.require_no_transparent_union()?;
-                            if name.as_ref().is_some_and(|name| {
-                                fields.iter().any(|field| field.name.as_ref() == Some(name))
-                            }) {
-                                return Err(Error::new(
-                                    declarator.span.start,
-                                    "duplicate field name",
-                                ));
-                            }
                             let bit_width = declarator
                                 .node
                                 .bit_width
