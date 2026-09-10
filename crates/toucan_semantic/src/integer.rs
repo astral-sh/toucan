@@ -409,8 +409,8 @@ impl Analyzer {
             }
             ast::Expression::SizeOfVal(size) => self.sizeof_expression(&size.node.0),
             ast::Expression::AlignOf(alignment) => {
-                let value = self.alignment_query(alignment)?;
-                Ok(self.size_value(value.bytes))
+                let bytes = self.alignment_query(alignment)?;
+                Ok(self.size_value(bytes))
             }
             ast::Expression::OffsetOf(expression) => {
                 let mut ty = self.type_name(&expression.node.type_name.node)?;
