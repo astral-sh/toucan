@@ -50,8 +50,7 @@ struct Parser<'s, 'e> {
     last_end: usize,
     env: &'e mut Env,
     budget: Budget,
-    error_offset: usize,
-    expected: HashSet<&'static str>,
+    syntax_error: Option<(usize, &'static str)>,
 }
 
 impl<'s, 'e> Parser<'s, 'e> {
@@ -65,8 +64,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             last_end: 0,
             env,
             budget,
-            error_offset: 0,
-            expected: HashSet::new(),
+            syntax_error: None,
         }
     }
 
@@ -134,15 +132,9 @@ impl<'s, 'e> Parser<'s, 'e> {
         }
     }
 
+    /// Record a terminal syntax failure; callers propagate it without trying alternatives.
     fn fail<T>(&mut self, expected: &'static str) -> PResult<T> {
-        let offset = self.position();
-        if offset > self.error_offset {
-            self.error_offset = offset;
-            self.expected.clear();
-        }
-        if offset == self.error_offset {
-            self.expected.insert(expected);
-        }
+        self.syntax_error = Some((self.position(), expected));
         Err(())
     }
 
@@ -215,10 +207,11 @@ impl<'s, 'e> Parser<'s, 'e> {
     }
 
     fn error(self) -> ParseError {
+        let (error_offset, expected) = self.syntax_error.unzip();
         let offset = self
             .budget
             .failure
-            .map_or(self.error_offset, |resource| resource.offset);
+            .map_or(error_offset.unwrap_or(0), |resource| resource.offset);
         let before = &self.source[..offset];
         ParseError {
             resource: self.budget.failure,
@@ -226,7 +219,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             line: before.bytes().filter(|&b| b == b'\n').count() + 1,
             column: before.chars().rev().take_while(|&c| c != '\n').count() + 1,
             offset,
-            expected: self.expected,
+            expected: expected.into_iter().collect(),
         }
     }
 }
