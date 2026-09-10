@@ -13,6 +13,7 @@ it is not a certificate that every combination has passed native execution.
 | Native compiler and FFI tests | `cargo test --workspace -- --include-ignored` | GCC/Clang comparisons and C/Rust calls on the configured host; external tools are required. |
 | Real library bindings | [Upstream corpus](../corpus/README.md) | Constants, layouts, signatures, and actual calls for pinned zlib, SQLite, zstd, and libgit2. |
 | Independent C acceptance | [Conformance](conformance.md) | Agreement on the eligible positive corpus; this alone does not test invalid-source rejection. |
+| Generated binding correctness | [Native C/Rust audit](../corpus/conformance/generated-bindings.md) | Independent values, integer macro types, and record layouts, plus rejection of eight invalid mutation categories on native GNU Linux. |
 | Malformed-input robustness | [Fuzzing](../fuzz/README.md) | Panics, sanitizer failures, timeouts, and selected internal invariants. |
 | Downstream consumption | [Replacement readiness](replacement-readiness.md) | Build-script compatibility and representative runtime behavior for selected consumers. |
 | Performance | [Benchmarks](benchmarks.md) | Generation cost on the measured workload, with output comparisons kept separate. |
