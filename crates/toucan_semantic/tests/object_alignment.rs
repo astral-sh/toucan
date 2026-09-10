@@ -153,6 +153,21 @@ const CASES: &[(&str, bool, bool)] = &[
         true,
     ),
     ("int f(int x __attribute__((aligned(32))));", false, true),
+    (
+        "typedef long T; void f(void){int T __attribute__((aligned(sizeof(T)))) = sizeof(T); _Static_assert(__alignof__(T)==sizeof(long),\"outer typedef\"); _Static_assert(sizeof(T)==sizeof(int),\"local object\");}",
+        true,
+        true,
+    ),
+    (
+        "typedef long T; void f(void){int T __attribute__((aligned(sizeof(T *)))) = sizeof(T); _Static_assert(__alignof__(T)==sizeof(void *),\"outer typedef\");}",
+        true,
+        true,
+    ),
+    (
+        "typedef long T; void f(int T __attribute__((aligned(sizeof(T *)))), int a[sizeof(T)]){_Static_assert(sizeof(T)==sizeof(int),\"parameter\");}",
+        false,
+        true,
+    ),
     ("int f(_Alignas(32) int x);", false, false),
     ("_Alignas(16) typedef int T;", false, false),
     (
