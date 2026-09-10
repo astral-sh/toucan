@@ -33,7 +33,7 @@ pub fn get_location_for_offset<'a>(src: &'a str, pos: usize) -> (Location<'a>, V
             }
             loc = l;
         } else {
-            loc.line += 1;
+            loc.line = loc.line.saturating_add(1);
         }
 
         p = n + 1;
