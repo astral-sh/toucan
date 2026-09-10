@@ -267,6 +267,10 @@ impl Budget {
         Ok(Node::new(value, span))
     }
 
+    /// Reuse a node's cached subtree measurement at its current AST depth.
+    ///
+    /// Cached depths include the node itself. A hit still checks the resulting
+    /// total depth before reusing the subtree without walking its children.
     pub(crate) fn node_measurement<T: Measure>(
         &mut self,
         span: Span,
@@ -296,6 +300,10 @@ impl Budget {
         Ok(measurement)
     }
 
+    /// Retain the largest measurements recorded for a node kind and source span.
+    ///
+    /// External declarations keep separate entries and release cached child measurements.
+    /// Types without a cache identity are checked for depth but are not retained.
     pub(crate) fn save_node<T: Measure>(
         &mut self,
         span: Span,

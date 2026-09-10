@@ -182,10 +182,14 @@ impl Env {
         self.symbols.pop().expect("more scope pops than pushes");
     }
 
+    /// Start retaining completed parameter scopes for a possible function definition.
     pub fn begin_function_definition(&mut self) {
         self.definition_scopes = Some(Vec::new());
     }
 
+    /// Pop the current prototype scope, saving it while a definition is pending.
+    ///
+    /// A missing `function` discards the scope after a failed parameter-list parse.
     pub fn leave_function_scope(&mut self, function: Option<&Node<FunctionDeclarator>>) {
         let symbols = self.symbols.pop().expect("function scope exists");
         if let (Some(scopes), Some(function)) = (&mut self.definition_scopes, function) {
@@ -193,6 +197,10 @@ impl Env {
         }
     }
 
+    /// End retention and restore the defined function's prototype scope into the current scope.
+    ///
+    /// Saved callback scopes are discarded. Passing `None` or an identifier-list
+    /// definition discards every saved scope.
     pub fn finish_function_definition(&mut self, declarator: Option<&Node<Declarator>>) {
         let scopes = self.definition_scopes.take().unwrap_or_default();
         let function = declarator
@@ -252,8 +260,10 @@ impl Env {
     }
 }
 
-// The outer identifier-list function has no prototype scope to restore. It must
-// still stop the search before a returned callback's parameter list.
+/// Find the first function suffix when walking outward from the declared name.
+///
+/// Identifier-list functions stop the search too, so a returned callback's
+/// prototype cannot be mistaken for the definition's parameter list.
 fn definition_function(declarator: &Declarator) -> Option<&DerivedDeclarator> {
     if let DeclaratorKind::Declarator(ref inner) = declarator.kind.node {
         if let Some(function) = definition_function(&inner.node) {
