@@ -1888,7 +1888,7 @@ impl Analyzer {
                     site,
                     self.unit.declarations[declaration_index].symbol_binding,
                     declarator_attributes.weak,
-                );
+                )?;
                 let declaration = &self.unit.declarations[declaration_index];
                 checked.complete_declaration(
                     site,

@@ -612,8 +612,12 @@ impl Builder {
                 _ => None,
             };
             if let Some((occurrence, status)) = extra {
-                self.budget
-                    .charge(0, 1, 0, self.parsed_spans[occurrence.index()].start)?;
+                self.budget.charge(
+                    0,
+                    1,
+                    0,
+                    self.code.occurrences[occurrence.index()].source.range.start,
+                )?;
                 represented.insert(occurrence, status);
             }
         }
@@ -636,7 +640,7 @@ impl Builder {
                 Coverage::Missing
             };
             self.budget
-                .charge(1, 1, 0, self.parsed_spans[index].start)?;
+                .charge(1, 1, 0, self.code.occurrences[index].source.range.start)?;
             self.code.expression_coverage.push(ExpressionCoverage {
                 occurrence: id,
                 status,
@@ -756,8 +760,11 @@ impl Builder {
     }
 
     pub(super) fn unevaluated_selection_ranges(&self, kind: &ExprKind) -> Vec<lang_c::span::Span> {
-        let range =
-            |id: ExprId| self.parsed_spans[self.code.expressions[id.index()].occurrence.index()];
+        let range = |id: ExprId| {
+            self.code.occurrences[self.code.expressions[id.index()].occurrence.index()]
+                .source
+                .parser_span()
+        };
         match kind {
             ExprKind::ShuffleVector {
                 mask: super::ShuffleMask::Constant(indices),
@@ -819,7 +826,7 @@ impl Builder {
         written_type: (Option<super::bounds::TypeUseId>, Option<OccurrenceId>),
     ) -> Result<(), Error> {
         let (type_name_use, type_name) = written_type;
-        let offset = self.parsed_spans[occurrence.index()].start;
+        let offset = self.code.occurrences[occurrence.index()].source.range.start;
         self.finish_bound_context(occurrence, &kind, type_name_use);
         let type_use = self.expression_type_use(&kind, &info.ty, explicit_type_use, occurrence)?;
         let ty = self.intern_type(&info.ty, offset)?;

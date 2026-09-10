@@ -4,10 +4,7 @@ use lang_c::{ast, span::Span};
 use serde::Serialize;
 use toucan_target::Compiler;
 
-use super::{
-    BodyId, Builder, CheckedCode, EntityId, ExprId, ExprKind, SiteId, SourceSpan, map_span,
-    unmapped_span,
-};
+use super::{BodyId, Builder, CheckedCode, EntityId, ExprId, ExprKind, SiteId, SourceSpan};
 use crate::analyze::Analyzer;
 use crate::target_features::{ParsedMinimumVectorWidth, ParsedTarget};
 use crate::{Error, FunctionOptions};
@@ -193,19 +190,23 @@ impl Builder {
             .charge(1 + attributes.len() + widths.len(), 2, bytes, offset)?;
         let mut attributes = attributes
             .iter()
-            .map(|attribute| TargetAttribute {
-                arguments: attribute.arguments.clone(),
-                source: unmapped_span(attribute.span),
+            .map(|attribute| {
+                Ok(TargetAttribute {
+                    arguments: attribute.arguments.clone(),
+                    source: self.budget.source_span(attribute.span)?,
+                })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, Error>>()?;
         attributes.sort_by_key(|attribute| attribute.source.range.start);
         let mut minimum_vector_width = widths
             .iter()
-            .map(|attribute| MinimumVectorWidthAttribute {
-                value: attribute.value,
-                source: unmapped_span(attribute.span),
+            .map(|attribute| {
+                Ok(MinimumVectorWidthAttribute {
+                    value: attribute.value,
+                    source: self.budget.source_span(attribute.span)?,
+                })
             })
-            .collect::<Vec<_>>();
+            .collect::<Result<Vec<_>, Error>>()?;
         minimum_vector_width.sort_by_key(|attribute| attribute.source.range.start);
         self.code.function_options.insert(
             site.index(),
@@ -215,8 +216,12 @@ impl Builder {
                 effective: options.clone(),
                 attributes,
                 minimum_vector_width,
-                always_inline: always_inline.map(|(span, _)| unmapped_span(span)),
-                no_inline: no_inline.map(|(span, _)| unmapped_span(span)),
+                always_inline: always_inline
+                    .map(|(span, _)| self.budget.source_span(span))
+                    .transpose()?,
+                no_inline: no_inline
+                    .map(|(span, _)| self.budget.source_span(span))
+                    .transpose()?,
             },
         );
         if affects_entity {
@@ -244,7 +249,7 @@ impl Builder {
         Ok(())
     }
 
-    pub(super) fn finish_function_option_spans(&mut self) -> Result<(), Error> {
+    pub(super) fn finish_function_options(&self) -> Result<(), Error> {
         for (&index, options) in &self.code.function_options {
             if index != options.declaration.index()
                 || self
@@ -280,25 +285,6 @@ impl Builder {
                 || self.code.entities.get(requirement.callee.index()).is_none_or(|entity| entity.kind != super::EntityKind::Function)
             {
                 return Err(Error::new(0, "invalid retained inline target requirement"));
-            }
-        }
-        for site in self.code.function_options.values_mut() {
-            for attribute in &mut site.attributes {
-                let span = Span::span(attribute.source.range.start, attribute.source.range.end);
-                attribute.source = map_span(span, &mut self.budget)?;
-            }
-            for attribute in &mut site.minimum_vector_width {
-                let span = Span::span(attribute.source.range.start, attribute.source.range.end);
-                attribute.source = map_span(span, &mut self.budget)?;
-            }
-            for source in [&mut site.always_inline, &mut site.no_inline]
-                .into_iter()
-                .flatten()
-            {
-                *source = map_span(
-                    Span::span(source.range.start, source.range.end),
-                    &mut self.budget,
-                )?;
             }
         }
         Ok(())

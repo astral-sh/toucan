@@ -1,10 +1,9 @@
 //! Inline source annotations and finalized body ownership.
 
-use lang_c::span::Span;
 use serde::Serialize;
 use toucan_target::{Compiler, LanguageMode, Target};
 
-use super::{Builder, CheckedCode, SiteId, SourceSpan, map_span, unmapped_span};
+use super::{Builder, CheckedCode, SiteId, SourceSpan};
 use crate::{Error, FunctionDefinitionKind, inline::Registry};
 
 /// Written inline syntax at one function declaration.
@@ -71,8 +70,14 @@ impl Builder {
                     site.index(),
                     FunctionInlineSite {
                         declaration: site,
-                        inline_specifier: declaration.inline_source.map(unmapped_span),
-                        gnu_inline_attribute: declaration.gnu_source.map(unmapped_span),
+                        inline_specifier: declaration
+                            .inline_source
+                            .map(|span| self.budget.source_span(span))
+                            .transpose()?,
+                        gnu_inline_attribute: declaration
+                            .gnu_source
+                            .map(|span| self.budget.source_span(span))
+                            .transpose()?,
                         written_extern: declaration.written_extern,
                     },
                 );
@@ -93,21 +98,6 @@ impl Builder {
                     };
                     self.code.bodies[body.index()].definition_kind = kind;
                 }
-            }
-        }
-        Ok(())
-    }
-
-    pub(super) fn finish_inline_spans(&mut self) -> Result<(), Error> {
-        for site in self.code.function_inline.values_mut() {
-            for source in [&mut site.inline_specifier, &mut site.gnu_inline_attribute]
-                .into_iter()
-                .flatten()
-            {
-                *source = map_span(
-                    Span::span(source.range.start, source.range.end),
-                    &mut self.budget,
-                )?;
             }
         }
         Ok(())

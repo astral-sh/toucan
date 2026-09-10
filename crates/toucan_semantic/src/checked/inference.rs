@@ -1,8 +1,6 @@
 //! Declaration type deduction is metadata; the initializer remains its execution site.
 
-use super::{
-    Builder, DeclarationSite, ExprId, SiteId, SourceSpan, TypeUseId, map_span, unmapped_span,
-};
+use super::{Builder, DeclarationSite, ExprId, SiteId, SourceSpan, TypeUseId};
 use crate::{Error, auto_type::AutoInference};
 use serde::Serialize;
 
@@ -61,20 +59,11 @@ impl Builder {
             inference.keyword.start,
         )?;
         self.code.declarations[site.index()].type_inference = Some(Box::new(TypeInference {
-            keyword: unmapped_span(inference.keyword),
+            keyword: self.budget.source_span(inference.keyword)?,
             expression,
             type_use,
             reuses_prior_type: inference.reuses_prior_type,
         }));
-        self.inferred_type_spans.push((site, inference.keyword));
-        Ok(())
-    }
-    pub(super) fn finish_type_inferences(&mut self) -> Result<(), Error> {
-        for &(site, span) in &self.inferred_type_spans {
-            if let Some(inference) = &mut self.code.declarations[site.index()].type_inference {
-                inference.keyword = map_span(span, &mut self.budget)?;
-            }
-        }
         Ok(())
     }
 }
