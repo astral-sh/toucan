@@ -356,8 +356,9 @@ impl Analyzer {
         left: &Type,
         right: &Type,
         depth: usize,
+        budget: &mut crate::analyze::TypeComparisonBudget,
     ) -> Result<bool, Error> {
-        if self.compatible_at(left, right, depth)? {
+        if self.compatible_at(left, right, depth, budget)? {
             return Ok(true);
         }
         let a = self.unit.transparent_union(left)?;
@@ -372,7 +373,7 @@ impl Analyzer {
             .as_ref()
             .ok_or_else(|| Error::new(0, "transparent_union requires a complete union"))?
         {
-            if self.compatible_at(&self.unqualified(&member.ty)?, other, depth + 1)? {
+            if self.compatible_at(&self.unqualified(&member.ty)?, other, depth + 1, budget)? {
                 return Ok(true);
             }
         }
