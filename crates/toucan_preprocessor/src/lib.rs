@@ -400,9 +400,9 @@ impl<'a> InputFile<'a> {
 
 #[derive(Debug)]
 struct Conditional {
-    parent_active: bool,
     active: bool,
-    taken: bool,
+    /// The parent is active and no earlier branch in this group has matched.
+    can_take_branch: bool,
     seen_else: bool,
 }
 
@@ -992,9 +992,8 @@ impl Preprocessor {
                         }
                     };
                     conditions.push(Conditional {
-                        parent_active: active,
-                        active: active && matches,
-                        taken: matches,
+                        active: matches,
+                        can_take_branch: active && !matches,
                         seen_else: false,
                     });
                 }
@@ -1005,13 +1004,12 @@ impl Preprocessor {
                     if condition.seen_else {
                         return Err(fail("#elif after #else".into()));
                     }
-                    let matches = condition.parent_active
-                        && !condition.taken
+                    let matches = condition.can_take_branch
                         && self
                             .condition(&logical_path, input, include_origin, rest, output)
                             .map_err(&fail)?;
                     condition.active = matches;
-                    condition.taken |= matches;
+                    condition.can_take_branch &= !matches;
                 }
                 "else" => {
                     if !rest.is_empty() {
@@ -1023,8 +1021,8 @@ impl Preprocessor {
                     if condition.seen_else {
                         return Err(fail("duplicate #else".into()));
                     }
-                    condition.active = condition.parent_active && !condition.taken;
-                    condition.taken = true;
+                    condition.active = condition.can_take_branch;
+                    condition.can_take_branch = false;
                     condition.seen_else = true;
                 }
                 "endif" => {
