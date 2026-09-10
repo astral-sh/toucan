@@ -1077,6 +1077,9 @@ impl<'s, 'e> Parser<'s, 'e> {
         self.expect("(")?;
         let mut attributes = Vec::new();
         while !self.at(")") {
+            if self.eat(",")? {
+                continue;
+            }
             let start = self.position();
             let attribute = if self.env.extensions_clang
                 && self.at("availability")
