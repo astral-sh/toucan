@@ -76,7 +76,7 @@ impl Emitter<'_> {
         let mut representation = Representation::Opaque;
         let mut dependency = None;
         if key.qualifiers == Qualifiers::default() && key.alignment == key.size {
-            let value = self.unit.resolve(&key.value)?;
+            let value = unit.resolve(value)?;
             let scalar = match value.kind {
                 TypeKind::Bool => Some("AtomicBool"),
                 TypeKind::Integer(kind) => {
@@ -115,14 +115,14 @@ impl Emitter<'_> {
                 )
             {
                 representation = Representation::Pointer((**pointee).clone());
-                dependency = Some((**pointee).clone());
+                dependency = Some(pointee.as_ref());
             }
         }
         let id = self.atomics.representations.len();
         self.atomics.indices.insert(key.clone(), id);
         self.atomics.representations.push((key, representation));
         if let Some(dependency) = dependency {
-            self.collect_at(&dependency, depth + 1)?;
+            self.collect_at(dependency, depth + 1)?;
         }
         Ok(())
     }
@@ -249,11 +249,11 @@ impl Emitter<'_> {
     pub(super) fn collect_call_value(&mut self, ty: &Type, depth: usize) -> Result<(), Error> {
         self.reject_complex_call_value(ty, depth)?;
         self.collect_at(ty, depth)?;
-        if let Some(value) = self.unit.atomic_value(ty)?
-            && matches!(self.unit.resolve(value)?.kind, TypeKind::Pointer(_))
+        let unit = self.unit;
+        if let Some(value) = unit.atomic_value(ty)?
+            && matches!(unit.resolve(value)?.kind, TypeKind::Pointer(_))
         {
-            let value = value.clone();
-            self.collect_at(&value, depth + 1)?;
+            self.collect_at(value, depth + 1)?;
         }
         Ok(())
     }
