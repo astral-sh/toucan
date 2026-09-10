@@ -124,7 +124,7 @@ impl Emitter<'_> {
         *remaining = remaining.checked_sub(1).ok_or_else(|| {
             Error("derive eligibility exceeds the 1000000-node binding limit".into())
         })?;
-        if self.external_key(ty)?.is_some() {
+        if self.external_key(ty)?.is_some() || self.callback_uses_external_storage(ty, depth)? {
             return Ok(Traits::default());
         }
         // Each alias may name a caller-owned Rust replacement. Resolving the
@@ -293,7 +293,7 @@ impl Emitter<'_> {
                 && !self.contains_external_storage(ty, depth)?);
         }
         check_depth(depth)?;
-        if self.external_key(ty)?.is_some() {
+        if self.external_key(ty)?.is_some() || self.callback_uses_external_storage(ty, depth)? {
             return Ok(false);
         }
         if let TypeKind::Typedef(name) = &ty.kind {

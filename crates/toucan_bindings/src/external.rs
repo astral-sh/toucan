@@ -401,7 +401,7 @@ impl Emitter<'_> {
         depth: usize,
     ) -> Result<bool, Error> {
         check_depth(depth)?;
-        if self.external_key(ty)?.is_some() {
+        if self.external_key(ty)?.is_some() || self.callback_uses_external_storage(ty, depth)? {
             return Ok(true);
         }
         Ok(match &ty.kind {
@@ -444,7 +444,7 @@ impl Emitter<'_> {
             return Ok(false);
         }
         check_depth(depth)?;
-        if self.external_key(ty)?.is_some() {
+        if self.external_key(ty)?.is_some() || self.callback_uses_external_storage(ty, depth)? {
             return Ok(true);
         }
         Ok(match &ty.kind {
@@ -467,5 +467,27 @@ impl Emitter<'_> {
                 .unwrap_or(false),
             _ => false,
         })
+    }
+
+    /// Nullable callback projection emits a function typedef directly, so an
+    /// external alias supplies the field's storage rather than its pointee.
+    pub(super) fn callback_uses_external_storage(
+        &self,
+        ty: &Type,
+        depth: usize,
+    ) -> Result<bool, Error> {
+        if !self.options.nullable_function_typedefs || self.options.blocklist_types.is_empty() {
+            return Ok(false);
+        }
+        let TypeKind::Pointer(pointee) = &ty.kind else {
+            return Ok(false);
+        };
+        if matches!(pointee.kind, TypeKind::Typedef(_))
+            && matches!(self.unit.resolve(pointee)?.kind, TypeKind::Function(_))
+        {
+            self.contains_external_storage(pointee, depth + 1)
+        } else {
+            Ok(false)
+        }
     }
 }

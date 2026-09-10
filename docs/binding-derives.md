@@ -52,8 +52,12 @@ one member's type cannot contain zero. Reading a union member remains unsafe and
 requires a valid representation for that member. Atomic storage, caller-owned
 external storage, and incomplete C records do not receive generated defaults.
 Typedef aliases preserve the caller-owned type boundary: an alias of an external
-type cannot inherit the underlying C type's traits or zero validity. Pointers to
-those aliases still have the traits and null representation of Rust pointers.
+type cannot inherit the underlying C type's traits or zero validity. Raw Rust
+pointers retain their pointer traits and null representation.
+Under nullable function-typedef projection, `Callback *` can emit `Callback`
+directly. A caller-owned callback alias then supplies the field's storage, so
+generated traits preserve its validity boundary. An additional pointer
+indirection remains a raw Rust pointer.
 
 The [combined-layer checks](../corpus/evidence/binding-derives-root-integration-2026-09-08.json.gz)
 include the external-alias correction found during independent review. Eight

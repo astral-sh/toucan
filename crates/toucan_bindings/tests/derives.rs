@@ -175,6 +175,76 @@ fn caller_owned_types_keep_their_trait_boundary_through_aliases() {
     }
 }
 
+const EXTERNAL_CALLBACKS: &str = "\
+typedef void Callback(void);
+typedef Callback Alias;
+typedef Alias *Pointer;
+struct CallbackOwner { Alias *value; };
+struct CallbackArray { Pointer values[2]; };
+struct CallbackEmpty { Pointer values[0]; };
+struct CallbackParent { struct CallbackOwner value; };
+union CallbackUnion { Alias *value; };
+struct CallbackPointer { Alias **value; };
+";
+
+#[test]
+fn projected_callbacks_preserve_external_storage_trait_boundaries() {
+    let unit = analyze(EXTERNAL_CALLBACKS, Target::X86_64UnknownLinuxGnu).unwrap();
+    for blocked in ["Callback", "Alias"] {
+        for nullable_function_typedefs in [false, true] {
+            for derives in [
+                DeriveOptions::default(),
+                options(true).derives,
+                options(false).derives,
+            ] {
+                let source = generate(
+                    &unit,
+                    &Options {
+                        blocklist_types: vec![blocked.into()],
+                        nullable_function_typedefs,
+                        derives,
+                        ..Options::default()
+                    },
+                )
+                .unwrap()
+                .source;
+                for name in [
+                    "CallbackOwner",
+                    "CallbackArray",
+                    "CallbackParent",
+                    "CallbackUnion",
+                ] {
+                    assert_eq!(
+                        source.contains(&format!("impl ::core::default::Default for {name} {{")),
+                        derives.default && !nullable_function_typedefs,
+                        "{blocked}, nullable={nullable_function_typedefs}, {name}"
+                    );
+                    if nullable_function_typedefs {
+                        assert!(
+                            !source.contains(&format!("#[derive(Clone, Copy)]\npub struct {name}"))
+                        );
+                        assert!(
+                            !source.contains(&format!("#[derive(Clone, Copy)]\npub union {name}"))
+                        );
+                    }
+                }
+                assert_eq!(
+                    source.contains("impl ::core::default::Default for CallbackPointer {"),
+                    derives.default
+                );
+                assert_eq!(
+                    source.contains("impl ::core::default::Default for CallbackEmpty {"),
+                    derives.default
+                );
+                assert_eq!(
+                    source.contains("pub value: ::core::mem::ManuallyDrop<Alias>,"),
+                    nullable_function_typedefs
+                );
+            }
+        }
+    }
+}
+
 fn native_target() -> Option<Target> {
     match (std::env::consts::ARCH, std::env::consts::OS) {
         ("x86_64", "linux") => Some(Target::X86_64UnknownLinuxGnu),
@@ -386,4 +456,47 @@ fn suppression_and_caller_owned_storage_do_not_assume_traits() {
         false,
         "Debug",
     );
+}
+
+#[test]
+#[ignore = "requires native Rust"]
+fn external_callback_projection_does_not_zero_nonnullable_storage() {
+    let Some(target) = native_target() else {
+        return;
+    };
+    let unit = analyze(EXTERNAL_CALLBACKS, target).unwrap();
+    for replacement in [
+        "pub type Callback = unsafe extern \"C\" fn();",
+        "#[repr(transparent)] pub struct Callback(core::num::NonZeroUsize);",
+    ] {
+        for derives in [DeriveOptions::default(), options(true).derives] {
+            let source = generate(
+                &unit,
+                &Options {
+                    blocklist_types: vec!["Callback".into()],
+                    nullable_function_typedefs: true,
+                    derives,
+                    raw_lines: vec![replacement.into()],
+                    ..Options::default()
+                },
+            )
+            .unwrap()
+            .source;
+            compile(&source, "fn main() {}", true, "");
+            if derives.default {
+                compile(
+                    &source,
+                    "fn main() { assert!(CallbackPointer::default().value.is_null()); assert!(CallbackEmpty::default().values.is_empty()); }",
+                    true,
+                    "",
+                );
+                compile(
+                    &source,
+                    "fn main() { let _ = CallbackOwner::default(); }",
+                    false,
+                    "CallbackOwner",
+                );
+            }
+        }
+    }
 }
