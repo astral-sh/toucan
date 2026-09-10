@@ -13,9 +13,15 @@ ROOT = Path(__file__).resolve().parents[2]
 
 class Optimization(unittest.TestCase):
     def test_assertion_based_validators_fail_before_running_under_optimization(self):
+        # Downloaded corpus caches contain upstream scripts with their own checks.
+        tracked = subprocess.check_output(
+            ["git", "ls-files", "-z"], cwd=ROOT, text=True
+        ).split("\0")
         candidates = [
-            *(ROOT / "scripts").glob("*.py"),
-            *(ROOT / "corpus").rglob("*.py"),
+            ROOT / name
+            for name in tracked
+            if name.endswith(".py")
+            and (Path(name).parent == Path("scripts") or name.startswith("corpus/"))
         ]
         validators = [
             p
