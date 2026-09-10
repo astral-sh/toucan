@@ -85,6 +85,8 @@ impl Parser<'_, '_> {
         })
     }
 
+    /// Parse operators at or above `minimum` precedence. Raising the floor for
+    /// each right operand makes equal-precedence operators associate left.
     fn binary_expression(&mut self, minimum: u8) -> PResult<Operand> {
         let mut left = self.cast_expression()?;
         while let Some((precedence, operator)) = binary_operator(self.text()) {
@@ -830,25 +832,17 @@ fn numeric_constant(text: &str, gnu: bool) -> Option<Constant> {
     }))
 }
 
-fn float_suffix(mut text: &str, gnu: bool) -> Option<FloatSuffix> {
-    let imaginary_first = text
-        .as_bytes()
-        .first()
-        .is_some_and(|byte| matches!(byte, b'i' | b'I' | b'j' | b'J'));
-    if imaginary_first {
-        text = &text[1..];
-    }
-    let imaginary_last = text
-        .as_bytes()
-        .last()
-        .is_some_and(|byte| matches!(byte, b'i' | b'I' | b'j' | b'J'));
-    if imaginary_last {
-        text = &text[..text.len() - 1];
-    }
-    let imaginary = imaginary_first || imaginary_last;
-    if imaginary && (!gnu || imaginary_first && imaginary_last) {
+/// GNU imaginary markers may appear before or after the format suffix, once.
+/// Strip one marker; any additional marker fails the format match below.
+fn float_suffix(text: &str, gnu: bool) -> Option<FloatSuffix> {
+    let format = text
+        .strip_prefix(['i', 'I', 'j', 'J'])
+        .or_else(|| text.strip_suffix(['i', 'I', 'j', 'J']));
+    let imaginary = format.is_some();
+    if imaginary && !gnu {
         return None;
     }
+    let text = format.unwrap_or(text);
     let format = match text {
         "" => FloatFormat::Double,
         "f" | "F" => FloatFormat::Float,

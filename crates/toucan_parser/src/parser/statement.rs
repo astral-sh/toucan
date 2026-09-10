@@ -319,9 +319,7 @@ impl<'s, 'e> Parser<'s, 'e> {
                 None
             };
             let constraints = self.string_literal()?;
-            self.expect("(")?;
-            let variable_name = self.expression()?;
-            self.expect(")")?;
+            let variable_name = self.parenthesized_expression()?;
             operands.push(self.node(
                 GnuAsmOperand {
                     symbolic_name,
