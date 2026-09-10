@@ -426,11 +426,11 @@ mod tests {
             "0b10 == 2",
         ] {
             assert!(
-                evaluate(&lex(expression).unwrap(), None, false).unwrap(),
+                evaluate(&lex(expression).unwrap(), None, false, false).unwrap(),
                 "{expression}"
             );
         }
-        assert!(!evaluate(&lex("-1 < 1U").unwrap(), None, false).unwrap());
+        assert!(!evaluate(&lex("-1 < 1U").unwrap(), None, false, false).unwrap());
         for expression in [
             "1 / 0",
             "1 << 64",
@@ -440,7 +440,7 @@ mod tests {
             "1 2",
         ] {
             assert!(
-                evaluate(&lex(expression).unwrap(), None, false).is_err(),
+                evaluate(&lex(expression).unwrap(), None, false, false).is_err(),
                 "{expression}"
             );
         }
