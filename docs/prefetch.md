@@ -69,21 +69,7 @@ GNU keeps a direct-designator restriction through indirection, `_Generic`, and
 which can be used in comparisons and boolean contexts. A private expression category
 preserves this distinction without treating all escaped pointers as builtins.
 
-The [validation record](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/prefetch-2026-09-08.json.gz) includes
-compiler commands, source and binary hashes, exact graph comparisons, native
-effect checks, and allocation measurements. The five unchanged zstd inputs are
-regression controls. Their acceptance predates this layer.
-
-The integrated layer passes 775 workspace tests and 384 native compiler decisions
-across the four language modes. Sixteen native executables preserve argument
-effects at `-O0` and `-O2`. All 3,872 checked seed pairs agree, and eight existing
-binding outputs are byte-identical. The retained-graph ASan campaign completes
-26,563 inputs in 181 seconds with no findings.
-
-Seven real source files also pass fresh preprocessing with explicit GNU 13.3 and
-Clang 18.1.3 version overrides in both ordinary and retained analysis. All 14
-declaration pairs agree. SQLite requires the library audit's larger explicit
-retention budget; the CLI's default edge-limit rejection is preserved in the
-[integration evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/prefetch-integration-2026-09-08/summary.json).
-These runs do not change the default compiler version macros or establish
-optimizer or machine-code equivalence.
+[Historical prefetch observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/prefetch-2026-09-08.json.gz)
+retain compiler commands, effect checks, and measurements for their recorded
+revision. Run the semantic and facade `prefetch` tests with `--include-ignored`
+to repeat the native checks.

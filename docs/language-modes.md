@@ -162,131 +162,18 @@ Primary sources: [GCC 13.3 C standards](https://github.com/gcc-mirror/gcc/blob/r
 [Clang 18.1.3 standards](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/include/clang/Basic/LangStandards.def),
 and [Clang feature predicates](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/include/clang/Basic/Features.def).
 
-### C99/C17 validation
+## Validation
 
-The [mode evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c99-c17-2026-09-08/summary.json) records
-2,944 native syntax/predefine/query observations, 174 option controls, and 1,176
-inline-symbol checks for the new modes. Focused tests compare 800 source
-admission decisions with GCC 13.3 and Clang 18.1.3. Eight linked C/Rust probes
-exercise all four new modes with both native compilers and Rust 1.64, including
-inline helpers, `restrict`, loops, constants, and struct arguments and returns.
+The semantic [language-mode](../crates/toucan_semantic/tests/language_modes.rs),
+[C90](../crates/toucan_semantic/tests/c90.rs), and
+[C99/C17](../crates/toucan_semantic/tests/c99_c17.rs) tests cover source admission,
+predefines, compiler profiles, and ordinary/retained agreement. Their native
+oracles compare GCC and Clang decisions. The facade's
+[C90](../crates/toucan/tests/c90.rs) and
+[C99/C17](../crates/toucan/tests/c99_c17.rs) tests also compile generated bindings
+and exercise C/Rust calls.
 
-All eight routes through the 220-program corpus accept 219 programs and pass
-all 211 strict-C11 control cases. The remaining exploratory difference is an
-assignment that discards `const`; the native compilers reject it in pedantic
-C11. No tool or oracle-pipeline failures occurred. The archive preserves each
-original source, command, diagnostic, and preprocessed input.
-
-The workspace passes 785 tests, with 207 opt-in tests ignored in that run. The
-native tests run separately. Both Python harness suites pass (32 and 27 tests).
-All seven real-project translation units pass both preprocessing routes with
-ordinary/retained parity. Seven paired benchmark rounds on those inputs retain
-byte-identical complete declarations; median time ratios span 0.960–1.021.
-These measurements ran on a shared host alongside other validation and do not
-establish a speedup. Baseline and candidate binaries use separate build caches
-and pass a distinguishing GNU99 literal control before measurement.
-
-The [sanitizer evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/fuzz/evidence/c99-c17-2026-09-08) includes the first
-expanded-corpus replay and a longer mutation campaign. The final run executes
-22,764 inputs in 301 seconds with 624 MiB peak RSS, 792 new corpus units, no
-artifacts, and unchanged source hashes. All 88 compiler/mode settings are seeded
-without changing source bytes. These bounded runs include rejected programs and
-do not establish complete conformance or safety. LeakSanitizer remains disabled
-in this ptrace environment.
-
-## C90/GNU90 validation
-
-The [admission evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c90-modes-2026-09-08/summary.json)
-records native compiler decisions, full commands, diagnostics, and source hashes.
-Focused tests compare 228 decisions across both C90 modes, GCC 13.3, and Clang
-18.1.3 targeting Linux, macOS, and Windows. A Windows LLVM emission check verifies
-the external linkage described above. Separate generated-binding tests execute
-C calls and struct round trips with both native C compilers and Rust 1.64.0.
-
-All seven untouched source-audit translation units pass through both preprocessing
-routes, with ordinary and retained results agreeing in all 14 pairs. Both libgit2
-inputs use their original C90 build flag. This is a functional source audit;
-its individual timing observations are not a comparative performance claim.
-The workspace suite passes 690 tests, with 185 opt-in tests ignored in that run.
-The focused native checks run separately; the changed crates pass Clippy.
-
-The [checked-analysis fuzz campaign](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/fuzz/evidence/c90-modes-2026-09-08/evidence.json.gz)
-passes 31,857 inputs in 181 seconds with AddressSanitizer, no artifacts, and
-543 MiB peak RSS. The initial archive covers all seven profiles from its base
-revision and all four modes for each of 77 seed files, preserving every original
-input byte. Source hashes remain unchanged during the run. LeakSanitizer is
-disabled in this ptrace environment; these results are a bounded campaign.
-
-### Integration with all eleven profiles
-
-The [integration evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c90-integration-2026-09-08/summary.json)
-records the C90 layer combined with Microsoft integer and calling-convention
-syntax, retained `_Noreturn` metadata, and all eleven compiler profiles. The
-workspace passes 732 tests, with 192 opt-in tests ignored in that run; focused
-native checks run separately. The native C90 table covers 320 decisions, including
-Microsoft syntax, plus the Windows external-linkage LLVM check. The 56-observation
-feature-query table confirms that GCC's `gnu::` attribute namespace is enabled
-in GNU90 and GNU11 and returns zero in ISO modes; Clang rejects scoped query
-arguments. The differential CLI table remains at 180/184 because empty scalar
-initializers are reserved for the following implementation layer.
-
-All 117 semantic fuzzer seed files retain their exact bytes across 44
-profile/mode settings. The preprocessing fuzzer keeps its independent 20 settings
-for each of six seeds. A checked-analysis AddressSanitizer campaign executes
-12,583 inputs in 121 seconds with 592 MiB peak RSS, no artifacts, and unchanged
-source hashes. Its initial archive contains every profile/mode setting for all
-82 checked seeds, plus the invalid-UTF-8 input. LeakSanitizer remains disabled.
-The earlier evidence directories are preserved without changes.
-
-## Earlier C11/GNU11 validation
-
-The [recorded evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/language-modes-2026-09-08.json.gz) includes
-compiler versions, exact commands, source/binary hashes, and raw observations.
-The workspace suite passed 630 tests; the parser and semantic native suite passed
-533 with no ignored tests. Focused mode tests cover ordinary/retained parity,
-all seven profiles, command-line order, source locations, and Rust 1.64 output.
-AddressSanitizer replay passed 980 seed/profile/mode pairs (695 accepted, 285
-matching diagnostics), with 459,416 KiB peak RSS.
-
-Seven untouched translation units passed both preprocessing routes, ordinary and
-retained, on both revisions: 56 completed controls. Complete declaration output
-matched after removing only the new mode metadata. Another 32 controls passed
-for C11-mode complex.h, FFTW, and LAPACKE headers with GCC and Clang.
-
-Release binding measurements compare this layer with commit `6427b5b`, using the
-system allocator on the same shared Linux host. Seven alternating observations
-per project ran on CPU 2 while independent builds and native tests ran elsewhere.
-
-| Header | Baseline median | Mode layer median | Ratio |
-| --- | ---: | ---: | ---: |
-| zlib | 48.58 ms | 49.32 ms | 1.015 |
-| sqlite | 173.85 ms | 174.30 ms | 1.003 |
-| zstd | 16.43 ms | 16.53 ms | 1.006 |
-| libgit2 | 391.00 ms | 391.08 ms | 1.000 |
-
-These observations do not establish a speed improvement. Generated Rust hashes,
-preprocessing/analysis allocation counts and bytes, and binding allocation counts
-and bytes match the baseline on all four headers. `TranslationUnit` remains
-176 bytes on this host; `CompilerProfile` grows from 2 to 3 bytes. Five alternating
-ordinary/retained semantic observations on those headers span ratios 0.968–1.027;
-VLA and inferred-type controls also retain identical allocation counts.
-
-The [integration checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/language-modes-integration-2026-09-08/summary.json)
-cover the merged BMI, binary128, and vector layers: all 1,050 seed/profile/mode
-pairs agree between ordinary and retained analysis (747 accepted, 303 matching
-diagnostics). The generated C11 bindings also pass with Rust 1.64. Campaign seeds
-cover both modes for every profile and both trigraph settings for preprocessing.
-
-The [combined integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/c90-root-integration-2026-09-08/summary.json)
-also includes Microsoft declaration attributes and literal-query optimization.
-It checks 3,696 ordinary/retained seed pairs across all 44 profile/mode settings,
-keeps eight existing binding artifacts byte-identical, and reruns native C90 FFI
-with Rust 1.64. The original archives retain their own source revisions.
-
-The [220-program corpus rerun](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/conformance-a3256d6/summary.json)
-at `a3256d6` covers all four modes through both GCC and Clang preprocessing.
-The existing strict-C11 control gate passes in every route: 211 programs in each
-C11 mode, 189 in C90, and 210 in GNU90 after intersection with that mode’s native
-acceptance. This does not establish pedantic C90 conformance. The only exploratory
-difference is a pointer assignment that discards `const`; both native compilers
-reject it under pedantic C11. No tool or oracle-pipeline failures occurred.
+Use the [conformance gate](conformance.md) for the pinned program corpus and
+[validation guide](validation.md) for current commands and result boundaries.
+Earlier mode-specific compiler, fuzz, and performance observations remain in
+the [historical archive](validation.md#historical-results).

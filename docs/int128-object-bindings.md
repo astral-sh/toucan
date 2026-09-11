@@ -6,6 +6,7 @@ Actual C storage, record fields, foreign parameters and return values, and C typ
 
 This deliberately differs from bindgen 0.72.1 where its Clang evaluation path narrows values to 64 bits. For `static const __int128 value=((__int128)1)<<100;`, the reference emits zero. Toucan emits `1267650600228229401496703205376`, matching C. Large unsigned 128-bit expressions also emit their checked values instead of falling back to extern declarations.
 
-The saved Linux x86-64 comparison contains ten signed/unsigned controls: zero, small values, high bits, mixed limbs, signed minimum/maximum, negative values, and unsigned maximum/conversion from negative. GCC 13.3 and Clang 18 agree on all 20 C executions. All 20 Toucan-generated executions across Rust 1.98.1 and actual Rust 1.64.0 retain the complete type and bit pattern. The reference emits two correct constants, six truncated constants, and two extern declarations; its eight constants were also executed on both Rust versions and the differences are preserved in the evidence.
-
-Seven focused object tests and Clippy pass. The tests retain old-Rust rejection for extern objects, record fields, foreign functions, and explicit typedefs using C 128-bit types. Sixty-one existing controls excluding the two changed 128-bit cases retain byte-identical output, status, and diagnostics against the frozen string-projection baseline. No additional platform matrix or downstream consumer claim is made here.
+The [object-value tests](../crates/toucan_bindgen/tests/object_values.rs) cover
+signed and unsigned boundaries, generated values, and the separate Rust-version
+restrictions on C storage and signatures. Earlier compiler comparisons remain in
+the [historical archive](validation.md#historical-results).

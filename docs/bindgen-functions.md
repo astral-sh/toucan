@@ -28,28 +28,12 @@ inline information for callback order.
 
 ## Validation
 
-The [saved evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/bindgen-functions-2026-09-08.json.gz)
-records 110 pinned bindgen 0.72.1/libclang 18.1.3 decisions on Linux x86-64 and
-Windows x86-64, in GNU90/GNU11. Each is replayed with and without callbacks.
-Weak ordinary definitions retain Toucan's explicit optional-symbol ABI error;
-the remaining selected functions and callback sequences match the reference.
-The regression fixture also runs across the supported targets; the originally
-recorded evidence covers seven targets and predates Windows ARM64.
+The [Builder selection tests](../crates/toucan_bindgen/tests/default_functions.rs)
+compare the pinned bindgen decisions and callback sequences, while
+[inline-fact tests](../crates/toucan_bindings/tests/inline_facts.rs) check the core
+emission options. Native tests compile generated declarations and execute C/Rust
+calls. The bindings fuzzer varies definition emission and inline exclusion
+independently.
 
-Generated ordinary-body, late-inline, and callback declarations pass 32 native
-C/Rust executions: both generators, GCC 13/Clang 18, C O0/O2, current Rust/actual
-Rust 1.64, and Rust O0/O3. Replaced GNU inline functions stay absent from both
-outputs. The full workspace passes 839 tests (216 opt-in tests ignored).
-
-`Declaration` remains 136 bytes, `Type` 40 bytes, and `TranslationUnit` 224 bytes
-on the measured x86-64 host. Default Builder and core generation for 1, 100, and
-1,000 ordinary prototypes have byte-identical output and identical allocation
-counts/bytes against the frozen selection baseline. Nine real header routes keep
-preprocessed text unchanged; their units differ only in the added inline facts,
-and all eight requested Rust outputs remain byte-identical. A separate 100,
-1,000, and 10,000 inline-function capture retains timing samples for the direct
-filter; shared-host timing is evidence of scaling, not a release speed claim.
-
-The bindings fuzzer varies definition emission and inline exclusion independently
-using the low two selector bits. Archived campaigns retain their original harness
-and selector interpretation.
+[Historical selection observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/bindgen-functions-2026-09-08.json.gz)
+retain the original reference, runtime, and allocation measurements.

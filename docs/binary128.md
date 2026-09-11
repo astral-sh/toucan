@@ -82,12 +82,5 @@ are failures. GNU native runtime checks cover the shipped Linux profiles, and
 Clang checks all five cross targets plus the native target. Set `TOUCAN_GCC` to
 select GNU GCC and `TOUCAN_TEST_RUST_TOOLCHAIN=1.64.0` for the generated Rust check.
 
-The measured baseline is the frozen complex-projection layer. All 28 full-TU
-declaration hashes and four default binding-output hashes are unchanged.
-Ordinary allocation counts and public type/checked-expression sizes are unchanged.
-Seven alternating binding observations gave changed/baseline median ratios of
-0.952, 1.000, 1.009, and 1.007 for zlib, SQLite, zstd, and libgit2. These are
-shared-host measurements, not a speedup claim. Most semantic-only header medians
-changed by less than 8%; libgit2's first normal-mode run crossed a host slowdown
-and reported 1.608. A separate seven-pair repeat reported 1.066. Both original and
-repeat samples are retained in the evidence.
+Earlier header, allocation, and timing observations remain in the
+[historical archive](validation.md#historical-results).

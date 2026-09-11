@@ -41,9 +41,7 @@ the first and GCC uses the last. Clang ignores target attributes first encounter
 after a definition, but still checks their argument syntax; adding such GNU
 attributes remains unsupported. Clang inherits the first linked declaration even
 when it appears in a block. Subsequent block declarations affect their lexical
-scope; GCC can use them in a later file definition. The first-linked correction
-has separate [native evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/function-target-first-linked-2026-09-08.json);
-the original frozen measurement report remains unchanged.
+scope; GCC can use them in a later file definition.
 
 Ordinary external calls and callbacks can cross function target boundaries.
 Generated Rust retains their ordinary C ABI. Toucan does not attach Rust
@@ -76,9 +74,7 @@ names only for written target attributes. Ordinary calls do not acquire a pendin
 record unless their visible options or a possible later annotation require one.
 Clang continues to check only options visible at the call.
 
-[The bit-manipulation target evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/bmi-targets-2026-09-08.json)
-records native source/code-generation checks and the unchanged allocation counts
-and requested bytes for four public-header binding workloads. This behavior follows
+This behavior follows
 the [GCC 13 target attributes](https://gcc.gnu.org/onlinedocs/gcc-13.3.0/gcc/x86-Function-Attributes.html)
 and [Clang target attribute](https://clang.llvm.org/docs/AttributeReference.html#target).
 
@@ -112,20 +108,13 @@ feature diagnostics. The distinction follows the
 and [Clang target attribute documentation](https://releases.llvm.org/18.1.8/tools/clang/docs/AttributeReference.html#target).
 This slice does not establish general optimization or instruction-lowering equivalence.
 
-## Validation and cost
+## Validation
 
-The [validation report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/function-targets-2026-09-08.json) records
-54 cases across four x86 compiler profiles, with separate syntax and assembly
-results, native Rust calls/callbacks, and 385 retained seed/profile checks.
-The unchanged Clang-preprocessed zstd sources advance to `min_vector_width`.
-
-For 21 ordinary inputs across seven profiles, allocation counts and bytes match
-base exactly within a parser session. Direct entry calls keep the same allocation
-counts and add 96 bytes to the worker result packet. Metadata uses the existing
-prior declaration index and allocates scope maps only when an annotation needs one.
-The final short four-header timing batch measured roughly 0.9–1.8% overhead on
-this shared host. The report retains the initial and final samples and executable
-hashes; these measurements do not establish statistical equivalence.
+The semantic [target-option tests](../crates/toucan_semantic/tests/function_targets.rs)
+compare syntax and code-generation decisions. The facade's
+[native tests](../crates/toucan/tests/function_targets.rs) execute generated Rust
+calls and callbacks. Historical allocation and timing observations remain in the
+[validation report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/function-targets-2026-09-08.json).
 
 ## Minimum vector width
 
@@ -158,7 +147,4 @@ define these rules. Native diagnostics, emitted LLVM hints, inlining differences
 source hashes and ordinary/retained parity are recorded in the
 [width-hint evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/minimum-vector-width-2026-09-08.json).
 The [constant-expression probes](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/minimum-vector-width-ice-2026-09-08.json)
-also cover nonconstant operands in discarded branches. The
-[integration report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/minimum-vector-width-integration-2026-09-08.json)
-records the combined workspace suite and retained-graph seed checks after
-declaration alignment and old-style definitions.
+also cover nonconstant operands in discarded branches.

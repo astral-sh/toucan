@@ -96,25 +96,6 @@ explains required VLA size-expression effects. The implementation also follows
 [GCC 13.3 parameter declaration handling](https://github.com/gcc-mirror/gcc/blob/releases/gcc-13.3.0/gcc/c/c-decl.cc)
 and [Clang 18.1.3 declaration merging](https://github.com/llvm/llvm-project/blob/llvmorg-18.1.3/clang/lib/Sema/SemaDecl.cpp).
 
-Against commit `1095b32`, all four zlib/SQLite/zstd/libgit2 generated binding
-outputs are byte-identical. Default allocation counts and bytes are unchanged
-for the four declaration fixtures and six semantic inputs. Retained allocation
-counts are unchanged; payload increases range from 0 to 604 bytes per input due
-to the optional body metadata field. The 399 seed/profile combinations produce
-298 checked graphs and 101 matching diagnostics. The pinned 220-source c-testsuite
-run stays at 219 accepted inputs, with the same existing `00144.c` qualifier
-assignment diagnostic; all 211 inputs accepted by both strict C11 oracles pass.
-
-Five alternating release observations on the shared Linux host put default
-semantic medians between 0.992× and 1.007× the baseline and seven binding-generation
-observations between 0.971× and 0.999×. Retained zlib initially measured 1.103×,
-with visibly noisy observations; a separate eight-observation repeat measured
-1.000×. Both runs are saved. These are regression measurements, not a speedup
-claim or a comparison with native compilers.
-
-The [integration report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/old-style-target-integration-2026-09-08.json)
-checks target attributes on declaration-list bounds and function-level attributes.
-It also resolves the original report's temporary Clang parameter-alignment guard:
-both supported attribute placements now retain the parameter's storage alignment
-without changing its local or incoming C type. GCC continues to reject them.
-The original isolated report is preserved as evidence of that earlier limitation.
+Historical allocation, timing, and integration results remain in the
+[validation archive](validation.md#historical-results). Run the native
+`old_style_definitions` tests on the revision being adopted.

@@ -71,39 +71,13 @@ C11 oracle with `-pedantic-errors` rejects them. Toucan currently diagnoses thes
 integer-constant contexts; ordinary arithmetic evaluation supports their values.
 No general early AST simplification is implied.
 
-## Validation and remaining headers
+## Validation
 
-The [compressed evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/complex-projections-2026-09-08.json.gz)
-records compiler identities, original sources and commands, seven-profile
-constraint/retention checks, GCC/Clang O0/O2 component values and side effects,
-volatile lowering, parser regeneration, sanitizer replay, and allocation/timing
-comparisons against the frozen complex core.
+The [complex projection tests](../crates/toucan_semantic/tests/complex_projections.rs)
+compare compiler acceptance, retained types, component values, side effects, and
+volatile lowering. Native tests distinguish source checking from optimization and
+execution.
 
-Untouched native glibc `complex.h`, FFTW 3.3.10 (both array and complex
-selections), and LAPACKE 3.12.0 pass the shipped preprocessing route with
-normal/retained parity. Native Clang preprocessing also passes. GCC-preprocessed
-FFTW still diagnoses `__float128` and complex `mode(TC)` declarations. The shipped
-compatibility predefines select different declarations from native GCC, so this
-is acceptance evidence, not equivalent header output. Native glibc and LAPACKE
-preprocessing pass. No headers or feature macros were rewritten for these checks.
-
-Two-component brace initialization, further complex formats, floating-state
-pragmas, and Rust complex storage/call representations remain separate layers.
-
-The workspace suite passes 584 tests (158 native/environment tests are ignored
-in that default run). The parser/semantic native suites separately pass 496
-tests; the macro tests pass two.
-AddressSanitizer passes the five focused cases and all 434 checked-seed/profile
-pairs (326 accepted inputs, 108 matching diagnostics). Regeneration under
-`PYTHONOPTIMIZE=1` reproduces the checked-in parser exactly.
-
-All seven real translation units pass both preprocessing routes with
-normal/retained parity; all 28 declaration hashes match the core baseline.
-Whole-source measurements are single observations, not throughput claims.
-
-Ordinary allocation counts and all four binding output hashes match the frozen
-core. Seven alternating binding observations give median elapsed-time ratios
-from 0.974 to 1.003; these shared-host measurements establish no speed improvement.
-The expression-info field layout remains 64 bytes with both the volatile flag
-and the pending four-byte alignment-origin ID. Public checked expression and
-operand-use sizes remain unchanged.
+[Historical projection observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/complex-projections-2026-09-08.json.gz)
+retain the original header, compiler, sanitizer, and performance results. Use
+[the compatibility guide](compatibility.md) for the current support boundary.
