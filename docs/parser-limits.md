@@ -90,70 +90,18 @@ and optional-rule paths, and check concurrent calls, session reuse, and panic
 propagation. Parser limits do not constrain arbitrary user callbacks, downstream
 visitors, or manually constructed ASTs.
 
-## Historical cost of adding limits to the generated parser
+## Sanitizer checks
 
-These measurements and the sanitizer replay below describe the earlier generated
-parser. They do not measure the handwritten parser replacement.
-
-The [measurement record](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/parser-budgets-2026-09-08.json) compares
-an exact `bc889be` release build with this layer on Linux x86_64, using the system
-allocator and CPU affinity 6. One warmup is excluded; each header has seven samples
-and each source/mode pair has five. All four binding outputs and all seven complete
-declaration outputs match, including normal/retained parity. Native `.i` routes
-preserve their two accepted and five rejected cases; rejected runs are excluded
-from these timing comparisons.
-
-The additional checks increase runtime in these measurements. Full source analysis
-remains a separate workload from binding generation.
-
-| Header bindings | Baseline (ms) | With limits (ms) | Increase |
-| --- | ---: | ---: | ---: |
-| zlib | 40.4 | 45.9 | 13.6% |
-| sqlite | 146.9 | 167.4 | 14.0% |
-| zstd | 13.1 | 15.3 | 16.8% |
-| libgit2 | 343.5 | 368.9 | 7.4% |
-
-| Translation unit | Normal, baseline → limits (ms) | Retained, baseline → limits (ms) |
-| --- | ---: | ---: |
-| libgit2-alloc | 160.2 → 184.4 | 196.0 → 229.0 |
-| libgit2-repository | 460.8 → 564.4 | 622.0 → 708.3 |
-| sqlite-sqlite3 | 2011.3 → 2649.5 | 3716.4 → 4370.3 |
-| zlib-adler32 | 55.2 → 63.7 | 64.5 → 73.4 |
-| zlib-deflate | 80.1 → 100.3 | 111.9 → 133.5 |
-| zstd-zstd_common | 96.2 → 119.2 | 122.0 → 143.1 |
-| zstd-zstd_compress | 293.7 → 387.9 | 470.7 → 566.1 |
-
-Normal source analysis increases by 15–32%; retained analysis increases by 14–20%.
-The report includes peak RSS, every observation, output hashes, dependency hashes,
-build defines/include paths, source hashes, and exact executable hashes. Process timings
-include startup and complete output capture; source measurements also include full
-declaration Debug serialization. These runs do not isolate every scheduling or
-thermal effect.
-
-The initial experiment that created one worker for every macro parse was rejected
-because it added substantial binding-generation overhead. The final implementation
-uses a scoped session for the complete binding operation.
-
-## Sanitizer replay
-
-The cached nightly (`rustc 1.100.0-nightly`, 2026-09-06) passed the parser resource
-and session tests with AddressSanitizer, including the 16 MiB worker stack and
-accepted AST clone/drop on a 2 MiB caller stack. A semantic fixed-seed replay
-executed 18 inputs 16 times each (288 calls), with a 5-second per-input timeout
-and 1,024 MiB RSS cap. It completed in 24.5 seconds without an address-sanitizer
-finding or timeout; peak RSS was 409 MiB. This was seed replay, not mutational
-fuzzing. Leak detection was disabled because LeakSanitizer could not use ptrace
-in this environment; this evidence is not a leak check.
-
-The record includes all seed contents, commands, toolchain version, binary/log
-hashes, and sanitizer settings. To repeat the stack tests, use a nightly toolchain:
+Run the stack and resource tests with a nightly toolchain:
 
 ```console
 RUSTFLAGS="-Zsanitizer=address -Cforce-frame-pointers=yes" cargo +nightly test -p toucan_parser --test resources --target x86_64-unknown-linux-gnu
 ```
 
-Use `ASAN_OPTIONS=detect_leaks=0` only in an environment where LeakSanitizer is
-unavailable, and record that limitation. The reproducible seven-TU source audit
-and header benchmark commands are described in [the source audit](../corpus/translation-units.md)
-and [benchmarking](../scripts/benchmark.py); the record supplies the exact input
-requests and header arguments for both revisions.
+Use `ASAN_OPTIONS=detect_leaks=0` only where LeakSanitizer is unavailable, and
+record that limitation. See [fuzzing](../fuzz/README.md) for mutation campaigns,
+[the source audit](../corpus/translation-units.md) for complete translation units,
+and [benchmarking](benchmarks.md) for performance measurements.
+
+The [historical limits report](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/parser-budgets-2026-09-08.json)
+measures the earlier generated parser; it does not measure the handwritten parser.

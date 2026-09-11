@@ -78,16 +78,14 @@ scopes, and source occurrences remain distinct.
 `CheckedCode::function_inline_sites()` records written inline keywords,
 GNU-inline attributes, and explicit extern spelling. It includes ordinary
 prototypes participating in that function's history. Source ranges use the
-original preprocessed input, including parser-adapter mappings. The record does
-not assert an inherited optimization hint.
+original preprocessed input. The record does not assert an inherited optimization
+hint.
 
 Ordinary analysis keeps histories only for names with inline syntax. Collection
 is bounded by four million syntax visits, 512 traversal levels, 128 declarator
 levels, and 65,536 names; histories contain at most 262,144 declarations. Retained
 source records are additionally charged to the caller's node, edge, and payload
-budgets before allocation. On the measured 64-bit Rust host, the added enum fits
-existing padding: `Declaration` remains 136 bytes, `FunctionBody` 56 bytes,
-`DeclarationSite` 256 bytes, and `Type` 40 bytes.
+budgets before allocation.
 
 ## Validation and scope
 
@@ -109,22 +107,5 @@ work. Compiler flags such as
 `-fgnu89-inline`, `-fkeep-inline-functions`, and `-fms-extensions` do not silently
 select a new profile through these APIs.
 
-[Recorded evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/inline-ownership-2026-09-08/summary.json)
-includes 3,136 core symbol/admission checks, 832 weak/forced-inline checks, eight
-UBSan-linked executions, and a 120-second sanitizer campaign with 6,834 inputs.
-All seven real-project translation units pass both preprocessing routes with
-ordinary/retained parity. Paired process benchmarks preserve complete normalized
-declarations and report raw timing variability alongside the measured medians.
-
-The [integration checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/inline-integration-2026-09-08/summary.json)
-repeat native inline, weak, allocation, and prefetch tests on the combined source.
-Microsoft declaration alignment had already grown `Entity` to 88 bytes; this
-layer preserves that size and the other measured declaration/body sizes. The
-original evidence remains tied to its earlier source snapshot.
-
-The [root integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/inline-root-integration-2026-09-08/summary.json)
-passes 781 workspace tests and 3,916 checked seed pairs across all 44 profile/mode
-settings. Eight existing binding artifacts are byte-identical. Its ASan campaign
-completes 19,662 inputs in 181 seconds with no findings and unchanged source.
-Distinguishing inputs verify that the frozen baseline, core inline release, and
-weak-inline release expose their expected different ownership metadata.
+[Historical inline observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/inline-ownership-2026-09-08/summary.json)
+retain symbol, compiler, runtime, and performance results for their recorded revision.

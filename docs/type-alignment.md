@@ -48,18 +48,12 @@ record/tag identities. Caller-built units must keep IDs and snapshots consistent
 Binding generation and expression queries perform that validation through their
 existing unit validation path.
 
-The slot keeps `Type` at 40 bytes on the measured x86-64 host. Ordinary inputs with
-no relevant alignment have no origin arena or registry allocations. A bounded
+Ordinary inputs with no relevant alignment have no origin arena or registry
+allocations. A bounded
 syntax pass finds names that may gain alignment later; it does not evaluate
 attributes or make names visible before their declarations. Origin tables stop
 at 65,536 rows, and common-type ancestry walks stop at 128 layers. Retained-code
 budgets charge rows and their type-reference edges before allocation.
-
-Across 42 ordinary-source measurements against the preceding commit, allocation
-counts were identical. Reusable parser-stack sessions also had identical allocated
-bytes; direct analysis entry points used a fixed additional 24 bytes for the
-larger owned result. Large synthetic files still expose existing declaration
-lookup costs, so this does not claim linear whole-frontend scaling.
 
 Inspection JSON preserves the numeric `alignment` field and adds optional
 `alignment_origin` fields plus an `alignment_origins` table. No encoded slot bits
@@ -79,6 +73,6 @@ The common-type rule follows the pinned
 and is tested against compiler results. Type checking and LLVM layout probes are
 separate from native execution evidence.
 
-[Validation evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aligned-ancestry-2026-09-08.json) records
-1,580 matching source/target assertions, retained-graph parity, unchanged zstd
-translation units, ordinary allocation measurements, and scaling limits.
+[Historical alignment observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/aligned-ancestry-2026-09-08.json)
+retain compiler comparisons, allocation measurements, and scaling limits for their
+recorded revision.

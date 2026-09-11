@@ -7,31 +7,6 @@ components, diagnostic `#line`, forced-header order, and the main-file `once`
 difference are covered by native GCC 13.3/Clang 18.1.3 probes. The new ordered
 `preprocess_files` / `parse_files` APIs preserve the last header as the main file.
 
-The frozen prerequisite's preprocessor suite passes 77 tests, including native oracles.
-Thirty-six additional saved native commands match (34 accepted outputs and two
-missing-main-file failures). That workspace passes 820 tests, with 216 opt-in tests
-ignored; workspace Clippy and Rustdoc pass. Nine unchanged real header routes
-(GNU/Clang zlib, SQLite, zstd, libgit2, plus crypto-only AWS-LC) retain identical
-preprocessing and semantic output, and all eight previously generated Rust
-artifacts remain byte-identical. AWS-LC still has 4,455 declarations and 5,055
-opt-in origin entries.
-
-Default allocation calls remain unchanged for those routes. The dependency index
-adds 176–4,834 bytes per complete parse; all 88 profile/mode semantic cases and
-1/100/1,000-declaration in-memory preprocessing/facade checks have zero allocation
-or byte deltas. A first noncanonical Clang file name may require additional path
-storage; the origin catalog remains opt-in. Alternating shared-host timing samples
-are retained without a speedup claim. The initial concurrent artifact failure and
-successful sequential rerun are both recorded in the evidence.
-
-Evidence: [accessed header paths](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/accessed-header-paths-2026-09-08.json.gz).
-
-The [stack integration](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/accessed-header-paths-root-integration-2026-09-08.json.gz)
-on top of `493a6fa` passes 838 workspace tests, six native path tests, and workspace
-and fuzz Clippy. Eight header outputs and four musl outputs remain byte-identical.
-The fuzz target also checks exact access-name lookup at both ends of each origin
-range. This integration adds no timing or sanitizer-run claim.
-
 ## Hard links
 
 On Unix hosts, headers with multiple hard links share `#pragma once` state and
@@ -71,23 +46,13 @@ and [ReFS features](https://learn.microsoft.com/en-us/windows-server/storage/ref
 Other hosts retain canonical-path behavior; Unix hard-link equivalence is not
 claimed for them.
 
-### Validation and cost
+### Validation
 
-The [hard-link observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/hardlink-identity-2026-09-08.json.gz)
-contain 18 matching GCC 13.3/Clang 18.1.3 preprocessing and dependency pairs,
-including forced-header order, guards, `_Pragma`, recursive main aliases, and
-`#include_next`. All 80 preprocessor tests pass, including the native oracle hooks and existing
-symlink, non-UTF-8, logical-name, and path-spelling checks. A Windows cross-check verifies the safe helper's types; this layer
-does not claim a native Windows or macOS run.
+Native preprocessor tests compare GCC and Clang expansion and dependency output
+for symlinks, hard links, forced-header order, guards, `_Pragma`, recursive main
+aliases, and `#include_next`. Each opened header requires a handle-metadata query;
+ordinary single-link files do not allocate a hard-link index.
 
-All 97 semantic and scaling allocation controls are unchanged. Thirty-six runs
-over nine unchanged real-header routes, with origins both enabled and disabled,
-have identical allocation counts and bytes, preprocessed source, semantic dumps,
-and available generated Rust files. These include crypto-only AWS-LC's 4,455
-declarations; they do not constitute a generated AWS-LC consumer build.
-
-Tracing those nine routes records no additional file opens. There is one new
-handle-metadata query per opened header: 2–421 on these routes. The net `statx`
-increase can be one lower because an existing capability probe is avoided when
-the first metadata query succeeds. The hard-link index adds no allocations for
-ordinary files. Elapsed samples are retained without a speedup claim.
+Historical [access-path observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/accessed-header-paths-2026-09-08.json.gz)
+and [hard-link observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/hardlink-identity-2026-09-08.json.gz)
+retain the original commands and measurements for their recorded revisions.

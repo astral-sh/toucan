@@ -59,12 +59,6 @@ directly. A caller-owned callback alias then supplies the field's storage, so
 generated traits preserve its validity boundary. An additional pointer
 indirection remains a raw Rust pointer.
 
-The [combined-layer checks](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/binding-derives-root-integration-2026-09-08.json.gz)
-include the external-alias correction found during independent review. Eight
-focused tests pass with current Rust and actual Rust 1.64 consumers. The frozen
-reference and sanitizer captures predate that correction; they do not establish
-the corrected alias behavior.
-
 Disabling Copy also removes Clone from generated records. Union members whose
 generated type becomes non-Copy use `ManuallyDrop`, preserving their layout.
 Generated unions do not implement Debug or equality. These restrictions propagate
@@ -88,17 +82,13 @@ depth limit and a one-million-visit limit. Atomic and external containment queri
 use their prepared record caches. Core defaults need no new trait cache
 and keeps the existing borrowed derive attributes.
 
-The [evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/binding-derives-2026-09-08/README.md) records
-bindgen 0.72.1 trait requests, C/Rust Default checks, Rust 1.64 checks, and the
-actual AWS-LC header type inventory. That inventory selects type declarations
-from the wrapper's thirty allowed headers; it does not implement the separate
-function, callback, and file-selection policies of the complete build script.
-The full unchanged-source AWS-LC consumer remains an integration gate.
+The [derive tests](../crates/toucan_bindings/tests/derives.rs) check trait
+eligibility, zero validity, and generated Rust consumers. The
+[Builder default tests](../crates/toucan_bindgen/tests/default_debug.rs) cover
+defaults and repeated overrides. Atomic storage
+retains its explicit trait omission rather than adopting bindgen's integer
+representation. Full consumer validation is described in the
+[AWS-LC guide](aws-lc-consumer.md).
 
-The [Builder default capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/builder-default-debug-2026-09-09.json.gz)
-compares default, explicit false/true, and repeated overrides with bindgen 0.72.1.
-Twenty generated Rust 1.64/current programs compile and run, including formatting
-ordinary and packed records. A separate atomic control retains Toucan's existing
-trait omission: bindgen emits an ordinary integer for `_Atomic(int)`, while
-Toucan preserves atomic storage. This correction does not copy that representation
-change or alter the core's default output.
+Earlier reference and sanitizer captures remain in the
+[historical archive](validation.md#historical-results).

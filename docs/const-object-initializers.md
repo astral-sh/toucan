@@ -10,12 +10,14 @@ The GNU profile is unchanged. The new table exists only while analyzing a Clang 
 
 Pointer copies, aggregate elements, and local const definitions remain separate work. The table does not add new arithmetic builtins or extend the existing evaluator's operand coverage. Builder's first-selected-occurrence, physical-file filters, name callbacks, unsigned 64-bit fallback, and core default emission policy are unchanged.
 
-## Evidence
+## Validation
 
-The [saved Linux x86-64 evidence](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/const-object-initializers-2026-09-09.json.gz) contains 55 bounded reference controls. Toucan and bindgen 0.72.1/Clang 18 both accept 28 and reject 19. Eight Clang-accepted cases retain explicit Toucan diagnostics: late weak placement, a local const definition, a pointer copy, an array element, a record member, and three direct integer-constant-expression uses.
+The [semantic tests](../crates/toucan_semantic/tests/const_object_reads.rs) cover
+source order, conversions, shadowing, query caching, retention, and resource
+limits. [Builder object tests](../crates/toucan_bindgen/tests/object_values.rs)
+check emitted types and values. Optimizer-dependent knowledge,
+such as a mutable local becoming constant after optimization, remains outside the
+frontend's constant proof.
 
-Twenty-six accepted scalar controls execute against native C. All 52 Toucan-generated Rust executions across current Rust 1.98.1 and actual Rust 1.64.0 match Clang's type, size, and value; floating comparisons use their bit patterns. The 52 reference executions match in 50 cases. For the self-query initializer, bindgen emits `1` on both Rust versions, although GCC and Clang initialize the C object to `0`. Toucan preserves the C value and records that reference difference. The 51 native executions include both GCC 13.3 and Clang 18, except the const-atomic read that GCC rejects. GCC's different constant-query results are retained rather than treated as Clang failures. Eight file-filter/callback combinations preserve the same selected binding kinds and names.
-
-Eight additional query controls run under both C compilers with default, `-O0`, and `-O2` options, for 48 executions. Clang knows completed const and const-atomic values at each level; weak, volatile, tentative, and mutable file objects remain unknown. A mutable local shadow becomes known only under optimization. That optimizer-dependent behavior remains outside the frontend's constant proof.
-
-The original 63 object controls retain byte-identical output, exit status, and diagnostics in 60 cases. The three changed cases are the intended earlier scalar reads. Focused tests cover retention parity, conversion, source order, linkage, lexical shadowing, query caching, initializer/query context restoration, storage limits, and unchanged direct ICE and GNU boundaries. No additional platform, downstream consumer, or performance claim is made by this layer.
+[Historical initializer observations](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/corpus/evidence/const-object-initializers-2026-09-09.json.gz)
+retain the reference differences, native values, and original commands.
