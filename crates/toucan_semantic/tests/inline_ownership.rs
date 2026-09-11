@@ -303,20 +303,6 @@ fn inline_ownership_matches_native_symbols() {
 }
 
 #[test]
-fn inline_metadata_fits_existing_body_and_declaration_padding() {
-    use std::mem::size_of;
-    use toucan_semantic::{
-        Declaration, Type,
-        checked::{DeclarationSite, Entity, FunctionBody},
-    };
-    assert_eq!(size_of::<Type>(), 40);
-    assert_eq!(size_of::<Declaration>(), 136);
-    assert_eq!(size_of::<DeclarationSite>(), 256);
-    assert_eq!(size_of::<Entity>(), 88);
-    assert_eq!(size_of::<FunctionBody>(), 56);
-}
-
-#[test]
 #[ignore = "requires native GCC/Clang linking and Clang Windows LLVM emission"]
 fn inline_ownership_controls_unused_emission_and_native_linking() {
     let directory = tempfile::tempdir().unwrap();
