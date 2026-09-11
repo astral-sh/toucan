@@ -233,13 +233,12 @@ fn integer(text: &str, ms_extensions: bool) -> Result<Value, String> {
         });
     let suffix_start =
         msvc_start.unwrap_or_else(|| text.trim_end_matches(['u', 'U', 'l', 'L']).len());
-    let suffix = text[suffix_start..].to_ascii_lowercase();
-    if msvc_start.is_none()
-        && !matches!(
-            suffix.as_str(),
-            "" | "u" | "l" | "ll" | "ul" | "ull" | "lu" | "llu"
-        )
-    {
+    let suffix = &text[suffix_start..];
+    let size_suffix = suffix
+        .strip_prefix(['u', 'U'])
+        .or_else(|| suffix.strip_suffix(['u', 'U']))
+        .unwrap_or(suffix);
+    if msvc_start.is_none() && !matches!(size_suffix, "" | "l" | "L" | "ll" | "LL") {
         return Err(format!("invalid integer suffix in `{text}`"));
     }
     // Preprocessing interprets even Microsoft's fixed-width literals as
@@ -262,7 +261,7 @@ fn integer(text: &str, ms_extensions: bool) -> Result<Value, String> {
     };
     let bits = u64::from_str_radix(digits, radix)
         .map_err(|_| format!("invalid or overflowing integer constant `{text}`"))?;
-    let unsigned = suffix.contains('u') || (radix != 10 && bits > i64::MAX as u64);
+    let unsigned = suffix.contains(['u', 'U']) || (radix != 10 && bits > i64::MAX as u64);
     if !unsigned && bits > i64::MAX as u64 {
         return Err(format!("signed integer constant `{text}` exceeds intmax_t"));
     }
@@ -408,6 +407,32 @@ fn binary(operator: &str, left: Value, right: Value, evaluate: bool) -> Result<V
 mod tests {
     use super::evaluate;
     use crate::token::lex;
+
+    #[test]
+    fn long_long_suffixes_require_matching_case() {
+        for ms_extensions in [false, true] {
+            for suffix in [
+                "ll", "LL", "ull", "uLL", "Ull", "ULL", "llu", "llU", "LLu", "LLU",
+            ] {
+                let expression = format!("1{suffix} == 1");
+                assert!(
+                    evaluate(&lex(&expression).unwrap(), None, false, ms_extensions).unwrap(),
+                    "{expression}"
+                );
+            }
+            for suffix in [
+                "lL", "Ll", "ulL", "uLl", "UlL", "ULl", "lLu", "Llu", "lLU", "LlU",
+            ] {
+                let expression = format!("1{suffix}");
+                assert!(
+                    evaluate(&lex(&expression).unwrap(), None, false, ms_extensions)
+                        .unwrap_err()
+                        .contains("invalid integer suffix"),
+                    "{expression}"
+                );
+            }
+        }
+    }
 
     #[test]
     fn c_integer_conversions_and_short_circuiting() {
