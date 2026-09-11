@@ -1,9 +1,7 @@
 name: i686 zstd Rust consumer
 
 on:
-  push:
-    branches:
-      - charlie/codex-toucan-i686-zstd-consumer-acceptance
+  workflow_dispatch:
 
 permissions:
   contents: read

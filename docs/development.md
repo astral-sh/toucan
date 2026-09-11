@@ -111,8 +111,8 @@ Linux and Windows package checks. Each PR in a stack has a distinct ref, so
 per-ref concurrency does not prevent duplicate macOS work across the stack.
 
 The separate `macOS validation` workflow runs Apple Silicon tests, packages, and
-the corpus on relevant pushes to `main`. After it reaches the default branch,
-add the `run-macos` label to an integration PR to validate that revision. To
+the corpus on relevant pushes to `main`. Add the `run-macos` label to an
+integration PR to validate that revision. To
 request another revision, remove and reapply the label. It can also be dispatched
 against a selected branch.
 
@@ -125,6 +125,22 @@ Only one macOS validation request runs across the repository; a newer request
 cancels the older one. Tests precede the corpus so even an Intel request occupies
 at most one Intel runner at a time. Native tests have a 60-minute limit, packages
 30 minutes, and the corpus 40 minutes. Failed tests prevent the corpus run.
+
+## Additional platform validation
+
+Run these workflows manually from GitHub Actions, selecting the branch to check:
+
+| Workflow | Coverage |
+| --- | --- |
+| [ARMv7 GNU hard-float acceptance](../.github/workflows/armv7-native.yml) | GCC/Clang layouts and generated C/Rust calls under QEMU. |
+| [i686 GNU native acceptance](../.github/workflows/i686-native.yml) | Native 32-bit C/Rust layouts and calls. |
+| [i686 zstd Rust consumer](../.github/workflows/i686-zstd-consumer.yml) | Generated bindings consumed by a native 32-bit zstd application. |
+| [Windows ARM64 native ABI acceptance](../.github/workflows/windows-arm64.yml) | MSVC/LLVM and native C/Rust calls. |
+| [Windows ARM64 SDK headers](../.github/workflows/windows-arm64-sdk.yml) | Installed SDK headers and generated Rust layouts on ARM64. |
+| [Windows x64 SDK headers](../.github/workflows/windows-x64-sdk.yml) | Installed SDK headers and generated Rust layouts on x64. |
+
+These checks are opt-in and retain command logs and results as workflow artifacts.
+They do not run automatically on pull requests or pushes to `main`.
 
 ## Compiler oracles
 

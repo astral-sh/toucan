@@ -1,8 +1,7 @@
 name: Windows ARM64 SDK headers
 
 on:
-  push:
-    branches: [charlie/codex-toucan-windows-arm64-sdk]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,7 +12,6 @@ concurrency:
 
 jobs:
   sdk:
-    if: github.ref == 'refs/heads/charlie/codex-toucan-windows-arm64-sdk'
     name: Installed SDK C headers and generated Rust
     runs-on: windows-11-vs2026-arm
     timeout-minutes: 12
