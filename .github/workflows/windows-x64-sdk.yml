@@ -1,8 +1,7 @@
 name: Windows x64 SDK headers
 
 on:
-  push:
-    branches: [charlie/codex-toucan-windows-x64-sdk]
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -13,7 +12,6 @@ concurrency:
 
 jobs:
   sdk:
-    if: github.ref == 'refs/heads/charlie/codex-toucan-windows-x64-sdk'
     name: Installed SDK C headers and generated Rust (x64)
     runs-on: windows-2025
     timeout-minutes: 12

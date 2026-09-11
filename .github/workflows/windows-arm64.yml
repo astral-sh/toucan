@@ -1,10 +1,6 @@
 name: Windows ARM64 native ABI acceptance
 
 on:
-  # This branch-only trigger runs acceptance while the new workflow is in the PR;
-  # workflow_dispatch is available once the workflow exists on the default branch.
-  push:
-    branches: [charlie/codex-toucan-windows-arm64-acceptance]
   workflow_dispatch:
 
 permissions:

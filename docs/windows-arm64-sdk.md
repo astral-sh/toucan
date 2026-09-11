@@ -1,9 +1,10 @@
 # Native Windows ARM64 SDK gate
 
-The `Windows ARM64 SDK headers` workflow runs only on pushes to
-`charlie/codex-toucan-windows-arm64-sdk`. Its job also checks the exact branch
-before allocating `windows-11-vs2026-arm`. It has a 12-minute limit and no pull
-request, default-branch, manual-dispatch, or macOS trigger.
+Run the `Windows ARM64 SDK headers` workflow manually against the branch being
+validated. It uses `windows-11-vs2026-arm` and has a 12-minute limit. The separate
+`Windows x64 SDK headers` workflow checks the native x64 target on `windows-2025`.
+See [platform validation](development.md#additional-platform-validation) for the
+other on-demand gates.
 
 The job selects native ARM64 Rust, invokes the installed Visual Studio
 `vcvarsall.bat arm64`, and builds the CLI with two Cargo jobs. The script takes
