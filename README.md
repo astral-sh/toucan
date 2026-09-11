@@ -14,18 +14,19 @@ A C frontend and Rust binding generator, written in Rust.
 - Evaluate constants and compute type layouts for an explicit target, independently of the host.
 - Embed the frontend in your own tools through reusable Rust libraries.
 
-| Project | Toucan | bindgen 0.72.1 | Speedup |
+| Project | Toucan `5b6dfb9` | bindgen 0.72.1 | Speedup |
 | --- | ---: | ---: | ---: |
-| zlib 1.3.1 | 22.22 ms | 117.93 ms | 5.30× |
-| SQLite 3.45.1 | 25.36 ms | 154.92 ms | 6.10× |
-| zstd 1.5.7 | 9.12 ms | 101.91 ms | 11.23× |
-| libgit2 1.9.1 | 192.85 ms | 263.19 ms | 1.37× |
+| zlib 1.3.1 | 17.24 ms | 122.04 ms | 7.05× |
+| SQLite 3.45.1 | 17.03 ms | 161.75 ms | 9.52× |
+| zstd 1.5.7 | 6.84 ms | 106.66 ms | 15.54× |
+| libgit2 1.9.1 | 152.78 ms | 265.29 ms | 1.76× |
 
 The [validation guide](docs/validation.md) describes compiler comparisons,
 native C/Rust FFI tests, and fuzzing, including what each check establishes.
 Toucan is experimental; see [compatibility](docs/compatibility.md) before adopting it.
 These [benchmark results](docs/benchmarks.md#builder-api-comparison) measure binding
-generation for four pinned projects on Linux, not total application build time.
+generation for four pinned projects on Linux at Toucan `5b6dfb9` (September 10,
+2026), not total application build time.
 
 ## Installation
 
