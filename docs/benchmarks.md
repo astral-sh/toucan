@@ -73,8 +73,8 @@ order is randomized with seed `20260910`. Each process records its first call
 separately and measures ten subsequent calls. The two reported configurations
 contribute 560 measured generations and 56 first calls on CPU 3 of a shared
 AMD EPYC-Milan Linux host. All output, input, binary, libclang, and source hashes
-pass. The local capture retains raw samples, paired ranges, first-call costs,
-commands, and toolchain identities under ignored `benchmark-results/refresh-5b6dfb9/`.
+pass. The [refresh capture](https://github.com/astral-sh/toucan/pull/536) retains raw
+samples, paired ranges, first-call costs, and toolchain identities.
 
 The fresh preflight validates shared signatures, constants, layouts, and native
 FFI calls. All eight FFI programs pass. Structural API equality holds for zlib
