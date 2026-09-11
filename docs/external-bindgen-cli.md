@@ -59,8 +59,11 @@ globals. Full API equality remains false. The separate
 uses the unchanged `aws-lc-fips-sys` build script and tests an actual FIPS
 integrity call, 41 matching crypto artifacts, six C/Rust layouts, and 97
 generated layout tests. The FIPS symbol list deliberately leaves
-`BORINGSSL_integrity_test` unprefixed: Toucan reads that list and emits the
-correct linker name, while bindgen-cli incorrectly prefixes it. The unchanged
+`BORINGSSL_integrity_test` unprefixed: Toucan preprocesses that standalone list
+and checks its `BORINGSSL_PREFIX` against the requested prefix before choosing
+the linker name, while bindgen-cli incorrectly prefixes it. This compatibility
+rule applies to the AWS-LC `include/rust_wrapper.h` invocation; ordinary headers
+can use an `aws_lc_fips_` prefix without requiring AWS-LC files. The unchanged
 `aws-lc-sys` build script explicitly rejects external mode with `ssl` enabled.
 Test each other target or feature selection separately. The unchanged
 upstream manifest still compiles the bindgen Rust build dependency and its

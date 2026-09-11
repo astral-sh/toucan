@@ -119,6 +119,132 @@ fn unsupported_options_and_frontend_arguments_preserve_existing_bindings() {
     );
 }
 
+#[test]
+fn fips_symbol_policy_uses_active_c_definitions() {
+    let directory = tempfile::tempdir().unwrap();
+    let include = directory.path().join("include");
+    let generated = directory.path().join("generated-include/openssl");
+    std::fs::create_dir(&include).unwrap();
+    std::fs::create_dir_all(&generated).unwrap();
+    let header = include.join("rust_wrapper.h");
+    let symbols = generated.join("boringssl_prefix_symbols.h");
+    let output = directory.path().join("bindings.rs");
+    std::fs::write(&header, "int BORINGSSL_integrity_test(void);\n").unwrap();
+    let base = "#ifndef PREFIX_SYMBOLS_H\n#define PREFIX_SYMBOLS_H\n\
+                #define BORINGSSL_PREFIX aws_lc_fips_test\n\
+                #define BORINGSSL_self_test prefixed_self_test\n";
+    let run = || {
+        command()
+            .args([
+                "--prefix-link-name",
+                "aws_lc_fips_test_",
+                "--formatter",
+                "none",
+            ])
+            .arg(&header)
+            .arg("--output")
+            .arg(&output)
+            .output()
+            .unwrap()
+    };
+    for (definition, prefixed) in [
+        (
+            "#define BORINGSSL_integrity_test prefixed_integrity\n",
+            true,
+        ),
+        (
+            "\t#\tdefine\tBORINGSSL_integrity_test\tprefixed_integrity\n",
+            true,
+        ),
+        (
+            "/* before */ #/**/define/**/BORINGSSL_integrity_test/**/prefixed_integrity\n",
+            true,
+        ),
+        (
+            "#de\\\r\nfine BORINGSSL_integrity_\\\r\ntest prefixed_integrity\r\n",
+            true,
+        ),
+        (
+            "%:define BORINGSSL_integrity_test prefixed_integrity\n",
+            true,
+        ),
+        ("", false),
+        (
+            "#if 0\n#define BORINGSSL_integrity_test unused\n#endif\n",
+            false,
+        ),
+        (
+            "#define BORINGSSL_integrity_test unused\n#undef BORINGSSL_integrity_test\n",
+            false,
+        ),
+        ("/*\n#define BORINGSSL_integrity_test unused\n*/\n", false),
+    ] {
+        std::fs::write(&symbols, format!("{base}{definition}#endif\n")).unwrap();
+        let result = run();
+        assert!(
+            result.status.success(),
+            "{}",
+            String::from_utf8_lossy(&result.stderr)
+        );
+        let bindings = std::fs::read_to_string(&output).unwrap();
+        assert!(
+            bindings.contains("pub fn BORINGSSL_integrity_test()"),
+            "{bindings}"
+        );
+        assert_eq!(
+            bindings.contains("#[link_name = \"aws_lc_fips_test_BORINGSSL_integrity_test\"]"),
+            prefixed,
+            "definition: {definition:?}\n{bindings}"
+        );
+    }
+    for source in [
+        "#define BORINGSSL_PREFIX wrong_prefix\n#define BORINGSSL_self_test x\n",
+        "#define BORINGSSL_PREFIX aws_lc_fips_test\n",
+        "#error invalid symbol table\n",
+    ] {
+        std::fs::write(&symbols, source).unwrap();
+        std::fs::write(&output, "existing bindings\n").unwrap();
+        assert!(!run().status.success());
+        assert_eq!(
+            std::fs::read_to_string(&output).unwrap(),
+            "existing bindings\n"
+        );
+    }
+    std::fs::remove_file(symbols).unwrap();
+    assert!(!run().status.success());
+    assert_eq!(
+        std::fs::read_to_string(output).unwrap(),
+        "existing bindings\n"
+    );
+}
+
+#[test]
+fn fips_like_prefix_on_an_ordinary_header_needs_no_vendor_files() {
+    let directory = tempfile::tempdir().unwrap();
+    let header = directory.path().join("header.h");
+    std::fs::write(&header, "int function(void);\n").unwrap();
+    let result = command()
+        .args([
+            "--prefix-link-name",
+            "aws_lc_fips_custom_",
+            "--formatter",
+            "none",
+        ])
+        .arg(header)
+        .output()
+        .unwrap();
+    assert!(
+        result.status.success(),
+        "{}",
+        String::from_utf8_lossy(&result.stderr)
+    );
+    assert!(
+        String::from_utf8(result.stdout)
+            .unwrap()
+            .contains("#[link_name = \"aws_lc_fips_custom_function\"]")
+    );
+}
+
 #[cfg(all(target_os = "linux", target_arch = "x86_64"))]
 #[test]
 fn prefixed_generated_bindings_link_and_call_native_c() {
