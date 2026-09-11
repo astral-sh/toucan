@@ -18,6 +18,9 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from compiler_diagnostics import has_crash_diagnostic
+
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "corpus/conformance/csmith/manifest.json"
 STRICT = [
@@ -26,20 +29,6 @@ STRICT = [
     "-Werror=pointer-sign",
     "-Werror=incompatible-pointer-types",
 ]
-CRASH_TEXT = (
-    "internal compiler error",
-    "please submit a bug report",
-    "segmentation fault",
-    "frontend command failed",
-    "unable to execute command:",
-    "please submit a full bug report",
-    "llvm error:",
-    "fatal error: error in backend",
-    "fatal error: killed signal terminated program",
-    "the compiler unexpectedly panicked",
-    "panicked at",
-    "assertion `",
-)
 
 
 def digest(path: Path | str) -> str:
@@ -65,7 +54,7 @@ def classify(
         return "timeout"
     if code == -signal.SIGXFSZ:
         return "output_limit"
-    if code is None or any(text in diagnostic.lower() for text in CRASH_TEXT):
+    if code is None or has_crash_diagnostic(diagnostic):
         return "crash"
     if code < 0:
         return "crash"
@@ -526,6 +515,9 @@ def main() -> int:
                 raise RuntimeError(f"cannot identify {name}: {version}")
             tool["version"] = Path(version["stdout"]).read_text()
         report["tools"][name] = tool
+    for name in ("audit_csmith.py", "compiler_diagnostics.py"):
+        path = Path(__file__).with_name(name)
+        report["tools"][name] = {"path": str(path), "sha256": digest(path)}
     if (
         "Free Software Foundation" not in report["tools"]["gcc"]["version"]
         or "clang" not in report["tools"]["clang"]["version"].lower()

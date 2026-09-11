@@ -8,6 +8,7 @@ on:
       - "crates/**"
       - "corpus/conformance/c-testsuite.json"
       - "scripts/audit_c_testsuite.py"
+      - "scripts/compiler_diagnostics.py"
       - "scripts/audit_generated_bindings.py"
       - "scripts/tests/test_generated_bindings_audit.py"
       - "tools/binding_compare/tests/test_c_testsuite.py"

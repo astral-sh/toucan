@@ -14,11 +14,15 @@ import platform
 import shutil
 import signal
 import subprocess
+import sys
 import tarfile
 import tempfile
 import time
 import urllib.request
 from pathlib import Path, PurePosixPath
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from compiler_diagnostics import has_crash_diagnostic
 
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "corpus/conformance/c-testsuite.json"
@@ -181,14 +185,8 @@ def run(command: list[str], directory: Path, stem: str, timeout: float) -> dict:
         record["start_error"] = str(error)
     finally:
         record["seconds"] = time.monotonic() - started
-    diagnostics = stderr.read_text(errors="replace").lower()
-    record["crash_diagnostic"] = any(
-        message in diagnostics
-        for message in [
-            "internal compiler error:",
-            "please submit a bug report",
-            "thread 'main' panicked at",
-        ]
+    record["crash_diagnostic"] = has_crash_diagnostic(
+        stdout.read_text(errors="replace"), stderr.read_text(errors="replace")
     )
     return record
 
@@ -198,18 +196,18 @@ def accepted(result: dict) -> bool:
         result["exit_code"] == 0
         and not result["timeout"]
         and "start_error" not in result
+        and not result.get("crash_diagnostic", False)
     )
 
 
 def tool_failure(result: dict) -> bool:
     code = result["exit_code"]
-    # Rust panic exits with 101; signal exits are negative on POSIX. Ordinary
-    # compiler and CLI diagnostics return 1, while argument errors often return 2.
+    # Only an ordinary diagnostic exit can establish source rejection.
     return (
         result["timeout"]
         or result["crash_diagnostic"]
         or "start_error" in result
-        or (code is not None and (code < 0 or code == 101 or code >= 128))
+        or code not in (0, 1)
     )
 
 
@@ -894,7 +892,13 @@ def main() -> int:
     selected = [source for source in available if not names or source.name in names]
     if args.limit:
         selected = selected[: args.limit]
-    tools = {}
+    diagnostics_source = Path(__file__).with_name("compiler_diagnostics.py")
+    tools = {
+        "compiler_diagnostics": {
+            "path": str(diagnostics_source),
+            "sha256": digest(diagnostics_source),
+        }
+    }
     for name in ["toucan", "gcc", "clang"]:
         path = Path(getattr(args, name))
         version = run(

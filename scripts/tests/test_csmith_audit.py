@@ -2,6 +2,7 @@
 
 import json
 import signal
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -13,6 +14,26 @@ import audit_csmith as audit
 
 
 class CsmithAuditTests(unittest.TestCase):
+    def test_standalone_scripts_find_shared_diagnostics_with_safe_path(self):
+        for name in (
+            "audit_c_testsuite.py",
+            "audit_csmith.py",
+            "probe_inline_ownership.py",
+        ):
+            with self.subTest(script=name):
+                result = subprocess.run(
+                    [
+                        sys.executable,
+                        "-P",
+                        str(Path(__file__).resolve().parents[1] / name),
+                        "--help",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr)
+
     def test_crashes_and_timeouts_are_not_source_rejections(self):
         self.assertEqual(audit.classify(1, "constraint violation"), "rejected")
         self.assertEqual(

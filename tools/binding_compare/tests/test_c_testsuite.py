@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import argparse
+import contextlib
 import importlib.util
+import io
 import json
+import shutil
 import sys
 import tempfile
 import unittest
@@ -33,6 +36,81 @@ def case(name: str, *, strict: bool, accepts: bool) -> dict:
 
 
 class StrictGateTests(unittest.TestCase):
+    def test_shared_diagnostics_are_fingerprinted_and_changes_fail_the_audit(self):
+        for mutate in (False, True):
+            with (
+                self.subTest(mutate=mutate),
+                tempfile.TemporaryDirectory() as temporary,
+            ):
+                root = Path(temporary)
+                driver = root / "audit_c_testsuite.py"
+                helper = root / "compiler_diagnostics.py"
+                for path in (driver, helper):
+                    shutil.copyfile(ROOT / "scripts" / path.name, path)
+                original_hash = AUDIT.digest(helper)
+                inputs = root / "inputs"
+                inputs.mkdir()
+                (inputs / "case.c").write_text("int value;\n")
+                manifest = root / "manifest.json"
+                manifest.write_text(
+                    json.dumps({"source_count": 1, "tests_directory": "."})
+                )
+                output = root / "output"
+
+                def run(command, directory, stem, timeout):
+                    stdout = directory / f"{stem}.stdout"
+                    stdout.write_text(
+                        "clang" if stem == "clang-version" else "compiler"
+                    )
+                    return {"exit_code": 0, "timeout": False, "stdout": str(stdout)}
+
+                def audit(*args):
+                    if mutate:
+                        helper.write_text(
+                            "def has_crash_diagnostic(*streams): return False\n"
+                        )
+                    return case("case.c", strict=True, accepts=True)
+
+                with (
+                    patch.object(
+                        sys,
+                        "argv",
+                        [
+                            "audit_c_testsuite.py",
+                            "--cache",
+                            str(root / "cache"),
+                            "--output",
+                            str(output),
+                            "--target",
+                            "x86_64-unknown-linux-gnu",
+                        ],
+                    ),
+                    patch.object(AUDIT, "__file__", str(driver)),
+                    patch.object(AUDIT, "MANIFEST", manifest),
+                    patch.object(
+                        AUDIT, "prepare_archive", return_value=root / "archive"
+                    ),
+                    patch.object(AUDIT, "extract_sources", return_value=inputs),
+                    patch.object(AUDIT, "executable", return_value=sys.executable),
+                    patch.object(AUDIT, "run", side_effect=run),
+                    patch.object(AUDIT, "audit", side_effect=audit),
+                    contextlib.redirect_stdout(io.StringIO()),
+                ):
+                    result = AUDIT.main()
+                report = json.loads((output / "evidence.json").read_text())
+                self.assertEqual(
+                    report["tools"]["compiler_diagnostics"],
+                    {
+                        "path": str(helper),
+                        "sha256": original_hash,
+                    },
+                )
+                self.assertEqual(result, int(mutate))
+                self.assertEqual(
+                    report["summary"]["changed_tools"],
+                    ["compiler_diagnostics"] if mutate else [],
+                )
+
     def test_exploratory_difference_remains_visible_without_failing_strict_gate(self):
         cases = [
             case("strict.c", strict=True, accepts=True),

@@ -6,8 +6,12 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
+
+sys.path.insert(0, str(Path(__file__).resolve().parent))
+from compiler_diagnostics import has_crash_diagnostic
 
 
 def capture(command, source=None):
@@ -55,6 +59,10 @@ def probe(case, compiler, target, mode, output):
     else:
         command += ["-c", "-o", str(output)]
     record = capture(command, source)
+    if record["exit_code"] not in (0, 1) or has_crash_diagnostic(
+        record["stdout"], record["stderr"]
+    ):
+        raise RuntimeError(f"compiler failure: {record}")
     record.update(name=case["name"], source=source, target=target, mode=mode)
     record["symbol"] = None
     record["kind"] = None
