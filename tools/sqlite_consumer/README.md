@@ -16,6 +16,8 @@ python3 scripts/verify_sqlite_consumer.py \
 ```
 
 On macOS, use the native target and `--sysroot "$(xcrun --show-sdk-path)"`.
+The requested target must match the Rust compiler's host. The script rejects
+other targets before resolving dependencies or building the consumer.
 The script copies the pinned sys crate to its cache and replaces only
 `sqlite3/bindgen_bundled_version.rs`, the input copied by upstream's build script.
 All Rust wrapper code, C source, C compilation flags, and linking are unchanged.

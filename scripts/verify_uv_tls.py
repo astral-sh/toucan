@@ -321,6 +321,10 @@ def audit(args: argparse.Namespace, output: Path) -> dict:
         Path(uv[0]["manifest_path"]).resolve()
         == args.source.resolve() / "crates/uv/Cargo.toml"
     )
+    if digest(Path(uv[0]["executable"])) != args.binary_sha256:
+        raise RuntimeError(
+            "the supplied uv binary differs from the Cargo-selected executable"
+        )
     selected = {}
     for name, version in (
         ("uv_client", None),

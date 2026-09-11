@@ -41,6 +41,10 @@ python3 scripts/verify_uv_tls.py \
   --output /path/to/fresh-evidence
 ```
 
+The executable recorded in the Cargo log must still exist and have the same
+SHA-256 as the supplied binary. A frozen copy is accepted when its bytes match;
+an executable from another build is rejected before runtime checks.
+
 The source archive and all 1,738 extracted paths are checked against the pinned
 uv revision. The selected Cargo artifacts and their Rust dependency files must
 include uv-client's actual TLS implementation and the compiled chain through
