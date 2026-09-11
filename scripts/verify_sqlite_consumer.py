@@ -77,6 +77,10 @@ def main() -> None:
 
     try:
         evidence["rustc"] = run(["rustc", "--version", "--verbose"], "rustc").strip()
+        if f"host: {args.target}" not in evidence["rustc"].splitlines():
+            raise RuntimeError(
+                "consumer execution requires --target to match the Rust host"
+            )
         evidence["cargo"] = run(["cargo", "--version"], "cargo").strip()
         fixture = ROOT / "tools/sqlite_consumer"
         metadata = json.loads(
