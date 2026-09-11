@@ -199,9 +199,7 @@ mod tests {
             format!("{unit:?}"),
             format!("{:?}", crate::analyze(source, target).unwrap())
         );
-        let code = code.unwrap();
-        assert!(code.ambiguous_aliases.is_empty());
-        code
+        code.unwrap()
     }
 
     #[test]

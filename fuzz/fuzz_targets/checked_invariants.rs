@@ -1214,12 +1214,7 @@ fn source_point(source: &str, offset: usize) {
 }
 
 fn source_span(source: &str, span: &SourceSpan) {
-    let range = span.range();
-    assert!(source.get(range.clone()).is_some());
-    for fragment in span.fragments() {
-        assert!(source.get(fragment.clone()).is_some());
-        assert!(range.start <= fragment.start && fragment.end <= range.end);
-    }
+    assert!(source.get(span.range()).is_some());
 }
 fn expression_use(code: &CheckedCode, operand: &ExprUse) {
     assert!(code.expression(operand.expression()).is_some());

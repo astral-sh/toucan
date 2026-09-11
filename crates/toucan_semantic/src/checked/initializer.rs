@@ -448,7 +448,6 @@ mod tests {
         let plain = crate::analyze(source, target).unwrap();
         assert_eq!(format!("{unit:?}"), format!("{plain:?}"));
         let code = code.unwrap();
-        assert!(code.ambiguous_aliases.is_empty());
         assert!(
             !code
                 .initializer_coverage

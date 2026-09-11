@@ -222,8 +222,8 @@ pub enum OccurrenceKind {
 pub struct SourceSpan {
     /// Covering range in the original preprocessed source.
     pub(crate) range: Range<usize>,
-    /// Only populated when the original pieces are disjoint or reordered.
-    pub(crate) fragments: Vec<Range<usize>>,
+    // Preserve the serialized field without storing obsolete parser-rewrite metadata.
+    fragments: [Range<usize>; 0],
     /// True when the occurrence has no written source token.
     pub(crate) synthetic: bool,
 }
@@ -434,10 +434,8 @@ pub struct CheckedCode {
     pub(crate) entities: Vec<Entity>,
     pub(crate) declarations: Vec<DeclarationSite>,
     pub(crate) types: Vec<Type>,
-    /// Cloned or synthesized checker nodes with a non-unique source occurrence.
-    /// The foundation records these; later retention slices must carry IDs through
-    /// those helpers rather than guess which original node was meant.
-    pub(crate) ambiguous_aliases: Vec<SourceSpan>,
+    // Successful retention has no ambiguous aliases; keep the serialized field.
+    ambiguous_aliases: [SourceSpan; 0],
 }
 
 #[derive(Clone, Copy)]
@@ -529,7 +527,7 @@ impl Builder {
                 entities: Vec::new(),
                 declarations: Vec::new(),
                 types: Vec::new(),
-                ambiguous_aliases: Vec::new(),
+                ambiguous_aliases: [],
             },
             budget: Budget {
                 limits,
@@ -1159,7 +1157,7 @@ impl Builder {
 pub(crate) fn source_span(span: Span) -> SourceSpan {
     SourceSpan {
         range: span.start..span.end,
-        fragments: Vec::new(),
+        fragments: [],
         synthetic: span.start == span.end,
     }
 }
@@ -1423,13 +1421,7 @@ mod tests {
             Some(Limits::default()),
         )
         .unwrap();
-        let code = code.unwrap();
-        assert!(
-            code.ambiguous_aliases.is_empty(),
-            "{:#?}",
-            code.ambiguous_aliases
-        );
-        (unit, code)
+        (unit, code.unwrap())
     }
 
     fn sites<'a>(code: &'a CheckedCode, name: &str) -> Vec<&'a DeclarationSite> {
@@ -1577,9 +1569,6 @@ mod tests {
         for occurrence in &code.occurrences {
             assert!(occurrence.source.range.start <= occurrence.source.range.end);
             assert!(occurrence.source.range.end <= source.len());
-            for range in &occurrence.source.fragments {
-                assert!(range.end <= source.len());
-            }
         }
         for name in ["local", "pointer"] {
             let site = sites(&code, name)[0];
@@ -1590,11 +1579,6 @@ mod tests {
                 name
             );
         }
-        assert!(
-            code.occurrences
-                .iter()
-                .all(|occurrence| occurrence.source.fragments.is_empty())
-        );
         assert!(code.occurrences.iter().any(|occurrence| {
             &source[occurrence.source.range.clone()] == "(int (__attribute__((noinline)) *)(void))f"
         }));
@@ -1602,6 +1586,23 @@ mod tests {
             code.occurrences
                 .iter()
                 .all(|occurrence| !occurrence.source.synthetic)
+        );
+    }
+
+    #[test]
+    fn obsolete_source_metadata_keeps_its_empty_public_schema() {
+        let span = source_span(Span::span(2, 5));
+        assert!(span.fragments().is_empty());
+        assert_eq!(
+            serde_json::to_value(&span).unwrap(),
+            serde_json::json!({
+                "range": { "start": 2, "end": 5 }, "fragments": [], "synthetic": false
+            })
+        );
+        let (_, code) = retained("int value;");
+        assert_eq!(
+            serde_json::to_value(code).unwrap()["ambiguous_aliases"],
+            serde_json::json!([])
         );
     }
 
@@ -1623,7 +1624,6 @@ mod tests {
         let source = &builder.code.occurrences[synthetic.index()].source;
         assert!(source.synthetic);
         assert_eq!(source.range, 0..0);
-        assert!(source.fragments.is_empty());
         // Three occurrence links fit; a written-source edge needs one more.
         let error = builder
             .occurrence(OccurrenceKind::Expression, &(), Span::span(2, 3))
@@ -1665,7 +1665,6 @@ mod tests {
             .unwrap();
         assert_eq!(&source[written.range.clone()], "weak");
         assert!(!written.synthetic);
-        assert!(written.fragments.is_empty());
     }
 
     #[test]

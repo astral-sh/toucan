@@ -269,7 +269,7 @@ impl Analyzer {
         ) {
             return Ok(None);
         }
-        let tokens = self.string_literal_tokens(literal);
+        let tokens = &literal.node;
         // For byte encodings, decoded storage cannot exceed source spelling plus NUL.
         // Charge before the decoder and retained byte buffer allocate.
         let bytes = tokens

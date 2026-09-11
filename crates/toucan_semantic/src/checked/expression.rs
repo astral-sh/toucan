@@ -1161,9 +1161,7 @@ impl Analyzer {
                 }
                 ast::Constant::Character(character) => {
                     ExprKind::Integer(crate::decode_character_literal_with_profile(
-                        self.character_literals
-                            .get(&constant.span.start)
-                            .map_or(character.as_str(), String::as_str),
+                        character,
                         self.unit.profile()?,
                         offset,
                     )?)
@@ -2274,11 +2272,6 @@ mod tests {
         let plain = crate::analyze(source, target).unwrap();
         assert_eq!(format!("{unit:?}"), format!("{plain:?}"));
         let code = code.unwrap();
-        assert!(
-            code.ambiguous_aliases.is_empty(),
-            "{:#?}",
-            code.ambiguous_aliases
-        );
         assert!(
             !code
                 .expression_coverage

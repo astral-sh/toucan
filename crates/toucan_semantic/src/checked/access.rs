@@ -9,7 +9,7 @@ impl SourceSpan {
     pub fn range(&self) -> Range<usize> {
         self.range.clone()
     }
-    /// Returns disjoint or reordered pieces, or an empty slice for a contiguous span.
+    /// Returns an empty slice: parser spans refer directly to contiguous source ranges.
     pub fn fragments(&self) -> &[Range<usize>] {
         &self.fragments
     }
