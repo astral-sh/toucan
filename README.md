@@ -21,8 +21,8 @@ A C frontend and Rust binding generator, written in Rust.
 | zstd 1.5.7 | 6.84 ms | 106.66 ms | 15.54× |
 | libgit2 1.9.1 | 152.78 ms | 265.29 ms | 1.76× |
 
-We validate generated bindings against GCC and Clang and test native C/Rust calls
-on real libraries.
+Toucan is fuzz-tested and checked against GCC, Clang, and bindgen, with native
+C/Rust tests for zlib, SQLite, zstd, and libgit2.
 
 ## Installation
 
