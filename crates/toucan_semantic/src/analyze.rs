@@ -471,7 +471,6 @@ fn parse_source<T>(
     }
     let original = source;
     let source = strip_comments(source, compiler, language_mode)?;
-    crate::asm::check_source_qualifiers(&source)?;
     let config = driver::Config {
         cpp_command: String::new(),
         cpp_options: Vec::new(),

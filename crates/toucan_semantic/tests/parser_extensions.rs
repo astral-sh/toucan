@@ -39,16 +39,34 @@ const INVALID: &[&str] = &[
 
 #[test]
 fn asm_qualifier_validation_keeps_original_offsets() {
-    analyze(
-        "const char *text = \"asm goto\"; void f(void) { __asm__ volatile (\"\"); }",
-        TARGET,
-    )
-    .unwrap();
-    for qualifier in ["const", "restrict", "inline", "goto"] {
-        let source = format!("void f(void) {{ __asm__ {qualifier} (\"\"); }}");
-        let error = analyze(&source, TARGET).unwrap_err();
-        assert_eq!(error.offset, source.find(qualifier).unwrap());
-        assert!(error.message.contains("asm"), "{error}");
+    for template in [r#"("")"#, r#"("" : : : "memory")"#] {
+        for qualifier in ["", "volatile", "__volatile", "__volatile__"] {
+            analyze(
+                &format!(
+                    "const char *text = \"asm goto\"; void f(void) {{ __asm__ {qualifier} {template}; }}"
+                ),
+                TARGET,
+            )
+            .unwrap();
+        }
+        for qualifier in [
+            "const",
+            "restrict",
+            "_Atomic",
+            "inline",
+            "goto",
+            "volatile goto",
+        ] {
+            let source = format!("void f(void) {{ __asm__ {qualifier} {template}; }}");
+            let error = analyze(&source, TARGET).unwrap_err();
+            assert_eq!(
+                error.offset,
+                source
+                    .find(qualifier.split_whitespace().last().unwrap())
+                    .unwrap()
+            );
+            assert!(error.message.contains("asm"), "{error}");
+        }
     }
 }
 

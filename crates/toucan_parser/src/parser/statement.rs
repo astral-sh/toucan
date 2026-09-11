@@ -262,24 +262,15 @@ impl<'s, 'e> Parser<'s, 'e> {
 
     fn asm_statement(&mut self) -> PResult<Node<Statement>> {
         let start = self.bump()?.span.start;
-        let qualifier = if matches!(
-            self.text(),
-            "const"
-                | "restrict"
-                | "volatile"
-                | "_Atomic"
-                | "__const"
-                | "__const__"
-                | "__restrict"
-                | "__restrict__"
-                | "__volatile"
-                | "__volatile__"
-        ) {
+        let qualifier = if matches!(self.text(), "volatile" | "__volatile" | "__volatile__") {
             Some(self.type_qualifier()?)
         } else {
             None
         };
-        self.expect("(")?;
+        if !self.at("(") {
+            return self.fail("GNU asm template introduced by `(`");
+        }
+        self.bump()?;
         let template = self.string_literal()?;
         let asm = if self.eat(":")? {
             let outputs = self.asm_operands()?;

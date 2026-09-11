@@ -16,6 +16,7 @@ fn language_modes_preserve_identifiers_extensions_and_retained_parity() {
                     standard,
                 ),
                 ("void asm(const char*);void f(void){asm(\"\");}", standard),
+                ("typedef int asm; asm const value = 1;", standard),
                 ("typedef int typeof;typeof x;", standard),
                 (
                     "struct S{int asm,typeof;};int f(struct S*s){return s->asm+s->typeof;}",
@@ -143,6 +144,7 @@ fn keyword_modes_match_native_compilers() {
                         standard,
                     ),
                     ("void asm(const char*);void f(void){asm(\"\");}", standard),
+                    ("typedef int asm; asm const value = 1;", standard),
                     ("typedef int typeof;typeof x;", standard),
                     ("int x asm(\"named\");", !standard),
                     ("int x;typeof(x) y;", !standard),
