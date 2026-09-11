@@ -18,6 +18,7 @@ import sys
 import time
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from compiler_diagnostics import has_crash_diagnostic
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -514,6 +515,9 @@ def main() -> int:
                 raise RuntimeError(f"cannot identify {name}: {version}")
             tool["version"] = Path(version["stdout"]).read_text()
         report["tools"][name] = tool
+    for name in ("audit_csmith.py", "compiler_diagnostics.py"):
+        path = Path(__file__).with_name(name)
+        report["tools"][name] = {"path": str(path), "sha256": digest(path)}
     if (
         "Free Software Foundation" not in report["tools"]["gcc"]["version"]
         or "clang" not in report["tools"]["clang"]["version"].lower()

@@ -6,9 +6,11 @@ import hashlib
 import json
 import os
 import subprocess
+import sys
 import tempfile
 from pathlib import Path
 
+sys.path.insert(0, str(Path(__file__).resolve().parent))
 from compiler_diagnostics import has_crash_diagnostic
 
 

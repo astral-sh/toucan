@@ -892,7 +892,13 @@ def main() -> int:
     selected = [source for source in available if not names or source.name in names]
     if args.limit:
         selected = selected[: args.limit]
-    tools = {}
+    diagnostics_source = Path(__file__).with_name("compiler_diagnostics.py")
+    tools = {
+        "compiler_diagnostics": {
+            "path": str(diagnostics_source),
+            "sha256": digest(diagnostics_source),
+        }
+    }
     for name in ["toucan", "gcc", "clang"]:
         path = Path(getattr(args, name))
         version = run(
