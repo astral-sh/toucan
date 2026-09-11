@@ -330,7 +330,7 @@ fn literal_types_match_clang_on_every_target() {
 }
 
 #[test]
-fn universal_character_spelling_survives_the_parser_adapter() {
+fn universal_character_spelling_reaches_the_decoder() {
     let source = r#"enum { A = U'\u00e9', B = U'\U0001f600' }; _Static_assert(A == 233 && B == 128512, "values");"#;
     analyze(source, GNU).unwrap();
     let source = r#"int x; enum { X = U'\u0041' };"#;

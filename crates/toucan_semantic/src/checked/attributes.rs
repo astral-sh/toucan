@@ -108,7 +108,7 @@ impl Analyzer {
         }
         // Clang's unevaluated-string grammar rejects numeric escapes; GCC accepts
         // them with a different message interpretation. Keep that scope explicit.
-        for literal in self.string_literal_tokens(strings) {
+        for literal in &strings.node {
             let mut bytes = literal.bytes();
             while let Some(byte) = bytes.next() {
                 if byte == b'\\'

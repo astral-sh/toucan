@@ -394,21 +394,15 @@ impl Compilation {
     }
     /// Resolves the token origins intersecting a retained source span.
     ///
-    /// Disjoint fragments retain their mapped order. Repeated origins can occur,
-    /// especially for macros: a macro origin anchors its outer invocation, not a
-    /// full expansion trace. Parser-inserted spans have no original locations.
+    /// Repeated origins can occur, especially for macros: a macro origin anchors
+    /// its outer invocation, not a full expansion trace. Synthetic spans have no
+    /// original locations.
     pub fn source_locations<'a>(
         &'a self,
         span: &'a semantic::checked::SourceSpan,
     ) -> impl Iterator<Item = &'a SourceLocation> + 'a {
         std::iter::once(span.range())
-            .filter(move |_| span.fragments().is_empty() && !span.synthetic())
-            .chain(
-                span.fragments()
-                    .iter()
-                    .filter(move |_| !span.synthetic())
-                    .cloned(),
-            )
+            .filter(move |_| !span.synthetic())
             .flat_map(|range| {
                 let mappings = &self.preprocessed.mappings;
                 let first = mappings.partition_point(|entry| entry.generated.end <= range.start);

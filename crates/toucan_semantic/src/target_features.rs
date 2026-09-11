@@ -346,7 +346,7 @@ impl Analyzer {
                 break;
             };
             if parsed.clang {
-                for literal in self.string_literal_tokens(strings) {
+                for literal in &strings.node {
                     let mut bytes = literal.bytes();
                     while let Some(byte) = bytes.next() {
                         if byte == b'\\'

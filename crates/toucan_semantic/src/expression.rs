@@ -127,9 +127,7 @@ impl Analyzer {
                 }
                 ast::Constant::Character(character) => {
                     integer_to_type(crate::decode_character_literal_with_profile(
-                        self.character_literals
-                            .get(&constant.span.start)
-                            .map_or(character.as_str(), String::as_str),
+                        character,
                         self.unit.profile()?,
                         offset,
                     )?)

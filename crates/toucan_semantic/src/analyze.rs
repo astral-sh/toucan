@@ -147,20 +147,14 @@ fn analyze_on_parser_stack(
     analyzer.parameter_type_dependencies = retain_parameter_type_dependencies
         .then(|| Box::new(crate::parameter_dependencies::Builder::new()));
     analyzer.prepare_dll_storage(&source);
-    analyzer.character_literals = parsed.character_literals;
-    analyzer.string_literals = parsed.string_literals;
-    analyzer.prepare_typedef_alignments(Syntax::Unit(&parsed.node), &source)?;
-    analyzer.prepare_array_identities(Syntax::Unit(&parsed.node), &source)?;
-    analyzer.prepare_late_function_targets(Syntax::Unit(&parsed.node), &source)?;
-    analyzer.prepare_inline_definitions(&parsed.node, &source)?;
+    analyzer.prepare_typedef_alignments(Syntax::Unit(&parsed), &source)?;
+    analyzer.prepare_array_identities(Syntax::Unit(&parsed), &source)?;
+    analyzer.prepare_late_function_targets(Syntax::Unit(&parsed), &source)?;
+    analyzer.prepare_inline_definitions(&parsed, &source)?;
     if let Some(limits) = retention {
-        analyzer.checked = Some(Box::new(CodeBuilder::new(
-            &parsed.node,
-            source.len(),
-            limits,
-        )?));
+        analyzer.checked = Some(Box::new(CodeBuilder::new(&parsed, source.len(), limits)?));
     }
-    for external in parsed.node.0 {
+    for external in parsed.0 {
         match external.node {
             ast::ExternalDeclaration::Declaration(declaration) => {
                 analyzer.declaration(&declaration, false)?
@@ -190,7 +184,7 @@ fn analyze_on_parser_stack(
             profile.compiler(),
             profile.language_mode(),
         )?;
-        analyzer.unit.tag_discovery = crate::tag_discovery::discover(&analyzer.unit, &syntax.node)?;
+        analyzer.unit.tag_discovery = crate::tag_discovery::discover(&analyzer.unit, &syntax)?;
     }
     let checked = analyzer
         .checked
@@ -309,7 +303,7 @@ fn evaluate_on_parser_stack<Value>(
         },
     )?;
     let source = expression;
-    let expression = &parsed.node;
+    let expression = &parsed;
     unit.validate_parameter_contracts()?;
     // Literals and known enumerator values do not need declaration identities.
     // Keep validating the public environment above, and copy only the values
@@ -333,8 +327,6 @@ fn evaluate_on_parser_stack<Value>(
     };
     analyzer.prepare_dll_storage(source);
     analyzer.evaluation = crate::evaluation::Context::constant_query();
-    analyzer.character_literals = parsed.character_literals;
-    analyzer.string_literals = parsed.string_literals;
     let syntax = Syntax::Expression(expression);
     analyzer.prepare_array_identities(syntax, source)?;
     analyzer.prepare_typedef_alignments(syntax, source)?;
@@ -442,18 +434,12 @@ impl<'a> Syntax<'a> {
     }
 }
 
-struct Parsed<T> {
-    node: T,
-    character_literals: HashMap<usize, String>,
-    string_literals: HashMap<usize, Vec<String>>,
-}
-
 fn parse(
     source: &str,
     target: Target,
     compiler: Compiler,
     language_mode: toucan_target::LanguageMode,
-) -> Result<Parsed<ast::TranslationUnit>, Error> {
+) -> Result<ast::TranslationUnit, Error> {
     parse_source(source, target, compiler, language_mode, |config, source| {
         driver::parse_preprocessed(config, source).map(|parsed| parsed.unit)
     })
@@ -465,7 +451,7 @@ fn parse_source<T>(
     compiler: Compiler,
     language_mode: toucan_target::LanguageMode,
     parse: impl FnOnce(&driver::Config, String) -> Result<T, driver::SyntaxError>,
-) -> Result<Parsed<T>, Error> {
+) -> Result<T, Error> {
     if source.len() > 16 * 1024 * 1024 {
         return Err(Error::new(0, "preprocessed input exceeds the 16 MiB limit"));
     }
@@ -495,8 +481,7 @@ fn parse_source<T>(
             Compiler::Clang => driver::Flavor::ClangC11,
         },
     };
-    let (source, literal_spellings) = crate::literals::normalize_literal_escapes(source);
-    let node = parse(&config, source).map_err(|mut error| {
+    parse(&config, source).map_err(|mut error| {
         error.source = original.to_owned();
         error.line = original[..error.offset]
             .bytes()
@@ -508,11 +493,6 @@ fn parse_source<T>(
             .map_or(0, |newline| newline + 1);
         error.column = original[line_start..error.offset].chars().count() + 1;
         Error::new(error.offset, format!("C syntax error: {error}"))
-    })?;
-    Ok(Parsed {
-        node,
-        character_literals: literal_spellings.characters,
-        string_literals: literal_spellings.strings,
     })
 }
 
@@ -905,8 +885,6 @@ pub(crate) struct Analyzer {
     defining_enums: HashSet<usize>,
     tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
-    pub(crate) character_literals: HashMap<usize, String>,
-    pub(crate) string_literals: HashMap<usize, Vec<String>>,
     nesting: usize,
     pub(crate) capture_function_scope: bool,
     definition_parameters: Option<usize>,
@@ -1010,8 +988,6 @@ impl Analyzer {
             defining_enums: HashSet::new(),
             tentative_definitions: BTreeMap::new(),
             packs: Vec::new(),
-            character_literals: HashMap::new(),
-            string_literals: HashMap::new(),
             nesting: 0,
             capture_function_scope: false,
             definition_parameters: None,
@@ -5612,10 +5588,7 @@ impl Analyzer {
                     bytes.pop();
                     String::from_utf8(bytes).ok()
                 })
-                .unwrap_or_else(|| {
-                    self.string_literal_tokens(&assertion.node.message)
-                        .join(" ")
-                });
+                .unwrap_or_else(|| assertion.node.message.node.join(" "));
             return Err(Error::new(
                 assertion.span.start,
                 format!("static assertion failed: {message}"),

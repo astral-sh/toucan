@@ -220,9 +220,7 @@ impl Analyzer {
                 ast::Constant::Integer(integer) => self.literal(integer, offset),
                 ast::Constant::Character(character) => {
                     crate::decode_character_literal_with_profile(
-                        self.character_literals
-                            .get(&constant.span.start)
-                            .map_or(character.as_str(), String::as_str),
+                        character,
                         self.unit.profile()?,
                         offset,
                     )
