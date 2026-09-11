@@ -18,6 +18,8 @@ import sys
 import time
 from pathlib import Path
 
+from compiler_diagnostics import has_crash_diagnostic
+
 ROOT = Path(__file__).resolve().parents[1]
 MANIFEST = ROOT / "corpus/conformance/csmith/manifest.json"
 STRICT = [
@@ -26,20 +28,6 @@ STRICT = [
     "-Werror=pointer-sign",
     "-Werror=incompatible-pointer-types",
 ]
-CRASH_TEXT = (
-    "internal compiler error",
-    "please submit a bug report",
-    "segmentation fault",
-    "frontend command failed",
-    "unable to execute command:",
-    "please submit a full bug report",
-    "llvm error:",
-    "fatal error: error in backend",
-    "fatal error: killed signal terminated program",
-    "the compiler unexpectedly panicked",
-    "panicked at",
-    "assertion `",
-)
 
 
 def digest(path: Path | str) -> str:
@@ -65,7 +53,7 @@ def classify(
         return "timeout"
     if code == -signal.SIGXFSZ:
         return "output_limit"
-    if code is None or any(text in diagnostic.lower() for text in CRASH_TEXT):
+    if code is None or has_crash_diagnostic(diagnostic):
         return "crash"
     if code < 0:
         return "crash"

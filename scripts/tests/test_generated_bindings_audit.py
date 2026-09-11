@@ -12,6 +12,48 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import audit_generated_bindings as audit
 
 
+class CompilerResults(unittest.TestCase):
+    def test_driver_crash_cannot_satisfy_either_expected_result(self):
+        # Apple Clang 17's driver reported this child crash with exit 1 (PR148).
+        diagnostic = (
+            "clang: error: unable to execute command: Segmentation fault: 11\n"
+            "clang: error: clang frontend command failed due to signal "
+            "(use -v to see invocation)\n"
+        )
+        with tempfile.TemporaryDirectory() as temporary:
+            for stream in ("stdout", "stderr"):
+                for code in (0, 1):
+                    with self.subTest(stream=stream, code=code):
+                        result = audit.run(
+                            [
+                                sys.executable,
+                                "-c",
+                                f"import sys; print({diagnostic!r}, file=sys.{stream}); sys.exit({code})",
+                            ],
+                            Path(temporary),
+                            "driver",
+                            5,
+                        )
+                        self.assertFalse(audit.accepted(result))
+                        for expected in (True, False):
+                            with self.assertRaisesRegex(RuntimeError, "tool failure"):
+                                audit.require_result(result, expected)
+
+    def test_ordinary_diagnostics_remain_source_rejections(self):
+        with tempfile.TemporaryDirectory() as temporary:
+            result = audit.run(
+                [
+                    sys.executable,
+                    "-c",
+                    "import sys; print('error: static assertion failed', file=sys.stderr); sys.exit(1)",
+                ],
+                Path(temporary),
+                "rejection",
+                5,
+            )
+            audit.require_result(result, False)
+
+
 @unittest.skipUnless(
     os.environ.get("TOUCAN_ORACLE_BINARY"),
     "requires a built Toucan and native GCC/Clang/Rust",
