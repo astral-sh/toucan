@@ -52,31 +52,41 @@ and uploads the performance measurements.
 
 ## Builder API comparison
 
-The [September 9 Builder refresh](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/benchmarks/evidence/builder-66c8739/README.md)
-compares the actual Builder APIs on identical public-header roots and output
-policies, including comments and default derives. It measures published
-`66c87396` after a fresh production release build and native C/Rust preflight:
+The September 10, 2026 refresh compares the Builder APIs at Toucan
+[`5b6dfb9`](https://github.com/astral-sh/toucan/commit/5b6dfb9dcc7b52f0f1b98d34902a5ab21f67fbc9)
+and bindgen 0.72.1 with libclang 18.1.3. Both use identical public-header roots
+and output policies, including comments and default derives. Bindgen's default
+include-path discovery is enabled. The generators share one uninstrumented
+release executable built with Ohm Rust 1.98.1-dev (`ohm-1.98.1-1`), experimental
+Cargo defaults disabled, and the system allocator.
 
-| Project | Toucan Builder | bindgen | Median paired speedup |
+| Project | Toucan `5b6dfb9` | bindgen 0.72.1 | Median paired speedup |
 | --- | ---: | ---: | ---: |
-| zlib 1.3.1 | 22.22 ms | 117.93 ms | 5.30× |
-| SQLite 3.45.1 | 25.36 ms | 154.92 ms | 6.10× |
-| zstd 1.5.7 | 9.12 ms | 101.91 ms | 11.23× |
-| libgit2 1.9.1 | 192.85 ms | 263.19 ms | 1.37× |
+| zlib 1.3.1 | 17.24 ms | 122.04 ms | 7.05× |
+| SQLite 3.45.1 | 17.03 ms | 161.75 ms | 9.52× |
+| zstd 1.5.7 | 6.84 ms | 106.66 ms | 15.54× |
+| libgit2 1.9.1 | 152.78 ms | 265.29 ms | 1.76× |
 
 Times are medians of seven process medians; speedups are medians of seven matched
-pair ratios. Each process records its first call separately and measures ten
-subsequent calls, for 560 measured generations on CPU 3 of a shared Linux host.
-All output, input, binary, libclang and source hashes pass. The evidence retains
-raw samples, pair ranges, first-call costs, commands and toolchain identities.
+pair ratios, which need not equal the ratios of the displayed times. Engine
+order is randomized with seed `20260910`. Each process records its first call
+separately and measures ten subsequent calls. The two reported configurations
+contribute 560 measured generations and 56 first calls on CPU 3 of a shared
+AMD EPYC-Milan Linux host. All output, input, binary, libclang, and source hashes
+pass. The local capture retains raw samples, paired ranges, first-call costs,
+commands, and toolchain identities under ignored `benchmark-results/refresh-5b6dfb9/`.
 
-The [preflight](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/benchmarks/evidence/builder-66c8739/README.md#validation)
-validates shared signatures, constants, layouts and native FFI calls. Structural
-API equality holds for zlib and zstd. SQLite's returned callback, ten extra
-libgit2 aliases and three signed sentinel values remain documented differences.
+The fresh preflight validates shared signatures, constants, layouts, and native
+FFI calls. All eight FFI programs pass. Structural API equality holds for zlib
+and zstd. SQLite's returned callback, ten extra libgit2 aliases, libgit2's private
+bitfield storage, and three signed sentinel values remain documented differences.
+Generated modules request Rust 1.64 output and were compiled with the current
+Ohm compiler; Rust 1.64 itself was not rerun for this refresh.
 These timings measure generation only on the named Linux workloads. They do
 not establish application build speedups, performance on other headers, or a
-statistically significant improvement between revisions.
+statistically significant improvement between revisions. The
+[previous capture](https://github.com/astral-sh/toucan/tree/27b1b56883b65c265b73630d9f674b504e28f776/benchmarks/evidence/builder-66c8739/README.md)
+measured `66c87396` before the handwritten parser and later frontend improvements.
 
 ## Subprocess harness
 
