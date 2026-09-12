@@ -54,7 +54,7 @@ fn bitfield_attributes_retain_their_owner_and_source_spans() {
     for config in [Config::with_gcc(), Config::with_clang()] {
         let parsed = parse_preprocessed(&config, SOURCE.into()).unwrap();
         let mut fields = Fields::default();
-        fields.visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut fields);
         assert_eq!(
             fields.0,
             [
@@ -65,7 +65,7 @@ fn bitfield_attributes_retain_their_owner_and_source_spans() {
             ]
         );
         let mut printed = String::new();
-        Printer::new(&mut printed).visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut Printer::new(&mut printed));
         assert_eq!(printed.matches("Attribute").count(), 4);
         assert_eq!(printed.matches("SizeOfTy").count(), 1);
         let error = parse_preprocessed_with_limits(

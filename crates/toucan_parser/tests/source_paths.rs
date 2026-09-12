@@ -26,7 +26,7 @@ fn source_paths_are_not_compiler_arguments() {
         }
         for name in ["-input.c", "ordinary.c", "@directory/input.c"] {
             let parsed = parse(&config, name).unwrap();
-            assert_eq!(parsed.unit.0.len(), 1, "{}", name);
+            assert_eq!(parsed.ast().inner().len(), 1, "{}", name);
             assert!(parsed.source.contains("int expected;"), "{}", name);
             assert!(!std::path::Path::new("redirected.c").exists());
         }

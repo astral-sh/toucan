@@ -8,6 +8,7 @@ use toucan_parser::ast::{
 use toucan_parser::driver::{parse_expression, parse_preprocessed, Config};
 use toucan_parser::print::Printer;
 use toucan_parser::span::Span;
+use toucan_parser::view::{ConstantView, ExpressionView};
 use toucan_parser::visit::{self, Visit};
 
 #[derive(Default)]
@@ -61,7 +62,7 @@ fn default_parser_visits_nested_arena_syntax_and_can_retain_references() {
     let parsed = parse_preprocessed(&Config::with_gcc(), source.into()).unwrap();
     assert_eq!(parsed.source, source);
     let mut syntax = Syntax::default();
-    syntax.visit_translation_unit(&parsed.unit, &parsed.arena);
+    parsed.ast().visit(&mut syntax);
     assert_eq!(syntax.binary, 4);
     assert_eq!(syntax.conditional, 1);
     assert_eq!(syntax.lists, 3);
@@ -74,11 +75,13 @@ fn cloning_a_parse_keeps_every_arena_payload_after_the_original_is_dropped() {
     let source = "struct S { int (*f)(int); }; int g(void) { struct S x; return sizeof(typeof(x)) + ({ int y = 1; y; }); }";
     let parsed = parse_preprocessed(&Config::with_gcc(), source.into()).unwrap();
     let mut expected = String::new();
-    Printer::new(&mut expected).visit_translation_unit(&parsed.unit, &parsed.arena);
+    let (unit, arena) = parsed.ast().as_raw();
+    Printer::new(&mut expected).visit_translation_unit(unit, arena);
     let cloned = parsed.clone();
     drop(parsed);
     let mut actual = String::new();
-    Printer::new(&mut actual).visit_translation_unit(&cloned.unit, &cloned.arena);
+    let (unit, arena) = cloned.ast().as_raw();
+    Printer::new(&mut actual).visit_translation_unit(unit, arena);
     assert_eq!(actual, expected);
 }
 
@@ -117,6 +120,9 @@ fn arena_drop_worker() {
                 format!("int x[1] = {}1{};", "{".repeat(100), "}".repeat(100)),
             ] {
                 let parsed = parse_preprocessed(&config, source).unwrap();
+                let copied = parsed.ast().to_owned();
+                assert!(parsed.ast().structural_eq(copied.view()));
+                drop(copied);
                 drop(parsed.clone());
                 drop(parsed);
             }
@@ -184,6 +190,78 @@ fn arena_records_and_work_have_independent_per_parse_limits() {
     )
     .unwrap();
     assert_eq!(replay.statistics, statistics);
-    assert_eq!(replay.expression, parsed.expression);
-    assert_eq!(replay.arena, parsed.arena);
+    assert!(replay.ast().structural_eq(parsed.ast()));
+}
+
+#[test]
+fn child_views_resolve_links_without_an_arena_argument() {
+    let parsed = parse_expression(&Config::with_gcc(), "1 + 2".into(), |_| false).unwrap();
+    let ExpressionView::BinaryOperator(binary) = parsed.ast().node().kind() else {
+        panic!("expected binary expression");
+    };
+    let lhs = binary.node().lhs();
+    assert_eq!(lhs.span().start, 0);
+    assert_eq!(lhs.span().end, 1);
+    let ExpressionView::Constant(constant) = lhs.node().kind() else {
+        panic!("expected constant");
+    };
+    let ConstantView::Integer(integer) = constant.node().kind() else {
+        panic!("expected integer");
+    };
+    assert_eq!(integer.number().value(), "1");
+}
+
+#[test]
+fn subtree_copy_owns_descendants_and_compares_contents_across_owners() {
+    let config = Config::with_gcc();
+    let parsed = parse_expression(&config, "1 + (2 * 3)".into(), |_| false).unwrap();
+    let ExpressionView::BinaryOperator(binary) = parsed.ast().node().kind() else {
+        panic!("expected binary expression");
+    };
+    let subtree = binary.node().rhs();
+    let copied = subtree.to_owned();
+    assert!(subtree.structural_eq(copied.view()));
+    drop(parsed);
+    let ExpressionView::BinaryOperator(product) = copied.view().node().kind() else {
+        panic!("expected copied product");
+    };
+    let ExpressionView::Constant(constant) = product.node().rhs().node().kind() else {
+        panic!("expected copied constant");
+    };
+    let ConstantView::Integer(integer) = constant.node().kind() else {
+        panic!("expected copied integer");
+    };
+    assert_eq!(integer.number().value(), "3");
+
+    let one = parse_expression(&config, "1".into(), |_| false).unwrap();
+    let another_one = parse_expression(&config, "1".into(), |_| false).unwrap();
+    let two = parse_expression(&config, "2".into(), |_| false).unwrap();
+    assert!(one.ast().structural_eq(another_one.ast()));
+    assert!(!one.ast().structural_eq(two.ast()));
+}
+
+#[test]
+fn translation_unit_views_support_lists_and_owned_extraction() {
+    let parsed = parse_preprocessed(&Config::with_gcc(), "int a; int b;".into()).unwrap();
+    assert_eq!(parsed.ast().inner().len(), 2);
+    assert_eq!(parsed.ast().inner().iter().count(), 2);
+    assert!(parsed.ast().inner().get(2).is_none());
+    let owned = parsed.into_ast();
+    let copied = owned.clone();
+    drop(owned);
+    assert_eq!(copied.view().inner().len(), 2);
+    assert_eq!(::std::mem::size_of::<toucan_parser::arena::Id<u8>>(), 4);
+}
+
+#[test]
+fn text_views_copy_text_instead_of_cloning_the_borrowed_handle() {
+    let parsed = parse_expression(&Config::with_gcc(), "name".into(), |_| false).unwrap();
+    let ExpressionView::Identifier(identifier) = parsed.ast().node().kind() else {
+        panic!("expected identifier");
+    };
+    let name = identifier.node().name();
+    assert!(name.structural_eq(name));
+    let owned: String = name.to_owned();
+    drop(parsed);
+    assert_eq!(owned, "name");
 }

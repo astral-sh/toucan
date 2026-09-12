@@ -47,7 +47,7 @@ fn repeated_prefixes_preserve_declaration_dispatch_and_spans() {
     for config in [Config::with_gcc(), Config::with_clang()] {
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
         let mut declarations = Declarations::default();
-        declarations.visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut declarations);
         assert_eq!(declarations.0.len(), 6);
         for span in declarations.0 {
             assert!(source[span.start..span.end].starts_with("__extension__ __extension__"));
@@ -91,7 +91,7 @@ fn prefix_lookahead_obeys_work_limits_and_does_not_recurse() {
         },
     )
     .unwrap();
-    assert_eq!(parsed.unit, exact.unit);
+    assert!(parsed.ast().structural_eq(exact.ast()));
 }
 
 #[test]

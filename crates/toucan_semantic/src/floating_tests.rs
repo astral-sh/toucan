@@ -49,7 +49,9 @@ fn evaluate(expression: &str, target: Target) -> Result<ArithmeticValue, Error> 
         flavor: driver::Flavor::ClangC11,
         ..driver::Config::default()
     };
-    let parsed = driver::parse_preprocessed(&config, source).unwrap();
+    let parsed = driver::parse_preprocessed(&config, source)
+        .unwrap()
+        .into_raw();
     let ast::ExternalDeclaration::Declaration(declaration) = &parsed.unit.0[0].node else {
         panic!("declaration")
     };

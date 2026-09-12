@@ -22,7 +22,9 @@ impl std::fmt::Write for TreeWriter {
     }
 }
 
-fn parser_tree(parsed: &toucan_parser::driver::Parse, path: &Path) {
+fn parser_tree(parsed: toucan_parser::driver::Parse, path: &Path) {
+    #[cfg(feature = "full-arena")]
+    let parsed = parsed.into_raw();
     let mut writer = TreeWriter(BufWriter::new(std::fs::File::create(path).unwrap()));
     #[cfg(not(feature = "full-arena"))]
     toucan_parser::visit::Visit::visit_translation_unit(
@@ -36,10 +38,10 @@ fn parser_tree(parsed: &toucan_parser::driver::Parse, path: &Path) {
         &parsed.arena,
     );
     writer.0.flush().unwrap();
-    spans::capture(parsed, &path.with_extension("spans"));
+    spans::capture(&parsed, &path.with_extension("spans"));
 }
 
-fn reference_tree(parsed: &lang_c_reference::driver::Parse, path: &Path) {
+fn reference_tree(parsed: lang_c_reference::driver::Parse, path: &Path) {
     let mut writer = TreeWriter(BufWriter::new(std::fs::File::create(path).unwrap()));
     lang_c_reference::visit::Visit::visit_translation_unit(
         &mut lang_c_reference::print::Printer::new(&mut writer),
@@ -48,9 +50,9 @@ fn reference_tree(parsed: &lang_c_reference::driver::Parse, path: &Path) {
     writer.0.flush().unwrap();
 }
 
-fn semantic_json(analysis: &toucan_semantic::Analysis, path: &Path) {
+fn semantic_json(analysis: toucan_semantic::Analysis, path: &Path) {
     let mut writer = BufWriter::new(std::fs::File::create(path).unwrap());
-    serde_json::to_writer(&mut writer, analysis).unwrap();
+    serde_json::to_writer(&mut writer, &analysis).unwrap();
     writer.flush().unwrap();
 }
 
@@ -58,7 +60,7 @@ fn run<P, T>(
     mode: &str,
     mut setup: impl FnMut() -> P,
     mut operation: impl FnMut(P) -> T,
-    capture: impl FnOnce(&T, &Path),
+    capture: impl FnOnce(T, &Path),
     iterations: usize,
     output: &Path,
 ) -> serde_json::Value {
@@ -67,7 +69,7 @@ fn run<P, T>(
     match mode {
         "capture" => {
             let result = operation(setup());
-            capture(&result, output);
+            capture(result, output);
             serde_json::json!({"output_bytes": output.metadata().unwrap().len()})
         }
         "rss" => {

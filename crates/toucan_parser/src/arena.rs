@@ -4,6 +4,10 @@
 //! cloning an AST node copies its links, while cloning the parse result copies all
 //! storage. Each table drops its records in a flat loop, including owned strings
 //! and lists, without following child IDs.
+//!
+//! This is low-level storage. Prefer [`driver::Parse::ast`](::driver::Parse::ast)
+//! for traversal that keeps nodes associated with their owning arena. Raw IDs do
+//! not encode ownership; the caller must supply the correct arena to lookup.
 
 use std::fmt;
 use std::hash::{Hash, Hasher};
@@ -46,7 +50,7 @@ impl<T> fmt::Debug for Id<T> {
 impl<T: ArenaNode> Id<T> {
     /// Resolves this ID in its owning arena.
     pub fn get(self, arena: &Arena) -> &T {
-        arena.get(self).expect("AST ID belongs to its arena")
+        arena.get(self).expect("AST ID index is out of bounds")
     }
     /// Returns the index within this type's table.
     pub fn index(self) -> usize {
@@ -65,7 +69,7 @@ pub trait ArenaNode: Sized {
 macro_rules! tables {
     ($($field:ident: $ty:ty),* $(,)?) => {
         /// Owns the records referenced by a parsed translation unit or expression.
-        #[derive(Clone, Debug, Default, PartialEq)]
+        #[derive(Clone, Debug, Default)]
         pub struct Arena { $($field: Vec<$ty>),* }
         $(impl ArenaNode for $ty {
             fn get(arena: &Arena, index: usize) -> Option<&Self> {

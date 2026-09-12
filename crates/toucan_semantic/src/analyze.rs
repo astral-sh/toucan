@@ -309,7 +309,8 @@ fn evaluate_on_parser_stack<Value>(
         |config, source| {
             driver::parse_expression(config, source, |name| unit.typedefs.contains_key(name))
         },
-    )?;
+    )?
+    .into_raw();
     drop(parsed.source);
     let source = expression;
     let expression = &parsed.expression;
@@ -455,10 +456,11 @@ fn parse(
     target: Target,
     compiler: Compiler,
     language_mode: toucan_target::LanguageMode,
-) -> Result<driver::Parse, Error> {
+) -> Result<lang_c::raw::Parse, Error> {
     parse_source(source, target, compiler, language_mode, |config, source| {
         driver::parse_preprocessed(config, source)
     })
+    .map(driver::Parse::into_raw)
 }
 
 fn parse_source<T>(

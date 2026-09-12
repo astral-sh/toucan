@@ -45,7 +45,7 @@ fn unbraced_do_body_does_not_hide_typedefs_in_condition() {
     for standard in [Standard::C99, Standard::C11, Standard::C17] {
         let parsed = parse_preprocessed(&config(standard), source.into()).unwrap();
         let mut operands = SizeOfOperands::default();
-        operands.visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut operands);
         assert_eq!(operands.0, [true, true]);
     }
 }
@@ -63,7 +63,7 @@ fn control_statement_scopes_follow_the_selected_standard() {
             let source = format!("typedef int T; void f(void) {{ {statement} (void)sizeof(T); }}");
             let parsed = parse_preprocessed(&config(standard), source).unwrap();
             let mut operands = SizeOfOperands::default();
-            operands.visit_translation_unit(&parsed.unit, &parsed.arena);
+            parsed.ast().visit(&mut operands);
             assert_eq!(
                 operands.0,
                 [true, standard != Standard::C90],
@@ -84,7 +84,7 @@ fn controlling_expression_names_remain_visible_inside_the_body() {
         let source = format!("typedef int T; void f(void) {{ {statement} }}");
         let parsed = parse_preprocessed(&config(Standard::C11), source).unwrap();
         let mut operands = SizeOfOperands::default();
-        operands.visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut operands);
         assert!(operands.0[0]);
         assert!(operands.0[1..].iter().all(|is_type| !is_type));
     }

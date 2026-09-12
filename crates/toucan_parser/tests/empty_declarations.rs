@@ -9,13 +9,13 @@ fn empty_gnu_declarations_do_not_create_ast_nodes() {
     for config in [Config::with_gcc(), Config::with_clang()] {
         for source in [";", ";;;", "__extension__ ;", "; __extension__ ; ;"] {
             let parsed = parse_preprocessed(&config, source.into()).unwrap();
-            assert!(parsed.unit.0.is_empty(), "{}", source);
+            assert!(parsed.ast().inner().is_empty(), "{}", source);
         }
         let source = ";; __extension__ ; int first; ;; __extension__ ; int second;;";
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
-        assert_eq!(parsed.unit.0.len(), 2);
-        let written: Vec<_> = parsed
-            .unit
+        let (unit, _) = parsed.ast().as_raw();
+        assert_eq!(unit.0.len(), 2);
+        let written: Vec<_> = unit
             .0
             .iter()
             .map(|declaration| {
@@ -50,7 +50,7 @@ fn ignored_declarations_still_obey_the_work_budget() {
     let source = ";".repeat(4096);
     let config = Config::with_gcc();
     let parsed = parse_preprocessed(&config, source.clone()).unwrap();
-    assert!(parsed.unit.0.is_empty());
+    assert!(parsed.ast().inner().is_empty());
     let limits = ParseLimits {
         max_work: parsed.statistics.work - 1,
         ..ParseLimits::default()
@@ -62,5 +62,5 @@ fn ignored_declarations_still_obey_the_work_budget() {
         ..ParseLimits::default()
     };
     let exact = parse_preprocessed_with_limits(&config, source, limits).unwrap();
-    assert_eq!(parsed.unit, exact.unit);
+    assert!(parsed.ast().structural_eq(exact.ast()));
 }

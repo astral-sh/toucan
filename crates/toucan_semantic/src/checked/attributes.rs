@@ -269,7 +269,8 @@ mod noescape_tests {
         let unit = crate::analyze("", toucan_target::Target::X86_64UnknownLinuxGnu).unwrap();
         let parsed =
             lang_c::driver::parse_preprocessed(&lang_c::driver::Config::default(), String::new())
-                .unwrap();
+                .unwrap()
+                .into_raw();
         let mut analyzer = Analyzer::from_unit(unit, &parsed.arena);
         let mut builder = Builder::new(
             &parsed.unit,

@@ -7,7 +7,9 @@ zlib's unchanged `adler32.c`. The parser comparison also includes lang-c 0.15.1.
 
 `build.py` builds identical harness source against each checkout. Its `full-arena`
 feature selects the new visitor signature for output capture; the source revision
-determines the parser implementation. Capture validates:
+determines the parser implementation. Capture consumes the parse result through
+`into_raw()` to inspect the root and arena; timed operations return the default
+parse result directly. Capture validates:
 
 - Identical printed syntax trees across baseline, arena, and lang-c.
 - Identical concrete spans for every span-bearing visitor hook across the two

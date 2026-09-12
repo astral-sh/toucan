@@ -37,13 +37,13 @@ fn alignment_operands_remain_visible_to_visitors_printers_and_limits() {
         };
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
         let mut alignments = Alignments::default();
-        alignments.visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut alignments);
         assert_eq!(alignments.0.len(), 3);
         for span in alignments.0 {
             assert!(source[span.start..span.end].starts_with("_Alignas("));
         }
         let mut printed = String::new();
-        Printer::new(&mut printed).visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut Printer::new(&mut printed));
         assert_eq!(printed.matches("AlignmentSpecifier").count(), 3);
         let error = parse_preprocessed_with_limits(
             &config,

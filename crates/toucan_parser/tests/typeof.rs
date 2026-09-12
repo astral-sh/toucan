@@ -90,7 +90,7 @@ fn visible_typedefs_select_types_and_shadowed_names_select_expressions() {
             let parsed = parse_preprocessed(&config, source.to_owned())
                 .unwrap_or_else(|error| panic!("{}: {}", source, error));
             let mut operands = Operands::default();
-            operands.visit_translation_unit(&parsed.unit, &parsed.arena);
+            parsed.ast().visit(&mut operands);
             let actual: Vec<_> = operands.0.iter().map(|(is_type, _)| *is_type).collect();
             assert_eq!(actual, expected, "{source}");
             for (_, span) in operands.0 {
@@ -111,7 +111,7 @@ fn inferred_names_enter_scope_after_initializer_and_leave_with_their_block() {
     ] {
         for flavor in [Flavor::GnuC11,Flavor::ClangC11] {
             let parsed=parse_preprocessed(&Config{flavor,..Config::default()},source.to_owned()).unwrap();
-            let mut operands=Operands::default();operands.visit_translation_unit(&parsed.unit, &parsed.arena);
+            let mut operands=Operands::default();parsed.ast().visit(&mut operands);
             assert_eq!(operands.0.iter().map(|(ty,_)|*ty).collect::<Vec<_>>(),[true,false,true],"{source}");
         }
     }

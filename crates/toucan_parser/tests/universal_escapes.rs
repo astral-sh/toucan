@@ -43,7 +43,7 @@ fn universal_escapes_preserve_literal_spellings_and_spans() {
         };
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
         let mut literals = Literals::default();
-        literals.visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut literals);
         assert_eq!(literals.0.len(), 9);
         for (text, span) in literals.0 {
             assert_eq!(&source[span.start..span.end], text);

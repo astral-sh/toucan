@@ -9,7 +9,9 @@ use toucan_parser::driver::{parse_preprocessed, Config};
 fn int128_and_empty_compound_literals_keep_the_written_syntax() {
     let source = "__int128 value = (unsigned __int128){}; void empty(void) {}";
     for config in [Config::with_gcc(), Config::with_clang()] {
-        let parsed = parse_preprocessed(&config, source.into()).unwrap();
+        let parsed = parse_preprocessed(&config, source.into())
+            .unwrap()
+            .into_raw();
         assert_eq!(parsed.source, source);
         let ExternalDeclaration::Declaration(declaration) = &parsed.unit.0[0].node else {
             panic!("declaration");
@@ -18,7 +20,7 @@ fn int128_and_empty_compound_literals_keep_the_written_syntax() {
         else {
             panic!("type specifier");
         };
-        assert_eq!(specifier.node, TypeSpecifier::Int128);
+        assert!(matches!(specifier.node, TypeSpecifier::Int128));
         assert_eq!(
             &source[specifier.span.start..specifier.span.end],
             "__int128"

@@ -31,7 +31,7 @@ fn query_spelling_and_typedef_ambiguity_preserve_the_operand_tree() {
         };
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
         let mut queries = Queries::default();
-        queries.visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut queries);
         assert_eq!(
             queries
                 .0

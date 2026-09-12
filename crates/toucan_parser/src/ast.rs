@@ -21,9 +21,10 @@
 //! - `typeof` type specifiers
 //!
 //! Recursive links use [`Id`] values resolved against the parse result's arena.
-//! Cloning a node preserves its IDs; clone the whole parse result for independent
-//! storage. Node equality compares IDs at these links, rather than recursively
-//! comparing records from separate parses.
+//! These are low-level storage types. Cloning a raw node preserves its IDs; use
+//! [`AstRef::to_owned`](::view::AstRef::to_owned) for an independent subtree.
+//! Recursive types deliberately omit `PartialEq`; use owner-bound
+//! [`AstRef::structural_eq`](::view::AstRef::structural_eq) to compare syntax.
 
 use arena::Id;
 use span::Node;
@@ -165,7 +166,7 @@ pub type StringLiteral = Vec<String>;
 /// Expressions
 ///
 /// (C11 6.5)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Expression {
     /// Identifier
     ///
@@ -296,14 +297,14 @@ pub enum MemberOperator {
 }
 
 /// GNU query comparing two unevaluated type names.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct TypesCompatibleExpression {
     pub left: Node<TypeName>,
     pub right: Node<TypeName>,
 }
 
 /// GNU compile-time expression selection.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct ChooseExpression {
     pub condition: Node<Expression>,
     pub then_expression: Node<Expression>,
@@ -311,14 +312,14 @@ pub struct ChooseExpression {
 }
 
 /// GNU and Clang vector conversion with a type-name destination.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct ConvertVectorExpression {
     pub expression: Node<Expression>,
     pub type_name: Node<TypeName>,
 }
 
 /// C11 generic selection.
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct GenericSelection {
     pub expression: Node<Expression>,
     pub associations: Vec<Node<GenericAssociation>>,
@@ -327,7 +328,7 @@ pub struct GenericSelection {
 /// Single element of a generic selection expression
 ///
 /// (C11 6.5.1.1)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum GenericAssociation {
     Type(Node<GenericAssociationType>),
     Default(Node<Expression>),
@@ -336,7 +337,7 @@ pub enum GenericAssociation {
 /// Type match case in a generic selection expression
 ///
 /// (C11 6.5.1.1)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct GenericAssociationType {
     pub type_name: Node<TypeName>,
     pub expression: Node<Expression>,
@@ -347,7 +348,7 @@ pub struct GenericAssociationType {
 /// Both direct (`.`) and indirect (`->`) access.
 ///
 /// (C11 6.5.2)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct MemberExpression {
     pub operator: Node<MemberOperator>,
     pub expression: Node<Expression>,
@@ -357,7 +358,7 @@ pub struct MemberExpression {
 /// Function call expression
 ///
 /// (C11 6.5.2)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct CallExpression {
     pub callee: Node<Expression>,
     pub arguments: Vec<Node<Expression>>,
@@ -366,7 +367,7 @@ pub struct CallExpression {
 /// Compound literal
 ///
 /// (C11 6.5.2)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct CompoundLiteral {
     pub type_name: Node<TypeName>,
     pub initializer_list: Vec<Node<InitializerListItem>>,
@@ -375,19 +376,19 @@ pub struct CompoundLiteral {
 /// SizeOf a type
 ///
 /// (C11 6.5.3)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct SizeOfTy(pub Node<TypeName>);
 
 /// Size of an unary expression
 ///
 /// (C11 6.5.3)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct SizeOfVal(pub Node<Expression>);
 
 /// Alignment of a type
 ///
 /// (C11 6.5.3)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct AlignOf {
     pub kind: AlignOfKind,
     pub operand: AlignOfOperand,
@@ -400,7 +401,7 @@ pub enum AlignOfKind {
     Gnu,
 }
 
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum AlignOfOperand {
     TypeName(Id<Node<TypeName>>),
     Expression(Node<Expression>),
@@ -443,7 +444,7 @@ pub enum UnaryOperator {
 /// additional operands are represented by a separate entry in this enum.
 ///
 /// (C11 6.5.2, c11 6.5.3)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct UnaryOperatorExpression {
     pub operator: Node<UnaryOperator>,
     pub operand: Node<Expression>,
@@ -454,7 +455,7 @@ pub struct UnaryOperatorExpression {
 /// `(type) expr`
 ///
 /// (C11 6.5.4)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct CastExpression {
     pub type_name: Node<TypeName>,
     pub expression: Node<Expression>,
@@ -532,7 +533,7 @@ pub enum BinaryOperator {
 /// All of C binary operators that can be applied to two expressions.
 ///
 /// (C11 6.5.5 -- 6.5.16)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct BinaryOperatorExpression {
     pub operator: Node<BinaryOperator>,
     pub lhs: Node<Expression>,
@@ -542,7 +543,7 @@ pub struct BinaryOperatorExpression {
 /// Conditional operator
 ///
 /// (C11 6.5.15)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct ConditionalExpression {
     pub condition: Node<Expression>,
     /// None represents GNU's omitted middle operand. Its value is the saved
@@ -564,7 +565,7 @@ impl ConditionalExpression {
 /// Result of expansion of `va_arg` macro.
 ///
 /// (C11 7.16.1.1).
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct VaArgExpression {
     pub va_list: Node<Expression>,
     pub type_name: Node<TypeName>,
@@ -575,7 +576,7 @@ pub struct VaArgExpression {
 /// Result of expansion of `offsetof` macro.
 ///
 /// (C11 7.19 §3).
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct OffsetOfExpression {
     pub type_name: Node<TypeName>,
     pub designator: Node<OffsetDesignator>,
@@ -584,7 +585,7 @@ pub struct OffsetOfExpression {
 /// Offset designator in a `offsetof` macro expansion
 ///
 /// (C11 7.19 §3).
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct OffsetDesignator {
     pub base: Node<Identifier>,
     pub members: Vec<Node<OffsetMember>>,
@@ -593,7 +594,7 @@ pub struct OffsetDesignator {
 /// Single element of an offset designator
 ///
 /// (C11 7.19 §3).
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum OffsetMember {
     Member(Node<Identifier>),
     IndirectMember(Node<Identifier>),
@@ -605,7 +606,7 @@ pub enum OffsetMember {
 /// Variable, function or type declaration
 ///
 /// (C11 6.7)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Declaration {
     pub specifiers: Vec<Node<DeclarationSpecifier>>,
     pub declarators: Vec<Node<InitDeclarator>>,
@@ -616,7 +617,7 @@ pub struct Declaration {
 /// These apply to all declarators in a declaration.
 ///
 /// (C11 6.7)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum DeclarationSpecifier {
     StorageClass(Node<StorageClassSpecifier>),
     TypeSpecifier(Node<TypeSpecifier>),
@@ -630,7 +631,7 @@ pub enum DeclarationSpecifier {
 /// Defines a single name in a declaration
 ///
 /// (C11 6.7.6)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct InitDeclarator {
     pub declarator: Node<Declarator>,
     pub initializer: Option<Node<Initializer>>,
@@ -664,7 +665,7 @@ pub enum StorageClassSpecifier {
 /// Type specifier
 ///
 /// (C11 6.7.2)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum TypeSpecifier {
     /// GNU declaration type inferred from its initializer.
     AutoType,
@@ -756,7 +757,7 @@ pub enum TS18661FloatFormat {
 /// Structure or union type specifier
 ///
 /// (C11 6.7.2.1)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct StructType {
     /// Attributes written between the tag keyword and its name or body.
     pub extensions: Vec<Node<Extension>>,
@@ -780,14 +781,14 @@ pub enum StructKind {
 /// Single declaration in a struct or a union
 ///
 /// (C11 6.7.2.1)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum StructDeclaration {
     Field(Node<StructField>),
     StaticAssert(Node<StaticAssert>),
 }
 
 /// Struct field declaration
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct StructField {
     pub specifiers: Vec<Node<SpecifierQualifier>>,
     pub declarators: Vec<Node<StructDeclarator>>,
@@ -798,7 +799,7 @@ pub struct StructField {
 /// C11 also uses this type in a few other places.
 ///
 /// (C11 6.7.2.1)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum SpecifierQualifier {
     /// Alignment spelling is parsed here; semantic constraints determine its subject.
     Alignment(Node<AlignmentSpecifier>),
@@ -810,7 +811,7 @@ pub enum SpecifierQualifier {
 /// Field declarator for a struct or a union
 ///
 /// (C11 6.7.2.1)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct StructDeclarator {
     pub declarator: Option<Node<Declarator>>,
     pub bit_width: Option<Node<Expression>>,
@@ -824,7 +825,7 @@ pub struct StructDeclarator {
 /// Enumeration type specifier
 ///
 /// (C11 6.7.2.2)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct EnumType {
     /// Attributes written between `enum` and its name or body.
     pub extensions: Vec<Node<Extension>>,
@@ -835,7 +836,7 @@ pub struct EnumType {
 /// Single constant inside a `enum` definition
 ///
 /// (C11 6.7.2.2)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Enumerator {
     pub identifier: Node<Identifier>,
     pub expression: Option<Node<Expression>>,
@@ -901,7 +902,7 @@ pub enum FunctionSpecifier {
 /// Alignment specifier
 ///
 /// (C11 6.7.5)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum AlignmentSpecifier {
     /// `_Alignas(typename)`
     Type(Id<Node<TypeName>>),
@@ -916,7 +917,7 @@ pub enum AlignmentSpecifier {
 /// Represents both normal and abstract declarators.
 ///
 /// (C11 6.7.6, 6.7.7)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Declarator {
     /// What is being declared
     pub kind: Node<DeclaratorKind>,
@@ -929,7 +930,7 @@ pub struct Declarator {
 /// Name of a declarator
 ///
 /// (C11 6.7.6, 6.7.7)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum DeclaratorKind {
     /// Unnamed declarator
     ///
@@ -949,7 +950,7 @@ pub enum DeclaratorKind {
 /// Modifies declarator type
 ///
 /// (C11 6.7.6)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum DerivedDeclarator {
     /// `* qualifiers …`
     Pointer(Vec<Node<PointerQualifier>>),
@@ -966,14 +967,14 @@ pub enum DerivedDeclarator {
 }
 
 /// Array part of a declarator
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct ArrayDeclarator {
     pub qualifiers: Vec<Node<TypeQualifier>>,
     pub size: ArraySize,
 }
 
 /// Function parameter part of a declarator
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct FunctionDeclarator {
     pub parameters: Vec<Node<ParameterDeclaration>>,
     pub ellipsis: Ellipsis,
@@ -982,7 +983,7 @@ pub struct FunctionDeclarator {
 /// List of qualifiers that can follow a `*` in a declaration
 ///
 /// (C11 6.7.6.1)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum PointerQualifier {
     TypeQualifier(Node<TypeQualifier>),
     Extension(Vec<Node<Extension>>),
@@ -993,7 +994,7 @@ pub enum PointerQualifier {
 /// Size of an array in a declaration
 ///
 /// (C11 6.7.6.2)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum ArraySize {
     /// `[]`
     Unknown,
@@ -1013,7 +1014,7 @@ pub enum ArraySize {
 /// `FunctionDefinition::declarations` field.
 ///
 /// (C11 6.7.6.3)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct ParameterDeclaration {
     pub specifiers: Vec<Node<DeclarationSpecifier>>,
     pub declarator: Option<Node<Declarator>>,
@@ -1034,7 +1035,7 @@ pub enum Ellipsis {
 /// Type names contain only abstract declarators.
 ///
 /// (C11 6.7.7)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct TypeName {
     pub specifiers: Vec<Node<SpecifierQualifier>>,
     pub declarator: Option<Node<Declarator>>,
@@ -1045,7 +1046,7 @@ pub struct TypeName {
 /// Value that is assigned immediately in a declaration
 ///
 /// (C11 6.7.9)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Initializer {
     Expression(Node<Expression>),
     List(Id<Vec<Node<InitializerListItem>>>),
@@ -1054,14 +1055,14 @@ pub enum Initializer {
 /// Initializes one field or array element in a initializer list
 ///
 /// (C11 6.7.9)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct InitializerListItem {
     pub designation: Vec<Node<Designator>>,
     pub initializer: Node<Initializer>,
 }
 
 /// Single element of an designation in an initializer
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Designator {
     /// Array element
     ///
@@ -1089,7 +1090,7 @@ pub enum Designator {
 /// `[from ... to]`
 ///
 /// ([GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Designated-Inits.html#Designated-Inits))
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct RangeDesignator {
     pub from: Node<Expression>,
     pub to: Node<Expression>,
@@ -1100,7 +1101,7 @@ pub struct RangeDesignator {
 /// Static assertion
 ///
 /// (C11 6.7.10)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct StaticAssert {
     pub expression: Node<Expression>,
     pub message: Node<StringLiteral>,
@@ -1111,7 +1112,7 @@ pub struct StaticAssert {
 /// Element of a function body
 ///
 /// (C11 6.8)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Statement {
     Labeled(Id<Node<LabeledStatement>>),
     Compound(Id<Vec<Node<BlockItem>>>),
@@ -1134,7 +1135,7 @@ pub enum Statement {
 /// Labeled statement
 ///
 /// (C11 6.8.1)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct LabeledStatement {
     pub label: Node<Label>,
     pub statement: Node<Statement>,
@@ -1143,7 +1144,7 @@ pub struct LabeledStatement {
 /// If statement
 ///
 /// (C11 6.8.4)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct IfStatement {
     pub condition: Node<Expression>,
     pub then_statement: Node<Statement>,
@@ -1153,7 +1154,7 @@ pub struct IfStatement {
 /// Switch statement
 ///
 /// (C11 6.8.4)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct SwitchStatement {
     pub expression: Node<Expression>,
     pub statement: Node<Statement>,
@@ -1162,7 +1163,7 @@ pub struct SwitchStatement {
 /// While statement
 ///
 /// (C11 6.8.5)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct WhileStatement {
     pub expression: Node<Expression>,
     pub statement: Node<Statement>,
@@ -1171,7 +1172,7 @@ pub struct WhileStatement {
 /// Do statement
 ///
 /// (C11 6.8.5)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct DoWhileStatement {
     pub statement: Node<Statement>,
     pub expression: Node<Expression>,
@@ -1180,7 +1181,7 @@ pub struct DoWhileStatement {
 /// For statement
 ///
 /// (C11 6.8.5)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct ForStatement {
     pub initializer: Node<ForInitializer>,
     pub condition: Option<Node<Expression>>,
@@ -1189,7 +1190,7 @@ pub struct ForStatement {
 }
 
 /// Statement labels for `goto` and `switch`
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Label {
     /// Goto label
     ///
@@ -1216,14 +1217,14 @@ pub enum Label {
 /// `from ... to`
 ///
 /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Case-Ranges.html)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct CaseRange {
     pub low: Node<Expression>,
     pub high: Node<Expression>,
 }
 
 /// First element of a `for` statement
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum ForInitializer {
     /// `for(; …)`
     Empty,
@@ -1238,7 +1239,7 @@ pub enum ForInitializer {
 // From 6.8.2
 
 /// Element of a compound statement
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum BlockItem {
     Declaration(Node<Declaration>),
     StaticAssert(Node<StaticAssert>),
@@ -1250,13 +1251,13 @@ pub enum BlockItem {
 /// Entire C source file after preprocessing
 ///
 /// (C11 6.9)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct TranslationUnit(pub Vec<Node<ExternalDeclaration>>);
 
 /// Top-level elements of a C program
 ///
 /// (C11 6.9)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 // Preserve the upstream AST representation and allocation behavior.
 #[allow(clippy::large_enum_variant)]
 pub enum ExternalDeclaration {
@@ -1268,7 +1269,7 @@ pub enum ExternalDeclaration {
 /// Function definition
 ///
 /// (C11 6.9.1)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct FunctionDefinition {
     /// Return type of the function, possibly mixed with other specifiers
     pub specifiers: Vec<Node<DeclarationSpecifier>>,
@@ -1283,7 +1284,7 @@ pub struct FunctionDefinition {
 // Syntax extensions
 
 /// Extended vendor-specific syntax that does not fit elsewhere
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum Extension {
     /// Attributes
     ///
@@ -1306,7 +1307,7 @@ pub enum Extension {
 /// Attributes
 ///
 /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Attribute-Syntax.html)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct Attribute {
     pub name: Node<String>,
     pub arguments: Vec<Node<Expression>>,
@@ -1345,7 +1346,7 @@ pub struct AvailabilityVersion {
 }
 
 /// Inline assembler
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum AsmStatement {
     /// Basic asm statement with just source code
     ///
@@ -1361,7 +1362,7 @@ pub enum AsmStatement {
 /// Extended statement that has access to C variables
 ///
 /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct GnuExtendedAsmStatement {
     pub qualifier: Option<Node<TypeQualifier>>,
     pub template: Node<StringLiteral>,
@@ -1373,7 +1374,7 @@ pub struct GnuExtendedAsmStatement {
 /// Single input or output operand specifier for GNU extended asm statement
 ///
 /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Extended-Asm.html#Output-Operands)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub struct GnuAsmOperand {
     pub symbolic_name: Option<Node<Identifier>>,
     pub constraints: Node<StringLiteral>,
@@ -1383,7 +1384,7 @@ pub struct GnuAsmOperand {
 /// Type of an expression or type
 ///
 /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Typeof.html)
-#[derive(Debug, PartialEq, Clone)]
+#[derive(Debug, Clone)]
 pub enum TypeOf {
     Expression(Node<Expression>),
     Type(Node<TypeName>),

@@ -60,7 +60,7 @@ fn omitted_operands_keep_the_written_condition_once() {
             };
             let parsed = parse_preprocessed(&config, source.into()).unwrap();
             let mut visitor = Expressions::default();
-            visitor.visit_translation_unit(&parsed.unit, &parsed.arena);
+            parsed.ast().visit(&mut visitor);
             assert_eq!(
                 (visitor.calls, visitor.omitted, visitor.ordinary),
                 (5, 2, 1)

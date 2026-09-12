@@ -29,7 +29,7 @@ fn double_underscore_const_is_a_qualifier_in_declarations_and_types() {
     for config in [Config::with_gcc(), Config::with_clang()] {
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
         let mut qualifiers = ConstQualifiers::default();
-        qualifiers.visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut qualifiers);
         assert_eq!(qualifiers.0, 4);
     }
 }

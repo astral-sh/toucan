@@ -47,7 +47,7 @@ fn empty_attribute_entries_are_ignored_without_changing_written_attributes() {
         ] {
             let parsed = parse_preprocessed(&config, source.to_owned()).unwrap();
             let mut attributes = Attributes::default();
-            attributes.visit_translation_unit(&parsed.unit, &parsed.arena);
+            parsed.ast().visit(&mut attributes);
             let written: Vec<_> = attributes
                 .0
                 .iter()

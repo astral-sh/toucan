@@ -74,15 +74,14 @@ fuzz_target!(|bytes: &[u8]| {
     with_parser_stack(
         || match parse_preprocessed_with_limits(&config, source.into(), limits) {
             Ok(parsed) => {
-                Spans(source).visit_translation_unit(&parsed.unit, &parsed.arena);
+                parsed.ast().visit(&mut Spans(source));
                 let exact = ParseLimits {
                     max_work: parsed.statistics.work,
                     ..limits
                 };
                 let repeated =
                     parse_preprocessed_with_limits(&config, source.into(), exact).unwrap();
-                assert_eq!(parsed.unit, repeated.unit);
-                assert_eq!(parsed.arena, repeated.arena);
+                assert!(parsed.ast().structural_eq(repeated.ast()));
                 assert_eq!(parsed.statistics, repeated.statistics);
             }
             Err(error) => {

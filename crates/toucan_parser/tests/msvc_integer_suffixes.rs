@@ -31,7 +31,7 @@ fn microsoft_integer_suffixes_preserve_width_signedness_and_spans() {
                     };
                     let parsed = parse_preprocessed(&config, source.clone()).unwrap();
                     let mut literals = Literals::default();
-                    literals.visit_translation_unit(&parsed.unit, &parsed.arena);
+                    parsed.ast().visit(&mut literals);
                     let (value, span) = &literals.0[0];
                     assert_eq!(literals.0.len(), 1);
                     assert_eq!(value.suffix.size, IntegerSize::Msvc(width));

@@ -276,8 +276,10 @@ mod tests {
     use lang_c::driver::{Config, parse_preprocessed};
     use toucan_target::Target;
 
-    fn ast(source: &str) -> lang_c::driver::Parse {
-        parse_preprocessed(&Config::with_gcc(), source.to_owned()).unwrap()
+    fn ast(source: &str) -> lang_c::raw::Parse {
+        parse_preprocessed(&Config::with_gcc(), source.to_owned())
+            .unwrap()
+            .into_raw()
     }
 
     #[test]

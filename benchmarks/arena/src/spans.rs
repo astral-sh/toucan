@@ -2,11 +2,12 @@
 use std::io::Write;
 use std::path::Path;
 
+#[cfg(not(feature = "full-arena"))]
+use toucan_parser::driver::Parse;
 #[cfg(feature = "full-arena")]
-use toucan_parser::arena::Arena;
+use toucan_parser::{arena::Arena, raw::Parse};
 use toucan_parser::{
     ast::*,
-    driver::Parse,
     span::Span,
     visit::{self, Visit},
 };

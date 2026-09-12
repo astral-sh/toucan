@@ -486,7 +486,8 @@ mod tests {
             &lang_c::driver::Config::default(),
             "int f(void){return _Alignof(int);}".into(),
         )
-        .unwrap();
+        .unwrap()
+        .into_raw();
         let mut analyzer = Analyzer::from_unit(unit, &parsed.arena);
         analyzer.alignment_queries.active = 1;
         analyzer.alignment_queries.origins = vec![Origin::Object(1); LIMIT];

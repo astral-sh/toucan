@@ -1717,7 +1717,8 @@ mod tests {
             &lang_c::driver::Config::default(),
             "int f(void) { return 1; }".into(),
         )
-        .unwrap();
+        .unwrap()
+        .into_raw();
         let builder = Builder::new(
             &parsed.unit,
             parsed.source.len(),
@@ -1736,7 +1737,8 @@ mod tests {
             &lang_c::driver::Config::default(),
             "int value;".into(),
         )
-        .unwrap();
+        .unwrap()
+        .into_raw();
         let mut builder = Builder::new(
             &parsed.unit,
             parsed.source.len(),
@@ -1784,7 +1786,8 @@ mod tests {
         let (_, code) = retained(source);
         let parsed =
             lang_c::driver::parse_preprocessed(&lang_c::driver::Config::default(), source.into())
-                .unwrap();
+                .unwrap()
+                .into_raw();
         let mut builder =
             Builder::new(&parsed.unit, source.len(), Limits::default(), &parsed.arena).unwrap();
         builder.code = code;

@@ -62,7 +62,7 @@ fn sizeof_and_alignof_consume_compound_literals_and_their_postfix_operators() {
                 );
                 let parsed = parse_preprocessed(&config, source.clone()).unwrap();
                 let mut operands = Operands::default();
-                operands.visit_translation_unit(&parsed.unit, &parsed.arena);
+                parsed.ast().visit(&mut operands);
                 assert_eq!(operands.types, 1, "{source}");
                 assert_eq!(operands.expressions.len(), 1, "{source}");
                 let span = operands.expressions[0];

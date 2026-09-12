@@ -33,7 +33,7 @@ fn microsoft_forceinline_is_an_inline_specifier_only_in_ms_mode() {
     };
     let parsed = parse_preprocessed(&config, source.into()).unwrap();
     let mut specifiers = InlineSpecifiers::default();
-    specifiers.visit_translation_unit(&parsed.unit, &parsed.arena);
+    parsed.ast().visit(&mut specifiers);
     assert_eq!(
         specifiers
             .0
@@ -71,7 +71,7 @@ fn microsoft_widths_preserve_spans_and_resource_limits() {
     };
     let parsed = parse_preprocessed(&config, source.into()).unwrap();
     let mut widths = Widths::default();
-    widths.visit_translation_unit(&parsed.unit, &parsed.arena);
+    parsed.ast().visit(&mut widths);
     assert_eq!(
         widths
             .0
@@ -126,7 +126,7 @@ fn microsoft_pointer_widths_keep_their_spelling_and_work_limits() {
     };
     let parsed = parse_preprocessed(&config, source.into()).unwrap();
     let mut widths = PointerWidths::default();
-    widths.visit_translation_unit(&parsed.unit, &parsed.arena);
+    parsed.ast().visit(&mut widths);
     assert_eq!(
         widths
             .0
@@ -187,7 +187,7 @@ fn calling_keywords_keep_their_written_spelling_and_span() {
     };
     let parsed = parse_preprocessed(&config, source.into()).unwrap();
     let mut conventions = Conventions::default();
-    conventions.visit_translation_unit(&parsed.unit, &parsed.arena);
+    parsed.ast().visit(&mut conventions);
     assert_eq!(
         conventions
             .0
@@ -200,10 +200,8 @@ fn calling_keywords_keep_their_written_spelling_and_span() {
         flavor: Flavor::StdC11,
         ..config
     };
-    assert_eq!(
-        parse_preprocessed(&core, source.into()).unwrap().unit,
-        parsed.unit
-    );
+    let core_parse = parse_preprocessed(&core, source.into()).unwrap();
+    assert!(core_parse.ast().structural_eq(parsed.ast()));
 }
 
 #[derive(Default)]
@@ -236,7 +234,7 @@ fn declspec_attributes_keep_tag_placement_operands_spans_and_limits() {
     };
     let parsed = parse_preprocessed(&config, source.into()).unwrap();
     let mut attributes = Declspecs::default();
-    attributes.visit_translation_unit(&parsed.unit, &parsed.arena);
+    parsed.ast().visit(&mut attributes);
     assert_eq!(
         attributes
             .0

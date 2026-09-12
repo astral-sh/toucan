@@ -5,7 +5,6 @@ extern crate toucan_parser;
 use std::process::exit;
 
 use toucan_parser::driver::{Config, Flavor};
-use toucan_parser::visit::Visit;
 
 fn main() {
     let mut config = Config::default();
@@ -47,7 +46,7 @@ fn main() {
                 let mut buf = String::new();
                 {
                     let mut printer = toucan_parser::print::Printer::new(&mut buf);
-                    printer.visit_translation_unit(&parse.unit, &parse.arena);
+                    parse.ast().visit(&mut printer);
                 }
                 println!("{}", buf);
             }

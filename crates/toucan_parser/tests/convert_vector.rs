@@ -36,7 +36,7 @@ fn destination_is_a_type_name_with_its_original_span() {
             )
             .unwrap();
             let mut visitor = Conversions::default();
-            visitor.visit_translation_unit(&parsed.unit, &parsed.arena);
+            parsed.ast().visit(&mut visitor);
             assert_eq!(visitor.0.len(), 1);
             let span = visitor.0[0];
             assert_eq!(&source[span.start..span.end], spelling);

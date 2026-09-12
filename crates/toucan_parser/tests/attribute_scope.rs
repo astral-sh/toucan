@@ -37,7 +37,7 @@ fn names_shadow_typedefs_after_trailing_attributes() {
         ] {
             let parsed = parse_preprocessed(&config, source.into()).unwrap();
             let mut operands = SizeOfOperands::default();
-            operands.visit_translation_unit(&parsed.unit, &parsed.arena);
+            parsed.ast().visit(&mut operands);
             assert_eq!(operands.0, [true, false], "{}", source);
         }
     }
@@ -51,7 +51,7 @@ fn typedefs_and_inferred_names_keep_their_existing_scope_boundaries() {
     ] {
         let parsed = parse_preprocessed(&Config::with_gcc(), source.into()).unwrap();
         let mut operands = SizeOfOperands::default();
-        operands.visit_translation_unit(&parsed.unit, &parsed.arena);
+        parsed.ast().visit(&mut operands);
         assert_eq!(operands.0, [true], "{}", source);
     }
     assert!(parse_preprocessed(

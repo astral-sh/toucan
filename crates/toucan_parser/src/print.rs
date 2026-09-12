@@ -5,10 +5,9 @@
 //!
 //! ```no_run
 //! # use toucan_parser::print::Printer;
-//! use toucan_parser::visit::Visit;
 //! # let parsed: toucan_parser::driver::Parse = panic!();
 //! let s = &mut String::new();
-//! Printer::new(s).visit_translation_unit(&parsed.unit, &parsed.arena);
+//! parsed.ast().visit(&mut Printer::new(s));
 //! ```
 use std::fmt;
 
@@ -822,7 +821,7 @@ fn print_float_format(p: &mut Printer, n: &FloatFormat) {
     }
 }
 fn print_declarator_kind(p: &mut Printer, n: &DeclaratorKind) {
-    if *n == DeclaratorKind::Abstract {
+    if matches!(n, DeclaratorKind::Abstract) {
         p.w.write_str(" Abstract").unwrap()
     }
 }
@@ -861,12 +860,12 @@ fn print_offset_member(p: &mut Printer, n: &OffsetMember) {
     }
 }
 fn print_label(p: &mut Printer, n: &Label) {
-    if *n == Label::Default {
+    if matches!(n, Label::Default) {
         p.w.write_str(" Default").unwrap()
     }
 }
 fn print_for_initializer(p: &mut Printer, n: &ForInitializer) {
-    if *n == ForInitializer::Empty {
+    if matches!(n, ForInitializer::Empty) {
         p.w.write_str(" Empty").unwrap()
     }
 }

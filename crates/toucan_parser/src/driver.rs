@@ -14,6 +14,7 @@ use limits::{ParseLimits, ParseStatistics, ResourceKind, ResourceLimit, MAX_RULE
 use loc;
 use parser::{expression_with_limits, translation_unit_with_limits, ParseError};
 use span::Node;
+use view::{Ast, AstRef};
 
 /// Parser configuration
 #[derive(Clone, Debug)]
@@ -101,11 +102,11 @@ pub struct Parse {
     /// Pre-processed source text
     pub source: String,
     /// Root of the abstract syntax tree
-    pub unit: TranslationUnit,
+    pub(crate) unit: TranslationUnit,
     /// Resource counters for this parser invocation.
     pub statistics: ParseStatistics,
     /// Storage for the typed IDs reachable from the root.
-    pub arena: Arena,
+    pub(crate) arena: Arena,
 }
 
 /// One complete expression, with spans relative to the supplied source.
@@ -114,11 +115,59 @@ pub struct ExpressionParse {
     /// Preprocessed source text.
     pub source: String,
     /// Root of the expression's abstract syntax tree.
-    pub expression: Node<Expression>,
+    pub(crate) expression: Node<Expression>,
     /// Resource counters for this parser invocation.
     pub statistics: ParseStatistics,
     /// Storage for the typed IDs reachable from the root.
-    pub arena: Arena,
+    pub(crate) arena: Arena,
+}
+
+impl Parse {
+    /// Borrows the syntax tree with child accessors that preserve its owner.
+    pub fn ast(&self) -> AstRef<'_, TranslationUnit> {
+        AstRef::new(&self.unit, &self.arena)
+    }
+
+    /// Keeps the syntax and its storage, releasing the source text and counters.
+    pub fn into_ast(self) -> Ast<TranslationUnit> {
+        Ast::new(self.unit, self.arena)
+    }
+
+    /// Transfers the tree to the low-level compiler API.
+    ///
+    /// The caller must keep raw IDs associated with the accompanying arena.
+    pub fn into_raw(self) -> ::raw::Parse {
+        ::raw::Parse {
+            source: self.source,
+            unit: self.unit,
+            statistics: self.statistics,
+            arena: self.arena,
+        }
+    }
+}
+
+impl ExpressionParse {
+    /// Borrows the expression with child accessors that preserve its owner.
+    pub fn ast(&self) -> AstRef<'_, Node<Expression>> {
+        AstRef::new(&self.expression, &self.arena)
+    }
+
+    /// Keeps the expression and its storage, releasing the source and counters.
+    pub fn into_ast(self) -> Ast<Node<Expression>> {
+        Ast::new(self.expression, self.arena)
+    }
+
+    /// Transfers the expression to the low-level compiler API.
+    ///
+    /// The caller must keep raw IDs associated with the accompanying arena.
+    pub fn into_raw(self) -> ::raw::ExpressionParse {
+        ::raw::ExpressionParse {
+            source: self.source,
+            expression: self.expression,
+            statistics: self.statistics,
+            arena: self.arena,
+        }
+    }
 }
 
 #[derive(Debug)]
