@@ -1,8 +1,7 @@
 //! C allocation builtins and the library symbols used by their GNU addresses.
 
-use std::collections::HashMap;
-
 use lang_c::{ast, span::Node};
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 use toucan_target::{Compiler, Target};
 
@@ -47,7 +46,7 @@ impl Default for Evaluation {
 #[derive(Default)]
 pub(crate) struct Symbols {
     file: [Option<String>; 5],
-    scopes: HashMap<usize, [Option<String>; 5]>,
+    scopes: FxHashMap<usize, [Option<String>; 5]>,
     bytes: usize,
 }
 

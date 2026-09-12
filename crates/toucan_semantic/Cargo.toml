@@ -8,6 +8,7 @@ repository.workspace = true
 description = "C types, expression checking, and constant evaluation for Toucan"
 
 [dependencies]
+rustc-hash.workspace = true
 rustc_apfloat.workspace = true
 lang-c.workspace = true
 serde.workspace = true

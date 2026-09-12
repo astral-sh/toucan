@@ -1,4 +1,4 @@
-use std::collections::{HashMap, HashSet};
+use rustc_hash::{FxHashMap, FxHashSet};
 
 use ast::*;
 use driver::Standard;
@@ -12,7 +12,7 @@ pub enum Symbol {
 }
 
 pub struct Env {
-    pub symbols: Vec<HashMap<String, Symbol>>,
+    pub symbols: Vec<FxHashMap<String, Symbol>>,
     pub extensions_gnu: bool,
     pub gnu_keywords: bool,
     pub standard: Standard,
@@ -22,16 +22,16 @@ pub struct Env {
     pub gnu_float128_typedef: bool,
     /// GCC admits UTF-prefixed literals in GNU99 as a language extension.
     pub gnu_unicode_literals: bool,
-    pub reserved: HashSet<&'static str>,
+    pub reserved: FxHashSet<&'static str>,
     // Parameter scopes are normally discarded at the end of their declarators.
     // A definition temporarily saves them until its declarator identifies which
     // parameter list belongs to the body (rather than a callback or return type).
-    definition_scopes: Option<Vec<(usize, HashMap<String, Symbol>)>>,
+    definition_scopes: Option<Vec<(usize, FxHashMap<String, Symbol>)>>,
 }
 
 impl Env {
     pub fn with_core() -> Env {
-        let mut reserved = HashSet::default();
+        let mut reserved = FxHashSet::default();
         reserved.extend(strings::RESERVED_C11.iter());
         Env {
             definition_scopes: None,
@@ -43,7 +43,7 @@ impl Env {
             clang_calling_conventions: false,
             gnu_float128_typedef: false,
             gnu_unicode_literals: false,
-            symbols: vec![HashMap::default()],
+            symbols: vec![FxHashMap::default()],
             reserved,
         }
     }
@@ -175,7 +175,7 @@ impl Env {
     }
 
     pub fn enter_scope(&mut self) {
-        self.symbols.push(HashMap::new());
+        self.symbols.push(FxHashMap::default());
     }
 
     pub fn leave_scope(&mut self) {

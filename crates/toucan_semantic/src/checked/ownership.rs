@@ -1,8 +1,7 @@
 //! Written type operands have execution sites independent of reusable type shapes.
 
-use std::collections::HashMap;
-
 use lang_c::{ast, span::Node};
+use rustc_hash::FxHashMap;
 use serde::Serialize;
 
 use super::bounds::{TypeStep, TypeUseId, type_name_key};
@@ -55,9 +54,9 @@ pub struct TypeOperand {
 #[derive(Default)]
 pub(super) struct OwnershipBuilder {
     pub(super) catalog_owner: Option<OccurrenceId>,
-    type_names: HashMap<(usize, usize), OccurrenceId>,
-    operands: HashMap<OccurrenceId, TypeOperandId>,
-    starts: HashMap<OccurrenceId, usize>,
+    type_names: FxHashMap<(usize, usize), OccurrenceId>,
+    operands: FxHashMap<OccurrenceId, TypeOperandId>,
+    starts: FxHashMap<OccurrenceId, usize>,
 }
 
 impl Builder {

@@ -1,6 +1,5 @@
-use std::collections::HashSet;
-
 use lang_c::{ast, span::Node};
+use rustc_hash::FxHashSet;
 
 use crate::analyze::Analyzer;
 use crate::integer::{common, integer_to_type, promote};
@@ -1703,7 +1702,7 @@ impl Analyzer {
     }
 
     pub(crate) fn contains_const(&self, ty: &Type, depth: usize) -> Result<bool, Error> {
-        self.contains_const_inner(ty, depth, &mut HashSet::new())
+        self.contains_const_inner(ty, depth, &mut FxHashSet::default())
     }
 
     // A record may occur in many fields of an aggregate DAG. Its unqualified
@@ -1713,7 +1712,7 @@ impl Analyzer {
         &self,
         ty: &Type,
         depth: usize,
-        visited: &mut HashSet<usize>,
+        visited: &mut FxHashSet<usize>,
     ) -> Result<bool, Error> {
         if depth >= 128 {
             return Err(Error::new(

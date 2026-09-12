@@ -2,6 +2,7 @@
 
 use std::num::NonZeroU32;
 
+use rustc_hash::FxHashMap;
 use serde::{Serialize, Serializer, ser::SerializeMap};
 
 /// An owner-local index into [`crate::TranslationUnit::alignment_origins`].
@@ -113,7 +114,7 @@ pub struct AlignmentOrigin {
 }
 
 use crate::{Error, TranslationUnit, Type, TypeKind, analyze::Analyzer};
-use std::collections::{BTreeSet, HashMap};
+use std::collections::BTreeSet;
 
 const MAX_ORIGINS: usize = 65_536;
 
@@ -121,8 +122,8 @@ const MAX_ORIGINS: usize = 65_536;
 #[derive(Default)]
 pub(crate) struct Registry {
     pub(crate) candidates: BTreeSet<String>,
-    sources: HashMap<(usize, u8), AlignmentOriginId>,
-    common: HashMap<AlignmentOrigin, AlignmentOriginId>,
+    sources: FxHashMap<(usize, u8), AlignmentOriginId>,
+    common: FxHashMap<AlignmentOrigin, AlignmentOriginId>,
 }
 
 impl TranslationUnit {

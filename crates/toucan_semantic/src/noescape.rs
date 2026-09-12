@@ -1,12 +1,13 @@
 //! Clang parameter promises, separate from C compatibility and proven escape behavior.
 
-use std::collections::HashMap;
 use std::num::NonZeroU32;
+
+use lang_c::span::Span;
+use rustc_hash::FxHashMap;
+use serde::{Serialize, Serializer};
 
 use crate::analyze::Analyzer;
 use crate::{CallingConvention, Error, TranslationUnit, Type, TypeKind};
-use lang_c::span::Span;
-use serde::{Serialize, Serializer};
 
 /// Index into one translation unit's sparse parameter-contract arena.
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -45,7 +46,7 @@ const MAX_SETS: usize = 65_536;
 const MAX_POSITIONS: usize = 1_048_576;
 
 pub(crate) struct ContractIndex {
-    sets: HashMap<Vec<u32>, ParameterContractsId>,
+    sets: FxHashMap<Vec<u32>, ParameterContractsId>,
     positions: usize,
 }
 

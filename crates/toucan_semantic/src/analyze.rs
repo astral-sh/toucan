@@ -1,6 +1,7 @@
-use std::collections::{BTreeMap, HashMap, HashSet};
+use std::collections::BTreeMap;
 
 use lang_c::{ast, driver, span::Node};
+use rustc_hash::{FxHashMap, FxHashSet};
 use toucan_target::{Compiler, CompilerProfile, Target};
 
 use crate::checked::{
@@ -718,24 +719,24 @@ pub(crate) struct LexicalScope {
     /// GNU attribute consistency follows each binding scope, including attributes
     /// inherited by its first declaration. Most scopes need no inline state.
     #[allow(clippy::box_collection)]
-    pub(crate) gnu_inline: Option<Box<HashMap<String, crate::inline::GnuDeclaration>>>,
+    pub(crate) gnu_inline: Option<Box<FxHashMap<String, crate::inline::GnuDeclaration>>>,
     // Most scopes have no alignment annotations; keep their inline state one pointer.
     #[allow(clippy::box_collection)]
-    pub(crate) alignments: Option<Box<HashMap<String, crate::DeclarationAlignment>>>,
+    pub(crate) alignments: Option<Box<FxHashMap<String, crate::DeclarationAlignment>>>,
     pub(crate) is_block: bool,
     pub(crate) is_definition_parameters: bool,
     pub(crate) variably_modified: Option<usize>,
     pub(crate) record_ids: Vec<usize>,
     pub(crate) enum_ids: Vec<usize>,
-    pub(crate) typedefs: HashMap<String, Type>,
-    pub(crate) static_storage: HashSet<String>,
-    pub(crate) flexible_array_storage: HashMap<String, crate::FlexibleArrayStorage>,
-    pub(crate) linked: HashSet<String>,
-    pub(crate) register: HashSet<String>,
+    pub(crate) typedefs: FxHashMap<String, Type>,
+    pub(crate) static_storage: FxHashSet<String>,
+    pub(crate) flexible_array_storage: FxHashMap<String, crate::FlexibleArrayStorage>,
+    pub(crate) linked: FxHashSet<String>,
+    pub(crate) register: FxHashSet<String>,
     pub(crate) tags: Vec<(String, Option<TagBinding>)>,
     pub(crate) constants: Vec<(String, Option<IntegerValue>)>,
     /// A parameter index, or None for an enumerator in the ordinary namespace.
-    pub(crate) names: HashMap<String, Option<usize>>,
+    pub(crate) names: FxHashMap<String, Option<usize>>,
     pub(crate) parameters: Vec<Parameter>,
 }
 
@@ -862,27 +863,27 @@ pub(crate) struct Analyzer {
     pub(crate) late_target_names: std::collections::BTreeSet<String>,
     pub(crate) array_identities: crate::array_identity::Registry,
     // Completed query checks prevent nested constant folding from replaying operand typing.
-    pub(crate) checked_overflow_predicates: HashMap<(usize, usize), (u8, bool)>,
-    pub(crate) checked_atomic_queries: HashSet<(usize, usize)>,
+    pub(crate) checked_overflow_predicates: FxHashMap<(usize, usize), (u8, bool)>,
+    pub(crate) checked_atomic_queries: FxHashSet<(usize, usize)>,
     pub(crate) transparent_variant_bytes: usize,
     pub(crate) has_variadic_packs: bool,
-    pub(crate) generic_selections: HashMap<(usize, usize), usize>,
+    pub(crate) generic_selections: FxHashMap<(usize, usize), usize>,
     pub(crate) pending_auto_types: Vec<(String, usize)>,
-    pub(crate) choose_selections: HashMap<(usize, usize), bool>,
-    pub(crate) type_compatibility_results: HashMap<(usize, usize), bool>,
+    pub(crate) choose_selections: FxHashMap<(usize, usize), bool>,
+    pub(crate) type_compatibility_results: FxHashMap<(usize, usize), bool>,
     pub(crate) weak_symbols: BTreeMap<String, lang_c::span::Span>,
     pub(crate) function_effects: BTreeMap<String, crate::returns_twice::FunctionEffects>,
-    pub(crate) diagnostic_kinds: HashMap<String, u8>,
+    pub(crate) diagnostic_kinds: FxHashMap<String, u8>,
     pub(crate) checked: Option<Box<CodeBuilder>>,
     declaration_origins: Option<Box<crate::declaration_origins::Builder>>,
     pub(crate) parameter_type_dependencies: Option<Box<crate::parameter_dependencies::Builder>>,
     documentation_origins: Option<Box<crate::documentation_origins::Builder>>,
     pub(crate) unit: TranslationUnit,
-    pub(crate) tags: HashMap<String, TagBinding>,
+    pub(crate) tags: FxHashMap<String, TagBinding>,
     pub(crate) lexical_scopes: Vec<LexicalScope>,
     pub(crate) lexical_record: Option<usize>,
     pub(crate) needs_tag_discovery: bool,
-    defining_enums: HashSet<usize>,
+    defining_enums: FxHashSet<usize>,
     tentative_definitions: BTreeMap<usize, usize>,
     packs: PackEvents,
     nesting: usize,
@@ -893,9 +894,9 @@ pub(crate) struct Analyzer {
     pub(crate) current_function: Option<crate::statement::FunctionContext>,
     pub(crate) sve_feature_uses: Vec<crate::target_features::FeatureUse>,
     pub(crate) sve_feature_labels: usize,
-    pub(crate) block_externs: HashMap<String, BlockExtern>,
+    pub(crate) block_externs: FxHashMap<String, BlockExtern>,
     pub(crate) alignment_queries: crate::alignof::AlignmentQueries,
-    type_names: HashMap<(usize, usize), Type>,
+    type_names: FxHashMap<(usize, usize), Type>,
 }
 
 impl Analyzer {
@@ -975,7 +976,7 @@ impl Analyzer {
             function_options: Self::inherited_function_options(&unit),
             late_target_names: std::collections::BTreeSet::new(),
             array_identities: crate::array_identity::Registry::default(),
-            diagnostic_kinds: HashMap::new(),
+            diagnostic_kinds: FxHashMap::default(),
             checked: None,
             declaration_origins: None,
             parameter_type_dependencies: None,
@@ -985,7 +986,7 @@ impl Analyzer {
             lexical_scopes: Vec::new(),
             lexical_record: None,
             needs_tag_discovery: false,
-            defining_enums: HashSet::new(),
+            defining_enums: FxHashSet::default(),
             tentative_definitions: BTreeMap::new(),
             packs: Vec::new(),
             nesting: 0,
@@ -996,19 +997,19 @@ impl Analyzer {
             current_function: None,
             sve_feature_uses: Vec::new(),
             sve_feature_labels: 0,
-            block_externs: HashMap::new(),
+            block_externs: FxHashMap::default(),
             weak_symbols: BTreeMap::new(),
             function_effects: BTreeMap::new(),
             transparent_variant_bytes: 0,
             has_variadic_packs: false,
-            generic_selections: HashMap::new(),
-            choose_selections: HashMap::new(),
+            generic_selections: FxHashMap::default(),
+            choose_selections: FxHashMap::default(),
             pending_auto_types: Vec::new(),
-            type_compatibility_results: HashMap::new(),
-            checked_atomic_queries: HashSet::new(),
-            checked_overflow_predicates: HashMap::new(),
+            type_compatibility_results: FxHashMap::default(),
+            checked_atomic_queries: FxHashSet::default(),
+            checked_overflow_predicates: FxHashMap::default(),
             alignment_queries: crate::alignof::AlignmentQueries::default(),
-            type_names: HashMap::new(),
+            type_names: FxHashMap::default(),
         }
     }
 
@@ -4589,7 +4590,7 @@ impl Analyzer {
                 }
             }
         }
-        let mut member_names = HashSet::new();
+        let mut member_names = FxHashSet::default();
         let mut has_named_member = false;
         let mut remaining_member_work = 1_000_000;
         for (index, field) in fields.iter().enumerate() {
@@ -4642,7 +4643,7 @@ impl Analyzer {
     fn check_member_names<'a>(
         &'a self,
         fields: &'a [Field],
-        names: &mut HashSet<&'a str>,
+        names: &mut FxHashSet<&'a str>,
         offset: usize,
         depth: usize,
         remaining: &mut usize,
