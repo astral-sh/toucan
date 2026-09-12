@@ -1,6 +1,7 @@
 #![no_main]
 
 use libfuzzer_sys::fuzz_target;
+use toucan_parser::arena::Arena;
 use toucan_parser::ast::*;
 use toucan_parser::driver::{
     Config, Flavor, Standard, parse_preprocessed_with_limits, with_parser_stack,
@@ -23,9 +24,9 @@ impl Spans<'_> {
 macro_rules! visit_spans {
     ($($method:ident: $ty:ty),* $(,)?) => {
         impl<'ast> Visit<'ast> for Spans<'_> {
-            $(fn $method(&mut self, value: &'ast $ty, span: &'ast Span) {
+            $(fn $method(&mut self, value: &'ast $ty, span: &'ast Span, arena: &'ast Arena) {
                 self.check(span);
-                visit::$method(self, value, span);
+                visit::$method(self, value, span, arena);
             })*
         }
     };
@@ -73,7 +74,7 @@ fuzz_target!(|bytes: &[u8]| {
     with_parser_stack(
         || match parse_preprocessed_with_limits(&config, source.into(), limits) {
             Ok(parsed) => {
-                Spans(source).visit_translation_unit(&parsed.unit);
+                Spans(source).visit_translation_unit(&parsed.unit, &parsed.arena);
                 let exact = ParseLimits {
                     max_work: parsed.statistics.work,
                     ..limits
@@ -81,6 +82,7 @@ fuzz_target!(|bytes: &[u8]| {
                 let repeated =
                     parse_preprocessed_with_limits(&config, source.into(), exact).unwrap();
                 assert_eq!(parsed.unit, repeated.unit);
+                assert_eq!(parsed.arena, repeated.arena);
                 assert_eq!(parsed.statistics, repeated.statistics);
             }
             Err(error) => {
