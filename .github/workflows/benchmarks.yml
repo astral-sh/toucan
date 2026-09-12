@@ -63,10 +63,18 @@ jobs:
         run: cargo install cargo-codspeed --version 5.0.1 --locked
 
       - name: Build benchmarks
-        run: cargo codspeed build -m simulation -m memory --features codspeed --profile profiling -p toucan_benchmark --bench bindings --locked
+        run: cargo codspeed build -m simulation -m memory --features codspeed --profile profiling -p toucan_benchmark --bench bindings --bench parser --locked
 
       - name: Run benchmarks
         uses: CodSpeedHQ/action@4296e51e7041e24dadb86d1d6e8b9320d223dbe8 # v5.0.3
         with:
           mode: simulation,memory
           run: cargo codspeed run
+
+      - name: Save preprocessed parser inputs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: parser-inputs
+          path: benchmark-results/parser-inputs
+          if-no-files-found: ignore

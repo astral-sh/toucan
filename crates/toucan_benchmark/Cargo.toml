@@ -17,13 +17,19 @@ codspeed = ["dep:codspeed-criterion-compat"]
 [dependencies]
 codspeed-criterion-compat = { workspace = true, optional = true }
 criterion.workspace = true
+lang_c_reference = { package = "lang-c", version = "=0.15.1" }
 regex = "1.13.1"
 serde.workspace = true
 serde_json.workspace = true
 toucan_bindgen = { path = "../toucan_bindgen" }
+toucan_parser = { path = "../toucan_parser" }
 
 [[bench]]
 name = "bindings"
+harness = false
+
+[[bench]]
+name = "parser"
 harness = false
 
 [lints]
