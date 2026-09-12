@@ -330,7 +330,7 @@ impl Builder {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn retained_initializer_expression(
         &mut self,
         id: InitializerId,

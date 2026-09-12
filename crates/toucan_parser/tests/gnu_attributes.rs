@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::Extension;
 use toucan_parser::driver::{parse_preprocessed, Config};
 use toucan_parser::span::Span;
@@ -9,11 +11,16 @@ use toucan_parser::visit::{self, Visit};
 struct Attributes(Vec<Span>);
 
 impl<'ast> Visit<'ast> for Attributes {
-    fn visit_extension(&mut self, extension: &'ast Extension, span: &'ast Span) {
+    fn visit_extension(
+        &mut self,
+        extension: &'ast Extension,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         if let Extension::Attribute(_) = extension {
             self.0.push(*span);
         }
-        visit::visit_extension(self, extension, span);
+        visit::visit_extension(self, extension, span, arena);
     }
 }
 
@@ -40,7 +47,7 @@ fn empty_attribute_entries_are_ignored_without_changing_written_attributes() {
         ] {
             let parsed = parse_preprocessed(&config, source.to_owned()).unwrap();
             let mut attributes = Attributes::default();
-            attributes.visit_translation_unit(&parsed.unit);
+            attributes.visit_translation_unit(&parsed.unit, &parsed.arena);
             let written: Vec<_> = attributes
                 .0
                 .iter()

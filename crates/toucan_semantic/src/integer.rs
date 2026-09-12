@@ -2,7 +2,7 @@ use lang_c::{ast, span::Node};
 
 use crate::{Error, IntegerKind, IntegerValue, Type, TypeKind, analyze::Analyzer};
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Distinguishes integer constant expressions from runtime bounds, including
     /// expressions that a compiler could fold but which are not C11 ICEs.
     pub(crate) fn is_integer_constant_expression(
@@ -36,12 +36,15 @@ impl Analyzer {
         }
         Ok(match &expression.node {
             ast::Expression::Constant(constant) => {
+                let constant = constant.get(self.arena);
                 !matches!(constant.node, ast::Constant::Float(_))
             }
             ast::Expression::Identifier(identifier) => {
+                let identifier = identifier.get(self.arena);
                 self.unit.constants.contains_key(&identifier.node.name)
             }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 let integer = matches!(
                     self.unit.resolve(&ty)?.kind,
@@ -51,10 +54,11 @@ impl Analyzer {
                     && (self
                         .null_base_member_offset(&cast.node.expression)?
                         .is_some()
-                        || matches!(&cast.node.expression.node, ast::Expression::Constant(constant) if matches!(&constant.node, ast::Constant::Float(literal) if !literal.suffix.imaginary))
+                        || matches!(&cast.node.expression.node, ast::Expression::Constant(constant) if matches!(&constant.get(self.arena).node, ast::Constant::Float(literal) if !literal.suffix.imaginary))
                         || self.is_integer_constant_expression(&cast.node.expression, depth + 1)?)
             }
             ast::Expression::UnaryOperator(unary) => {
+                let unary = unary.get(self.arena);
                 matches!(
                     unary.node.operator.node,
                     ast::UnaryOperator::Plus
@@ -66,6 +70,7 @@ impl Analyzer {
                 ) && self.is_integer_constant_expression(&unary.node.operand, depth + 1)?
             }
             ast::Expression::BinaryOperator(binary) => {
+                let binary = binary.get(self.arena);
                 use ast::BinaryOperator as Op;
                 matches!(
                     binary.node.operator.node,
@@ -91,6 +96,7 @@ impl Analyzer {
                     && self.is_integer_constant_expression(&binary.node.rhs, depth + 1)?
             }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 self.is_integer_constant_expression(&conditional.node.condition, depth + 1)?
                     && match &conditional.node.then_expression {
                         Some(value) => self.is_integer_constant_expression(value, depth + 1)?,
@@ -102,10 +108,12 @@ impl Analyzer {
                     )?
             }
             ast::Expression::SizeOfTy(size) => {
+                let size = size.get(self.arena);
                 let ty = self.sizeof_type_name(&size.node.0.node)?;
                 !self.unit.is_variable_length_array(&ty)?
             }
             ast::Expression::SizeOfVal(size) => {
+                let size = size.get(self.arena);
                 let checkpoint = self.sve_feature_checkpoint();
                 let allocation_context = self.allocation_context(false);
                 let ty = self.expression_type(&size.node.0);
@@ -120,6 +128,7 @@ impl Analyzer {
             }
             ast::Expression::AlignOf(_) => true,
             ast::Expression::OffsetOf(offset) => {
+                let offset = offset.get(self.arena);
                 for member in &offset.node.designator.node.members {
                     if let ast::OffsetMember::Index(index) = &member.node
                         && !self.is_integer_constant_expression(index, depth + 1)?
@@ -130,32 +139,37 @@ impl Analyzer {
                 true
             }
             ast::Expression::TypesCompatible(query) => {
+                let query = query.get(self.arena);
                 self.eval_types_compatible(query)?;
                 true
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 self.is_integer_constant_expression(selected, depth + 1)?
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)?;
                 self.is_integer_constant_expression(selected, depth + 1)?
             }
             ast::Expression::Call(call)
-                if self.builtin_name(call) == Some("__c11_atomic_is_lock_free") =>
+                if self.builtin_name(call.get(self.arena)) == Some("__c11_atomic_is_lock_free") =>
             {
+                let call = call.get(self.arena);
                 self.eval_c11_atomic_lock_free(call).is_ok()
             }
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name(call.get(self.arena))
                     .and_then(crate::atomic::AtomicOperation::from_name)
                     .is_some_and(crate::atomic::AtomicOperation::is_lock_free_query) =>
             {
+                let call = call.get(self.arena);
                 self.eval_atomic_lock_free(call).is_ok()
             }
             ast::Expression::Call(call)
-                if self.builtin_name(call).is_some_and(|name| {
+                if self.builtin_name(call.get(self.arena)).is_some_and(|name| {
                     self.byte_swap_type(name).is_some() || self.bit_count_type(name).is_some()
                 }) =>
             {
@@ -163,26 +177,32 @@ impl Analyzer {
             }
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name(call.get(self.arena))
                     .and_then(crate::overflow::OverflowIntrinsic::from_name)
                     .is_some_and(crate::overflow::OverflowIntrinsic::is_predicate) =>
             {
+                let call = call.get(self.arena);
                 self.eval_overflow_predicate(call).is_ok()
             }
-            ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
+            ast::Expression::Call(call)
+                if self.builtin_name(call.get(self.arena)) == Some("__builtin_expect") =>
+            {
+                let call = call.get(self.arena);
                 self.eval_expect(call).is_ok()
             }
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name(call.get(self.arena))
                     .and_then(|name| self.object_size_signature(name))
                     .is_some() =>
             {
+                let call = call.get(self.arena);
                 self.infer_object_size(call)?.frontend_fold()
             }
             ast::Expression::Call(call)
-                if self.builtin_name(call) == Some("__builtin_constant_p") =>
+                if self.builtin_name(call.get(self.arena)) == Some("__builtin_constant_p") =>
             {
+                let call = call.get(self.arena);
                 self.builtin_call_type(call)?;
                 true
             }
@@ -216,100 +236,121 @@ impl Analyzer {
     fn eval_inner(&mut self, expression: &Node<ast::Expression>) -> Result<IntegerValue, Error> {
         let offset = expression.span.start;
         match &expression.node {
-            ast::Expression::Constant(constant) => match &constant.node {
-                ast::Constant::Integer(integer) => self.literal(integer, offset),
-                ast::Constant::Character(character) => {
-                    crate::decode_character_literal_with_profile(
-                        character,
-                        self.unit.profile()?,
+            ast::Expression::Constant(constant) => {
+                let constant = constant.get(self.arena);
+                match &constant.node {
+                    ast::Constant::Integer(integer) => self.literal(integer, offset),
+                    ast::Constant::Character(character) => {
+                        crate::decode_character_literal_with_profile(
+                            character,
+                            self.unit.profile()?,
+                            offset,
+                        )
+                    }
+                    ast::Constant::Float(_) => Err(Error::new(
                         offset,
-                    )
+                        "floating-point expression is not an integer constant expression",
+                    )),
                 }
-                ast::Constant::Float(_) => Err(Error::new(
-                    offset,
-                    "floating-point expression is not an integer constant expression",
-                )),
-            },
-            ast::Expression::Identifier(identifier) => self
-                .unit
-                .constants
-                .get(&identifier.node.name)
-                .copied()
-                .ok_or_else(|| {
-                    Error::new(
-                        offset,
-                        format!("`{}` is not an integer constant", identifier.node.name),
-                    )
-                }),
-            ast::Expression::TypesCompatible(query) => self.eval_types_compatible(query),
+            }
+            ast::Expression::Identifier(identifier) => {
+                let identifier = identifier.get(self.arena);
+                self.unit
+                    .constants
+                    .get(&identifier.node.name)
+                    .copied()
+                    .ok_or_else(|| {
+                        Error::new(
+                            offset,
+                            format!("`{}` is not an integer constant", identifier.node.name),
+                        )
+                    })
+            }
+            ast::Expression::TypesCompatible(query) => {
+                let query = query.get(self.arena);
+                self.eval_types_compatible(query)
+            }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 self.eval(selected)
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)?;
                 self.eval(selected)
             }
             ast::Expression::Call(call)
-                if self.builtin_name(call) == Some("__c11_atomic_is_lock_free") =>
+                if self.builtin_name(call.get(self.arena)) == Some("__c11_atomic_is_lock_free") =>
             {
+                let call = call.get(self.arena);
                 self.eval_c11_atomic_lock_free(call)
             }
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name(call.get(self.arena))
                     .and_then(crate::atomic::AtomicOperation::from_name)
                     .is_some_and(crate::atomic::AtomicOperation::is_lock_free_query) =>
             {
+                let call = call.get(self.arena);
                 self.eval_atomic_lock_free(call)
             }
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name(call.get(self.arena))
                     .and_then(crate::overflow::OverflowIntrinsic::from_name)
                     .is_some_and(crate::overflow::OverflowIntrinsic::is_predicate) =>
             {
+                let call = call.get(self.arena);
                 self.eval_overflow_predicate(call)
             }
-            ast::Expression::Call(call) if self.builtin_name(call) == Some("__builtin_expect") => {
+            ast::Expression::Call(call)
+                if self.builtin_name(call.get(self.arena)) == Some("__builtin_expect") =>
+            {
+                let call = call.get(self.arena);
                 self.eval_expect(call)
             }
             ast::Expression::Call(call)
-                if self.builtin_name(call) == Some("__builtin_constant_p") =>
+                if self.builtin_name(call.get(self.arena)) == Some("__builtin_constant_p") =>
             {
+                let call = call.get(self.arena);
                 self.eval_constant_query(call)
             }
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name(call.get(self.arena))
                     .and_then(|name| self.object_size_signature(name))
                     .is_some() =>
             {
+                let call = call.get(self.arena);
                 self.eval_object_size(call)
             }
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name(call.get(self.arena))
                     .and_then(|name| self.byte_swap_type(name))
                     .is_some() =>
             {
+                let call = call.get(self.arena);
                 self.eval_byte_swap(call)
             }
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name(call.get(self.arena))
                     .and_then(|name| self.bit_count_type(name))
                     .is_some() =>
             {
+                let call = call.get(self.arena);
                 self.eval_bit_count(call)
             }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 let destination = self.integer_type(&ty, offset)?;
                 // C11 6.6 permits a floating constant as an immediate operand
                 // of a cast to integer type in an integer constant expression.
                 if let ast::Expression::Constant(constant) = &cast.node.expression.node
-                    && let ast::Constant::Float(literal) = &constant.node
+                    && let ast::Constant::Float(literal) = &constant.get(self.arena).node
                     && !literal.suffix.imaginary
                 {
                     let value = self.floating_literal(literal, offset)?;
@@ -329,6 +370,7 @@ impl Analyzer {
                 })
             }
             ast::Expression::UnaryOperator(unary) => {
+                let unary = unary.get(self.arena);
                 let value = self.eval(&unary.node.operand)?;
                 if unary.node.operator.node == ast::UnaryOperator::Real {
                     return Ok(value);
@@ -365,6 +407,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::BinaryOperator(binary) => {
+                let binary = binary.get(self.arena);
                 let left = self.eval(&binary.node.lhs)?;
                 if matches!(
                     binary.node.operator.node,
@@ -384,6 +427,7 @@ impl Analyzer {
                 self.binary(&binary.node.operator.node, left, right, offset)
             }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 let left_ty = self.expression_type(conditional.node.nonzero_expression())?;
                 let right_ty = self.expression_type(&conditional.node.else_expression)?;
                 let destination = common(
@@ -402,15 +446,21 @@ impl Analyzer {
                 Ok(convert(value, destination))
             }
             ast::Expression::SizeOfTy(size) => {
+                let size = size.get(self.arena);
                 let ty = self.sizeof_type_name(&size.node.0.node)?;
                 self.size_of(&ty, offset)
             }
-            ast::Expression::SizeOfVal(size) => self.sizeof_expression(&size.node.0),
+            ast::Expression::SizeOfVal(size) => {
+                let size = size.get(self.arena);
+                self.sizeof_expression(&size.node.0)
+            }
             ast::Expression::AlignOf(alignment) => {
+                let alignment = alignment.get(self.arena);
                 let bytes = self.alignment_query(alignment)?;
                 Ok(self.size_value(bytes))
             }
             ast::Expression::OffsetOf(expression) => {
+                let expression = expression.get(self.arena);
                 let mut ty = self.type_name(&expression.node.type_name.node)?;
                 let (mut offset_bytes, field_type) = self.field_offset(
                     &ty,
@@ -552,11 +602,11 @@ impl Analyzer {
         let E::UnaryOperator(address) = &address.node else {
             return Ok(None);
         };
-        if address.node.operator.node != ast::UnaryOperator::Address {
+        if address.get(self.arena).node.operator.node != ast::UnaryOperator::Address {
             return Ok(None);
         }
         let mut path = Vec::new();
-        let mut current = address.node.operand.as_ref();
+        let mut current = &address.get(self.arena).node.operand;
         loop {
             if path.len() >= 128 {
                 return Err(Error::new(
@@ -566,15 +616,18 @@ impl Analyzer {
             }
             match &current.node {
                 E::Member(member) => {
+                    let member = member.get(self.arena);
                     path.push(current);
-                    current = member.node.expression.as_ref();
+                    current = &member.node.expression;
                     if member.node.operator.node == Member::Indirect {
                         break;
                     }
                 }
-                E::BinaryOperator(binary) if binary.node.operator.node == Binary::Index => {
+                E::BinaryOperator(binary)
+                    if binary.get(self.arena).node.operator.node == Binary::Index =>
+                {
                     path.push(current);
-                    current = binary.node.lhs.as_ref();
+                    current = &binary.get(self.arena).node.lhs;
                 }
                 _ => return Ok(None),
             }
@@ -582,16 +635,20 @@ impl Analyzer {
         let E::Cast(base) = &current.node else {
             return Ok(None);
         };
-        let E::Constant(zero) = &base.node.expression.node else {
+        let E::Constant(zero) = &base.get(self.arena).node.expression.node else {
             return Ok(None);
         };
-        let ast::Constant::Integer(literal) = &zero.node else {
+        let ast::Constant::Integer(literal) = &zero.get(self.arena).node else {
             return Ok(None);
         };
-        if self.literal(literal, zero.span.start)?.value != 0 {
+        if self
+            .literal(literal, zero.get(self.arena).span.start)?
+            .value
+            != 0
+        {
             return Ok(None);
         }
-        let pointer = self.type_name(&base.node.type_name.node)?;
+        let pointer = self.type_name(&base.get(self.arena).node.type_name.node)?;
         let TypeKind::Pointer(pointee) = &self.unit.resolve(&pointer)?.kind else {
             return Ok(None);
         };
@@ -603,15 +660,23 @@ impl Analyzer {
         for (index, step) in path.into_iter().rev().enumerate() {
             let delta = match &step.node {
                 E::Member(member)
-                    if (index == 0 && member.node.operator.node == Member::Indirect)
-                        || (index > 0 && member.node.operator.node == Member::Direct) =>
+                    if (index == 0
+                        && member.get(self.arena).node.operator.node == Member::Indirect)
+                        || (index > 0
+                            && member.get(self.arena).node.operator.node == Member::Direct) =>
                 {
-                    let (delta, field) =
-                        self.field_offset(&ty, &member.node.identifier.node.name, step.span.start)?;
+                    let (delta, field) = self.field_offset(
+                        &ty,
+                        &member.get(self.arena).node.identifier.node.name,
+                        step.span.start,
+                    )?;
                     ty = field;
                     delta
                 }
-                E::BinaryOperator(binary) if binary.node.operator.node == Binary::Index => {
+                E::BinaryOperator(binary)
+                    if binary.get(self.arena).node.operator.node == Binary::Index =>
+                {
+                    let binary = binary.get(self.arena);
                     let TypeKind::Array { element, .. } = &self.unit.resolve(&ty)?.kind else {
                         return Ok(None);
                     };

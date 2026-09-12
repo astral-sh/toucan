@@ -10,7 +10,7 @@ pub(crate) struct FortifiedSignature {
     pub(crate) variadic: bool,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn fortified_signature(
         &self,
         name: &str,

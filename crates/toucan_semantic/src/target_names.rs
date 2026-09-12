@@ -14,7 +14,7 @@ use crate::{
     analyze::{Analyzer, Syntax},
 };
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Only potentially annotated callees need deferred GNU feature checks in
     /// ordinary functions. Clang instead uses declarations visible at each call.
     pub(crate) fn prepare_late_function_targets(
@@ -26,7 +26,7 @@ impl Analyzer {
             return Ok(());
         }
         let mut collector = Collector::default();
-        ast.visit(&mut collector);
+        ast.visit(&mut collector, self.arena);
         if let Some(error) = collector.error {
             return Err(error);
         }
@@ -60,7 +60,13 @@ impl Collector {
         true
     }
 
-    fn declarator(&mut self, mut declarator: &ast::Declarator, mut target: bool, span: Span) {
+    fn declarator<'a>(
+        &mut self,
+        mut declarator: &'a ast::Declarator,
+        mut target: bool,
+        span: Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         for _ in 0..128 {
             target |= has_target(&declarator.extensions);
             for derived in &declarator.derived {
@@ -73,7 +79,10 @@ impl Collector {
                 }
             }
             match &declarator.kind.node {
-                ast::DeclaratorKind::Declarator(inner) => declarator = &inner.node,
+                ast::DeclaratorKind::Declarator(inner) => {
+                    let inner = inner.get(arena);
+                    declarator = &inner.node
+                }
                 ast::DeclaratorKind::Identifier(identifier) => {
                     let name = &identifier.node.name;
                     if target && !self.names.contains(name) {
@@ -113,48 +122,79 @@ fn specifier_target(specifiers: &[lang_c::span::Node<ast::DeclarationSpecifier>]
 }
 
 impl<'a> Visit<'a> for Collector {
-    fn visit_declaration(&mut self, node: &'a ast::Declaration, span: &'a Span) {
+    fn visit_declaration(
+        &mut self,
+        node: &'a ast::Declaration,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if self.enter(*span) {
             let target = specifier_target(&node.specifiers);
             for declarator in &node.declarators {
-                self.declarator(&declarator.node.declarator.node, target, *span);
+                self.declarator(&declarator.node.declarator.node, target, *span, arena);
             }
-            visit::visit_declaration(self, node, span);
+            visit::visit_declaration(self, node, span, arena);
             self.depth -= 1;
         }
     }
-    fn visit_function_definition(&mut self, node: &'a ast::FunctionDefinition, span: &'a Span) {
+    fn visit_function_definition(
+        &mut self,
+        node: &'a ast::FunctionDefinition,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if self.enter(*span) {
             self.declarator(
                 &node.declarator.node,
                 specifier_target(&node.specifiers),
                 *span,
+                arena,
             );
-            visit::visit_function_definition(self, node, span);
+            visit::visit_function_definition(self, node, span, arena);
             self.depth -= 1;
         }
     }
-    fn visit_expression(&mut self, node: &'a ast::Expression, span: &'a Span) {
+    fn visit_expression(
+        &mut self,
+        node: &'a ast::Expression,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if self.enter(*span) {
-            visit::visit_expression(self, node, span);
+            visit::visit_expression(self, node, span, arena);
             self.depth -= 1;
         }
     }
-    fn visit_statement(&mut self, node: &'a ast::Statement, span: &'a Span) {
+    fn visit_statement(
+        &mut self,
+        node: &'a ast::Statement,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if self.enter(*span) {
-            visit::visit_statement(self, node, span);
+            visit::visit_statement(self, node, span, arena);
             self.depth -= 1;
         }
     }
-    fn visit_type_specifier(&mut self, node: &'a ast::TypeSpecifier, span: &'a Span) {
+    fn visit_type_specifier(
+        &mut self,
+        node: &'a ast::TypeSpecifier,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if self.enter(*span) {
-            visit::visit_type_specifier(self, node, span);
+            visit::visit_type_specifier(self, node, span, arena);
             self.depth -= 1;
         }
     }
-    fn visit_declarator(&mut self, node: &'a ast::Declarator, span: &'a Span) {
+    fn visit_declarator(
+        &mut self,
+        node: &'a ast::Declarator,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if self.enter(*span) {
-            visit::visit_declarator(self, node, span);
+            visit::visit_declarator(self, node, span, arena);
             self.depth -= 1;
         }
     }

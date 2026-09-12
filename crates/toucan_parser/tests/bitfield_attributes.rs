@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::{Extension, StructDeclarator};
 use toucan_parser::driver::{parse_preprocessed, parse_preprocessed_with_limits, Config};
 use toucan_parser::limits::{ParseLimits, ResourceKind};
@@ -13,7 +15,12 @@ fn bitfield_attributes_retain_their_owner_and_source_spans() {
     #[derive(Default)]
     struct Fields(Vec<(bool, Vec<String>)>);
     impl<'ast> Visit<'ast> for Fields {
-        fn visit_struct_declarator(&mut self, field: &'ast StructDeclarator, span: &'ast Span) {
+        fn visit_struct_declarator(
+            &mut self,
+            field: &'ast StructDeclarator,
+            span: &'ast Span,
+            arena: &'ast Arena,
+        ) {
             let extensions = if field.bit_width.is_some() {
                 if let Some(declarator) = &field.declarator {
                     assert!(declarator.node.extensions.is_empty());
@@ -28,21 +35,26 @@ fn bitfield_attributes_retain_their_owner_and_source_spans() {
                 .map(|extension| SOURCE[extension.span.start..extension.span.end].to_owned())
                 .collect();
             self.0.push((field.declarator.is_some(), attributes));
-            visit::visit_struct_declarator(self, field, span);
+            visit::visit_struct_declarator(self, field, span, arena);
         }
 
-        fn visit_extension(&mut self, extension: &'ast Extension, span: &'ast Span) {
+        fn visit_extension(
+            &mut self,
+            extension: &'ast Extension,
+            span: &'ast Span,
+            arena: &'ast Arena,
+        ) {
             if let Extension::Attribute(attribute) = extension {
                 assert!(!attribute.name.node.is_empty());
                 assert!(span.start < span.end);
             }
-            visit::visit_extension(self, extension, span);
+            visit::visit_extension(self, extension, span, arena);
         }
     }
     for config in [Config::with_gcc(), Config::with_clang()] {
         let parsed = parse_preprocessed(&config, SOURCE.into()).unwrap();
         let mut fields = Fields::default();
-        fields.visit_translation_unit(&parsed.unit);
+        fields.visit_translation_unit(&parsed.unit, &parsed.arena);
         assert_eq!(
             fields.0,
             [
@@ -53,7 +65,7 @@ fn bitfield_attributes_retain_their_owner_and_source_spans() {
             ]
         );
         let mut printed = String::new();
-        Printer::new(&mut printed).visit_translation_unit(&parsed.unit);
+        Printer::new(&mut printed).visit_translation_unit(&parsed.unit, &parsed.arena);
         assert_eq!(printed.matches("Attribute").count(), 4);
         assert_eq!(printed.matches("SizeOfTy").count(), 1);
         let error = parse_preprocessed_with_limits(

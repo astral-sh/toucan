@@ -1,4 +1,6 @@
 extern crate toucan_parser;
+
+use toucan_parser::arena::Arena;
 use toucan_parser::ast::ConvertVectorExpression;
 use toucan_parser::driver::{parse_preprocessed, Config, Flavor};
 use toucan_parser::span::Span;
@@ -10,9 +12,10 @@ impl<'ast> Visit<'ast> for Conversions {
         &mut self,
         node: &'ast ConvertVectorExpression,
         span: &'ast Span,
+        arena: &'ast Arena,
     ) {
         self.0.push(node.type_name.span);
-        visit::visit_convert_vector_expression(self, node, span);
+        visit::visit_convert_vector_expression(self, node, span, arena);
     }
 }
 #[test]
@@ -33,7 +36,7 @@ fn destination_is_a_type_name_with_its_original_span() {
             )
             .unwrap();
             let mut visitor = Conversions::default();
-            visitor.visit_translation_unit(&parsed.unit);
+            visitor.visit_translation_unit(&parsed.unit, &parsed.arena);
             assert_eq!(visitor.0.len(), 1);
             let span = visitor.0[0];
             assert_eq!(&source[span.start..span.end], spelling);

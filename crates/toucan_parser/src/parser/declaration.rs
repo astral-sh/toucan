@@ -119,20 +119,24 @@ impl<'s, 'e> Parser<'s, 'e> {
                     let mut declarator = match result {
                         Ok(declarator) => declarator,
                         Err(()) => {
-                            parser.env.finish_function_definition(None);
+                            parser.env.finish_function_definition(None, &parser.arena);
                             return Err(());
                         }
                     };
                     if parser.definition_follows_declarator()? {
                         if is_typedef || is_auto {
-                            parser.env.finish_function_definition(None);
+                            parser.env.finish_function_definition(None, &parser.arena);
                             return parser.fail("function definition");
                         }
-                        parser
-                            .env
-                            .handle_declarator(&declarator, Symbol::Identifier);
+                        parser.env.handle_declarator(
+                            &declarator,
+                            Symbol::Identifier,
+                            &parser.arena,
+                        );
                         let body = parser.scoped(|parser| {
-                            parser.env.finish_function_definition(Some(&declarator));
+                            parser
+                                .env
+                                .finish_function_definition(Some(&declarator), &parser.arena);
                             let extensions = parser.attribute_specifier_list()?;
                             if !extensions.is_empty() {
                                 if !parser.env.extensions_clang {
@@ -158,7 +162,7 @@ impl<'s, 'e> Parser<'s, 'e> {
                         });
                         ExternalDeclaration::FunctionDefinition(body?)
                     } else {
-                        parser.env.finish_function_definition(None);
+                        parser.env.finish_function_definition(None, &parser.arena);
                         let mut declarators = vec![parser.finish_init_declarator(
                             declarator,
                             declarator_start,
@@ -273,9 +277,11 @@ impl<'s, 'e> Parser<'s, 'e> {
             declarator = self.node_span(declarator.node, declarator.span)?;
         }
         if is_typedef {
-            self.env.handle_declarator(&declarator, Symbol::Typename);
+            self.env
+                .handle_declarator(&declarator, Symbol::Typename, &self.arena);
         } else if !is_auto {
-            self.env.handle_declarator(&declarator, Symbol::Identifier);
+            self.env
+                .handle_declarator(&declarator, Symbol::Identifier, &self.arena);
         }
         let initializer = if self.at("=") {
             if is_typedef {
@@ -289,7 +295,8 @@ impl<'s, 'e> Parser<'s, 'e> {
             None
         };
         if is_auto {
-            self.env.handle_declarator(&declarator, Symbol::Identifier);
+            self.env
+                .handle_declarator(&declarator, Symbol::Identifier, &self.arena);
         }
         self.node(
             InitDeclarator {
@@ -494,14 +501,17 @@ impl<'s, 'e> Parser<'s, 'e> {
                     parser.expect("(")?;
                     let ty = parser.type_name()?;
                     parser.expect(")")?;
+                    let ty = parser.alloc(ty)?;
                     return parser.node(TypeSpecifier::Atomic(ty), start);
                 }
                 "struct" | "union" => {
                     let record = parser.struct_specifier()?;
+                    let record = parser.alloc(record)?;
                     return parser.node(TypeSpecifier::Struct(record), start);
                 }
                 "enum" => {
                     let enumeration = parser.enum_specifier()?;
+                    let enumeration = parser.alloc(enumeration)?;
                     return parser.node(TypeSpecifier::Enum(enumeration), start);
                 }
                 name if name == "typeof" && parser.env.gnu_keywords
@@ -517,6 +527,7 @@ impl<'s, 'e> Parser<'s, 'e> {
                     };
                     let operand = parser.node(operand, inner_start)?;
                     parser.expect(")")?;
+                    let operand = parser.alloc(operand)?;
                     return parser.node(TypeSpecifier::TypeOf(operand), start);
                 }
                 name if parser.env.extensions_msvc && msvc_integer_width(name).is_some() => {
@@ -577,9 +588,12 @@ impl<'s, 'e> Parser<'s, 'e> {
         self.expect("_Alignas")?;
         self.expect("(")?;
         let alignment = if self.starts_type_name() {
-            AlignmentSpecifier::Type(self.type_name()?)
+            AlignmentSpecifier::Type({
+                let value = self.type_name()?;
+                self.alloc(value)?
+            })
         } else {
-            AlignmentSpecifier::Constant(Box::new(self.conditional_expression()?))
+            AlignmentSpecifier::Constant(self.conditional_expression()?)
         };
         self.expect(")")?;
         self.node(alignment, start)
@@ -650,7 +664,7 @@ impl<'s, 'e> Parser<'s, 'e> {
                         Some(self.declarator(DeclaratorMode::Named)?)
                     };
                     let bit_width = if self.eat(":")? {
-                        Some(Box::new(self.conditional_expression()?))
+                        Some(self.conditional_expression()?)
                     } else {
                         None
                     };
@@ -709,7 +723,7 @@ impl<'s, 'e> Parser<'s, 'e> {
                 let identifier = self.identifier()?;
                 let extensions = self.attribute_specifier_list()?;
                 let expression = if self.eat("=")? {
-                    Some(Box::new(self.conditional_expression()?))
+                    Some(self.conditional_expression()?)
                 } else {
                     None
                 };
@@ -829,7 +843,10 @@ impl<'s, 'e> Parser<'s, 'e> {
             self.bump()?;
             let declarator = self.declarator(mode)?;
             self.expect(")")?;
-            self.node(DeclaratorKind::Declarator(Box::new(declarator)), kind_start)?
+            {
+                let declarator = self.alloc(declarator)?;
+                self.node(DeclaratorKind::Declarator(declarator), kind_start)
+            }?
         } else if mode != DeclaratorMode::Named {
             self.node_span(DeclaratorKind::Abstract, Span::span(kind_start, kind_start))?
         } else {
@@ -841,7 +858,9 @@ impl<'s, 'e> Parser<'s, 'e> {
                 DerivedDeclarator::Array(self.array_declarator()?)
             } else {
                 self.expect("(")?;
-                self.function_declarator_suffix(find_declarator_name(&kind.node).is_none())?
+                self.function_declarator_suffix(
+                    find_declarator_name(&kind.node, &self.arena).is_none(),
+                )?
             };
             derived.push(self.node(value, derived_start)?);
         }
@@ -888,7 +907,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             self.bump()?;
             ArraySize::VariableUnknown
         } else {
-            let expression = Box::new(self.assignment_expression()?);
+            let expression = self.assignment_expression()?;
             if is_static {
                 ArraySize::StaticExpression(expression)
             } else {
@@ -903,13 +922,16 @@ impl<'s, 'e> Parser<'s, 'e> {
         let start = self.position();
         if self.at(")") {
             let result = if abstract_allowed {
-                DerivedDeclarator::Function(self.node_span(
-                    FunctionDeclarator {
-                        parameters: Vec::new(),
-                        ellipsis: Ellipsis::None,
-                    },
-                    Span::span(start, start),
-                )?)
+                DerivedDeclarator::Function({
+                    let value = self.node_span(
+                        FunctionDeclarator {
+                            parameters: Vec::new(),
+                            ellipsis: Ellipsis::None,
+                        },
+                        Span::span(start, start),
+                    )?;
+                    self.alloc(value)?
+                })
             } else {
                 DerivedDeclarator::KRFunction(Vec::new())
             };
@@ -952,7 +974,7 @@ impl<'s, 'e> Parser<'s, 'e> {
         self.env.leave_function_scope(function.as_ref().ok());
         let function = function?;
         self.expect(")")?;
-        Ok(DerivedDeclarator::Function(function))
+        Ok(DerivedDeclarator::Function(self.alloc(function)?))
     }
 
     fn parameter_declaration(&mut self) -> PResult<Node<ParameterDeclaration>> {
@@ -968,7 +990,8 @@ impl<'s, 'e> Parser<'s, 'e> {
         };
         let extensions = self.attribute_specifier_list()?;
         if let Some(declarator) = &declarator {
-            self.env.handle_declarator(declarator, Symbol::Identifier);
+            self.env
+                .handle_declarator(declarator, Symbol::Identifier, &self.arena);
         }
         self.node(
             ParameterDeclaration {
@@ -984,9 +1007,12 @@ impl<'s, 'e> Parser<'s, 'e> {
         self.nested(|parser| {
             let start = parser.position();
             let initializer = if parser.at("{") {
-                Initializer::List(parser.initializer_list()?)
+                Initializer::List({
+                    let value = parser.initializer_list()?;
+                    parser.alloc(value)?
+                })
             } else {
-                Initializer::Expression(Box::new(parser.assignment_expression()?))
+                Initializer::Expression(parser.assignment_expression()?)
             };
             parser.node(initializer, start)
         })
@@ -1043,7 +1069,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             {
                 return self.fail("=");
             }
-            let initializer = Box::new(self.initializer()?);
+            let initializer = self.initializer()?;
             items.push(self.node(
                 InitializerListItem {
                     designation,
@@ -1064,7 +1090,7 @@ impl<'s, 'e> Parser<'s, 'e> {
         self.extension_prefix()?;
         self.expect("_Static_assert")?;
         self.expect("(")?;
-        let expression = Box::new(self.conditional_expression()?);
+        let expression = self.conditional_expression()?;
         self.expect(",")?;
         let message = self.string_literal()?;
         self.expect(")")?;
@@ -1366,6 +1392,7 @@ fn ts18661_type(name: &str) -> Option<TS18661FloatType> {
 
 #[cfg(test)]
 mod tests {
+    use arena::Arena;
     use ast::{
         DeclarationSpecifier, DeclaratorKind, DerivedDeclarator, Extension, ExternalDeclaration,
         TypeOf, TypeSpecifier,
@@ -1378,11 +1405,17 @@ mod tests {
     struct TypeOfOperands(Vec<bool>);
 
     impl<'ast> Visit<'ast> for TypeOfOperands {
-        fn visit_type_specifier(&mut self, value: &'ast TypeSpecifier, span: &'ast Span) {
+        fn visit_type_specifier(
+            &mut self,
+            value: &'ast TypeSpecifier,
+            span: &'ast Span,
+            arena: &'ast Arena,
+        ) {
             if let TypeSpecifier::TypeOf(operand) = value {
-                self.0.push(matches!(operand.node, TypeOf::Type(_)));
+                self.0
+                    .push(matches!(operand.get(arena).node, TypeOf::Type(_)));
             }
-            visit::visit_type_specifier(self, value, span);
+            visit::visit_type_specifier(self, value, span, arena);
         }
     }
 
@@ -1404,8 +1437,8 @@ mod tests {
                     panic!("expected type specifier");
                 };
                 let extensions = match &specifier.node {
-                    TypeSpecifier::Struct(tag) => &tag.node.extensions,
-                    TypeSpecifier::Enum(tag) => &tag.node.extensions,
+                    TypeSpecifier::Struct(tag) => &tag.get(&parsed.arena).node.extensions,
+                    TypeSpecifier::Enum(tag) => &tag.get(&parsed.arena).node.extensions,
                     _ => panic!("expected tag"),
                 };
                 assert_eq!(extensions.len(), 1);
@@ -1430,11 +1463,16 @@ mod tests {
         struct TypedefNames(Vec<String>);
 
         impl<'ast> Visit<'ast> for TypedefNames {
-            fn visit_type_specifier(&mut self, value: &'ast TypeSpecifier, span: &'ast Span) {
+            fn visit_type_specifier(
+                &mut self,
+                value: &'ast TypeSpecifier,
+                span: &'ast Span,
+                arena: &'ast Arena,
+            ) {
                 if let TypeSpecifier::TypedefName(identifier) = value {
                     self.0.push(identifier.node.name.clone());
                 }
-                visit::visit_type_specifier(self, value, span);
+                visit::visit_type_specifier(self, value, span, arena);
             }
         }
 
@@ -1501,7 +1539,7 @@ mod tests {
                 let parsed = driver::parse_preprocessed(&config, source.clone())
                     .unwrap_or_else(|error| panic!("{}: {}", source, error));
                 let mut typedefs = TypedefNames::default();
-                typedefs.visit_translation_unit(&parsed.unit);
+                typedefs.visit_translation_unit(&parsed.unit, &parsed.arena);
                 assert_eq!(typedefs.0, [name], "{}", source);
             }
         }
@@ -1529,7 +1567,7 @@ mod tests {
         ] {
             let parsed = driver::parse_preprocessed(&Config::with_clang(), source.to_owned()).unwrap();
             let mut operands = TypeOfOperands::default();
-            operands.visit_translation_unit(&parsed.unit);
+            operands.visit_translation_unit(&parsed.unit, &parsed.arena);
             assert_eq!(operands.0, [expected], "{}", source);
         }
     }
@@ -1615,7 +1653,7 @@ mod tests {
             else {
                 panic!("expected function");
             };
-            let parameter = function.node.parameters[0]
+            let parameter = function.get(&parsed.arena).node.parameters[0]
                 .node
                 .declarator
                 .as_ref()
@@ -1625,7 +1663,10 @@ mod tests {
                 panic!("expected function parameter");
             };
             let DeclarationSpecifier::TypeSpecifier(specifier) =
-                &callback.node.parameters[0].node.specifiers[0].node
+                &callback.get(&parsed.arena).node.parameters[0]
+                    .node
+                    .specifiers[0]
+                    .node
             else {
                 panic!("expected typedef specifier");
             };
@@ -1637,7 +1678,7 @@ mod tests {
             let source = "typedef int T; void f(int (*T)) { __typeof__(T) local; }";
             let parsed = driver::parse_preprocessed(&config, source.to_owned()).unwrap();
             let mut operands = TypeOfOperands::default();
-            operands.visit_translation_unit(&parsed.unit);
+            operands.visit_translation_unit(&parsed.unit, &parsed.arena);
             assert_eq!(operands.0, [false]);
         }
     }

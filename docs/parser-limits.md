@@ -14,13 +14,13 @@ Optional rules and lookahead cannot turn resource exhaustion into a successful p
 | Total accounted work | 2,000,000,000 units |
 | Rule/loop steps without advancing the furthest examined byte | 1,000,000 |
 | Active recursive parsing calls, including precedence parsing | 512 |
-| Owned AST depth, including container wrappers | 1,024 |
+| Logical AST depth, including node/container wrappers and arena links | 1,024 |
 | Retained token-buffer capacity | 256 MiB |
-| Live construction-metric entries | 500,000 |
+| Live construction-metric entries plus arena records | 500,000 |
 
 `parse_preprocessed_with_limits` accepts a `ParseLimits` value. Rule-depth limits
 above 512 and AST-depth limits above 1,024 are rejected before starting a worker;
-these ceilings protect recursive stack frames and owned-tree cleanup. The remaining
+these ceilings protect recursive parser and visitor stack frames. The remaining
 limits can be raised or lowered. Each parse has independent counters and lexical
 state. Successful parses and errors expose `ParseStatistics`; parser errors also
 expose the resource kind, limit, observed count, and preprocessed byte offset.
@@ -34,20 +34,25 @@ new furthest byte. Padding a pathological expression with whitespace therefore d
 not increase its backtracking allowance. These are deterministic accounting units
 for a given parser build, not a wall-time deadline or an allocator RSS measurement.
 
-The experimental `parse_expression_arena_with_limits` entry point uses the same
-limits. Arena nodes and cached construction measurements share the metadata-entry
-quota, and arena capacity growth is charged to work before allocation. AST depth
-measures the equivalent owned tree, including retained owned leaves, so explicit
-`into_owned()` conversion preserves the cleanup depth bound. Conversion itself is
-outside parser work accounting and allocates compatibility boxes and temporary
-storage. The arena representation currently covers outer binary, assignment,
-conditional, and comma operators; it does not replace translation-unit parsing.
+Both translation-unit and expression parsing use an owned typed arena. Parse results
+retain the arena alongside their root, and recursive AST links are typed IDs into
+its tables. Arena records and cached construction measurements share the
+metadata-entry quota; table growth is charged to work before allocation. Completed
+external declarations release child measurements, while arena records live until
+the parse result is dropped. Logical depth follows arena links and still limits
+recursive traversal. Destruction and cloning follow the flat storage tables, so
+neither needs a stack proportional to AST nesting.
+
+IDs belong to one arena. Cloning a root copies its IDs; clone the whole `Parse` or
+`ExpressionParse` to obtain an independent owner. Visitors receive the owning arena
+explicitly. Equality of isolated AST nodes compares IDs at recursive boundaries;
+use a traversal for structural comparisons across separately parsed inputs.
 
 C11 minimum nesting is tested explicitly: 63 levels of parenthesized expressions
 and declarators, 127 blocks, 63 record definitions, and 12 derived pointer modifiers.
 Conditional-inclusion depth belongs to the preprocessor. Flat bodies containing more
 than 1,024 control-flow tokens are accepted; nesting is measured from the parser's
-actual recursion and owned AST, rather than a scan that conflates siblings with
+actual recursion and logical AST, rather than a scan that conflates siblings with
 ancestors.
 
 The upstream `driver::parse` convenience entry point invokes an external C
@@ -56,7 +61,7 @@ preprocessor and `parse_preprocessed`; it launches no compiler. External compile
 execution and output collection in that upstream convenience path are outside the
 parser's work accounting.
 
-## Stack and owned trees
+## Stack and AST storage
 
 Parsing runs on a scoped 16 MiB worker stack. Worker-creation errors become resource
 diagnostics. The worker is joined before return, with no idle background thread.
@@ -73,9 +78,9 @@ and macro queries into one session. The limits cover frontend recursion; caller
 feature-query providers and closures must bound their own work and recursion.
 
 Every node constructor and each binary/postfix fold checks the resulting
-owned subtree before it can become another fold's child.
-Private measurements cache recursive ownership boundaries by payload kind and exact
-source span. Repeated identities retain conservative maximum depth and clone size.
+logical subtree before it can become another fold's child.
+Private measurements cache recursive AST boundaries by payload kind and exact
+source span. Repeated identities retain conservative maximum depth and structural byte counts.
 Constructors always refresh their root, including the declaration-extension mutator.
 Completed external declarations release child measurements. An exhaustive structural
 schema names every AST field and variant; the upstream reference tests compare
@@ -94,7 +99,7 @@ Exceptionally expensive valid member graphs return a resource diagnostic.
 
 Tests run hostile unary, postfix, binary, declarator, label/control, conditional,
 and malformed-prefix inputs in separate worker processes. They also clone and drop
-accepted deep ASTs on a 2 MiB caller stack, sweep work failures across backtracking
+accepted deep ASTs on a 2 MiB caller stack and arena owners on a 64 KiB caller stack, sweep work failures across backtracking
 and optional-rule paths, and check concurrent calls, session reuse, and panic
 propagation. Parser limits do not constrain arbitrary user callbacks, downstream
 visitors, or manually constructed ASTs.

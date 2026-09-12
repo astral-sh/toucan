@@ -39,7 +39,7 @@ impl TagLexicalOrigins {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Retain lexical nesting separately from prior standalone declarations.
     pub(crate) fn note_lexical_tag(
         &mut self,
@@ -126,13 +126,17 @@ impl Analyzer {
             };
             match &ty.node {
                 ast::TypeSpecifier::Struct(tag)
-                    if tag.node.identifier.is_none() && tag.node.declarations.is_some() =>
+                    if tag.get(self.arena).node.identifier.is_none()
+                        && tag.get(self.arena).node.declarations.is_some() =>
                 {
+                    let tag = tag.get(self.arena);
                     Some(tag.span.start)
                 }
                 ast::TypeSpecifier::Enum(tag)
-                    if tag.node.identifier.is_none() && !tag.node.enumerators.is_empty() =>
+                    if tag.get(self.arena).node.identifier.is_none()
+                        && !tag.get(self.arena).node.enumerators.is_empty() =>
                 {
+                    let tag = tag.get(self.arena);
                     Some(tag.span.start)
                 }
                 _ => None,

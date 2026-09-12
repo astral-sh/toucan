@@ -41,7 +41,7 @@ impl Context {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     fn with_evaluation<T>(
         &mut self,
         enter: impl FnOnce(&mut Context),

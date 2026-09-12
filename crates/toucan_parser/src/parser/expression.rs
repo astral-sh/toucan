@@ -1,316 +1,37 @@
 use super::{PResult, Parser, TokenKind};
-use arena::{self, ArenaExpression, ExprId};
 use ast::*;
 use astutil::{int_suffix, ts18661_float};
 use driver::Standard;
-use limits::Budget;
 use span::{Node, Span};
 
 // Assignment's left operand must be a unary expression. Keep this syntactic
 // distinction while parsing precedence: parentheses can make even a binary
 // expression a primary expression, whereas a bare cast is not a unary expression.
-struct Operand<T = Node<Expression>> {
-    expression: T,
+struct Operand {
+    expression: Node<Expression>,
     unary: bool,
-}
-
-/// Shares operator parsing while allowing its result to remain owned or indexed.
-trait ExpressionStorage {
-    type Expression;
-
-    fn span(expression: &Self::Expression) -> Span;
-    fn leaf(
-        &mut self,
-        expression: Node<Expression>,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression>;
-    fn binary(
-        &mut self,
-        operator: Node<BinaryOperator>,
-        lhs: Self::Expression,
-        rhs: Self::Expression,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression>;
-    fn conditional(
-        &mut self,
-        condition: Self::Expression,
-        then_expression: Option<Self::Expression>,
-        else_expression: Self::Expression,
-        span: Span,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression>;
-    fn comma(
-        &mut self,
-        expressions: Vec<Self::Expression>,
-        span: Span,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression>;
-}
-
-struct OwnedStorage;
-
-impl ExpressionStorage for OwnedStorage {
-    type Expression = Node<Expression>;
-
-    fn span(expression: &Self::Expression) -> Span {
-        expression.span
-    }
-
-    fn leaf(
-        &mut self,
-        expression: Node<Expression>,
-        _budget: &mut Budget,
-    ) -> PResult<Self::Expression> {
-        Ok(expression)
-    }
-
-    fn binary(
-        &mut self,
-        operator: Node<BinaryOperator>,
-        lhs: Self::Expression,
-        rhs: Self::Expression,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression> {
-        let span = Span::span(lhs.span.start, rhs.span.end);
-        let expression = budget
-            .node(
-                BinaryOperatorExpression {
-                    operator,
-                    lhs: Box::new(lhs),
-                    rhs: Box::new(rhs),
-                },
-                span,
-            )
-            .map_err(|_| ())?;
-        budget
-            .node(Expression::BinaryOperator(Box::new(expression)), span)
-            .map_err(|_| ())
-    }
-
-    fn conditional(
-        &mut self,
-        condition: Self::Expression,
-        then_expression: Option<Self::Expression>,
-        else_expression: Self::Expression,
-        span: Span,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression> {
-        let conditional = budget
-            .node(
-                ConditionalExpression {
-                    condition: Box::new(condition),
-                    then_expression: then_expression.map(Box::new),
-                    else_expression: Box::new(else_expression),
-                },
-                span,
-            )
-            .map_err(|_| ())?;
-        budget
-            .node(Expression::Conditional(Box::new(conditional)), span)
-            .map_err(|_| ())
-    }
-
-    fn comma(
-        &mut self,
-        expressions: Vec<Self::Expression>,
-        span: Span,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression> {
-        budget
-            .node(Expression::Comma(Box::new(expressions)), span)
-            .map_err(|_| ())
-    }
-}
-
-/// Carries projected owned depth without retaining construction metadata per node.
-struct ArenaHandle {
-    id: ExprId,
-    span: Span,
-    owned_depth: usize,
-}
-
-#[derive(Default)]
-struct ArenaStorage {
-    nodes: Vec<Node<arena::Expression>>,
-}
-
-impl ArenaStorage {
-    /// Reserves bounded arena storage before inserting a children-first node.
-    fn push(
-        &mut self,
-        expression: arena::Expression,
-        span: Span,
-        owned_depth: usize,
-        budget: &mut Budget,
-    ) -> PResult<ArenaHandle> {
-        budget.visit(span.start, owned_depth).map_err(|_| ())?;
-        budget.arena_node(span.start).map_err(|_| ())?;
-        if self.nodes.len() == self.nodes.capacity() {
-            let capacity = self
-                .nodes
-                .capacity()
-                .saturating_mul(2)
-                .max(4)
-                .min(budget.limits.max_metadata_entries);
-            let additional = capacity.saturating_sub(self.nodes.capacity());
-            if !budget.work(
-                span.start,
-                additional as u64 * ::std::mem::size_of::<Node<arena::Expression>>() as u64,
-            ) {
-                return Err(());
-            }
-            self.nodes.reserve_exact(additional);
-        }
-        let id = ExprId(self.nodes.len() as u32);
-        self.nodes.push(Node::new(expression, span));
-        Ok(ArenaHandle {
-            id,
-            span,
-            owned_depth,
-        })
-    }
-}
-
-impl ExpressionStorage for ArenaStorage {
-    type Expression = ArenaHandle;
-
-    fn span(expression: &Self::Expression) -> Span {
-        expression.span
-    }
-
-    fn leaf(
-        &mut self,
-        expression: Node<Expression>,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression> {
-        let measurement = budget
-            .node_measurement::<Expression>(expression.span, 1)
-            .map_err(|_| ())?
-            .expect("the owned parser caches every expression root");
-        self.push(
-            arena::Expression::Owned(expression.node),
-            expression.span,
-            measurement.depth,
-            budget,
-        )
-    }
-
-    fn binary(
-        &mut self,
-        operator: Node<BinaryOperator>,
-        lhs: Self::Expression,
-        rhs: Self::Expression,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression> {
-        let span = Span::span(lhs.span.start, rhs.span.end);
-        // Node<Expression>, enum, Box, Node<BinaryOperatorExpression>,
-        // payload, and operand Box precede each owned child Node<Expression>.
-        let depth = lhs.owned_depth.max(rhs.owned_depth).saturating_add(6);
-        self.push(
-            arena::Expression::Binary {
-                operator,
-                lhs: lhs.id,
-                rhs: rhs.id,
-            },
-            span,
-            depth,
-            budget,
-        )
-    }
-
-    fn conditional(
-        &mut self,
-        condition: Self::Expression,
-        then_expression: Option<Self::Expression>,
-        else_expression: Self::Expression,
-        span: Span,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression> {
-        let depth = condition
-            .owned_depth
-            .max(else_expression.owned_depth)
-            .saturating_add(6)
-            .max(
-                then_expression
-                    .as_ref()
-                    .map_or(0, |value| value.owned_depth.saturating_add(7)),
-            );
-        self.push(
-            arena::Expression::Conditional {
-                condition: condition.id,
-                then_expression: then_expression.map(|value| value.id),
-                else_expression: else_expression.id,
-            },
-            span,
-            depth,
-            budget,
-        )
-    }
-
-    fn comma(
-        &mut self,
-        expressions: Vec<Self::Expression>,
-        span: Span,
-        budget: &mut Budget,
-    ) -> PResult<Self::Expression> {
-        let depth = expressions
-            .iter()
-            .map(|value| value.owned_depth)
-            .max()
-            .unwrap_or(0)
-            .saturating_add(4);
-        if !budget.work(
-            span.start,
-            expressions.len() as u64 * ::std::mem::size_of::<ExprId>() as u64,
-        ) {
-            return Err(());
-        }
-        self.push(
-            arena::Expression::Comma(expressions.into_iter().map(|value| value.id).collect()),
-            span,
-            depth,
-            budget,
-        )
-    }
 }
 
 impl Parser<'_, '_> {
     pub(super) fn expression(&mut self) -> PResult<Node<Expression>> {
-        self.expression_in(&mut OwnedStorage)
-    }
-
-    /// Builds native outer operators directly into indexed storage.
-    pub(super) fn expression_arena(&mut self) -> PResult<ArenaExpression> {
-        let mut storage = ArenaStorage::default();
-        let root = self.expression_in(&mut storage)?;
-        Ok(ArenaExpression::new(storage.nodes, root.id))
-    }
-
-    fn expression_in<S: ExpressionStorage>(&mut self, storage: &mut S) -> PResult<S::Expression> {
         let start = self.position();
-        let first = self.assignment_expression_in(storage)?;
+        let first = self.assignment_expression()?;
         if !self.eat(",")? {
             return Ok(first);
         }
         let mut expressions = vec![first];
         loop {
-            expressions.push(self.assignment_expression_in(storage)?);
+            expressions.push(self.assignment_expression()?);
             if !self.eat(",")? {
                 break;
             }
         }
-        storage.comma(expressions, Span::span(start, self.end()), &mut self.budget)
+        let expressions = self.alloc(expressions)?;
+        self.node(Expression::Comma(expressions), start)
     }
 
     pub(super) fn assignment_expression(&mut self) -> PResult<Node<Expression>> {
-        self.assignment_expression_in(&mut OwnedStorage)
-    }
-
-    fn assignment_expression_in<S: ExpressionStorage>(
-        &mut self,
-        storage: &mut S,
-    ) -> PResult<S::Expression> {
-        let left = self.conditional_operand_in(storage)?;
+        let left = self.conditional_operand()?;
         let operator = match self.text() {
             "=" => BinaryOperator::Assign,
             "*=" => BinaryOperator::AssignMultiply,
@@ -330,76 +51,71 @@ impl Parser<'_, '_> {
         }
         let token = self.bump()?;
         let operator = self.node_span(operator, token.span)?;
-        let right = self.nested(|parser| parser.assignment_expression_in(storage))?;
-        storage.binary(operator, left.expression, right, &mut self.budget)
+        let right = self.nested(|parser| parser.assignment_expression())?;
+        self.binary_node(operator, left.expression, right)
     }
 
     pub(super) fn conditional_expression(&mut self) -> PResult<Node<Expression>> {
-        self.conditional_operand_in(&mut OwnedStorage)
-            .map(|operand| operand.expression)
+        self.conditional_operand().map(|operand| operand.expression)
     }
 
-    fn conditional_operand_in<S: ExpressionStorage>(
-        &mut self,
-        storage: &mut S,
-    ) -> PResult<Operand<S::Expression>> {
-        let condition = self.binary_expression_in(1, storage)?;
+    fn conditional_operand(&mut self) -> PResult<Operand> {
+        let condition = self.binary_expression(1)?;
         if !self.eat("?")? {
             return Ok(condition);
         }
-        let start = S::span(&condition.expression).start;
+        let start = condition.expression.span.start;
         let then_expression = if self.at(":") && self.env.extensions_gnu {
             None
         } else {
-            Some(self.nested(|parser| parser.expression_in(storage))?)
+            Some(self.nested(|parser| parser.expression())?)
         };
         self.expect(":")?;
-        let else_expression = self
-            .nested(|parser| parser.conditional_operand_in(storage))?
-            .expression;
-        Ok(Operand {
-            expression: storage.conditional(
-                condition.expression,
+        let else_expression = self.nested(|parser| parser.conditional_expression())?;
+        let conditional = self.node(
+            ConditionalExpression {
+                condition: condition.expression,
                 then_expression,
                 else_expression,
-                Span::span(start, self.end()),
-                &mut self.budget,
-            )?,
+            },
+            start,
+        )?;
+        let conditional = self.alloc(conditional)?;
+        Ok(Operand {
+            expression: self.node(Expression::Conditional(conditional), start)?,
             unary: false,
         })
     }
 
     /// Parse operators at or above `minimum` precedence. Raising the floor for
     /// each right operand makes equal-precedence operators associate left.
-    fn binary_expression_in<S: ExpressionStorage>(
-        &mut self,
-        minimum: u8,
-        storage: &mut S,
-    ) -> PResult<Operand<S::Expression>> {
-        let operand = self.cast_expression()?;
-        let mut left = Operand {
-            expression: storage.leaf(operand.expression, &mut self.budget)?,
-            unary: operand.unary,
-        };
+    fn binary_expression(&mut self, minimum: u8) -> PResult<Operand> {
+        let mut left = self.cast_expression()?;
         while let Some((precedence, operator)) = binary_operator(self.text()) {
             if precedence < minimum {
                 break;
             }
             let token = self.bump()?;
             let operator = self.node_span(operator, token.span)?;
-            let right =
-                self.nested(|parser| parser.binary_expression_in(precedence + 1, storage))?;
+            let right = self.nested(|parser| parser.binary_expression(precedence + 1))?;
             left = Operand {
-                expression: storage.binary(
-                    operator,
-                    left.expression,
-                    right.expression,
-                    &mut self.budget,
-                )?,
+                expression: self.binary_node(operator, left.expression, right.expression)?,
                 unary: false,
             };
         }
         Ok(left)
+    }
+
+    fn binary_node(
+        &mut self,
+        operator: Node<BinaryOperator>,
+        lhs: Node<Expression>,
+        rhs: Node<Expression>,
+    ) -> PResult<Node<Expression>> {
+        let span = Span::span(lhs.span.start, rhs.span.end);
+        let expression = self.node_span(BinaryOperatorExpression { operator, lhs, rhs }, span)?;
+        let expression = self.alloc(expression)?;
+        self.node_span(Expression::BinaryOperator(expression), span)
     }
 
     /// Use token lookahead to distinguish casts from parenthesized expressions.
@@ -437,7 +153,7 @@ impl Parser<'_, '_> {
                 unary: true,
             });
         }
-        let expression = Box::new(self.nested(|parser| parser.cast_expression())?.expression);
+        let expression = self.nested(|parser| parser.cast_expression())?.expression;
         let cast = self.node(
             CastExpression {
                 type_name,
@@ -445,8 +161,9 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
+        let cast = self.alloc(cast)?;
         Ok(Operand {
-            expression: self.node(Expression::Cast(Box::new(cast)), start)?,
+            expression: self.node(Expression::Cast(cast), start)?,
             unary: false,
         })
     }
@@ -520,14 +237,9 @@ impl Parser<'_, '_> {
                     parser.cast_expression().map(|operand| operand.expression)
                 }
             })?;
-            let expression = self.node(
-                UnaryOperatorExpression {
-                    operator,
-                    operand: Box::new(operand),
-                },
-                start,
-            )?;
-            return self.node(Expression::UnaryOperator(Box::new(expression)), start);
+            let expression = self.node(UnaryOperatorExpression { operator, operand }, start)?;
+            let expression = self.alloc(expression)?;
+            return self.node(Expression::UnaryOperator(expression), start);
         }
         if self.at("__extension__") && self.env.extensions_gnu {
             self.bump()?;
@@ -573,7 +285,8 @@ impl Parser<'_, '_> {
                     let name = self.text().to_owned();
                     self.bump()?;
                     let identifier = self.node(Identifier { name }, start)?;
-                    return self.node(Expression::Identifier(Box::new(identifier)), start);
+                    let identifier = self.alloc(identifier)?;
+                    return self.node(Expression::Identifier(identifier), start);
                 }
                 _ => {}
             }
@@ -586,10 +299,19 @@ impl Parser<'_, '_> {
         let expression = match self.token().kind {
             TokenKind::Number | TokenKind::Character => {
                 let constant = self.constant()?;
-                Expression::Constant(Box::new(self.node(constant, start)?))
+                Expression::Constant({
+                    let value = self.node(constant, start)?;
+                    self.alloc(value)?
+                })
             }
-            TokenKind::String => Expression::StringLiteral(Box::new(self.string_literal()?)),
-            TokenKind::Identifier => Expression::Identifier(Box::new(self.identifier()?)),
+            TokenKind::String => Expression::StringLiteral({
+                let value = self.string_literal()?;
+                self.alloc(value)?
+            }),
+            TokenKind::Identifier => Expression::Identifier({
+                let value = self.identifier()?;
+                self.alloc(value)?
+            }),
             _ => return self.fail("expression"),
         };
         self.node(expression, start)
@@ -610,14 +332,16 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
-        self.node(Expression::CompoundLiteral(Box::new(literal)), start)
+        let literal = self.alloc(literal)?;
+        self.node(Expression::CompoundLiteral(literal), start)
     }
 
     fn parenthesized_primary(&mut self, start: usize) -> PResult<Node<Expression>> {
         if self.at("{") && self.env.extensions_gnu {
             let statement = self.nested(|parser| parser.compound_statement())?;
             self.expect(")")?;
-            return self.node(Expression::Statement(Box::new(statement)), start);
+            let statement = self.alloc(statement)?;
+            return self.node(Expression::Statement(statement), start);
         }
         let expression = self.nested(|parser| parser.expression())?;
         self.expect(")")?;
@@ -639,12 +363,13 @@ impl Parser<'_, '_> {
                 let binary = self.node_span(
                     BinaryOperatorExpression {
                         operator,
-                        lhs: Box::new(expression),
-                        rhs: Box::new(rhs),
+                        lhs: expression,
+                        rhs,
                     },
                     span,
                 )?;
-                expression = self.node_span(Expression::BinaryOperator(Box::new(binary)), span)?;
+                let binary = self.alloc(binary)?;
+                expression = self.node_span(Expression::BinaryOperator(binary), span)?;
             } else if self.eat("(")? {
                 let mut arguments = Vec::new();
                 if !self.at(")") {
@@ -658,12 +383,13 @@ impl Parser<'_, '_> {
                 self.expect(")")?;
                 let call = self.node(
                     CallExpression {
-                        callee: Box::new(expression),
+                        callee: expression,
                         arguments,
                     },
                     start,
                 )?;
-                expression = self.node(Expression::Call(Box::new(call)), start)?;
+                let call = self.alloc(call)?;
+                expression = self.node(Expression::Call(call), start)?;
             } else if self.at(".") || self.at("->") {
                 let operator = if self.at(".") {
                     MemberOperator::Direct
@@ -676,12 +402,13 @@ impl Parser<'_, '_> {
                 let member = self.node(
                     MemberExpression {
                         operator,
-                        expression: Box::new(expression),
+                        expression,
                         identifier,
                     },
                     start,
                 )?;
-                expression = self.node(Expression::Member(Box::new(member)), start)?;
+                let member = self.alloc(member)?;
+                expression = self.node(Expression::Member(member), start)?;
             } else if self.at("++") || self.at("--") {
                 let operator = if self.at("++") {
                     UnaryOperator::PostIncrement
@@ -693,11 +420,12 @@ impl Parser<'_, '_> {
                 let unary = self.node(
                     UnaryOperatorExpression {
                         operator,
-                        operand: Box::new(expression),
+                        operand: expression,
                     },
                     start,
                 )?;
-                expression = self.node(Expression::UnaryOperator(Box::new(unary)), start)?;
+                let unary = self.alloc(unary)?;
+                expression = self.node(Expression::UnaryOperator(unary), start)?;
             } else {
                 return Ok(expression);
             }
@@ -715,20 +443,24 @@ impl Parser<'_, '_> {
                 if self.at("{") {
                     let expression = self.compound_literal(opening, type_name)?;
                     let expression = self.postfix_tail(expression)?;
-                    let value = self.node(SizeOfVal(Box::new(expression)), start)?;
-                    return self.node(Expression::SizeOfVal(Box::new(value)), start);
+                    let value = self.node(SizeOfVal(expression), start)?;
+                    let value = self.alloc(value)?;
+                    return self.node(Expression::SizeOfVal(value), start);
                 }
                 let value = self.node(SizeOfTy(type_name), start)?;
-                return self.node(Expression::SizeOfTy(Box::new(value)), start);
+                let value = self.alloc(value)?;
+                return self.node(Expression::SizeOfTy(value), start);
             }
             let expression = self.parenthesized_primary(opening)?;
             let expression = self.postfix_tail(expression)?;
-            let value = self.node(SizeOfVal(Box::new(expression)), start)?;
-            return self.node(Expression::SizeOfVal(Box::new(value)), start);
+            let value = self.node(SizeOfVal(expression), start)?;
+            let value = self.alloc(value)?;
+            return self.node(Expression::SizeOfVal(value), start);
         }
         let expression = self.nested(|parser| parser.unary_expression())?;
-        let value = self.node(SizeOfVal(Box::new(expression)), start)?;
-        self.node(Expression::SizeOfVal(Box::new(value)), start)
+        let value = self.node(SizeOfVal(expression), start)?;
+        let value = self.alloc(value)?;
+        self.node(Expression::SizeOfVal(value), start)
     }
 
     fn alignof_expression(&mut self) -> PResult<Node<Expression>> {
@@ -746,39 +478,38 @@ impl Parser<'_, '_> {
                 self.expect(")")?;
                 if self.at("{") {
                     let expression = self.compound_literal(opening, type_name)?;
-                    AlignOfOperand::Expression(Box::new(self.postfix_tail(expression)?))
+                    AlignOfOperand::Expression(self.postfix_tail(expression)?)
                 } else {
-                    AlignOfOperand::TypeName(Box::new(type_name))
+                    AlignOfOperand::TypeName(self.alloc(type_name)?)
                 }
             } else {
                 let expression = self.parenthesized_primary(opening)?;
-                AlignOfOperand::Expression(Box::new(self.postfix_tail(expression)?))
+                AlignOfOperand::Expression(self.postfix_tail(expression)?)
             }
         } else {
-            AlignOfOperand::Expression(Box::new(self.nested(|parser| parser.unary_expression())?))
+            AlignOfOperand::Expression(self.nested(|parser| parser.unary_expression())?)
         };
         let alignof = self.node(AlignOf { kind, operand }, start)?;
-        self.node(Expression::AlignOf(Box::new(alignof)), start)
+        let alignof = self.alloc(alignof)?;
+        self.node(Expression::AlignOf(alignof), start)
     }
 
     fn generic_selection(&mut self) -> PResult<Node<Expression>> {
         let start = self.position();
         self.expect("_Generic")?;
         self.expect("(")?;
-        let expression = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let expression = self.nested(|parser| parser.assignment_expression())?;
         self.expect(",")?;
         let mut associations = Vec::new();
         loop {
             let association_start = self.position();
             let association = if self.eat("default")? {
                 self.expect(":")?;
-                GenericAssociation::Default(Box::new(
-                    self.nested(|parser| parser.assignment_expression())?,
-                ))
+                GenericAssociation::Default(self.nested(|parser| parser.assignment_expression())?)
             } else {
                 let type_name = self.nested(|parser| parser.type_name())?;
                 self.expect(":")?;
-                let expression = Box::new(self.nested(|parser| parser.assignment_expression())?);
+                let expression = self.nested(|parser| parser.assignment_expression())?;
                 GenericAssociation::Type(self.node(
                     GenericAssociationType {
                         type_name,
@@ -800,7 +531,8 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
-        self.node(Expression::GenericSelection(Box::new(generic)), start)
+        let generic = self.alloc(generic)?;
+        self.node(Expression::GenericSelection(generic), start)
     }
 
     fn types_compatible_expression(&mut self) -> PResult<Node<Expression>> {
@@ -812,18 +544,19 @@ impl Parser<'_, '_> {
         let right = self.nested(|parser| parser.type_name())?;
         self.expect(")")?;
         let expression = self.node(TypesCompatibleExpression { left, right }, start)?;
-        self.node(Expression::TypesCompatible(Box::new(expression)), start)
+        let expression = self.alloc(expression)?;
+        self.node(Expression::TypesCompatible(expression), start)
     }
 
     fn choose_expression(&mut self) -> PResult<Node<Expression>> {
         let start = self.position();
         self.bump()?;
         self.expect("(")?;
-        let condition = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let condition = self.nested(|parser| parser.assignment_expression())?;
         self.expect(",")?;
-        let then_expression = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let then_expression = self.nested(|parser| parser.assignment_expression())?;
         self.expect(",")?;
-        let else_expression = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let else_expression = self.nested(|parser| parser.assignment_expression())?;
         self.expect(")")?;
         let expression = self.node(
             ChooseExpression {
@@ -833,14 +566,15 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
-        self.node(Expression::Choose(Box::new(expression)), start)
+        let expression = self.alloc(expression)?;
+        self.node(Expression::Choose(expression), start)
     }
 
     fn convertvector_expression(&mut self) -> PResult<Node<Expression>> {
         let start = self.position();
         self.bump()?;
         self.expect("(")?;
-        let expression = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let expression = self.nested(|parser| parser.assignment_expression())?;
         self.expect(",")?;
         let type_name = self.nested(|parser| parser.type_name())?;
         self.expect(")")?;
@@ -851,19 +585,21 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
-        self.node(Expression::ConvertVector(Box::new(expression)), start)
+        let expression = self.alloc(expression)?;
+        self.node(Expression::ConvertVector(expression), start)
     }
 
     fn va_arg_expression(&mut self) -> PResult<Node<Expression>> {
         let start = self.position();
         self.bump()?;
         self.expect("(")?;
-        let va_list = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let va_list = self.nested(|parser| parser.assignment_expression())?;
         self.expect(",")?;
         let type_name = self.nested(|parser| parser.type_name())?;
         self.expect(")")?;
         let expression = self.node(VaArgExpression { va_list, type_name }, start)?;
-        self.node(Expression::VaArg(Box::new(expression)), start)
+        let expression = self.alloc(expression)?;
+        self.node(Expression::VaArg(expression), start)
     }
 
     fn offsetof_expression(&mut self) -> PResult<Node<Expression>> {
@@ -899,7 +635,8 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
-        self.node(Expression::OffsetOf(Box::new(expression)), start)
+        let expression = self.alloc(expression)?;
+        self.node(Expression::OffsetOf(expression), start)
     }
 
     pub(super) fn constant(&mut self) -> PResult<Constant> {

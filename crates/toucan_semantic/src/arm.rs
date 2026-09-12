@@ -92,7 +92,7 @@ impl FunctionType {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// ACLE permits definite sizeless values in prototypes and generic type
     /// associations without claiming that they are complete, sized C objects.
     pub(crate) fn is_definite_object(&self, ty: &Type, depth: usize) -> Result<bool, Error> {
@@ -111,7 +111,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn sve_feature_checkpoint(&self) -> usize {
         self.sve_feature_uses.len()
     }

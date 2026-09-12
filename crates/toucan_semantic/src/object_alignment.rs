@@ -228,7 +228,7 @@ pub(crate) enum AlignmentSubject {
     Field { bitfield: bool },
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn alignment_operand(
         &mut self,
         check: impl FnOnce(&mut Self) -> Result<u64, Error>,

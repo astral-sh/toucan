@@ -19,7 +19,13 @@
 //! - extensions to the initializer list syntax
 //! - statement expressions
 //! - `typeof` type specifiers
+//!
+//! Recursive links use [`Id`] values resolved against the parse result's arena.
+//! Cloning a node preserves its IDs; clone the whole parse result for independent
+//! storage. Node equality compares IDs at these links, rather than recursively
+//! comparing records from separate parses.
 
+use arena::Id;
 use span::Node;
 
 // From 6.4 Lexical elements
@@ -168,65 +174,65 @@ pub enum Expression {
     /// as constants.
     ///
     /// (C11 6.5.1)
-    Identifier(Box<Node<Identifier>>),
+    Identifier(Id<Node<Identifier>>),
     /// Numeric and character constants
     ///
     /// Enumerator constants, being valid identifiers, are reprented
     /// as `Identifier` in this enum.
     ///
     /// (C11 6.5.1)
-    Constant(Box<Node<Constant>>),
+    Constant(Id<Node<Constant>>),
 
     /// String literal
     ///
     /// (C11 6.5.1)
-    StringLiteral(Box<Node<StringLiteral>>),
+    StringLiteral(Id<Node<StringLiteral>>),
 
     /// Generic selection
     ///
     /// (C11 6.5.1.1)
-    GenericSelection(Box<Node<GenericSelection>>),
+    GenericSelection(Id<Node<GenericSelection>>),
 
     /// GNU compatibility query with two unevaluated type-name operands.
-    TypesCompatible(Box<Node<TypesCompatibleExpression>>),
+    TypesCompatible(Id<Node<TypesCompatibleExpression>>),
 
     /// GNU compile-time selection without the usual conditional conversions.
-    Choose(Box<Node<ChooseExpression>>),
+    Choose(Id<Node<ChooseExpression>>),
 
     /// Numeric conversion of corresponding vector lanes.
-    ConvertVector(Box<Node<ConvertVectorExpression>>),
+    ConvertVector(Id<Node<ConvertVectorExpression>>),
 
     /// Structure and union members
     ///
     /// Both direct (`.`) and indirect (`->`) access.
     ///
     /// (C11 6.5.2)
-    Member(Box<Node<MemberExpression>>),
+    Member(Id<Node<MemberExpression>>),
 
     /// Function call expression
     ///
     /// (C11 6.5.2)
-    Call(Box<Node<CallExpression>>),
+    Call(Id<Node<CallExpression>>),
 
     /// Compound literal
     ///
     /// (C11 6.5.2)
-    CompoundLiteral(Box<Node<CompoundLiteral>>),
+    CompoundLiteral(Id<Node<CompoundLiteral>>),
 
     /// Size of a type
     ///
     /// (C11 6.5.3)
-    SizeOfTy(Box<Node<SizeOfTy>>),
+    SizeOfTy(Id<Node<SizeOfTy>>),
 
     /// Size of a unary expression
     ///
     /// (C11 6.5.3)
-    SizeOfVal(Box<Node<SizeOfVal>>),
+    SizeOfVal(Id<Node<SizeOfVal>>),
 
     /// Alignment of a type
     ///
     /// (C11 6.5.3)
-    AlignOf(Box<Node<AlignOf>>),
+    AlignOf(Id<Node<AlignOf>>),
 
     /// Unary operators
     ///
@@ -234,50 +240,50 @@ pub enum Expression {
     /// additional operands are represented by a separate entry in this enum.
     ///
     /// (C11 6.5.2, c11 6.5.3)
-    UnaryOperator(Box<Node<UnaryOperatorExpression>>),
+    UnaryOperator(Id<Node<UnaryOperatorExpression>>),
 
     /// Cast expression
     ///
     /// `(type) expr`
     ///
     /// (C11 6.5.4)
-    Cast(Box<Node<CastExpression>>),
+    Cast(Id<Node<CastExpression>>),
 
     /// Binary operators
     ///
     /// All of C binary operators that can be applied to two expressions.
     ///
     /// (C11 6.5.5 -- 6.5.16)
-    BinaryOperator(Box<Node<BinaryOperatorExpression>>),
+    BinaryOperator(Id<Node<BinaryOperatorExpression>>),
 
     /// Conditional operator
     ///
     /// (C11 6.5.15)
-    Conditional(Box<Node<ConditionalExpression>>),
+    Conditional(Id<Node<ConditionalExpression>>),
 
     /// Comma operator
     ///
     /// (C11 6.5.17)
-    Comma(Box<Vec<Node<Expression>>>),
+    Comma(Id<Vec<Node<Expression>>>),
 
     /// Member offset expression
     ///
     /// Result of expansion of `offsetof` macro.
     ///
     /// (C11 7.19 §3).
-    OffsetOf(Box<Node<OffsetOfExpression>>),
+    OffsetOf(Id<Node<OffsetOfExpression>>),
 
     /// Variable argument list access
     ///
     /// Result of expansion of `va_arg` macro.
     ///
     /// (C11 7.16.1.1).
-    VaArg(Box<Node<VaArgExpression>>),
+    VaArg(Id<Node<VaArgExpression>>),
 
     /// Statement expression
     ///
     /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Statement-Exprs.html)
-    Statement(Box<Node<Statement>>),
+    Statement(Id<Node<Statement>>),
 }
 
 /// Struct or union member access
@@ -299,22 +305,22 @@ pub struct TypesCompatibleExpression {
 /// GNU compile-time expression selection.
 #[derive(Debug, PartialEq, Clone)]
 pub struct ChooseExpression {
-    pub condition: Box<Node<Expression>>,
-    pub then_expression: Box<Node<Expression>>,
-    pub else_expression: Box<Node<Expression>>,
+    pub condition: Node<Expression>,
+    pub then_expression: Node<Expression>,
+    pub else_expression: Node<Expression>,
 }
 
 /// GNU and Clang vector conversion with a type-name destination.
 #[derive(Debug, PartialEq, Clone)]
 pub struct ConvertVectorExpression {
-    pub expression: Box<Node<Expression>>,
+    pub expression: Node<Expression>,
     pub type_name: Node<TypeName>,
 }
 
 /// C11 generic selection.
 #[derive(Debug, PartialEq, Clone)]
 pub struct GenericSelection {
-    pub expression: Box<Node<Expression>>,
+    pub expression: Node<Expression>,
     pub associations: Vec<Node<GenericAssociation>>,
 }
 
@@ -324,7 +330,7 @@ pub struct GenericSelection {
 #[derive(Debug, PartialEq, Clone)]
 pub enum GenericAssociation {
     Type(Node<GenericAssociationType>),
-    Default(Box<Node<Expression>>),
+    Default(Node<Expression>),
 }
 
 /// Type match case in a generic selection expression
@@ -333,7 +339,7 @@ pub enum GenericAssociation {
 #[derive(Debug, PartialEq, Clone)]
 pub struct GenericAssociationType {
     pub type_name: Node<TypeName>,
-    pub expression: Box<Node<Expression>>,
+    pub expression: Node<Expression>,
 }
 
 /// Structure and union members
@@ -344,7 +350,7 @@ pub struct GenericAssociationType {
 #[derive(Debug, PartialEq, Clone)]
 pub struct MemberExpression {
     pub operator: Node<MemberOperator>,
-    pub expression: Box<Node<Expression>>,
+    pub expression: Node<Expression>,
     pub identifier: Node<Identifier>,
 }
 
@@ -353,7 +359,7 @@ pub struct MemberExpression {
 /// (C11 6.5.2)
 #[derive(Debug, PartialEq, Clone)]
 pub struct CallExpression {
-    pub callee: Box<Node<Expression>>,
+    pub callee: Node<Expression>,
     pub arguments: Vec<Node<Expression>>,
 }
 
@@ -376,7 +382,7 @@ pub struct SizeOfTy(pub Node<TypeName>);
 ///
 /// (C11 6.5.3)
 #[derive(Debug, PartialEq, Clone)]
-pub struct SizeOfVal(pub Box<Node<Expression>>);
+pub struct SizeOfVal(pub Node<Expression>);
 
 /// Alignment of a type
 ///
@@ -396,8 +402,8 @@ pub enum AlignOfKind {
 
 #[derive(Debug, PartialEq, Clone)]
 pub enum AlignOfOperand {
-    TypeName(Box<Node<TypeName>>),
-    Expression(Box<Node<Expression>>),
+    TypeName(Id<Node<TypeName>>),
+    Expression(Node<Expression>),
 }
 
 /// All operators with one operand
@@ -440,7 +446,7 @@ pub enum UnaryOperator {
 #[derive(Debug, PartialEq, Clone)]
 pub struct UnaryOperatorExpression {
     pub operator: Node<UnaryOperator>,
-    pub operand: Box<Node<Expression>>,
+    pub operand: Node<Expression>,
 }
 
 /// Cast expression
@@ -451,7 +457,7 @@ pub struct UnaryOperatorExpression {
 #[derive(Debug, PartialEq, Clone)]
 pub struct CastExpression {
     pub type_name: Node<TypeName>,
-    pub expression: Box<Node<Expression>>,
+    pub expression: Node<Expression>,
 }
 
 /// All operators with two operands
@@ -529,8 +535,8 @@ pub enum BinaryOperator {
 #[derive(Debug, PartialEq, Clone)]
 pub struct BinaryOperatorExpression {
     pub operator: Node<BinaryOperator>,
-    pub lhs: Box<Node<Expression>>,
-    pub rhs: Box<Node<Expression>>,
+    pub lhs: Node<Expression>,
+    pub rhs: Node<Expression>,
 }
 
 /// Conditional operator
@@ -538,18 +544,18 @@ pub struct BinaryOperatorExpression {
 /// (C11 6.5.15)
 #[derive(Debug, PartialEq, Clone)]
 pub struct ConditionalExpression {
-    pub condition: Box<Node<Expression>>,
+    pub condition: Node<Expression>,
     /// None represents GNU's omitted middle operand. Its value is the saved
     /// condition value, so the condition must not be evaluated a second time.
-    pub then_expression: Option<Box<Node<Expression>>>,
-    pub else_expression: Box<Node<Expression>>,
+    pub then_expression: Option<Node<Expression>>,
+    pub else_expression: Node<Expression>,
 }
 
 impl ConditionalExpression {
     /// Source of the nonzero result. An omitted operand reuses the condition's
     /// already computed value; this accessor does not imply reevaluation.
     pub fn nonzero_expression(&self) -> &Node<Expression> {
-        self.then_expression.as_deref().unwrap_or(&self.condition)
+        self.then_expression.as_ref().unwrap_or(&self.condition)
     }
 }
 
@@ -560,7 +566,7 @@ impl ConditionalExpression {
 /// (C11 7.16.1.1).
 #[derive(Debug, PartialEq, Clone)]
 pub struct VaArgExpression {
-    pub va_list: Box<Node<Expression>>,
+    pub va_list: Node<Expression>,
     pub type_name: Node<TypeName>,
 }
 
@@ -698,19 +704,19 @@ pub enum TypeSpecifier {
     /// `__complex`, `__complex__` (GNU extension)
     Complex,
     /// `_Atomic(typename)`
-    Atomic(Node<TypeName>),
+    Atomic(Id<Node<TypeName>>),
     /// `struct identifier { … }`
     ///
     /// `union identifier { … }`
-    Struct(Node<StructType>),
+    Struct(Id<Node<StructType>>),
     /// `enum identifier { … }`
-    Enum(Node<EnumType>),
+    Enum(Id<Node<EnumType>>),
     /// Name of a previously defined type
     TypedefName(Node<Identifier>),
     /// Specifies type of another type or expression
     ///
     /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Typeof.html)
-    TypeOf(Node<TypeOf>),
+    TypeOf(Id<Node<TypeOf>>),
     /// Floating point types with guaranteed width and representation
     ///
     /// `_Float16`, `_Float32`, `_Float64`, `_Float128`
@@ -807,7 +813,7 @@ pub enum SpecifierQualifier {
 #[derive(Debug, PartialEq, Clone)]
 pub struct StructDeclarator {
     pub declarator: Option<Node<Declarator>>,
-    pub bit_width: Option<Box<Node<Expression>>>,
+    pub bit_width: Option<Node<Expression>>,
     /// Attributes written after a bitfield's width. Attributes on other fields
     /// remain on the declarator.
     pub extensions: Vec<Node<Extension>>,
@@ -832,7 +838,7 @@ pub struct EnumType {
 #[derive(Debug, PartialEq, Clone)]
 pub struct Enumerator {
     pub identifier: Node<Identifier>,
-    pub expression: Option<Box<Node<Expression>>>,
+    pub expression: Option<Node<Expression>>,
     pub extensions: Vec<Node<Extension>>,
 }
 
@@ -898,9 +904,9 @@ pub enum FunctionSpecifier {
 #[derive(Debug, PartialEq, Clone)]
 pub enum AlignmentSpecifier {
     /// `_Alignas(typename)`
-    Type(Node<TypeName>),
+    Type(Id<Node<TypeName>>),
     /// `_Alignas(expression)`
-    Constant(Box<Node<Expression>>),
+    Constant(Node<Expression>),
 }
 
 // From 6.7.6 Declarators
@@ -937,7 +943,7 @@ pub enum DeclaratorKind {
     ///
     /// Any group of parenthesis inside a declarator. E.g. pointer to
     /// a function.
-    Declarator(Box<Node<Declarator>>),
+    Declarator(Id<Node<Declarator>>),
 }
 
 /// Modifies declarator type
@@ -950,7 +956,7 @@ pub enum DerivedDeclarator {
     /// `… []`
     Array(Node<ArrayDeclarator>),
     /// `… ( parameters )`
-    Function(Node<FunctionDeclarator>),
+    Function(Id<Node<FunctionDeclarator>>),
     /// `… ( identifiers )`
     KRFunction(Vec<Node<Identifier>>),
     /// `^ qualifiers …`
@@ -994,9 +1000,9 @@ pub enum ArraySize {
     /// `[*]`
     VariableUnknown,
     /// `[10]`
-    VariableExpression(Box<Node<Expression>>),
+    VariableExpression(Node<Expression>),
     /// `[static 10]`
-    StaticExpression(Box<Node<Expression>>),
+    StaticExpression(Node<Expression>),
 }
 
 /// Complete parameter declaration in a function prototype or declaration
@@ -1041,8 +1047,8 @@ pub struct TypeName {
 /// (C11 6.7.9)
 #[derive(Debug, PartialEq, Clone)]
 pub enum Initializer {
-    Expression(Box<Node<Expression>>),
-    List(Vec<Node<InitializerListItem>>),
+    Expression(Node<Expression>),
+    List(Id<Vec<Node<InitializerListItem>>>),
 }
 
 /// Initializes one field or array element in a initializer list
@@ -1051,7 +1057,7 @@ pub enum Initializer {
 #[derive(Debug, PartialEq, Clone)]
 pub struct InitializerListItem {
     pub designation: Vec<Node<Designator>>,
-    pub initializer: Box<Node<Initializer>>,
+    pub initializer: Node<Initializer>,
 }
 
 /// Single element of an designation in an initializer
@@ -1096,7 +1102,7 @@ pub struct RangeDesignator {
 /// (C11 6.7.10)
 #[derive(Debug, PartialEq, Clone)]
 pub struct StaticAssert {
-    pub expression: Box<Node<Expression>>,
+    pub expression: Node<Expression>,
     pub message: Node<StringLiteral>,
 }
 
@@ -1107,20 +1113,20 @@ pub struct StaticAssert {
 /// (C11 6.8)
 #[derive(Debug, PartialEq, Clone)]
 pub enum Statement {
-    Labeled(Node<LabeledStatement>),
-    Compound(Vec<Node<BlockItem>>),
-    Expression(Option<Box<Node<Expression>>>),
+    Labeled(Id<Node<LabeledStatement>>),
+    Compound(Id<Vec<Node<BlockItem>>>),
+    Expression(Option<Node<Expression>>),
     /// GNU attributes attached to a null statement.
     Attribute(Vec<Node<Extension>>),
-    If(Node<IfStatement>),
-    Switch(Node<SwitchStatement>),
-    While(Node<WhileStatement>),
-    DoWhile(Node<DoWhileStatement>),
-    For(Node<ForStatement>),
+    If(Id<Node<IfStatement>>),
+    Switch(Id<Node<SwitchStatement>>),
+    While(Id<Node<WhileStatement>>),
+    DoWhile(Id<Node<DoWhileStatement>>),
+    For(Id<Node<ForStatement>>),
     Goto(Node<Identifier>),
     Continue,
     Break,
-    Return(Option<Box<Node<Expression>>>),
+    Return(Option<Node<Expression>>),
     /// Vendor specific inline assembly extensions
     Asm(Node<AsmStatement>),
 }
@@ -1131,7 +1137,7 @@ pub enum Statement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct LabeledStatement {
     pub label: Node<Label>,
-    pub statement: Box<Node<Statement>>,
+    pub statement: Node<Statement>,
 }
 
 /// If statement
@@ -1139,9 +1145,9 @@ pub struct LabeledStatement {
 /// (C11 6.8.4)
 #[derive(Debug, PartialEq, Clone)]
 pub struct IfStatement {
-    pub condition: Box<Node<Expression>>,
-    pub then_statement: Box<Node<Statement>>,
-    pub else_statement: Option<Box<Node<Statement>>>,
+    pub condition: Node<Expression>,
+    pub then_statement: Node<Statement>,
+    pub else_statement: Option<Node<Statement>>,
 }
 
 /// Switch statement
@@ -1149,8 +1155,8 @@ pub struct IfStatement {
 /// (C11 6.8.4)
 #[derive(Debug, PartialEq, Clone)]
 pub struct SwitchStatement {
-    pub expression: Box<Node<Expression>>,
-    pub statement: Box<Node<Statement>>,
+    pub expression: Node<Expression>,
+    pub statement: Node<Statement>,
 }
 
 /// While statement
@@ -1158,8 +1164,8 @@ pub struct SwitchStatement {
 /// (C11 6.8.5)
 #[derive(Debug, PartialEq, Clone)]
 pub struct WhileStatement {
-    pub expression: Box<Node<Expression>>,
-    pub statement: Box<Node<Statement>>,
+    pub expression: Node<Expression>,
+    pub statement: Node<Statement>,
 }
 
 /// Do statement
@@ -1167,8 +1173,8 @@ pub struct WhileStatement {
 /// (C11 6.8.5)
 #[derive(Debug, PartialEq, Clone)]
 pub struct DoWhileStatement {
-    pub statement: Box<Node<Statement>>,
-    pub expression: Box<Node<Expression>>,
+    pub statement: Node<Statement>,
+    pub expression: Node<Expression>,
 }
 
 /// For statement
@@ -1177,9 +1183,9 @@ pub struct DoWhileStatement {
 #[derive(Debug, PartialEq, Clone)]
 pub struct ForStatement {
     pub initializer: Node<ForInitializer>,
-    pub condition: Option<Box<Node<Expression>>>,
-    pub step: Option<Box<Node<Expression>>>,
-    pub statement: Box<Node<Statement>>,
+    pub condition: Option<Node<Expression>>,
+    pub step: Option<Node<Expression>>,
+    pub statement: Node<Statement>,
 }
 
 /// Statement labels for `goto` and `switch`
@@ -1192,7 +1198,7 @@ pub enum Label {
     /// Case in a `switch` statement
     ///
     /// `case 'a': …`
-    Case(Box<Node<Expression>>),
+    Case(Node<Expression>),
     /// Case with a range in a `switch` statement
     ///
     /// `case 'a' ... 'z': …`
@@ -1212,8 +1218,8 @@ pub enum Label {
 /// [GNU extension](https://gcc.gnu.org/onlinedocs/gcc/Case-Ranges.html)
 #[derive(Debug, PartialEq, Clone)]
 pub struct CaseRange {
-    pub low: Box<Node<Expression>>,
-    pub high: Box<Node<Expression>>,
+    pub low: Node<Expression>,
+    pub high: Node<Expression>,
 }
 
 /// First element of a `for` statement
@@ -1222,7 +1228,7 @@ pub enum ForInitializer {
     /// `for(; …)`
     Empty,
     /// `for(a = 1; …)`
-    Expression(Box<Node<Expression>>),
+    Expression(Node<Expression>),
     /// `for(int a = 1; …)`
     Declaration(Node<Declaration>),
     /// `for(_StaticAssert(…); …)`

@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::Constant;
 use toucan_parser::driver::{parse, parse_preprocessed, Config, Flavor, Standard};
 use toucan_parser::span::Span;
@@ -9,16 +11,21 @@ use toucan_parser::visit::{self, Visit};
 struct Literals(Vec<(String, Span)>);
 
 impl<'ast> Visit<'ast> for Literals {
-    fn visit_constant(&mut self, constant: &'ast Constant, span: &'ast Span) {
+    fn visit_constant(&mut self, constant: &'ast Constant, span: &'ast Span, arena: &'ast Arena) {
         if let Constant::Character(text) = constant {
             self.0.push((text.clone(), *span));
         }
-        visit::visit_constant(self, constant, span);
+        visit::visit_constant(self, constant, span, arena);
     }
 
-    fn visit_string_literal(&mut self, strings: &'ast Vec<String>, span: &'ast Span) {
+    fn visit_string_literal(
+        &mut self,
+        strings: &'ast Vec<String>,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.0.push((strings.join(" "), *span));
-        visit::visit_string_literal(self, strings, span);
+        visit::visit_string_literal(self, strings, span, arena);
     }
 }
 
@@ -36,7 +43,7 @@ fn universal_escapes_preserve_literal_spellings_and_spans() {
         };
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
         let mut literals = Literals::default();
-        literals.visit_translation_unit(&parsed.unit);
+        literals.visit_translation_unit(&parsed.unit, &parsed.arena);
         assert_eq!(literals.0.len(), 9);
         for (text, span) in literals.0 {
             assert_eq!(&source[span.start..span.end], text);

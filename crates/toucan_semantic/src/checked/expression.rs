@@ -888,7 +888,7 @@ impl Builder {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn code_builder(&mut self) -> &mut Builder {
         self.checked
             .as_deref_mut()
@@ -1154,37 +1154,41 @@ impl Analyzer {
         let mut type_name_use = None;
         let mut type_name = None;
         let kind = match &expression.node {
-            ast::Expression::Constant(constant) => match &constant.node {
-                ast::Constant::Integer(integer) => {
-                    ExprKind::Integer(self.literal(integer, offset)?)
-                }
-                ast::Constant::Character(character) => {
-                    ExprKind::Integer(crate::decode_character_literal_with_profile(
-                        character,
-                        self.unit.profile()?,
-                        offset,
-                    )?)
-                }
-                ast::Constant::Float(float) => {
-                    self.code_builder()
-                        .budget
-                        .charge(0, 0, float.number.len(), offset)?;
-                    let digits = float.number.to_string();
-                    let hexadecimal = float.base == ast::FloatBase::Hexadecimal;
-                    if float.suffix.imaginary {
-                        ExprKind::ImaginaryFloat {
-                            digits,
-                            hexadecimal,
-                        }
-                    } else {
-                        ExprKind::Float {
-                            digits,
-                            hexadecimal,
+            ast::Expression::Constant(constant) => {
+                let constant = constant.get(self.arena);
+                match &constant.node {
+                    ast::Constant::Integer(integer) => {
+                        ExprKind::Integer(self.literal(integer, offset)?)
+                    }
+                    ast::Constant::Character(character) => {
+                        ExprKind::Integer(crate::decode_character_literal_with_profile(
+                            character,
+                            self.unit.profile()?,
+                            offset,
+                        )?)
+                    }
+                    ast::Constant::Float(float) => {
+                        self.code_builder()
+                            .budget
+                            .charge(0, 0, float.number.len(), offset)?;
+                        let digits = float.number.to_string();
+                        let hexadecimal = float.base == ast::FloatBase::Hexadecimal;
+                        if float.suffix.imaginary {
+                            ExprKind::ImaginaryFloat {
+                                digits,
+                                hexadecimal,
+                            }
+                        } else {
+                            ExprKind::Float {
+                                digits,
+                                hexadecimal,
+                            }
                         }
                     }
                 }
-            },
+            }
             ast::Expression::StringLiteral(strings) => {
+                let strings = strings.get(self.arena);
                 let decoded = self.decode_string_literal(strings, offset)?;
                 self.code_builder().budget.charge(
                     0,
@@ -1196,15 +1200,17 @@ impl Analyzer {
             }
             ast::Expression::Identifier(identifier)
                 if self
-                    .builtin_function_reference(&identifier.node.name)?
+                    .builtin_function_reference(&identifier.get(self.arena).node.name)?
                     .is_some() =>
             {
+                let identifier = identifier.get(self.arena);
                 ExprKind::BuiltinFunction(
                     self.builtin_function_reference(&identifier.node.name)?
                         .expect("checked builtin function"),
                 )
             }
             ast::Expression::Identifier(identifier) => {
+                let identifier = identifier.get(self.arena);
                 let entity = self
                     .code_builder()
                     .entity_for_name(&identifier.node.name)
@@ -1229,9 +1235,11 @@ impl Analyzer {
                 ExprKind::Name(entity)
             }
             ast::Expression::UnaryOperator(unary) => {
+                let unary = unary.get(self.arena);
                 if unary.node.operator.node == ast::UnaryOperator::Address
                     && let ast::Expression::UnaryOperator(indirection) = &unary.node.operand.node
-                    && indirection.node.operator.node == ast::UnaryOperator::Indirection
+                    && indirection.get(self.arena).node.operator.node
+                        == ast::UnaryOperator::Indirection
                 {
                     let source = self
                         .code_builder()
@@ -1241,7 +1249,7 @@ impl Analyzer {
                         })?;
                     ExprKind::AddressIndirection {
                         indirection: source,
-                        pointer: self.retained_value(&indirection.node.operand)?,
+                        pointer: self.retained_value(&indirection.get(self.arena).node.operand)?,
                     }
                 } else {
                     let operator = Unary::from_ast(&unary.node.operator.node);
@@ -1316,8 +1324,12 @@ impl Analyzer {
                     }
                 }
             }
-            ast::Expression::BinaryOperator(binary) => self.retain_binary(binary, info)?,
+            ast::Expression::BinaryOperator(binary) => {
+                let binary = binary.get(self.arena);
+                self.retain_binary(binary, info)?
+            }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 let destination = self.type_name(&cast.node.type_name.node)?;
                 explicit_type_use = self.code_builder().type_name_use(&cast.node.type_name.node);
                 type_name_use = explicit_type_use;
@@ -1348,6 +1360,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 let condition = self.retained_value(&conditional.node.condition)?;
                 let then_value = if let Some(value) = &conditional.node.then_expression {
                     self.retained_use(
@@ -1384,6 +1397,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Member(member) => {
+                let member = member.get(self.arena);
                 let base_info = self.expression_info(&member.node.expression)?;
                 let indirect = member.node.operator.node == ast::MemberOperator::Indirect;
                 let ty = if indirect {
@@ -1422,8 +1436,12 @@ impl Analyzer {
                     fields,
                 }
             }
-            ast::Expression::Call(call) => self.retain_call(call)?,
+            ast::Expression::Call(call) => {
+                let call = call.get(self.arena);
+                self.retain_call(call)?
+            }
             ast::Expression::VaArg(argument) => {
+                let argument = argument.get(self.arena);
                 explicit_type_use = self
                     .code_builder()
                     .type_name_use(&argument.node.type_name.node);
@@ -1437,12 +1455,14 @@ impl Analyzer {
                 }
             }
             ast::Expression::SizeOfTy(size) => {
+                let size = size.get(self.arena);
                 let ty = self.type_name(&size.node.0.node)?;
                 type_name_use = self.code_builder().type_name_use(&size.node.0.node);
                 type_name = self.code_builder().type_name_occurrence(&size.node.0.node);
                 ExprKind::SizeOfType(self.retained_type(&ty, offset)?)
             }
             ast::Expression::SizeOfVal(size) => {
+                let size = size.get(self.arena);
                 let operand = self.expression_info(&size.node.0)?;
                 let variable = self.unit.is_variable_length_array(&operand.ty)?;
                 ExprKind::SizeOfValue {
@@ -1459,9 +1479,11 @@ impl Analyzer {
                 }
             }
             ast::Expression::AlignOf(alignment) => {
+                let alignment = alignment.get(self.arena);
                 let alignment_bytes = self.alignment_query(alignment)?;
                 let operand = match &alignment.node.operand {
                     ast::AlignOfOperand::TypeName(name) => {
+                        let name = name.get(self.arena);
                         type_name_use = self.code_builder().type_name_use(&name.node);
                         type_name = self.code_builder().type_name_occurrence(&name.node);
                         super::AlignmentOperand::Type(self.retained_type_name_operand(name)?)
@@ -1480,8 +1502,12 @@ impl Analyzer {
                     alignment_bytes,
                 }
             }
-            ast::Expression::OffsetOf(offset_of) => self.retain_offset_of(offset_of)?,
+            ast::Expression::OffsetOf(offset_of) => {
+                let offset_of = offset_of.get(self.arena);
+                self.retain_offset_of(offset_of)?
+            }
             ast::Expression::ConvertVector(conversion) => {
+                let conversion = conversion.get(self.arena);
                 self.code_builder().budget.charge(0, 1, 0, offset)?;
                 ExprKind::ConvertVector {
                     value: self.retained_value(&conversion.node.expression)?,
@@ -1489,6 +1515,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::TypesCompatible(query) => {
+                let query = query.get(self.arena);
                 let compatible = self.eval_types_compatible(query)?.truth();
                 ExprKind::TypesCompatible {
                     left: self.retained_type_name_operand(&query.node.left)?,
@@ -1497,6 +1524,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let then_selected = *self
                     .choose_selections
                     .get(&(selection.span.start, selection.span.end))
@@ -1516,6 +1544,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)? as *const Node<ast::Expression>;
                 let mut arms = Vec::new();
                 let mut selected_index = None;
@@ -1525,10 +1554,10 @@ impl Analyzer {
                             let ty = self.type_name(&association.node.type_name.node)?;
                             (
                                 Some(self.retained_type(&ty, offset)?),
-                                association.node.expression.as_ref(),
+                                &association.node.expression,
                             )
                         }
-                        ast::GenericAssociation::Default(expression) => (None, expression.as_ref()),
+                        ast::GenericAssociation::Default(expression) => (None, expression),
                     };
                     if std::ptr::eq(selected, expression) {
                         selected_index = Some(index);
@@ -1557,6 +1586,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Comma(expressions) => {
+                let expressions = expressions.get(self.arena);
                 let mut operands = Vec::new();
                 for operand in expressions.iter() {
                     operands.push(self.retained_value(operand)?);
@@ -1564,6 +1594,7 @@ impl Analyzer {
                 ExprKind::Comma(operands)
             }
             ast::Expression::CompoundLiteral(literal) => {
+                let literal = literal.get(self.arena);
                 explicit_type_use = self
                     .code_builder()
                     .type_name_use(&literal.node.type_name.node);
@@ -1576,6 +1607,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Statement(statement) => {
+                let statement = statement.get(self.arena);
                 let body = self
                     .code_builder()
                     .find(OccurrenceKind::Statement, statement)?
@@ -1667,8 +1699,8 @@ impl Analyzer {
         }
         let function_builtin =
             if let ast::Expression::Identifier(identifier) = &call.node.callee.node {
-                self.builtin_function_reference(&identifier.node.name)?
-                    .map(|operation| (identifier.node.name.as_str(), operation))
+                self.builtin_function_reference(&identifier.get(self.arena).node.name)?
+                    .map(|operation| (identifier.get(self.arena).node.name.as_str(), operation))
             } else {
                 None
             };

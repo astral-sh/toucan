@@ -38,20 +38,23 @@ pub(crate) struct Retained {
 
 pub(crate) fn validate_definition_shape(
     definition: &Node<ast::FunctionDefinition>,
+    arena: &lang_c::arena::Arena,
 ) -> Result<(), Error> {
-    if !crate::analyze::outermost_derived(&definition.node.declarator).is_some_and(|derived| {
-        matches!(
-            derived.node,
-            ast::DerivedDeclarator::Function(_) | ast::DerivedDeclarator::KRFunction(_)
-        )
-    }) {
+    if !crate::analyze::outermost_derived(&definition.node.declarator, arena).is_some_and(
+        |derived| {
+            matches!(
+                derived.node,
+                ast::DerivedDeclarator::Function(_) | ast::DerivedDeclarator::KRFunction(_)
+            )
+        },
+    ) {
         return Err(Error::new(
             definition.node.declarator.span.start,
             "function definition requires an explicit function declarator",
         ));
     }
     if !definition.node.declarations.is_empty()
-        && !crate::analyze::outermost_derived(&definition.node.declarator)
+        && !crate::analyze::outermost_derived(&definition.node.declarator, arena)
             .is_some_and(|d| matches!(d.node, ast::DerivedDeclarator::KRFunction(_)))
     {
         return Err(Error::new(
@@ -62,7 +65,7 @@ pub(crate) fn validate_definition_shape(
     Ok(())
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn check_old_style_parameters(
         &mut self,
         definition: &Node<ast::FunctionDefinition>,
@@ -146,12 +149,13 @@ impl Analyzer {
                     .map(|checked| checked.declaration_checkpoint());
                 let prepared = self.specifiers(&declaration.node.specifiers)?;
                 for item in &declaration.node.declarators {
-                    let name = declarator_name(&item.node.declarator).ok_or_else(|| {
-                        Error::new(
-                            item.span.start,
-                            "old-style parameter requires an identifier",
-                        )
-                    })?;
+                    let name =
+                        declarator_name(&item.node.declarator, self.arena).ok_or_else(|| {
+                            Error::new(
+                                item.span.start,
+                                "old-style parameter requires an identifier",
+                            )
+                        })?;
                     let index = *indices.get(name).ok_or_else(|| {
                         Error::new(
                             item.span.start,
@@ -321,17 +325,23 @@ impl Analyzer {
     }
 }
 
-fn declarator_name(mut declarator: &Node<ast::Declarator>) -> Option<&str> {
+fn declarator_name<'a>(
+    mut declarator: &'a Node<ast::Declarator>,
+    arena: &'a lang_c::arena::Arena,
+) -> Option<&'a str> {
     loop {
         match &declarator.node.kind.node {
             ast::DeclaratorKind::Identifier(identifier) => return Some(&identifier.node.name),
-            ast::DeclaratorKind::Declarator(inner) => declarator = inner,
+            ast::DeclaratorKind::Declarator(inner) => {
+                let inner = inner.get(arena);
+                declarator = inner
+            }
             ast::DeclaratorKind::Abstract => return None,
         }
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Reconcile an identifier-list definition with an earlier visible prototype.
     pub(crate) fn prepare_old_style_definition(
         &mut self,

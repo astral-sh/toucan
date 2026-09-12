@@ -38,7 +38,7 @@ impl Values {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Snapshot eligibility only after an initialized definition has completed.
     /// In Clang, weak attributes present at that definition prevent folding;
     /// a weak attribute on a later redeclaration does not invalidate the value.
@@ -134,10 +134,10 @@ mod tests {
             &crate::AnalysisOptions::default(),
         )
         .unwrap();
-        let mut analyzer = Analyzer::from_unit(analysis.into_unit());
+        let mut arena = lang_c::arena::Arena::default();
         let span = Span { start: 0, end: 7 };
         let expression = Node::new(
-            ast::Expression::Identifier(Box::new(Node::new(
+            ast::Expression::Identifier(arena.alloc(Node::new(
                 ast::Identifier {
                     name: "missing".into(),
                 },
@@ -145,6 +145,7 @@ mod tests {
             ))),
             span,
         );
+        let mut analyzer = Analyzer::from_unit(analysis.into_unit(), &arena);
         assert!(analyzer.eval_initializer_arithmetic(&expression).is_err());
         assert!(!analyzer.evaluation.allows_const_object_reads());
         analyzer.with_const_object_reads(|analyzer| {

@@ -1,258 +1,189 @@
 extern crate toucan_parser;
 
-use std::fs;
-use std::path::Path;
 use std::process::Command;
-use toucan_parser::driver::{
-    parse_expression, parse_expression_arena, parse_expression_arena_with_limits,
-    with_parser_stack, Config, Flavor,
+use toucan_parser::arena::Arena;
+use toucan_parser::ast::{
+    BinaryOperatorExpression, ConditionalExpression, Identifier, Initializer,
 };
-use toucan_parser::limits::{ParseLimits, ResourceKind};
+use toucan_parser::driver::{parse_expression, parse_preprocessed, Config};
+use toucan_parser::print::Printer;
+use toucan_parser::span::Span;
+use toucan_parser::visit::{self, Visit};
 
-fn compare(source: &str, config: &Config, typedefs: &[&str]) {
-    let owned = parse_expression(config, source.into(), |name| typedefs.contains(&name));
-    let arena = parse_expression_arena(config, source.into(), |name| typedefs.contains(&name));
-    match (owned, arena) {
-        (Ok(owned), Ok(arena)) => {
-            assert_eq!(arena.source, source);
-            assert_eq!(
-                owned.statistics.maximum_ast_depth, arena.statistics.maximum_ast_depth,
-                "{}",
-                source
-            );
-            let converted = arena.expression.into_owned();
-            assert_eq!(owned.expression, converted, "{}", source);
-            // Include every span, since Span::none() has wildcard equality.
-            assert_eq!(
-                format!("{:?}", owned.expression),
-                format!("{:?}", converted)
-            );
-        }
-        (Err(owned), Err(arena)) => {
-            assert_eq!(owned.offset, arena.offset, "{}", source);
-            assert_eq!(owned.expected, arena.expected, "{}", source);
-            assert_eq!(owned.resource, arena.resource, "{}", source);
-        }
-        results => panic!("different acceptance for {}: {:?}", source, results),
+#[derive(Default)]
+struct Syntax<'ast> {
+    binary: usize,
+    conditional: usize,
+    lists: usize,
+    names: Vec<&'ast str>,
+}
+
+impl<'ast> Visit<'ast> for Syntax<'ast> {
+    fn visit_binary_operator_expression(
+        &mut self,
+        expression: &'ast BinaryOperatorExpression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
+        self.binary += 1;
+        visit::visit_binary_operator_expression(self, expression, span, arena);
+    }
+
+    fn visit_conditional_expression(
+        &mut self,
+        expression: &'ast ConditionalExpression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
+        self.conditional += 1;
+        visit::visit_conditional_expression(self, expression, span, arena);
+    }
+
+    fn visit_initializer(
+        &mut self,
+        initializer: &'ast Initializer,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
+        self.lists += usize::from(matches!(initializer, Initializer::List(_)));
+        visit::visit_initializer(self, initializer, span, arena);
+    }
+
+    fn visit_identifier(&mut self, identifier: &'ast Identifier, _: &'ast Span, _: &'ast Arena) {
+        self.names.push(&identifier.name);
     }
 }
 
 #[test]
-fn expression_reference_cases_round_trip_with_exact_spans() {
-    with_parser_stack(|| {
-        let directory = Path::new(env!("CARGO_MANIFEST_DIR")).join("reftests");
-        let mut count = 0;
-        for entry in fs::read_dir(directory).unwrap() {
-            let path = entry.unwrap().path();
-            if !path
-                .file_name()
-                .unwrap()
-                .to_str()
-                .unwrap()
-                .starts_with("expression-")
-            {
-                continue;
-            }
-            let text = fs::read_to_string(&path).unwrap();
-            let mut config = Config::with_gcc();
-            config.flavor = Flavor::StdC11;
-            config.gnu_keywords = false;
-            let mut source = String::new();
-            let mut typedefs = Vec::new();
-            for line in text.split("/*===").next().unwrap().lines() {
-                match line.trim() {
-                    "#pragma gnu" => config = Config::with_gcc(),
-                    "#pragma clang" => config = Config::with_clang(),
-                    line if line.starts_with("#pragma typedef ") => {
-                        typedefs.push(line.trim_start_matches("#pragma typedef "));
-                    }
-                    line if line.starts_with("#pragma") => panic!("unknown pragma: {}", line),
-                    line => {
-                        source.push_str(line);
-                        source.push('\n');
-                    }
-                }
-            }
-            compare(&source, &config, &typedefs);
-            count += 1;
-        }
-        assert!(count > 0);
-    })
-    .unwrap();
+fn default_parser_visits_nested_arena_syntax_and_can_retain_references() {
+    let source =
+        "int f(int a) { int x[2][2] = {{1, 2}, {3, 4}}; return (a + x[0][0]) * (a ? 5 : 6); }";
+    let parsed = parse_preprocessed(&Config::with_gcc(), source.into()).unwrap();
+    assert_eq!(parsed.source, source);
+    let mut syntax = Syntax::default();
+    syntax.visit_translation_unit(&parsed.unit, &parsed.arena);
+    assert_eq!(syntax.binary, 4);
+    assert_eq!(syntax.conditional, 1);
+    assert_eq!(syntax.lists, 3);
+    assert!(syntax.names.contains(&"x"));
+    assert!(syntax.names.contains(&"a"));
 }
 
 #[test]
-fn operators_owned_leaves_and_errors_share_the_grammar() {
-    with_parser_stack(|| {
-        for source in [
-            "  a + b * c - d / e  ",
-            "a = b += c ? d + e : f * g, h, i ?: j",
-            "a ? b ? c : d : e ? f : g",
-            "(a + b) * -c + array[i]++ + f(1, 2)",
-            "(T)1 + sizeof(T[3]) + _Alignof(T)",
-            "({ int T; (T)++; }) + (T)1",
-            "_Generic(a, int: b + c, default: d) + __builtin_choose_expr(1, 2, 3)",
-            "sizeof((struct { int x; }){ .x = 1 }) + 2",
-            "\"a\" \"b\"",
-            "",
-            "(1",
-            "a +",
-            "a ? b",
-            "a ? :",
-            "a + b = c",
-            "(T)a = b",
-            "a; int injected",
-            "a b",
-            "1\n#define X 2",
-            "# 20 \"injected\"\n1",
-        ] {
-            for config in [Config::with_gcc(), Config::with_clang()] {
-                compare(source, &config, &["T"]);
-            }
-        }
-    })
-    .unwrap();
+fn cloning_a_parse_keeps_every_arena_payload_after_the_original_is_dropped() {
+    let source = "struct S { int (*f)(int); }; int g(void) { struct S x; return sizeof(typeof(x)) + ({ int y = 1; y; }); }";
+    let parsed = parse_preprocessed(&Config::with_gcc(), source.into()).unwrap();
+    let mut expected = String::new();
+    Printer::new(&mut expected).visit_translation_unit(&parsed.unit, &parsed.arena);
+    let cloned = parsed.clone();
+    drop(parsed);
+    let mut actual = String::new();
+    Printer::new(&mut actual).visit_translation_unit(&cloned.unit, &cloned.arena);
+    assert_eq!(actual, expected);
 }
 
 #[test]
-fn arena_limits_are_exact_and_exhaustion_is_terminal() {
-    with_parser_stack(|| {
-        let config = Config::with_gcc();
-        let source = "a = b ? (T)1 + c * d : e + f, g + h";
-        let parsed = parse_expression_arena(&config, source.into(), |name| name == "T").unwrap();
-        let stats = parsed.statistics;
-        let exact = ParseLimits {
-            max_input_bytes: source.len(),
-            max_work: stats.work,
-            max_backtracking_steps: stats.maximum_backtracking_steps,
-            max_rule_depth: stats.maximum_rule_depth,
-            max_ast_depth: stats.maximum_ast_depth,
-            max_cache_bytes: stats.cache_bytes,
-            max_metadata_entries: stats.maximum_metadata_entries,
-        };
-        let replay =
-            parse_expression_arena_with_limits(&config, source.into(), |name| name == "T", exact)
-                .unwrap();
-        assert_eq!(
-            parsed.expression.into_owned(),
-            replay.expression.into_owned()
-        );
-        for (kind, limits) in [
-            (
-                ResourceKind::InputBytes,
-                ParseLimits {
-                    max_input_bytes: source.len() - 1,
-                    ..exact
-                },
-            ),
-            (
-                ResourceKind::Work,
-                ParseLimits {
-                    max_work: stats.work - 1,
-                    ..exact
-                },
-            ),
-            (
-                ResourceKind::BacktrackingSteps,
-                ParseLimits {
-                    max_backtracking_steps: stats.maximum_backtracking_steps - 1,
-                    ..exact
-                },
-            ),
-            (
-                ResourceKind::RuleDepth,
-                ParseLimits {
-                    max_rule_depth: stats.maximum_rule_depth - 1,
-                    ..exact
-                },
-            ),
-            (
-                ResourceKind::AstDepth,
-                ParseLimits {
-                    max_ast_depth: stats.maximum_ast_depth - 1,
-                    ..exact
-                },
-            ),
-            (
-                ResourceKind::CacheBytes,
-                ParseLimits {
-                    max_cache_bytes: stats.cache_bytes - 1,
-                    ..exact
-                },
-            ),
-            (
-                ResourceKind::MetadataEntries,
-                ParseLimits {
-                    max_metadata_entries: stats.maximum_metadata_entries - 1,
-                    ..exact
-                },
-            ),
-        ] {
-            let error = parse_expression_arena_with_limits(
-                &config,
-                source.into(),
-                |name| name == "T",
-                limits,
-            )
-            .unwrap_err();
-            let resource = error.resource.unwrap();
-            assert_eq!(resource.kind, kind);
-            assert!(source.is_char_boundary(resource.offset));
-        }
-        for work in (0..stats.work).step_by((stats.work / 100).max(1) as usize) {
-            let error = parse_expression_arena_with_limits(
-                &config,
-                source.into(),
-                |name| name == "T",
-                ParseLimits {
-                    max_work: work,
-                    ..exact
-                },
-            )
-            .unwrap_err();
-            assert_eq!(error.resource.unwrap().kind, ResourceKind::Work);
-        }
-    })
-    .unwrap();
-}
-
-#[test]
-fn hostile_inputs_and_conversion_fit_a_small_caller_stack() {
+fn arena_clone_and_drop_fit_a_small_caller_stack() {
     let status = Command::new(std::env::current_exe().unwrap())
-        .args(["--exact", "arena_resource_worker", "--nocapture"])
-        .env("TOUCAN_ARENA_RESOURCE_WORKER", "1")
+        .args(["--exact", "arena_drop_worker", "--nocapture"])
+        .env("TOUCAN_ARENA_DROP_WORKER", "1")
         .status()
         .unwrap();
-    assert!(status.success(), "arena resource worker: {}", status);
+    assert!(status.success(), "arena drop worker: {}", status);
 }
 
 #[test]
-fn arena_resource_worker() {
-    if std::env::var_os("TOUCAN_ARENA_RESOURCE_WORKER").is_none() {
+fn arena_drop_worker() {
+    if std::env::var_os("TOUCAN_ARENA_DROP_WORKER").is_none() {
         return;
     }
     std::thread::Builder::new()
-        .stack_size(2 * 1024 * 1024)
+        .stack_size(64 * 1024)
         .spawn(|| {
             let config = Config::with_gcc();
             for source in [
-                "a+".repeat(10_000) + "a",
-                "a=".repeat(10_000) + "a",
-                "a?b:".repeat(10_000) + "a",
-                "-".repeat(10_000) + "a",
+                format!("int f(int x) {{ return {}x; }}", "x+".repeat(120)),
+                format!(
+                    "int f(void) {{ {}int x;{} }}",
+                    "{".repeat(126),
+                    "}".repeat(126)
+                ),
+                format!("int {}x{};", "(".repeat(63), ")".repeat(63)),
+                format!(
+                    "{}int x;{};",
+                    "struct S {".to_owned() + &"struct {".repeat(62),
+                    "} x;".repeat(62) + "}"
+                ),
+                format!("int x[1] = {}1{};", "{".repeat(100), "}".repeat(100)),
             ] {
-                let error = parse_expression_arena(&config, source, |_| false).unwrap_err();
-                assert!(error.resource.is_some());
+                let parsed = parse_preprocessed(&config, source).unwrap();
+                drop(parsed.clone());
+                drop(parsed);
             }
-            for source in ["a+".repeat(160) + "a", "a,".repeat(10_000) + "a"] {
-                let parsed = parse_expression_arena(&config, source, |_| false).unwrap();
-                drop(parsed.source);
-                let expression = parsed.expression.into_owned();
-                drop(expression.clone());
-                drop(expression);
-            }
+            let parsed = parse_expression(&config, "a,".repeat(10_000) + "a", |_| false).unwrap();
+            drop(parsed);
         })
         .unwrap()
         .join()
         .unwrap();
+}
+
+#[test]
+fn arena_records_and_work_have_independent_per_parse_limits() {
+    use toucan_parser::driver::parse_expression_with_limits;
+    use toucan_parser::limits::{ParseLimits, ResourceKind};
+
+    let config = Config::with_gcc();
+    let operands = 33;
+    let source = "a,".repeat(operands - 1) + "a";
+    let parsed = parse_expression(&config, source.clone(), |_| false).unwrap();
+    let statistics = parsed.statistics;
+    // Each operand contributes both a cached expression and an arena record.
+    assert!(statistics.maximum_metadata_entries >= operands * 2);
+    for max_metadata_entries in [0, 1, 4, operands + 1] {
+        let error = parse_expression_with_limits(
+            &config,
+            source.clone(),
+            |_| false,
+            ParseLimits {
+                max_metadata_entries,
+                ..ParseLimits::default()
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.resource.unwrap().kind, ResourceKind::MetadataEntries);
+    }
+    for max_work in [
+        0,
+        1,
+        statistics.work / 4,
+        statistics.work / 2,
+        statistics.work - 1,
+    ] {
+        let error = parse_expression_with_limits(
+            &config,
+            source.clone(),
+            |_| false,
+            ParseLimits {
+                max_work,
+                ..ParseLimits::default()
+            },
+        )
+        .unwrap_err();
+        assert_eq!(error.resource.unwrap().kind, ResourceKind::Work);
+    }
+    let replay = parse_expression_with_limits(
+        &config,
+        source,
+        |_| false,
+        ParseLimits {
+            max_work: statistics.work,
+            max_metadata_entries: statistics.maximum_metadata_entries,
+            ..ParseLimits::default()
+        },
+    )
+    .unwrap();
+    assert_eq!(replay.statistics, statistics);
+    assert_eq!(replay.expression, parsed.expression);
+    assert_eq!(replay.arena, parsed.arena);
 }

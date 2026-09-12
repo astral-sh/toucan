@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::{AlignOf, AlignOfOperand, Expression, SizeOfTy, SizeOfVal};
 use toucan_parser::driver::{parse_preprocessed, Config, Flavor};
 use toucan_parser::span::Span;
@@ -12,26 +14,26 @@ struct Operands {
 }
 
 impl<'ast> Visit<'ast> for Operands {
-    fn visit_sizeofval(&mut self, value: &'ast SizeOfVal, span: &'ast Span) {
+    fn visit_sizeofval(&mut self, value: &'ast SizeOfVal, span: &'ast Span, arena: &'ast Arena) {
         self.expressions.push(value.0.span);
         assert!(matches!(
             value.0.node,
             Expression::CompoundLiteral(_) | Expression::Member(_) | Expression::BinaryOperator(_)
         ));
-        visit::visit_sizeofval(self, value, span);
+        visit::visit_sizeofval(self, value, span, arena);
     }
 
-    fn visit_sizeofty(&mut self, value: &'ast SizeOfTy, span: &'ast Span) {
+    fn visit_sizeofty(&mut self, value: &'ast SizeOfTy, span: &'ast Span, arena: &'ast Arena) {
         self.types += 1;
-        visit::visit_sizeofty(self, value, span);
+        visit::visit_sizeofty(self, value, span, arena);
     }
 
-    fn visit_alignof(&mut self, value: &'ast AlignOf, span: &'ast Span) {
+    fn visit_alignof(&mut self, value: &'ast AlignOf, span: &'ast Span, arena: &'ast Arena) {
         match &value.operand {
             AlignOfOperand::Expression(expression) => self.expressions.push(expression.span),
             AlignOfOperand::TypeName(_) => self.types += 1,
         }
-        visit::visit_alignof(self, value, span);
+        visit::visit_alignof(self, value, span, arena);
     }
 }
 
@@ -60,7 +62,7 @@ fn sizeof_and_alignof_consume_compound_literals_and_their_postfix_operators() {
                 );
                 let parsed = parse_preprocessed(&config, source.clone()).unwrap();
                 let mut operands = Operands::default();
-                operands.visit_translation_unit(&parsed.unit);
+                operands.visit_translation_unit(&parsed.unit, &parsed.arena);
                 assert_eq!(operands.types, 1, "{source}");
                 assert_eq!(operands.expressions.len(), 1, "{source}");
                 let span = operands.expressions[0];

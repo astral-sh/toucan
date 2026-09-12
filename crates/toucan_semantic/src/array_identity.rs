@@ -37,13 +37,17 @@ pub(crate) struct Registry {
 }
 
 impl Registry {
-    fn collect(ast: Syntax<'_>, unit: &TranslationUnit) -> Result<Self, Error> {
+    fn collect(
+        ast: Syntax<'_>,
+        unit: &TranslationUnit,
+        arena: &lang_c::arena::Arena,
+    ) -> Result<Self, Error> {
         let mut collector = Collector {
             spans: Vec::new(),
             work: 0,
             error: None,
         };
-        ast.visit(&mut collector);
+        ast.visit(&mut collector, arena);
         if let Some(error) = collector.error {
             return Err(error);
         }
@@ -109,14 +113,14 @@ impl Registry {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn prepare_array_identities(
         &mut self,
         ast: Syntax<'_>,
         source: &str,
     ) -> Result<(), Error> {
         if source.as_bytes().contains(&b'[') || source.contains("<:") {
-            self.array_identities = Registry::collect(ast, &self.unit)?;
+            self.array_identities = Registry::collect(ast, &self.unit, self.arena)?;
         }
         Ok(())
     }
@@ -188,27 +192,52 @@ impl Collector {
     }
 }
 impl<'a> Visit<'a> for Collector {
-    fn visit_expression(&mut self, node: &'a ast::Expression, span: &'a Span) {
+    fn visit_expression(
+        &mut self,
+        node: &'a ast::Expression,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if self.step(*span) {
-            visit::visit_expression(self, node, span)
+            visit::visit_expression(self, node, span, arena)
         }
     }
-    fn visit_statement(&mut self, node: &'a ast::Statement, span: &'a Span) {
+    fn visit_statement(
+        &mut self,
+        node: &'a ast::Statement,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if self.step(*span) {
-            visit::visit_statement(self, node, span)
+            visit::visit_statement(self, node, span, arena)
         }
     }
-    fn visit_type_specifier(&mut self, node: &'a ast::TypeSpecifier, span: &'a Span) {
+    fn visit_type_specifier(
+        &mut self,
+        node: &'a ast::TypeSpecifier,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if self.step(*span) {
-            visit::visit_type_specifier(self, node, span)
+            visit::visit_type_specifier(self, node, span, arena)
         }
     }
-    fn visit_declarator(&mut self, node: &'a ast::Declarator, span: &'a Span) {
+    fn visit_declarator(
+        &mut self,
+        node: &'a ast::Declarator,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if self.step(*span) {
-            visit::visit_declarator(self, node, span)
+            visit::visit_declarator(self, node, span, arena)
         }
     }
-    fn visit_array_declarator(&mut self, node: &'a ast::ArrayDeclarator, span: &'a Span) {
+    fn visit_array_declarator(
+        &mut self,
+        node: &'a ast::ArrayDeclarator,
+        span: &'a Span,
+        arena: &'a lang_c::arena::Arena,
+    ) {
         if !self.step(*span) {
             return;
         }
@@ -216,7 +245,7 @@ impl<'a> Visit<'a> for Collector {
             ast::ArraySize::Unknown => false,
             ast::ArraySize::VariableExpression(expression)
             | ast::ArraySize::StaticExpression(expression) => {
-                !matches!(&expression.node,ast::Expression::Constant(value) if matches!(value.node,ast::Constant::Integer(_)))
+                !matches!(&expression.node,ast::Expression::Constant(value) if matches!(value.get(arena).node,ast::Constant::Integer(_)))
             }
             ast::ArraySize::VariableUnknown => true,
         };
@@ -237,7 +266,7 @@ impl<'a> Visit<'a> for Collector {
             }
             self.spans.push(*span);
         }
-        visit::visit_array_declarator(self, node, span);
+        visit::visit_array_declarator(self, node, span, arena);
     }
 }
 
@@ -247,10 +276,8 @@ mod tests {
     use lang_c::driver::{Config, parse_preprocessed};
     use toucan_target::Target;
 
-    fn ast(source: &str) -> ast::TranslationUnit {
-        parse_preprocessed(&Config::with_gcc(), source.to_owned())
-            .unwrap()
-            .unit
+    fn ast(source: &str) -> lang_c::driver::Parse {
+        parse_preprocessed(&Config::with_gcc(), source.to_owned()).unwrap()
     }
 
     #[test]
@@ -263,14 +290,14 @@ mod tests {
         }
         assert!(previous > 0);
         let source = ast("int n;int a[n];int b[n];");
-        let registry = Registry::collect(Syntax::Unit(&source), &unit).unwrap();
+        let registry = Registry::collect(Syntax::Unit(&source.unit), &unit, &source.arena).unwrap();
         assert_eq!(registry.spans.len(), 2);
         let first = registry.lookup(registry.spans[0]).unwrap();
         let second = registry.lookup(registry.spans[1]).unwrap();
         assert!(first.value() > previous);
         assert_ne!(first, second);
         assert_eq!(first, registry.lookup(registry.spans[0]).unwrap());
-        let again = Registry::collect(Syntax::Unit(&source), &unit).unwrap();
+        let again = Registry::collect(Syntax::Unit(&source.unit), &unit, &source.arena).unwrap();
         assert_eq!(first, again.lookup(registry.spans[0]).unwrap());
         assert!(
             registry
@@ -287,9 +314,9 @@ mod tests {
                 .contains("registered")
         );
         let mut duplicated = source.clone();
-        duplicated.0.push(source.0[1].clone());
+        duplicated.unit.0.push(source.unit.0[1].clone());
         assert!(
-            Registry::collect(Syntax::Unit(&duplicated), &unit)
+            Registry::collect(Syntax::Unit(&duplicated.unit), &unit, &duplicated.arena)
                 .err()
                 .unwrap()
                 .message
@@ -304,15 +331,17 @@ mod tests {
             unit.declarations[0].ty = unit.declarations[0].ty.clone().pointer();
         }
         for source in ["int x;", "int x[3];", "int x[];"] {
+            let parsed = ast(source);
             assert!(
-                Registry::collect(Syntax::Unit(&ast(source)), &unit)
+                Registry::collect(Syntax::Unit(&parsed.unit), &unit, &parsed.arena)
                     .unwrap()
                     .spans
                     .is_empty()
             );
         }
+        let parsed = ast("int x[n];");
         assert!(
-            Registry::collect(Syntax::Unit(&ast("int x[n];")), &unit)
+            Registry::collect(Syntax::Unit(&parsed.unit), &unit, &parsed.arena)
                 .err()
                 .unwrap()
                 .message
@@ -337,7 +366,7 @@ mod tests {
             work: MAX_WORK,
             error: None,
         };
-        collector.visit_array_declarator(&node, &span);
+        collector.visit_array_declarator(&node, &span, &lang_c::arena::Arena::default());
         let error = collector.error.unwrap();
         assert_eq!(error.offset, 7);
         assert!(error.message.contains("work limit"));
@@ -346,7 +375,7 @@ mod tests {
             work: 0,
             error: None,
         };
-        collector.visit_array_declarator(&node, &span);
+        collector.visit_array_declarator(&node, &span, &lang_c::arena::Arena::default());
         let error = collector.error.unwrap();
         assert_eq!(error.offset, 7);
         assert!(error.message.contains("storage limit"));

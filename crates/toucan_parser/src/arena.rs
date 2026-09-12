@@ -1,149 +1,134 @@
-//! Experimental owned storage for the outer operators of a C expression.
+//! Owned storage for recursive AST links.
 //!
-//! Binary, assignment, conditional, and comma operators use indices into a flat
-//! vector. Operands parsed by the existing cast-expression grammar remain owned
-//! AST leaves, including any operators inside parentheses, casts, or calls.
-//! Consequently, this is a partial arena representation, not a fully flat AST.
-//!
-//! ```
-//! use toucan_parser::arena::Expression;
-//! use toucan_parser::ast::BinaryOperator;
-//! use toucan_parser::driver::{parse_expression_arena, Config};
-//!
-//! let parsed = parse_expression_arena(&Config::with_gcc(), "a + b * c".into(), |_| false)?;
-//! let arena = parsed.expression;
-//! let root = arena.get(arena.root()).unwrap();
-//! let Expression::Binary { operator, rhs, .. } = &root.node else { panic!("binary root") };
-//! assert_eq!(operator.node, BinaryOperator::Plus);
-//! let right = arena.get(*rhs).unwrap();
-//! assert!(matches!(&right.node,
-//!     Expression::Binary { operator, .. } if operator.node == BinaryOperator::Multiply));
-//! # Ok::<(), toucan_parser::driver::SyntaxError>(())
-//! ```
+//! Parse results own an arena alongside their root. IDs are local to that arena;
+//! cloning an AST node copies its links, while cloning the parse result copies all
+//! storage. Each table drops its records in a flat loop, including owned strings
+//! and lists, without following child IDs.
 
-use ast;
+use std::fmt;
+use std::hash::{Hash, Hasher};
+use std::marker::PhantomData;
+
+use ast::*;
 use span::Node;
 
-/// An expression index belonging to one [`ArenaExpression`].
+/// A typed index into one parse result's arena.
 ///
-/// IDs are stable while their owner lives. Do not mix IDs from different owners:
-/// an in-range index from another owner cannot be distinguished during lookup.
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub struct ExprId(pub(crate) u32);
+/// IDs remain valid as the arena grows. An ID must be resolved against its owner
+/// or a clone of that owner; indices from different parses are not interchangeable.
+pub struct Id<T> {
+    index: u32,
+    marker: PhantomData<fn() -> T>,
+}
 
-impl ExprId {
-    /// Returns this ID's index in its owner's node vector.
+impl<T> Copy for Id<T> {}
+impl<T> Clone for Id<T> {
+    fn clone(&self) -> Self {
+        *self
+    }
+}
+impl<T> PartialEq for Id<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.index == other.index
+    }
+}
+impl<T> Eq for Id<T> {}
+impl<T> Hash for Id<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.index.hash(state);
+    }
+}
+impl<T> fmt::Debug for Id<T> {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Id({})", self.index)
+    }
+}
+impl<T: ArenaNode> Id<T> {
+    /// Resolves this ID in its owning arena.
+    pub fn get(self, arena: &Arena) -> &T {
+        arena.get(self).expect("AST ID belongs to its arena")
+    }
+    /// Returns the index within this type's table.
     pub fn index(self) -> usize {
-        self.0 as usize
+        self.index as usize
     }
 }
 
-/// An expression stored in an arena, with child links local to its owner.
-#[derive(Debug)]
-pub enum Expression {
-    /// A subtree constructed by the existing cast-expression parser.
-    /// Its children retain the ordinary owned AST representation.
-    Owned(ast::Expression),
-    /// A binary operator, including assignments.
-    Binary {
-        operator: Node<ast::BinaryOperator>,
-        lhs: ExprId,
-        rhs: ExprId,
-    },
-    /// A conditional operator, including GNU's omitted middle operand.
-    Conditional {
-        condition: ExprId,
-        then_expression: Option<ExprId>,
-        else_expression: ExprId,
-    },
-    /// A comma expression, in source order.
-    Comma(Vec<ExprId>),
+/// A record type supported by the AST arena.
+#[doc(hidden)]
+pub trait ArenaNode: Sized {
+    fn get(arena: &Arena, index: usize) -> Option<&Self>;
+    fn insert(arena: &mut Arena, value: Self) -> Id<Self>;
+    fn capacity(arena: &Arena) -> (usize, usize);
 }
 
-/// Owns an expression's nodes independently of the input source.
-///
-/// Children precede their parents in the node vector. No mutable access is
-/// exposed, so IDs and the tree structure remain valid. Dropping the arena
-/// releases native operators iteratively; owned leaves retain their usual drops.
-#[derive(Debug)]
-pub struct ArenaExpression {
-    nodes: Vec<Node<Expression>>,
-    root: ExprId,
-}
-
-impl ArenaExpression {
-    /// Completes a parser-built tree whose IDs refer to preceding nodes.
-    pub(crate) fn new(nodes: Vec<Node<Expression>>, root: ExprId) -> Self {
-        Self { nodes, root }
-    }
-
-    /// Returns the root expression's ID.
-    pub fn root(&self) -> ExprId {
-        self.root
-    }
-
-    /// Looks up an owner-local ID, returning `None` for an out-of-range index.
-    pub fn get(&self, id: ExprId) -> Option<&Node<Expression>> {
-        self.nodes.get(id.index())
-    }
-
-    /// Iterates over all nodes with children before parents.
-    pub fn iter(&self) -> impl ExactSizeIterator<Item = (ExprId, &Node<Expression>)> {
-        self.nodes
-            .iter()
-            .enumerate()
-            .map(|(index, node)| (ExprId(index as u32), node))
-    }
-
-    /// Materializes the ordinary AST for compatibility with existing consumers.
-    ///
-    /// Conversion moves owned leaves and builds operators without recursion. It
-    /// allocates the boxes omitted during arena parsing, plus temporary storage;
-    /// include that cost when measuring a consumer that requires the owned AST.
-    /// Parsing already checks the resulting owned depth against `max_ast_depth`.
-    pub fn into_owned(self) -> Node<ast::Expression> {
-        let mut nodes = Vec::with_capacity(self.nodes.len());
-        for node in self.nodes {
-            let expression = match node.node {
-                Expression::Owned(expression) => expression,
-                Expression::Binary { operator, lhs, rhs } => {
-                    ast::Expression::BinaryOperator(Box::new(Node::new(
-                        ast::BinaryOperatorExpression {
-                            operator,
-                            lhs: Box::new(take(&mut nodes, lhs)),
-                            rhs: Box::new(take(&mut nodes, rhs)),
-                        },
-                        node.span,
-                    )))
-                }
-                Expression::Conditional {
-                    condition,
-                    then_expression,
-                    else_expression,
-                } => ast::Expression::Conditional(Box::new(Node::new(
-                    ast::ConditionalExpression {
-                        condition: Box::new(take(&mut nodes, condition)),
-                        then_expression: then_expression.map(|id| Box::new(take(&mut nodes, id))),
-                        else_expression: Box::new(take(&mut nodes, else_expression)),
-                    },
-                    node.span,
-                ))),
-                Expression::Comma(expressions) => ast::Expression::Comma(Box::new(
-                    expressions
-                        .into_iter()
-                        .map(|id| take(&mut nodes, id))
-                        .collect(),
-                )),
-            };
-            nodes.push(Some(Node::new(expression, node.span)));
-        }
-        take(&mut nodes, self.root)
+macro_rules! tables {
+    ($($field:ident: $ty:ty),* $(,)?) => {
+        /// Owns the records referenced by a parsed translation unit or expression.
+        #[derive(Clone, Debug, Default, PartialEq)]
+        pub struct Arena { $($field: Vec<$ty>),* }
+        $(impl ArenaNode for $ty {
+            fn get(arena: &Arena, index: usize) -> Option<&Self> {
+                arena.$field.get(index)
+            }
+            fn insert(arena: &mut Arena, value: Self) -> Id<Self> {
+                let index = u32::try_from(arena.$field.len()).expect("AST arena index overflow");
+                arena.$field.push(value);
+                Id { index, marker: PhantomData }
+            }
+            fn capacity(arena: &Arena) -> (usize, usize) {
+                (arena.$field.len(), arena.$field.capacity())
+            }
+        })*
     }
 }
 
-/// Moves a child from the parser-built tree exactly once.
-fn take(nodes: &mut [Option<Node<ast::Expression>>], id: ExprId) -> Node<ast::Expression> {
-    nodes[id.index()]
-        .take()
-        .expect("arena child precedes its unique parent")
+use std::convert::TryFrom;
+tables! {
+    align_ofs: Node<AlignOf>,
+    binary_operator_expressions: Node<BinaryOperatorExpression>,
+    call_expressions: Node<CallExpression>,
+    cast_expressions: Node<CastExpression>,
+    choose_expressions: Node<ChooseExpression>,
+    compound_literals: Node<CompoundLiteral>,
+    conditional_expressions: Node<ConditionalExpression>,
+    constants: Node<Constant>,
+    convert_vector_expressions: Node<ConvertVectorExpression>,
+    declarators: Node<Declarator>,
+    do_while_statements: Node<DoWhileStatement>,
+    enum_types: Node<EnumType>,
+    for_statements: Node<ForStatement>,
+    function_declarators: Node<FunctionDeclarator>,
+    generic_selections: Node<GenericSelection>,
+    identifiers: Node<Identifier>,
+    if_statements: Node<IfStatement>,
+    labeled_statements: Node<LabeledStatement>,
+    member_expressions: Node<MemberExpression>,
+    offset_of_expressions: Node<OffsetOfExpression>,
+    size_of_tys: Node<SizeOfTy>,
+    size_of_vals: Node<SizeOfVal>,
+    statements: Node<Statement>,
+    string_literals: Node<StringLiteral>,
+    struct_types: Node<StructType>,
+    switch_statements: Node<SwitchStatement>,
+    type_names: Node<TypeName>,
+    type_ofs: Node<TypeOf>,
+    types_compatible_expressions: Node<TypesCompatibleExpression>,
+    unary_operator_expressions: Node<UnaryOperatorExpression>,
+    va_arg_expressions: Node<VaArgExpression>,
+    while_statements: Node<WhileStatement>,
+    block_item_lists: Vec<Node<BlockItem>>,
+    expression_lists: Vec<Node<Expression>>,
+    initializer_list_item_lists: Vec<Node<InitializerListItem>>,
+}
+
+impl Arena {
+    /// Appends a record and returns its stable typed ID.
+    pub fn alloc<T: ArenaNode>(&mut self, value: T) -> Id<T> {
+        T::insert(self, value)
+    }
+    /// Looks up an ID, returning `None` when its index is out of range.
+    pub fn get<T: ArenaNode>(&self, id: Id<T>) -> Option<&T> {
+        T::get(self, id.index())
+    }
 }

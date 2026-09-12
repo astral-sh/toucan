@@ -124,7 +124,7 @@ impl AllocationOperation {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn allocation_context(&mut self, evaluated: bool) -> Evaluation {
         self.enter_dll_context(evaluated);
         let previous = self.allocation_evaluation;

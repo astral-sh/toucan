@@ -152,7 +152,7 @@ impl Budget {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn eval_vector(
         &mut self,
         expression: &Node<ast::Expression>,
@@ -190,6 +190,7 @@ impl Analyzer {
         let unsupported = || Error::new(offset, "expression is not a supported vector constant");
         let lanes = match &expression.node {
             ast::Expression::CompoundLiteral(literal) => {
+                let literal = literal.get(self.arena);
                 // Initializer checking has already rejected designators, nested
                 // braces, excess lanes, and invalid scalar conversions.
                 self.check_initializer_list(
@@ -215,6 +216,7 @@ impl Analyzer {
                 lanes
             }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 if initializer {
                     self.check_static_arithmetic(&conditional.node.condition)?;
                 }
@@ -231,19 +233,22 @@ impl Analyzer {
                 .lanes
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 self.vector_constant(selected, initializer, budget)?.lanes
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)?;
                 self.vector_constant(selected, initializer, budget)?.lanes
             }
             ast::Expression::UnaryOperator(unary)
                 if matches!(
-                    unary.node.operator.node,
+                    unary.get(self.arena).node.operator.node,
                     Unary::Plus | Unary::Minus | Unary::Complement
                 ) =>
             {
+                let unary = unary.get(self.arena);
                 if initializer
                     && self.gnu_vector_profile()
                     && unary.node.operator.node != Unary::Plus
@@ -301,7 +306,7 @@ impl Analyzer {
             }
             ast::Expression::BinaryOperator(binary)
                 if matches!(
-                    binary.node.operator.node,
+                    binary.get(self.arena).node.operator.node,
                     Binary::Plus
                         | Binary::Minus
                         | Binary::Multiply
@@ -320,6 +325,7 @@ impl Analyzer {
                         | Binary::GreaterOrEqual
                 ) =>
             {
+                let binary = binary.get(self.arena);
                 if initializer && self.gnu_vector_profile() {
                     return Err(Error::new(
                         offset,
@@ -396,6 +402,7 @@ impl Analyzer {
                 left
             }
             ast::Expression::ConvertVector(conversion) => {
+                let conversion = conversion.get(self.arena);
                 let source =
                     self.vector_constant(&conversion.node.expression, initializer, budget)?;
                 let (source_element, _) = self.vector_constant_shape(&source.ty, offset)?;

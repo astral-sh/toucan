@@ -55,7 +55,7 @@ pub(crate) struct ParsedDiagnosticAttribute {
     pub(crate) span: Span,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn check_diagnostic_attributes(
         &mut self,
         name: &str,
@@ -99,7 +99,7 @@ impl Analyzer {
                 "diagnostic attribute requires a string literal",
             ));
         };
-        let decoded = self.decode_string_literal(strings, argument.span.start)?;
+        let decoded = self.decode_string_literal((strings).get(self.arena), argument.span.start)?;
         if decoded.encoding != StringEncoding::Ordinary {
             return Err(Error::new(
                 argument.span.start,
@@ -108,7 +108,7 @@ impl Analyzer {
         }
         // Clang's unevaluated-string grammar rejects numeric escapes; GCC accepts
         // them with a different message interpretation. Keep that scope explicit.
-        for literal in &strings.node {
+        for literal in &strings.get(self.arena).node {
             let mut bytes = literal.bytes();
             while let Some(byte) = bytes.next() {
                 if byte == b'\\'
@@ -267,11 +267,17 @@ mod noescape_tests {
     #[test]
     fn contract_payload_is_charged_before_its_arena_allocation() {
         let unit = crate::analyze("", toucan_target::Target::X86_64UnknownLinuxGnu).unwrap();
-        let mut analyzer = Analyzer::from_unit(unit);
         let parsed =
             lang_c::driver::parse_preprocessed(&lang_c::driver::Config::default(), String::new())
                 .unwrap();
-        let mut builder = Builder::new(&parsed.unit, 0, super::super::Limits::default()).unwrap();
+        let mut analyzer = Analyzer::from_unit(unit, &parsed.arena);
+        let mut builder = Builder::new(
+            &parsed.unit,
+            0,
+            super::super::Limits::default(),
+            &parsed.arena,
+        )
+        .unwrap();
         let used = builder.budget.payload_bytes;
         builder.budget.limits.payload_bytes =
             used + std::mem::size_of::<crate::ParameterContracts>() + 4 - 1;

@@ -35,7 +35,7 @@ fn int128_and_empty_compound_literals_keep_the_written_syntax() {
         let Expression::CompoundLiteral(literal) = &expression.node else {
             panic!("compound literal");
         };
-        assert!(literal.node.initializer_list.is_empty());
+        assert!(literal.get(&parsed.arena).node.initializer_list.is_empty());
         assert_eq!(
             &source[expression.span.start..expression.span.end],
             "(unsigned __int128){}"
@@ -44,7 +44,7 @@ fn int128_and_empty_compound_literals_keep_the_written_syntax() {
             panic!("function definition");
         };
         assert!(
-            matches!(&function.node.statement.node, Statement::Compound(items) if items.is_empty())
+            matches!(&function.node.statement.node, Statement::Compound(items) if items.get(&parsed.arena).is_empty())
         );
     }
 }

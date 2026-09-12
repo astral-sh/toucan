@@ -40,10 +40,17 @@ impl Builder {
     pub(super) fn standalone_tag(
         &mut self,
         specifier: &Node<ast::TypeSpecifier>,
+        arena: &lang_c::arena::Arena,
     ) -> Result<(), Error> {
         let (kind, span) = match &specifier.node {
-            ast::TypeSpecifier::Struct(node) => (OccurrenceKind::Record, node.span),
-            ast::TypeSpecifier::Enum(node) => (OccurrenceKind::Enum, node.span),
+            ast::TypeSpecifier::Struct(node) => {
+                let node = node.get(arena);
+                (OccurrenceKind::Record, node.span)
+            }
+            ast::TypeSpecifier::Enum(node) => {
+                let node = node.get(arena);
+                (OccurrenceKind::Enum, node.span)
+            }
             _ => return Ok(()),
         };
         let key = (kind, span.start, span.end);
@@ -130,15 +137,18 @@ impl Builder {
     }
 }
 
-pub(crate) fn member_name_span(declarator: &Node<ast::StructDeclarator>) -> Option<Span> {
+pub(crate) fn member_name_span(
+    declarator: &Node<ast::StructDeclarator>,
+    arena: &lang_c::arena::Arena,
+) -> Option<Span> {
     declarator
         .node
         .declarator
         .as_ref()
-        .and_then(declarator_name_span)
+        .and_then(|declarator| declarator_name_span(declarator, arena))
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Resolve the named end of an anonymous-member path while record identities are live.
     pub(crate) fn retain_member_reference(
         &mut self,

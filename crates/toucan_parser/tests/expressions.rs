@@ -37,7 +37,10 @@ fn inherited_typedefs_keep_original_spans_and_can_be_shadowed() {
     let Expression::BinaryOperator(binary) = parsed.expression.node else {
         panic!("binary expression")
     };
-    assert!(matches!(binary.node.lhs.node, Expression::Cast(_)));
+    assert!(matches!(
+        binary.get(&parsed.arena).node.lhs.node,
+        Expression::Cast(_)
+    ));
     // Postfix increment requires the local identifier; `(T)++` cannot be a cast.
     parse_expression(&config, "({ int T; (T)++; })".into(), |name| name == "T").unwrap();
     // Each query starts with a fresh environment.

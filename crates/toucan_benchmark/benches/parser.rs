@@ -38,6 +38,7 @@ fn parser(c: &mut Criterion) {
         toucan_parser::visit::Visit::visit_translation_unit(
             &mut toucan_parser::print::Printer::new(&mut toucan_tree),
             &toucan.unit,
+            &toucan.arena,
         );
         lang_c_reference::visit::Visit::visit_translation_unit(
             &mut lang_c_reference::print::Printer::new(&mut reference_tree),

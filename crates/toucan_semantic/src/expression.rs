@@ -69,7 +69,7 @@ impl ExpressionInfo {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Checks an expression without applying its outermost array/function decay.
     pub(crate) fn expression_type(
         &mut self,
@@ -112,41 +112,46 @@ impl Analyzer {
     ) -> Result<ExpressionInfo, Error> {
         let offset = expression.span.start;
         let ty = match &expression.node {
-            ast::Expression::Constant(constant) => match &constant.node {
-                ast::Constant::Integer(integer) => {
-                    let value = self.literal(integer, offset)?;
-                    if integer.suffix.size == ast::IntegerSize::Msvc(8) && !integer.suffix.unsigned
-                    {
-                        // Microsoft's i8 literal has plain char type, which its
-                        // signedness and integer rank alone cannot distinguish.
-                        Type::new(TypeKind::Integer(crate::IntegerKind::Char))
-                    } else {
-                        integer_to_type(value)
+            ast::Expression::Constant(constant) => {
+                let constant = constant.get(self.arena);
+                match &constant.node {
+                    ast::Constant::Integer(integer) => {
+                        let value = self.literal(integer, offset)?;
+                        if integer.suffix.size == ast::IntegerSize::Msvc(8)
+                            && !integer.suffix.unsigned
+                        {
+                            // Microsoft's i8 literal has plain char type, which its
+                            // signedness and integer rank alone cannot distinguish.
+                            Type::new(TypeKind::Integer(crate::IntegerKind::Char))
+                        } else {
+                            integer_to_type(value)
+                        }
+                    }
+                    ast::Constant::Character(character) => {
+                        integer_to_type(crate::decode_character_literal_with_profile(
+                            character,
+                            self.unit.profile()?,
+                            offset,
+                        )?)
+                    }
+                    ast::Constant::Float(float) => {
+                        let kind = crate::narrow_float::literal_kind(
+                            &float.suffix.format,
+                            self.unit.target,
+                            self.unit.compiler,
+                            offset,
+                        )?;
+                        if float.suffix.imaginary {
+                            self.require_complex_kind(kind, offset)?;
+                            Type::new(TypeKind::Complex(kind))
+                        } else {
+                            Type::new(TypeKind::Float(kind))
+                        }
                     }
                 }
-                ast::Constant::Character(character) => {
-                    integer_to_type(crate::decode_character_literal_with_profile(
-                        character,
-                        self.unit.profile()?,
-                        offset,
-                    )?)
-                }
-                ast::Constant::Float(float) => {
-                    let kind = crate::narrow_float::literal_kind(
-                        &float.suffix.format,
-                        self.unit.target,
-                        self.unit.compiler,
-                        offset,
-                    )?;
-                    if float.suffix.imaginary {
-                        self.require_complex_kind(kind, offset)?;
-                        Type::new(TypeKind::Complex(kind))
-                    } else {
-                        Type::new(TypeKind::Float(kind))
-                    }
-                }
-            },
+            }
             ast::Expression::Identifier(identifier) => {
+                let identifier = identifier.get(self.arena);
                 let name = &identifier.node.name;
                 self.check_auto_reference(name, offset)?;
                 self.record_dll_use(name, offset)?;
@@ -204,6 +209,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::StringLiteral(strings) => {
+                let strings = strings.get(self.arena);
                 let decoded = self.decode_string_literal(strings, offset)?;
                 return Ok(ExpressionInfo::object(Type::new(TypeKind::Array {
                     element: Box::new(Type::new(TypeKind::Integer(decoded.element_type))),
@@ -211,6 +217,7 @@ impl Analyzer {
                 })));
             }
             ast::Expression::CompoundLiteral(literal) => {
+                let literal = literal.get(self.arena);
                 let ty = self.type_name(&literal.node.type_name.node)?;
                 if self.unit.is_variable_length_array(&ty)? {
                     return Err(Error::new(
@@ -227,21 +234,31 @@ impl Analyzer {
                 )?;
                 return Ok(ExpressionInfo::object(ty));
             }
-            ast::Expression::Statement(statement) => return self.statement_expression(statement),
-            ast::Expression::ConvertVector(conversion) => self.convert_vector_type(conversion)?,
+            ast::Expression::Statement(statement) => {
+                let statement = statement.get(self.arena);
+                return self.statement_expression(statement);
+            }
+            ast::Expression::ConvertVector(conversion) => {
+                let conversion = conversion.get(self.arena);
+                self.convert_vector_type(conversion)?
+            }
             ast::Expression::TypesCompatible(query) => {
+                let query = query.get(self.arena);
                 self.eval_types_compatible(query)?;
                 integer_to_type(IntegerValue::int(0))
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 return self.expression_info(selected);
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)?;
                 return self.expression_info(selected);
             }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 let source_info = self.expression_info(&cast.node.expression)?;
                 source_info.check_prefetch_value_operation(offset)?;
                 self.require_sve_value(&source_info.ty, cast.node.expression.span.start)?;
@@ -313,16 +330,24 @@ impl Analyzer {
                 return Ok(info);
             }
             ast::Expression::UnaryOperator(unary) => {
+                let unary = unary.get(self.arena);
                 // In &*E neither operator is evaluated and the result is E after
                 // lvalue conversion, including when E has type void *.
                 if unary.node.operator.node == ast::UnaryOperator::Address
                     && let ast::Expression::UnaryOperator(indirection) = &unary.node.operand.node
-                    && indirection.node.operator.node == ast::UnaryOperator::Indirection
+                    && indirection.get(self.arena).node.operator.node
+                        == ast::UnaryOperator::Indirection
                 {
-                    let source = self.expression_info(&indirection.node.operand)?;
+                    let source = self.expression_info(&indirection.get(self.arena).node.operand)?;
                     source.check_prefetch_value_operation(offset)?;
-                    self.require_sve_value(&source.ty, indirection.node.operand.span.start)?;
-                    let ty = self.converted_type(&source, indirection.node.operand.span.start)?;
+                    self.require_sve_value(
+                        &source.ty,
+                        indirection.get(self.arena).node.operand.span.start,
+                    )?;
+                    let ty = self.converted_type(
+                        &source,
+                        indirection.get(self.arena).node.operand.span.start,
+                    )?;
                     if !matches!(ty.kind, TypeKind::Pointer(_)) {
                         return Err(Error::new(offset, "indirection requires a pointer"));
                     }
@@ -479,8 +504,12 @@ impl Analyzer {
                     }
                 }
             }
-            ast::Expression::BinaryOperator(binary) => return self.binary_expression(binary),
+            ast::Expression::BinaryOperator(binary) => {
+                let binary = binary.get(self.arena);
+                return self.binary_expression(binary);
+            }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 let condition_info = self.expression_info(&conditional.node.condition)?;
                 condition_info.check_prefetch_value_operation(offset)?;
                 let condition = self.converted_type(&condition_info, offset)?;
@@ -561,6 +590,7 @@ impl Analyzer {
                 result
             }
             ast::Expression::Member(member) => {
+                let member = member.get(self.arena);
                 let base = self.expression_info(&member.node.expression)?;
                 let (ty, lvalue) = if member.node.operator.node == ast::MemberOperator::Indirect {
                     let value = self.converted_type(&base, offset)?;
@@ -595,8 +625,12 @@ impl Analyzer {
                         && base.register,
                 });
             }
-            ast::Expression::VaArg(argument) => self.va_arg_type(argument)?,
+            ast::Expression::VaArg(argument) => {
+                let argument = argument.get(self.arena);
+                self.va_arg_type(argument)?
+            }
             ast::Expression::Call(call) => {
+                let call = call.get(self.arena);
                 if let Some(ty) = self.builtin_call_type(call)? {
                     return Ok(ExpressionInfo::value(ty));
                 }
@@ -656,15 +690,18 @@ impl Analyzer {
                 }
             }
             ast::Expression::SizeOfTy(size) => {
+                let size = size.get(self.arena);
                 let ty = self.sizeof_type_name(&size.node.0.node)?;
                 self.require_sizeof_operand(&ty, offset)?;
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::SizeOfVal(size) => {
+                let size = size.get(self.arena);
                 self.sizeof_operand_type(&size.node.0)?;
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::AlignOf(alignment) => {
+                let alignment = alignment.get(self.arena);
                 self.alignment_query(alignment)?;
                 integer_to_type(self.size_value(0))
             }
@@ -673,6 +710,7 @@ impl Analyzer {
                 integer_to_type(self.size_value(0))
             }
             ast::Expression::Comma(expressions) => {
+                let expressions = expressions.get(self.arena);
                 let mut ty = Type::new(TypeKind::Void);
                 for expression in expressions.iter() {
                     ty = self.value_expression_type(expression)?;
@@ -729,7 +767,7 @@ impl Analyzer {
                         selected = Some(index);
                     }
                     types.push(ty);
-                    expressions.push(association.node.expression.as_ref());
+                    expressions.push(&association.node.expression);
                 }
                 ast::GenericAssociation::Default(expression) => {
                     if default.is_some() {
@@ -739,7 +777,7 @@ impl Analyzer {
                         ));
                     }
                     default = Some(index);
-                    expressions.push(expression.as_ref());
+                    expressions.push(expression);
                 }
             }
         }
@@ -1669,7 +1707,7 @@ impl Analyzer {
             && self.unit.qualifiers(pointee)? == Qualifiers::default()
         {
             return Ok(self
-                .eval(&cast.node.expression)
+                .eval(&cast.get(self.arena).node.expression)
                 .is_ok_and(|value| value.value == 0));
         }
         if !matches!(

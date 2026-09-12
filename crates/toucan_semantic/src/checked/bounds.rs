@@ -641,6 +641,7 @@ impl Builder {
         self.bounds_builder.entities.insert(entity, result);
         Ok((result, declared))
     }
+    #[allow(clippy::too_many_arguments)]
     pub(crate) fn base_type_use(
         &mut self,
         specs: &[Node<ast::TypeSpecifier>],
@@ -649,14 +650,19 @@ impl Builder {
         variably_modified: bool,
         definition_parameter: bool,
         atomic_wrapper: bool,
+        arena: &lang_c::arena::Arena,
     ) -> Result<TypeUseId, Error> {
         let inherited = if let [specifier] = specs {
             match &specifier.node {
-                ast::TypeSpecifier::Atomic(name) => self.type_name_use(&name.node),
+                ast::TypeSpecifier::Atomic(name) => {
+                    let name = name.get(arena);
+                    self.type_name_use(&name.node)
+                }
                 ast::TypeSpecifier::TypedefName(name) => self
                     .entity_for_name(&name.node.name)
                     .and_then(|id| self.bounds_builder.entities.get(&id).copied()),
                 ast::TypeSpecifier::TypeOf(value) => {
+                    let value = value.get(arena);
                     self.retain_type_operand(value, variably_modified, definition_parameter)?;
                     match &value.node {
                         ast::TypeOf::Type(name) => self.type_name_use(&name.node),

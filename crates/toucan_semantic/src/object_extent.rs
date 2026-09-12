@@ -129,7 +129,7 @@ fn combine_effects(left: Option<bool>, right: Option<bool>) -> Option<bool> {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn infer_object_size(
         &mut self,
         call: &Node<ast::CallExpression>,
@@ -287,16 +287,18 @@ impl Analyzer {
         }
         match &expression.node {
             ast::Expression::UnaryOperator(unary)
-                if unary.node.operator.node == ast::UnaryOperator::Address =>
+                if unary.get(self.arena).node.operator.node == ast::UnaryOperator::Address =>
             {
+                let unary = unary.get(self.arena);
                 if let ast::Expression::UnaryOperator(indirection) = &unary.node.operand.node
-                    && indirection.node.operator.node == ast::UnaryOperator::Indirection
+                    && indirection.get(self.arena).node.operator.node
+                        == ast::UnaryOperator::Indirection
                 {
                     // C's &* cancellation preserves the pointer value. Clang's
                     // query-specific top-level cast stripping does not cross this
                     // written wrapper, so reinterpretation can lose its designator.
                     let Some(mut address) =
-                        self.object_pointer(&indirection.node.operand, depth + 1)?
+                        self.object_pointer(&indirection.get(self.arena).node.operand, depth + 1)?
                     else {
                         return Ok(None);
                     };
@@ -320,6 +322,7 @@ impl Analyzer {
                 Ok(Some(location.address))
             }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 let TypeKind::Pointer(pointee) = &self.unit.resolve(&ty)?.kind else {
                     return Ok(None);
@@ -336,10 +339,11 @@ impl Analyzer {
             }
             ast::Expression::BinaryOperator(binary)
                 if matches!(
-                    binary.node.operator.node,
+                    binary.get(self.arena).node.operator.node,
                     ast::BinaryOperator::Plus | ast::BinaryOperator::Minus
                 ) =>
             {
+                let binary = binary.get(self.arena);
                 let left_ty = self.value_expression_type(&binary.node.lhs)?;
                 let (pointer, integer) =
                     if matches!(self.unit.resolve(&left_ty)?.kind, TypeKind::Pointer(_)) {
@@ -393,6 +397,7 @@ impl Analyzer {
                 Ok(Some(address))
             }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 let Ok(condition) = self.eval_arithmetic(&conditional.node.condition) else {
                     return Ok(None);
                 };
@@ -406,14 +411,17 @@ impl Analyzer {
                 )
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 self.object_pointer(selected, depth + 1)
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)?;
                 self.object_pointer(selected, depth + 1)
             }
             ast::Expression::Comma(expressions) => {
+                let expressions = expressions.get(self.arena);
                 let Some((last, prefix)) = expressions.split_last() else {
                     return Ok(None);
                 };
@@ -461,6 +469,7 @@ impl Analyzer {
         };
         match &expression.node {
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 self.object_location(selected, depth + 1)
             }
@@ -478,7 +487,7 @@ impl Analyzer {
                     _ => Origin::Object,
                 };
                 let allocation = if let ast::Expression::Identifier(identifier) = &expression.node {
-                    self.object_allocation_size(&identifier.node.name)
+                    self.object_allocation_size(&identifier.get(self.arena).node.name)
                 } else {
                     None
                 };
@@ -509,6 +518,7 @@ impl Analyzer {
                 }))
             }
             ast::Expression::Member(member) => {
+                let member = member.get(self.arena);
                 let base = if member.node.operator.node == ast::MemberOperator::Direct {
                     self.object_location(&member.node.expression, depth + 1)?
                 } else {
@@ -557,8 +567,9 @@ impl Analyzer {
                 Ok(Some(location))
             }
             ast::Expression::BinaryOperator(binary)
-                if binary.node.operator.node == ast::BinaryOperator::Index =>
+                if binary.get(self.arena).node.operator.node == ast::BinaryOperator::Index =>
             {
+                let binary = binary.get(self.arena);
                 let left_ty = self.value_expression_type(&binary.node.lhs)?;
                 let (pointer, index) =
                     if matches!(self.unit.resolve(&left_ty)?.kind, TypeKind::Pointer(_)) {
@@ -613,10 +624,11 @@ impl Analyzer {
             }
             ast::Expression::UnaryOperator(unary)
                 if matches!(
-                    unary.node.operator.node,
+                    unary.get(self.arena).node.operator.node,
                     ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary
                 ) =>
             {
+                let unary = unary.get(self.arena);
                 let Some(mut location) = self.object_location(&unary.node.operand, depth + 1)?
                 else {
                     return Ok(None);
@@ -648,8 +660,9 @@ impl Analyzer {
                 Ok(Some(location))
             }
             ast::Expression::UnaryOperator(unary)
-                if unary.node.operator.node == ast::UnaryOperator::Indirection =>
+                if unary.get(self.arena).node.operator.node == ast::UnaryOperator::Indirection =>
             {
+                let unary = unary.get(self.arena);
                 let Some(mut address) = self.object_pointer(&unary.node.operand, depth + 1)? else {
                     return Ok(None);
                 };
@@ -693,14 +706,16 @@ impl Analyzer {
         };
         Ok(match &expression.node {
             ast::Expression::ConvertVector(conversion) => {
+                let conversion = conversion.get(self.arena);
                 self.object_discarded_effects(&conversion.node.expression, depth + 1)?
             }
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name((call).get(self.arena))
                     .and_then(crate::elementwise::ElementwiseOperation::from_name)
                     .is_some() =>
             {
+                let call = call.get(self.arena);
                 let mut effects = Some(false);
                 for argument in &call.node.arguments {
                     effects = combine_effects(
@@ -724,6 +739,7 @@ impl Analyzer {
                 )
             }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 if self.object_size_gnu() && self.unit.is_variably_modified(&ty)? {
                     Some(true)
@@ -733,6 +749,7 @@ impl Analyzer {
             }
             ast::Expression::AlignOf(_) => Some(false),
             ast::Expression::SizeOfTy(size) => {
+                let size = size.get(self.arena);
                 let ty = self.type_name(&size.node.0.node)?;
                 if self.unit.is_variable_length_array(&ty)? {
                     None
@@ -741,6 +758,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::SizeOfVal(size) => {
+                let size = size.get(self.arena);
                 let ty = self.expression_type(&size.node.0)?;
                 if self.unit.is_variable_length_array(&ty)? {
                     None
@@ -750,7 +768,7 @@ impl Analyzer {
             }
             ast::Expression::UnaryOperator(unary)
                 if matches!(
-                    unary.node.operator.node,
+                    unary.get(self.arena).node.operator.node,
                     ast::UnaryOperator::PreIncrement
                         | ast::UnaryOperator::PreDecrement
                         | ast::UnaryOperator::PostIncrement
@@ -761,7 +779,7 @@ impl Analyzer {
             }
             ast::Expression::UnaryOperator(unary)
                 if matches!(
-                    unary.node.operator.node,
+                    unary.get(self.arena).node.operator.node,
                     ast::UnaryOperator::Plus
                         | ast::UnaryOperator::Minus
                         | ast::UnaryOperator::Complement
@@ -770,11 +788,12 @@ impl Analyzer {
                         | ast::UnaryOperator::Imaginary
                 ) =>
             {
+                let unary = unary.get(self.arena);
                 self.object_discarded_effects(&unary.node.operand, depth + 1)?
             }
             ast::Expression::BinaryOperator(binary)
                 if matches!(
-                    binary.node.operator.node,
+                    binary.get(self.arena).node.operator.node,
                     ast::BinaryOperator::Assign
                         | ast::BinaryOperator::AssignPlus
                         | ast::BinaryOperator::AssignMinus
@@ -791,8 +810,9 @@ impl Analyzer {
                 Some(true)
             }
             ast::Expression::BinaryOperator(binary)
-                if binary.node.operator.node != ast::BinaryOperator::Index =>
+                if binary.get(self.arena).node.operator.node != ast::BinaryOperator::Index =>
             {
+                let binary = binary.get(self.arena);
                 let left = self.object_discarded_effects(&binary.node.lhs, depth + 1)?;
                 if matches!(
                     binary.node.operator.node,
@@ -812,6 +832,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 let condition =
                     self.object_discarded_effects(&conditional.node.condition, depth + 1)?;
                 let branches = if let Ok(value) = self.eval_arithmetic(&conditional.node.condition)
@@ -839,14 +860,17 @@ impl Analyzer {
                 combine_effects(condition, branches)
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 self.object_discarded_effects(selected, depth + 1)?
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)?;
                 self.object_discarded_effects(selected, depth + 1)?
             }
             ast::Expression::Comma(expressions) => {
+                let expressions = expressions.get(self.arena);
                 let mut effects = Some(false);
                 for expression in expressions.iter() {
                     effects = combine_effects(

@@ -5,7 +5,7 @@ use lang_c::{ast, span::Node};
 use crate::analyze::Analyzer;
 use crate::{Error, IntegerValue, TypeKind};
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn eval_constant_query(
         &mut self,
         call: &Node<ast::CallExpression>,
@@ -43,6 +43,7 @@ impl Analyzer {
         use ast::{BinaryOperator as Binary, UnaryOperator as Unary};
         match &expression.node {
             ast::Expression::TypesCompatible(query) => {
+                let query = query.get(self.arena);
                 self.eval_types_compatible(query)?;
                 return Ok(true);
             }
@@ -53,6 +54,7 @@ impl Analyzer {
             | ast::Expression::AlignOf(_)
             | ast::Expression::OffsetOf(_) => {}
             ast::Expression::Identifier(identifier) => {
+                let identifier = identifier.get(self.arena);
                 if !self.unit.constants.contains_key(&identifier.node.name)
                     && self.const_object_value(&identifier.node.name).is_none()
                 {
@@ -60,6 +62,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 if self
                     .null_base_member_offset(&cast.node.expression)?
                     .is_some()
@@ -81,6 +84,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::UnaryOperator(unary) => {
+                let unary = unary.get(self.arena);
                 if !matches!(
                     unary.node.operator.node,
                     Unary::Plus
@@ -95,6 +99,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::BinaryOperator(binary) => {
+                let binary = binary.get(self.arena);
                 if !self.known_constant_operand(&binary.node.lhs)? {
                     return Ok(false);
                 }
@@ -112,6 +117,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 if !self.known_constant_operand(&conditional.node.condition)? {
                     return Ok(false);
                 }
@@ -119,9 +125,9 @@ impl Analyzer {
                     return Ok(false);
                 };
                 let selected = if condition.truth() {
-                    conditional.node.then_expression.as_deref()
+                    conditional.node.then_expression.as_ref()
                 } else {
-                    Some(conditional.node.else_expression.as_ref())
+                    Some(&conditional.node.else_expression)
                 };
                 if let Some(selected) = selected
                     && !self.known_constant_operand(selected)?
@@ -134,14 +140,17 @@ impl Analyzer {
                 }
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 return self.known_constant_operand(selected);
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)?;
                 return self.known_constant_operand(selected);
             }
             ast::Expression::Call(call) => {
+                let call = call.get(self.arena);
                 let name = self.builtin_name(call);
                 if name == Some("__c11_atomic_is_lock_free") {
                     return Ok(self.eval_c11_atomic_lock_free(call).is_ok());

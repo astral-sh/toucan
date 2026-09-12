@@ -62,7 +62,7 @@ fn evaluate(expression: &str, target: Target) -> Result<ArithmeticValue, Error> 
     else {
         panic!("expression")
     };
-    Analyzer::from_unit(analyze("", target).unwrap()).eval_arithmetic(expression)
+    Analyzer::from_unit(analyze("", target).unwrap(), &parsed.arena).eval_arithmetic(expression)
 }
 
 fn values(target: Target) -> Vec<u128> {

@@ -11,7 +11,7 @@ pub(crate) struct MemorySignature {
     pub(crate) parameters: [Type; 3],
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Infinity and huge-value intrinsics share the target's three C float types.
     pub(crate) fn infinity_builtin_kind(&self, name: &str) -> Option<FloatKind> {
         infinity_kind(name)
@@ -114,11 +114,11 @@ impl Analyzer {
 
     /// Recognizes intrinsics only when an ordinary declaration has not shadowed
     /// their names. Intrinsics never become exported external declarations.
-    pub(crate) fn builtin_name<'a>(&self, call: &'a Node<ast::CallExpression>) -> Option<&'a str> {
+    pub(crate) fn builtin_name(&self, call: &Node<ast::CallExpression>) -> Option<&'ast str> {
         let ast::Expression::Identifier(identifier) = &call.node.callee.node else {
             return None;
         };
-        let name = identifier.node.name.as_str();
+        let name = identifier.get(self.arena).node.name.as_str();
         if self
             .lexical_scopes
             .iter()
@@ -140,7 +140,8 @@ impl Analyzer {
         call: &Node<ast::CallExpression>,
     ) -> Result<Option<Type>, Error> {
         if let ast::Expression::Identifier(identifier) = &call.node.callee.node
-            && let Some(operation) = self.builtin_function_reference(&identifier.node.name)?
+            && let Some(operation) =
+                self.builtin_function_reference(&identifier.get(self.arena).node.name)?
         {
             return match operation {
                 crate::BuiltinFunction::Allocation(operation) => {
@@ -369,7 +370,7 @@ impl Analyzer {
                         "va_start requires the last named parameter",
                     ));
                 };
-                let name = &identifier.node.name;
+                let name = &identifier.get(self.arena).node.name;
                 if function
                     .parameters
                     .last()

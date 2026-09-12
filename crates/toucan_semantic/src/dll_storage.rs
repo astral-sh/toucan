@@ -119,7 +119,7 @@ pub(crate) struct Declaration<'a> {
     pub(crate) offset: usize,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Imports suppress ordinary Microsoft out-of-line definitions. Clang can
     /// still materialize an explicitly weak body when it is referenced.
     pub(crate) fn finish_dll_inline_definitions(&mut self) {

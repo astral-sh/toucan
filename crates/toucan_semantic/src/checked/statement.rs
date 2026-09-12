@@ -518,7 +518,7 @@ impl Builder {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     fn statement_builder(&mut self) -> &mut Builder {
         self.checked
             .as_deref_mut()
@@ -754,6 +754,7 @@ impl Analyzer {
         let offset = statement.span.start;
         let kind = match &statement.node {
             ast::Statement::Compound(items) => {
+                let items = items.get(self.arena);
                 StatementKind::Block(self.retained_block(items, offset)?)
             }
             ast::Statement::Expression(expression) => StatementKind::Expression(
@@ -787,31 +788,41 @@ impl Analyzer {
                     .statement_builder()
                     .control_target(Some(ControlKind::Switch), offset)?,
             },
-            ast::Statement::If(selection) => StatementKind::If {
-                condition: self.retained_value(&selection.node.condition)?,
-                then_statement: self
-                    .statement_builder()
-                    .statement_id(&selection.node.then_statement)?,
-                else_statement: selection
-                    .node
-                    .else_statement
-                    .as_ref()
-                    .map(|statement| self.statement_builder().statement_id(statement))
-                    .transpose()?,
-            },
-            ast::Statement::While(iteration) => StatementKind::While {
-                condition: self.retained_value(&iteration.node.expression)?,
-                body: self
-                    .statement_builder()
-                    .statement_id(&iteration.node.statement)?,
-            },
-            ast::Statement::DoWhile(iteration) => StatementKind::DoWhile {
-                body: self
-                    .statement_builder()
-                    .statement_id(&iteration.node.statement)?,
-                condition: self.retained_value(&iteration.node.expression)?,
-            },
+            ast::Statement::If(selection) => {
+                let selection = selection.get(self.arena);
+                StatementKind::If {
+                    condition: self.retained_value(&selection.node.condition)?,
+                    then_statement: self
+                        .statement_builder()
+                        .statement_id(&selection.node.then_statement)?,
+                    else_statement: selection
+                        .node
+                        .else_statement
+                        .as_ref()
+                        .map(|statement| self.statement_builder().statement_id(statement))
+                        .transpose()?,
+                }
+            }
+            ast::Statement::While(iteration) => {
+                let iteration = iteration.get(self.arena);
+                StatementKind::While {
+                    condition: self.retained_value(&iteration.node.expression)?,
+                    body: self
+                        .statement_builder()
+                        .statement_id(&iteration.node.statement)?,
+                }
+            }
+            ast::Statement::DoWhile(iteration) => {
+                let iteration = iteration.get(self.arena);
+                StatementKind::DoWhile {
+                    body: self
+                        .statement_builder()
+                        .statement_id(&iteration.node.statement)?,
+                    condition: self.retained_value(&iteration.node.expression)?,
+                }
+            }
             ast::Statement::For(iteration) => {
+                let iteration = iteration.get(self.arena);
                 let initializer = match &iteration.node.initializer.node {
                     ast::ForInitializer::Empty => ForInitializer::Empty,
                     ast::ForInitializer::Expression(expression) => {
@@ -844,6 +855,7 @@ impl Analyzer {
                 }
             }
             ast::Statement::Switch(selection) => {
+                let selection = selection.get(self.arena);
                 let info = self.expression_info(&selection.node.expression)?;
                 let promoted = integer_to_type(self.promoted_integer(&info, offset)?);
                 StatementKind::Switch {
@@ -858,6 +870,7 @@ impl Analyzer {
                 }
             }
             ast::Statement::Labeled(labeled) => {
+                let labeled = labeled.get(self.arena);
                 let label = match &labeled.node.label.node {
                     ast::Label::Identifier(identifier) => {
                         let builder = self.statement_builder();
@@ -962,7 +975,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     fn retained_assembly_text(
         &mut self,
         literal: &Node<ast::StringLiteral>,

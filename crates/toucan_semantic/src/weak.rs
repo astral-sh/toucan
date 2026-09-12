@@ -5,7 +5,7 @@ use lang_c::span::Span;
 use crate::analyze::Analyzer;
 use crate::{Error, SymbolBinding};
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Merges a GNU weak declaration without changing its type or lexical visibility.
     pub(crate) fn check_symbol_binding(
         &mut self,

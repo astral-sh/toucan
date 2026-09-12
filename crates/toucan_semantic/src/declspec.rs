@@ -64,7 +64,7 @@ pub fn has_declspec_attribute(profile: CompilerProfile, name: &str) -> u64 {
     )
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Checks operands before applying subject-dependent declaration effects.
     pub(crate) fn declspec_attribute(
         &mut self,

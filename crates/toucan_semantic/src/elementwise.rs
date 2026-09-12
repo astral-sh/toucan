@@ -26,7 +26,7 @@ impl ElementwiseOperation {
         }
     }
 }
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Clang 18 applies scalar arithmetic conversions but does not splat scalar
     /// operands into vectors. Later Clang versions changed these promotion rules.
     pub(crate) fn elementwise_type(

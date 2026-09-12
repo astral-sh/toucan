@@ -6,12 +6,13 @@
 //! ```no_run
 //! # use toucan_parser::print::Printer;
 //! use toucan_parser::visit::Visit;
-//! # let unit = panic!();
+//! # let parsed: toucan_parser::driver::Parse = panic!();
 //! let s = &mut String::new();
-//! Printer::new(s).visit_translation_unit(unit);
+//! Printer::new(s).visit_translation_unit(&parsed.unit, &parsed.arena);
 //! ```
 use std::fmt;
 
+use arena::Arena;
 use ast::*;
 use span::Span;
 use visit::*;
@@ -57,26 +58,26 @@ impl<'a> Printer<'a> {
 }
 
 impl<'ast, 'a> Visit<'ast> for Printer<'a> {
-    fn visit_identifier(&mut self, n: &'ast Identifier, span: &'ast Span) {
+    fn visit_identifier(&mut self, n: &'ast Identifier, span: &'ast Span, arena: &'ast Arena) {
         self.name("Identifier");
         self.field_str(&n.name);
-        visit_identifier(&mut self.block(), n, span);
+        visit_identifier(&mut self.block(), n, span, arena);
     }
-    fn visit_constant(&mut self, n: &'ast Constant, span: &'ast Span) {
+    fn visit_constant(&mut self, n: &'ast Constant, span: &'ast Span, arena: &'ast Arena) {
         self.name("Constant");
         if let Constant::Character(ref c) = *n {
             self.field("Character");
             self.field(c);
         }
 
-        visit_constant(&mut self.block(), n, span);
+        visit_constant(&mut self.block(), n, span, arena);
     }
-    fn visit_integer(&mut self, n: &'ast Integer, span: &'ast Span) {
+    fn visit_integer(&mut self, n: &'ast Integer, span: &'ast Span, arena: &'ast Arena) {
         self.name("Integer");
         self.field_str(&n.number);
-        visit_integer(&mut self.block(), n, span);
+        visit_integer(&mut self.block(), n, span, arena);
     }
-    fn visit_integer_base(&mut self, n: &'ast IntegerBase, span: &'ast Span) {
+    fn visit_integer_base(&mut self, n: &'ast IntegerBase, span: &'ast Span, arena: &'ast Arena) {
         self.name("IntegerBase");
         self.field(match *n {
             IntegerBase::Decimal => "Decimal",
@@ -84,15 +85,20 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             IntegerBase::Hexadecimal => "Hexadecimal",
             IntegerBase::Binary => "Binary",
         });
-        visit_integer_base(&mut self.block(), n, span);
+        visit_integer_base(&mut self.block(), n, span, arena);
     }
-    fn visit_integer_suffix(&mut self, n: &'ast IntegerSuffix, span: &'ast Span) {
+    fn visit_integer_suffix(
+        &mut self,
+        n: &'ast IntegerSuffix,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("IntegerSuffix");
         self.field(n.unsigned);
         self.field(n.imaginary);
-        visit_integer_suffix(&mut self.block(), n, span);
+        visit_integer_suffix(&mut self.block(), n, span, arena);
     }
-    fn visit_integer_size(&mut self, n: &'ast IntegerSize, span: &'ast Span) {
+    fn visit_integer_size(&mut self, n: &'ast IntegerSize, span: &'ast Span, arena: &'ast Arena) {
         self.name("IntegerSize");
         match *n {
             IntegerSize::Int => self.field("Int"),
@@ -103,32 +109,37 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
                 self.field(width);
             }
         }
-        visit_integer_size(&mut self.block(), n, span);
+        visit_integer_size(&mut self.block(), n, span, arena);
     }
-    fn visit_float(&mut self, n: &'ast Float, span: &'ast Span) {
+    fn visit_float(&mut self, n: &'ast Float, span: &'ast Span, arena: &'ast Arena) {
         self.name("Float");
         self.field_str(&n.number);
-        visit_float(&mut self.block(), n, span);
+        visit_float(&mut self.block(), n, span, arena);
     }
-    fn visit_float_base(&mut self, n: &'ast FloatBase, span: &'ast Span) {
+    fn visit_float_base(&mut self, n: &'ast FloatBase, span: &'ast Span, arena: &'ast Arena) {
         self.name("FloatBase");
         self.field(match *n {
             FloatBase::Decimal => "Decimal",
             FloatBase::Hexadecimal => "Hexadecimal",
         });
-        visit_float_base(&mut self.block(), n, span);
+        visit_float_base(&mut self.block(), n, span, arena);
     }
-    fn visit_float_suffix(&mut self, n: &'ast FloatSuffix, span: &'ast Span) {
+    fn visit_float_suffix(&mut self, n: &'ast FloatSuffix, span: &'ast Span, arena: &'ast Arena) {
         self.name("FloatSuffix");
         self.field(n.imaginary);
-        visit_float_suffix(&mut self.block(), n, span);
+        visit_float_suffix(&mut self.block(), n, span, arena);
     }
-    fn visit_float_format(&mut self, n: &'ast FloatFormat, span: &'ast Span) {
+    fn visit_float_format(&mut self, n: &'ast FloatFormat, span: &'ast Span, arena: &'ast Arena) {
         self.name("FloatFormat");
         print_float_format(self, n);
-        visit_float_format(&mut self.block(), n, span);
+        visit_float_format(&mut self.block(), n, span, arena);
     }
-    fn visit_string_literal(&mut self, n: &'ast StringLiteral, span: &'ast Span) {
+    fn visit_string_literal(
+        &mut self,
+        n: &'ast StringLiteral,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("StringLiteral");
 
         self.w.write_str(" [").unwrap();
@@ -139,81 +150,124 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
         }
         self.w.write_str("]").unwrap();
 
-        visit_string_literal(&mut self.block(), n, span);
+        visit_string_literal(&mut self.block(), n, span, arena);
     }
-    fn visit_expression(&mut self, n: &'ast Expression, span: &'ast Span) {
+    fn visit_expression(&mut self, n: &'ast Expression, span: &'ast Span, arena: &'ast Arena) {
         self.name("Expression");
-        visit_expression(&mut self.block(), n, span);
+        visit_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_member_operator(&mut self, n: &'ast MemberOperator, span: &'ast Span) {
+    fn visit_member_operator(
+        &mut self,
+        n: &'ast MemberOperator,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("MemberOperator");
         self.field(match *n {
             MemberOperator::Direct => "Direct",
             MemberOperator::Indirect => "Indirect",
         });
-        visit_member_operator(&mut self.block(), n, span);
+        visit_member_operator(&mut self.block(), n, span, arena);
     }
     fn visit_types_compatible_expression(
         &mut self,
         n: &'ast TypesCompatibleExpression,
         span: &'ast Span,
+        arena: &'ast Arena,
     ) {
         self.name("TypesCompatibleExpression");
-        visit_types_compatible_expression(&mut self.block(), n, span);
+        visit_types_compatible_expression(&mut self.block(), n, span, arena);
     }
     fn visit_convert_vector_expression(
         &mut self,
         n: &'ast ConvertVectorExpression,
         span: &'ast Span,
+        arena: &'ast Arena,
     ) {
         self.name("ConvertVectorExpression");
-        visit_convert_vector_expression(&mut self.block(), n, span);
+        visit_convert_vector_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_choose_expression(&mut self, n: &'ast ChooseExpression, span: &'ast Span) {
+    fn visit_choose_expression(
+        &mut self,
+        n: &'ast ChooseExpression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("ChooseExpression");
-        visit_choose_expression(&mut self.block(), n, span);
+        visit_choose_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_generic_selection(&mut self, n: &'ast GenericSelection, span: &'ast Span) {
+    fn visit_generic_selection(
+        &mut self,
+        n: &'ast GenericSelection,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("GenericSelection");
-        visit_generic_selection(&mut self.block(), n, span);
+        visit_generic_selection(&mut self.block(), n, span, arena);
     }
-    fn visit_generic_association(&mut self, n: &'ast GenericAssociation, span: &'ast Span) {
+    fn visit_generic_association(
+        &mut self,
+        n: &'ast GenericAssociation,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("GenericAssociation");
-        visit_generic_association(&mut self.block(), n, span);
+        visit_generic_association(&mut self.block(), n, span, arena);
     }
     fn visit_generic_association_type(
         &mut self,
         n: &'ast GenericAssociationType,
         span: &'ast Span,
+        arena: &'ast Arena,
     ) {
         self.name("GenericAssociationType");
-        visit_generic_association_type(&mut self.block(), n, span);
+        visit_generic_association_type(&mut self.block(), n, span, arena);
     }
-    fn visit_member_expression(&mut self, n: &'ast MemberExpression, span: &'ast Span) {
+    fn visit_member_expression(
+        &mut self,
+        n: &'ast MemberExpression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("MemberExpression");
-        visit_member_expression(&mut self.block(), n, span);
+        visit_member_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_call_expression(&mut self, n: &'ast CallExpression, span: &'ast Span) {
+    fn visit_call_expression(
+        &mut self,
+        n: &'ast CallExpression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("CallExpression");
-        visit_call_expression(&mut self.block(), n, span);
+        visit_call_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_compound_literal(&mut self, n: &'ast CompoundLiteral, span: &'ast Span) {
+    fn visit_compound_literal(
+        &mut self,
+        n: &'ast CompoundLiteral,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("CompoundLiteral");
-        visit_compound_literal(&mut self.block(), n, span);
+        visit_compound_literal(&mut self.block(), n, span, arena);
     }
-    fn visit_sizeofty(&mut self, n: &'ast SizeOfTy, span: &'ast Span) {
+    fn visit_sizeofty(&mut self, n: &'ast SizeOfTy, span: &'ast Span, arena: &'ast Arena) {
         self.name("SizeOfTy");
-        visit_sizeofty(&mut self.block(), n, span);
+        visit_sizeofty(&mut self.block(), n, span, arena);
     }
-    fn visit_sizeofval(&mut self, n: &'ast SizeOfVal, span: &'ast Span) {
+    fn visit_sizeofval(&mut self, n: &'ast SizeOfVal, span: &'ast Span, arena: &'ast Arena) {
         self.name("SizeOfVal");
-        visit_sizeofval(&mut self.block(), n, span);
+        visit_sizeofval(&mut self.block(), n, span, arena);
     }
-    fn visit_alignof(&mut self, n: &'ast AlignOf, span: &'ast Span) {
+    fn visit_alignof(&mut self, n: &'ast AlignOf, span: &'ast Span, arena: &'ast Arena) {
         self.name("AlignOf");
-        visit_alignof(&mut self.block(), n, span);
+        visit_alignof(&mut self.block(), n, span, arena);
     }
-    fn visit_unary_operator(&mut self, n: &'ast UnaryOperator, span: &'ast Span) {
+    fn visit_unary_operator(
+        &mut self,
+        n: &'ast UnaryOperator,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("UnaryOperator");
         self.field(match *n {
             UnaryOperator::PostIncrement => "PostIncrement",
@@ -229,21 +283,32 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             UnaryOperator::Real => "Real",
             UnaryOperator::Imaginary => "Imaginary",
         });
-        visit_unary_operator(&mut self.block(), n, span);
+        visit_unary_operator(&mut self.block(), n, span, arena);
     }
     fn visit_unary_operator_expression(
         &mut self,
         n: &'ast UnaryOperatorExpression,
         span: &'ast Span,
+        arena: &'ast Arena,
     ) {
         self.name("UnaryOperatorExpression");
-        visit_unary_operator_expression(&mut self.block(), n, span);
+        visit_unary_operator_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_cast_expression(&mut self, n: &'ast CastExpression, span: &'ast Span) {
+    fn visit_cast_expression(
+        &mut self,
+        n: &'ast CastExpression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("CastExpression");
-        visit_cast_expression(&mut self.block(), n, span);
+        visit_cast_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_binary_operator(&mut self, n: &'ast BinaryOperator, span: &'ast Span) {
+    fn visit_binary_operator(
+        &mut self,
+        n: &'ast BinaryOperator,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("BinaryOperator");
         self.field(match *n {
             BinaryOperator::Index => "Index",
@@ -277,50 +342,86 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             BinaryOperator::AssignBitwiseXor => "AssignBitwiseXor",
             BinaryOperator::AssignBitwiseOr => "AssignBitwiseOr",
         });
-        visit_binary_operator(&mut self.block(), n, span);
+        visit_binary_operator(&mut self.block(), n, span, arena);
     }
     fn visit_binary_operator_expression(
         &mut self,
         n: &'ast BinaryOperatorExpression,
         span: &'ast Span,
+        arena: &'ast Arena,
     ) {
         self.name("BinaryOperatorExpression");
-        visit_binary_operator_expression(&mut self.block(), n, span);
+        visit_binary_operator_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_conditional_expression(&mut self, n: &'ast ConditionalExpression, span: &'ast Span) {
+    fn visit_conditional_expression(
+        &mut self,
+        n: &'ast ConditionalExpression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("ConditionalExpression");
-        visit_conditional_expression(&mut self.block(), n, span);
+        visit_conditional_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_va_arg_expression(&mut self, n: &'ast VaArgExpression, span: &'ast Span) {
+    fn visit_va_arg_expression(
+        &mut self,
+        n: &'ast VaArgExpression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("VaArgExpression");
-        visit_va_arg_expression(&mut self.block(), n, span);
+        visit_va_arg_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_offset_of_expression(&mut self, n: &'ast OffsetOfExpression, span: &'ast Span) {
+    fn visit_offset_of_expression(
+        &mut self,
+        n: &'ast OffsetOfExpression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("OffsetOfExpression");
-        visit_offset_of_expression(&mut self.block(), n, span);
+        visit_offset_of_expression(&mut self.block(), n, span, arena);
     }
-    fn visit_offset_designator(&mut self, n: &'ast OffsetDesignator, span: &'ast Span) {
+    fn visit_offset_designator(
+        &mut self,
+        n: &'ast OffsetDesignator,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("OffsetDesignator");
-        visit_offset_designator(&mut self.block(), n, span);
+        visit_offset_designator(&mut self.block(), n, span, arena);
     }
-    fn visit_offset_member(&mut self, n: &'ast OffsetMember, span: &'ast Span) {
+    fn visit_offset_member(&mut self, n: &'ast OffsetMember, span: &'ast Span, arena: &'ast Arena) {
         self.name("OffsetMember");
         print_offset_member(self, n);
-        visit_offset_member(&mut self.block(), n, span);
+        visit_offset_member(&mut self.block(), n, span, arena);
     }
-    fn visit_declaration(&mut self, n: &'ast Declaration, span: &'ast Span) {
+    fn visit_declaration(&mut self, n: &'ast Declaration, span: &'ast Span, arena: &'ast Arena) {
         self.name("Declaration");
-        visit_declaration(&mut self.block(), n, span);
+        visit_declaration(&mut self.block(), n, span, arena);
     }
-    fn visit_declaration_specifier(&mut self, n: &'ast DeclarationSpecifier, span: &'ast Span) {
+    fn visit_declaration_specifier(
+        &mut self,
+        n: &'ast DeclarationSpecifier,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("DeclarationSpecifier");
-        visit_declaration_specifier(&mut self.block(), n, span);
+        visit_declaration_specifier(&mut self.block(), n, span, arena);
     }
-    fn visit_init_declarator(&mut self, n: &'ast InitDeclarator, span: &'ast Span) {
+    fn visit_init_declarator(
+        &mut self,
+        n: &'ast InitDeclarator,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("InitDeclarator");
-        visit_init_declarator(&mut self.block(), n, span);
+        visit_init_declarator(&mut self.block(), n, span, arena);
     }
-    fn visit_storage_class_specifier(&mut self, n: &'ast StorageClassSpecifier, span: &'ast Span) {
+    fn visit_storage_class_specifier(
+        &mut self,
+        n: &'ast StorageClassSpecifier,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("StorageClassSpecifier");
         self.field(match *n {
             StorageClassSpecifier::Typedef => "Typedef",
@@ -331,19 +432,34 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             StorageClassSpecifier::Auto => "Auto",
             StorageClassSpecifier::Register => "Register",
         });
-        visit_storage_class_specifier(&mut self.block(), n, span);
+        visit_storage_class_specifier(&mut self.block(), n, span, arena);
     }
-    fn visit_type_specifier(&mut self, n: &'ast TypeSpecifier, span: &'ast Span) {
+    fn visit_type_specifier(
+        &mut self,
+        n: &'ast TypeSpecifier,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("TypeSpecifier");
         print_type_specifier(self, n);
-        visit_type_specifier(&mut self.block(), n, span);
+        visit_type_specifier(&mut self.block(), n, span, arena);
     }
-    fn visit_ts18661_float_type(&mut self, n: &'ast TS18661FloatType, span: &'ast Span) {
+    fn visit_ts18661_float_type(
+        &mut self,
+        n: &'ast TS18661FloatType,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("TS18661FloatType");
         self.field(n.width);
-        visit_ts18661_float_type(&mut self.block(), n, span);
+        visit_ts18661_float_type(&mut self.block(), n, span, arena);
     }
-    fn visit_ts18661_float_format(&mut self, n: &'ast TS18661FloatFormat, span: &'ast Span) {
+    fn visit_ts18661_float_format(
+        &mut self,
+        n: &'ast TS18661FloatFormat,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("TS18661FloatFormat");
         self.field(match *n {
             TS18661FloatFormat::BinaryInterchange => "BinaryInterchange",
@@ -351,45 +467,65 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             TS18661FloatFormat::DecimalInterchange => "DecimalInterchange",
             TS18661FloatFormat::DecimalExtended => "DecimalExtended",
         });
-        visit_ts18661_float_format(&mut self.block(), n, span);
+        visit_ts18661_float_format(&mut self.block(), n, span, arena);
     }
-    fn visit_struct_type(&mut self, n: &'ast StructType, span: &'ast Span) {
+    fn visit_struct_type(&mut self, n: &'ast StructType, span: &'ast Span, arena: &'ast Arena) {
         self.name("StructType");
-        visit_struct_type(&mut self.block(), n, span);
+        visit_struct_type(&mut self.block(), n, span, arena);
     }
-    fn visit_struct_kind(&mut self, n: &'ast StructKind, span: &'ast Span) {
+    fn visit_struct_kind(&mut self, n: &'ast StructKind, span: &'ast Span, arena: &'ast Arena) {
         self.name("StructKind");
         self.field(match *n {
             StructKind::Struct => "Struct",
             StructKind::Union => "Union",
         });
-        visit_struct_kind(&mut self.block(), n, span);
+        visit_struct_kind(&mut self.block(), n, span, arena);
     }
-    fn visit_struct_declaration(&mut self, n: &'ast StructDeclaration, span: &'ast Span) {
+    fn visit_struct_declaration(
+        &mut self,
+        n: &'ast StructDeclaration,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("StructDeclaration");
-        visit_struct_declaration(&mut self.block(), n, span);
+        visit_struct_declaration(&mut self.block(), n, span, arena);
     }
-    fn visit_struct_field(&mut self, n: &'ast StructField, span: &'ast Span) {
+    fn visit_struct_field(&mut self, n: &'ast StructField, span: &'ast Span, arena: &'ast Arena) {
         self.name("StructField");
-        visit_struct_field(&mut self.block(), n, span);
+        visit_struct_field(&mut self.block(), n, span, arena);
     }
-    fn visit_specifier_qualifier(&mut self, n: &'ast SpecifierQualifier, span: &'ast Span) {
+    fn visit_specifier_qualifier(
+        &mut self,
+        n: &'ast SpecifierQualifier,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("SpecifierQualifier");
-        visit_specifier_qualifier(&mut self.block(), n, span);
+        visit_specifier_qualifier(&mut self.block(), n, span, arena);
     }
-    fn visit_struct_declarator(&mut self, n: &'ast StructDeclarator, span: &'ast Span) {
+    fn visit_struct_declarator(
+        &mut self,
+        n: &'ast StructDeclarator,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("StructDeclarator");
-        visit_struct_declarator(&mut self.block(), n, span);
+        visit_struct_declarator(&mut self.block(), n, span, arena);
     }
-    fn visit_enum_type(&mut self, n: &'ast EnumType, span: &'ast Span) {
+    fn visit_enum_type(&mut self, n: &'ast EnumType, span: &'ast Span, arena: &'ast Arena) {
         self.name("EnumType");
-        visit_enum_type(&mut self.block(), n, span);
+        visit_enum_type(&mut self.block(), n, span, arena);
     }
-    fn visit_enumerator(&mut self, n: &'ast Enumerator, span: &'ast Span) {
+    fn visit_enumerator(&mut self, n: &'ast Enumerator, span: &'ast Span, arena: &'ast Arena) {
         self.name("Enumerator");
-        visit_enumerator(&mut self.block(), n, span);
+        visit_enumerator(&mut self.block(), n, span, arena);
     }
-    fn visit_type_qualifier(&mut self, n: &'ast TypeQualifier, span: &'ast Span) {
+    fn visit_type_qualifier(
+        &mut self,
+        n: &'ast TypeQualifier,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("TypeQualifier");
         self.field(match *n {
             TypeQualifier::Const => "Const",
@@ -401,178 +537,278 @@ impl<'ast, 'a> Visit<'ast> for Printer<'a> {
             TypeQualifier::Nullable => "Nullable",
             TypeQualifier::Atomic => "Atomic",
         });
-        visit_type_qualifier(&mut self.block(), n, span);
+        visit_type_qualifier(&mut self.block(), n, span, arena);
     }
-    fn visit_function_specifier(&mut self, n: &'ast FunctionSpecifier, span: &'ast Span) {
+    fn visit_function_specifier(
+        &mut self,
+        n: &'ast FunctionSpecifier,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("FunctionSpecifier");
         self.field(match *n {
             FunctionSpecifier::Inline => "Inline",
             FunctionSpecifier::Noreturn => "Noreturn",
         });
-        visit_function_specifier(&mut self.block(), n, span);
+        visit_function_specifier(&mut self.block(), n, span, arena);
     }
-    fn visit_alignment_specifier(&mut self, n: &'ast AlignmentSpecifier, span: &'ast Span) {
+    fn visit_alignment_specifier(
+        &mut self,
+        n: &'ast AlignmentSpecifier,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("AlignmentSpecifier");
-        visit_alignment_specifier(&mut self.block(), n, span);
+        visit_alignment_specifier(&mut self.block(), n, span, arena);
     }
-    fn visit_declarator(&mut self, n: &'ast Declarator, span: &'ast Span) {
+    fn visit_declarator(&mut self, n: &'ast Declarator, span: &'ast Span, arena: &'ast Arena) {
         self.name("Declarator");
-        visit_declarator(&mut self.block(), n, span);
+        visit_declarator(&mut self.block(), n, span, arena);
     }
-    fn visit_declarator_kind(&mut self, n: &'ast DeclaratorKind, span: &'ast Span) {
+    fn visit_declarator_kind(
+        &mut self,
+        n: &'ast DeclaratorKind,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("DeclaratorKind");
         print_declarator_kind(self, n);
-        visit_declarator_kind(&mut self.block(), n, span);
+        visit_declarator_kind(&mut self.block(), n, span, arena);
     }
-    fn visit_derived_declarator(&mut self, n: &'ast DerivedDeclarator, span: &'ast Span) {
+    fn visit_derived_declarator(
+        &mut self,
+        n: &'ast DerivedDeclarator,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("DerivedDeclarator");
         print_derived_declarator(self, n);
-        visit_derived_declarator(&mut self.block(), n, span);
+        visit_derived_declarator(&mut self.block(), n, span, arena);
     }
-    fn visit_array_declarator(&mut self, n: &'ast ArrayDeclarator, span: &'ast Span) {
+    fn visit_array_declarator(
+        &mut self,
+        n: &'ast ArrayDeclarator,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("ArrayDeclarator");
-        visit_array_declarator(&mut self.block(), n, span);
+        visit_array_declarator(&mut self.block(), n, span, arena);
     }
-    fn visit_function_declarator(&mut self, n: &'ast FunctionDeclarator, span: &'ast Span) {
+    fn visit_function_declarator(
+        &mut self,
+        n: &'ast FunctionDeclarator,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("FunctionDeclarator");
-        visit_function_declarator(&mut self.block(), n, span);
+        visit_function_declarator(&mut self.block(), n, span, arena);
     }
-    fn visit_pointer_qualifier(&mut self, n: &'ast PointerQualifier, span: &'ast Span) {
+    fn visit_pointer_qualifier(
+        &mut self,
+        n: &'ast PointerQualifier,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("PointerQualifier");
-        visit_pointer_qualifier(&mut self.block(), n, span);
+        visit_pointer_qualifier(&mut self.block(), n, span, arena);
     }
-    fn visit_array_size(&mut self, n: &'ast ArraySize, span: &'ast Span) {
+    fn visit_array_size(&mut self, n: &'ast ArraySize, span: &'ast Span, arena: &'ast Arena) {
         self.name("ArraySize");
         print_array_size(self, n);
-        visit_array_size(&mut self.block(), n, span);
+        visit_array_size(&mut self.block(), n, span, arena);
     }
-    fn visit_parameter_declaration(&mut self, n: &'ast ParameterDeclaration, span: &'ast Span) {
+    fn visit_parameter_declaration(
+        &mut self,
+        n: &'ast ParameterDeclaration,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("ParameterDeclaration");
-        visit_parameter_declaration(&mut self.block(), n, span);
+        visit_parameter_declaration(&mut self.block(), n, span, arena);
     }
-    fn visit_ellipsis(&mut self, n: &'ast Ellipsis, span: &'ast Span) {
+    fn visit_ellipsis(&mut self, n: &'ast Ellipsis, span: &'ast Span, arena: &'ast Arena) {
         self.name("Ellipsis");
         self.field(match *n {
             Ellipsis::Some => "Some",
             Ellipsis::None => "None",
         });
-        visit_ellipsis(&mut self.block(), n, span);
+        visit_ellipsis(&mut self.block(), n, span, arena);
     }
-    fn visit_type_name(&mut self, n: &'ast TypeName, span: &'ast Span) {
+    fn visit_type_name(&mut self, n: &'ast TypeName, span: &'ast Span, arena: &'ast Arena) {
         self.name("TypeName");
-        visit_type_name(&mut self.block(), n, span);
+        visit_type_name(&mut self.block(), n, span, arena);
     }
-    fn visit_initializer(&mut self, n: &'ast Initializer, span: &'ast Span) {
+    fn visit_initializer(&mut self, n: &'ast Initializer, span: &'ast Span, arena: &'ast Arena) {
         self.name("Initializer");
-        visit_initializer(&mut self.block(), n, span);
+        visit_initializer(&mut self.block(), n, span, arena);
     }
-    fn visit_initializer_list_item(&mut self, n: &'ast InitializerListItem, span: &'ast Span) {
+    fn visit_initializer_list_item(
+        &mut self,
+        n: &'ast InitializerListItem,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("InitializerListItem");
-        visit_initializer_list_item(&mut self.block(), n, span);
+        visit_initializer_list_item(&mut self.block(), n, span, arena);
     }
-    fn visit_designator(&mut self, n: &'ast Designator, span: &'ast Span) {
+    fn visit_designator(&mut self, n: &'ast Designator, span: &'ast Span, arena: &'ast Arena) {
         self.name("Designator");
-        visit_designator(&mut self.block(), n, span);
+        visit_designator(&mut self.block(), n, span, arena);
     }
-    fn visit_range_designator(&mut self, n: &'ast RangeDesignator, span: &'ast Span) {
+    fn visit_range_designator(
+        &mut self,
+        n: &'ast RangeDesignator,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("RangeDesignator");
-        visit_range_designator(&mut self.block(), n, span);
+        visit_range_designator(&mut self.block(), n, span, arena);
     }
-    fn visit_static_assert(&mut self, n: &'ast StaticAssert, span: &'ast Span) {
+    fn visit_static_assert(&mut self, n: &'ast StaticAssert, span: &'ast Span, arena: &'ast Arena) {
         self.name("StaticAssert");
-        visit_static_assert(&mut self.block(), n, span);
+        visit_static_assert(&mut self.block(), n, span, arena);
     }
-    fn visit_statement(&mut self, n: &'ast Statement, span: &'ast Span) {
+    fn visit_statement(&mut self, n: &'ast Statement, span: &'ast Span, arena: &'ast Arena) {
         self.name("Statement");
         print_statement(self, n);
-        visit_statement(&mut self.block(), n, span);
+        visit_statement(&mut self.block(), n, span, arena);
     }
-    fn visit_labeled_statement(&mut self, n: &'ast LabeledStatement, span: &'ast Span) {
+    fn visit_labeled_statement(
+        &mut self,
+        n: &'ast LabeledStatement,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("LabeledStatement");
-        visit_labeled_statement(&mut self.block(), n, span);
+        visit_labeled_statement(&mut self.block(), n, span, arena);
     }
-    fn visit_if_statement(&mut self, n: &'ast IfStatement, span: &'ast Span) {
+    fn visit_if_statement(&mut self, n: &'ast IfStatement, span: &'ast Span, arena: &'ast Arena) {
         self.name("IfStatement");
-        visit_if_statement(&mut self.block(), n, span);
+        visit_if_statement(&mut self.block(), n, span, arena);
     }
-    fn visit_switch_statement(&mut self, n: &'ast SwitchStatement, span: &'ast Span) {
+    fn visit_switch_statement(
+        &mut self,
+        n: &'ast SwitchStatement,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("SwitchStatement");
-        visit_switch_statement(&mut self.block(), n, span);
+        visit_switch_statement(&mut self.block(), n, span, arena);
     }
-    fn visit_while_statement(&mut self, n: &'ast WhileStatement, span: &'ast Span) {
+    fn visit_while_statement(
+        &mut self,
+        n: &'ast WhileStatement,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("WhileStatement");
-        visit_while_statement(&mut self.block(), n, span);
+        visit_while_statement(&mut self.block(), n, span, arena);
     }
-    fn visit_do_while_statement(&mut self, n: &'ast DoWhileStatement, span: &'ast Span) {
+    fn visit_do_while_statement(
+        &mut self,
+        n: &'ast DoWhileStatement,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("DoWhileStatement");
-        visit_do_while_statement(&mut self.block(), n, span);
+        visit_do_while_statement(&mut self.block(), n, span, arena);
     }
-    fn visit_for_statement(&mut self, n: &'ast ForStatement, span: &'ast Span) {
+    fn visit_for_statement(&mut self, n: &'ast ForStatement, span: &'ast Span, arena: &'ast Arena) {
         self.name("ForStatement");
-        visit_for_statement(&mut self.block(), n, span);
+        visit_for_statement(&mut self.block(), n, span, arena);
     }
-    fn visit_label(&mut self, n: &'ast Label, span: &'ast Span) {
+    fn visit_label(&mut self, n: &'ast Label, span: &'ast Span, arena: &'ast Arena) {
         self.name("Label");
         print_label(self, n);
-        visit_label(&mut self.block(), n, span);
+        visit_label(&mut self.block(), n, span, arena);
     }
-    fn visit_case_range(&mut self, n: &'ast CaseRange, span: &'ast Span) {
+    fn visit_case_range(&mut self, n: &'ast CaseRange, span: &'ast Span, arena: &'ast Arena) {
         self.name("CaseRange");
-        visit_case_range(&mut self.block(), n, span);
+        visit_case_range(&mut self.block(), n, span, arena);
     }
-    fn visit_for_initializer(&mut self, n: &'ast ForInitializer, span: &'ast Span) {
+    fn visit_for_initializer(
+        &mut self,
+        n: &'ast ForInitializer,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("ForInitializer");
         print_for_initializer(self, n);
-        visit_for_initializer(&mut self.block(), n, span);
+        visit_for_initializer(&mut self.block(), n, span, arena);
     }
-    fn visit_block_item(&mut self, n: &'ast BlockItem, span: &'ast Span) {
+    fn visit_block_item(&mut self, n: &'ast BlockItem, span: &'ast Span, arena: &'ast Arena) {
         self.name("BlockItem");
-        visit_block_item(&mut self.block(), n, span);
+        visit_block_item(&mut self.block(), n, span, arena);
     }
-    fn visit_external_declaration(&mut self, n: &'ast ExternalDeclaration, span: &'ast Span) {
+    fn visit_external_declaration(
+        &mut self,
+        n: &'ast ExternalDeclaration,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("ExternalDeclaration");
-        visit_external_declaration(&mut self.block(), n, span);
+        visit_external_declaration(&mut self.block(), n, span, arena);
     }
-    fn visit_function_definition(&mut self, n: &'ast FunctionDefinition, span: &'ast Span) {
+    fn visit_function_definition(
+        &mut self,
+        n: &'ast FunctionDefinition,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("FunctionDefinition");
-        visit_function_definition(&mut self.block(), n, span);
+        visit_function_definition(&mut self.block(), n, span, arena);
     }
-    fn visit_extension(&mut self, n: &'ast Extension, span: &'ast Span) {
+    fn visit_extension(&mut self, n: &'ast Extension, span: &'ast Span, arena: &'ast Arena) {
         self.name("Extension");
-        visit_extension(&mut self.block(), n, span);
+        visit_extension(&mut self.block(), n, span, arena);
     }
-    fn visit_attribute(&mut self, n: &'ast Attribute, span: &'ast Span) {
+    fn visit_attribute(&mut self, n: &'ast Attribute, span: &'ast Span, arena: &'ast Arena) {
         self.name("Attribute");
         self.field_str(&n.name.node);
-        visit_attribute(&mut self.block(), n, span);
+        visit_attribute(&mut self.block(), n, span, arena);
     }
-    fn visit_asm_statement(&mut self, n: &'ast AsmStatement, span: &'ast Span) {
+    fn visit_asm_statement(&mut self, n: &'ast AsmStatement, span: &'ast Span, arena: &'ast Arena) {
         self.name("AsmStatement");
-        visit_asm_statement(&mut self.block(), n, span);
+        visit_asm_statement(&mut self.block(), n, span, arena);
     }
-    fn visit_availability_attribute(&mut self, n: &'ast AvailabilityAttribute, span: &'ast Span) {
+    fn visit_availability_attribute(
+        &mut self,
+        n: &'ast AvailabilityAttribute,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("AvailabilityAttribute");
-        visit_availability_attribute(&mut self.block(), n, span);
+        visit_availability_attribute(&mut self.block(), n, span, arena);
     }
     fn visit_gnu_extended_asm_statement(
         &mut self,
         n: &'ast GnuExtendedAsmStatement,
         span: &'ast Span,
+        arena: &'ast Arena,
     ) {
         self.name("GnuExtendedAsmStatement");
-        visit_gnu_extended_asm_statement(&mut self.block(), n, span);
+        visit_gnu_extended_asm_statement(&mut self.block(), n, span, arena);
     }
-    fn visit_gnu_asm_operand(&mut self, n: &'ast GnuAsmOperand, span: &'ast Span) {
+    fn visit_gnu_asm_operand(
+        &mut self,
+        n: &'ast GnuAsmOperand,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.name("GnuAsmOperand");
-        visit_gnu_asm_operand(&mut self.block(), n, span);
+        visit_gnu_asm_operand(&mut self.block(), n, span, arena);
     }
-    fn visit_type_of(&mut self, n: &'ast TypeOf, span: &'ast Span) {
+    fn visit_type_of(&mut self, n: &'ast TypeOf, span: &'ast Span, arena: &'ast Arena) {
         self.name("TypeOf");
-        visit_type_of(&mut self.block(), n, span);
+        visit_type_of(&mut self.block(), n, span, arena);
     }
-    fn visit_translation_unit(&mut self, translation_unit: &'ast TranslationUnit) {
+    fn visit_translation_unit(
+        &mut self,
+        translation_unit: &'ast TranslationUnit,
+        arena: &'ast Arena,
+    ) {
         self.name("TranslationUnit");
-        visit_translation_unit(&mut self.block(), translation_unit);
+        visit_translation_unit(&mut self.block(), translation_unit, arena);
     }
 }
 

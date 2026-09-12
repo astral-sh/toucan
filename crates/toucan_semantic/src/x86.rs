@@ -764,7 +764,7 @@ impl X86Intrinsic {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn x86_call_type(
         &mut self,
         intrinsic: X86Intrinsic,

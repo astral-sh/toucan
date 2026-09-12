@@ -94,7 +94,7 @@ impl TranslationUnit {
 use crate::FloatKind;
 use crate::analyze::{Analyzer, Attributes};
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     fn transparent_clang_profile(&self) -> bool {
         self.unit.compiler != toucan_target::Compiler::Gnu
     }
@@ -245,7 +245,7 @@ pub(crate) struct TransparentArgument {
     pub(crate) field: usize,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Selects the union member while the argument's lexical scope is active.
     /// GCC matches member types; Clang tries ordinary assignment conversion in
     /// field order. Pointer candidates also implement the GNU null/void rules.
@@ -348,7 +348,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Transparent unions extend function parameter compatibility with each
     /// exact member type. This does not make the union compatible in storage.
     pub(crate) fn compatible_parameter_at(
@@ -448,34 +448,50 @@ fn variant_type_bytes(ty: &Type, depth: usize) -> Result<usize, Error> {
 // The written type name preserves local alias identity even when the type checker
 // expands that alias to a record ID. Expression origins without such a type name
 // need separate provenance; do not guess from their final canonical record.
-pub(crate) fn typedef_origin(types: &[Node<ast::TypeSpecifier>]) -> Option<bool> {
+pub(crate) fn typedef_origin(
+    types: &[Node<ast::TypeSpecifier>],
+    arena: &lang_c::arena::Arena,
+) -> Option<bool> {
     if types.len() != 1 {
         return Some(false);
     }
-    specifier_origin(&types[0].node, 0)
+    specifier_origin(&types[0].node, 0, arena)
 }
-fn specifier_origin(specifier: &ast::TypeSpecifier, depth: usize) -> Option<bool> {
+fn specifier_origin(
+    specifier: &ast::TypeSpecifier,
+    depth: usize,
+    arena: &lang_c::arena::Arena,
+) -> Option<bool> {
     if depth >= 128 {
         return None;
     }
     match specifier {
         ast::TypeSpecifier::TypedefName(_) => Some(true),
-        ast::TypeSpecifier::TypeOf(value) => match &value.node {
-            ast::TypeOf::Type(name) => type_name_origin(&name.node, depth + 1),
-            ast::TypeOf::Expression(expression) => match &expression.node {
-                ast::Expression::Cast(cast) => {
-                    type_name_origin(&cast.node.type_name.node, depth + 1)
-                }
-                ast::Expression::CompoundLiteral(literal) => {
-                    type_name_origin(&literal.node.type_name.node, depth + 1)
-                }
-                _ => None,
-            },
-        },
+        ast::TypeSpecifier::TypeOf(value) => {
+            let value = value.get(arena);
+            match &value.node {
+                ast::TypeOf::Type(name) => type_name_origin(&name.node, depth + 1, arena),
+                ast::TypeOf::Expression(expression) => match &expression.node {
+                    ast::Expression::Cast(cast) => {
+                        let cast = cast.get(arena);
+                        type_name_origin(&cast.node.type_name.node, depth + 1, arena)
+                    }
+                    ast::Expression::CompoundLiteral(literal) => {
+                        let literal = literal.get(arena);
+                        type_name_origin(&literal.node.type_name.node, depth + 1, arena)
+                    }
+                    _ => None,
+                },
+            }
+        }
         _ => Some(false),
     }
 }
-fn type_name_origin(name: &ast::TypeName, depth: usize) -> Option<bool> {
+fn type_name_origin(
+    name: &ast::TypeName,
+    depth: usize,
+    arena: &lang_c::arena::Arena,
+) -> Option<bool> {
     let mut types = name
         .specifiers
         .iter()
@@ -487,5 +503,5 @@ fn type_name_origin(name: &ast::TypeName, depth: usize) -> Option<bool> {
     if types.next().is_some() {
         return Some(false);
     }
-    specifier_origin(first, depth)
+    specifier_origin(first, depth, arena)
 }

@@ -864,6 +864,8 @@ dependencies = [
  "serde_json",
  "toucan_bindgen",
  "toucan_parser",
+ "toucan_semantic",
+ "toucan_target",
 ]
 
 [[package]]

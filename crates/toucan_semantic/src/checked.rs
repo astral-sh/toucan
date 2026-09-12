@@ -391,11 +391,17 @@ pub(crate) struct LocalDeclaration<'a> {
 }
 
 /// Name tokens retain their spans inside parenthesized declarators.
-pub(crate) fn declarator_name_span(mut declaration: &Node<ast::Declarator>) -> Option<Span> {
+pub(crate) fn declarator_name_span<'a>(
+    mut declaration: &'a Node<ast::Declarator>,
+    arena: &'a lang_c::arena::Arena,
+) -> Option<Span> {
     loop {
         match &declaration.node.kind.node {
             ast::DeclaratorKind::Identifier(name) => return Some(name.span),
-            ast::DeclaratorKind::Declarator(inner) => declaration = inner,
+            ast::DeclaratorKind::Declarator(inner) => {
+                let inner = inner.get(arena);
+                declaration = inner
+            }
             ast::DeclaratorKind::Abstract => return None,
         }
     }
@@ -492,6 +498,7 @@ impl Builder {
         unit: &ast::TranslationUnit,
         source_len: usize,
         limits: Limits,
+        arena: &lang_c::arena::Arena,
     ) -> Result<Self, Error> {
         let mut builder = Self {
             reference_builder: references::ReferenceBuilder::default(),
@@ -548,7 +555,7 @@ impl Builder {
             attribute_depth: 0,
         };
         builder.scope(ScopeKind::File, Span::span(0, source_len), None)?;
-        builder.visit_translation_unit(unit);
+        builder.visit_translation_unit(unit, arena);
         if let Some(error) = builder.error.take() {
             return Err(error);
         }
@@ -1196,13 +1203,20 @@ fn charge_type(budget: &mut Budget, ty: &Type, offset: usize, depth: usize) -> R
 
 macro_rules! visit_occurrence {
     ($method:ident, $ty:ty, $kind:ident) => {
-        visit_occurrence!($method, $ty, $kind, |_: &mut Builder, _: &$ty| Ok::<
-            (),
-            Error,
-        >(()));
+        visit_occurrence!(
+            $method,
+            $ty,
+            $kind,
+            |_: &mut Builder, _: &$ty, _: &lang_c::arena::Arena| Ok::<(), Error>(())
+        );
     };
     ($method:ident, $ty:ty, $kind:ident, $before:expr) => {
-        fn $method(&mut self, node: &'ast $ty, span: &'ast Span) {
+        fn $method(
+            &mut self,
+            node: &'ast $ty,
+            span: &'ast Span,
+            arena: &'ast lang_c::arena::Arena,
+        ) {
             if self.error.is_some() {
                 return;
             }
@@ -1221,12 +1235,12 @@ macro_rules! visit_occurrence {
                 ));
                 return;
             }
-            if let Err(error) = ($before)(self, node) {
+            if let Err(error) = ($before)(self, node, arena) {
                 self.error = Some(error);
                 return;
             }
             self.depth += 1;
-            visit::$method(self, node, span);
+            visit::$method(self, node, span, arena);
             self.depth -= 1;
             self.ownership_builder.catalog_owner = previous_owner;
         }
@@ -1234,7 +1248,12 @@ macro_rules! visit_occurrence {
 }
 
 impl<'ast> Visit<'ast> for Builder {
-    fn visit_attribute(&mut self, node: &'ast ast::Attribute, span: &'ast Span) {
+    fn visit_attribute(
+        &mut self,
+        node: &'ast ast::Attribute,
+        span: &'ast Span,
+        arena: &'ast lang_c::arena::Arena,
+    ) {
         if self.error.is_some() {
             return;
         }
@@ -1245,7 +1264,7 @@ impl<'ast> Visit<'ast> for Builder {
             return;
         }
         self.attribute_depth += 1;
-        visit::visit_attribute(self, node, span);
+        visit::visit_attribute(self, node, span, arena);
         self.attribute_depth -= 1;
     }
 
@@ -1253,11 +1272,11 @@ impl<'ast> Visit<'ast> for Builder {
         visit_declaration,
         ast::Declaration,
         Declaration,
-        |builder: &mut Builder, declaration: &ast::Declaration| {
+        |builder: &mut Builder, declaration: &ast::Declaration, arena: &lang_c::arena::Arena| {
             if declaration.declarators.is_empty() {
                 for specifier in &declaration.specifiers {
                     if let ast::DeclarationSpecifier::TypeSpecifier(ty) = &specifier.node {
-                        builder.standalone_tag(ty)?;
+                        builder.standalone_tag(ty, arena)?;
                     }
                 }
             }
@@ -1268,11 +1287,11 @@ impl<'ast> Visit<'ast> for Builder {
         visit_struct_field,
         ast::StructField,
         Field,
-        |builder: &mut Builder, field: &ast::StructField| {
+        |builder: &mut Builder, field: &ast::StructField, arena: &lang_c::arena::Arena| {
             if field.declarators.is_empty() {
                 for specifier in &field.specifiers {
                     if let ast::SpecifierQualifier::TypeSpecifier(ty) = &specifier.node {
-                        builder.standalone_tag(ty)?;
+                        builder.standalone_tag(ty, arena)?;
                     }
                 }
             }
@@ -1288,6 +1307,7 @@ impl<'ast> Visit<'ast> for Builder {
         &mut self,
         derived: &ast::DerivedDeclarator,
         span: &lang_c::span::Span,
+        arena: &lang_c::arena::Arena,
     ) {
         if self.error.is_some() {
             return;
@@ -1304,7 +1324,7 @@ impl<'ast> Visit<'ast> for Builder {
                 }
             }
         }
-        lang_c::visit::visit_derived_declarator(self, derived, span);
+        lang_c::visit::visit_derived_declarator(self, derived, span, arena);
     }
     visit_occurrence!(visit_init_declarator, ast::InitDeclarator, InitDeclarator);
     visit_occurrence!(visit_declarator, ast::Declarator, Declarator);
@@ -1321,7 +1341,8 @@ impl<'ast> Visit<'ast> for Builder {
         visit_type_name,
         ast::TypeName,
         TypeName,
-        |builder: &mut Builder, name: &ast::TypeName| builder.catalog_type_name(name)
+        |builder: &mut Builder, name: &ast::TypeName, _: &lang_c::arena::Arena| builder
+            .catalog_type_name(name)
     );
     visit_occurrence!(visit_type_of, ast::TypeOf, TypeOf);
     visit_occurrence!(visit_expression, ast::Expression, Expression);
@@ -1614,6 +1635,7 @@ mod tests {
                 edges: 6,
                 ..Limits::default()
             },
+            &lang_c::arena::Arena::default(),
         )
         .unwrap();
         assert!(!builder.code.scopes[0].source.synthetic);
@@ -1640,6 +1662,7 @@ mod tests {
             &ast::TranslationUnit(Vec::new()),
             source.len(),
             Limits::default(),
+            &lang_c::arena::Arena::default(),
         )
         .unwrap();
         builder.code = code;
@@ -1695,7 +1718,13 @@ mod tests {
             "int f(void) { return 1; }".into(),
         )
         .unwrap();
-        let builder = Builder::new(&parsed.unit, parsed.source.len(), Limits::default()).unwrap();
+        let builder = Builder::new(
+            &parsed.unit,
+            parsed.source.len(),
+            Limits::default(),
+            &parsed.arena,
+        )
+        .unwrap();
         let error = builder.finish().unwrap_err();
         assert!(error.message.contains("does not support this expression"));
         assert_eq!(&parsed.source[error.offset..error.offset + 1], "1");
@@ -1708,8 +1737,13 @@ mod tests {
             "int value;".into(),
         )
         .unwrap();
-        let mut builder =
-            Builder::new(&parsed.unit, parsed.source.len(), Limits::default()).unwrap();
+        let mut builder = Builder::new(
+            &parsed.unit,
+            parsed.source.len(),
+            Limits::default(),
+            &parsed.arena,
+        )
+        .unwrap();
         let ast::ExternalDeclaration::Declaration(declaration) = &parsed.unit.0[0].node else {
             panic!("declaration")
         };
@@ -1751,7 +1785,8 @@ mod tests {
         let parsed =
             lang_c::driver::parse_preprocessed(&lang_c::driver::Config::default(), source.into())
                 .unwrap();
-        let mut builder = Builder::new(&parsed.unit, source.len(), Limits::default()).unwrap();
+        let mut builder =
+            Builder::new(&parsed.unit, source.len(), Limits::default(), &parsed.arena).unwrap();
         builder.code = code;
         let site = SiteId(0);
         let offset = builder.code.occurrences[builder.code.declarations[0].occurrence.index()]

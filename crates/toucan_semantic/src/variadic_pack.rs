@@ -5,7 +5,7 @@ use lang_c::{ast, span::Node};
 use crate::analyze::Analyzer;
 use crate::{Error, IntegerKind, TypeKind};
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Recognizes a pack after its argument expression has been type-checked.
     /// C's int type describes unevaluated uses; it does not describe a runtime pack.
     pub(crate) fn argument_pack(
@@ -24,9 +24,11 @@ impl Analyzer {
     fn argument_pack_inner(&mut self, expression: &Node<ast::Expression>) -> Result<bool, Error> {
         match &expression.node {
             ast::Expression::Call(call) => {
+                let call = call.get(self.arena);
                 Ok(self.builtin_name(call) == Some("__builtin_va_arg_pack"))
             }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 if matches!(
                     self.unit.resolve(&ty)?.kind,
@@ -38,15 +40,18 @@ impl Analyzer {
                 }
             }
             ast::Expression::UnaryOperator(unary)
-                if unary.node.operator.node == ast::UnaryOperator::Plus =>
+                if unary.get(self.arena).node.operator.node == ast::UnaryOperator::Plus =>
             {
+                let unary = unary.get(self.arena);
                 self.argument_pack(&unary.node.operand)
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.checked_choose_expression(selection)?;
                 self.argument_pack(selected)
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let key = (selection.span.start, selection.span.end);
                 let index = *self.generic_selections.get(&key).ok_or_else(|| {
                     Error::new(

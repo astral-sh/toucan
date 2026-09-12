@@ -56,24 +56,32 @@ unsafe impl GlobalAlloc for CountingAllocator {
     }
 }
 
-pub fn measure(operation: impl FnOnce()) -> serde_json::Value {
+pub fn measure<P, T>(
+    setup: impl FnOnce() -> P,
+    operation: impl FnOnce(P) -> T,
+) -> serde_json::Value {
+    let idle_bytes = LIVE_BYTES.load(Relaxed);
+    let input = setup();
     let allocations = ALLOCATIONS.load(Relaxed);
     let reallocations = REALLOCATIONS.load(Relaxed);
     let allocated_bytes = ALLOCATED_BYTES.load(Relaxed);
     let live_bytes = LIVE_BYTES.load(Relaxed);
     PEAK_BYTES.store(live_bytes, Relaxed);
-    operation();
-    // Read all counters before constructing the JSON result, which allocates.
+    let result = operation(input);
     let allocations = ALLOCATIONS.load(Relaxed) - allocations;
     let reallocations = REALLOCATIONS.load(Relaxed) - reallocations;
     let allocated_bytes = ALLOCATED_BYTES.load(Relaxed) - allocated_bytes;
-    let peak_live_bytes = PEAK_BYTES.load(Relaxed) - live_bytes;
-    let retained_bytes = LIVE_BYTES.load(Relaxed) as i64 - live_bytes as i64;
+    let peak_live_bytes = PEAK_BYTES.load(Relaxed) - idle_bytes;
+    let result_live_bytes = LIVE_BYTES.load(Relaxed) as i64 - idle_bytes as i64;
+    drop(result);
+    let retained_after_drop_bytes = LIVE_BYTES.load(Relaxed) as i64 - idle_bytes as i64;
     serde_json::json!({
         "allocations": allocations,
         "reallocations": reallocations,
         "allocated_bytes": allocated_bytes,
+        "setup_live_bytes": live_bytes - idle_bytes,
         "peak_live_bytes": peak_live_bytes,
-        "retained_bytes": retained_bytes,
+        "result_live_bytes": result_live_bytes,
+        "retained_after_drop_bytes": retained_after_drop_bytes,
     })
 }

@@ -16,12 +16,16 @@ for configuration and accounting.
 
 ## Implementation
 
-`driver::parse_expression_arena` is an experimental entry point for comparing
-owned AST construction with typed-ID storage for outer binary, assignment,
-conditional, and comma operators. Complex operands, including parenthesized
-subexpressions, remain owned AST leaves. It returns an owned arena with immutable
-lookups and explicit `into_owned()` conversion. See the
-[arena experiment](../../benchmarks/arena/README.md) for coverage and measurement.
+All parse entry points construct an owned typed arena. Recursive expression,
+statement, initializer, and type/declarator links use IDs into per-type tables.
+The returned `Parse` or `ExpressionParse` owns those tables alongside its root;
+semantic analysis reads them directly. AST strings and nonrecursive lists retain
+ordinary ownership and are released when the arena is dropped.
+
+Resolve an ID with `id.get(&parsed.arena)`, and pass `&parsed.arena` as the last
+argument to visitor methods. Cloning an isolated AST node copies its IDs; clone
+the whole parse result for independent storage. See the
+[arena benchmarks](../../benchmarks/arena/README.md) for methodology.
 
 The parser uses recursive descent for declarations and statements, and precedence
 climbing for expressions. The lexer and parser live in [src/parser](src/parser).

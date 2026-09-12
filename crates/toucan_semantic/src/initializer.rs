@@ -67,20 +67,23 @@ struct InitializerRef<'a> {
     span: Span,
 }
 
-impl<'a> From<&'a Node<ast::Initializer>> for InitializerRef<'a> {
-    fn from(initializer: &'a Node<ast::Initializer>) -> Self {
+impl<'a> InitializerRef<'a> {
+    fn new(initializer: &'a Node<ast::Initializer>, arena: &'a lang_c::arena::Arena) -> Self {
         Self {
             origin: Origin::Written(initializer),
             node: match &initializer.node {
                 ast::Initializer::Expression(expression) => InitializerView::Expression(expression),
-                ast::Initializer::List(items) => InitializerView::List(items),
+                ast::Initializer::List(items) => {
+                    let items = items.get(arena);
+                    InitializerView::List(items)
+                }
             },
             span: initializer.span,
         }
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn initialize_declaration(
         &mut self,
         index: usize,
@@ -122,7 +125,12 @@ impl Analyzer {
         requires_constant: bool,
     ) -> Result<Type, Error> {
         self.enter_expression(initializer.span.start)?;
-        let result = self.initializer_inner(ty, initializer.into(), requires_constant, None);
+        let result = self.initializer_inner(
+            ty,
+            InitializerRef::new(initializer, self.arena),
+            requires_constant,
+            None,
+        );
         self.leave_expression();
         result
     }
@@ -193,7 +201,7 @@ impl Analyzer {
         self.enter_expression(initializer.span.start)?;
         let result = self.initializer_inner(
             ty,
-            initializer.into(),
+            InitializerRef::new(initializer, self.arena),
             requires_constant,
             Some(&mut flexible),
         );
@@ -244,7 +252,7 @@ impl Analyzer {
     }
 
     fn empty_initializer(&self, initializer: &Node<ast::Initializer>) -> bool {
-        matches!(&initializer.node, ast::Initializer::List(items) if items.is_empty())
+        matches!(&initializer.node, ast::Initializer::List(items) if items.get(self.arena).is_empty())
     }
 
     /// Finds the innermost flexible member crossed by a subobject designator.
@@ -997,17 +1005,19 @@ impl Analyzer {
             ast::Expression::Constant(_) => Ok(ConstantKind::Arithmetic),
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name(call.get(self.arena))
                     .and_then(|name| self.object_size_signature(name))
                     .is_some() =>
             {
+                let call = call.get(self.arena);
                 self.eval_object_size(call)?;
                 Ok(ConstantKind::Arithmetic)
             }
 
             ast::Expression::Call(call)
-                if self.builtin_name(call) == Some("__builtin_constant_p") =>
+                if self.builtin_name(call.get(self.arena)) == Some("__builtin_constant_p") =>
             {
+                let call = call.get(self.arena);
                 // A required constant-expression site never executes Clang's
                 // scalar code-generation fallback. Unknown operands fold to 0.
                 self.eval_constant_query(call)?;
@@ -1015,16 +1025,16 @@ impl Analyzer {
             }
             ast::Expression::Call(call)
                 if self
-                    .builtin_name(call)
+                    .builtin_name(call.get(self.arena))
                     .and_then(|name| self.infinity_builtin_kind(name))
                     .is_some()
                     || self
-                        .builtin_name(call)
+                        .builtin_name(call.get(self.arena))
                         .and_then(|name| self.nan_builtin(name))
                         .is_some()
-                    || self.builtin_name(call) == Some("__builtin_complex")
+                    || self.builtin_name(call.get(self.arena)) == Some("__builtin_complex")
                     || self
-                        .builtin_name(call)
+                        .builtin_name(call.get(self.arena))
                         .is_some_and(|name| self.complex_unary_builtin(name).is_some()) =>
             {
                 self.eval_initializer_arithmetic(expression)?;
@@ -1038,6 +1048,7 @@ impl Analyzer {
                 Ok(ConstantKind::Arithmetic)
             }
             ast::Expression::CompoundLiteral(literal) => {
+                let literal = literal.get(self.arena);
                 let ty = self.type_name(&literal.node.type_name.node)?;
                 let ty = self.check_initializer_list(
                     &ty,
@@ -1060,6 +1071,7 @@ impl Analyzer {
             ast::Expression::StringLiteral(_) => Ok(ConstantKind::Address),
             ast::Expression::Member(_) => self.static_designator(expression),
             ast::Expression::Identifier(identifier) => {
+                let identifier = identifier.get(self.arena);
                 if self.unit.constants.contains_key(&identifier.node.name)
                     || self.const_object_value(&identifier.node.name).is_some()
                 {
@@ -1080,27 +1092,32 @@ impl Analyzer {
                     Err(invalid())
                 }
             }
-            ast::Expression::UnaryOperator(unary) => match unary.node.operator.node {
-                ast::UnaryOperator::Address => {
-                    self.static_lvalue(&unary.node.operand)?;
-                    Ok(ConstantKind::Address)
-                }
-                ast::UnaryOperator::Indirection => self.static_designator(expression),
-                ast::UnaryOperator::Plus
-                | ast::UnaryOperator::Minus
-                | ast::UnaryOperator::Complement
-                | ast::UnaryOperator::Negate
-                | ast::UnaryOperator::Real
-                | ast::UnaryOperator::Imaginary => {
-                    if self.static_initializer(&unary.node.operand)? == ConstantKind::Arithmetic {
-                        Ok(ConstantKind::Arithmetic)
-                    } else {
-                        Err(invalid())
+            ast::Expression::UnaryOperator(unary) => {
+                let unary = unary.get(self.arena);
+                match unary.node.operator.node {
+                    ast::UnaryOperator::Address => {
+                        self.static_lvalue(&unary.node.operand)?;
+                        Ok(ConstantKind::Address)
                     }
+                    ast::UnaryOperator::Indirection => self.static_designator(expression),
+                    ast::UnaryOperator::Plus
+                    | ast::UnaryOperator::Minus
+                    | ast::UnaryOperator::Complement
+                    | ast::UnaryOperator::Negate
+                    | ast::UnaryOperator::Real
+                    | ast::UnaryOperator::Imaginary => {
+                        if self.static_initializer(&unary.node.operand)? == ConstantKind::Arithmetic
+                        {
+                            Ok(ConstantKind::Arithmetic)
+                        } else {
+                            Err(invalid())
+                        }
+                    }
+                    _ => Err(invalid()),
                 }
-                _ => Err(invalid()),
-            },
+            }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 let kind = self.static_initializer(&cast.node.expression)?;
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 if matches!(self.unit.resolve(&ty)?.kind, TypeKind::Pointer(_)) {
@@ -1115,6 +1132,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::BinaryOperator(binary) => {
+                let binary = binary.get(self.arena);
                 use ast::BinaryOperator as Op;
                 if binary.node.operator.node == Op::Index {
                     return self.static_designator(expression);
@@ -1170,6 +1188,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 let kind = self.static_initializer(&conditional.node.condition)?;
                 match self.static_conditional_branch(&conditional.node, offset)? {
                     ConstantBranch::Reused(_) => Ok(kind),
@@ -1177,14 +1196,17 @@ impl Analyzer {
                 }
             }
             ast::Expression::TypesCompatible(query) => {
+                let query = query.get(self.arena);
                 self.eval_types_compatible(query)?;
                 Ok(ConstantKind::Arithmetic)
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 self.static_initializer(selected)
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)?;
                 self.static_initializer(selected)
             }
@@ -1198,7 +1220,10 @@ impl Analyzer {
         &mut self,
         conditional: &'a ast::ConditionalExpression,
         offset: usize,
-    ) -> Result<ConstantBranch<'a>, Error> {
+    ) -> Result<ConstantBranch<'a>, Error>
+    where
+        'ast: 'a,
+    {
         let condition = &conditional.condition;
         let condition_ty = self.value_expression_type(condition)?;
         if !matches!(self.unit.resolve(&condition_ty)?.kind, TypeKind::Pointer(_)) {
@@ -1256,7 +1281,10 @@ impl Analyzer {
         &mut self,
         expression: &'a Node<ast::Expression>,
         location: bool,
-    ) -> Result<Option<PointerConstant<'a>>, Error> {
+    ) -> Result<Option<PointerConstant<'a>>, Error>
+    where
+        'ast: 'a,
+    {
         self.enter_expression(expression.span.start)?;
         let result = self.static_pointer_inner(expression, location);
         self.leave_expression();
@@ -1267,12 +1295,15 @@ impl Analyzer {
         &mut self,
         expression: &'a Node<ast::Expression>,
         location: bool,
-    ) -> Result<Option<PointerConstant<'a>>, Error> {
+    ) -> Result<Option<PointerConstant<'a>>, Error>
+    where
+        'ast: 'a,
+    {
         use ast::{BinaryOperator as Binary, Expression as E, UnaryOperator as Unary};
         let offset = expression.span.start;
         let designator = matches!(&expression.node, E::Member(_) | E::CompoundLiteral(_))
-            || matches!(&expression.node, E::UnaryOperator(unary) if unary.node.operator.node == Unary::Indirection)
-            || matches!(&expression.node, E::BinaryOperator(binary) if binary.node.operator.node == Binary::Index);
+            || matches!(&expression.node, E::UnaryOperator(unary) if unary.get(self.arena).node.operator.node == Unary::Indirection)
+            || matches!(&expression.node, E::BinaryOperator(binary) if binary.get(self.arena).node.operator.node == Binary::Index);
         if !location && designator {
             let ty = self.expression_type(expression)?;
             if !matches!(
@@ -1285,7 +1316,7 @@ impl Analyzer {
         let mask = u128::MAX >> (128 - self.unit.target.pointer_width());
         let result = match &expression.node {
             E::Identifier(identifier) => {
-                let name = identifier.node.name.as_str();
+                let name = identifier.get(self.arena).node.name.as_str();
                 let ty = self.expression_type(expression)?;
                 if !location
                     && !matches!(
@@ -1320,13 +1351,18 @@ impl Analyzer {
                 offset: 0,
                 nullable: false,
             },
-            E::UnaryOperator(unary) if unary.node.operator.node == Unary::Address && !location => {
-                return self.static_pointer(&unary.node.operand, true);
+            E::UnaryOperator(unary)
+                if unary.get(self.arena).node.operator.node == Unary::Address && !location =>
+            {
+                return self.static_pointer(&unary.get(self.arena).node.operand, true);
             }
-            E::UnaryOperator(unary) if unary.node.operator.node == Unary::Indirection => {
-                return self.static_pointer(&unary.node.operand, false);
+            E::UnaryOperator(unary)
+                if unary.get(self.arena).node.operator.node == Unary::Indirection =>
+            {
+                return self.static_pointer(&unary.get(self.arena).node.operand, false);
             }
             E::Cast(cast) if !location => {
+                let cast = cast.get(self.arena);
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 if !matches!(self.unit.resolve(&ty)?.kind, TypeKind::Pointer(_)) {
                     return Ok(None);
@@ -1346,6 +1382,7 @@ impl Analyzer {
                 }
             }
             E::Member(member) => {
+                let member = member.get(self.arena);
                 let direct = member.node.operator.node == ast::MemberOperator::Direct;
                 let Some(mut address) = self.static_pointer(&member.node.expression, direct)?
                 else {
@@ -1365,10 +1402,11 @@ impl Analyzer {
             }
             E::BinaryOperator(binary)
                 if matches!(
-                    binary.node.operator.node,
+                    binary.get(self.arena).node.operator.node,
                     Binary::Plus | Binary::Minus | Binary::Index
                 ) =>
             {
+                let binary = binary.get(self.arena);
                 let left_ty = self.value_expression_type(&binary.node.lhs)?;
                 let (pointer, integer, pointer_ty) =
                     if matches!(self.unit.resolve(&left_ty)?.kind, TypeKind::Pointer(_)) {
@@ -1404,7 +1442,9 @@ impl Analyzer {
                 address
             }
             E::Conditional(conditional) if !location => {
-                let selected = match self.static_conditional_branch(&conditional.node, offset)? {
+                let selected = match self
+                    .static_conditional_branch(&conditional.get(self.arena).node, offset)?
+                {
                     ConstantBranch::Reused(address) => return Ok(address),
                     ConstantBranch::Selected(selected) => selected,
                 };
@@ -1421,11 +1461,11 @@ impl Analyzer {
                 }
             }
             E::Choose(selection) => {
-                let selected = self.choose_expression(selection)?;
+                let selected = self.choose_expression(selection.get(self.arena))?;
                 return self.static_pointer(selected, location);
             }
             E::GenericSelection(selection) => {
-                let selected = self.generic_expression(selection)?;
+                let selected = self.generic_expression(selection.get(self.arena))?;
                 return self.static_pointer(selected, location);
             }
             _ => return Ok(None),
@@ -1471,15 +1511,18 @@ impl Analyzer {
         };
         match &expression.node {
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)?;
                 self.static_lvalue(selected)
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 self.static_lvalue(selected)
             }
 
             ast::Expression::Identifier(identifier) => {
+                let identifier = identifier.get(self.arena);
                 if self.object_has_static_storage(&identifier.node.name)
                     && !self.dll_imported_object(&identifier.node.name)
                     || self
@@ -1500,6 +1543,7 @@ impl Analyzer {
             }
             ast::Expression::StringLiteral(_) => Ok(()),
             ast::Expression::Member(member) => {
+                let member = member.get(self.arena);
                 if member.node.operator.node == ast::MemberOperator::Direct {
                     self.static_lvalue(&member.node.expression)
                 } else if self.static_initializer(&member.node.expression)? == ConstantKind::Address
@@ -1511,10 +1555,11 @@ impl Analyzer {
             }
             ast::Expression::UnaryOperator(unary)
                 if matches!(
-                    unary.node.operator.node,
+                    unary.get(self.arena).node.operator.node,
                     ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary
                 ) =>
             {
+                let unary = unary.get(self.arena);
                 let ty = self.expression_type(&unary.node.operand)?;
                 if self.gnu_sync_profile()
                     && matches!(self.unit.resolve(&ty)?.kind, TypeKind::Complex(_))
@@ -1527,8 +1572,9 @@ impl Analyzer {
                 self.static_lvalue(&unary.node.operand)
             }
             ast::Expression::UnaryOperator(unary)
-                if unary.node.operator.node == ast::UnaryOperator::Indirection =>
+                if unary.get(self.arena).node.operator.node == ast::UnaryOperator::Indirection =>
             {
+                let unary = unary.get(self.arena);
                 if self.static_initializer(&unary.node.operand)? == ConstantKind::Address {
                     Ok(())
                 } else {
@@ -1536,8 +1582,9 @@ impl Analyzer {
                 }
             }
             ast::Expression::BinaryOperator(binary)
-                if binary.node.operator.node == ast::BinaryOperator::Index =>
+                if binary.get(self.arena).node.operator.node == ast::BinaryOperator::Index =>
             {
+                let binary = binary.get(self.arena);
                 let base = self.expression_type(&binary.node.lhs)?;
                 if matches!(self.unit.resolve(&base)?.kind, TypeKind::Vector { .. }) {
                     self.static_lvalue(&binary.node.lhs)?;
@@ -1561,7 +1608,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Retain destination-converted arithmetic values after ordinary C checking.
     /// Address constants and enum objects have no scalar literal projection.
     pub(crate) fn scalar_object_value(
@@ -1605,6 +1652,7 @@ impl Analyzer {
                     return Ok(Some(value));
                 }
                 ast::Initializer::List(items) => {
+                    let items = items.get(self.arena);
                     if items.is_empty() {
                         let zero = crate::floating::ArithmeticValue::Integer(crate::IntegerValue {
                             value: 0,

@@ -47,7 +47,7 @@ fn main() {
                 let mut buf = String::new();
                 {
                     let mut printer = toucan_parser::print::Printer::new(&mut buf);
-                    printer.visit_translation_unit(&parse.unit);
+                    printer.visit_translation_unit(&parse.unit, &parse.arena);
                 }
                 println!("{}", buf);
             }

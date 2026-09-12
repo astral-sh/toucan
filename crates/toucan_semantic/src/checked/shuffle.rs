@@ -41,7 +41,7 @@ pub enum ShuffleMask {
     Dynamic,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(super) fn retain_shuffle_vector(
         &mut self,
         call: &Node<ast::CallExpression>,

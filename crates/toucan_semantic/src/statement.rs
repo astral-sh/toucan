@@ -56,7 +56,7 @@ struct SwitchContext {
     statement_expression: Option<usize>,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     fn function_context(&self) -> &FunctionContext {
         self.current_function.as_ref().expect("function context")
     }
@@ -139,7 +139,7 @@ impl Analyzer {
             let mut final_value = None;
             let mut significant = 0;
             let mut direct_expression = false;
-            for item in items {
+            for item in items.get(analyzer.arena) {
                 match &item.node {
                     ast::BlockItem::Declaration(declaration) => {
                         analyzer.block_declaration(declaration, false)?;
@@ -165,7 +165,7 @@ impl Analyzer {
                         significant += 1;
                         direct_expression =
                             matches!(statement.node, ast::Statement::Expression(Some(_)));
-                        final_value = final_expression(statement);
+                        final_value = final_expression(statement, analyzer.arena);
                         result = final_value
                             .map(|expression| analyzer.expression_info(expression))
                             .transpose()?;
@@ -312,8 +312,8 @@ impl Analyzer {
         &mut self,
         definition: &Node<ast::FunctionDefinition>,
     ) -> Result<(), Error> {
-        crate::old_style::validate_definition_shape(definition)?;
-        let name = declarator_name(&definition.node.declarator)
+        crate::old_style::validate_definition_shape(definition, self.arena)?;
+        let name = declarator_name(&definition.node.declarator, self.arena)
             .ok_or_else(|| Error::new(definition.span.start, "function definition has no name"))?;
         let declaration = Node::new(
             ast::Declaration {
@@ -514,7 +514,7 @@ impl Analyzer {
                 .map(|checked| checked.begin_statement(&definition.node.statement))
                 .transpose()?
                 .flatten();
-            analyzer.block_items(items)?;
+            analyzer.block_items((items).get(self.arena))?;
             analyzer.require_no_fallthrough()?;
             if let Some(id) = checked_statement {
                 analyzer.retain_statement(&definition.node.statement, id)?;
@@ -659,8 +659,8 @@ impl Analyzer {
                     node: ast::TypeSpecifier::Struct(record),
                     ..
                 }) = &specifier.node
-                    && record.node.declarations.is_none()
-                    && let Some(identifier) = &record.node.identifier
+                    && record.get(self.arena).node.declarations.is_none()
+                    && let Some(identifier) = &record.get(self.arena).node.identifier
                     && self
                         .tags
                         .get(&identifier.node.name)
@@ -934,7 +934,7 @@ impl Analyzer {
                             OccurrenceKind::InitDeclarator,
                             LocalDeclaration {
                                 name: Some(&name),
-                                name_span: declarator_name_span(&item.node.declarator),
+                                name_span: declarator_name_span(&item.node.declarator, self.arena),
                                 ty: &ty,
                                 kind: EntityKind::Typedef,
                                 storage: Storage::None,
@@ -964,7 +964,7 @@ impl Analyzer {
                         OccurrenceKind::InitDeclarator,
                         LocalDeclaration {
                             name: Some(&name),
-                            name_span: declarator_name_span(&item.node.declarator),
+                            name_span: declarator_name_span(&item.node.declarator, self.arena),
                             ty: &ty,
                             kind: EntityKind::Typedef,
                             storage: Storage::None,
@@ -1176,7 +1176,7 @@ impl Analyzer {
                             OccurrenceKind::InitDeclarator,
                             LocalDeclaration {
                                 name: Some(&name),
-                                name_span: declarator_name_span(&item.node.declarator),
+                                name_span: declarator_name_span(&item.node.declarator, self.arena),
                                 ty: &composite,
                                 kind: if function {
                                     EntityKind::Function
@@ -1298,7 +1298,7 @@ impl Analyzer {
                     OccurrenceKind::InitDeclarator,
                     LocalDeclaration {
                         name: Some(&name),
-                        name_span: declarator_name_span(&item.node.declarator),
+                        name_span: declarator_name_span(&item.node.declarator, self.arena),
                         ty: &ty,
                         kind: if function {
                             EntityKind::Function
@@ -1487,42 +1487,49 @@ impl Analyzer {
             ast::Statement::Compound(_)
             | ast::Statement::Expression(None)
             | ast::Statement::Attribute(_) => {}
-            ast::Statement::Labeled(labeled) => match &labeled.node.label.node {
-                ast::Label::Identifier(_) => {
-                    let mut child = &labeled.node.statement.node;
-                    while let ast::Statement::Labeled(nested) = child {
-                        if !matches!(nested.node.label.node, ast::Label::Identifier(_)) {
-                            break;
+            ast::Statement::Labeled(labeled) => {
+                let labeled = labeled.get(self.arena);
+                match &labeled.node.label.node {
+                    ast::Label::Identifier(_) => {
+                        let mut child = &labeled.node.statement.node;
+                        while let ast::Statement::Labeled(nested) = child {
+                            if !matches!(
+                                nested.get(self.arena).node.label.node,
+                                ast::Label::Identifier(_)
+                            ) {
+                                break;
+                            }
+                            child = &nested.get(self.arena).node.statement.node;
                         }
-                        child = &nested.node.statement.node;
+                        if !matches!(
+                            child,
+                            ast::Statement::Expression(None) | ast::Statement::Compound(_)
+                        ) {
+                            self.require_no_fallthrough()?;
+                        }
                     }
-                    if !matches!(
-                        child,
-                        ast::Statement::Expression(None) | ast::Statement::Compound(_)
-                    ) {
-                        self.require_no_fallthrough()?;
+                    _ => {
+                        let context = self.function_context();
+                        if let Some((annotation, target)) = context.fallthrough.first()
+                            && context
+                                .switches
+                                .last()
+                                .is_none_or(|current| current.offset != *target)
+                        {
+                            return Err(Error::new(
+                                *annotation,
+                                "fallthrough annotation crosses a switch boundary",
+                            ));
+                        }
+                        self.function_context_mut().fallthrough.clear();
                     }
                 }
-                _ => {
-                    let context = self.function_context();
-                    if let Some((annotation, target)) = context.fallthrough.first()
-                        && context
-                            .switches
-                            .last()
-                            .is_none_or(|current| current.offset != *target)
-                    {
-                        return Err(Error::new(
-                            *annotation,
-                            "fallthrough annotation crosses a switch boundary",
-                        ));
-                    }
-                    self.function_context_mut().fallthrough.clear();
-                }
-            },
+            }
             _ => self.require_no_fallthrough()?,
         }
         match &statement.node {
             ast::Statement::Compound(items) => {
+                let items = items.get(self.arena);
                 self.with_statement(statement.span, |analyzer| analyzer.block_items(items))
             }
             ast::Statement::Expression(expression) => {
@@ -1575,58 +1582,71 @@ impl Analyzer {
                     }
                 }
             }
-            ast::Statement::If(selection) => self.with_control(statement.span, |analyzer| {
-                analyzer.scalar_condition(&selection.node.condition)?;
-                let checkpoint = analyzer.sve_feature_checkpoint();
-                let labels = analyzer.sve_feature_labels;
-                analyzer.substatement(&selection.node.then_statement)?;
-                if analyzer.sve_feature_checkpoint() > checkpoint
-                    && labels == analyzer.sve_feature_labels
-                    && analyzer.sve_constant_truth(&selection.node.condition) == Some(false)
-                {
-                    analyzer.discard_sve_feature_uses(checkpoint);
-                }
-                let mut then_fallthrough =
-                    std::mem::take(&mut analyzer.function_context_mut().fallthrough);
-                if let Some(statement) = &selection.node.else_statement {
+            ast::Statement::If(selection) => {
+                let selection = selection.get(self.arena);
+                self.with_control(statement.span, |analyzer| {
+                    analyzer.scalar_condition(&selection.node.condition)?;
                     let checkpoint = analyzer.sve_feature_checkpoint();
                     let labels = analyzer.sve_feature_labels;
-                    analyzer.substatement(statement)?;
+                    analyzer.substatement(&selection.node.then_statement)?;
                     if analyzer.sve_feature_checkpoint() > checkpoint
                         && labels == analyzer.sve_feature_labels
-                        && analyzer.sve_constant_truth(&selection.node.condition) == Some(true)
+                        && analyzer.sve_constant_truth(&selection.node.condition) == Some(false)
                     {
                         analyzer.discard_sve_feature_uses(checkpoint);
                     }
-                }
-                then_fallthrough.append(&mut analyzer.function_context_mut().fallthrough);
-                analyzer.function_context_mut().fallthrough = then_fallthrough;
-                Ok(())
-            }),
-            ast::Statement::While(iteration) => self.with_control(statement.span, |analyzer| {
-                if analyzer.gnu_statement_expressions() {
-                    analyzer.scalar_condition(&iteration.node.expression)?;
-                    analyzer.with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))
-                } else {
-                    analyzer.with_loop(|analyzer| {
+                    let mut then_fallthrough =
+                        std::mem::take(&mut analyzer.function_context_mut().fallthrough);
+                    if let Some(statement) = &selection.node.else_statement {
+                        let checkpoint = analyzer.sve_feature_checkpoint();
+                        let labels = analyzer.sve_feature_labels;
+                        analyzer.substatement(statement)?;
+                        if analyzer.sve_feature_checkpoint() > checkpoint
+                            && labels == analyzer.sve_feature_labels
+                            && analyzer.sve_constant_truth(&selection.node.condition) == Some(true)
+                        {
+                            analyzer.discard_sve_feature_uses(checkpoint);
+                        }
+                    }
+                    then_fallthrough.append(&mut analyzer.function_context_mut().fallthrough);
+                    analyzer.function_context_mut().fallthrough = then_fallthrough;
+                    Ok(())
+                })
+            }
+            ast::Statement::While(iteration) => {
+                let iteration = iteration.get(self.arena);
+                self.with_control(statement.span, |analyzer| {
+                    if analyzer.gnu_statement_expressions() {
                         analyzer.scalar_condition(&iteration.node.expression)?;
-                        analyzer.substatement(&iteration.node.statement)
-                    })
-                }
-            }),
-            ast::Statement::DoWhile(iteration) => self.with_control(statement.span, |analyzer| {
-                if analyzer.gnu_statement_expressions() {
-                    analyzer
-                        .with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))?;
-                    analyzer.scalar_condition(&iteration.node.expression)
-                } else {
-                    analyzer.with_loop(|analyzer| {
-                        analyzer.substatement(&iteration.node.statement)?;
+                        analyzer
+                            .with_loop(|analyzer| analyzer.substatement(&iteration.node.statement))
+                    } else {
+                        analyzer.with_loop(|analyzer| {
+                            analyzer.scalar_condition(&iteration.node.expression)?;
+                            analyzer.substatement(&iteration.node.statement)
+                        })
+                    }
+                })
+            }
+            ast::Statement::DoWhile(iteration) => {
+                let iteration = iteration.get(self.arena);
+                self.with_control(statement.span, |analyzer| {
+                    if analyzer.gnu_statement_expressions() {
+                        analyzer.with_loop(|analyzer| {
+                            analyzer.substatement(&iteration.node.statement)
+                        })?;
                         analyzer.scalar_condition(&iteration.node.expression)
-                    })
-                }
-            }),
-            ast::Statement::For(iteration) => self.with_control(statement.span, |analyzer| {
+                    } else {
+                        analyzer.with_loop(|analyzer| {
+                            analyzer.substatement(&iteration.node.statement)?;
+                            analyzer.scalar_condition(&iteration.node.expression)
+                        })
+                    }
+                })
+            }
+            ast::Statement::For(iteration) => {
+                let iteration = iteration.get(self.arena);
+                self.with_control(statement.span, |analyzer| {
                 match &iteration.node.initializer.node {
                     ast::ForInitializer::Empty => {}
                     ast::ForInitializer::Expression(expression) => {
@@ -1651,33 +1671,39 @@ impl Analyzer {
                         analyzer.substatement(&iteration.node.statement)
                     })
                 }
-            }),
-            ast::Statement::Switch(selection) => self.with_control(statement.span, |analyzer| {
-                let ty = analyzer.value_expression_type(&selection.node.expression)?;
-                let ty = promote(analyzer.integer_type(&ty, selection.node.expression.span.start)?);
-                let variably_modified = analyzer.active_variably_modified();
-                let context = analyzer.function_context_mut();
-                context.switches.push(SwitchContext {
-                    offset,
-                    ty,
-                    ranges: BTreeMap::new(),
-                    has_default: false,
-                    variably_modified,
-                    statement_expression: context.active_expression,
-                });
-                if let Some(checked) = &mut analyzer.checked {
-                    checked.enter_control(ControlKind::Switch, offset)?;
-                }
-                let result = analyzer
-                    .substatement(&selection.node.statement)
-                    .and_then(|()| analyzer.require_no_fallthrough());
-                if let Some(checked) = &mut analyzer.checked {
-                    checked.leave_control();
-                }
-                analyzer.function_context_mut().switches.pop();
-                result
-            }),
+            })
+            }
+            ast::Statement::Switch(selection) => {
+                let selection = selection.get(self.arena);
+                self.with_control(statement.span, |analyzer| {
+                    let ty = analyzer.value_expression_type(&selection.node.expression)?;
+                    let ty =
+                        promote(analyzer.integer_type(&ty, selection.node.expression.span.start)?);
+                    let variably_modified = analyzer.active_variably_modified();
+                    let context = analyzer.function_context_mut();
+                    context.switches.push(SwitchContext {
+                        offset,
+                        ty,
+                        ranges: BTreeMap::new(),
+                        has_default: false,
+                        variably_modified,
+                        statement_expression: context.active_expression,
+                    });
+                    if let Some(checked) = &mut analyzer.checked {
+                        checked.enter_control(ControlKind::Switch, offset)?;
+                    }
+                    let result = analyzer
+                        .substatement(&selection.node.statement)
+                        .and_then(|()| analyzer.require_no_fallthrough());
+                    if let Some(checked) = &mut analyzer.checked {
+                        checked.leave_control();
+                    }
+                    analyzer.function_context_mut().switches.pop();
+                    result
+                })
+            }
             ast::Statement::Labeled(labeled) => {
+                let labeled = labeled.get(self.arena);
                 self.sve_feature_labels += 1;
                 match &labeled.node.label.node {
                     ast::Label::Identifier(identifier) => {
@@ -1829,10 +1855,16 @@ impl Analyzer {
     }
 }
 
-fn declarator_name(declarator: &Node<ast::Declarator>) -> Option<String> {
+fn declarator_name(
+    declarator: &Node<ast::Declarator>,
+    arena: &lang_c::arena::Arena,
+) -> Option<String> {
     match &declarator.node.kind.node {
         ast::DeclaratorKind::Identifier(identifier) => Some(identifier.node.name.clone()),
-        ast::DeclaratorKind::Declarator(inner) => declarator_name(inner),
+        ast::DeclaratorKind::Declarator(inner) => {
+            let inner = inner.get(arena);
+            declarator_name(inner, arena)
+        }
         ast::DeclaratorKind::Abstract => None,
     }
 }
@@ -1853,10 +1885,16 @@ fn enters_scope(target: Option<usize>, source: Option<usize>, ends: &[usize]) ->
 }
 
 /// A label can prefix the final value-producing expression statement.
-fn final_expression(statement: &Node<ast::Statement>) -> Option<&Node<ast::Expression>> {
+fn final_expression<'a>(
+    statement: &'a Node<ast::Statement>,
+    arena: &'a lang_c::arena::Arena,
+) -> Option<&'a Node<ast::Expression>> {
     match &statement.node {
-        ast::Statement::Expression(expression) => expression.as_deref(),
-        ast::Statement::Labeled(labeled) => final_expression(&labeled.node.statement),
+        ast::Statement::Expression(expression) => expression.as_ref(),
+        ast::Statement::Labeled(labeled) => {
+            let labeled = labeled.get(arena);
+            final_expression(&labeled.node.statement, arena)
+        }
         _ => None,
     }
 }

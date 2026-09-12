@@ -12,7 +12,7 @@ pub(crate) struct ObjectSizeSignature {
     pub(crate) parameters: [Type; 2],
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn object_size_signature(&self, name: &str) -> Option<ObjectSizeSignature> {
         if !is_object_size_builtin(name) {
             return None;
@@ -68,7 +68,7 @@ impl Analyzer {
         self.enter_expression(expression.span.start)?;
         let result = if let ast::Expression::Comma(operands) = &expression.node {
             let mut result = None;
-            for operand in operands.iter() {
+            for operand in operands.get(self.arena).iter() {
                 match self.object_size_mode_value(operand) {
                     Ok(value) => result = Some(Ok(value)),
                     Err(error) => {

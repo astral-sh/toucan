@@ -1,3 +1,4 @@
+use arena::Arena;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use ast::*;
@@ -201,12 +202,16 @@ impl Env {
     ///
     /// Saved callback scopes are discarded. Passing `None` or an identifier-list
     /// definition discards every saved scope.
-    pub fn finish_function_definition(&mut self, declarator: Option<&Node<Declarator>>) {
+    pub fn finish_function_definition(
+        &mut self,
+        declarator: Option<&Node<Declarator>>,
+        arena: &Arena,
+    ) {
         let scopes = self.definition_scopes.take().unwrap_or_default();
         let function = declarator
-            .and_then(|declarator| definition_function(&declarator.node))
+            .and_then(|declarator| definition_function(&declarator.node, arena))
             .and_then(|derived| match derived {
-                DerivedDeclarator::Function(function) => Some(function),
+                DerivedDeclarator::Function(function) => Some(function.get(arena)),
                 _ => None,
             });
         if let Some(function) = function {
@@ -240,8 +245,8 @@ impl Env {
                 )
     }
 
-    pub fn handle_declarator(&mut self, d: &Node<Declarator>, sym: Symbol) {
-        if let Some(name) = find_declarator_name(&d.node.kind.node) {
+    pub fn handle_declarator(&mut self, d: &Node<Declarator>, sym: Symbol, arena: &Arena) {
+        if let Some(name) = find_declarator_name(&d.node.kind.node, arena) {
             self.add_symbol(name, sym)
         }
     }
@@ -264,9 +269,12 @@ impl Env {
 ///
 /// Identifier-list functions stop the search too, so a returned callback's
 /// prototype cannot be mistaken for the definition's parameter list.
-fn definition_function(declarator: &Declarator) -> Option<&DerivedDeclarator> {
+fn definition_function<'a>(
+    declarator: &'a Declarator,
+    arena: &'a Arena,
+) -> Option<&'a DerivedDeclarator> {
     if let DeclaratorKind::Declarator(ref inner) = declarator.kind.node {
-        if let Some(function) = definition_function(&inner.node) {
+        if let Some(function) = definition_function(&inner.get(arena).node, arena) {
             return Some(function);
         }
     }
@@ -282,10 +290,10 @@ fn definition_function(declarator: &Declarator) -> Option<&DerivedDeclarator> {
 
 /// Finds the declared name through parenthesized declarators, excluding names in
 /// derived function parameter lists.
-pub(crate) fn find_declarator_name(d: &DeclaratorKind) -> Option<&str> {
+pub(crate) fn find_declarator_name<'a>(d: &'a DeclaratorKind, arena: &'a Arena) -> Option<&'a str> {
     match d {
         &DeclaratorKind::Abstract => None,
         DeclaratorKind::Identifier(i) => Some(&i.node.name),
-        DeclaratorKind::Declarator(d) => find_declarator_name(&d.node.kind.node),
+        DeclaratorKind::Declarator(d) => find_declarator_name(&d.get(arena).node.kind.node, arena),
     }
 }

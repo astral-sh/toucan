@@ -1,5 +1,6 @@
-//! Exhaustive structural accounting for the owned parser AST.
+//! Exhaustive structural accounting for the parser AST, including arena links.
 // This schema deliberately names every field and variant. AST changes must update it.
+use arena::{Arena, ArenaNode, Id};
 use ast::*;
 use limits::Budget;
 use span::Node;
@@ -33,17 +34,18 @@ pub(crate) trait Measure {
         budget: &mut Budget,
         offset: usize,
         depth: usize,
+        arena: &Arena,
     ) -> Result<Measurement, &'static str>;
 }
 macro_rules! structure {
     ($name:ident { $($field:ident),* }) => {
         impl Measure for $name {
             fn identity() -> Option<u8> { node_kind(stringify!($name)) }
-            fn measure(&self, budget: &mut Budget, offset: usize, depth: usize) -> Result<Measurement, &'static str> {
+            fn measure(&self, budget: &mut Budget, offset: usize, depth: usize, arena: &Arena) -> Result<Measurement, &'static str> {
                 budget.visit(offset, depth)?;
                 let Self { $($field),* } = self;
                 let mut result = Measurement::own::<Self>();
-                $(result.add($field.measure(budget, offset, depth + 1)?);)*
+                $(result.add($field.measure(budget, offset, depth + 1, arena)?);)*
                 Ok(result)
             }
         }
@@ -53,10 +55,10 @@ macro_rules! tuple_structure {
     ($name:ident { $($field:tt),* }) => {
         impl Measure for $name {
             fn identity() -> Option<u8> { node_kind(stringify!($name)) }
-            fn measure(&self, budget: &mut Budget, offset: usize, depth: usize) -> Result<Measurement, &'static str> {
+            fn measure(&self, budget: &mut Budget, offset: usize, depth: usize, arena: &Arena) -> Result<Measurement, &'static str> {
                 budget.visit(offset, depth)?;
                 let mut result = Measurement::own::<Self>();
-                $(result.add(self.$field.measure(budget, offset, depth + 1)?);)*
+                $(result.add(self.$field.measure(budget, offset, depth + 1, arena)?);)*
                 Ok(result)
             }
         }
@@ -66,7 +68,7 @@ macro_rules! enumeration {
     ($name:ident { $($variant:ident),* }) => {
         impl Measure for $name {
             fn identity() -> Option<u8> { node_kind(stringify!($name)) }
-            fn measure(&self, budget: &mut Budget, offset: usize, depth: usize) -> Result<Measurement, &'static str> {
+            fn measure(&self, budget: &mut Budget, offset: usize, depth: usize, _arena: &Arena) -> Result<Measurement, &'static str> {
                 budget.visit(offset, depth)?;
                 match self { $(Self::$variant => {}),* }
                 Ok(Measurement::own::<Self>())
@@ -76,10 +78,10 @@ macro_rules! enumeration {
     ($name:ident { $($variant:ident $(($($field:ident),*))?),* }) => {
         impl Measure for $name {
             fn identity() -> Option<u8> { node_kind(stringify!($name)) }
-            fn measure(&self, budget: &mut Budget, offset: usize, depth: usize) -> Result<Measurement, &'static str> {
+            fn measure(&self, budget: &mut Budget, offset: usize, depth: usize, arena: &Arena) -> Result<Measurement, &'static str> {
                 budget.visit(offset, depth)?;
                 let mut result = Measurement::own::<Self>();
-                match self { $(Self::$variant $(($($field),*))? => { $($(result.add($field.measure(budget, offset, depth + 1)?);)*)? }),* }
+                match self { $(Self::$variant $(($($field),*))? => { $($(result.add($field.measure(budget, offset, depth + 1, arena)?);)*)? }),* }
                 Ok(result)
             }
         }
@@ -91,14 +93,32 @@ impl<T: Measure> Measure for Node<T> {
         budget: &mut Budget,
         _offset: usize,
         depth: usize,
+        arena: &Arena,
     ) -> Result<Measurement, &'static str> {
         budget.visit(self.span.start, depth)?;
         if let Some(measurement) = budget.node_measurement::<T>(self.span, depth)? {
             return Ok(measurement);
         }
         let mut result = Measurement::own::<Self>();
-        result.add(self.node.measure(budget, self.span.start, depth + 1)?);
+        result.add(
+            self.node
+                .measure(budget, self.span.start, depth + 1, arena)?,
+        );
         budget.save_node::<T>(self.span, result)?;
+        Ok(result)
+    }
+}
+impl<T: Measure + ArenaNode> Measure for Id<T> {
+    fn measure(
+        &self,
+        budget: &mut Budget,
+        offset: usize,
+        depth: usize,
+        arena: &Arena,
+    ) -> Result<Measurement, &'static str> {
+        budget.visit(offset, depth)?;
+        let mut result = Measurement::own::<Self>();
+        result.add(self.get(arena).measure(budget, offset, depth + 1, arena)?);
         Ok(result)
     }
 }
@@ -108,10 +128,11 @@ impl<T: Measure + ?Sized> Measure for Box<T> {
         budget: &mut Budget,
         offset: usize,
         depth: usize,
+        arena: &Arena,
     ) -> Result<Measurement, &'static str> {
         budget.visit(offset, depth)?;
         let mut result = Measurement::own::<Self>();
-        result.add((**self).measure(budget, offset, depth + 1)?);
+        result.add((**self).measure(budget, offset, depth + 1, arena)?);
         Ok(result)
     }
 }
@@ -121,11 +142,12 @@ impl<T: Measure> Measure for Vec<T> {
         budget: &mut Budget,
         offset: usize,
         depth: usize,
+        arena: &Arena,
     ) -> Result<Measurement, &'static str> {
         budget.visit(offset, depth)?;
         let mut result = Measurement::own::<Self>();
         for child in self {
-            result.add(child.measure(budget, offset, depth + 1)?);
+            result.add(child.measure(budget, offset, depth + 1, arena)?);
         }
         Ok(result)
     }
@@ -136,11 +158,12 @@ impl<T: Measure> Measure for Option<T> {
         budget: &mut Budget,
         offset: usize,
         depth: usize,
+        arena: &Arena,
     ) -> Result<Measurement, &'static str> {
         budget.visit(offset, depth)?;
         let mut result = Measurement::own::<Self>();
         if let Some(value) = self {
-            result.add(value.measure(budget, offset, depth + 1)?);
+            result.add(value.measure(budget, offset, depth + 1, arena)?);
         }
         Ok(result)
     }
@@ -151,6 +174,7 @@ impl Measure for str {
         budget: &mut Budget,
         offset: usize,
         depth: usize,
+        _arena: &Arena,
     ) -> Result<Measurement, &'static str> {
         budget.visit(offset, depth)?;
         Ok(Measurement {
@@ -165,13 +189,14 @@ impl Measure for String {
         budget: &mut Budget,
         offset: usize,
         depth: usize,
+        arena: &Arena,
     ) -> Result<Measurement, &'static str> {
-        self.as_str().measure(budget, offset, depth)
+        self.as_str().measure(budget, offset, depth, arena)
     }
 }
 macro_rules! scalar {
     ($($ty:ty),*) => { $(impl Measure for $ty {
-        fn measure(&self, budget: &mut Budget, offset: usize, depth: usize) -> Result<Measurement, &'static str> {
+        fn measure(&self, budget: &mut Budget, offset: usize, depth: usize, _arena: &Arena) -> Result<Measurement, &'static str> {
             budget.visit(offset, depth)?;
             Ok(Measurement::own::<Self>())
         }
@@ -457,14 +482,19 @@ impl Measure for ExternalDeclaration {
         budget: &mut Budget,
         offset: usize,
         depth: usize,
+        arena: &Arena,
     ) -> Result<Measurement, &'static str> {
         budget.visit(offset, depth)?;
         let mut result = Measurement::own::<Self>();
         match self {
-            Self::Declaration(value) => result.add(value.measure(budget, offset, depth + 1)?),
-            Self::StaticAssert(value) => result.add(value.measure(budget, offset, depth + 1)?),
+            Self::Declaration(value) => {
+                result.add(value.measure(budget, offset, depth + 1, arena)?)
+            }
+            Self::StaticAssert(value) => {
+                result.add(value.measure(budget, offset, depth + 1, arena)?)
+            }
             Self::FunctionDefinition(value) => {
-                result.add(value.measure(budget, offset, depth + 1)?)
+                result.add(value.measure(budget, offset, depth + 1, arena)?)
             }
         }
         Ok(result)
@@ -506,8 +536,9 @@ impl<T: Measure + ?Sized> Measure for &T {
         budget: &mut Budget,
         offset: usize,
         depth: usize,
+        arena: &Arena,
     ) -> Result<Measurement, &'static str> {
-        (**self).measure(budget, offset, depth)
+        (**self).measure(budget, offset, depth, arena)
     }
 }
 

@@ -18,13 +18,13 @@ pub struct ParseLimits {
     /// Simultaneously active recursive parsing calls, including precedence parsing.
     /// Values above 512 are rejected before starting the worker.
     pub max_rule_depth: usize,
-    /// Maximum owned AST depth (including node/container wrappers).
+    /// Maximum logical AST depth (including node/container wrappers and arena links).
     /// Values above 1024 are rejected before starting the worker.
     pub max_ast_depth: usize,
     /// Bytes retained in the parser's token buffer, including spare capacity.
     /// This excludes the AST and is not an allocator RSS measurement.
     pub max_cache_bytes: u64,
-    /// Live construction-metric entries plus experimental expression-arena nodes.
+    /// Live construction-metric entries plus AST arena records.
     /// Completed external declarations release their child metrics.
     pub max_metadata_entries: usize,
 }
@@ -258,6 +258,7 @@ impl Budget {
         &mut self,
         value: T,
         span: Span,
+        arena: &::arena::Arena,
     ) -> Result<Node<T>, &'static str> {
         // Measure each new root; only already-constructed child nodes may reuse
         // structural measurements.
@@ -265,7 +266,7 @@ impl Budget {
             return Err("parser resource limit");
         }
         self.visit(span.start, 1)?;
-        let child = value.measure(self, span.start, 2)?;
+        let child = value.measure(self, span.start, 2, arena)?;
         let measurement = Measurement {
             bytes: child
                 .bytes
@@ -283,7 +284,7 @@ impl Budget {
             });
             reference.verify_uncached = true;
             let actual = value
-                .measure(&mut reference, span.start, 2)
+                .measure(&mut reference, span.start, 2, arena)
                 .expect("constructed subtree has bounded depth");
             assert!(measurement.depth > actual.depth);
             assert!(measurement.bytes >= actual.bytes + ::std::mem::size_of::<Node<T>>() as u64);

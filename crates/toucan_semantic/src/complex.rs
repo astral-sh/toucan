@@ -331,7 +331,7 @@ where
     ])
 }
 
-impl crate::analyze::Analyzer {
+impl<'ast> crate::analyze::Analyzer<'ast> {
     /// GCC preserves ordinary complex operand qualifiers on unary value results.
     pub(crate) fn complex_unary_result(
         &self,

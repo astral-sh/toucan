@@ -27,7 +27,7 @@ pub(crate) struct AutoInference<'a> {
     layers: Vec<&'a Node<ast::DerivedDeclarator>>,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Validates the common declaration before checking each initializer in order.
     pub(crate) fn auto_declaration(
         &self,
@@ -111,7 +111,10 @@ impl Analyzer {
         declaration: &'a Node<ast::Declaration>,
         item: &'a Node<ast::InitDeclarator>,
         group: &mut AutoDeclaration,
-    ) -> Result<(Type, Attributes, AutoInference<'a>), Error> {
+    ) -> Result<(Type, Attributes, AutoInference<'a>), Error>
+    where
+        'ast: 'a,
+    {
         let inference = self.infer_auto_item(declaration, item, group.keyword)?;
         if group.multiple && !inference.reuses_prior_type {
             if let Some(previous) = &group.deduced {
@@ -145,7 +148,10 @@ impl Analyzer {
         declaration: &'a Node<ast::Declaration>,
         item: &'a Node<ast::InitDeclarator>,
         keyword: Span,
-    ) -> Result<AutoInference<'a>, Error> {
+    ) -> Result<AutoInference<'a>, Error>
+    where
+        'ast: 'a,
+    {
         let mut declarator = &item.node.declarator;
         let mut layers = Vec::new();
         let mut depth = 0;
@@ -173,7 +179,10 @@ impl Analyzer {
             layers.extend(declarator.node.derived[split..].iter().rev());
             match &declarator.node.kind.node {
                 ast::DeclaratorKind::Identifier(name) => break name.node.name.as_str(),
-                ast::DeclaratorKind::Declarator(inner) => declarator = inner,
+                ast::DeclaratorKind::Declarator(inner) => {
+                    let inner = inner.get(self.arena);
+                    declarator = inner
+                }
                 ast::DeclaratorKind::Abstract => {
                     return Err(Error::new(
                         declarator.span.start,
