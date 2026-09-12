@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::{Declaration, StaticAssert};
 use toucan_parser::driver::{parse_preprocessed, parse_preprocessed_with_limits, Config, Flavor};
 use toucan_parser::limits::{ParseLimits, ResourceKind};
@@ -10,14 +12,24 @@ use toucan_parser::visit::{self, Visit};
 struct Declarations(Vec<Span>);
 
 impl<'ast> Visit<'ast> for Declarations {
-    fn visit_declaration(&mut self, declaration: &'ast Declaration, span: &'ast Span) {
+    fn visit_declaration(
+        &mut self,
+        declaration: &'ast Declaration,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.0.push(*span);
-        visit::visit_declaration(self, declaration, span);
+        visit::visit_declaration(self, declaration, span, arena);
     }
 
-    fn visit_static_assert(&mut self, assertion: &'ast StaticAssert, span: &'ast Span) {
+    fn visit_static_assert(
+        &mut self,
+        assertion: &'ast StaticAssert,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.0.push(*span);
-        visit::visit_static_assert(self, assertion, span);
+        visit::visit_static_assert(self, assertion, span, arena);
     }
 }
 
@@ -35,7 +47,7 @@ fn repeated_prefixes_preserve_declaration_dispatch_and_spans() {
     for config in [Config::with_gcc(), Config::with_clang()] {
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
         let mut declarations = Declarations::default();
-        declarations.visit_translation_unit(&parsed.unit);
+        parsed.ast().visit(&mut declarations);
         assert_eq!(declarations.0.len(), 6);
         for span in declarations.0 {
             assert!(source[span.start..span.end].starts_with("__extension__ __extension__"));
@@ -79,7 +91,7 @@ fn prefix_lookahead_obeys_work_limits_and_does_not_recurse() {
         },
     )
     .unwrap();
-    assert_eq!(parsed.unit, exact.unit);
+    assert!(parsed.ast().structural_eq(exact.ast()));
 }
 
 #[test]

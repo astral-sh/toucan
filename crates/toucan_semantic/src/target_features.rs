@@ -295,7 +295,7 @@ impl ParsedTarget {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn parse_minimum_vector_width(
         &mut self,
         attribute: &ast::Attribute,
@@ -346,7 +346,7 @@ impl Analyzer {
                 break;
             };
             if parsed.clang {
-                for literal in &strings.node {
+                for literal in &strings.get(self.arena).node {
                     let mut bytes = literal.bytes();
                     while let Some(byte) = bytes.next() {
                         if byte == b'\\'
@@ -362,7 +362,8 @@ impl Analyzer {
                     }
                 }
             }
-            let decoded = self.decode_string_literal(strings, argument.span.start)?;
+            let decoded =
+                self.decode_string_literal((strings).get(self.arena), argument.span.start)?;
             if decoded.encoding != StringEncoding::Ordinary {
                 parsed.error = Some((
                     argument.span.start,
@@ -716,7 +717,7 @@ pub(crate) enum FeatureUse {
     },
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn current_x86_features(&self) -> u8 {
         self.current_function_options().map_or_else(
             || {
@@ -817,13 +818,17 @@ impl Analyzer {
             // address/dereference pairs around a known function designator.
             for _ in 0..128 {
                 match &expression.node {
-                    ast::Expression::Cast(cast) => expression = &cast.node.expression,
+                    ast::Expression::Cast(cast) => {
+                        let cast = cast.get(self.arena);
+                        expression = &cast.node.expression
+                    }
                     ast::Expression::UnaryOperator(unary)
                         if matches!(
-                            unary.node.operator.node,
+                            unary.get(self.arena).node.operator.node,
                             ast::UnaryOperator::Address | ast::UnaryOperator::Indirection
                         ) =>
                     {
+                        let unary = unary.get(self.arena);
                         expression = &unary.node.operand
                     }
                     _ => break,
@@ -833,7 +838,7 @@ impl Analyzer {
         let ast::Expression::Identifier(identifier) = &expression.node else {
             return None;
         };
-        let name = identifier.node.name.as_str();
+        let name = identifier.get(self.arena).node.name.as_str();
         if let Some(ty) = self.parameter_type(name) {
             return matches!(
                 self.unit.resolve(ty).ok()?.kind,
@@ -851,7 +856,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Read only target strings before checking definition parameter bounds.
     /// This does not replay type declarations or evaluate attribute expressions.
     pub(crate) fn definition_target_options(
@@ -865,8 +870,8 @@ impl Analyzer {
         for specifier in &definition.node.specifiers {
             match &specifier.node {
                 ast::DeclarationSpecifier::TypeSpecifier(ty) => {
-                    after_tag = matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
-                        || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty());
+                    after_tag = matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.get(self.arena).node.declarations.is_some())
+                        || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.get(self.arena).node.enumerators.is_empty());
                 }
                 ast::DeclarationSpecifier::Extension(extensions) if !after_tag => {
                     self.collect_definition_target(extensions, &mut attributes)?
@@ -895,7 +900,7 @@ impl Analyzer {
                 }
             }
             if let ast::DeclaratorKind::Declarator(inner) = &declarator.node.kind.node {
-                declarator = inner;
+                declarator = (inner).get(self.arena);
             } else {
                 if self.unit.compiler == Compiler::Gnu
                     && let Some(offset) =

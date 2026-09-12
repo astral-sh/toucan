@@ -35,7 +35,7 @@ pub(crate) fn predefined_type(name: &str, target: Target, compiler: Compiler) ->
         .then_some(FloatKind::FLOAT128)
 }
 
-impl crate::analyze::Analyzer {
+impl<'ast> crate::analyze::Analyzer<'ast> {
     /// GNU's predefined typedef may be shadowed locally or replaced by a typedef,
     /// but cannot be redeclared as an object or function with linkage.
     pub(crate) fn require_linked_float_name(&self, name: &str, offset: usize) -> Result<(), Error> {

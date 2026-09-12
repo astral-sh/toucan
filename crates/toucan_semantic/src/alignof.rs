@@ -52,7 +52,7 @@ pub(crate) type OriginId = NonZeroU32;
 const LIMIT: usize = 65_536;
 const TYPE_BYTE_LIMIT: usize = 16 * 1024 * 1024;
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Checks an unevaluated alignment operand and returns its alignment in bytes.
     /// Successful results are cached by source span for evaluation and retention.
     pub(crate) fn alignment_query(&mut self, query: &Node<ast::AlignOf>) -> Result<u64, Error> {
@@ -69,6 +69,7 @@ impl Analyzer {
         let allocation_context = self.allocation_context(false);
         let bytes = self.alignment_operand(|analyzer| match &query.node.operand {
             ast::AlignOfOperand::TypeName(name) => {
+                let name = name.get(self.arena);
                 let ty = analyzer.type_name(&name.node)?;
                 let alignment = analyzer.alignment_type_value(&ty, false, query.span.start)?;
                 if query.node.kind == ast::AlignOfKind::Gnu
@@ -96,7 +97,7 @@ impl Analyzer {
                     &expression.node,
                     ast::Expression::UnaryOperator(unary)
                         if matches!(
-                            unary.node.operator.node,
+                            unary.get(self.arena).node.operator.node,
                             ast::UnaryOperator::Real | ast::UnaryOperator::Imaginary
                         )
                 );
@@ -441,9 +442,14 @@ mod tests {
     #[derive(Default)]
     struct Query(Option<Node<ast::AlignOf>>);
     impl<'ast> Visit<'ast> for Query {
-        fn visit_alignof(&mut self, node: &'ast ast::AlignOf, span: &'ast Span) {
+        fn visit_alignof(
+            &mut self,
+            node: &'ast ast::AlignOf,
+            span: &'ast Span,
+            arena: &'ast lang_c::arena::Arena,
+        ) {
             self.0 = Some(Node::new(node.clone(), *span));
-            visit::visit_alignof(self, node, span);
+            visit::visit_alignof(self, node, span, arena);
         }
     }
 
@@ -454,7 +460,8 @@ mod tests {
             toucan_target::Target::X86_64UnknownLinuxGnu,
         )
         .unwrap();
-        let mut analyzer = Analyzer::from_unit(unit);
+        let arena = lang_c::arena::Arena::default();
+        let mut analyzer = Analyzer::from_unit(unit, &arena);
         analyzer.alignment_queries.active = 1;
         analyzer.alignment_queries.type_bytes = TYPE_BYTE_LIMIT - std::mem::size_of::<Type>();
         let info = ExpressionInfo::value(Type::new(TypeKind::Typedef("LongAlias".into())));
@@ -475,7 +482,13 @@ mod tests {
             toucan_target::Target::X86_64UnknownLinuxGnu,
         )
         .unwrap();
-        let mut analyzer = Analyzer::from_unit(unit);
+        let parsed = lang_c::driver::parse_preprocessed(
+            &lang_c::driver::Config::default(),
+            "int f(void){return _Alignof(int);}".into(),
+        )
+        .unwrap()
+        .into_raw();
+        let mut analyzer = Analyzer::from_unit(unit, &parsed.arena);
         analyzer.alignment_queries.active = 1;
         analyzer.alignment_queries.origins = vec![Origin::Object(1); LIMIT];
         let alignment = analyzer
@@ -491,13 +504,8 @@ mod tests {
         assert_eq!(error.offset, 17);
         assert!(error.message.contains("alignment origin count"));
         assert_eq!(analyzer.alignment_queries.origins.len(), LIMIT);
-        let parsed = lang_c::driver::parse_preprocessed(
-            &lang_c::driver::Config::default(),
-            "int f(void){return _Alignof(int);}".into(),
-        )
-        .unwrap();
         let mut query = Query::default();
-        query.visit_translation_unit(&parsed.unit);
+        query.visit_translation_unit(&parsed.unit, &parsed.arena);
         let query = query.0.unwrap();
         analyzer.alignment_queries.results = (0..LIMIT).map(|n| ((n, usize::MAX), 1)).collect();
         let error = analyzer.alignment_query(&query).unwrap_err();

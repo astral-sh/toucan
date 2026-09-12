@@ -30,7 +30,7 @@ impl TranslationUnit {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Applies either the constructor spelling or an idempotent atomic qualifier.
     pub(crate) fn atomic_type(
         &self,

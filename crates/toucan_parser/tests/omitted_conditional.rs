@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::{CallExpression, ConditionalExpression};
 use toucan_parser::driver::{parse_preprocessed, Config, Flavor, Standard};
 use toucan_parser::span::Span;
@@ -13,14 +15,20 @@ struct Expressions {
 }
 
 impl<'ast> Visit<'ast> for Expressions {
-    fn visit_call_expression(&mut self, node: &'ast CallExpression, span: &'ast Span) {
+    fn visit_call_expression(
+        &mut self,
+        node: &'ast CallExpression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         self.calls += 1;
-        visit::visit_call_expression(self, node, span);
+        visit::visit_call_expression(self, node, span, arena);
     }
     fn visit_conditional_expression(
         &mut self,
         node: &'ast ConditionalExpression,
         span: &'ast Span,
+        arena: &'ast Arena,
     ) {
         if node.then_expression.is_none() {
             self.omitted += 1;
@@ -31,7 +39,7 @@ impl<'ast> Visit<'ast> for Expressions {
         } else {
             self.ordinary += 1;
         }
-        visit::visit_conditional_expression(self, node, span);
+        visit::visit_conditional_expression(self, node, span, arena);
     }
 }
 
@@ -52,7 +60,7 @@ fn omitted_operands_keep_the_written_condition_once() {
             };
             let parsed = parse_preprocessed(&config, source.into()).unwrap();
             let mut visitor = Expressions::default();
-            visitor.visit_translation_unit(&parsed.unit);
+            parsed.ast().visit(&mut visitor);
             assert_eq!(
                 (visitor.calls, visitor.omitted, visitor.ordinary),
                 (5, 2, 1)

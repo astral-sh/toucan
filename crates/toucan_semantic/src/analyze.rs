@@ -1,6 +1,6 @@
 use std::collections::BTreeMap;
 
-use lang_c::{ast, driver, span::Node};
+use lang_c::{arena::Arena, ast, driver, span::Node};
 use rustc_hash::{FxHashMap, FxHashSet};
 use toucan_target::{Compiler, CompilerProfile, Target};
 
@@ -138,7 +138,8 @@ fn analyze_on_parser_stack(
         profile.compiler(),
         profile.language_mode(),
     )?;
-    let mut analyzer = Analyzer::new(profile, packs);
+    drop(parsed.source);
+    let mut analyzer = Analyzer::new(profile, packs, &parsed.arena);
     analyzer.declaration_origins =
         retain_declaration_origins.then(|| Box::new(crate::declaration_origins::Builder::new()));
     analyzer.object_values =
@@ -148,14 +149,19 @@ fn analyze_on_parser_stack(
     analyzer.parameter_type_dependencies = retain_parameter_type_dependencies
         .then(|| Box::new(crate::parameter_dependencies::Builder::new()));
     analyzer.prepare_dll_storage(&source);
-    analyzer.prepare_typedef_alignments(Syntax::Unit(&parsed), &source)?;
-    analyzer.prepare_array_identities(Syntax::Unit(&parsed), &source)?;
-    analyzer.prepare_late_function_targets(Syntax::Unit(&parsed), &source)?;
-    analyzer.prepare_inline_definitions(&parsed, &source)?;
+    analyzer.prepare_typedef_alignments(Syntax::Unit(&parsed.unit), &source)?;
+    analyzer.prepare_array_identities(Syntax::Unit(&parsed.unit), &source)?;
+    analyzer.prepare_late_function_targets(Syntax::Unit(&parsed.unit), &source)?;
+    analyzer.prepare_inline_definitions(&parsed.unit, &source)?;
     if let Some(limits) = retention {
-        analyzer.checked = Some(Box::new(CodeBuilder::new(&parsed, source.len(), limits)?));
+        analyzer.checked = Some(Box::new(CodeBuilder::new(
+            &parsed.unit,
+            source.len(),
+            limits,
+            &parsed.arena,
+        )?));
     }
-    for external in parsed.0 {
+    for external in parsed.unit.0 {
         match external.node {
             ast::ExternalDeclaration::Declaration(declaration) => {
                 analyzer.declaration(&declaration, false)?
@@ -185,7 +191,9 @@ fn analyze_on_parser_stack(
             profile.compiler(),
             profile.language_mode(),
         )?;
-        analyzer.unit.tag_discovery = crate::tag_discovery::discover(&analyzer.unit, &syntax)?;
+        drop(syntax.source);
+        analyzer.unit.tag_discovery =
+            crate::tag_discovery::discover(&analyzer.unit, &syntax.unit, &syntax.arena)?;
     }
     let checked = analyzer
         .checked
@@ -300,11 +308,12 @@ fn evaluate_on_parser_stack<Value>(
         unit.language_mode,
         |config, source| {
             driver::parse_expression(config, source, |name| unit.typedefs.contains_key(name))
-                .map(|parsed| parsed.expression)
         },
-    )?;
+    )?
+    .into_raw();
+    drop(parsed.source);
     let source = expression;
-    let expression = &parsed;
+    let expression = &parsed.expression;
     unit.validate_parameter_contracts()?;
     // Literals and known enumerator values do not need declaration identities.
     // Keep validating the public environment above, and copy only the values
@@ -316,15 +325,16 @@ fn evaluate_on_parser_stack<Value>(
         &mut constants,
         0,
         &mut 4096,
+        &parsed.arena,
     ) {
-        let mut analyzer = Analyzer::new(profile, Vec::new());
+        let mut analyzer = Analyzer::new(profile, Vec::new(), &parsed.arena);
         analyzer.unit.constants = constants
             .into_iter()
             .map(|(name, value)| (name.to_owned(), value))
             .collect();
         analyzer
     } else {
-        Analyzer::from_unit(unit.clone())
+        Analyzer::from_unit(unit.clone(), &parsed.arena)
     };
     analyzer.prepare_dll_storage(source);
     analyzer.evaluation = crate::evaluation::Context::constant_query();
@@ -346,6 +356,7 @@ fn value_expression<'a>(
     referenced: &mut BTreeMap<&'a str, IntegerValue>,
     depth: u8,
     remaining: &mut usize,
+    arena: &'a Arena,
 ) -> bool {
     if depth >= 128 || *remaining == 0 {
         return false;
@@ -358,11 +369,13 @@ fn value_expression<'a>(
             referenced,
             depth + 1,
             remaining,
+            arena,
         )
     };
     match expression {
         ast::Expression::Constant(_) => true,
         ast::Expression::Identifier(identifier) => {
+            let identifier = identifier.get(arena);
             let name = identifier.node.name.as_str();
             if let Some(&value) = constants.get(name) {
                 referenced.insert(name, value);
@@ -372,6 +385,7 @@ fn value_expression<'a>(
             }
         }
         ast::Expression::UnaryOperator(unary) => {
+            let unary = unary.get(arena);
             matches!(
                 unary.node.operator.node,
                 ast::UnaryOperator::Plus
@@ -381,6 +395,7 @@ fn value_expression<'a>(
             ) && operand(&unary.node.operand)
         }
         ast::Expression::BinaryOperator(binary) => {
+            let binary = binary.get(arena);
             matches!(
                 binary.node.operator.node,
                 ast::BinaryOperator::Multiply
@@ -405,12 +420,13 @@ fn value_expression<'a>(
                 && operand(&binary.node.rhs)
         }
         ast::Expression::Conditional(conditional) => {
+            let conditional = conditional.get(arena);
             operand(&conditional.node.condition)
                 && conditional
                     .node
                     .then_expression
                     .as_ref()
-                    .is_none_or(|value| operand(value))
+                    .is_none_or(&mut operand)
                 && operand(&conditional.node.else_expression)
         }
         _ => false,
@@ -425,11 +441,11 @@ pub(crate) enum Syntax<'a> {
 }
 
 impl<'a> Syntax<'a> {
-    pub(crate) fn visit(self, visitor: &mut impl lang_c::visit::Visit<'a>) {
+    pub(crate) fn visit(self, visitor: &mut impl lang_c::visit::Visit<'a>, arena: &'a Arena) {
         match self {
-            Self::Unit(unit) => visitor.visit_translation_unit(unit),
+            Self::Unit(unit) => visitor.visit_translation_unit(unit, arena),
             Self::Expression(expression) => {
-                visitor.visit_expression(&expression.node, &expression.span)
+                visitor.visit_expression(&expression.node, &expression.span, arena)
             }
         }
     }
@@ -440,10 +456,11 @@ fn parse(
     target: Target,
     compiler: Compiler,
     language_mode: toucan_target::LanguageMode,
-) -> Result<ast::TranslationUnit, Error> {
+) -> Result<lang_c::raw::Parse, Error> {
     parse_source(source, target, compiler, language_mode, |config, source| {
-        driver::parse_preprocessed(config, source).map(|parsed| parsed.unit)
+        driver::parse_preprocessed(config, source)
     })
+    .map(driver::Parse::into_raw)
 }
 
 fn parse_source<T>(
@@ -803,9 +820,10 @@ pub(crate) fn storage_specifiers(
 }
 
 /// Finds the derivation applied last, including parenthesized declarators.
-pub(crate) fn outermost_derived(
-    mut declarator: &Node<ast::Declarator>,
-) -> Option<&Node<ast::DerivedDeclarator>> {
+pub(crate) fn outermost_derived<'a>(
+    mut declarator: &'a Node<ast::Declarator>,
+    arena: &'a lang_c::arena::Arena,
+) -> Option<&'a Node<ast::DerivedDeclarator>> {
     let mut outermost = None;
     loop {
         let derived = &declarator.node.derived;
@@ -816,7 +834,7 @@ pub(crate) fn outermost_derived(
                 .or_else(|| derived.last());
         }
         if let ast::DeclaratorKind::Declarator(inner) = &declarator.node.kind.node {
-            declarator = inner;
+            declarator = (inner).get(arena);
         } else {
             return outermost;
         }
@@ -842,7 +860,8 @@ struct DeclaratorContext<'a> {
     definition: Option<&'a Node<ast::FunctionDefinition>>,
 }
 
-pub(crate) struct Analyzer {
+pub(crate) struct Analyzer<'ast> {
+    pub(crate) arena: &'ast Arena,
     pub(crate) const_objects: Option<Box<crate::const_objects::Values>>,
     pub(crate) evaluation: crate::evaluation::Context,
     pub(crate) object_values: Option<Box<crate::object_values::Builder>>,
@@ -899,7 +918,7 @@ pub(crate) struct Analyzer {
     type_names: FxHashMap<(usize, usize), Type>,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn enter_expression(&mut self, offset: usize) -> Result<(), Error> {
         if self.nesting >= 128 {
             return Err(Error::new(offset, "expression nesting limit exceeded"));
@@ -918,29 +937,32 @@ impl Analyzer {
         }
     }
 
-    fn new(profile: CompilerProfile, packs: PackEvents) -> Self {
-        let mut analyzer = Self::from_unit(TranslationUnit {
-            target: profile.target(),
-            compiler: profile.compiler(),
-            language_mode: profile.language_mode(),
-            declarations: Vec::new(),
-            function_options: BTreeMap::new(),
-            parameter_contracts: Vec::new(),
-            alignment_origins: Vec::new(),
-            records: Vec::new(),
-            record_origins: BTreeMap::new(),
-            lexical_tags: crate::TagLexicalOrigins::default(),
-            tag_discovery: None,
-            enums: Vec::new(),
-            typedefs: BTreeMap::new(),
-            constants: BTreeMap::new(),
-        });
+    fn new(profile: CompilerProfile, packs: PackEvents, arena: &'ast Arena) -> Self {
+        let mut analyzer = Self::from_unit(
+            TranslationUnit {
+                target: profile.target(),
+                compiler: profile.compiler(),
+                language_mode: profile.language_mode(),
+                declarations: Vec::new(),
+                function_options: BTreeMap::new(),
+                parameter_contracts: Vec::new(),
+                alignment_origins: Vec::new(),
+                records: Vec::new(),
+                record_origins: BTreeMap::new(),
+                lexical_tags: crate::TagLexicalOrigins::default(),
+                tag_discovery: None,
+                enums: Vec::new(),
+                typedefs: BTreeMap::new(),
+                constants: BTreeMap::new(),
+            },
+            arena,
+        );
         analyzer.packs = packs;
         analyzer.install_builtin_va_list();
         analyzer
     }
 
-    pub(crate) fn from_unit(unit: TranslationUnit) -> Self {
+    pub(crate) fn from_unit(unit: TranslationUnit, arena: &'ast Arena) -> Self {
         let tags = unit
             .records
             .iter()
@@ -957,6 +979,7 @@ impl Analyzer {
             .map(|(name, tag)| (name, TagBinding { tag, depth: 0 }))
             .collect();
         Self {
+            arena,
             const_objects: None,
             evaluation: crate::evaluation::Context::default(),
             object_values: None,
@@ -1219,7 +1242,7 @@ impl Analyzer {
         for item in &declaration.node.declarators {
             if let Some(deps) = &mut self.parameter_type_dependencies {
                 deps.begin(
-                    declarator_name_span(&item.node.declarator).unwrap_or(item.span),
+                    declarator_name_span(&item.node.declarator, self.arena).unwrap_or(item.span),
                     true,
                 )?;
             }
@@ -1240,7 +1263,7 @@ impl Analyzer {
             let mut is_static = storage.class == Some(ast::StorageClassSpecifier::Static);
             let previous_parameters = self.definition_parameters;
             if definition {
-                self.definition_parameters = outermost_derived(&item.node.declarator)
+                self.definition_parameters = outermost_derived(&item.node.declarator, self.arena)
                     .filter(|derived| {
                         matches!(
                             derived.node,
@@ -1764,7 +1787,7 @@ impl Analyzer {
             if let Some(origins) = &mut self.declaration_origins {
                 origins.push(
                     crate::DeclarationTarget::Declaration(declaration_index),
-                    declarator_name_span(&item.node.declarator).unwrap_or(item.span),
+                    declarator_name_span(&item.node.declarator, self.arena).unwrap_or(item.span),
                     is_definition,
                     kind != DeclarationKind::Typedef && !is_static,
                     false,
@@ -1775,7 +1798,7 @@ impl Analyzer {
                 origins.push(
                     crate::DocumentationTarget::Declaration(declaration_index),
                     declaration.span.start,
-                    declarator_name_span(&item.node.declarator)
+                    declarator_name_span(&item.node.declarator, self.arena)
                         .unwrap_or(item.span)
                         .start,
                     false,
@@ -1788,7 +1811,7 @@ impl Analyzer {
                     &self.unit.declarations[declaration_index],
                     declaration_index,
                     is_definition,
-                    declarator_name_span(&item.node.declarator),
+                    declarator_name_span(&item.node.declarator, self.arena),
                 )?
             } else {
                 None
@@ -1817,7 +1840,7 @@ impl Analyzer {
             if kind == DeclarationKind::Variable && self.object_values.is_some() {
                 self.retain_object_value(
                     declaration_index,
-                    declarator_name_span(&item.node.declarator)
+                    declarator_name_span(&item.node.declarator, self.arena)
                         .unwrap_or(item.span)
                         .start,
                     item.node.initializer.as_ref(),
@@ -2322,10 +2345,16 @@ impl Analyzer {
             for specifier in &declaration.specifiers {
                 if let ast::DeclarationSpecifier::TypeSpecifier(ty) = &specifier.node {
                     let identifier = match &ty.node {
-                        ast::TypeSpecifier::Struct(tag) if tag.node.declarations.is_none() => {
+                        ast::TypeSpecifier::Struct(tag)
+                            if tag.get(self.arena).node.declarations.is_none() =>
+                        {
+                            let tag = tag.get(self.arena);
                             tag.node.identifier.as_ref()
                         }
-                        ast::TypeSpecifier::Enum(tag) if tag.node.enumerators.is_empty() => {
+                        ast::TypeSpecifier::Enum(tag)
+                            if tag.get(self.arena).node.enumerators.is_empty() =>
+                        {
+                            let tag = tag.get(self.arena);
                             tag.node.identifier.as_ref()
                         }
                         _ => None,
@@ -2379,10 +2408,14 @@ impl Analyzer {
                 .iter()
                 .find_map(|specifier| match &specifier.node {
                     ast::DeclarationSpecifier::TypeSpecifier(ty) => match &ty.node {
-                        ast::TypeSpecifier::Struct(tag) if tag.node.declarations.is_some() => {
+                        ast::TypeSpecifier::Struct(tag)
+                            if tag.get(self.arena).node.declarations.is_some() =>
+                        {
                             Some(ty.span.start)
                         }
-                        ast::TypeSpecifier::Enum(tag) if !tag.node.enumerators.is_empty() => {
+                        ast::TypeSpecifier::Enum(tag)
+                            if !tag.get(self.arena).node.enumerators.is_empty() =>
+                        {
                             Some(ty.span.start)
                         }
                         _ => None,
@@ -2393,13 +2426,15 @@ impl Analyzer {
         for specifier in specifiers {
             match &specifier.node {
                 ast::DeclarationSpecifier::TypeSpecifier(ty) => {
-                    after_tag_definition = matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
-                        || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty());
+                    after_tag_definition = matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.get(self.arena).node.declarations.is_some())
+                        || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.get(self.arena).node.enumerators.is_empty());
                     match &ty.node {
                         ast::TypeSpecifier::Struct(tag) => {
+                            let tag = tag.get(self.arena);
                             self.attributes(&tag.node.extensions, &mut record_attributes)?
                         }
                         ast::TypeSpecifier::Enum(tag) => {
+                            let tag = tag.get(self.arena);
                             self.attributes(&tag.node.extensions, &mut record_attributes)?
                         }
                         _ => {}
@@ -2456,8 +2491,8 @@ impl Analyzer {
                     // is built. Their definitions need cursor ownership or
                     // visibility facts without changing actual C scope.
                     if types.last().is_some_and(|ty| {
-                        matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
-                            || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty())
+                        matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.get(self.arena).node.declarations.is_some())
+                            || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.get(self.arena).node.enumerators.is_empty())
                     }) && (self.unit.enums[first_enum..]
                         .iter()
                         .any(|enumeration| enumeration.scope == Scope::File)
@@ -2481,6 +2516,7 @@ impl Analyzer {
                 ast::DeclarationSpecifier::Alignment(alignment) => {
                     let value = self.alignment_operand(|analyzer| match &alignment.node {
                         ast::AlignmentSpecifier::Type(ty) => {
+                            let ty = ty.get(self.arena);
                             let ty = analyzer.type_name(&ty.node)?;
                             analyzer.unit.alignment(&ty)
                         }
@@ -2497,7 +2533,7 @@ impl Analyzer {
             }
         }
         if let Some(checked) = &mut self.checked {
-            checked.begin_specifier_operands(&types)?;
+            checked.begin_specifier_operands(&types, self.arena)?;
         }
         Ok(PreparedSpecifiers {
             types,
@@ -2540,7 +2576,7 @@ impl Analyzer {
                 }
             }
         }
-        let origin = super::transparent_union::typedef_origin(&types);
+        let origin = super::transparent_union::typedef_origin(&types, self.arena);
         attributes.typedef_base = origin == Some(true);
         attributes.unknown_typedef_origin = origin.is_none();
         attributes.alias_base = matches!(
@@ -2557,8 +2593,8 @@ impl Analyzer {
         // Normalization records attributes written between `struct` and its tag;
         // attributes following the closing brace also belong to the type.
         let defines_tag = types.iter().any(|ty| {
-            matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.node.declarations.is_some())
-                || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.node.enumerators.is_empty())
+            matches!(&ty.node, ast::TypeSpecifier::Struct(record) if record.get(self.arena).node.declarations.is_some())
+                || matches!(&ty.node, ast::TypeSpecifier::Enum(enumeration) if !enumeration.get(self.arena).node.enumerators.is_empty())
         });
         let clang_forward = self.unit.compiler == Compiler::Clang
             && (record_attributes.packed
@@ -2625,6 +2661,7 @@ impl Analyzer {
                     variably_modified,
                     definition_parameter,
                     atomic_wrapper,
+                    self.arena,
                 )?
             });
         }
@@ -2790,56 +2827,65 @@ impl Analyzer {
                             TypeKind::Typedef(name.node.name.clone())
                         }
                         ast::TypeSpecifier::Struct(record) => {
+                            let record = record.get(self.arena);
                             TypeKind::Record(self.record(record)?)
                         }
-                        ast::TypeSpecifier::Enum(value) => TypeKind::Enum(self.enum_type(value)?),
-                        ast::TypeSpecifier::TypeOf(value) => match &value.node {
-                            ast::TypeOf::Type(ty) => {
-                                let checkpoint = self.sve_feature_checkpoint();
-                                let allocation_context = self.allocation_context(false);
-                                let ty = self.type_name(&ty.node);
-                                let mut ty = self.finish_allocation_operand(
-                                    allocation_context,
-                                    ty,
-                                    |analyzer, ty| analyzer.unit.is_variably_modified(ty),
-                                )?;
-                                if !self.unit.is_variably_modified(&ty)? {
-                                    self.discard_sve_feature_uses(checkpoint);
-                                }
-                                self.retain_typeof_alignment(&mut ty, false, value.span.start)?;
-                                return Ok(ty);
-                            }
-                            ast::TypeOf::Expression(expression) => {
-                                let dependency_expression = self.parameter_type_dependencies.as_mut().map(|dependencies| {
-                                    dependencies.begin_type_expression(crate::parameter_dependencies::type_expression_identifier(expression))
-                                });
-                                let checkpoint = self.sve_feature_checkpoint();
-                                let allocation_context = self.allocation_context(false);
-                                let ty = self.expression_type(expression);
-                                let mut ty = self.finish_allocation_operand(
-                                    allocation_context,
-                                    ty,
-                                    |analyzer, ty| analyzer.unit.is_variably_modified(ty),
-                                )?;
-                                if !self.unit.is_variably_modified(&ty)? {
-                                    self.discard_sve_feature_uses(checkpoint);
-                                }
-                                if let (Some(dependencies), Some(previous)) =
-                                    (&mut self.parameter_type_dependencies, dependency_expression)
-                                {
-                                    dependencies.finish_type_expression(
-                                        previous,
-                                        matches!(
-                                            self.unit.resolve(&ty)?.kind,
-                                            TypeKind::Function(_)
-                                        ),
+                        ast::TypeSpecifier::Enum(value) => {
+                            let value = value.get(self.arena);
+                            TypeKind::Enum(self.enum_type(value)?)
+                        }
+                        ast::TypeSpecifier::TypeOf(value) => {
+                            let value = value.get(self.arena);
+                            match &value.node {
+                                ast::TypeOf::Type(ty) => {
+                                    let checkpoint = self.sve_feature_checkpoint();
+                                    let allocation_context = self.allocation_context(false);
+                                    let ty = self.type_name(&ty.node);
+                                    let mut ty = self.finish_allocation_operand(
+                                        allocation_context,
+                                        ty,
+                                        |analyzer, ty| analyzer.unit.is_variably_modified(ty),
                                     )?;
+                                    if !self.unit.is_variably_modified(&ty)? {
+                                        self.discard_sve_feature_uses(checkpoint);
+                                    }
+                                    self.retain_typeof_alignment(&mut ty, false, value.span.start)?;
+                                    return Ok(ty);
                                 }
-                                self.retain_typeof_alignment(&mut ty, true, value.span.start)?;
-                                return Ok(ty);
+                                ast::TypeOf::Expression(expression) => {
+                                    let dependency_expression = self.parameter_type_dependencies.as_mut().map(|dependencies| {
+                                    dependencies.begin_type_expression(crate::parameter_dependencies::type_expression_identifier(expression, self.arena))
+                                });
+                                    let checkpoint = self.sve_feature_checkpoint();
+                                    let allocation_context = self.allocation_context(false);
+                                    let ty = self.expression_type(expression);
+                                    let mut ty = self.finish_allocation_operand(
+                                        allocation_context,
+                                        ty,
+                                        |analyzer, ty| analyzer.unit.is_variably_modified(ty),
+                                    )?;
+                                    if !self.unit.is_variably_modified(&ty)? {
+                                        self.discard_sve_feature_uses(checkpoint);
+                                    }
+                                    if let (Some(dependencies), Some(previous)) = (
+                                        &mut self.parameter_type_dependencies,
+                                        dependency_expression,
+                                    ) {
+                                        dependencies.finish_type_expression(
+                                            previous,
+                                            matches!(
+                                                self.unit.resolve(&ty)?.kind,
+                                                TypeKind::Function(_)
+                                            ),
+                                        )?;
+                                    }
+                                    self.retain_typeof_alignment(&mut ty, true, value.span.start)?;
+                                    return Ok(ty);
+                                }
                             }
-                        },
+                        }
                         ast::TypeSpecifier::Atomic(name) => {
+                            let name = name.get(self.arena);
                             let inner = self.type_name(&name.node)?;
                             self.atomic_type(inner, true, ty.span.start)?.kind
                         }
@@ -3108,7 +3154,7 @@ impl Analyzer {
         attributes: &Attributes,
         definition: Option<&Node<ast::FunctionDefinition>>,
     ) -> Result<(Option<String>, Type, Attributes), Error> {
-        let alias_base = attributes.alias_base && !has_function_derivation(declaration);
+        let alias_base = attributes.alias_base && !has_function_derivation(declaration, self.arena);
         let mut prepared = self
             .prepare_declarator_attributes(declaration, alias_base, attributes.type_name_use)?
             .into_iter();
@@ -3216,72 +3262,75 @@ impl Analyzer {
         attributes.require_function_attributes(false)?;
         attributes.require_no_weak()?;
         attributes.require_no_transparent_union()?;
-        attributes.alias_base =
-            attributes.alias_base && !parameter.declarator().is_some_and(has_function_derivation);
+        attributes.alias_base = attributes.alias_base
+            && !parameter
+                .declarator()
+                .is_some_and(|declaration| has_function_derivation(declaration, self.arena));
         let mut array_qualifiers = Qualifiers::default();
         let mut array_atomic = false;
-        let (name, mut parameter_type, mut declared_type_use) = if let Some(declarator) =
-            parameter.declarator()
-        {
-            let array = outermost_derived(declarator).and_then(|derived| {
-                if let ast::DerivedDeclarator::Array(array) = &derived.node {
-                    Some((derived.span.start, array))
-                } else {
-                    None
+        let (name, mut parameter_type, mut declared_type_use) =
+            if let Some(declarator) = parameter.declarator() {
+                let array = outermost_derived(declarator, self.arena).and_then(|derived| {
+                    if let ast::DerivedDeclarator::Array(array) = &derived.node {
+                        Some((derived.span.start, array))
+                    } else {
+                        None
+                    }
+                });
+                if let Some((_, array)) = array {
+                    for qualifier in &array.node.qualifiers {
+                        add_qualifier(&mut array_qualifiers, &mut array_atomic, qualifier)?;
+                    }
                 }
-            });
-            if let Some((_, array)) = array {
-                for qualifier in &array.node.qualifiers {
-                    add_qualifier(&mut array_qualifiers, &mut array_atomic, qualifier)?;
-                }
-            }
-            let dependency_cursor = self.parameter_type_dependencies.as_mut().map(|deps| {
-                deps.parameter_cursor(declarator_name_span(declarator).unwrap_or(parameter.span()))
-            });
-            let mut prepared = self
-                .prepare_declarator_attributes(
+                let dependency_cursor = self.parameter_type_dependencies.as_mut().map(|deps| {
+                    deps.parameter_cursor(
+                        declarator_name_span(declarator, self.arena).unwrap_or(parameter.span()),
+                    )
+                });
+                let mut prepared = self
+                    .prepare_declarator_attributes(
+                        declarator,
+                        attributes.alias_base,
+                        attributes.type_name_use,
+                    )?
+                    .into_iter();
+                let result = self.declarator_at(
+                    base,
                     declarator,
-                    attributes.alias_base,
-                    attributes.type_name_use,
-                )?
-                .into_iter();
-            let result = self.declarator_at(
-                base,
-                declarator,
-                DeclaratorContext {
-                    parameter_array: array.map(|(offset, _)| offset),
-                    parenthesized: false,
-                    alias_base: attributes.alias_base,
-                    base_use: attributes.type_use,
-                    type_name: attributes.type_name_use,
-                    definition: None,
-                },
-                &mut prepared,
-            );
-            debug_assert!(result.is_err() || prepared.as_slice().is_empty());
-            if let (Some(deps), Some(previous)) =
-                (&mut self.parameter_type_dependencies, dependency_cursor)
-            {
-                deps.restore_cursor(previous);
-            }
-            let (name, ty, extra) = result?;
-            self.check_nodebug_function_like(&ty, &extra)?;
-            extra.require_function_attributes(false)?;
-            extra.require_no_weak()?;
-            extra.require_no_transparent_union()?;
-            attributes.alignment = attributes.alignment.max(extra.alignment);
-            attributes.msvc_alignment = attributes.msvc_alignment.max(extra.msvc_alignment);
-            attributes.noescape.extend(extra.noescape);
-            (name, ty, extra.type_use)
-        } else {
-            (
-                parameter
-                    .implicit_identifier()
-                    .map(|identifier| identifier.node.name.clone()),
-                base,
-                attributes.type_use,
-            )
-        };
+                    DeclaratorContext {
+                        parameter_array: array.map(|(offset, _)| offset),
+                        parenthesized: false,
+                        alias_base: attributes.alias_base,
+                        base_use: attributes.type_use,
+                        type_name: attributes.type_name_use,
+                        definition: None,
+                    },
+                    &mut prepared,
+                );
+                debug_assert!(result.is_err() || prepared.as_slice().is_empty());
+                if let (Some(deps), Some(previous)) =
+                    (&mut self.parameter_type_dependencies, dependency_cursor)
+                {
+                    deps.restore_cursor(previous);
+                }
+                let (name, ty, extra) = result?;
+                self.check_nodebug_function_like(&ty, &extra)?;
+                extra.require_function_attributes(false)?;
+                extra.require_no_weak()?;
+                extra.require_no_transparent_union()?;
+                attributes.alignment = attributes.alignment.max(extra.alignment);
+                attributes.msvc_alignment = attributes.msvc_alignment.max(extra.msvc_alignment);
+                attributes.noescape.extend(extra.noescape);
+                (name, ty, extra.type_use)
+            } else {
+                (
+                    parameter
+                        .implicit_identifier()
+                        .map(|identifier| identifier.node.name.clone()),
+                    base,
+                    attributes.type_use,
+                )
+            };
         if let Some(mode) = &attributes.mode {
             self.floating_machine_mode(&parameter_type, mode, parameter.span().start)?;
         }
@@ -3375,7 +3424,7 @@ impl Analyzer {
                     name: name.as_deref(),
                     name_span: parameter
                         .declarator()
-                        .and_then(declarator_name_span)
+                        .and_then(|declaration| declarator_name_span(declaration, self.arena))
                         .or_else(|| {
                             parameter
                                 .implicit_identifier()
@@ -3478,7 +3527,7 @@ impl Analyzer {
                 let ast::DeclaratorKind::Declarator(inner) = &declaration.node.kind.node else {
                     return Ok(prepared);
                 };
-                declaration = inner;
+                declaration = (inner).get(self.arena);
                 parenthesized = true;
             }
             Err(Error::new(
@@ -3821,6 +3870,7 @@ impl Analyzer {
                     Type::new(kind)
                 }
                 ast::DerivedDeclarator::Function(function) => {
+                    let function = function.get(self.arena);
                     if matches!(
                         self.unit.resolve(&ty)?.kind,
                         TypeKind::Array { .. }
@@ -4063,6 +4113,7 @@ impl Analyzer {
             }
             ast::DeclaratorKind::Abstract => (None, ty, attributes),
             ast::DeclaratorKind::Declarator(inner) => {
+                let inner = inner.get(self.arena);
                 let (name, ty, inner_attributes) = self.declarator_at(
                     ty,
                     inner,
@@ -4340,9 +4391,11 @@ impl Analyzer {
                     attributes.require_no_weak()?;
                     attributes.require_no_transparent_union()?;
                     if field.node.declarators.is_empty() {
-                        let Some(syntax) =
-                            anonymous_record_specifier(&field.node.specifiers, self.unit.target)
-                        else {
+                        let Some(syntax) = anonymous_record_specifier(
+                            &field.node.specifiers,
+                            self.unit.target,
+                            self.arena,
+                        ) else {
                             continue;
                         };
                         match syntax {
@@ -4441,8 +4494,10 @@ impl Analyzer {
                                 && let Some(deps) = &mut self.parameter_type_dependencies
                             {
                                 deps.begin(
-                                    crate::checked::references::member_name_span(declarator)
-                                        .unwrap_or(declarator.span),
+                                    crate::checked::references::member_name_span(
+                                        declarator, self.arena,
+                                    )
+                                    .unwrap_or(declarator.span),
                                     true,
                                 )?;
                             }
@@ -4553,9 +4608,11 @@ impl Analyzer {
                                         field: fields.len(),
                                     },
                                     field.span.start,
-                                    crate::checked::references::member_name_span(declarator)
-                                        .unwrap_or(declarator.span)
-                                        .start,
+                                    crate::checked::references::member_name_span(
+                                        declarator, self.arena,
+                                    )
+                                    .unwrap_or(declarator.span)
+                                    .start,
                                     false,
                                 )?;
                             }
@@ -4566,7 +4623,9 @@ impl Analyzer {
                                     id,
                                     fields.len(),
                                     &member,
-                                    crate::checked::references::member_name_span(declarator),
+                                    crate::checked::references::member_name_span(
+                                        declarator, self.arena,
+                                    ),
                                 )?;
                                 if let Some(site) = site {
                                     checked.attach_alignment(
@@ -5400,7 +5459,14 @@ impl Analyzer {
                                     "mode argument must be an identifier",
                                 ));
                             };
-                            result.mode = Some(identifier.node.name.trim_matches('_').to_owned());
+                            result.mode = Some(
+                                identifier
+                                    .get(self.arena)
+                                    .node
+                                    .name
+                                    .trim_matches('_')
+                                    .to_owned(),
+                            );
                         }
                         Some(crate::attributes::Attribute::VectorSize) => {
                             let [value] = attribute.arguments.as_slice() else {
@@ -5685,7 +5751,10 @@ fn merge_convention(
     Ok(())
 }
 
-fn has_function_derivation(mut declaration: &Node<ast::Declarator>) -> bool {
+fn has_function_derivation<'a>(
+    mut declaration: &'a Node<ast::Declarator>,
+    arena: &'a lang_c::arena::Arena,
+) -> bool {
     loop {
         if declaration.node.derived.iter().any(|derived| {
             matches!(
@@ -5696,7 +5765,7 @@ fn has_function_derivation(mut declaration: &Node<ast::Declarator>) -> bool {
             return true;
         }
         if let ast::DeclaratorKind::Declarator(inner) = &declaration.node.kind.node {
-            declaration = inner;
+            declaration = (inner).get(arena);
         } else {
             return false;
         }
@@ -5869,16 +5938,17 @@ pub(crate) enum AnonymousRecordSpecifier<'a> {
 /// Classifies source forms that can introduce an anonymous record member.
 /// A Microsoft typedef still requires its original alias to denote a record;
 /// qualifiers written beside the alias do not change that decision.
-pub(crate) fn anonymous_record_specifier(
-    specifiers: &[Node<ast::SpecifierQualifier>],
+pub(crate) fn anonymous_record_specifier<'a>(
+    specifiers: &'a [Node<ast::SpecifierQualifier>],
     target: Target,
-) -> Option<AnonymousRecordSpecifier<'_>> {
+    arena: &lang_c::arena::Arena,
+) -> Option<AnonymousRecordSpecifier<'a>> {
     specifiers.iter().find_map(|specifier| {
         let ast::SpecifierQualifier::TypeSpecifier(ty) = &specifier.node else {
             return None;
         };
         match &ty.node {
-            ast::TypeSpecifier::Struct(record) if record.node.identifier.is_none() => {
+            ast::TypeSpecifier::Struct(record) if record.get(arena).node.identifier.is_none() => {
                 Some(AnonymousRecordSpecifier::Direct)
             }
             ast::TypeSpecifier::Struct(_) if target.is_windows() => {

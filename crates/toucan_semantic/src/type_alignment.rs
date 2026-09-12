@@ -245,7 +245,7 @@ impl TranslationUnit {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     fn push_alignment_origin(
         &mut self,
         origin: AlignmentOrigin,
@@ -470,7 +470,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Object redeclarations keep newly written sugar while retaining composite
     /// array bounds, prototypes and parameter contracts.
     pub(crate) fn object_alignment_sugar(
@@ -532,7 +532,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn promoted_integer_type(
         &self,
         info: &crate::expression::ExpressionInfo,
@@ -565,7 +565,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn integer_arithmetic_alignment(
         &mut self,
         left: &crate::expression::ExpressionInfo,

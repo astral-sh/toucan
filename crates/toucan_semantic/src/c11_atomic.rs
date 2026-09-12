@@ -103,7 +103,7 @@ impl C11AtomicOperation {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Derives the overloaded signature while the original operand scopes exist.
     pub(crate) fn c11_atomic_signature(
         &mut self,

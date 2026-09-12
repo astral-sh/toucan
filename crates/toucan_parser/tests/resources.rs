@@ -83,12 +83,8 @@ fn limits_are_exact_and_independent_of_previous_invocations() {
         max_cache_bytes: stats.cache_bytes,
         max_metadata_entries: stats.maximum_metadata_entries,
     };
-    assert_eq!(
-        parse_preprocessed_with_limits(&config, source.into(), exact)
-            .unwrap()
-            .unit,
-        parsed.unit
-    );
+    let replay = parse_preprocessed_with_limits(&config, source.into(), exact).unwrap();
+    assert!(parsed.ast().structural_eq(replay.ast()));
 }
 
 fn c11_minimum_nesting_cases() -> Vec<String> {
@@ -175,7 +171,7 @@ fn resource_worker() {
                     ),
                 ] {
                     let parsed = parse_preprocessed(&Config::with_gcc(), source).unwrap();
-                    drop(parsed.unit.clone());
+                    drop(parsed.ast().to_owned());
                     drop(parsed);
                 }
             } else {

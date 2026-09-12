@@ -297,7 +297,7 @@ fn option_bytes(options: &FunctionOptions) -> usize {
     })
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn retain_inline_target(
         &mut self,
         expression: &lang_c::span::Node<ast::Expression>,
@@ -308,10 +308,10 @@ impl Analyzer {
         let ast::Expression::Call(call) = &expression.node else {
             return Ok(());
         };
-        let ast::Expression::Identifier(identifier) = &call.node.callee.node else {
+        let ast::Expression::Identifier(identifier) = &call.get(self.arena).node.callee.node else {
             return Ok(());
         };
-        let name = identifier.node.name.as_str();
+        let name = identifier.get(self.arena).node.name.as_str();
         let Some(callee_options) = self
             .visible_function_options(name)
             .filter(|options| options.always_inline())

@@ -37,7 +37,7 @@ impl NontemporalOperation {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn nontemporal_value_type(
         &mut self,
         operation: NontemporalOperation,

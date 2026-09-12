@@ -43,7 +43,7 @@ To check the same instrumented build used in CI:
 
 ```console
 cargo install cargo-codspeed --version 5.0.1 --locked
-cargo codspeed build -m simulation -m memory --features codspeed --profile profiling -p toucan_benchmark --bench bindings --bench parser --locked
+cargo codspeed build -m simulation -m memory --features codspeed --profile profiling -p toucan_benchmark --bench bindings --bench parser --bench semantic --locked
 SOURCE_DATE_EPOCH=0 cargo codspeed run
 ```
 
@@ -92,6 +92,32 @@ the source revision, lockfile, build command, toolchain, CPU, and affinity when
 reporting results. These fixed-order, in-process measurements describe the named
 inputs; they do not establish a universal parser speedup. The Benchmarks workflow
 runs both engines through CodSpeed and uploads the preprocessed inputs.
+
+## Semantic analysis and arena evaluation
+
+The `semantic` benchmarks use the same five preprocessed inputs as the parser
+comparison. Each input is checked with normal analysis and with `retain_code`
+enabled. The retained and normal results must contain identical serialized
+translation-unit declarations before timing. Measurements include the public
+analysis API's parsing and semantic checking, including internal AST cleanup;
+input preparation and destruction of the returned semantic result are excluded.
+Both modes run on the same reused frontend stack with default resource limits.
+
+```console
+SOURCE_DATE_EPOCH=0 cargo bench -p toucan_benchmark --bench semantic --locked
+```
+
+Append `-- --test` to smoke-test all ten semantic cases. The Benchmarks workflow
+runs parser, semantic, and Builder cases through CodSpeed simulation and memory
+profiling and retains the exact preprocessed inputs.
+
+For a complete comparison against an earlier source revision, use the
+[arena evaluation harness](../benchmarks/arena/README.md). It compares both
+Toucan revisions and lang-c on identical parser inputs, checks every concrete
+Toucan visitor span, compares normal and retained semantic results and generated
+bindings, and measures operation time, destruction time, allocation counts,
+requested heap bytes, and fresh-process peak RSS separately. Builds retain
+source/binary hashes and the runner records randomized paired samples.
 
 ## Builder API comparison
 

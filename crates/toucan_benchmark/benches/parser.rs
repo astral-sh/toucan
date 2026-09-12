@@ -15,7 +15,8 @@ fn parser(c: &mut Criterion) {
         // trees before timing; matching declaration counts alone is too weak.
         let toucan =
             toucan_parser::driver::parse_preprocessed(&toucan_config, workload.source.clone())
-                .unwrap_or_else(|error| panic!("{}: Toucan: {error}", workload.name));
+                .unwrap_or_else(|error| panic!("{}: Toucan: {error}", workload.name))
+                .into_raw();
         let reference = lang_c_reference::driver::parse_preprocessed(
             &reference_config,
             workload.source.clone(),
@@ -38,6 +39,7 @@ fn parser(c: &mut Criterion) {
         toucan_parser::visit::Visit::visit_translation_unit(
             &mut toucan_parser::print::Printer::new(&mut toucan_tree),
             &toucan.unit,
+            &toucan.arena,
         );
         lang_c_reference::visit::Visit::visit_translation_unit(
             &mut lang_c_reference::print::Printer::new(&mut reference_tree),

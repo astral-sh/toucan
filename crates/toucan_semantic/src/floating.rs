@@ -150,7 +150,7 @@ macro_rules! dispatch {
     };
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn floating_literal(
         &self,
         literal: &ast::Float,
@@ -217,6 +217,7 @@ impl Analyzer {
         let offset = expression.span.start;
         match &expression.node {
             ast::Expression::Identifier(identifier) => {
+                let identifier = identifier.get(self.arena);
                 if let Some(value) = self.const_object_value(&identifier.node.name) {
                     Ok(value)
                 } else {
@@ -224,6 +225,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Call(call) => {
+                let call = call.get(self.arena);
                 let name = self.builtin_name(call);
                 if let Some(kind) = name.and_then(|name| self.infinity_builtin_kind(name)) {
                     self.builtin_call_type(call)?;
@@ -321,6 +323,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Constant(constant) => {
+                let constant = constant.get(self.arena);
                 if let ast::Constant::Float(literal) = &constant.node {
                     self.floating_literal(literal, offset)
                 } else {
@@ -328,19 +331,23 @@ impl Analyzer {
                 }
             }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 let value = self.eval_arithmetic(&cast.node.expression)?;
                 self.convert_arithmetic(value, &ty, offset)
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.choose_expression(selection)?;
                 self.eval_arithmetic(selected)
             }
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.generic_expression(selection)?;
                 self.eval_arithmetic(selected)
             }
             ast::Expression::CompoundLiteral(literal) => {
+                let literal = literal.get(self.arena);
                 let ty = self.type_name(&literal.node.type_name.node)?;
                 let mut items = literal.node.initializer_list.as_slice();
                 for _ in 0..128 {
@@ -372,7 +379,10 @@ impl Analyzer {
                             let value = self.eval_arithmetic(expression)?;
                             return self.convert_arithmetic(value, &ty, offset);
                         }
-                        ast::Initializer::List(inner) => items = inner,
+                        ast::Initializer::List(inner) => {
+                            let inner = inner.get(self.arena);
+                            items = inner
+                        }
                     }
                 }
                 Err(Error::new(
@@ -381,6 +391,7 @@ impl Analyzer {
                 ))
             }
             ast::Expression::UnaryOperator(unary) => {
+                let unary = unary.get(self.arena);
                 let value = self.eval_arithmetic(&unary.node.operand)?;
                 if unary.node.operator.node == Unary::Negate {
                     return Ok(ArithmeticValue::Integer(IntegerValue::int(i128::from(
@@ -485,6 +496,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::BinaryOperator(binary) => {
+                let binary = binary.get(self.arena);
                 let left = self.eval_arithmetic(&binary.node.lhs)?;
                 let operator = &binary.node.operator.node;
                 if matches!(operator, Binary::LogicalAnd | Binary::LogicalOr) {
@@ -506,6 +518,7 @@ impl Analyzer {
                 self.arithmetic_binary(operator, left, right, offset)
             }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 // The unselected operand still determines the common type and
                 // must satisfy C expression constraints.
                 let ty = self.expression_type(expression)?;
@@ -528,11 +541,15 @@ impl Analyzer {
     }
 
     /// Recognize the literal payload forms both GCC and Clang can fold.
-    fn nan_payload(&mut self, mut expression: &Node<ast::Expression>) -> Result<u128, Error> {
+    fn nan_payload<'a>(&mut self, mut expression: &'a Node<ast::Expression>) -> Result<u128, Error>
+    where
+        'ast: 'a,
+    {
         let offset = expression.span.start;
         for _ in 0..128 {
             match &expression.node {
                 ast::Expression::Cast(cast) => {
+                    let cast = cast.get(self.arena);
                     let ty = self.type_name(&cast.node.type_name.node)?;
                     let TypeKind::Pointer(pointee) = &self.unit.resolve(&ty)?.kind else {
                         break;
@@ -546,6 +563,7 @@ impl Analyzer {
                     expression = &cast.node.expression;
                 }
                 ast::Expression::StringLiteral(literal) => {
+                    let literal = literal.get(self.arena);
                     let decoded = self.decode_string_literal(literal, offset)?;
                     let units = &decoded.code_units[..decoded.code_units.len() - 1];
                     if units.contains(&0) {

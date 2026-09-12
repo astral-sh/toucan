@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::TypeOf;
 use toucan_parser::driver::{parse_preprocessed, Config, Flavor};
 use toucan_parser::span::Span;
@@ -9,9 +11,9 @@ use toucan_parser::visit::{self, Visit};
 struct Operands(Vec<(bool, Span)>);
 
 impl<'ast> Visit<'ast> for Operands {
-    fn visit_type_of(&mut self, operand: &'ast TypeOf, span: &'ast Span) {
+    fn visit_type_of(&mut self, operand: &'ast TypeOf, span: &'ast Span, arena: &'ast Arena) {
         self.0.push((matches!(operand, TypeOf::Type(_)), *span));
-        visit::visit_type_of(self, operand, span);
+        visit::visit_type_of(self, operand, span, arena);
     }
 }
 
@@ -88,7 +90,7 @@ fn visible_typedefs_select_types_and_shadowed_names_select_expressions() {
             let parsed = parse_preprocessed(&config, source.to_owned())
                 .unwrap_or_else(|error| panic!("{}: {}", source, error));
             let mut operands = Operands::default();
-            operands.visit_translation_unit(&parsed.unit);
+            parsed.ast().visit(&mut operands);
             let actual: Vec<_> = operands.0.iter().map(|(is_type, _)| *is_type).collect();
             assert_eq!(actual, expected, "{source}");
             for (_, span) in operands.0 {
@@ -109,7 +111,7 @@ fn inferred_names_enter_scope_after_initializer_and_leave_with_their_block() {
     ] {
         for flavor in [Flavor::GnuC11,Flavor::ClangC11] {
             let parsed=parse_preprocessed(&Config{flavor,..Config::default()},source.to_owned()).unwrap();
-            let mut operands=Operands::default();operands.visit_translation_unit(&parsed.unit);
+            let mut operands=Operands::default();parsed.ast().visit(&mut operands);
             assert_eq!(operands.0.iter().map(|(ty,_)|*ty).collect::<Vec<_>>(),[true,false,true],"{source}");
         }
     }

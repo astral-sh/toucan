@@ -3,6 +3,7 @@
 use std::collections::HashSet;
 use std::fmt;
 
+use arena::{Arena, ArenaNode, Id};
 use ast::*;
 use env::{Env, Symbol};
 use limits::{Budget, ParseLimits, ParseStatistics, ResourceLimit};
@@ -50,6 +51,7 @@ struct Parser<'s, 'e> {
     last_end: usize,
     env: &'e mut Env,
     budget: Budget,
+    arena: Arena,
     syntax_error: Option<(usize, &'static str)>,
 }
 
@@ -64,6 +66,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             last_end: 0,
             env,
             budget,
+            arena: Arena::default(),
             syntax_error: None,
         }
     }
@@ -149,7 +152,24 @@ impl<'s, 'e> Parser<'s, 'e> {
     }
 
     fn node_span<T: Measure>(&mut self, value: T, span: Span) -> PResult<Node<T>> {
-        self.budget.node(value, span).map_err(|_| ())
+        self.budget.node(value, span, &self.arena).map_err(|_| ())
+    }
+
+    /// Charges arena records and table growth before allocating storage.
+    fn alloc<T: ArenaNode>(&mut self, value: T) -> PResult<Id<T>> {
+        let offset = self.position();
+        self.budget.arena_node(offset).map_err(|_| ())?;
+        let (len, capacity) = T::capacity(&self.arena);
+        if len == capacity {
+            let additional = capacity.max(4);
+            if !self.budget.work(
+                offset,
+                additional as u64 * ::std::mem::size_of::<T>() as u64,
+            ) {
+                return Err(());
+            }
+        }
+        Ok(self.arena.alloc(value))
     }
 
     fn identifier(&mut self) -> PResult<Node<Identifier>> {
@@ -253,7 +273,7 @@ fn parse<T>(
     limits: ParseLimits,
     line_markers: bool,
     parse: impl FnOnce(&mut Parser) -> PResult<T>,
-) -> Result<(T, ParseStatistics), ParseError> {
+) -> Result<(T, Arena, ParseStatistics), ParseError> {
     let depth = env.symbols.len();
     let mut parser = Parser::new(source, env, limits, line_markers);
     let result = parse(&mut parser).and_then(|value| {
@@ -266,9 +286,9 @@ fn parse<T>(
         }
     });
     parser.env.symbols.truncate(depth);
-    parser.env.finish_function_definition(None);
+    parser.env.finish_function_definition(None, &parser.arena);
     match result {
-        Ok(value) => Ok((value, parser.budget.statistics)),
+        Ok(value) => Ok((value, parser.arena, parser.budget.statistics)),
         Err(()) => Err(parser.error()),
     }
 }
@@ -277,7 +297,7 @@ pub(crate) fn translation_unit_with_limits(
     source: &str,
     env: &mut Env,
     limits: ParseLimits,
-) -> Result<(TranslationUnit, ParseStatistics), ParseError> {
+) -> Result<(TranslationUnit, Arena, ParseStatistics), ParseError> {
     parse(source, env, limits, true, |p| p.translation_unit())
 }
 
@@ -286,59 +306,112 @@ pub(crate) fn expression_with_limits(
     env: &mut Env,
     limits: ParseLimits,
     mut is_typedef: impl FnMut(&str) -> bool,
-) -> Result<(Node<Expression>, ParseStatistics), ParseError> {
+) -> Result<(Node<Expression>, Arena, ParseStatistics), ParseError> {
     parse(source, env, limits, false, |p| {
-        // Reuse the bounded token stream instead of scanning source or copying
-        // every typedef from the surrounding translation unit for each query.
-        for token in &p.tokens {
-            if token.kind == TokenKind::Identifier {
-                let name = &source[token.span.start..token.span.end];
-                if !p.budget.work(token.span.start, name.len() as u64 + 1) {
-                    return Err(());
-                }
-                if is_typedef(name) {
-                    p.env.add_symbol(name, Symbol::Typename);
-                }
-            }
-        }
+        p.expression_typedefs(&mut is_typedef)?;
         p.expression()
     })
 }
 
-#[cfg(test)]
-pub(crate) fn translation_unit(source: &str, env: &mut Env) -> Result<TranslationUnit, ParseError> {
-    translation_unit_with_limits(source, env, ParseLimits::default()).map(|(value, _)| value)
+impl Parser<'_, '_> {
+    /// Seeds expression-query typedefs from the existing bounded token stream.
+    fn expression_typedefs(&mut self, is_typedef: &mut impl FnMut(&str) -> bool) -> PResult<()> {
+        for token in &self.tokens {
+            if token.kind == TokenKind::Identifier {
+                let name = &self.source[token.span.start..token.span.end];
+                if !self.budget.work(token.span.start, name.len() as u64 + 1) {
+                    return Err(());
+                }
+                if is_typedef(name) {
+                    self.env.add_symbol(name, Symbol::Typename);
+                }
+            }
+        }
+        Ok(())
+    }
 }
 
+#[cfg(test)]
+#[derive(Debug)]
+pub(crate) struct TestParse<T> {
+    pub value: T,
+    pub arena: Arena,
+}
+#[cfg(test)]
+impl<T> ::std::ops::Deref for TestParse<T> {
+    type Target = T;
+    fn deref(&self) -> &T {
+        &self.value
+    }
+}
+#[cfg(test)]
+pub(crate) fn translation_unit(
+    source: &str,
+    env: &mut Env,
+) -> Result<TestParse<TranslationUnit>, ParseError> {
+    translation_unit_with_limits(source, env, ParseLimits::default())
+        .map(|(value, arena, _)| TestParse { value, arena })
+}
 #[cfg(test)]
 pub(crate) fn constant(source: &str, env: &mut Env) -> Result<Constant, ParseError> {
-    parse(source, env, ParseLimits::default(), true, |p| p.constant()).map(|(value, _)| value)
+    parse(source, env, ParseLimits::default(), true, |p| p.constant()).map(|(value, _, _)| value)
 }
-
 #[cfg(test)]
 pub(crate) fn string_literal(source: &str, env: &mut Env) -> Result<Node<Vec<String>>, ParseError> {
     parse(source, env, ParseLimits::default(), true, |p| {
         p.string_literal()
     })
-    .map(|(value, _)| value)
+    .map(|(value, _, _)| value)
 }
-
 #[cfg(test)]
-pub(crate) fn expression(source: &str, env: &mut Env) -> Result<Box<Node<Expression>>, ParseError> {
+pub(crate) fn expression(
+    source: &str,
+    env: &mut Env,
+) -> Result<TestParse<Node<Expression>>, ParseError> {
     expression_with_limits(source, env, ParseLimits::default(), |_| false)
-        .map(|(value, _)| Box::new(value))
+        .map(|(value, arena, _)| TestParse { value, arena })
 }
-
 #[cfg(test)]
-pub(crate) fn declaration(source: &str, env: &mut Env) -> Result<Node<Declaration>, ParseError> {
+pub(crate) fn declaration(
+    source: &str,
+    env: &mut Env,
+) -> Result<TestParse<Node<Declaration>>, ParseError> {
     parse(source, env, ParseLimits::default(), true, |p| {
         p.declaration()
     })
-    .map(|(value, _)| value)
+    .map(|(value, arena, _)| TestParse { value, arena })
+}
+#[cfg(test)]
+pub(crate) fn statement(
+    source: &str,
+    env: &mut Env,
+) -> Result<TestParse<Node<Statement>>, ParseError> {
+    parse(source, env, ParseLimits::default(), true, |p| p.statement())
+        .map(|(value, arena, _)| TestParse { value, arena })
 }
 
 #[cfg(test)]
-pub(crate) fn statement(source: &str, env: &mut Env) -> Result<Box<Node<Statement>>, ParseError> {
-    parse(source, env, ParseLimits::default(), true, |p| p.statement())
-        .map(|(value, _)| Box::new(value))
+mod arena_tests {
+    use super::*;
+
+    #[test]
+    fn arena_growth_checks_work_before_allocating() {
+        let mut env = Env::with_core();
+        let mut parser = Parser::new("", &mut env, ParseLimits::default(), false);
+        parser.budget.limits.max_work = parser.budget.statistics.work;
+        let identifier = Node::new(Identifier { name: "a".into() }, Span::span(0, 0));
+        assert_eq!(
+            <Node<Identifier> as ArenaNode>::capacity(&parser.arena),
+            (0, 0)
+        );
+        assert!(parser.alloc(identifier).is_err());
+        assert_eq!(
+            parser.budget.failure.unwrap().kind,
+            ::limits::ResourceKind::Work
+        );
+        assert_eq!(
+            <Node<Identifier> as ArenaNode>::capacity(&parser.arena),
+            (0, 0)
+        );
+    }
 }

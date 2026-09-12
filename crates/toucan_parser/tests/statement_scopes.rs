@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::{SizeOfTy, SizeOfVal};
 use toucan_parser::driver::{parse_preprocessed, Config, Flavor, Standard};
 use toucan_parser::span::Span;
@@ -9,14 +11,14 @@ use toucan_parser::visit::{self, Visit};
 struct SizeOfOperands(Vec<bool>);
 
 impl<'ast> Visit<'ast> for SizeOfOperands {
-    fn visit_sizeofty(&mut self, operand: &'ast SizeOfTy, span: &'ast Span) {
+    fn visit_sizeofty(&mut self, operand: &'ast SizeOfTy, span: &'ast Span, arena: &'ast Arena) {
         self.0.push(true);
-        visit::visit_sizeofty(self, operand, span);
+        visit::visit_sizeofty(self, operand, span, arena);
     }
 
-    fn visit_sizeofval(&mut self, operand: &'ast SizeOfVal, span: &'ast Span) {
+    fn visit_sizeofval(&mut self, operand: &'ast SizeOfVal, span: &'ast Span, arena: &'ast Arena) {
         self.0.push(false);
-        visit::visit_sizeofval(self, operand, span);
+        visit::visit_sizeofval(self, operand, span, arena);
     }
 }
 
@@ -43,7 +45,7 @@ fn unbraced_do_body_does_not_hide_typedefs_in_condition() {
     for standard in [Standard::C99, Standard::C11, Standard::C17] {
         let parsed = parse_preprocessed(&config(standard), source.into()).unwrap();
         let mut operands = SizeOfOperands::default();
-        operands.visit_translation_unit(&parsed.unit);
+        parsed.ast().visit(&mut operands);
         assert_eq!(operands.0, [true, true]);
     }
 }
@@ -61,7 +63,7 @@ fn control_statement_scopes_follow_the_selected_standard() {
             let source = format!("typedef int T; void f(void) {{ {statement} (void)sizeof(T); }}");
             let parsed = parse_preprocessed(&config(standard), source).unwrap();
             let mut operands = SizeOfOperands::default();
-            operands.visit_translation_unit(&parsed.unit);
+            parsed.ast().visit(&mut operands);
             assert_eq!(
                 operands.0,
                 [true, standard != Standard::C90],
@@ -82,7 +84,7 @@ fn controlling_expression_names_remain_visible_inside_the_body() {
         let source = format!("typedef int T; void f(void) {{ {statement} }}");
         let parsed = parse_preprocessed(&config(Standard::C11), source).unwrap();
         let mut operands = SizeOfOperands::default();
-        operands.visit_translation_unit(&parsed.unit);
+        parsed.ast().visit(&mut operands);
         assert!(operands.0[0]);
         assert!(operands.0[1..].iter().all(|is_type| !is_type));
     }

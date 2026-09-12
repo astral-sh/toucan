@@ -56,9 +56,9 @@ impl<'s, 'e> Parser<'s, 'e> {
     fn labeled_statement(&mut self) -> PResult<Node<Statement>> {
         let start = self.position();
         let label = if self.eat("case")? {
-            let low = Box::new(self.conditional_expression()?);
+            let low = self.conditional_expression()?;
             if self.env.extensions_gnu && self.eat("...")? {
-                let high = Box::new(self.conditional_expression()?);
+                let high = self.conditional_expression()?;
                 let span = Span::span(low.span.start, high.span.end);
                 Label::CaseRange(self.node_span(CaseRange { low, high }, span)?)
             } else {
@@ -71,8 +71,9 @@ impl<'s, 'e> Parser<'s, 'e> {
         };
         let label = self.node(label, start)?;
         self.expect(":")?;
-        let statement = Box::new(self.statement()?);
+        let statement = self.statement()?;
         let labeled = self.node(LabeledStatement { label, statement }, start)?;
+        let labeled = self.alloc(labeled)?;
         self.node(Statement::Labeled(labeled), start)
     }
 
@@ -103,6 +104,7 @@ impl<'s, 'e> Parser<'s, 'e> {
             self.progress(previous)?;
         }
         self.expect("}")?;
+        let items = self.alloc(items)?;
         self.node(Statement::Compound(items), start)
     }
 
@@ -155,59 +157,71 @@ impl<'s, 'e> Parser<'s, 'e> {
         let value = match self.text() {
             "if" => {
                 self.bump()?;
-                let condition = Box::new(self.parenthesized_expression()?);
-                let then_statement = Box::new(self.control_scope(|p| p.statement())?);
+                let condition = self.parenthesized_expression()?;
+                let then_statement = self.control_scope(|p| p.statement())?;
                 let else_statement = if self.eat("else")? {
-                    Some(Box::new(self.control_scope(|p| p.statement())?))
+                    Some(self.control_scope(|p| p.statement())?)
                 } else {
                     None
                 };
-                Statement::If(self.node(
-                    IfStatement {
-                        condition,
-                        then_statement,
-                        else_statement,
-                    },
-                    start,
-                )?)
+                Statement::If({
+                    let value = self.node(
+                        IfStatement {
+                            condition,
+                            then_statement,
+                            else_statement,
+                        },
+                        start,
+                    )?;
+                    self.alloc(value)?
+                })
             }
             "switch" => {
                 self.bump()?;
-                let expression = Box::new(self.parenthesized_expression()?);
-                let statement = Box::new(self.control_scope(|p| p.statement())?);
-                Statement::Switch(self.node(
-                    SwitchStatement {
-                        expression,
-                        statement,
-                    },
-                    start,
-                )?)
+                let expression = self.parenthesized_expression()?;
+                let statement = self.control_scope(|p| p.statement())?;
+                Statement::Switch({
+                    let value = self.node(
+                        SwitchStatement {
+                            expression,
+                            statement,
+                        },
+                        start,
+                    )?;
+                    self.alloc(value)?
+                })
             }
             "while" => {
                 self.bump()?;
-                let expression = Box::new(self.parenthesized_expression()?);
-                let statement = Box::new(self.control_scope(|p| p.statement())?);
-                Statement::While(self.node(
-                    WhileStatement {
-                        expression,
-                        statement,
-                    },
-                    start,
-                )?)
+                let expression = self.parenthesized_expression()?;
+                let statement = self.control_scope(|p| p.statement())?;
+                Statement::While({
+                    let value = self.node(
+                        WhileStatement {
+                            expression,
+                            statement,
+                        },
+                        start,
+                    )?;
+                    self.alloc(value)?
+                })
             }
             "do" => {
                 self.bump()?;
-                let statement = Box::new(self.control_scope(|p| p.statement())?);
+                let statement = self.control_scope(|p| p.statement())?;
                 self.expect("while")?;
-                let expression = Box::new(self.parenthesized_expression()?);
+                let expression = self.parenthesized_expression()?;
                 self.expect(";")?;
-                Statement::DoWhile(self.node(
-                    DoWhileStatement {
-                        statement,
-                        expression,
-                    },
-                    start,
-                )?)
+                Statement::DoWhile({
+                    let value = self.node(
+                        DoWhileStatement {
+                            statement,
+                            expression,
+                        },
+                        start,
+                    )?;
+                    self.alloc(value)?
+                })
             }
             "for" => {
                 self.bump()?;
@@ -220,7 +234,7 @@ impl<'s, 'e> Parser<'s, 'e> {
                 } else if self.starts_declaration()? {
                     ForInitializer::Declaration(self.declaration()?)
                 } else {
-                    let expression = Box::new(self.expression()?);
+                    let expression = self.expression()?;
                     self.expect(";")?;
                     ForInitializer::Expression(expression)
                 };
@@ -229,16 +243,19 @@ impl<'s, 'e> Parser<'s, 'e> {
                 self.expect(";")?;
                 let step = self.optional_expression(")")?;
                 self.expect(")")?;
-                let statement = Box::new(self.control_scope(|p| p.statement())?);
-                Statement::For(self.node(
-                    ForStatement {
-                        initializer,
-                        condition,
-                        step,
-                        statement,
-                    },
-                    start,
-                )?)
+                let statement = self.control_scope(|p| p.statement())?;
+                Statement::For({
+                    let value = self.node(
+                        ForStatement {
+                            initializer,
+                            condition,
+                            step,
+                            statement,
+                        },
+                        start,
+                    )?;
+                    self.alloc(value)?
+                })
             }
             _ => return self.fail("control statement"),
         };
@@ -252,11 +269,11 @@ impl<'s, 'e> Parser<'s, 'e> {
         Ok(expression)
     }
 
-    fn optional_expression(&mut self, end: &str) -> PResult<Option<Box<Node<Expression>>>> {
+    fn optional_expression(&mut self, end: &str) -> PResult<Option<Node<Expression>>> {
         if self.at(end) {
             Ok(None)
         } else {
-            self.expression().map(|e| Some(Box::new(e)))
+            self.expression().map(Some)
         }
     }
 

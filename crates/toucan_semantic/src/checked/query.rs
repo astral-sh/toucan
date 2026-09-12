@@ -339,7 +339,7 @@ impl Builder {
     }
 }
 
-impl crate::analyze::Analyzer {
+impl<'ast> crate::analyze::Analyzer<'ast> {
     pub(super) fn retained_query_evaluation(
         &mut self,
         builtin: Builtin,

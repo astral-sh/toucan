@@ -230,7 +230,7 @@ fn intern(
     Ok(Some(id))
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn intern_parameter_contracts(
         &mut self,
         parameters: &[u32],
@@ -476,7 +476,7 @@ macro_rules! composite_type {
 }
 pub(crate) use composite_type;
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Clang's C rule rejects the reverse of a contract-dropping function
     /// conversion. Crossing masks and nested callback differences remain C
     /// compatible; this is deliberately not a general promise-subtyping rule.
@@ -530,7 +530,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// GNU spelling changes Clang's first wrapped function type. Scalar and
     /// atomic subjects ignore it; parameters/return types are not traversed.
     pub(crate) fn apply_type_noreturn(&self, mut ty: Type, depth: usize) -> Result<Type, Error> {

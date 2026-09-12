@@ -114,10 +114,11 @@ impl Builder {
     pub(crate) fn begin_specifier_operands(
         &mut self,
         specs: &[Node<ast::TypeSpecifier>],
+        arena: &lang_c::arena::Arena,
     ) -> Result<(), Error> {
         for specifier in specs {
             if let ast::TypeSpecifier::TypeOf(value) = &specifier.node
-                && let Some(occurrence) = self.find(OccurrenceKind::TypeOf, value)?
+                && let Some(occurrence) = self.find(OccurrenceKind::TypeOf, (value).get(arena))?
             {
                 self.ownership_builder
                     .starts

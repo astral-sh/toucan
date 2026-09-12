@@ -8,6 +8,7 @@ use std::io::stdout;
 use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::path::PathBuf;
 
+use arena::Arena;
 use env::Env;
 use parser;
 use print::Printer;
@@ -216,23 +217,23 @@ impl Kind {
             match *self {
                 Kind::Constant => {
                     let n = try!(parser::constant(source, env));
-                    p.visit_constant(&n, &Span::none());
+                    p.visit_constant(&n, &Span::none(), &Arena::default());
                 }
                 Kind::Declaration => {
                     let n = try!(parser::declaration(source, env));
-                    p.visit_declaration(&n.node, &n.span);
+                    p.visit_declaration(&n.value.node, &n.value.span, &n.arena);
                 }
                 Kind::Statement => {
                     let n = try!(parser::statement(source, env));
-                    p.visit_statement(&n.node, &n.span);
+                    p.visit_statement(&n.value.node, &n.value.span, &n.arena);
                 }
                 Kind::Expression => {
                     let n = try!(parser::expression(source, env));
-                    p.visit_expression(&n.node, &n.span);
+                    p.visit_expression(&n.value.node, &n.value.span, &n.arena);
                 }
                 Kind::TranslationUnit => {
                     let n = try!(parser::translation_unit(source, env));
-                    p.visit_translation_unit(&n);
+                    p.visit_translation_unit(&n.value, &n.arena);
                 }
             }
         }

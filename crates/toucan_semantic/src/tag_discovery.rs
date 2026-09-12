@@ -172,12 +172,14 @@ impl Scanner<'_> {
         }
     }
 
-    fn definition_tag(&self, ty: &ast::TypeSpecifier) -> Option<Tag> {
+    fn definition_tag(&self, ty: &ast::TypeSpecifier, arena: &lang_c::arena::Arena) -> Option<Tag> {
         match ty {
-            ast::TypeSpecifier::Struct(tag) if tag.node.declarations.is_some() => {
+            ast::TypeSpecifier::Struct(tag) if tag.get(arena).node.declarations.is_some() => {
+                let tag = tag.get(arena);
                 self.record_id(&tag.node, &tag.span).map(Tag::Record)
             }
-            ast::TypeSpecifier::Enum(tag) if !tag.node.enumerators.is_empty() => {
+            ast::TypeSpecifier::Enum(tag) if !tag.get(arena).node.enumerators.is_empty() => {
+                let tag = tag.get(arena);
                 self.enum_id(&tag.node, &tag.span).map(Tag::Enum)
             }
             _ => None,
@@ -187,6 +189,7 @@ impl Scanner<'_> {
     fn declaration_specifiers(
         &mut self,
         specifiers: &[lang_c::span::Node<ast::DeclarationSpecifier>],
+        arena: &lang_c::arena::Arena,
     ) {
         let outer = self.parent;
         let outer_attribute = self.in_record_attribute;
@@ -200,16 +203,20 @@ impl Scanner<'_> {
             } else {
                 outer
             };
-            self.visit_declaration_specifier(&specifier.node, &specifier.span);
+            self.visit_declaration_specifier(&specifier.node, &specifier.span, arena);
             if let ast::DeclarationSpecifier::TypeSpecifier(ty) = &specifier.node {
-                trailing_owner = self.definition_tag(&ty.node);
+                trailing_owner = self.definition_tag(&ty.node, arena);
             }
         }
         self.parent = outer;
         self.in_record_attribute = outer_attribute;
     }
 
-    fn specifier_qualifiers(&mut self, specifiers: &[lang_c::span::Node<ast::SpecifierQualifier>]) {
+    fn specifier_qualifiers(
+        &mut self,
+        specifiers: &[lang_c::span::Node<ast::SpecifierQualifier>],
+        arena: &lang_c::arena::Arena,
+    ) {
         let outer = self.parent;
         let outer_attribute = self.in_record_attribute;
         let mut trailing_owner = None;
@@ -222,24 +229,35 @@ impl Scanner<'_> {
             } else {
                 outer
             };
-            self.visit_specifier_qualifier(&specifier.node, &specifier.span);
+            self.visit_specifier_qualifier(&specifier.node, &specifier.span, arena);
             if let ast::SpecifierQualifier::TypeSpecifier(ty) = &specifier.node {
-                trailing_owner = self.definition_tag(&ty.node);
+                trailing_owner = self.definition_tag(&ty.node, arena);
             }
         }
         self.parent = outer;
         self.in_record_attribute = outer_attribute;
     }
 
-    fn declaration_type(&mut self, declarator: &ast::Declarator, offset: usize) {
-        fn name(declarator: &ast::Declarator) -> Option<&str> {
+    fn declaration_type(
+        &mut self,
+        declarator: &ast::Declarator,
+        offset: usize,
+        arena: &lang_c::arena::Arena,
+    ) {
+        fn name<'a>(
+            declarator: &'a ast::Declarator,
+            arena: &'a lang_c::arena::Arena,
+        ) -> Option<&'a str> {
             match &declarator.kind.node {
                 ast::DeclaratorKind::Identifier(name) => Some(&name.node.name),
-                ast::DeclaratorKind::Declarator(inner) => name(&inner.node),
+                ast::DeclaratorKind::Declarator(inner) => {
+                    let inner = inner.get(arena);
+                    name(&inner.node, arena)
+                }
                 ast::DeclaratorKind::Abstract => None,
             }
         }
-        if let Some(ty) = name(declarator)
+        if let Some(ty) = name(declarator, arena)
             .and_then(|name| self.declarations.get(name))
             .copied()
         {
@@ -249,10 +267,15 @@ impl Scanner<'_> {
 }
 
 impl<'ast> Visit<'ast> for Scanner<'_> {
-    fn visit_declaration(&mut self, declaration: &'ast ast::Declaration, span: &'ast Span) {
-        self.declaration_specifiers(&declaration.specifiers);
+    fn visit_declaration(
+        &mut self,
+        declaration: &'ast ast::Declaration,
+        span: &'ast Span,
+        arena: &'ast lang_c::arena::Arena,
+    ) {
+        self.declaration_specifiers(&declaration.specifiers, arena);
         for declarator in &declaration.declarators {
-            self.visit_init_declarator(&declarator.node, &declarator.span);
+            self.visit_init_declarator(&declarator.node, &declarator.span, arena);
         }
         if declaration.declarators.is_empty() && self.parent.is_none() {
             for specifier in &declaration.specifiers {
@@ -260,12 +283,16 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
                     continue;
                 };
                 match &ty.node {
-                    ast::TypeSpecifier::Struct(tag) if tag.node.declarations.is_none() => {
+                    ast::TypeSpecifier::Struct(tag)
+                        if tag.get(arena).node.declarations.is_none() =>
+                    {
+                        let tag = tag.get(arena);
                         if let Some(id) = self.record_id(&tag.node, &tag.span) {
                             self.push(Tag::Record(id), span.start);
                         }
                     }
-                    ast::TypeSpecifier::Enum(tag) if tag.node.enumerators.is_empty() => {
+                    ast::TypeSpecifier::Enum(tag) if tag.get(arena).node.enumerators.is_empty() => {
+                        let tag = tag.get(arena);
                         if let Some(id) = self.enum_id(&tag.node, &tag.span) {
                             self.push(Tag::Enum(id), span.start);
                         }
@@ -275,15 +302,24 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
             }
         }
         for declarator in &declaration.declarators {
-            self.declaration_type(&declarator.node.declarator.node, declarator.span.start);
+            self.declaration_type(
+                &declarator.node.declarator.node,
+                declarator.span.start,
+                arena,
+            );
         }
     }
 
-    fn visit_struct_type(&mut self, declaration: &'ast ast::StructType, span: &'ast Span) {
+    fn visit_struct_type(
+        &mut self,
+        declaration: &'ast ast::StructType,
+        span: &'ast Span,
+        arena: &'ast lang_c::arena::Arena,
+    ) {
         // Attributes between `struct` and the tag are visited before the
         // record cursor. Trailing attributes are handled by the specifier list.
         for extension in &declaration.extensions {
-            self.visit_extension(&extension.node, &extension.span);
+            self.visit_extension(&extension.node, &extension.span, arena);
         }
         let Some(declarations) = &declaration.declarations else {
             return;
@@ -300,7 +336,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         let previous = self.parent.replace(tag);
         let mut field_index = 0;
         for declaration in declarations {
-            self.visit_struct_declaration(&declaration.node, &declaration.span);
+            self.visit_struct_declaration(&declaration.node, &declaration.span, arena);
             let ast::StructDeclaration::Field(field) = &declaration.node else {
                 continue;
             };
@@ -310,6 +346,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
                 let anonymous = match crate::analyze::anonymous_record_specifier(
                     &field.node.specifiers,
                     self.unit.target,
+                    arena,
                 ) {
                     Some(
                         AnonymousRecordSpecifier::Direct | AnonymousRecordSpecifier::MicrosoftTag,
@@ -347,11 +384,16 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         self.parent = previous;
     }
 
-    fn visit_enum_type(&mut self, declaration: &'ast ast::EnumType, span: &'ast Span) {
+    fn visit_enum_type(
+        &mut self,
+        declaration: &'ast ast::EnumType,
+        span: &'ast Span,
+        arena: &'ast lang_c::arena::Arena,
+    ) {
         // Interior attributes precede the cursor; trailing attributes belong
         // to it and are visited by the surrounding specifier list.
         for extension in &declaration.extensions {
-            self.visit_extension(&extension.node, &extension.span);
+            self.visit_extension(&extension.node, &extension.span, arena);
         }
         if declaration.enumerators.is_empty() {
             return;
@@ -367,35 +409,62 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
         }
         let previous = self.parent.replace(tag);
         for enumerator in &declaration.enumerators {
-            self.visit_enumerator(&enumerator.node, &enumerator.span);
+            self.visit_enumerator(&enumerator.node, &enumerator.span, arena);
         }
         self.parent = previous;
     }
 
-    fn visit_type_name(&mut self, name: &'ast ast::TypeName, _: &'ast Span) {
-        self.specifier_qualifiers(&name.specifiers);
+    fn visit_type_name(
+        &mut self,
+        name: &'ast ast::TypeName,
+        _: &'ast Span,
+        arena: &'ast lang_c::arena::Arena,
+    ) {
+        self.specifier_qualifiers(&name.specifiers, arena);
         if let Some(declarator) = &name.declarator {
-            self.visit_declarator(&declarator.node, &declarator.span);
+            self.visit_declarator(&declarator.node, &declarator.span, arena);
         }
     }
 
-    fn visit_struct_field(&mut self, field: &'ast ast::StructField, _: &'ast Span) {
-        self.specifier_qualifiers(&field.specifiers);
+    fn visit_struct_field(
+        &mut self,
+        field: &'ast ast::StructField,
+        _: &'ast Span,
+        arena: &'ast lang_c::arena::Arena,
+    ) {
+        self.specifier_qualifiers(&field.specifiers, arena);
         for declarator in &field.declarators {
-            self.visit_struct_declarator(&declarator.node, &declarator.span);
+            self.visit_struct_declarator(&declarator.node, &declarator.span, arena);
         }
     }
 
-    fn visit_parameter_declaration(&mut self, _: &'ast ast::ParameterDeclaration, _: &'ast Span) {}
-    fn visit_statement(&mut self, _: &'ast ast::Statement, _: &'ast Span) {}
+    fn visit_parameter_declaration(
+        &mut self,
+        _: &'ast ast::ParameterDeclaration,
+        _: &'ast Span,
+        _arena: &'ast lang_c::arena::Arena,
+    ) {
+    }
+    fn visit_statement(
+        &mut self,
+        _: &'ast ast::Statement,
+        _: &'ast Span,
+        _arena: &'ast lang_c::arena::Arena,
+    ) {
+    }
     fn visit_function_definition(
         &mut self,
         definition: &'ast ast::FunctionDefinition,
         span: &'ast Span,
+        arena: &'ast lang_c::arena::Arena,
     ) {
-        self.declaration_specifiers(&definition.specifiers);
-        self.visit_declarator(&definition.declarator.node, &definition.declarator.span);
-        self.declaration_type(&definition.declarator.node, span.start);
+        self.declaration_specifiers(&definition.specifiers, arena);
+        self.visit_declarator(
+            &definition.declarator.node,
+            &definition.declarator.span,
+            arena,
+        );
+        self.declaration_type(&definition.declarator.node, span.start, arena);
     }
 }
 
@@ -403,6 +472,7 @@ impl<'ast> Visit<'ast> for Scanner<'_> {
 pub(crate) fn discover(
     unit: &TranslationUnit,
     syntax: &ast::TranslationUnit,
+    arena: &lang_c::arena::Arena,
 ) -> Result<Option<Box<TagDiscoveries>>, Error> {
     let mut scanner = Scanner {
         unit,
@@ -460,7 +530,7 @@ pub(crate) fn discover(
             .collect(),
         remaining_type_work: 1_000_000,
     };
-    scanner.visit_translation_unit(syntax);
+    scanner.visit_translation_unit(syntax, arena);
     if let Some(error) = scanner.error {
         return Err(error);
     }

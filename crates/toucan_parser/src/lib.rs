@@ -15,12 +15,18 @@
 extern crate rustc_hash;
 extern crate toucan_stack;
 
+#[macro_use]
+mod schema;
+
+pub mod arena;
 pub mod ast;
 pub mod driver;
 pub mod limits;
 pub mod loc;
 pub mod print;
+pub mod raw;
 pub mod span;
+pub mod view;
 pub mod visit;
 
 mod astutil;
@@ -28,6 +34,7 @@ mod env;
 mod measure;
 mod parser;
 mod strings;
+mod structural;
 
 #[cfg(test)]
 mod tests;

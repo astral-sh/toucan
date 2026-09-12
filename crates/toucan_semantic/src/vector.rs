@@ -7,7 +7,7 @@ use crate::analyze::Analyzer;
 use crate::floating::ArithmeticValue;
 use crate::{Error, FloatKind, IntegerKind, Qualifiers, Type, TypeKind};
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Converts corresponding lanes numerically; the written destination keeps
     /// its qualifiers and alignment until an enclosing value conversion.
     pub(crate) fn convert_vector_type(
@@ -355,7 +355,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// GNU shuffle masks select lanes modulo the concatenated input length.
     /// Every argument is evaluated once, with ordinary unspecified argument order.
     pub(crate) fn shuffle_call_type(
@@ -422,7 +422,7 @@ pub(crate) struct ShuffleVectorSignature {
     pub(crate) indices: Option<Vec<crate::checked::ShuffleLane>>,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn shuffle_vector_signature(
         &mut self,
         call: &Node<ast::CallExpression>,

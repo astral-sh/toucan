@@ -37,7 +37,7 @@ pub(crate) struct Operand {
     pub(crate) offset: usize,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn asm_statement(
         &mut self,
         statement: &Node<ast::AsmStatement>,

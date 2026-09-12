@@ -337,7 +337,7 @@ fn decode_body(
     Ok(())
 }
 
-impl crate::analyze::Analyzer {
+impl<'ast> crate::analyze::Analyzer<'ast> {
     pub(crate) fn decode_string_literal(
         &self,
         literal: &lang_c::span::Node<lang_c::ast::StringLiteral>,

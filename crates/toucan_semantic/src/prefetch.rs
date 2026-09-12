@@ -95,7 +95,7 @@ impl crate::expression::ExpressionInfo {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn prefetch_call_type(
         &mut self,
         call: &Node<ast::CallExpression>,

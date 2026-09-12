@@ -172,7 +172,7 @@ fn charge_type(ty: &Type, bytes: &mut usize, depth: usize, offset: usize) -> Res
     Ok(())
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Summarize a checked file object before its parsed declaration is dropped.
     pub(crate) fn retain_object_value(
         &mut self,
@@ -217,7 +217,8 @@ impl Analyzer {
             .map(|initializer| self.object_string_literal(&ty, initializer))
             .transpose()?
             .flatten();
-        let integer_literal_fallback = initializer.is_some_and(integer_literal_initializer);
+        let integer_literal_fallback = initializer
+            .is_some_and(|initializer| integer_literal_initializer(initializer, self.arena));
         self.object_values
             .as_mut()
             .expect("object retention enabled")
@@ -238,7 +239,7 @@ impl Analyzer {
     }
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Retain only a direct byte-string initializer; Clang leaves other expressions as objects.
     fn object_string_literal(
         &mut self,
@@ -252,7 +253,7 @@ impl Analyzer {
             return Ok(None);
         };
         // Parentheses are elided from the AST node kind but remain in its extent.
-        if expression.span.start != literal.span.start {
+        if expression.span.start != literal.get(self.arena).span.start {
             return Ok(None);
         }
         let element = match &self.unit.resolve(ty)?.kind {
@@ -269,7 +270,7 @@ impl Analyzer {
         ) {
             return Ok(None);
         }
-        let tokens = &literal.node;
+        let tokens = &literal.get(self.arena).node;
         // For byte encodings, decoded storage cannot exceed source spelling plus NUL.
         // Charge before the decoder and retained byte buffer allocate.
         let bytes = tokens
@@ -285,7 +286,8 @@ impl Analyzer {
             .as_mut()
             .expect("object retention enabled")
             .charge_literal(bytes, expression.span.start)?;
-        let decoded = self.decode_string_literal(literal, expression.span.start)?;
+        let decoded =
+            self.decode_string_literal((literal).get(self.arena), expression.span.start)?;
         if !matches!(
             decoded.encoding,
             crate::StringEncoding::Ordinary | crate::StringEncoding::Utf8
@@ -302,11 +304,14 @@ impl Analyzer {
 }
 
 /// Clang's integer-literal fallback visits unary/literal cursors, not cast or binary nodes.
-fn integer_literal_initializer(initializer: &Node<ast::Initializer>) -> bool {
+fn integer_literal_initializer(
+    initializer: &Node<ast::Initializer>,
+    arena: &lang_c::arena::Arena,
+) -> bool {
     match &initializer.node {
         ast::Initializer::Expression(expression) => {
             matches!(&expression.node,
-            ast::Expression::Constant(constant) if matches!(constant.node, ast::Constant::Integer(_)))
+            ast::Expression::Constant(constant) if matches!(constant.get(arena).node, ast::Constant::Integer(_)))
                 || matches!(expression.node, ast::Expression::UnaryOperator(_))
         }
         ast::Initializer::List(_) => false,

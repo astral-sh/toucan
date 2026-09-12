@@ -31,13 +31,17 @@ fn inherited_typedefs_keep_original_spans_and_can_be_shadowed() {
         assert_ne!(name, "Unused");
         name == "T"
     })
-    .unwrap();
+    .unwrap()
+    .into_raw();
     assert_eq!(parsed.source, source);
     assert_eq!(parsed.expression.span, Span::span(2, source.len() - 2));
     let Expression::BinaryOperator(binary) = parsed.expression.node else {
         panic!("binary expression")
     };
-    assert!(matches!(binary.node.lhs.node, Expression::Cast(_)));
+    assert!(matches!(
+        binary.get(&parsed.arena).node.lhs.node,
+        Expression::Cast(_)
+    ));
     // Postfix increment requires the local identifier; `(T)++` cannot be a cast.
     parse_expression(&config, "({ int T; (T)++; })".into(), |name| name == "T").unwrap();
     // Each query starts with a fresh environment.
@@ -59,12 +63,9 @@ fn expression_limits_cover_typedef_lookup_and_parsing() {
         max_cache_bytes: stats.cache_bytes,
         max_metadata_entries: stats.maximum_metadata_entries,
     };
-    assert_eq!(
-        parse_expression_with_limits(&config, source.into(), |name| name == "T", exact)
-            .unwrap()
-            .expression,
-        parsed.expression
-    );
+    let replay =
+        parse_expression_with_limits(&config, source.into(), |name| name == "T", exact).unwrap();
+    assert!(parsed.ast().structural_eq(replay.ast()));
     for (kind, limits) in [
         (
             ResourceKind::InputBytes,

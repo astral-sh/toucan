@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::Expression;
 use toucan_parser::driver::{parse_preprocessed, Config};
 use toucan_parser::span::Span;
@@ -9,13 +11,18 @@ use toucan_parser::visit::{self, Visit};
 struct SizeOfOperands(Vec<bool>);
 
 impl<'ast> Visit<'ast> for SizeOfOperands {
-    fn visit_expression(&mut self, expression: &'ast Expression, span: &'ast Span) {
+    fn visit_expression(
+        &mut self,
+        expression: &'ast Expression,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         match expression {
             Expression::SizeOfTy(_) => self.0.push(true),
             Expression::SizeOfVal(_) => self.0.push(false),
             _ => {}
         }
-        visit::visit_expression(self, expression, span);
+        visit::visit_expression(self, expression, span, arena);
     }
 }
 
@@ -30,7 +37,7 @@ fn names_shadow_typedefs_after_trailing_attributes() {
         ] {
             let parsed = parse_preprocessed(&config, source.into()).unwrap();
             let mut operands = SizeOfOperands::default();
-            operands.visit_translation_unit(&parsed.unit);
+            parsed.ast().visit(&mut operands);
             assert_eq!(operands.0, [true, false], "{}", source);
         }
     }
@@ -44,7 +51,7 @@ fn typedefs_and_inferred_names_keep_their_existing_scope_boundaries() {
     ] {
         let parsed = parse_preprocessed(&Config::with_gcc(), source.into()).unwrap();
         let mut operands = SizeOfOperands::default();
-        operands.visit_translation_unit(&parsed.unit);
+        parsed.ast().visit(&mut operands);
         assert_eq!(operands.0, [true], "{}", source);
     }
     assert!(parse_preprocessed(

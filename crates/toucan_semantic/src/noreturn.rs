@@ -13,7 +13,7 @@ pub(crate) struct Registry {
     bindings: usize,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// A lexical promise, not a whole-program proof that a call cannot return.
     pub(crate) fn visible_noreturn(&self, name: &str) -> bool {
         self.noreturn_registry.as_ref().is_some_and(|registry| {

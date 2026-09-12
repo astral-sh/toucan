@@ -81,7 +81,7 @@ pub(crate) struct SyncSignature {
     pub(crate) value: Option<Type>,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     pub(crate) fn gnu_sync_profile(&self) -> bool {
         self.unit.compiler == toucan_target::Compiler::Gnu
     }

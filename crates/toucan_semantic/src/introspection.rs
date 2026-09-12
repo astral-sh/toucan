@@ -5,7 +5,7 @@ use lang_c::{ast, span::Node};
 use crate::analyze::Analyzer;
 use crate::{Error, IntegerValue, Type, TypeKind};
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Resolves the condition and checks the discarded arm once per source site.
     /// The caller checks the selected arm, preserving its original value category.
     pub(crate) fn choose_expression<'a>(

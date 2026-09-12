@@ -8,7 +8,7 @@ use crate::{
     SymbolBinding, Type, TypeKind,
 };
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Installs the equivalent of `extern int name()` in the innermost scope.
     /// Parenthesized names are not eligible, and an existing local name shadows
     /// an external function just as it does for an explicit declaration.
@@ -22,7 +22,7 @@ impl Analyzer {
         let ast::Expression::Identifier(identifier) = &call.node.callee.node else {
             return Ok(());
         };
-        if identifier.span.start != call.span.start {
+        if identifier.get(self.arena).span.start != call.span.start {
             return Ok(());
         }
         let Some(name) = self.builtin_name(call) else {

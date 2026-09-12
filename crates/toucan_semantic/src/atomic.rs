@@ -147,7 +147,7 @@ pub(crate) struct AtomicSignature {
     pub(crate) conversions: [Conversion; 6],
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Computes the same overloaded source signature for checking and retention.
     pub(crate) fn atomic_signature(
         &mut self,

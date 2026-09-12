@@ -23,6 +23,8 @@ serde.workspace = true
 serde_json.workspace = true
 toucan_bindgen = { path = "../toucan_bindgen" }
 toucan_parser = { path = "../toucan_parser" }
+toucan_semantic = { path = "../toucan_semantic" }
+toucan_target = { path = "../toucan_target" }
 
 [[bench]]
 name = "bindings"
@@ -30,6 +32,10 @@ harness = false
 
 [[bench]]
 name = "parser"
+harness = false
+
+[[bench]]
+name = "semantic"
 harness = false
 
 [lints]

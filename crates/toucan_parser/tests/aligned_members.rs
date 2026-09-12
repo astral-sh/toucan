@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::SpecifierQualifier;
 use toucan_parser::driver::{parse_preprocessed, parse_preprocessed_with_limits, Config, Flavor};
 use toucan_parser::limits::{ParseLimits, ResourceKind};
@@ -10,11 +12,16 @@ use toucan_parser::visit::{self, Visit};
 #[derive(Default)]
 struct Alignments(Vec<Span>);
 impl<'ast> Visit<'ast> for Alignments {
-    fn visit_specifier_qualifier(&mut self, qualifier: &'ast SpecifierQualifier, span: &'ast Span) {
+    fn visit_specifier_qualifier(
+        &mut self,
+        qualifier: &'ast SpecifierQualifier,
+        span: &'ast Span,
+        arena: &'ast Arena,
+    ) {
         if let SpecifierQualifier::Alignment(_) = qualifier {
             self.0.push(*span);
         }
-        visit::visit_specifier_qualifier(self, qualifier, span);
+        visit::visit_specifier_qualifier(self, qualifier, span, arena);
     }
 }
 
@@ -30,13 +37,13 @@ fn alignment_operands_remain_visible_to_visitors_printers_and_limits() {
         };
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
         let mut alignments = Alignments::default();
-        alignments.visit_translation_unit(&parsed.unit);
+        parsed.ast().visit(&mut alignments);
         assert_eq!(alignments.0.len(), 3);
         for span in alignments.0 {
             assert!(source[span.start..span.end].starts_with("_Alignas("));
         }
         let mut printed = String::new();
-        Printer::new(&mut printed).visit_translation_unit(&parsed.unit);
+        parsed.ast().visit(&mut Printer::new(&mut printed));
         assert_eq!(printed.matches("AlignmentSpecifier").count(), 3);
         let error = parse_preprocessed_with_limits(
             &config,

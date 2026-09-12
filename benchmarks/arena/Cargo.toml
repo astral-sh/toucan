@@ -1,0 +1,25 @@
+[package]
+name = "toucan-arena-benchmark"
+version = "0.0.0"
+edition = "2024"
+rust-version = "1.96"
+publish = false
+license = "MIT OR Apache-2.0"
+
+[workspace]
+
+[features]
+allocation-counting = []
+full-arena = []
+
+[dependencies]
+lang_c_reference = { package = "lang-c", version = "=0.15.1" }
+serde_json = "1"
+toucan_benchmark = { path = "../../crates/toucan_benchmark" }
+toucan_parser = { path = "../../crates/toucan_parser" }
+toucan_semantic = { path = "../../crates/toucan_semantic" }
+toucan_target = { path = "../../crates/toucan_target" }
+
+[profile.release]
+lto = "fat"
+codegen-units = 1

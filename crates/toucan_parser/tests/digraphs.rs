@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::{BinaryOperator, BinaryOperatorExpression, Statement};
 use toucan_parser::driver::{parse, parse_preprocessed, Config, Flavor, Standard};
 use toucan_parser::print::Printer;
@@ -23,7 +25,7 @@ fn digraphs_parse_like_brackets_and_braces() {
                 let parsed = parse_preprocessed(&config, source.into()).unwrap();
                 assert_eq!(parsed.source, source);
                 let mut printed = String::new();
-                Printer::new(&mut printed).visit_translation_unit(&parsed.unit);
+                parsed.ast().visit(&mut Printer::new(&mut printed));
                 printed
             });
             assert_eq!(printed[0], printed[1]);
@@ -44,24 +46,30 @@ fn digraph_spans_retain_the_written_delimiters() {
             &mut self,
             expression: &'ast BinaryOperatorExpression,
             span: &'ast Span,
+            arena: &'ast Arena,
         ) {
             if expression.operator.node == BinaryOperator::Index {
                 self.index = Some(*span);
                 self.index_operator = Some(expression.operator.span);
             }
-            visit::visit_binary_operator_expression(self, expression, span);
+            visit::visit_binary_operator_expression(self, expression, span, arena);
         }
 
-        fn visit_statement(&mut self, statement: &'ast Statement, span: &'ast Span) {
+        fn visit_statement(
+            &mut self,
+            statement: &'ast Statement,
+            span: &'ast Span,
+            arena: &'ast Arena,
+        ) {
             if matches!(statement, Statement::Compound(_)) {
                 self.compound = Some(*span);
             }
-            visit::visit_statement(self, statement, span);
+            visit::visit_statement(self, statement, span, arena);
         }
     }
     let parsed = parse_preprocessed(&Config::with_gcc(), SOURCE.into()).unwrap();
     let mut spans = Spans::default();
-    spans.visit_translation_unit(&parsed.unit);
+    parsed.ast().visit(&mut spans);
     let index = spans.index.unwrap();
     let index_operator = spans.index_operator.unwrap();
     let compound = spans.compound.unwrap();
@@ -89,7 +97,7 @@ fn digraphs_require_adjacent_characters_and_leave_literals_unchanged() {
     )
     .unwrap();
     let mut printed = String::new();
-    Printer::new(&mut printed).visit_translation_unit(&parsed.unit);
+    parsed.ast().visit(&mut Printer::new(&mut printed));
     assert!(printed.contains("<: :> <% %>"));
 }
 
@@ -123,6 +131,6 @@ fn native_preprocessors_preserve_digraphs_for_the_parser() {
         );
         let parsed = parsed.unwrap_or_else(|error| panic!("{}: {}", compiler, error));
         assert!(parsed.source.contains("values<:2:>"));
-        assert_eq!(parsed.unit.0.len(), 2);
+        assert_eq!(parsed.ast().inner().len(), 2);
     }
 }

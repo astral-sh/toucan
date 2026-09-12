@@ -12,7 +12,7 @@ pub(crate) struct FunctionEffects {
     noreturn: Option<Span>,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Merges function declarations without giving the attribute to pointer types.
     pub(crate) fn check_returns_twice(
         &mut self,

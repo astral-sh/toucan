@@ -116,15 +116,24 @@ mod tests {
         let source = "__inline__ int f(void);";
         let parsed =
             lang_c::driver::parse_preprocessed(&lang_c::driver::Config::default(), source.into())
-                .unwrap();
+                .unwrap()
+                .into_raw();
         for resource in ["node", "edge", "payload byte"] {
-            let mut analyzer =
-                Analyzer::from_unit(crate::analyze("", Target::X86_64UnknownLinuxGnu).unwrap());
+            let mut analyzer = Analyzer::from_unit(
+                crate::analyze("", Target::X86_64UnknownLinuxGnu).unwrap(),
+                &parsed.arena,
+            );
             analyzer
                 .prepare_inline_definitions(&parsed.unit, source)
                 .unwrap();
             analyzer.checked = Some(Box::new(
-                Builder::new(&parsed.unit, source.len(), super::super::Limits::default()).unwrap(),
+                Builder::new(
+                    &parsed.unit,
+                    source.len(),
+                    super::super::Limits::default(),
+                    &parsed.arena,
+                )
+                .unwrap(),
             ));
             let ast::ExternalDeclaration::Declaration(declaration) = &parsed.unit.0[0].node else {
                 panic!("declaration")

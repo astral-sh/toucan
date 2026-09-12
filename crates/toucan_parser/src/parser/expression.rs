@@ -26,7 +26,8 @@ impl Parser<'_, '_> {
                 break;
             }
         }
-        self.node(Expression::Comma(Box::new(expressions)), start)
+        let expressions = self.alloc(expressions)?;
+        self.node(Expression::Comma(expressions), start)
     }
 
     pub(super) fn assignment_expression(&mut self) -> PResult<Node<Expression>> {
@@ -67,20 +68,21 @@ impl Parser<'_, '_> {
         let then_expression = if self.at(":") && self.env.extensions_gnu {
             None
         } else {
-            Some(Box::new(self.nested(|parser| parser.expression())?))
+            Some(self.nested(|parser| parser.expression())?)
         };
         self.expect(":")?;
-        let else_expression = Box::new(self.nested(|parser| parser.conditional_expression())?);
+        let else_expression = self.nested(|parser| parser.conditional_expression())?;
         let conditional = self.node(
             ConditionalExpression {
-                condition: Box::new(condition.expression),
+                condition: condition.expression,
                 then_expression,
                 else_expression,
             },
             start,
         )?;
+        let conditional = self.alloc(conditional)?;
         Ok(Operand {
-            expression: self.node(Expression::Conditional(Box::new(conditional)), start)?,
+            expression: self.node(Expression::Conditional(conditional), start)?,
             unary: false,
         })
     }
@@ -111,15 +113,9 @@ impl Parser<'_, '_> {
         rhs: Node<Expression>,
     ) -> PResult<Node<Expression>> {
         let span = Span::span(lhs.span.start, rhs.span.end);
-        let expression = self.node_span(
-            BinaryOperatorExpression {
-                operator,
-                lhs: Box::new(lhs),
-                rhs: Box::new(rhs),
-            },
-            span,
-        )?;
-        self.node_span(Expression::BinaryOperator(Box::new(expression)), span)
+        let expression = self.node_span(BinaryOperatorExpression { operator, lhs, rhs }, span)?;
+        let expression = self.alloc(expression)?;
+        self.node_span(Expression::BinaryOperator(expression), span)
     }
 
     /// Use token lookahead to distinguish casts from parenthesized expressions.
@@ -157,7 +153,7 @@ impl Parser<'_, '_> {
                 unary: true,
             });
         }
-        let expression = Box::new(self.nested(|parser| parser.cast_expression())?.expression);
+        let expression = self.nested(|parser| parser.cast_expression())?.expression;
         let cast = self.node(
             CastExpression {
                 type_name,
@@ -165,8 +161,9 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
+        let cast = self.alloc(cast)?;
         Ok(Operand {
-            expression: self.node(Expression::Cast(Box::new(cast)), start)?,
+            expression: self.node(Expression::Cast(cast), start)?,
             unary: false,
         })
     }
@@ -240,14 +237,9 @@ impl Parser<'_, '_> {
                     parser.cast_expression().map(|operand| operand.expression)
                 }
             })?;
-            let expression = self.node(
-                UnaryOperatorExpression {
-                    operator,
-                    operand: Box::new(operand),
-                },
-                start,
-            )?;
-            return self.node(Expression::UnaryOperator(Box::new(expression)), start);
+            let expression = self.node(UnaryOperatorExpression { operator, operand }, start)?;
+            let expression = self.alloc(expression)?;
+            return self.node(Expression::UnaryOperator(expression), start);
         }
         if self.at("__extension__") && self.env.extensions_gnu {
             self.bump()?;
@@ -293,7 +285,8 @@ impl Parser<'_, '_> {
                     let name = self.text().to_owned();
                     self.bump()?;
                     let identifier = self.node(Identifier { name }, start)?;
-                    return self.node(Expression::Identifier(Box::new(identifier)), start);
+                    let identifier = self.alloc(identifier)?;
+                    return self.node(Expression::Identifier(identifier), start);
                 }
                 _ => {}
             }
@@ -306,10 +299,19 @@ impl Parser<'_, '_> {
         let expression = match self.token().kind {
             TokenKind::Number | TokenKind::Character => {
                 let constant = self.constant()?;
-                Expression::Constant(Box::new(self.node(constant, start)?))
+                Expression::Constant({
+                    let value = self.node(constant, start)?;
+                    self.alloc(value)?
+                })
             }
-            TokenKind::String => Expression::StringLiteral(Box::new(self.string_literal()?)),
-            TokenKind::Identifier => Expression::Identifier(Box::new(self.identifier()?)),
+            TokenKind::String => Expression::StringLiteral({
+                let value = self.string_literal()?;
+                self.alloc(value)?
+            }),
+            TokenKind::Identifier => Expression::Identifier({
+                let value = self.identifier()?;
+                self.alloc(value)?
+            }),
             _ => return self.fail("expression"),
         };
         self.node(expression, start)
@@ -330,14 +332,16 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
-        self.node(Expression::CompoundLiteral(Box::new(literal)), start)
+        let literal = self.alloc(literal)?;
+        self.node(Expression::CompoundLiteral(literal), start)
     }
 
     fn parenthesized_primary(&mut self, start: usize) -> PResult<Node<Expression>> {
         if self.at("{") && self.env.extensions_gnu {
             let statement = self.nested(|parser| parser.compound_statement())?;
             self.expect(")")?;
-            return self.node(Expression::Statement(Box::new(statement)), start);
+            let statement = self.alloc(statement)?;
+            return self.node(Expression::Statement(statement), start);
         }
         let expression = self.nested(|parser| parser.expression())?;
         self.expect(")")?;
@@ -359,12 +363,13 @@ impl Parser<'_, '_> {
                 let binary = self.node_span(
                     BinaryOperatorExpression {
                         operator,
-                        lhs: Box::new(expression),
-                        rhs: Box::new(rhs),
+                        lhs: expression,
+                        rhs,
                     },
                     span,
                 )?;
-                expression = self.node_span(Expression::BinaryOperator(Box::new(binary)), span)?;
+                let binary = self.alloc(binary)?;
+                expression = self.node_span(Expression::BinaryOperator(binary), span)?;
             } else if self.eat("(")? {
                 let mut arguments = Vec::new();
                 if !self.at(")") {
@@ -378,12 +383,13 @@ impl Parser<'_, '_> {
                 self.expect(")")?;
                 let call = self.node(
                     CallExpression {
-                        callee: Box::new(expression),
+                        callee: expression,
                         arguments,
                     },
                     start,
                 )?;
-                expression = self.node(Expression::Call(Box::new(call)), start)?;
+                let call = self.alloc(call)?;
+                expression = self.node(Expression::Call(call), start)?;
             } else if self.at(".") || self.at("->") {
                 let operator = if self.at(".") {
                     MemberOperator::Direct
@@ -396,12 +402,13 @@ impl Parser<'_, '_> {
                 let member = self.node(
                     MemberExpression {
                         operator,
-                        expression: Box::new(expression),
+                        expression,
                         identifier,
                     },
                     start,
                 )?;
-                expression = self.node(Expression::Member(Box::new(member)), start)?;
+                let member = self.alloc(member)?;
+                expression = self.node(Expression::Member(member), start)?;
             } else if self.at("++") || self.at("--") {
                 let operator = if self.at("++") {
                     UnaryOperator::PostIncrement
@@ -413,11 +420,12 @@ impl Parser<'_, '_> {
                 let unary = self.node(
                     UnaryOperatorExpression {
                         operator,
-                        operand: Box::new(expression),
+                        operand: expression,
                     },
                     start,
                 )?;
-                expression = self.node(Expression::UnaryOperator(Box::new(unary)), start)?;
+                let unary = self.alloc(unary)?;
+                expression = self.node(Expression::UnaryOperator(unary), start)?;
             } else {
                 return Ok(expression);
             }
@@ -435,20 +443,24 @@ impl Parser<'_, '_> {
                 if self.at("{") {
                     let expression = self.compound_literal(opening, type_name)?;
                     let expression = self.postfix_tail(expression)?;
-                    let value = self.node(SizeOfVal(Box::new(expression)), start)?;
-                    return self.node(Expression::SizeOfVal(Box::new(value)), start);
+                    let value = self.node(SizeOfVal(expression), start)?;
+                    let value = self.alloc(value)?;
+                    return self.node(Expression::SizeOfVal(value), start);
                 }
                 let value = self.node(SizeOfTy(type_name), start)?;
-                return self.node(Expression::SizeOfTy(Box::new(value)), start);
+                let value = self.alloc(value)?;
+                return self.node(Expression::SizeOfTy(value), start);
             }
             let expression = self.parenthesized_primary(opening)?;
             let expression = self.postfix_tail(expression)?;
-            let value = self.node(SizeOfVal(Box::new(expression)), start)?;
-            return self.node(Expression::SizeOfVal(Box::new(value)), start);
+            let value = self.node(SizeOfVal(expression), start)?;
+            let value = self.alloc(value)?;
+            return self.node(Expression::SizeOfVal(value), start);
         }
         let expression = self.nested(|parser| parser.unary_expression())?;
-        let value = self.node(SizeOfVal(Box::new(expression)), start)?;
-        self.node(Expression::SizeOfVal(Box::new(value)), start)
+        let value = self.node(SizeOfVal(expression), start)?;
+        let value = self.alloc(value)?;
+        self.node(Expression::SizeOfVal(value), start)
     }
 
     fn alignof_expression(&mut self) -> PResult<Node<Expression>> {
@@ -466,39 +478,38 @@ impl Parser<'_, '_> {
                 self.expect(")")?;
                 if self.at("{") {
                     let expression = self.compound_literal(opening, type_name)?;
-                    AlignOfOperand::Expression(Box::new(self.postfix_tail(expression)?))
+                    AlignOfOperand::Expression(self.postfix_tail(expression)?)
                 } else {
-                    AlignOfOperand::TypeName(Box::new(type_name))
+                    AlignOfOperand::TypeName(self.alloc(type_name)?)
                 }
             } else {
                 let expression = self.parenthesized_primary(opening)?;
-                AlignOfOperand::Expression(Box::new(self.postfix_tail(expression)?))
+                AlignOfOperand::Expression(self.postfix_tail(expression)?)
             }
         } else {
-            AlignOfOperand::Expression(Box::new(self.nested(|parser| parser.unary_expression())?))
+            AlignOfOperand::Expression(self.nested(|parser| parser.unary_expression())?)
         };
         let alignof = self.node(AlignOf { kind, operand }, start)?;
-        self.node(Expression::AlignOf(Box::new(alignof)), start)
+        let alignof = self.alloc(alignof)?;
+        self.node(Expression::AlignOf(alignof), start)
     }
 
     fn generic_selection(&mut self) -> PResult<Node<Expression>> {
         let start = self.position();
         self.expect("_Generic")?;
         self.expect("(")?;
-        let expression = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let expression = self.nested(|parser| parser.assignment_expression())?;
         self.expect(",")?;
         let mut associations = Vec::new();
         loop {
             let association_start = self.position();
             let association = if self.eat("default")? {
                 self.expect(":")?;
-                GenericAssociation::Default(Box::new(
-                    self.nested(|parser| parser.assignment_expression())?,
-                ))
+                GenericAssociation::Default(self.nested(|parser| parser.assignment_expression())?)
             } else {
                 let type_name = self.nested(|parser| parser.type_name())?;
                 self.expect(":")?;
-                let expression = Box::new(self.nested(|parser| parser.assignment_expression())?);
+                let expression = self.nested(|parser| parser.assignment_expression())?;
                 GenericAssociation::Type(self.node(
                     GenericAssociationType {
                         type_name,
@@ -520,7 +531,8 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
-        self.node(Expression::GenericSelection(Box::new(generic)), start)
+        let generic = self.alloc(generic)?;
+        self.node(Expression::GenericSelection(generic), start)
     }
 
     fn types_compatible_expression(&mut self) -> PResult<Node<Expression>> {
@@ -532,18 +544,19 @@ impl Parser<'_, '_> {
         let right = self.nested(|parser| parser.type_name())?;
         self.expect(")")?;
         let expression = self.node(TypesCompatibleExpression { left, right }, start)?;
-        self.node(Expression::TypesCompatible(Box::new(expression)), start)
+        let expression = self.alloc(expression)?;
+        self.node(Expression::TypesCompatible(expression), start)
     }
 
     fn choose_expression(&mut self) -> PResult<Node<Expression>> {
         let start = self.position();
         self.bump()?;
         self.expect("(")?;
-        let condition = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let condition = self.nested(|parser| parser.assignment_expression())?;
         self.expect(",")?;
-        let then_expression = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let then_expression = self.nested(|parser| parser.assignment_expression())?;
         self.expect(",")?;
-        let else_expression = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let else_expression = self.nested(|parser| parser.assignment_expression())?;
         self.expect(")")?;
         let expression = self.node(
             ChooseExpression {
@@ -553,14 +566,15 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
-        self.node(Expression::Choose(Box::new(expression)), start)
+        let expression = self.alloc(expression)?;
+        self.node(Expression::Choose(expression), start)
     }
 
     fn convertvector_expression(&mut self) -> PResult<Node<Expression>> {
         let start = self.position();
         self.bump()?;
         self.expect("(")?;
-        let expression = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let expression = self.nested(|parser| parser.assignment_expression())?;
         self.expect(",")?;
         let type_name = self.nested(|parser| parser.type_name())?;
         self.expect(")")?;
@@ -571,19 +585,21 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
-        self.node(Expression::ConvertVector(Box::new(expression)), start)
+        let expression = self.alloc(expression)?;
+        self.node(Expression::ConvertVector(expression), start)
     }
 
     fn va_arg_expression(&mut self) -> PResult<Node<Expression>> {
         let start = self.position();
         self.bump()?;
         self.expect("(")?;
-        let va_list = Box::new(self.nested(|parser| parser.assignment_expression())?);
+        let va_list = self.nested(|parser| parser.assignment_expression())?;
         self.expect(",")?;
         let type_name = self.nested(|parser| parser.type_name())?;
         self.expect(")")?;
         let expression = self.node(VaArgExpression { va_list, type_name }, start)?;
-        self.node(Expression::VaArg(Box::new(expression)), start)
+        let expression = self.alloc(expression)?;
+        self.node(Expression::VaArg(expression), start)
     }
 
     fn offsetof_expression(&mut self) -> PResult<Node<Expression>> {
@@ -619,7 +635,8 @@ impl Parser<'_, '_> {
             },
             start,
         )?;
-        self.node(Expression::OffsetOf(Box::new(expression)), start)
+        let expression = self.alloc(expression)?;
+        self.node(Expression::OffsetOf(expression), start)
     }
 
     pub(super) fn constant(&mut self) -> PResult<Constant> {

@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::TypeQualifier;
 use toucan_parser::driver::{parse_preprocessed, Config, Flavor};
 use toucan_parser::span::Span;
@@ -9,7 +11,12 @@ use toucan_parser::visit::Visit;
 struct ConstQualifiers(usize);
 
 impl<'ast> Visit<'ast> for ConstQualifiers {
-    fn visit_type_qualifier(&mut self, qualifier: &'ast TypeQualifier, _: &'ast Span) {
+    fn visit_type_qualifier(
+        &mut self,
+        qualifier: &'ast TypeQualifier,
+        _: &'ast Span,
+        _arena: &'ast Arena,
+    ) {
         if *qualifier == TypeQualifier::Const {
             self.0 += 1;
         }
@@ -22,7 +29,7 @@ fn double_underscore_const_is_a_qualifier_in_declarations_and_types() {
     for config in [Config::with_gcc(), Config::with_clang()] {
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
         let mut qualifiers = ConstQualifiers::default();
-        qualifiers.visit_translation_unit(&parsed.unit);
+        parsed.ast().visit(&mut qualifiers);
         assert_eq!(qualifiers.0, 4);
     }
 }

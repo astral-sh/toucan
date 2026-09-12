@@ -16,6 +16,7 @@ type Names = BTreeSet<String>;
 /// Pointer-valued results do not preserve libclang's adjusted parameter sugar.
 pub(crate) fn type_expression_identifier(
     expression: &lang_c::span::Node<lang_c::ast::Expression>,
+    arena: &lang_c::arena::Arena,
 ) -> Option<usize> {
     let mut expression = expression;
     for _ in 0..128 {
@@ -23,10 +24,11 @@ pub(crate) fn type_expression_identifier(
             lang_c::ast::Expression::Identifier(_) => return Some(expression.span.start),
             lang_c::ast::Expression::UnaryOperator(unary)
                 if matches!(
-                    unary.node.operator.node,
+                    unary.get(arena).node.operator.node,
                     lang_c::ast::UnaryOperator::Indirection | lang_c::ast::UnaryOperator::Address
                 ) =>
             {
+                let unary = unary.get(arena);
                 expression = &unary.node.operand;
             }
             _ => return None,

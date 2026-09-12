@@ -89,7 +89,7 @@ pub(crate) struct OverflowSignature {
     signed: bool,
 }
 
-impl Analyzer {
+impl<'ast> Analyzer<'ast> {
     /// Shared by source checking and retained argument conversions.
     pub(crate) fn overflow_signature(
         &mut self,
@@ -303,6 +303,7 @@ impl Analyzer {
                 )
             }
             ast::Expression::Cast(cast) => {
+                let cast = cast.get(self.arena);
                 let ty = self.type_name(&cast.node.type_name.node)?;
                 if self.unit.is_variably_modified(&ty)? {
                     None
@@ -311,6 +312,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::SizeOfTy(size) => {
+                let size = size.get(self.arena);
                 let ty = self.type_name(&size.node.0.node)?;
                 if self.unit.is_variable_length_array(&ty)? {
                     None
@@ -319,6 +321,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::SizeOfVal(size) => {
+                let size = size.get(self.arena);
                 let ty = self.expression_type(&size.node.0)?;
                 if self.unit.is_variable_length_array(&ty)? {
                     None
@@ -326,24 +329,28 @@ impl Analyzer {
                     Some(false)
                 }
             }
-            ast::Expression::UnaryOperator(unary) => match unary.node.operator.node {
-                U::PreIncrement | U::PreDecrement | U::PostIncrement | U::PostDecrement => {
-                    Some(true)
+            ast::Expression::UnaryOperator(unary) => {
+                let unary = unary.get(self.arena);
+                match unary.node.operator.node {
+                    U::PreIncrement | U::PreDecrement | U::PostIncrement | U::PostDecrement => {
+                        Some(true)
+                    }
+                    U::Indirection => {
+                        let ty = self.expression_type(expression)?;
+                        combine(
+                            Some(
+                                self.unit.qualifiers(&ty)?.is_volatile
+                                    || self.unit.atomic_value(&ty)?.is_some(),
+                            ),
+                            recurse(self, &unary.node.operand)?,
+                        )
+                    }
+                    U::Address => self.overflow_place_effects(&unary.node.operand, depth + 1)?,
+                    _ => recurse(self, &unary.node.operand)?,
                 }
-                U::Indirection => {
-                    let ty = self.expression_type(expression)?;
-                    combine(
-                        Some(
-                            self.unit.qualifiers(&ty)?.is_volatile
-                                || self.unit.atomic_value(&ty)?.is_some(),
-                        ),
-                        recurse(self, &unary.node.operand)?,
-                    )
-                }
-                U::Address => self.overflow_place_effects(&unary.node.operand, depth + 1)?,
-                _ => recurse(self, &unary.node.operand)?,
-            },
+            }
             ast::Expression::Member(member) => {
+                let member = member.get(self.arena);
                 let ty = self.expression_type(expression)?;
                 combine(
                     Some(
@@ -358,6 +365,7 @@ impl Analyzer {
                 )
             }
             ast::Expression::BinaryOperator(binary) => {
+                let binary = binary.get(self.arena);
                 let operator = &binary.node.operator.node;
                 if matches!(
                     operator,
@@ -401,6 +409,7 @@ impl Analyzer {
                 }
             }
             ast::Expression::Conditional(conditional) => {
+                let conditional = conditional.get(self.arena);
                 let condition = recurse(self, &conditional.node.condition)?;
                 let branches = if let Ok(value) = self.eval_arithmetic(&conditional.node.condition)
                 {
@@ -424,14 +433,17 @@ impl Analyzer {
                 combine(condition, branches)
             }
             ast::Expression::Choose(selection) => {
+                let selection = selection.get(self.arena);
                 let selected = self.checked_choose_expression(selection)?;
                 recurse(self, selected)?
             }
             ast::Expression::ConvertVector(conversion) => {
+                let conversion = conversion.get(self.arena);
                 recurse(self, &conversion.node.expression)?
             }
             ast::Expression::TypesCompatible(_) => Some(false),
             ast::Expression::GenericSelection(selection) => {
+                let selection = selection.get(self.arena);
                 let index = self
                     .generic_selections
                     .get(&(selection.span.start, selection.span.end))
@@ -449,6 +461,7 @@ impl Analyzer {
                 recurse(self, selected)?
             }
             ast::Expression::Comma(expressions) => {
+                let expressions = expressions.get(self.arena);
                 let mut effects = Some(false);
                 for value in expressions.iter() {
                     effects = combine(effects, recurse(self, value)?);
@@ -456,6 +469,7 @@ impl Analyzer {
                 effects
             }
             ast::Expression::Call(call) => {
+                let call = call.get(self.arena);
                 let name = self.builtin_name(call);
                 if matches!(
                     name,
@@ -503,6 +517,7 @@ impl Analyzer {
         match &expression.node {
             ast::Expression::Identifier(_) => Ok(Some(false)),
             ast::Expression::Member(member) => {
+                let member = member.get(self.arena);
                 if member.node.operator.node == ast::MemberOperator::Indirect {
                     self.overflow_discarded_effects(&member.node.expression, depth + 1)
                 } else {
@@ -510,16 +525,18 @@ impl Analyzer {
                 }
             }
             ast::Expression::BinaryOperator(binary)
-                if binary.node.operator.node == ast::BinaryOperator::Index =>
+                if binary.get(self.arena).node.operator.node == ast::BinaryOperator::Index =>
             {
+                let binary = binary.get(self.arena);
                 Ok(combine(
                     self.overflow_discarded_effects(&binary.node.lhs, depth + 1)?,
                     self.overflow_discarded_effects(&binary.node.rhs, depth + 1)?,
                 ))
             }
             ast::Expression::UnaryOperator(unary)
-                if unary.node.operator.node == ast::UnaryOperator::Indirection =>
+                if unary.get(self.arena).node.operator.node == ast::UnaryOperator::Indirection =>
             {
+                let unary = unary.get(self.arena);
                 self.overflow_discarded_effects(&unary.node.operand, depth + 1)
             }
             _ => self.overflow_discarded_effects(expression, depth + 1),

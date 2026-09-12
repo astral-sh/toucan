@@ -1,5 +1,7 @@
 extern crate toucan_parser;
 
+use toucan_parser::arena::Arena;
+
 use toucan_parser::ast::{AlignOf, AlignOfKind, AlignOfOperand};
 use toucan_parser::driver::{parse_preprocessed, parse_preprocessed_with_limits, Config, Flavor};
 use toucan_parser::limits::ParseLimits;
@@ -9,13 +11,13 @@ use toucan_parser::visit::{self, Visit};
 #[derive(Default)]
 struct Queries(Vec<(AlignOfKind, bool, Span)>);
 impl<'ast> Visit<'ast> for Queries {
-    fn visit_alignof(&mut self, query: &'ast AlignOf, span: &'ast Span) {
+    fn visit_alignof(&mut self, query: &'ast AlignOf, span: &'ast Span, arena: &'ast Arena) {
         self.0.push((
             query.kind,
             matches!(query.operand, AlignOfOperand::TypeName(_)),
             *span,
         ));
-        visit::visit_alignof(self, query, span);
+        visit::visit_alignof(self, query, span, arena);
     }
 }
 
@@ -29,7 +31,7 @@ fn query_spelling_and_typedef_ambiguity_preserve_the_operand_tree() {
         };
         let parsed = parse_preprocessed(&config, source.into()).unwrap();
         let mut queries = Queries::default();
-        queries.visit_translation_unit(&parsed.unit);
+        parsed.ast().visit(&mut queries);
         assert_eq!(
             queries
                 .0
